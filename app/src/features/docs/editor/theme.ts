@@ -65,6 +65,40 @@ export const docTheme = EditorView.theme({
   ".cm-code-last": { borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", paddingBottom: "6px !important" },
   ".cm-table": { fontFamily: mono, fontSize: "13px" },
   ".cm-frontmatter": { fontFamily: mono, fontSize: "13px", color: "var(--muted-foreground)" },
+
+  // Floating pieces drawn by the editor take the menu look: popover surface, 10px corners, soft shadow
+  ".cm-tooltip": { border: "none", backgroundColor: "transparent" },
+  ".cm-selection-menu": {
+    display: "flex",
+    gap: "2px",
+    padding: "3px",
+    marginBottom: "6px",
+    backgroundColor: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: "10px",
+    boxShadow: "0 2px 6px oklch(0.3 0.02 60 / 0.08), 0 12px 32px oklch(0.3 0.02 60 / 0.12)",
+    fontFamily: "var(--font-sans, inherit)",
+    fontSize: "13px",
+  },
+  ".cm-selection-menu button": { height: "28px", padding: "0 10px", borderRadius: "7px", color: "var(--foreground)", cursor: "default" },
+  ".cm-selection-menu button:hover": { backgroundColor: "var(--accent)" },
+
+  // An agent's proposed edit: removal is not an error, so it is struck through in the muted tone, not red
+  ".cm-suggest-del": { color: "var(--muted-foreground)", textDecoration: "line-through" },
+  ".cm-suggest-ins": { backgroundColor: "color-mix(in oklch, var(--success) 14%, transparent)", borderRadius: "3px", marginLeft: "0.25em" },
+  ".cm-suggest-bar": {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    margin: "2px 0 10px",
+    fontSize: "13px",
+    lineHeight: "1.4",
+    color: "var(--muted-foreground)",
+  },
+  ".cm-suggest-bar span": { flex: "1" },
+  ".cm-suggest-bar button": { height: "28px", padding: "0 10px", borderRadius: "8px", cursor: "default" },
+  ".cm-suggest-discard:hover": { backgroundColor: "var(--accent)", color: "var(--foreground)" },
+  ".cm-suggest-apply": { backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: "500" },
 })
 
 export const docHighlight = syntaxHighlighting(

@@ -65,11 +65,11 @@ function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart[] {
       if (last?.type === "thought") return [...parts.slice(0, -1), { ...last, text: last.text + u.text }]
       return [...parts, { type: "thought", text: u.text }]
     case "tool_call":
-      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations }]
+      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff }]
     case "tool_call_update":
       return parts.map((p) =>
         p.type === "tool_call" && p.toolCallId === u.toolCallId
-          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations }
+          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations, diff: u.diff ?? p.diff }
           : p,
       )
     case "plan": {
@@ -169,6 +169,8 @@ export const useChatStore = create<ChatState>()(
           parts: [{ type: "text", text: input.text }],
           mentions: input.mentions,
           attachments: input.attachments,
+          context: input.context,
+          selection: input.selection,
         }
         const assistantMsg: ChatMessage = {
           id: crypto.randomUUID(),

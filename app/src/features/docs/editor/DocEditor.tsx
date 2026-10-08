@@ -4,13 +4,39 @@ import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirro
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
-import { docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
+import { useAgentWindow } from "@/features/agent/store"
+import { useChatStore } from "@/features/chat/store"
+import { registerEditor } from "../fs"
+import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
 import type { WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
+import { selectionMenu, type SelectionAction } from "./selection-menu"
+import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
 import { Highlight } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
+
+// Apply and Discard answer the agent's permission request with its allow-once or reject-once option
+function respondToEdit(edit: PendingEdit, apply: boolean) {
+  const chat = useChatStore.getState().chats[edit.chatId]
+  const part = chat?.messages.at(-1)?.parts.find((p) => p.type === "permission" && p.requestId === edit.requestId)
+  if (part?.type !== "permission") return
+  const option = part.options.find((o) => o.kind === (apply ? "allow_once" : "reject_once")) ?? part.options.find((o) => o.kind.startsWith(apply ? "allow" : "reject"))
+  if (option) useChatStore.getState().respondPermission(edit.chatId, edit.requestId, option.optionId)
+}
+
+// A selected passage goes to the agent window: Ask waits for the question, the others send at once
+function runSelection(fileId: string, action: SelectionAction, text: string) {
+  const file = useDocsStore.getState().files[fileId]
+  if (!file) return
+  const source = docMentionable(file)
+  const win = useAgentWindow.getState()
+  if (action === "ask") return win.open({ text, source })
+  useAgentWindow.setState({ selection: { text, source } })
+  const ask = action === "rewrite" ? "Rewrite this passage." : "Find support for this passage."
+  win.send({ text: ask, mentions: [], attachments: [] }, win.hiddenContext === source.uri ? [] : [source])
+}
 
 const SAVE_DELAY = 300
 
@@ -60,6 +86,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
           }),
           mentionPopup((query) => docMentionItems(query, id)),
+          selectionMenu((action, text) => runSelection(id, action, text)),
+          agentSuggestions(respondToEdit),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
@@ -77,10 +105,25 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       if (saved) view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: "center" }) })
     }
 
+    // Agent writes to this doc go through the editor; edits the agent proposes for it are drawn in place
+    const unregister = registerEditor(id, view)
+    let shown: PendingEdit[] = []
+    const syncEdits = () => {
+      const path = useDocsStore.getState().files[id]?.path
+      const edits = path ? pendingEdits(useChatStore.getState().chats, path) : []
+      if (edits.length === shown.length && edits.every((e, i) => e.requestId === shown[i].requestId)) return
+      shown = edits
+      view.dispatch({ effects: setPendingEdits.of(edits) })
+    }
+    syncEdits()
+    const unsubscribe = useChatStore.subscribe(syncEdits)
+
     window.addEventListener("beforeunload", flush)
     return () => {
       window.removeEventListener("beforeunload", flush)
       flush()
+      unsubscribe()
+      unregister()
       view.destroy()
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it
       setTimeout(() => {

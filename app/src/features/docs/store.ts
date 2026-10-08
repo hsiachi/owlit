@@ -27,6 +27,8 @@ interface DocsState {
   folders: string[]
 
   createDoc: (folder: string) => WorkspaceFile
+  // A doc written whole at a chosen path (an agent creating a file); null if the path is taken
+  createDocAt: (path: string, content: string) => WorkspaceFile | null
   // Saves the text; while the file was never renamed by hand, its name follows the first line
   writeDoc: (id: string, content: string) => void
   renameFile: (id: string, name: string) => void
@@ -67,6 +69,15 @@ export const useDocsStore = create<DocsState>()(
         const file: WorkspaceFile = { id: newId(), path, content: "", createdAt: t, modifiedAt: t }
         set((s) => ({ files: { ...s.files, [file.id]: file } }))
         freshDocIds.add(file.id)
+        return file
+      },
+
+      createDocAt: (path, content) => {
+        const { files, folders } = get()
+        if (!isMarkdown(path) || pathTaken(files, folders)(path)) return null
+        const t = Date.now()
+        const file: WorkspaceFile = { id: newId(), path, content, createdAt: t, modifiedAt: t, nameLocked: true }
+        set((s) => ({ files: { ...s.files, [file.id]: file } }))
         return file
       },
 

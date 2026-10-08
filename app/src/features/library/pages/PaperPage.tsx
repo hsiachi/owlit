@@ -22,6 +22,7 @@ import { PdfReader } from "../reader/PdfReader"
 import { libraryClient, useLibraryStore } from "../store"
 import type { Highlight, Paper } from "../types"
 import { useUiStore } from "../ui-store"
+import { useAgentWindow } from "@/features/agent/store"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -42,8 +43,17 @@ export function PaperPage() {
   const navigate = useNavigate()
   const paper = useLibraryStore((s) => s.papers[paperId])
   const markOpened = useLibraryStore((s) => s.markOpened)
-  const panelOpen = usePrefsStore((s) => s.panelOpen)
+  const prefersPanel = usePrefsStore((s) => s.panelOpen)
   const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
+  // The right side holds one panel at a time: a docked agent window takes the details panel's place
+  const agentDocked = useAgentWindow((s) => s.stage === "open")
+  const panelOpen = prefersPanel && !agentDocked
+  const togglePanel = () => {
+    if (agentDocked) {
+      useAgentWindow.getState().close()
+      setPanelOpen(true)
+    } else setPanelOpen(!prefersPanel)
+  }
 
   // Previous / next walk All papers as it is currently filtered and sorted
   const papers = useLibraryStore((s) => s.papers)
@@ -100,14 +110,14 @@ export function PaperPage() {
         <IconButton label="Next paper" disabled={!nextId} onClick={() => go(nextId)}>
           <ChevronDownIcon />
         </IconButton>
-        <IconButton label={panelOpen ? "Hide details" : "Show details"} pressed={panelOpen} onClick={() => setPanelOpen(!panelOpen)}>
+        <IconButton label={panelOpen ? "Hide details" : "Show details"} pressed={panelOpen} onClick={togglePanel}>
           <PanelRightIcon />
         </IconButton>
       </header>
 
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
-        <main className={cn("flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", panelOpen && "rounded-tr-lg")}>
+        <main className={cn("flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
           {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf paper={paper} />}
         </main>
         {panelOpen && (

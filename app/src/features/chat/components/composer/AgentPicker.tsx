@@ -152,12 +152,13 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <PickerButton aria-label="Choose model and effort">
-              {/* All three triggers share one tone; a dot separates the model from its effort */}
+              {/* All three triggers share one tone; a dot separates the model from its effort. In a narrow
+                  composer (the agent window) the effort stays in the menu only. */}
               <span className="max-w-32 truncate">{model?.name}</span>
               {effort && (
                 <>
-                  <span aria-hidden className="opacity-50">·</span>
-                  <span className="max-w-24 truncate">{effort.name}</span>
+                  <span aria-hidden className="opacity-50 @max-md:hidden">·</span>
+                  <span className="max-w-24 truncate @max-md:hidden">{effort.name}</span>
                 </>
               )}
             </PickerButton>
@@ -191,7 +192,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
           <DropdownMenuTrigger asChild>
             <PickerButton aria-label="Choose permission mode">
               <ShieldIcon className="size-3.5" />
-              <span className="max-w-32 truncate">{mode?.name}</span>
+              <span className="max-w-32 truncate @max-md:hidden">{mode?.name}</span>
             </PickerButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">

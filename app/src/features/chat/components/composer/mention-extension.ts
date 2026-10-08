@@ -3,7 +3,8 @@ import { ReactNodeViewRenderer, ReactRenderer } from "@tiptap/react"
 import type { Editor } from "@tiptap/core"
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion"
 import type { Mentionable, SourceKind } from "../../types"
-import { searchMentionables } from "../../mocks/sources"
+// The same items as @ in a doc: Library papers, workspace docs, knowledge
+import { docMentionItems } from "@/features/docs/lib/mentions"
 import { MentionChip } from "./MentionChip"
 import { MentionList, type MentionListHandle } from "./MentionList"
 
@@ -39,7 +40,7 @@ export const WorkspaceMention = Mention.extend({
   suggestion: {
     char: "@",
     allowSpaces: false,
-    items: ({ query }: { query: string }) => searchMentionables(query),
+    items: ({ query }: { query: string }) => docMentionItems(query),
     render: () => {
       let component: ReactRenderer<MentionListHandle, SuggestionProps<Mentionable, MentionAttrs>> | null = null
       let unmount: (() => void) | undefined

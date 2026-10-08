@@ -1,0 +1,72 @@
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
+import { useChatStore } from "@/features/chat/store"
+import type { Mentionable, PromptInput, QuotedSelection } from "@/features/chat/types"
+
+// The app-wide agent window. It is closed, a small ask bar, or a panel docked on the right. Its
+// conversations are ordinary chats; the window only remembers which one it is showing.
+export type AgentStage = "closed" | "bar" | "open"
+
+interface AgentWindowState {
+  stage: AgentStage
+  chatId: string | null
+  // A passage sent with the next message; used once
+  selection: QuotedSelection | null
+  // The page chip the user removed, by uri; it comes back on another page
+  hiddenContext: string | null
+  // The list panel shown again by hand while the panel is docked
+  listShown: boolean
+  // Bumped to put the cursor in the window's input
+  focusTick: number
+
+  // Opens the window: the ask bar for a new conversation, the panel when one is going
+  open: (selection?: QuotedSelection) => void
+  close: () => void
+  toggle: () => void
+  newChat: () => void
+  showChat: (chatId: string) => void
+  hideContext: (uri: string) => void
+  clearSelection: () => void
+  setListShown: (shown: boolean) => void
+  // Sends from the window, starting a chat if there is none; the panel takes over from the bar
+  send: (input: PromptInput, context: Mentionable[]) => void
+}
+
+const hasMessages = (chatId: string | null) => !!chatId && (useChatStore.getState().chats[chatId]?.messages.length ?? 0) > 0
+
+export const useAgentWindow = create<AgentWindowState>()(
+  persist(
+    (set, get) => ({
+      stage: "closed",
+      chatId: null,
+      selection: null,
+      hiddenContext: null,
+      listShown: false,
+      focusTick: 0,
+
+      open: (selection) =>
+        set((s) => ({
+          stage: s.stage === "open" || hasMessages(s.chatId) ? "open" : "bar",
+          selection: selection ?? s.selection,
+          focusTick: s.focusTick + 1,
+        })),
+      close: () => set({ stage: "closed", listShown: false }),
+      toggle: () => (get().stage === "closed" ? get().open() : get().close()),
+      newChat: () => set((s) => ({ chatId: null, stage: "bar", selection: null, hiddenContext: null, focusTick: s.focusTick + 1 })),
+      showChat: (chatId) => set((s) => ({ chatId, stage: "open", focusTick: s.focusTick + 1 })),
+      hideContext: (uri) => set({ hiddenContext: uri }),
+      clearSelection: () => set({ selection: null }),
+      setListShown: (listShown) => set({ listShown }),
+
+      send: (input, context) => {
+        const chats = useChatStore.getState()
+        const { chatId, selection } = get()
+        const chat = chatId && chats.chats[chatId] ? chats.chats[chatId] : chats.createChat()
+        set({ chatId: chat.id, stage: "open", selection: null })
+        void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
+      },
+    }),
+    // Only the conversation is kept, so ⌘J after a reload picks it up again; the window starts closed
+    { name: "owlit-agent-window", partialize: (s) => ({ chatId: s.chatId }) },
+  ),
+)

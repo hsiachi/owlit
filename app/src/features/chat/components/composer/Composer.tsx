@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Kbd } from "@/components/ui/kbd"
-import { allMentionables } from "../../mocks/sources"
+import { docMentionItems } from "@/features/docs/lib/mentions"
 import { useUiStore } from "../../ui-store"
 import type { AttachmentFile, Mentionable, PromptInput, SourceKind } from "../../types"
 import { sourceKindLabel } from "../source-icons"
@@ -38,6 +38,8 @@ interface ComposerProps {
   autoFocus?: boolean
   placeholder?: string
   className?: string
+  // Shown above the input, e.g. the agent window's context chips
+  header?: React.ReactNode
 }
 
 // Enter submits, Shift+Enter inserts a line break. Runs before the core keymap
@@ -66,7 +68,7 @@ function extract(editor: Editor): { text: string; mentions: Mentionable[] } {
     let line = ""
     block.descendants((node) => {
       if (node.type.name === "mention") {
-        const m = allMentionables.find((x) => x.id === node.attrs.id)
+        const m = docMentionItems("").find((x) => x.id === node.attrs.id && (!node.attrs.kind || x.kind === node.attrs.kind))
         if (m && !mentions.some((x) => x.id === m.id)) mentions.push(m)
         line += `@[${node.attrs.label}]`
       } else if (node.isText) {
@@ -92,7 +94,7 @@ function toAttachment(file: File): AttachmentFile {
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { chatId, onSubmit, streaming = false, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className },
+  { chatId, onSubmit, streaming = false, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className, header },
   ref,
 ) {
   const [files, setFiles] = useState<AttachmentFile[]>([])
@@ -192,7 +194,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   return (
     <div
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-foreground/20 focus-within:shadow-md",
+        "@container relative flex w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-foreground/20 focus-within:shadow-md",
         dragging && "border-ring ring-2 ring-ring/30",
         className,
       )}
@@ -223,6 +225,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <span className="shrink-0 font-medium text-foreground">Set up</span>
         </button>
       )}
+
+      {header && <div className="flex flex-wrap gap-1 px-2.5 pt-2.5">{header}</div>}
 
       {files.length > 0 && (
         <div className="px-3 pt-3">

@@ -1,6 +1,7 @@
-import type { Connector, Mentionable, PermissionKind, SessionUpdate, StopReason } from "../types"
+import { useLibraryStore } from "@/features/library/store"
+import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
-import type { AgentClient, PromptRequest } from "./client"
+import { getWorkspaceFs, type AgentClient, type PromptRequest } from "./client"
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -47,13 +48,26 @@ export class MockAgentClient implements AgentClient {
     emit: (u: SessionUpdate) => void,
     signal: AbortSignal,
   ): Promise<StopReason> {
-    const { text, mentions, attachments } = req.input
+    const { text, mentions, attachments, context = [], selection } = req.input
     const mode = req.modeId ?? ""
+    // What the agent reads first: everything mentioned, plus what was on screen
+    const sources = [...mentions, ...context.filter((c) => !mentions.some((m) => m.uri === c.uri))]
     try {
-      await this.stream(emit, signal, thoughtFor(text, mentions), "agent_thought_chunk", 18)
+      await this.stream(emit, signal, thoughtFor(text, sources, selection), "agent_thought_chunk", 18)
 
       await sleep(300, signal)
-      for (const m of mentions) await this.readTool(emit, signal, m)
+      for (const m of sources) await this.readTool(emit, signal, m)
+
+      // Asked from a doc about a passage: rewrite it in place, or find papers behind it
+      if (selection?.source.kind === "doc") {
+        if (WANTS_REWRITE.test(text)) return await this.proposeEdit(emit, signal, selection, mode)
+        if (WANTS_SUPPORT.test(text)) return await this.findSupport(emit, signal, selection)
+      }
+      if (selection || context.length) {
+        await sleep(300, signal)
+        await this.stream(emit, signal, contextAnswer(text, sources, selection), "agent_message_chunk", 14)
+        return "end_turn"
+      }
 
       for (const a of attachments) {
         const id = `tc-${crypto.randomUUID()}`
@@ -107,6 +121,62 @@ export class MockAgentClient implements AgentClient {
       if (isAbort(e)) return "cancelled"
       throw e
     }
+  }
+
+  // An edit to the doc the passage came from: shown as a diff, written only once allowed
+  private async proposeEdit(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection, mode: string): Promise<StopReason> {
+    const fs = getWorkspaceFs()
+    const path = docPath(selection.source.uri)
+    const before = path && fs ? await fs.readTextFile(path) : null
+    const rewritten = rewriteOf(selection.text)
+    await sleep(300, signal)
+    if (!path || !fs || before === null || !before.includes(selection.text)) {
+      await this.stream(emit, signal, "I couldn't find that passage in the doc any more, so I left it alone. Select it again and I'll take another look.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    if (!rewritten) {
+      await this.stream(emit, signal, "This already reads tight; I'd leave it as it is.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+
+    await this.stream(emit, signal, rewritten.why + "\n\n", "agent_message_chunk", 14)
+    const title = selection.source.title
+    const toolCallId = `tc-${crypto.randomUUID()}`
+    const diff = { path, oldText: before, newText: before.replace(selection.text, rewritten.text) }
+    emit({ type: "tool_call", toolCallId, title: `Edit ${title}`, kind: "edit", status: "pending", locations: [{ path }], diff })
+    let outcome: PermissionKind = "allow_once"
+    if (!AUTO_MODES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
+    if (outcome.startsWith("reject")) {
+      emit({ type: "tool_call_update", toolCallId, status: "failed", content: "Edit rejected by the user." })
+      await this.stream(emit, signal, "Left the doc as it was.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    emit({ type: "tool_call_update", toolCallId, status: "in_progress" })
+    await sleep(300, signal)
+    // Read again before writing: the user may have kept typing while the edit waited
+    const now = await fs.readTextFile(path)
+    if (now === null || !now.includes(selection.text)) {
+      emit({ type: "tool_call_update", toolCallId, status: "failed", content: "The passage changed before the edit could be applied." })
+      return "end_turn"
+    }
+    await fs.writeTextFile(path, now.replace(selection.text, rewritten.text))
+    emit({ type: "tool_call_update", toolCallId, status: "completed", content: `Replaced 1 passage in ${path}` })
+    return "end_turn"
+  }
+
+  private async findSupport(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection): Promise<StopReason> {
+    const id = `tc-${crypto.randomUUID()}`
+    emit({ type: "tool_call", toolCallId: id, title: "Searching the Library", kind: "search", status: "in_progress" })
+    await sleep(900, signal)
+    const papers = relatedPapers(selection.text)
+    emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: `${papers.length} papers bear on the passage.` })
+    await sleep(300, signal)
+    const lines = papers.map((p) => `- [${p.cite}](owlit://library/${p.id}) · ${p.title}. ${p.reason}`)
+    const answer = papers.length
+      ? `These papers in your Library bear on the passage:\n\n${lines.join("\n")}\n\nNone of them settles the claim on its own; cite them for the parts they cover.`
+      : "Nothing in your Library speaks to this passage directly. A search beyond the Library would be the next step."
+    await this.stream(emit, signal, answer, "agent_message_chunk", 14)
+    return "end_turn"
   }
 
   private async readTool(emit: (u: SessionUpdate) => void, signal: AbortSignal, m: Mentionable) {
@@ -177,7 +247,70 @@ function formatBytes(n: number) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
-function thoughtFor(text: string, mentions: Mentionable[]) {
+const WANTS_REWRITE = /\b(rewrite|tighten|shorten|narrow|rephrase|fix|edit|improve)\b/i
+const WANTS_SUPPORT = /\b(support|evidence|cite|citations?|sources?|back up)\b/i
+
+// owlit://docs/writing/Related%20work.md → "writing/Related work.md"
+function docPath(uri: string) {
+  const m = /^owlit:\/\/docs\/(.+)$/.exec(uri)
+  return m ? m[1].split("/").map(decodeURIComponent).join("/") : null
+}
+
+// A canned rewrite for the seed draft's overclaim; elsewhere, plain tightening
+function rewriteOf(text: string): { text: string; why: string } | null {
+  const trail = /\s*$/.exec(text)?.[0] ?? ""
+  const body = text.slice(0, text.length - trail.length)
+  if (/no work has compared learned tool calls with retrieval/i.test(body))
+    return {
+      text: "Among the studies we have read, none compares learned tool calls with retrieval on the same tasks; [Schick et al. 2023](owlit://library/p6) come closest but evaluate one tool at a time." + trail,
+      why: "The sentence claims more than a reading list can show. I narrowed it to what you've read and named the closest work, so a reviewer can check it.",
+    }
+  const tightened = body
+    .replace(/\bin order to\b/gi, "to")
+    .replace(/\bdue to the fact that\b/gi, "because")
+    .replace(/\ba number of\b/gi, "several")
+    .replace(/\bis able to\b/gi, "can")
+    .replace(/\b(very|really|quite|basically|actually|just) /gi, "")
+    .replace(/\s{2,}/g, " ")
+  return tightened !== body ? { text: tightened + trail, why: "I cut the words that weren't carrying meaning." } : null
+}
+
+const STOPWORDS = new Set(
+  "about above after again against also among because been before being both could does doing down during each from further have having here into itself just more most much must only other over same should since some such than that their them then there these they this those through under until very were what when where which while will with would your already".split(" "),
+)
+
+// Library papers that share the passage's words, best first
+function relatedPapers(text: string) {
+  const words = new Set((text.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter((w) => !STOPWORDS.has(w)))
+  const lastName = (a: string) => a.trim().split(/\s+/).pop() ?? a
+  return Object.values(useLibraryStore.getState().papers)
+    .map((p) => {
+      const hay = `${p.title} ${p.abstract ?? ""}`.toLowerCase()
+      const shared = [...words].filter((w) => hay.includes(w))
+      return { p, shared }
+    })
+    .filter((x) => x.shared.length > 0)
+    .sort((a, b) => b.shared.length - a.shared.length)
+    .slice(0, 3)
+    .map(({ p, shared }) => ({
+      id: p.id,
+      title: p.title,
+      cite: `${p.authors.length > 2 ? `${lastName(p.authors[0])} et al.` : p.authors.map(lastName).join(" and ")} ${p.year ?? ""}`.trim(),
+      reason: `It also deals with ${shared.slice(0, 2).join(" and ")}.`,
+    }))
+}
+
+function contextAnswer(text: string, sources: Mentionable[], selection?: QuotedSelection) {
+  const where = selection ? `the passage you selected in [${selection.source.title}](${selection.source.uri})` : sources[0] ? `[${sources[0].title}](${sources[0].uri})` : "what's on screen"
+  return `Reading ${where} with your question in mind ("${text.slice(0, 60)}${text.length > 60 ? "…" : ""}"):
+
+The point rests on one step that isn't argued yet. Saying why that step holds, or citing the work that shows it, would make the rest follow.
+
+Ask me to rewrite the passage or find support for it, and I'll do it in place.`
+}
+
+function thoughtFor(text: string, mentions: Mentionable[], selection?: QuotedSelection) {
+  if (selection) return `The user selected a passage in "${selection.source.title}" and asked: "${text.slice(0, 80)}". I'll read the doc around it first.`
   const what = mentions.length
     ? `The user referenced ${mentions.length} item${mentions.length > 1 ? "s" : ""} from the workspace, so I should read ${mentions.length > 1 ? "them" : "it"} before answering.`
     : "No workspace items were referenced, so I'll answer from the request itself and check the Library if it helps."

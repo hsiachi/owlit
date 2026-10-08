@@ -3,7 +3,7 @@ import type { Mentionable } from "@/features/chat/types"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 import { useDocsStore } from "../store"
-import { displayName, isMarkdown, parentPath } from "../types"
+import { displayName, isMarkdown, parentPath, type WorkspaceFile } from "../types"
 
 // What a mention says in prose. A paper is cited the way a writer would: "Vaswani et al. 2017".
 export interface DocMention extends Mentionable {
@@ -19,6 +19,23 @@ export function shortCite(paper: Pick<Paper, "authors" | "year">) {
 }
 
 export const docUri = (path: string) => `owlit://docs/${path.split("/").map(encodeURIComponent).join("/")}`
+
+// A doc or paper as something the agent can be pointed at
+export const docMentionable = (file: WorkspaceFile): Mentionable => ({
+  id: file.id,
+  kind: "doc",
+  title: displayName(file.path),
+  subtitle: parentPath(file.path) || undefined,
+  uri: docUri(file.path),
+})
+
+export const paperMentionable = (paper: Paper): Mentionable => ({
+  id: paper.id,
+  kind: "paper",
+  title: paper.title,
+  subtitle: shortCite(paper).replace(/ (\d{4})$/, " · $1"),
+  uri: `owlit://library/${paper.id}`,
+})
 
 // Everything @ can point to from a doc, minus the doc itself
 export function docMentionItems(query: string, selfId?: string): DocMention[] {

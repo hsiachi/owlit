@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { CheckIcon, CopyIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
@@ -81,6 +81,12 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
   return (
     <Message align="end" className="text-[15px]">
       <MessageContent className="items-end">
+        {/* The passage it was sent with: one quiet quoted line, not a card */}
+        {message.selection && (
+          <p className="max-w-[85%] truncate border-r-2 pr-2 text-[13px] text-muted-foreground" title={message.selection.text}>
+            “{message.selection.text.replace(/\s+/g, " ").trim()}”
+          </p>
+        )}
         {message.attachments && message.attachments.length > 0 && <AttachmentList files={message.attachments} size="xs" />}
         <Bubble variant="secondary" align="end">
           <BubbleContent className="whitespace-pre-wrap">{renderWithMentions(text, message.mentions)}</BubbleContent>
@@ -108,11 +114,14 @@ export function AssistantMessage({
   modelName,
   onRespondPermission,
   onRegenerate,
+  onSaveAsDoc,
 }: {
   message: ChatMessage
   modelName?: string
   onRespondPermission: (requestId: string, optionId: string) => void
   onRegenerate?: () => void
+  // Keeps the answer's text as a doc
+  onSaveAsDoc?: (markdown: string) => void
 }) {
   const streaming = message.status === "streaming"
   const last = message.parts[message.parts.length - 1]
@@ -152,6 +161,16 @@ export function AssistantMessage({
           </span>
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             {text && <CopyButton text={text} />}
+            {text && onSaveAsDoc && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-xs" aria-label="Save as doc" onClick={() => onSaveAsDoc(text)}>
+                    <FilePlusIcon />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save as doc</TooltipContent>
+              </Tooltip>
+            )}
             {onRegenerate && (
               <Tooltip>
                 <TooltipTrigger asChild>

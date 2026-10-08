@@ -41,6 +41,21 @@ export interface ToolLocation {
   line?: number
 }
 
+// ACP "diff" tool call content: a file's whole text before and after an edit
+export interface FileDiff {
+  // Workspace-relative path, e.g. "writing/Related work.md"
+  path: string
+  oldText: string
+  newText: string
+}
+
+// A passage the user selected and sent along with a message
+export interface QuotedSelection {
+  text: string
+  // The doc or paper it came from
+  source: Mentionable
+}
+
 export interface PlanEntry {
   content: string
   priority: "high" | "medium" | "low"
@@ -66,6 +81,7 @@ export type MessagePart =
       status: ToolStatus
       content?: string
       locations?: ToolLocation[]
+      diff?: FileDiff
     }
   | { type: "plan"; entries: PlanEntry[] }
   | {
@@ -87,6 +103,8 @@ export interface ChatMessage {
   parts: MessagePart[]
   attachments?: AttachmentFile[]
   mentions?: Mentionable[]
+  context?: Mentionable[]
+  selection?: QuotedSelection
   createdAt: number
   status?: MessageStatus
   // Connector and model that produced an assistant message
@@ -170,6 +188,7 @@ export type SessionUpdate =
       status: ToolStatus
       content?: string
       locations?: ToolLocation[]
+      diff?: FileDiff
     }
   | {
       type: "tool_call_update"
@@ -178,6 +197,7 @@ export type SessionUpdate =
       title?: string
       content?: string
       locations?: ToolLocation[]
+      diff?: FileDiff
     }
   | { type: "plan"; entries: PlanEntry[] }
   | {
@@ -196,4 +216,7 @@ export interface PromptInput {
   text: string
   mentions: Mentionable[]
   attachments: AttachmentFile[]
+  // What is on screen when asking from the agent window (the open doc or paper)
+  context?: Mentionable[]
+  selection?: QuotedSelection
 }

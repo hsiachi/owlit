@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { Navigate, useParams } from "react-router-dom"
+import { Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -9,6 +9,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { MessageGroup } from "@/components/ui/message"
+import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
 import type { PromptInput } from "../types"
 import { Composer, type ComposerHandle } from "./composer/Composer"
@@ -24,6 +25,7 @@ export function ChatView() {
   const cancel = useChatStore((s) => s.cancel)
   const respondPermission = useChatStore((s) => s.respondPermission)
   const composer = useRef<ComposerHandle>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     composer.current?.focus()
@@ -63,6 +65,7 @@ export function ChatView() {
                         modelName={modelName(m.connectorId, m.modelId)}
                         onRespondPermission={(requestId, optionId) => respondPermission(chat.id, requestId, optionId)}
                         onRegenerate={!streaming ? () => regenerate(i) : undefined}
+                        onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
                       />
                     )}
                   </MessageScrollerItem>
