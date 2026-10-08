@@ -17,8 +17,9 @@ export function Shell() {
 
   return (
     <TooltipProvider>
-      {/* The top bar is as tall as the icon rail is wide; together they form the frame */}
-      <div className="[--header-height:2.5rem]">
+      {/* The top bar and icon rail form the frame. One gap sets the sheet's distance from the window's
+          right and bottom edges and the space around each 32px rail button, so the rail is 32px + 2 gaps. */}
+      <div className="[--frame-gap:4px] [--header-height:2.5rem] [--rail-width:calc(2rem+2*var(--frame-gap))]">
         <SidebarProvider
           className="h-svh flex-col bg-sidebar"
           open={hasPanel && panelOpen}
@@ -26,11 +27,12 @@ export function Shell() {
           style={
             {
               "--sidebar-width": "300px",
-              "--sidebar-width-icon": "var(--header-height)",
+              "--sidebar-width-icon": "var(--rail-width)",
             } as React.CSSProperties
           }
         >
-          <header className="flex h-(--header-height) shrink-0 items-center gap-0.5 px-1.5 text-muted-foreground">
+          {/* Padding of gap + 2px puts the first 28px button on the same centre line as the rail icons */}
+          <header className="flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground">
             <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)}>
               <ArrowLeft />
               <span className="sr-only">Back</span>
@@ -44,7 +46,7 @@ export function Shell() {
           <div className="flex min-h-0 flex-1">
             <AppSidebar />
             {/* Main area: right half of one rounded sheet shared with the list panel; the whole sheet when collapsed */}
-            <SidebarInset className="mr-2 mb-2 min-h-0 overflow-hidden rounded-r-xl border-y border-r md:peer-data-[state=collapsed]:ml-2 md:peer-data-[state=collapsed]:rounded-l-xl md:peer-data-[state=collapsed]:border-l">
+            <SidebarInset className="mr-(--frame-gap) mb-(--frame-gap) min-h-0 overflow-hidden rounded-r-lg border-y border-r md:peer-data-[state=collapsed]:rounded-l-lg md:peer-data-[state=collapsed]:border-l">
               <div className="flex min-h-0 flex-1 flex-col">
                 <Outlet />
               </div>

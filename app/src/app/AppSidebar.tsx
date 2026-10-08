@@ -20,14 +20,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar
       collapsible="icon"
-      className="top-(--header-height) h-[calc(100svh-var(--header-height))]! overflow-hidden pb-2 group-data-[side=left]:border-r-0 *:data-[sidebar=sidebar]:flex-row"
+      className="top-(--header-height) h-[calc(100svh-var(--header-height))]! overflow-hidden pb-(--frame-gap) group-data-[side=left]:border-r-0 *:data-[sidebar=sidebar]:flex-row"
       {...props}
     >
       {/* First column: the places, icons only; part of the frame with the top bar */}
       <Sidebar collapsible="none" className="w-(--sidebar-width-icon)!">
         <SidebarContent>
-          <SidebarGroup className="px-1">
-            <SidebarGroupContent className="px-1.5 md:px-0">
+          <SidebarGroup className="px-(--frame-gap)">
+            <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 {nav.map((item) => (
                   <SidebarMenuItem key={item.to}>
@@ -39,7 +39,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       }}
                       onClick={() => item.panel && setOpen(true)}
                       isActive={activeItem?.to === item.to}
-                      className="px-2.5 md:px-2 data-active:bg-background data-active:shadow-xs"
+                      className="px-2.5 md:px-2 data-active:bg-card data-active:shadow-xs dark:data-active:bg-card"
                     >
                       <NavLink to={item.to}>
                         <item.icon />
@@ -54,9 +54,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarContent>
       </Sidebar>
 
-      {/* Second column: the current place's list; left half of the sheet, lightly tinted and divided from the main area by its border */}
+      {/* Second column: the current place's list; left half of the sheet, lightly tinted and divided from the
+          main area by its border. Fixed width (not flex-1) so collapsing clips it instead of squeezing its
+          content, as in the official sidebar-09 block. */}
       {activeItem?.panel && (
-        <Sidebar collapsible="none" className="ml-2 hidden min-w-0 flex-1 rounded-l-xl border bg-sidebar-panel md:flex">
+        <Sidebar
+          collapsible="none"
+          className="hidden w-[calc(var(--sidebar-width)-var(--sidebar-width-icon))]! shrink-0 rounded-l-lg border border-r-[0.5px] bg-sidebar-panel md:flex"
+        >
           <activeItem.panel />
         </Sidebar>
       )}

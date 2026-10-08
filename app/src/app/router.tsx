@@ -1,6 +1,9 @@
 import { createBrowserRouter } from "react-router-dom"
 import { Shell } from "@/app/Shell"
 import { Placeholder } from "@/app/Placeholder"
+import { ChatLayout } from "@/features/chat/ChatLayout"
+import { ChatEmpty } from "@/features/chat/components/ChatEmpty"
+import { ChatView } from "@/features/chat/components/ChatView"
 import { LibraryLayout } from "@/features/library/LibraryLayout"
 import { LibraryPage } from "@/features/library/pages/LibraryPage"
 import { PaperPage } from "@/features/library/pages/PaperPage"
@@ -11,7 +14,14 @@ export const router = createBrowserRouter([
     element: <Shell />,
     children: [
       { index: true, element: <Placeholder name="Home" /> },
-      { path: "chat", element: <Placeholder name="Chat" /> },
+      {
+        path: "chat",
+        element: <ChatLayout />,
+        children: [
+          { index: true, element: <ChatEmpty /> },
+          { path: ":chatId", element: <ChatView /> },
+        ],
+      },
       { path: "docs", element: <Placeholder name="Docs" /> },
       { path: "knowledge", element: <Placeholder name="Knowledge" /> },
       {
