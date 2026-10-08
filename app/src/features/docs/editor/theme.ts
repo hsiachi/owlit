@@ -64,6 +64,22 @@ export const docTheme = EditorView.theme({
   ".cm-code-first": { borderTopLeftRadius: "10px", borderTopRightRadius: "10px", paddingTop: "6px !important" },
   ".cm-code-last": { borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", paddingBottom: "6px !important" },
   ".cm-table": { fontFamily: mono, fontSize: "13px" },
+  // A drawn table keeps the answer tables' ruled look; a little room above and below it
+  ".cm-block-table": { padding: "4px 0 8px", fontSize: "14px", cursor: "text" },
+  ".cm-block-table table": { margin: "0" },
+  ".cm-block-math": { padding: "6px 0", textAlign: "center", overflowX: "auto", cursor: "text" },
+  ".cm-math": { padding: "0 1px" },
+
+  // A callout is a quiet tinted box; its label is a plain word, the title medium weight
+  ".cm-callout": { backgroundColor: "var(--muted)", padding: "0 14px !important" },
+  ".cm-callout-first": { borderTopLeftRadius: "10px", borderTopRightRadius: "10px", paddingTop: "8px !important" },
+  ".cm-callout-last": { borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", paddingBottom: "8px !important" },
+  ".cm-callout-label": { fontSize: "13px", fontWeight: "500", color: "var(--muted-foreground)", marginRight: "8px" },
+  ".cm-callout-title": { fontWeight: "500" },
+
+  // A [[wikilink]] that names no doc reads as a quiet, dotted promise of one
+  ".cm-wikilink": { color: "var(--muted-foreground)", textDecoration: "underline dotted", textUnderlineOffset: "3px" },
+  ".cm-embed": { fontSize: "13px", color: "var(--muted-foreground)", backgroundColor: "var(--muted)", borderRadius: "6px", padding: "1px 6px" },
   ".cm-frontmatter": { fontFamily: mono, fontSize: "13px", color: "var(--muted-foreground)" },
 
   // Floating pieces drawn by the editor take the menu look: popover surface, 10px corners, soft shadow

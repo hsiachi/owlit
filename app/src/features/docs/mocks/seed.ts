@@ -84,6 +84,28 @@ const ideas = `# Ideas
 - Follow up on [Maybe retrieval and tool use are the same problem](owlit://docs/notes/Maybe%20retrieval%20and%20tool%20use%20are%20the%20same%20problem.md)
 `
 
+const evaluation = `# Evaluation plan
+
+> [!note] Scope
+> Questions whose answers change over time, so memory alone can't be right.
+
+| Setting | Tools | What we measure |
+| --- | --- | --- |
+| Baseline | none | accuracy |
+| Retrieval | search index | accuracy, calls per answer |
+| Learned calls | [Schick et al. 2023](owlit://library/p6) | accuracy, **unneeded** calls |
+
+The cost of a call is $c = t_{call} / t_{answer}$; a setting wins if it lowers error without pushing $c$ past 0.3.
+
+$$
+\\text{score} = \\text{accuracy} - \\lambda \\cdot \\text{unneeded calls}
+$$
+
+Background in [[Related work]] and [[Tool use reading notes|my reading notes]]. Sketch: ![[react-trace.png]]
+
+Budget: about $5 per run, $10 at most.
+`
+
 export const seedFiles: WorkspaceFile[] = [
   { id: "d1", path: "writing/Related work.md", content: relatedWork, createdAt: ago(9 * DAY), modifiedAt: ago(2 * HOUR), nameLocked: true },
   { id: "d2", path: "writing/Proposal draft.md", content: proposal, createdAt: ago(20 * DAY), modifiedAt: ago(3 * DAY), nameLocked: true },
@@ -92,6 +114,7 @@ export const seedFiles: WorkspaceFile[] = [
   { id: "d5", path: "notes/Maybe retrieval and tool use are the same problem.md", content: hunch, createdAt: ago(4 * DAY), modifiedAt: ago(4 * DAY) },
   { id: "d6", path: "notes/react-trace.png", createdAt: ago(7 * DAY), modifiedAt: ago(7 * DAY) },
   { id: "d7", path: "meetings/Advisor meeting 10-02.md", content: advisor, createdAt: ago(6 * DAY), modifiedAt: ago(6 * DAY), nameLocked: true },
+  { id: "d9", path: "experiments/Evaluation plan.md", content: evaluation, createdAt: ago(3 * DAY), modifiedAt: ago(5 * HOUR), nameLocked: true },
   { id: "d8", path: "Ideas.md", content: ideas, createdAt: ago(30 * DAY), modifiedAt: ago(10 * DAY), nameLocked: true },
 ]
 

@@ -10,14 +10,25 @@ import { useChatStore } from "@/features/chat/store"
 import { registerEditor } from "../fs"
 import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
-import type { AgentNote, WorkspaceFile } from "../types"
+import { displayName, isMarkdown, type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
 import { marginNotes, setNotes } from "./margin-notes"
 import { selectionMenu } from "./selection-menu"
 import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
-import { Highlight } from "./syntax"
+import { blockPreview } from "./block-preview"
+import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
+import "katex/dist/katex.min.css"
+
+// [[Name]] leads to the doc called Name (or at that path), wherever it is in the workspace
+function wikilinkRoute(name: string) {
+  const want = name.toLowerCase().replace(/\.md$/, "")
+  const file = Object.values(useDocsStore.getState().files).find(
+    (f) => isMarkdown(f.path) && (displayName(f.path).toLowerCase() === want || f.path.toLowerCase().replace(/\.md$/, "") === want),
+  )
+  return file ? `/docs/${file.id}` : null
+}
 
 // Apply and Discard answer the agent's permission request with its allow-once or reject-once option
 function respondToEdit(edit: PendingEdit, apply: boolean) {
@@ -73,7 +84,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
         extensions: [
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-          markdown({ base: markdownLanguage, extensions: [Highlight] }),
+          markdown({ base: markdownLanguage, extensions: [Highlight, Wikilinks, MathSyntax] }),
+          blockPreview,
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ spellcheck: "true", "aria-label": "Doc text" }),
           placeholder("Start writing"),
@@ -81,10 +93,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           docHighlight,
           livePreview({
             describe: mentionTitle,
+            wikilink: wikilinkRoute,
             onOpenMention: (uri) => {
               const to = mentionRoute(uri)
               if (to) navigateRef.current(to)
             },
+            onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup((query) => docMentionItems(query, id)),
           selectionMenu((text) => chatAbout(id, text)),

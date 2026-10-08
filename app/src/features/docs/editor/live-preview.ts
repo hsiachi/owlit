@@ -2,6 +2,7 @@ import { syntaxTree } from "@codemirror/language"
 import type { EditorState, Extension, Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view"
 import type { SyntaxNode } from "@lezer/common"
+import katex from "katex"
 import { frontmatterEnd } from "../lib/naming"
 
 // Live preview: the text stays the document, and decorations only change how it is drawn. Markdown marks
@@ -67,6 +68,83 @@ class TaskWidget extends WidgetType {
   }
 }
 
+class MathWidget extends WidgetType {
+  readonly tex: string
+  constructor(tex: string) {
+    super()
+    this.tex = tex
+  }
+  eq(other: MathWidget) {
+    return other.tex === this.tex
+  }
+  toDOM() {
+    const span = document.createElement("span")
+    span.className = "cm-math"
+    katex.render(this.tex, span, { throwOnError: false })
+    return span
+  }
+}
+
+// [[Note]] or [[Note|shown text]]: drawn like a mention when it names a doc in the workspace, quietly otherwise
+class WikilinkWidget extends WidgetType {
+  readonly label: string
+  readonly route: string | null
+  constructor(label: string, route: string | null) {
+    super()
+    this.label = label
+    this.route = route
+  }
+  eq(other: WikilinkWidget) {
+    return other.label === this.label && other.route === this.route
+  }
+  toDOM() {
+    const span = document.createElement("span")
+    span.className = this.route ? "cm-mention" : "cm-wikilink"
+    if (this.route) span.dataset.route = this.route
+    else span.title = "No doc with this name"
+    span.textContent = this.label
+    return span
+  }
+  ignoreEvent() {
+    return false
+  }
+}
+
+// ![[file]]: the embedded file named in a small chip; the file itself isn't drawn yet
+class EmbedWidget extends WidgetType {
+  readonly name: string
+  constructor(name: string) {
+    super()
+    this.name = name
+  }
+  eq(other: EmbedWidget) {
+    return other.name === this.name
+  }
+  toDOM() {
+    const span = document.createElement("span")
+    span.className = "cm-embed"
+    span.textContent = this.name
+    return span
+  }
+}
+
+class LabelWidget extends WidgetType {
+  readonly text: string
+  constructor(text: string) {
+    super()
+    this.text = text
+  }
+  eq(other: LabelWidget) {
+    return other.text === this.text
+  }
+  toDOM() {
+    const span = document.createElement("span")
+    span.className = "cm-callout-label"
+    span.textContent = this.text
+    return span
+  }
+}
+
 const bullet = Decoration.replace({ widget: new BulletWidget() })
 const hidden = Decoration.replace({})
 const lineDeco = (cls: string) => Decoration.line({ class: cls })
@@ -77,7 +155,16 @@ interface Built {
   mentions: DecorationSet
 }
 
-function build(view: EditorView, describe: (uri: string) => string | undefined): Built {
+// A callout's first line: "> [!note] Title", folded with "-" or "+" after the type
+const CALLOUT = /^(\s*>\s*)(\[!(\w+)\][+-]?\s*)(.*)$/
+
+interface Resolvers {
+  describe: (uri: string) => string | undefined
+  // The route of the doc a [[wikilink]] names, if there is one
+  wikilink: (name: string) => string | null
+}
+
+function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
   const state: EditorState = view.state
   const doc = state.doc
   const decos: Range<Decoration>[] = []
@@ -171,9 +258,40 @@ function build(view: EditorView, describe: (uri: string) => string | undefined):
             if (checked && node.parent) decos.push(mark("cm-task-done").range(ref.to, node.parent.to))
             break
           }
-          case "Blockquote":
-            lines(ref.from, ref.to, () => "cm-quote")
+          case "Blockquote": {
+            const first = doc.lineAt(ref.from)
+            const callout = CALLOUT.exec(first.text)
+            if (!callout) {
+              lines(ref.from, ref.to, () => "cm-quote")
+              break
+            }
+            // A callout is a quiet tinted box; its type marker gives way to a plain label
+            lines(ref.from, ref.to, (n, a, b) => `cm-callout${n === a ? " cm-callout-first" : ""}${n === b ? " cm-callout-last" : ""}`)
+            if (!lineTouched(first.from)) {
+              const at = first.from + callout[1].length
+              const type = callout[3]
+              const label = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+              decos.push(Decoration.replace({ widget: new LabelWidget(label) }).range(at, at + callout[2].length))
+              if (callout[4].trim()) decos.push(mark("cm-callout-title").range(at + callout[2].length, first.to))
+            }
             break
+          }
+          case "InlineMath":
+            if (!touches(ref.from, ref.to)) {
+              decos.push(Decoration.replace({ widget: new MathWidget(doc.sliceString(ref.from + 1, ref.to - 1)) }).range(ref.from, ref.to))
+              return false
+            }
+            break
+          case "Wikilink":
+          case "Embed": {
+            if (touches(ref.from, ref.to)) break
+            const inner = doc.sliceString(ref.from + (ref.name === "Embed" ? 3 : 2), ref.to - 2)
+            const [target, shown] = inner.split("|")
+            const name = target.split("#")[0].trim()
+            const widget = ref.name === "Embed" ? new EmbedWidget(name) : new WikilinkWidget((shown ?? target).trim(), wikilink(name))
+            decos.push(Decoration.replace({ widget }).range(ref.from, ref.to))
+            return false
+          }
           case "QuoteMark":
             if (!lineTouched(ref.from)) hide(ref.from, withSpace(node))
             break
@@ -197,17 +315,18 @@ function build(view: EditorView, describe: (uri: string) => string | undefined):
   return { decorations: Decoration.set(decos, true), mentions: Decoration.set(mentions, true) }
 }
 
-export function livePreview({ describe, onOpenMention }: { describe: (uri: string) => string | undefined; onOpenMention: (uri: string) => void }): Extension {
+export function livePreview({ describe, wikilink, onOpenMention, onOpenRoute }: Resolvers & { onOpenMention: (uri: string) => void; onOpenRoute: (route: string) => void }): Extension {
+  const resolvers = { describe, wikilink }
   const plugin = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
       mentions: DecorationSet
       constructor(view: EditorView) {
-        ;({ decorations: this.decorations, mentions: this.mentions } = build(view, describe))
+        ;({ decorations: this.decorations, mentions: this.mentions } = build(view, resolvers))
       }
       update(u: ViewUpdate) {
         if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || syntaxTree(u.startState) !== syntaxTree(u.state))
-          ({ decorations: this.decorations, mentions: this.mentions } = build(u.view, describe))
+          ({ decorations: this.decorations, mentions: this.mentions } = build(u.view, resolvers))
       }
     },
     {
@@ -226,6 +345,12 @@ export function livePreview({ describe, onOpenMention }: { describe: (uri: strin
       if (mention?.dataset.uri) {
         e.preventDefault()
         onOpenMention(mention.dataset.uri)
+        return true
+      }
+      const linked = target.closest<HTMLElement>("[data-route]")
+      if (linked?.dataset.route) {
+        e.preventDefault()
+        onOpenRoute(linked.dataset.route)
         return true
       }
       const task = target.closest<HTMLElement>(".cm-task")
