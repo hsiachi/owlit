@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { BookOpenIcon, MessageSquareIcon, SquarePenIcon } from "lucide-react"
+import { BookOpenIcon, FilePlusIcon, FileTextIcon, MessageSquareIcon, SquarePenIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Command,
@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/command"
 import { Kbd } from "@/components/ui/kbd"
 import { useChatStore } from "@/features/chat/store"
+import { useDocsStore } from "@/features/docs/store"
+import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
+import { useNewDoc } from "@/features/docs/use-new-doc"
 import { paperMeta } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { usePaletteStore } from "./palette-store"
@@ -33,7 +36,7 @@ function filter(value: string, search: string, keywords?: string[]): number {
   return words.every((w) => title.includes(w)) ? 1 : 0.5
 }
 
-// ⌘K from anywhere: jump to a paper or a chat. The place you are in comes first.
+// ⌘K from anywhere: jump to a paper, a doc or a chat. The place you are in comes first.
 export function CommandPalette() {
   const open = usePaletteStore((s) => s.open)
   const setOpen = usePaletteStore((s) => s.setOpen)
@@ -41,6 +44,8 @@ export function CommandPalette() {
   const { pathname } = useLocation()
   const chats = useChatStore((s) => s.chats)
   const papers = useLibraryStore((s) => s.papers)
+  const files = useDocsStore((s) => s.files)
+  const newDoc = useNewDoc()
   const [query, setQuery] = useState("")
 
   useEffect(() => {
@@ -87,6 +92,19 @@ export function CommandPalette() {
     [chats],
   )
 
+  const docItems = useMemo(
+    () =>
+      Object.values(files)
+        .filter((f) => isMarkdown(f.path))
+        .sort((a, b) => b.modifiedAt - a.modifiedAt)
+        .map((f) => {
+          const title = displayName(f.path)
+          // Found by its name, its folder, or anything written in it
+          return { id: f.id, title, folder: parentPath(f.path), value: `${title} ${f.path} ${f.content ?? ""}` }
+        }),
+    [files],
+  )
+
   const go = (to: string) => {
     setOpen(false)
     navigate(to)
@@ -94,6 +112,7 @@ export function CommandPalette() {
 
   const typing = query.trim() !== ""
   const inChat = pathname.startsWith("/chat")
+  const inDocs = pathname.startsWith("/docs")
 
   const paperGroup = (
     <CommandGroup key="papers" heading="Papers" className="p-0">
@@ -124,13 +143,46 @@ export function CommandPalette() {
     </CommandGroup>
   )
 
+  const docGroup = (
+    <CommandGroup key="docs" heading="Docs" className="p-0">
+      {(typing ? docItems : docItems.slice(0, RECENT)).map((d) => (
+        <CommandItem key={d.id} value={d.value} keywords={[d.title]} onSelect={() => go(`/docs/${d.id}`)} className={itemClass}>
+          <FileTextIcon />
+          <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
+            <span className="max-w-[70%] shrink-0 truncate">{d.title}</span>
+            {d.folder && <span className="min-w-0 truncate text-sm text-muted-foreground">{d.folder}</span>}
+          </span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  )
+
+  // ⌘N makes whatever belongs to the place you are in
+  const newChat = (
+    <CommandItem key="new-chat" onSelect={() => go("/chat")} value="new chat" className={itemClass}>
+      <SquarePenIcon />
+      New chat
+      {inChat && <CommandShortcut>⌘N</CommandShortcut>}
+    </CommandItem>
+  )
+  const newDocItem = (
+    <CommandItem
+      key="new-doc"
+      onSelect={() => {
+        setOpen(false)
+        newDoc()
+      }}
+      value="new doc"
+      className={itemClass}
+    >
+      <FilePlusIcon />
+      New doc
+      {inDocs && <CommandShortcut>⌘N</CommandShortcut>}
+    </CommandItem>
+  )
   const actions = (
     <CommandGroup key="actions" heading="Actions" className="p-0">
-      <CommandItem onSelect={() => go("/chat")} value="new chat" className={itemClass}>
-        <SquarePenIcon />
-        New chat
-        <CommandShortcut>⌘N</CommandShortcut>
-      </CommandItem>
+      {inDocs ? [newDocItem, newChat] : [newChat, newDocItem]}
     </CommandGroup>
   )
 
@@ -142,7 +194,7 @@ export function CommandPalette() {
         if (!o) setQuery("")
       }}
       title="Search"
-      description="Jump to a paper or a chat"
+      description="Jump to a paper, a doc or a chat"
       className="top-[18%] sm:max-w-2xl"
     >
       {/* Overrides open up the stock palette: a plain, large input and roomy rows */}
@@ -156,10 +208,14 @@ export function CommandPalette() {
           "**:[[cmdk-group-heading]]:px-3! **:[[cmdk-group-heading]]:pt-2.5! **:[[cmdk-group-heading]]:pb-1.5! **:[[cmdk-group-heading]]:font-normal!",
         )}
       >
-        <CommandInput placeholder="Search papers and chats…" value={query} onValueChange={setQuery} autoFocus />
+        <CommandInput placeholder="Search papers, docs and chats…" value={query} onValueChange={setQuery} autoFocus />
         <CommandList className="max-h-[26rem] p-2">
           <CommandEmpty className="py-10 text-muted-foreground">Nothing found.</CommandEmpty>
-          {inChat ? [actions, chatGroup, paperGroup] : [paperGroup, chatGroup, actions]}
+          {inChat
+            ? [actions, chatGroup, paperGroup, docGroup]
+            : inDocs
+              ? [actions, docGroup, paperGroup, chatGroup]
+              : [paperGroup, docGroup, chatGroup, actions]}
         </CommandList>
         <div className="flex items-center gap-5 border-t px-4 py-2.5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">

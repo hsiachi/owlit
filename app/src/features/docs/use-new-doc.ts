@@ -13,7 +13,6 @@ export function useNewDoc() {
       const known = target === "" || useDocsStore.getState().folders.includes(target) || Object.values(useDocsStore.getState().files).some((f) => f.path.startsWith(target + "/"))
       const file = useDocsStore.getState().createDoc(known ? target : "")
       if (known && target) useDocsUiStore.getState().expandTo(target)
-      useDocsUiStore.getState().setQuery("")
       navigate(`/docs/${file.id}`)
     },
     [navigate],

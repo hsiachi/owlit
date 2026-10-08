@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { ChevronRightIcon, EllipsisVerticalIcon, FolderPlusIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react"
+import { ChevronRightIcon, EllipsisVerticalIcon, FolderPlusIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
+import { usePaletteStore } from "@/app/palette-store"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
 import { SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
@@ -70,7 +71,6 @@ function RenameInput({ initial, depth, onDone }: { initial: string; depth: numbe
 
 interface TreeProps {
   activeId?: string
-  searching: boolean
   dragOver: string | null
   setDragOver: (path: string | null) => void
   onDropInto: (folder: string, e: React.DragEvent) => void
@@ -136,7 +136,7 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
   const navigate = useNavigate()
   const newDoc = useNewDoc()
   const { createFolder, renameFolder, deleteFolder } = useDocsStore.getState()
-  const open = useDocsUiStore((s) => p.searching || !!s.expanded[node.path])
+  const open = useDocsUiStore((s) => !!s.expanded[node.path])
   const selected = useDocsUiStore((s) => s.selectedFolder === node.path)
   const renaming = useDocsUiStore((s) => s.renaming === `folder:${node.path}`)
   const { setExpanded, expandTo, selectFolder, setRenaming } = useDocsUiStore.getState()
@@ -245,13 +245,12 @@ export function DocsListPanel() {
   const { docId } = useParams()
   const files = useDocsStore((s) => s.files)
   const folders = useDocsStore((s) => s.folders)
-  const query = useDocsUiStore((s) => s.query)
-  const { setQuery, expandTo, selectFolder, setRenaming } = useDocsUiStore.getState()
+  const { expandTo, selectFolder, setRenaming } = useDocsUiStore.getState()
+  const openPalette = usePaletteStore((s) => s.setOpen)
   const newDoc = useNewDoc()
   const [dragOver, setDragOver] = useState<string | null>(null)
 
-  const tree = useMemo(() => buildTree(Object.values(files), folders, query), [files, folders, query])
-  const searching = query.trim().length > 0
+  const tree = useMemo(() => buildTree(Object.values(files), folders), [files, folders])
 
   const onDropInto = (folder: string, e: React.DragEvent) => {
     setDragOver(null)
@@ -275,26 +274,21 @@ export function DocsListPanel() {
     setTimeout(() => setRenaming(`folder:${path}`), 0)
   }
 
-  const props: TreeProps = { activeId: docId, searching, dragOver, setDragOver, onDropInto }
+  const props: TreeProps = { activeId: docId, dragOver, setDragOver, onDropInto }
 
   return (
     <>
       <SidebarHeader className="gap-1.5 px-2.5 pt-2.5 pb-1">
-        <label className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground transition-colors focus-within:border-foreground/30 hover:border-border">
-          <SearchIcon className="size-4 shrink-0" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
-            placeholder="Search"
-            className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          {searching && (
-            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="-mr-1 rounded-sm p-0.5 hover:text-foreground">
-              <XIcon className="size-3.5" />
-            </button>
-          )}
-        </label>
+        {/* Looks like a search field, opens the ⌘K palette, as in Chat; it finds docs by their text too */}
+        <button
+          type="button"
+          onClick={() => openPalette(true)}
+          className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-key:border-foreground/30 focus-key:text-foreground"
+        >
+          <SearchIcon className="size-4" />
+          <span className="flex-1 text-left">Search</span>
+          <Kbd className="bg-transparent">⌘K</Kbd>
+        </button>
         <div className="group/new relative mt-1.5 flex items-center">
           <button
             type="button"
@@ -323,7 +317,8 @@ export function DocsListPanel() {
         </div>
       </SidebarHeader>
       <SidebarContent
-        className={cn("gap-0 px-2.5 pt-3 pb-4", dragOver === "" && "bg-foreground/[0.03]")}
+        // 2px between rows, so two filled rows side by side (open doc, clicked folder, hover) stay apart
+        className={cn("gap-0.5 px-2.5 pt-3 pb-4", dragOver === "" && "bg-foreground/[0.03]")}
         // Clicking empty space puts new docs back at the workspace root
         onClick={(e) => e.target === e.currentTarget && selectFolder("")}
         onDragOver={(e) => {
@@ -335,7 +330,7 @@ export function DocsListPanel() {
         onDrop={(e) => onDropInto("", e)}
       >
         {tree.children.length === 0 && (
-          <div className="px-2.5 py-2 text-sm text-muted-foreground">{searching ? "No matches" : "No docs yet."}</div>
+          <div className="px-2.5 py-2 text-sm text-muted-foreground">No docs yet.</div>
         )}
         <TreeLevel nodes={tree.children} depth={0} {...props} />
       </SidebarContent>

@@ -20,21 +20,10 @@ export type TreeNode = FolderNode | FileNode
 // The workspace's paper library and dot-folders are not docs
 export const isHidden = (path: string) => path === "library" || path.startsWith("library/") || path.split("/").some((p) => p.startsWith("."))
 
-const words = (q: string) => q.toLowerCase().split(/\s+/).filter(Boolean)
-
-// Every word has to appear in the file's name or its text
-export function matches(file: WorkspaceFile, query: string) {
-  const ws = words(query)
-  if (!ws.length) return true
-  const hay = `${displayName(file.path)}\n${file.content ?? ""}`.toLowerCase()
-  return ws.every((w) => hay.includes(w))
-}
-
 // Folders first, then files; each by last edit, newest first. A folder's time is its newest file's.
-export function buildTree(files: WorkspaceFile[], folders: string[], query = ""): FolderNode {
+export function buildTree(files: WorkspaceFile[], folders: string[]): FolderNode {
   const root: FolderNode = { kind: "folder", path: "", name: "", modifiedAt: 0, children: [] }
   const byPath = new Map<string, FolderNode>([["", root]])
-  const searching = words(query).length > 0
 
   const folder = (path: string): FolderNode => {
     const hit = byPath.get(path)
@@ -45,11 +34,10 @@ export function buildTree(files: WorkspaceFile[], folders: string[], query = "")
     return node
   }
 
-  // While searching, empty folders and folders without a match stay out
-  if (!searching) for (const f of folders) if (!isHidden(f)) folder(f)
+  for (const f of folders) if (!isHidden(f)) folder(f)
 
   for (const file of files) {
-    if (isHidden(file.path) || !matches(file, query)) continue
+    if (isHidden(file.path)) continue
     folder(parentPath(file.path)).children.push({ kind: "file", file, name: displayName(file.path), markdown: isMarkdown(file.path) })
     // The edit time bubbles up so busy folders rise
     for (let p = parentPath(file.path); ; p = parentPath(p)) {

@@ -9,7 +9,6 @@ interface DocsUiState {
   // A folder row the user clicked last, shown as selected until a doc is opened
   selectedFolder: string | null
   lastDocId: string | null
-  query: string
   // The row being renamed in place, by file id or folder path
   renaming: string | null
 
@@ -17,7 +16,6 @@ interface DocsUiState {
   expandTo: (path: string) => void
   selectFolder: (path: string | null) => void
   openedDoc: (id: string, folder: string) => void
-  setQuery: (query: string) => void
   setRenaming: (key: string | null) => void
 }
 
@@ -28,7 +26,6 @@ export const useDocsUiStore = create<DocsUiState>()(
       targetFolder: "",
       selectedFolder: null,
       lastDocId: null,
-      query: "",
       renaming: null,
 
       setExpanded: (path, open) => set((s) => ({ expanded: { ...s.expanded, [path]: open } })),
@@ -42,7 +39,6 @@ export const useDocsUiStore = create<DocsUiState>()(
         }),
       selectFolder: (path) => set(path === null ? { selectedFolder: null } : { selectedFolder: path, targetFolder: path }),
       openedDoc: (id, folder) => set({ lastDocId: id, targetFolder: folder, selectedFolder: null }),
-      setQuery: (query) => set({ query }),
       setRenaming: (renaming) => set({ renaming }),
     }),
     {

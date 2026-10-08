@@ -167,7 +167,8 @@ export function ChatListPanel() {
           <SidebarGroup key={g.label} className="px-2.5 pt-5 pb-0 first:pt-2">
             <SidebarGroupLabel className={cn(keepLabelInIconMode, "h-6 items-end px-2.5 pb-1.5 text-xs font-normal text-muted-foreground")}>{g.label}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0">
+              {/* 2px between rows, so the open chat's fill and a hovered neighbour stay apart */}
+              <SidebarMenu className="gap-0.5">
                 {g.chats.map((c) => (
                   <ChatRow key={c.id} chat={c} active={c.id === chatId} />
                 ))}
