@@ -13,7 +13,8 @@ import { freshDocIds, useDocsStore } from "../store"
 import { displayName, isMarkdown, type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
-import { marginNotes, setNotes } from "./margin-notes"
+import { useDocsUiStore } from "../ui-store"
+import { anchor, marginNotes, setNotes, setOpenNote } from "./margin-notes"
 import { selectionMenu } from "./selection-menu"
 import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
 import { blockPreview } from "./block-preview"
@@ -103,7 +104,14 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           mentionPopup((query) => docMentionItems(query, id)),
           selectionMenu((text) => chatAbout(id, text)),
           agentSuggestions(respondToEdit),
-          marginNotes({ onChat: (note) => chatAbout(id, note.quote), onDismiss: (note) => dismissNote(id, note) }),
+          marginNotes({
+            onOpen: (noteId) => useDocsUiStore.getState().setOpenNote(id, noteId),
+            onChat: (note) => {
+              useDocsUiStore.getState().setOpenNote(id, null)
+              chatAbout(id, note.quote)
+            },
+            onDismiss: (note) => dismissNote(id, note),
+          }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
@@ -142,6 +150,20 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       notes = s.notes[id]
       view.dispatch({ effects: setNotes.of(notes ?? []) })
     })
+    // Which note is open is shared with the header's note count; opening one brings it into view
+    const openFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openNote?.docId === id ? s.openNote.noteId : null)
+    let open = openFor(useDocsUiStore.getState())
+    if (open) view.dispatch({ effects: setOpenNote.of(open) })
+    const unsubscribeOpen = useDocsUiStore.subscribe((s) => {
+      const next = openFor(s)
+      if (next === open) return
+      open = next
+      const note = next ? notes?.find((n) => n.id === next) : undefined
+      const at = note ? anchor(view.state.doc.toString(), note) : null
+      view.dispatch({
+        effects: [setOpenNote.of(next), ...(note ? [EditorView.scrollIntoView(at ?? 0, { y: "center" })] : [])],
+      })
+    })
 
     window.addEventListener("beforeunload", flush)
     return () => {
@@ -149,6 +171,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       flush()
       unsubscribe()
       unsubscribeNotes()
+      unsubscribeOpen()
       unregister()
       view.destroy()
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it

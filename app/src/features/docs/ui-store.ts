@@ -11,12 +11,15 @@ interface DocsUiState {
   lastDocId: string | null
   // The row being renamed in place, by file id or folder path
   renaming: string | null
+  // The agent note shown open under its paragraph, at most one at a time
+  openNote: { docId: string; noteId: string } | null
 
   setExpanded: (path: string, open: boolean) => void
   expandTo: (path: string) => void
   selectFolder: (path: string | null) => void
   openedDoc: (id: string, folder: string) => void
   setRenaming: (key: string | null) => void
+  setOpenNote: (docId: string, noteId: string | null) => void
 }
 
 export const useDocsUiStore = create<DocsUiState>()(
@@ -27,6 +30,7 @@ export const useDocsUiStore = create<DocsUiState>()(
       selectedFolder: null,
       lastDocId: null,
       renaming: null,
+      openNote: null,
 
       setExpanded: (path, open) => set((s) => ({ expanded: { ...s.expanded, [path]: open } })),
       // Opens every folder on the way to a path so its row is visible
@@ -40,6 +44,7 @@ export const useDocsUiStore = create<DocsUiState>()(
       selectFolder: (path) => set(path === null ? { selectedFolder: null } : { selectedFolder: path, targetFolder: path }),
       openedDoc: (id, folder) => set({ lastDocId: id, targetFolder: folder, selectedFolder: null }),
       setRenaming: (renaming) => set({ renaming }),
+      setOpenNote: (docId, noteId) => set({ openNote: noteId ? { docId, noteId } : null }),
     }),
     {
       name: "owlit-docs-ui",

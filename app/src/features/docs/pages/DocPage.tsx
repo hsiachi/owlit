@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DocEditor } from "../editor/DocEditor"
+import { anchor } from "../editor/margin-notes"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
@@ -58,6 +59,7 @@ export function DocPage() {
           ))}
           <span className="truncate text-foreground">{displayName(file.path)}</span>
         </nav>
+        <NoteCount docId={file.id} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Doc actions" className="text-muted-foreground">
@@ -79,5 +81,26 @@ export function DocPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+// Shown only when agents left notes on the doc: "2 notes", which opens them one after another in reading order
+function NoteCount({ docId }: { docId: string }) {
+  const notes = useDocsStore((s) => s.notes[docId])
+  const open = useDocsUiStore((s) => (s.openNote?.docId === docId ? s.openNote.noteId : null))
+  if (!notes?.length) return null
+
+  const next = () => {
+    const text = useDocsStore.getState().files[docId]?.content ?? ""
+    // Notes whose passage is gone sort first, as they sit beside the title
+    const ordered = [...notes].sort((a, b) => (anchor(text, a) ?? -1) - (anchor(text, b) ?? -1))
+    const i = ordered.findIndex((n) => n.id === open)
+    useDocsUiStore.getState().setOpenNote(docId, ordered[(i + 1) % ordered.length].id)
+  }
+
+  return (
+    <Button variant="ghost" size="sm" onClick={next} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
+      {notes.length} {notes.length === 1 ? "note" : "notes"}
+    </Button>
   )
 }
