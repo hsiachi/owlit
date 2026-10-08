@@ -1,0 +1,112 @@
+import { useMemo, useState } from "react"
+import { CheckIcon, PlusIcon, TagIcon, XIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { collectTags, useLibraryStore } from "../store"
+
+// A popover listing every tag in the library, with "Create" for a new one.
+// `selected` tags show a check; picking one calls onPick either way.
+export function TagPicker({
+  selected = [],
+  onPick,
+  children,
+  align = "start",
+}: {
+  selected?: string[]
+  onPick: (tag: string) => void
+  children: React.ReactNode
+  align?: "start" | "end"
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const papers = useLibraryStore((s) => s.papers)
+  const allTags = useMemo(() => collectTags(papers), [papers])
+  const q = query.trim().toLowerCase().replace(/\s+/g, "-")
+  const canCreate = q.length > 0 && !allTags.includes(q)
+
+  const pick = (tag: string) => {
+    onPick(tag)
+    setQuery("")
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent align={align} className="w-56 p-0">
+        <Command>
+          <CommandInput placeholder="Find or create a tag" value={query} onValueChange={setQuery} />
+          <CommandList>
+            <CommandEmpty>No tags yet.</CommandEmpty>
+            {canCreate && (
+              <CommandGroup>
+                <CommandItem value={`create-${q}`} onSelect={() => pick(q)}>
+                  <PlusIcon />
+                  Create “{q}”
+                </CommandItem>
+              </CommandGroup>
+            )}
+            {allTags.length > 0 && (
+              <CommandGroup heading="Tags">
+                {allTags.map((tag) => (
+                  <CommandItem key={tag} value={tag} onSelect={() => pick(tag)}>
+                    <TagIcon />
+                    <span className="flex-1 truncate">{tag}</span>
+                    {selected.includes(tag) && <CheckIcon className="text-muted-foreground" />}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// The tag list on one paper: badges with remove, plus an add button
+export function TagsEditor({
+  tags,
+  onChange,
+  className,
+}: {
+  tags: string[]
+  onChange: (tags: string[]) => void
+  className?: string
+}) {
+  const toggle = (tag: string) =>
+    onChange(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag])
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      {tags.map((tag) => (
+        <Badge key={tag} variant="secondary" className="gap-0.5 pr-1">
+          {tag}
+          <button
+            type="button"
+            aria-label={`Remove tag ${tag}`}
+            onClick={() => toggle(tag)}
+            className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+          >
+            <XIcon className="size-3" />
+          </button>
+        </Badge>
+      ))}
+      <TagPicker selected={tags} onPick={toggle}>
+        <Button variant="ghost" size="xs" className="text-muted-foreground">
+          <PlusIcon />
+          {tags.length === 0 ? "Add tag" : null}
+        </Button>
+      </TagPicker>
+    </div>
+  )
+}
