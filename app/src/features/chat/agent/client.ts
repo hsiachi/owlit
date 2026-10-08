@@ -5,6 +5,7 @@ export interface PromptRequest {
   connectorId: string
   modelId?: string
   modeId?: string
+  effortId?: string
   input: PromptInput
 }
 

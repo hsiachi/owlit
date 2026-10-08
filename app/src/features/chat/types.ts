@@ -104,6 +104,7 @@ export interface Chat {
   connectorId?: string
   modelId?: string
   modeId?: string
+  effortId?: string
   messages: ChatMessage[]
 }
 
@@ -129,6 +130,13 @@ export interface AgentMode {
   description?: string
 }
 
+// Reasoning effort, when the agent exposes it (Claude Code, Codex)
+export interface AgentEffort {
+  id: string
+  name: string
+  description?: string
+}
+
 export interface Connector {
   id: string
   name: string
@@ -143,8 +151,10 @@ export interface Connector {
   error?: string
   models: AgentModel[]
   modes: AgentMode[]
+  efforts?: AgentEffort[]
   defaultModelId?: string
   defaultModeId?: string
+  defaultEffortId?: string
 }
 
 // ---- Session updates streamed from an agent (ACP SessionUpdate subset) ----

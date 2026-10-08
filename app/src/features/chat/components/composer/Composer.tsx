@@ -3,7 +3,7 @@ import { Extension } from "@tiptap/core"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
-import { ArrowUpIcon, AtSignIcon, PaperclipIcon, PlusIcon, SquareIcon } from "lucide-react"
+import { ArrowUpIcon, PlusIcon, SquareIcon, TriangleAlertIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,15 +16,18 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Kbd } from "@/components/ui/kbd"
 import { allMentionables } from "../../mocks/sources"
+import { useUiStore } from "../../ui-store"
 import type { AttachmentFile, Mentionable, PromptInput, SourceKind } from "../../types"
-import { SourceIcon, sourceKindLabel } from "../source-icons"
-import { AgentPicker } from "./AgentPicker"
+import { sourceKindLabel } from "../source-icons"
+import { AgentPicker, isUnavailable, useResolvedSelection } from "./AgentPicker"
 import { AttachmentList } from "./AttachmentList"
 import { mentionFilter, mentionPopup, WorkspaceMention } from "./mention-extension"
 
 export interface ComposerHandle {
   focus: () => void
   setText: (text: string) => void
+  // Insert "@" at the cursor with the popup pre-filtered to one source
+  openMention: (kind: SourceKind | "all") => void
 }
 
 interface ComposerProps {
@@ -89,13 +92,16 @@ function toAttachment(file: File): AttachmentFile {
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { chatId, onSubmit, streaming = false, onCancel, autoFocus, placeholder = "Ask anything, @ to mention a paper, doc or knowledge item", className },
+  { chatId, onSubmit, streaming = false, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className },
   ref,
 ) {
   const [files, setFiles] = useState<AttachmentFile[]>([])
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
+  const { connector } = useResolvedSelection(chatId)
+  const openConnectors = useUiStore((s) => s.setConnectorsDialogOpen)
+  const blocked = isUnavailable(connector)
 
   const editor = useEditor({
     extensions: [
@@ -124,7 +130,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     ],
     autofocus: autoFocus ? "end" : false,
     editorProps: {
-      attributes: { class: "tiptap-composer max-h-60 min-h-[3.25rem] overflow-y-auto px-3 py-2.5 text-sm leading-6 outline-none" },
+      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-[15px] leading-6 outline-none" },
       handlePaste: (_view, event) => {
         const pasted = Array.from(event.clipboardData?.files ?? [])
         if (pasted.length === 0) return false
@@ -144,7 +150,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     }
   }, [editor])
 
-  const canSend = !streaming && (!isEmpty || files.length > 0)
+  const canSend = !streaming && !blocked && (!isEmpty || files.length > 0)
 
   const submit = useCallback(() => {
     if (!editor || !canSend) return
@@ -159,20 +165,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     submitRef.current = submit
   }, [submit])
 
-  useImperativeHandle(ref, () => ({
-    focus: () => editor?.commands.focus("end"),
-    setText: (text) => {
-      editor?.commands.setContent(text ? `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>` : "")
-      setIsEmpty(!text)
-      editor?.commands.focus("end")
-    },
-  }))
-
-  const addFiles = (list: FileList | File[] | null) => {
-    if (!list) return
-    setFiles((f) => [...f, ...Array.from(list).map(toAttachment)])
-  }
-
   const openMention = (kind: SourceKind | "all") => {
     if (!editor) return
     mentionFilter.next = kind
@@ -182,11 +174,26 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     editor.chain().focus().insertContent(prefix).run()
   }
 
+  useImperativeHandle(ref, () => ({
+    focus: () => editor?.commands.focus("end"),
+    setText: (text) => {
+      editor?.commands.setContent(text ? `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>` : "")
+      setIsEmpty(!text)
+      editor?.commands.focus("end")
+    },
+    openMention,
+  }))
+
+  const addFiles = (list: FileList | File[] | null) => {
+    if (!list) return
+    setFiles((f) => [...f, ...Array.from(list).map(toAttachment)])
+  }
+
   return (
     <div
       className={cn(
-        "relative flex w-full flex-col rounded-2xl border bg-background shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30",
-        dragging && "border-ring ring-3 ring-ring/30",
+        "relative flex w-full flex-col overflow-hidden rounded-xl border bg-background shadow-xs transition-[border-color,box-shadow] focus-within:border-foreground/20 focus-within:shadow-md",
+        dragging && "border-ring ring-2 ring-ring/30",
         className,
       )}
       onDragOver={(e) => {
@@ -202,6 +209,21 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         addFiles(e.dataTransfer.files)
       }}
     >
+      {/* Only an agent that can't run gets a banner; a working one stays quiet */}
+      {connector && blocked && (
+        <button
+          type="button"
+          onClick={() => openConnectors(true)}
+          className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/70"
+        >
+          <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" />
+          <span className="min-w-0 flex-1 truncate">
+            {connector.name} {connector.status === "not_installed" ? "is not installed" : `can't be reached${connector.error ? ` · ${connector.error}` : ""}`}
+          </span>
+          <span className="shrink-0 font-medium text-foreground">Set up</span>
+        </button>
+      )}
+
       {files.length > 0 && (
         <div className="px-3 pt-3">
           <AttachmentList files={files} onRemove={(id) => setFiles((f) => f.filter((x) => x.id !== id))} />
@@ -213,7 +235,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         <EditorContent editor={editor} />
       </div>
 
-      <div className="flex items-center gap-1 px-2 pb-2">
+      <div className="flex items-center gap-1 px-2.5 pb-2.5">
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -223,32 +245,21 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>Add files and context</TooltipContent>
+            <TooltipContent>Attach files or mention a paper, doc or note</TooltipContent>
           </Tooltip>
           {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
           <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
-              <PaperclipIcon />
               Attach files
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {(["paper", "doc", "knowledge"] as SourceKind[]).map((kind) => (
               <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
-                <SourceIcon kind={kind} />
                 Add from {sourceKindLabel[kind]}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label="Mention a workspace item" onClick={() => openMention("all")}>
-              <AtSignIcon />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Mention a paper, doc or knowledge item</TooltipContent>
-        </Tooltip>
 
         <input
           ref={fileInput}

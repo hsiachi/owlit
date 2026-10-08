@@ -21,8 +21,14 @@ export const builtInConnectors: Connector[] = [
       { id: "plan", name: "Plan", description: "Read and plan only, no changes" },
       { id: "bypassPermissions", name: "Bypass Permissions", description: "Run everything without asking" },
     ],
+    efforts: [
+      { id: "low", name: "Low", description: "Quick, lighter reasoning" },
+      { id: "medium", name: "Medium", description: "Balanced" },
+      { id: "high", name: "High", description: "Thinks longer on hard problems" },
+    ],
     defaultModelId: "claude-sonnet-5-5",
     defaultModeId: "default",
+    defaultEffortId: "medium",
   },
   {
     id: "codex",
@@ -41,8 +47,15 @@ export const builtInConnectors: Connector[] = [
       { id: "auto", name: "Auto", description: "Edit in the workspace, ask for the rest" },
       { id: "full-access", name: "Full Access", description: "No approvals" },
     ],
+    efforts: [
+      { id: "low", name: "Low" },
+      { id: "medium", name: "Medium" },
+      { id: "high", name: "High" },
+      { id: "xhigh", name: "Extra high" },
+    ],
     defaultModelId: "gpt-5-codex",
     defaultModeId: "auto",
+    defaultEffortId: "medium",
   },
   {
     id: "gemini-cli",

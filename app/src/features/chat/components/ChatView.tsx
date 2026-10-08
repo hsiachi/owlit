@@ -49,10 +49,12 @@ export function ChatView() {
       <MessageScrollerProvider>
         <MessageScroller className="flex-1">
           <MessageScrollerViewport className="px-4" aria-label="Messages">
-            <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-8 py-6 pb-10">
-              <MessageGroup className="gap-8">
+            <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-8 py-6 pb-12">
+              {/* Items carry the spacing as bottom padding so the hover footers, which hang below each
+                  message, stay inside the item's paint containment instead of being clipped */}
+              <MessageGroup className="gap-1">
                 {chat.messages.map((m, i) => (
-                  <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"}>
+                  <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className="pb-7">
                     {m.role === "user" ? (
                       <UserMessage message={m} onEdit={(text) => composer.current?.setText(text)} />
                     ) : (
@@ -68,10 +70,12 @@ export function ChatView() {
               </MessageGroup>
             </MessageScrollerContent>
           </MessageScrollerViewport>
-          <MessageScrollerButton />
+          <MessageScrollerButton className="bottom-6" />
         </MessageScroller>
       </MessageScrollerProvider>
-      <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+      {/* Messages fade out above the composer instead of running into it */}
+      <div className="relative mx-auto w-full max-w-3xl px-4 pb-4">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-t from-background to-transparent" />
         <Composer ref={composer} chatId={chat.id} onSubmit={submit} streaming={streaming} onCancel={() => cancel(chat.id)} />
       </div>
     </div>

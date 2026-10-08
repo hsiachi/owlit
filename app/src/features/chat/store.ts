@@ -22,6 +22,7 @@ export interface Selection {
   connectorId: string
   modelId?: string
   modeId?: string
+  effortId?: string
 }
 
 interface ChatState {
@@ -31,7 +32,7 @@ interface ChatState {
   // Chat ids with a running turn
   streaming: Record<string, true>
 
-  createChat: (init?: Partial<Pick<Chat, "connectorId" | "modelId" | "modeId">>) => Chat
+  createChat: (init?: Partial<Pick<Chat, "connectorId" | "modelId" | "modeId" | "effortId">>) => Chat
   deleteChat: (id: string) => void
   renameChat: (id: string, title: string) => void
   togglePin: (id: string) => void
@@ -47,9 +48,10 @@ interface ChatState {
   removeConnector: (id: string) => void
 }
 
+// Keep a generous slice and let the list row truncate it with CSS
 const titleFrom = (text: string) => {
   const t = text.replace(/@\[([^\]]+)\]/g, "$1").replace(/\s+/g, " ").trim()
-  return t.length > 48 ? `${t.slice(0, 48)}…` : t || "New chat"
+  return t.slice(0, 80) || "New chat"
 }
 
 // Fold one streamed update into the assistant message's parts
@@ -91,6 +93,7 @@ export const useChatStore = create<ChatState>()(
         connectorId: builtInConnectors[0].id,
         modelId: builtInConnectors[0].defaultModelId,
         modeId: builtInConnectors[0].defaultModeId,
+        effortId: builtInConnectors[0].defaultEffortId,
       },
       streaming: {},
 
@@ -106,6 +109,7 @@ export const useChatStore = create<ChatState>()(
           connectorId: selection.connectorId,
           modelId: selection.modelId,
           modeId: selection.modeId,
+          effortId: selection.effortId,
           ...init,
           messages: [],
         }
@@ -137,6 +141,7 @@ export const useChatStore = create<ChatState>()(
             const c = s.connectors.find((x) => x.id === patch.connectorId)
             next.modelId = c?.defaultModelId
             next.modeId = c?.defaultModeId
+            next.effortId = c?.defaultEffortId
           }
           return { selection: next }
         })
@@ -154,6 +159,7 @@ export const useChatStore = create<ChatState>()(
         const connectorId = chat.connectorId ?? state.selection.connectorId
         const modelId = chat.modelId ?? state.selection.modelId
         const modeId = chat.modeId ?? state.selection.modeId
+        const effortId = chat.effortId ?? state.selection.effortId
         const now = Date.now()
 
         const userMsg: ChatMessage = {
@@ -206,7 +212,7 @@ export const useChatStore = create<ChatState>()(
 
         try {
           const stop = await agentClient.prompt(
-            { chatId, connectorId, modelId, modeId, input },
+            { chatId, connectorId, modelId, modeId, effortId, input },
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )
@@ -272,10 +278,18 @@ export const useChatStore = create<ChatState>()(
       partialize: (s) => ({ chats: s.chats, connectors: s.connectors, selection: s.selection }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ChatState>
-        // Drop stale "checking"/"connected" flags and streaming messages from a previous run
-        const connectors = (p.connectors ?? current.connectors).map((c) =>
-          c.status === "checking" || c.status === "connected" ? { ...c, status: "available" as const } : c,
-        )
+        // Built-in connectors take their definition (models, modes, efforts) from code and only
+        // their probe result from storage, so shipping a new field doesn't need a reset. Custom
+        // connectors are stored whole. Stale "checking"/"connected" flags are reset.
+        const stored = p.connectors ?? []
+        const custom = stored.filter((c) => !c.builtIn)
+        const connectors = [
+          ...builtInConnectors.map((def) => {
+            const saved = stored.find((c) => c.id === def.id)
+            return saved ? { ...def, status: saved.status, version: saved.version, authenticated: saved.authenticated, error: saved.error } : def
+          }),
+          ...custom,
+        ].map((c) => (c.status === "checking" || c.status === "connected" ? { ...c, status: "available" as const } : c))
         const chats = Object.fromEntries(
           Object.entries(p.chats ?? current.chats).map(([id, c]) => [
             id,

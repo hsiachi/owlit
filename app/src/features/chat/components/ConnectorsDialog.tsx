@@ -23,41 +23,65 @@ import { Spinner } from "@/components/ui/spinner"
 import { useChatStore } from "../store"
 import { useUiStore } from "../ui-store"
 import type { Connector } from "../types"
-import { StatusDot, statusLabel } from "./composer/AgentPicker"
+import { statusLabel } from "./composer/AgentPicker"
 
-function ConnectorRow({ connector }: { connector: Connector }) {
+// Ready agents get a quiet pill; only a real failure is red. Not installed is an option, not an error.
+function StatusBadge({ c }: { c: Connector }) {
+  if (c.status === "checking") {
+    return (
+      <Badge variant="secondary" className="gap-1.5">
+        <Spinner className="size-3" />
+        Checking…
+      </Badge>
+    )
+  }
+  if (c.status === "error") return <Badge variant="destructive">{statusLabel.error}</Badge>
+  if (c.status === "available" || c.status === "connected") {
+    return (
+      <Badge variant="secondary">
+        {statusLabel[c.status]}
+        {c.version && c.version !== "unknown" && ` · v${c.version}`}
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="outline" className="text-muted-foreground">
+      {statusLabel[c.status]}
+    </Badge>
+  )
+}
+
+function ConnectorRow({ connector: c }: { connector: Connector }) {
   const check = useChatStore((s) => s.checkConnector)
   const remove = useChatStore((s) => s.removeConnector)
-  const c = connector
   const busy = c.status === "checking"
   return (
     <Item variant="outline" size="sm">
-      <ItemMedia variant="icon">
+      <ItemMedia variant="icon" title={c.command}>
         <PlugIcon />
       </ItemMedia>
       <ItemContent>
         <ItemTitle className="flex items-center gap-2">
           {c.name}
-          <Badge variant={c.status === "error" || c.status === "not_installed" ? "destructive" : "secondary"} className="gap-1.5">
-            <StatusDot status={c.status} />
-            {statusLabel[c.status]}
-            {c.version && c.version !== "unknown" && ` · v${c.version}`}
-          </Badge>
+          <StatusBadge c={c} />
         </ItemTitle>
-        <ItemDescription className="font-mono text-xs">{c.command}</ItemDescription>
-        {c.status === "error" || c.status === "not_installed" ? (
-          <ItemDescription className="text-destructive">
-            {c.error}
-            {c.installHint && (
+        {c.status === "error" ? (
+          <ItemDescription className="text-destructive">{c.error}</ItemDescription>
+        ) : c.status === "not_installed" ? (
+          <ItemDescription>
+            {c.installHint ? (
               <>
-                {" · install with "}
-                <code className="rounded bg-muted px-1 py-px text-foreground">{c.installHint}</code>
+                Install with <code className="rounded bg-muted px-1 py-px text-foreground">{c.installHint}</code>
               </>
+            ) : (
+              c.error
             )}
           </ItemDescription>
         ) : (
           <ItemDescription>{c.description}</ItemDescription>
         )}
+        {/* Custom agents are identified by their command; built-in ones by name */}
+        {!c.builtIn && <ItemDescription className="font-mono text-xs">{c.command}</ItemDescription>}
       </ItemContent>
       <ItemActions>
         <Button variant="outline" size="sm" onClick={() => check(c.id)} disabled={busy}>
