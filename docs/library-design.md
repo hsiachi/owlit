@@ -8,7 +8,8 @@ Clickable mockup: `docs/mockups/library.html` (served by the dev server at `/_mo
 `#paper=p10`, `#peek=p14`, `#dark` deep-link into states).
 
 Still decided: PDF viewer is EmbedPDF; tags only, collections go to Knowledge as Topics later; owlit is
-a local desktop app; the Library is a page and a paper is a page (no list panel).
+a local desktop app; a paper is a page. Changed in round 2: the Library now has a list panel, for
+places (views and tags), never for papers.
 
 ## What the Library is for
 
@@ -39,85 +40,103 @@ Everything below is derived from these five.
 - **Four ways to narrow, all at once.** Status chips, search, a tag popover and a sort menu share one
   line with the page title's weight.
 
-## Structure: three levels, one job each
+## Structure: places, then three levels
+
+The Library gets the same list panel as Chat, but it holds **places**, not papers:
+
+- **Up next**: papers you're in the middle of, then a short list of what to read next, each with
+  the reason it's there ("Cited by Synergi, which you're reading", "Added by Claude Code from
+  “Draft the related work section”", "Shares #agents with ReAct"). The only ordering owlit chooses
+  for you, and it always says why. Default view.
+- **Inbox**: unread papers added by an agent. Only shown when non-empty.
+- **Reading**, **Starred**, **All papers** (plain chronological, the anchor), with counts.
+- **Tags**, each with its colour dot and count. Selecting one is a view like any other.
+
+Within a view there are three levels, each with one job:
 
 | Level | The question it answers | Where | What it shows |
 |---|---|---|---|
-| Library page | What's on my desk? What do I pick up next? | `/library` | Continue reading, then every paper by when it arrived |
-| Peek | Is this worth reading? | The row, opened in place | Full title, authors, venue, abstract, tags, status, Read button |
+| View | What's here, in what order? | `/library` (+ view) | Rows in List or Table layout |
+| Peek | Is this worth reading? | The row, opened in place | Full title, authors, venue, abstract, reason (Up next), tags, status, Read |
 | Paper page | Read it, and keep what I take from it | `/library/:id` | The PDF, with Notes, Highlights and About beside it |
 
-Each level adds detail to the one before; nothing on a level repeats in another form. Moving
-between them is always the same gesture: click goes one level deeper, Esc or Back one level up.
+Click goes one level deeper; Esc or Back goes one level up. The panel collapses on the paper page,
+because reading wants the width; the shell's toggle brings it back.
 
 ### Where each piece of information lives
 
-| Information | Row | Peek | Paper page |
-|---|---|---|---|
-| Title | one line, truncated last | full | big serif title in the panel; breadcrumb |
-| Authors, year | short ("Kang et al. · 2023") | full list, venue | full list, venue |
-| Star | small mark after the year; toggle on hover | toggle | toggle |
-| Status | reading: progress ring; read: quieter title; unread: nothing | one text menu | same text menu, with the page you're on |
-| Abstract | — | yes | About |
-| Tags | — | chips; click one to filter | About |
-| Ids, links, added, file | — | — | About |
-| Highlights, note | — | — | their own tabs |
+| Information | Row (List) | Row (Table) | Peek | Paper page |
+|---|---|---|---|---|
+| Title | one line, truncated last | Title column | full | panel title; breadcrumb |
+| Authors, year | short, muted | Authors, Year columns | full list, venue | full list, venue |
+| Venue | — | Venue column | yes | yes |
+| Why it's suggested | second line (Up next only) | — | yes, with a sparkle | — |
+| Star | amber mark; toggle on hover | amber mark; toggle on hover | toggle | toggle |
+| Status | read titles are quieter; nothing else | Status column (blank = unread) | text menu | text menu |
+| Tags | — | first tag + count | chips, click to open the tag | About |
+| Added | group labels | Added column | — | About |
+| Abstract, ids, file | — | — | abstract | About |
 
-Status has one control, a plain text menu ("Reading ▾"), in exactly two places. In the list it is
-not a control at all; it shows only through position and tone.
+No reading progress anywhere in the list: no rings, bars or "p. 6 of 19". A paper simply reopens
+where you left it, and the page number lives only in the reader's dock.
 
-## Library page
+## A view
 
-Top to bottom, in one centred column as wide as the Chat thread (768px):
+One column, 768px for List and up to 1120px for Table:
 
-1. **Title** "Library" in the display serif, the same moment as Chat's greeting.
-2. **One field for find and add**, raised like the composer (card surface, soft shadow, 14px
-   radius). Typing filters the list live. Pasting a DOI, arXiv id or link turns the results into a
-   single card: "Looking up…", then the resolved paper with Add (↵), or "Already in your library"
-   with Open. Typing `#tag` turns into a removable filter token inside the field; Backspace on an
-   empty field removes the last token. A paperclip adds a PDF file; dropping a PDF anywhere on the
-   page still works. `/` focuses the field, Esc clears it.
-3. **Views** as rounded chips: All · Reading · Starred · Unread · Read, counts in a lighter tone
-   (none on All). On the same line, right-aligned, a quiet sort menu: Recently added · Year
-   published · Title. Sort direction is implied by the key; there is no ascending/descending item.
-4. **Continue reading** (All view, no search): up to three cards for papers in progress, each with
-   title, short authors and a thin progress line with "p. 6 of 19". Click resumes at that page.
-5. **The list**, grouped like Chat's history: Today · Previous 7 days · Previous 30 days · Earlier
-   (by year when sorted by year, ungrouped by title, a single "N papers" label while searching).
+1. **Header line**: the view's name (Figtree, 22px, medium; a tag view shows its dot), and on the
+   right a quiet sort menu (Recently added · Year · Title; not in Up next or Table, where the
+   column headers sort) and a List / Table toggle. Up next adds one muted line saying what it is.
+2. **One field for find and add**, raised like the composer. Typing filters the view live.
+   Pasting a DOI, arXiv id or link turns the results into a single card: "Looking up…", then the
+   resolved paper with Add (↵), or "Already in your library" with Open. A paperclip adds a PDF
+   file; dropping a PDF anywhere still works. `/` focuses, Esc clears.
+3. **List layout**: rows grouped like Chat's history (Today · Previous 7 days · Previous 30 days
+   · Earlier; by year when sorted by year; one "N papers" label while searching). Up next has two
+   groups instead: Continue reading, Read next.
+4. **Table layout**: header text only, one hairline under it, no grid. Columns Title · Authors ·
+   Year · Venue · Tags · Status · Added; click a header to sort. Hovering a row swaps the date
+   for star and ellipsis. Clicking a row peeks, in a full-width row under it.
 
-**Row**: 36px, one line: title, then short authors · year in muted text, then a small star if
-starred. Right edge is empty at rest except a progress ring for papers being read. Read papers
-have a quieter title, so finished work recedes. Hover shows a star toggle and a vertical ellipsis.
-No tags, no dates, no status glyphs.
+**Row (List)**: 36px, one line: title, short authors · year in muted text, an amber star if
+starred. Read papers have a quieter title. Hover shows star and ellipsis. In Up next a row gets a
+second line, the reason, because the reason is what the view is for.
 
-**Peek**: click a row and it opens in place into a raised card: full title, all authors, venue
-and year, the abstract, then one footer line with tags (click to filter, + Tag), status menu,
-star, ellipsis and the primary button: Read, or "Continue p. 6" when in progress. Click the card
-again or press Esc to fold it. Only one peek is open at a time.
+**Peek**: the row opens in place into a raised card: full title, all authors, venue and year,
+the abstract, the reason in Up next, then tags (click to open that tag), status menu, star,
+ellipsis and the primary button (Read, Continue, or Open when there's no PDF).
 
-**Select several**: ⌘-click or ⇧-click selects without peeking. With two or more selected, a
-floating bar appears at the bottom of the sheet: "3 selected · Star · Mark as · Add tag ·
-Remove · ×". This replaces the bulk side pane.
+**Select several**: ⌘-click or ⇧-click. With two or more selected, a floating bar appears at the
+bottom of the sheet: "3 selected · Star · Mark as · Add tag · Remove · ×".
 
-**Row menu** (ellipsis or right-click), words only: Open · Copy citation · Copy BibTeX ·
-Mention in Chat · Edit details · Remove from library.
+**Row menu** (ellipsis or right-click), words only: Open · Copy citation · Copy BibTeX · Mention
+in Chat · Edit details · Remove from library.
 
 ## Paper page
 
-- **Header** (inside the sheet, no rule under it): breadcrumb "Library › title", then "7 of 16"
-  with previous / next in the current list, and a side-panel toggle. The breadcrumb is how you
-  know where you are; the shell's back arrow does the same as clicking "Library", and returns to
-  the list with filters, scroll and peek intact.
+- **Header** (inside the sheet, no rule under it): breadcrumb "<view> › title", then "7 of 16"
+  with previous / next within that view, and a toggle for the details panel.
 - **Reader**: the PDF on a slightly darker well, pages as the brightest surface. One floating
-  dock at the bottom: page ‹ 6 / 19 ›, zoom − 110% +, find. Selecting text shows a small popover:
-  four colours · Comment · Copy · Ask (Ask sends the passage to Chat, later).
-- **Side panel** (380px, same tone as the sheet, toggleable): the title in the display serif,
-  authors and venue, one control line (status menu with page, star, ellipsis), then three chips:
-  **Notes** (one note per paper, the default when you have one), **Highlights** (grouped by page,
-  colour bar, quote, comment; click to jump), **About** (abstract, tags, DOI / arXiv, added and
-  by whom, file).
+  dock: page ‹ 6 / 19 ›, zoom − 110% +, find. Selecting text shows a popover: four colours ·
+  Comment · Copy · Ask (Ask sends the passage to Chat, later).
+- **Details panel** (380px, toggleable): title in Figtree 18px medium, authors and venue, one
+  control line (status menu, star, ellipsis), then three chips: **Notes** (default when you have
+  one), **Highlights** (by page, colour bar, quote, comment; click to jump), **About** (abstract,
+  tags, DOI / arXiv, added and by whom, file).
 - **No PDF**: the well shows a dashed drop area with "No PDF yet", Find PDF and Choose file; the
   panel opens on About.
+
+## Type and colour
+
+- **One typeface.** Figtree everywhere in the Library, titles included. The display serif stays a
+  Chat greeting moment; a long title in it was tiring to read.
+- **Colour carries meaning, never decoration.** Three uses, all semantic tokens:
+  - Tags: eight low-chroma hues (`--tag-red` … `--tag-pink`), shown as a small dot beside the
+    name in the panel, the table, peek and About. The user picks the colour; new tags get one in
+    turn.
+  - Star: `--star`, a warm amber, for the filled mark and the active toggle.
+  - Highlights: four colours inside the PDF and as the bar beside each quote.
+- The rest stays neutral. Primary buttons remain near-black; no brand accent.
 
 ## Keyboard
 
@@ -181,8 +200,8 @@ PDF, serve a PDF. v1 has a mock implementation.
 ## Phases (frontend only; real storage and the desktop shell are out of scope for now)
 
 1. Done in draft 2: feature scaffold, mock data and store, add / remove / star / status / tags,
-   edit details. To redo for draft 3: library page (find-and-add field, views, Continue reading,
-   grouped rows, peek, floating bulk bar), paper page shell (breadcrumb header, side panel with
+   edit details. To redo for draft 3: places panel, views (find-and-add field, List and Table
+   layouts, grouped rows, Up next with reasons, peek, floating bulk bar), paper page shell (breadcrumb header, side panel with
    Notes / Highlights / About, no-PDF state). The detail pane goes away.
 2. EmbedPDF reader port, selection popover, highlights persisted and listed, jump to highlight,
    note tab, remembered reading position, ⌘K jump, copy citation / BibTeX.
@@ -194,15 +213,12 @@ fetching, full-text search, agent access to the library.
 
 ## Open questions for this round
 
-1. **Click to peek, Enter to open.** The peek makes the list the place to triage, so opening
-   becomes deliberate (Read button, Enter, double-click). The alternative is click = open the paper
-   page, with no peek at all; simpler, but triage then costs a page load per paper.
-2. **Tags off the rows.** They move to the peek and the About tab, and are used as filters in the
-   field. If you scan by tag a lot, a muted `#tag` after the year is the fallback.
-3. **Read papers quieter.** Finished papers get a lighter title; unread ones have no mark at all.
-   The opposite convention, a dot on unread like mail, is louder but more familiar.
-4. **Continue reading cards.** Three at most, only on All. Worth the space, or just let the
-   Reading chip do it?
+1. **How smart is Up next?** The mock uses signals owlit can compute locally: cited by or sharing
+   a tag with a paper you're reading, added by an agent, mentioned in a chat. A ranking model or
+   an agent writing the reasons is possible later; the rule that every item shows its reason stays.
+2. **Inbox as its own place**, or fold agent-added papers into Up next only?
+3. **Table columns**: is Status worth a column, or is the quieter title enough there too?
+4. **Tag colours**: picked by you, or assigned automatically and changeable?
 
 ## Decisions log
 
@@ -212,3 +228,6 @@ fetching, full-text search, agent access to the library.
 - 2026-10-08: draft 2 rejected as unclear. Draft 3 proposes three levels (page, peek, paper),
   one home per piece of information, one find-and-add field, and words-only menus (letter
   shortcuts removed from the paper menu).
+- 2026-10-08 (round 2): accepted three levels, peek, find-and-add. Asked for less showy type
+  and no reading progress. Proposed: places panel (Up next, Inbox, Reading, Starred, All papers,
+  Tags), List / Table layouts, colour only for tags, star and highlights.
