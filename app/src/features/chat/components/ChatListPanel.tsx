@@ -30,6 +30,13 @@ import type { Chat } from "../types"
 // Rows are a touch taller than the shadcn default so the list breathes
 const rowClass = "h-9 rounded-md px-2.5"
 
+// The panel sits inside the icon-collapsible sidebar, so the shadcn primitives pick up its icon-mode styles
+// when collapsed (rows shrink to 32px squares, labels slide up and fade). Those are meant for the rail only;
+// cancel them here so the panel keeps its layout and is simply clipped while the sidebar collapses.
+const keepRowInIconMode = "group-data-[collapsible=icon]:h-9! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:px-2.5!"
+const keepLabelInIconMode = "group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:opacity-100"
+const keepActionInIconMode = "group-data-[collapsible=icon]:flex"
+
 function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
   const navigate = useNavigate()
   const togglePin = useChatStore((s) => s.togglePin)
@@ -70,14 +77,14 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
               setRenaming(false)
             }
           }}
-          className="h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="h-9 w-full rounded-md border bg-card px-2.5 text-sm outline-none focus-visible:border-foreground/30"
           aria-label="Rename chat"
         />
       ) : (
         <SidebarMenuButton
           asChild
           isActive={active}
-          className={cn(rowClass, "pr-9 group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent")}
+          className={cn(rowClass, keepRowInIconMode, "pr-8 group-data-[collapsible=icon]:pr-8! group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent")}
         >
           <NavLink to={`/chat/${chat.id}`}>
             <span className="truncate">{chat.title}</span>
@@ -91,7 +98,7 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
             <SidebarMenuAction
               showOnHover
               aria-label="Chat actions"
-              className="top-1/2! right-1.5 size-6 w-6 -translate-y-1/2 text-muted-foreground hover:bg-foreground/8 hover:text-foreground data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground"
+              className={cn(keepActionInIconMode, "top-1/2! right-1.5 size-6 w-6 -translate-y-1/2 text-muted-foreground hover:bg-foreground/8 hover:text-foreground data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground")}
             >
               <EllipsisVerticalIcon />
             </SidebarMenuAction>
@@ -125,7 +132,7 @@ export function ChatListPanel() {
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-background px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-visible:border-foreground/30 focus-visible:text-foreground"
         >
           <SearchIcon className="size-4" />
           <span className="flex-1 text-left">Search</span>
@@ -133,7 +140,7 @@ export function ChatListPanel() {
         </button>
         <SidebarMenu className="pt-1.5">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={!chatId} className={rowClass}>
+            <SidebarMenuButton asChild isActive={!chatId} className={cn(rowClass, keepRowInIconMode)}>
               <NavLink to="/chat" end>
                 <span className="flex size-5 items-center justify-center rounded-full bg-foreground/8">
                   <PlusIcon className="size-3.5!" />
@@ -145,13 +152,14 @@ export function ChatListPanel() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 pb-4">
         {groups.length === 0 && <div className="px-4 py-3 text-sm text-muted-foreground">No chats yet.</div>}
         {groups.map((g) => (
-          <SidebarGroup key={g.label} className="px-2.5 py-1">
-            <SidebarGroupLabel className="h-7 px-2.5 text-[11px] font-normal text-muted-foreground">{g.label}</SidebarGroupLabel>
+          // Spacing ladder: label to its rows (tight) < row to row < group to group (wide)
+          <SidebarGroup key={g.label} className="px-2.5 pt-5 pb-0 first:pt-2">
+            <SidebarGroupLabel className={cn(keepLabelInIconMode, "h-6 items-end px-2.5 pb-1.5 text-[11px] font-normal text-muted-foreground")}>{g.label}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className="gap-0">
                 {g.chats.map((c) => (
                   <ChatRow key={c.id} chat={c} active={c.id === chatId} />
                 ))}

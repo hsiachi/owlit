@@ -192,7 +192,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   return (
     <div
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-xl border bg-background shadow-xs transition-[border-color,box-shadow] focus-within:border-foreground/20 focus-within:shadow-md",
+        "relative flex w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-foreground/20 focus-within:shadow-md",
         dragging && "border-ring ring-2 ring-ring/30",
         className,
       )}

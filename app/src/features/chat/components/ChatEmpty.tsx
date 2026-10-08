@@ -37,7 +37,7 @@ export function ChatEmpty() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
-      <h1 className="font-heading text-2xl font-medium tracking-tight">{greeting()}</h1>
+      <h1 className="font-display text-[2.75rem] leading-none font-normal tracking-tight text-foreground/90">{greeting()}</h1>
       <div className="w-full max-w-3xl">
         <Composer ref={composer} onSubmit={start} autoFocus />
       </div>

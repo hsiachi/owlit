@@ -39,7 +39,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       }}
                       onClick={() => item.panel && setOpen(true)}
                       isActive={activeItem?.to === item.to}
-                      className="px-2.5 md:px-2 data-active:bg-background data-active:shadow-xs"
+                      className="px-2.5 md:px-2 data-active:bg-card data-active:shadow-xs dark:data-active:bg-card"
                     >
                       <NavLink to={item.to}>
                         <item.icon />
@@ -54,9 +54,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarContent>
       </Sidebar>
 
-      {/* Second column: the current place's list; left half of the sheet, lightly tinted and divided from the main area by its border */}
+      {/* Second column: the current place's list; left half of the sheet, lightly tinted and divided from the
+          main area by its border. Fixed width (not flex-1) so collapsing clips it instead of squeezing its
+          content, as in the official sidebar-09 block. */}
       {activeItem?.panel && (
-        <Sidebar collapsible="none" className="hidden min-w-0 flex-1 rounded-l-lg border border-r-[0.5px] bg-sidebar-panel md:flex">
+        <Sidebar
+          collapsible="none"
+          className="hidden w-[calc(var(--sidebar-width)-var(--sidebar-width-icon))]! shrink-0 rounded-l-lg border border-r-[0.5px] bg-sidebar-panel md:flex"
+        >
           <activeItem.panel />
         </Sidebar>
       )}
