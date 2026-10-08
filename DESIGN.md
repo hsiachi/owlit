@@ -30,6 +30,7 @@ colors:
   success: "oklch(0.56 0.1 155)"
   # Marks that carry meaning: the star, and eight tag hues
   star: "oklch(0.76 0.13 75)"
+  note: "oklch(0.82 0.15 85)"
   tag-red: "oklch(0.64 0.11 28)"
   tag-orange: "oklch(0.7 0.11 55)"
   tag-amber: "oklch(0.76 0.11 85)"
@@ -213,6 +214,8 @@ components:
   paper-heading:
     textColor: "{colors.foreground}"
     typography: "{typography.heading}"
+  note-rule:
+    backgroundColor: "{colors.note}"
   star-mark:
     textColor: "{colors.star}"
   tag-dot-red:
@@ -311,7 +314,7 @@ Surfaces, back to front (OKLCH lightness):
 | Raised: composer, inputs, cards, selected rail icon | `card` | 1.0 | 0.245 |
 | Floating: menus, dialogs, floating buttons | `popover` | 1.0 | 0.255 |
 
-Text and accents in dark mode: `foreground` 0.935, `muted-foreground` 0.7, `mention` `oklch(0.78 0.07 255)`, `warning` `oklch(0.78 0.11 75)`, `destructive` `oklch(0.68 0.13 22)`, `star` `oklch(0.8 0.12 80)`; tag hues lift to lightness 0.7 to 0.8 with slightly lower chroma. State fills become 7 to 8% tints of near-white, and borders become 10% white.
+Text and accents in dark mode: `foreground` 0.935, `muted-foreground` 0.7, `mention` `oklch(0.78 0.07 255)`, `warning` `oklch(0.78 0.11 75)`, `destructive` `oklch(0.68 0.13 22)`, `star` `oklch(0.8 0.12 80)`, `note` `oklch(0.82 0.13 85)`; tag hues lift to lightness 0.7 to 0.8 with slightly lower chroma. State fills become 7 to 8% tints of near-white, and borders become 10% white.
 
 The composer is the brightest thing in the main sheet, with a soft shadow. It's the place the user acts on most, so it is lifted rather than coloured.
 
@@ -320,7 +323,7 @@ Accent colours are low in chroma and used sparingly:
 | Token | Role |
 |---|---|
 | `mention` | References to workspace items: papers, docs, knowledge |
-| `warning` | Something waits on the user, such as a permission request, an agent that can't run, or an agent's note on a passage |
+| `warning` | Something waits on the user, such as a permission request or an agent that can't run |
 | `destructive` | Errors and irreversible actions, never a user's own choice |
 | `success` | Use rarely; completion is usually shown by quieting a row |
 
@@ -329,6 +332,7 @@ Marks that carry meaning, never fills or washes:
 | Token | Role |
 |---|---|
 | `star` | A starred paper: the small filled star after its title, and the active star toggle |
+| `note` | An agent's note on a passage: the rule in the margin and the open note's left edge. A clear, light yellow (lightness 0.82), brighter than `warning` so it reads as a mark, not an alarm |
 | `tag-*` | Eight low-chroma hues. Each tag gets one, picked from its name so it is the same everywhere, shown only as a small dot beside the tag's name |
 
 PDF marks are the one place colour does not follow the theme. A rendered page is white in both themes, so the four highlight colours (`highlight-yellow`, `-green`, `-blue`, `-pink`) and the text selection colour (`pdf-selection`) are set once and never flip. Highlights are drawn with multiply, so they tint the page like a marker and the glyphs under them stay black. Each colour has a deeper `-mark` twin for places that are not the page: the thin bar beside a highlight in the list and the dots in its menu. The colours have no names or meanings; the reader decides what yellow means. Everything else in the Library stays neutral; primary buttons remain near-black and there is no brand accent.
@@ -434,7 +438,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - **Citations in docs.** @ opens the same mention popup as the composer. On disk a mention is a link to its `owlit://` address; on screen it is drawn like every other mention, one token that is deleted whole and opens its item on click. A paper is cited the way a writer would, "Vaswani et al. 2017", with its full title on hover.
 - **Selection.** When the mouse is released over a selection of three characters or more (or a keyboard selection settles), one compact item appears 8px above it: "Chat with Owlit". It opens the agent window with the passage attached and waits for the question. The menu is a single 24px row in a 2px frame, so it covers as little text as possible, and it hides while the editor is unfocused.
 - **Agent edits.** An edit the agent proposes is shown in place before anything changes: removed words struck through in the muted tone, new words on a faint `success` tint (mentions inside them already drawn as mentions), and one line under them, "Suggested by Owlit", with Discard and Apply. Removal is not an error, so it is never red. Apply and Discard answer the agent's permission request, the same one its card in the conversation answers, so either place works. An applied edit lands as one change: ⌘Z takes it back, and its toast offers Undo.
-- **Agent notes.** A note the agent leaves on a passage (for example when asked to review a doc) shows as a 3px rule in the left margin, exactly as tall as the passage's lines, in the `warning` tone because a note waits on the user: softer at rest, full strength on hover or when open. There is no icon and no tint on the text. Clicking the rule opens the note under the paragraph, pushing the text down rather than covering it. An open note must never read as the writer's own text, so it is a raised `card` with a hairline border and no shadow, its left edge the same 3px `warning` rule carried on from the passage: who wrote it and when in 12px muted text first, the note in 14px, then Dismiss and Chat about this as small text buttons at the bottom right. One note is open at a time; clicking the rule again or Esc closes it. Notes start closed. When a doc has notes, the header shows "N notes" in muted text, which opens them one after another in reading order. Chat about this opens the agent window with the passage attached; Dismiss offers Undo. Notes are kept beside the file, never written into it, and find their passage by its words and the text around them. If the passage can't be found again, the note's rule sits beside the title and the open note says the passage has changed, quoting what it was on.
+- **Agent notes.** A note the agent leaves on a passage (for example when asked to review a doc) shows as a 3px rule in the left margin, exactly as tall as the passage's lines, in the `note` yellow: slightly softer at rest, full strength on hover or when open. There is no icon and no tint on the text. Clicking the rule opens the note under the paragraph, pushing the text down rather than covering it. An open note must never read as the writer's own text, so it is a raised `card` with a hairline border and no shadow, its left edge the same 3px `note` rule carried on from the passage: who wrote it and when in 12px muted text first, the note in 14px, then Dismiss and Chat about this as small text buttons at the bottom right. One note is open at a time; clicking the rule again or Esc closes it. Notes start closed. When a doc has notes, the header shows "N notes" in muted text, which opens them one after another in reading order. Chat about this opens the agent window with the passage attached; Dismiss offers Undo. Notes are kept beside the file, never written into it, and find their passage by its words and the text around them. If the passage can't be found again, the note's rule sits beside the title and the open note says the passage has changed, quoting what it was on.
 
 ### Agent window
 

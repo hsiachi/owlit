@@ -201,7 +201,7 @@ export function marginNotes(actions: Actions): Extension {
   ])
 
   const theme = EditorView.theme({
-    // The gutter rule: 3px in the warning tone, since a note waits on the user. Softer at rest, full when
+    // The gutter rule: 3px in the note yellow. Slightly softer at rest, full when
     // hovered or open; the button around it is the click target.
     ".cm-note-bars": { position: "absolute", top: "0", left: "-20px", width: "12px" },
     ".cm-note-bar": { position: "absolute", left: "0", width: "12px", padding: "0", background: "none", border: "none", cursor: "pointer" },
@@ -213,10 +213,10 @@ export function marginNotes(actions: Actions): Extension {
       bottom: "0",
       width: "3px",
       borderRadius: "2px",
-      backgroundColor: "color-mix(in oklch, var(--warning) 65%, transparent)",
+      backgroundColor: "color-mix(in oklch, var(--note) 80%, transparent)",
       transition: "background-color 0.15s",
     },
-    ".cm-note-bar:hover::before, .cm-note-bar-open::before": { backgroundColor: "var(--warning)" },
+    ".cm-note-bar:hover::before, .cm-note-bar-open::before": { backgroundColor: "var(--note)" },
     // The open note is plainly not the doc: a raised card under the paragraph whose left edge carries the
     // rule on from the passage. Who wrote it comes first, the actions sit at the bottom right.
     ".cm-note": {
@@ -224,7 +224,7 @@ export function marginNotes(actions: Actions): Extension {
       padding: "8px 12px 6px 13px",
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--warning)",
+      borderLeft: "3px solid var(--note)",
       borderRadius: "4px 10px 10px 4px",
       fontSize: "14px",
       lineHeight: "1.55",
