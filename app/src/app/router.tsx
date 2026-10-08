@@ -4,6 +4,9 @@ import { Placeholder } from "@/app/Placeholder"
 import { ChatLayout } from "@/features/chat/ChatLayout"
 import { ChatEmpty } from "@/features/chat/components/ChatEmpty"
 import { ChatView } from "@/features/chat/components/ChatView"
+import { DocsLayout } from "@/features/docs/DocsLayout"
+import { DocPage } from "@/features/docs/pages/DocPage"
+import { DocsHome } from "@/features/docs/pages/DocsHome"
 import { LibraryLayout } from "@/features/library/LibraryLayout"
 import { LibraryPage } from "@/features/library/pages/LibraryPage"
 import { PaperPage } from "@/features/library/pages/PaperPage"
@@ -23,7 +26,14 @@ export const router = createBrowserRouter([
           { path: ":chatId", element: <ChatView /> },
         ],
       },
-      { path: "docs", element: <Placeholder name="Docs" /> },
+      {
+        path: "docs",
+        element: <DocsLayout />,
+        children: [
+          { index: true, element: <DocsHome /> },
+          { path: ":docId", element: <DocPage /> },
+        ],
+      },
       { path: "knowledge", element: <Placeholder name="Knowledge" /> },
       {
         path: "library",

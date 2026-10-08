@@ -250,6 +250,7 @@ owlit should feel like a quiet desk for reading and thinking: warm paper tones, 
 - **Agent**: a local coding agent owlit drives over the Agent Client Protocol (Claude Code, Codex, Gemini CLI, or a custom command).
 - **Connector**: reserved for data sources and MCP servers. Don't use it for agents.
 - **Steps**: the agent's thoughts and tool calls for one answer, shown as one foldable block.
+- **Agent window**: the app-wide panel for talking to an agent without leaving the page. Its conversations are ordinary chats.
 
 ## Colors
 
@@ -367,6 +368,26 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - **Peek.** A plain click opens the row in place as a raised card: full title, all authors, venue and year, the abstract, then one line with tags, status menu, star, ellipsis and the primary button (Read, Continue or Open). One peek at a time; ↑↓ move it, Space toggles it, Enter opens the paper.
 - **Selection.** Nothing is selected until the user clicks; coming back from a paper keeps only the keyboard cursor, not a highlight. ⌘-click and ⇧-click select without peeking. Two or more selected bring up a floating bar at the bottom: "N selected · Star · Mark as · Add tag · Remove · ×".
 - **Paper page.** A breadcrumb "Library › title", "N of M" with previous and next, and a details toggle, with no rule under them. The reader sits on a well one step darker than the sheet so pages are the brightest surface. The details panel (380px) has the 18px title, authors and venue, one control line (status, star, ellipsis), and underline tabs Notes · Highlights · About.
+
+### Docs
+
+- **Structure.** Docs are the Markdown files in the workspace folder, shown as they are on disk, for quick notes and drafts alike: no doc types, no templates, no required title. A paper's own note is not a doc; it stays on the paper page.
+- **List panel.** A search field, a "New doc" row (with a New folder icon button that shows on hover), then the folder tree. The search field filters the tree in place by name and text. Folders are a chevron and a name; files are their title alone. Folders come first, then files, each by last edit, newest first; a folder counts as edited when anything inside it is. Tree rows are 32px, a step tighter than list rows, because a tree runs long. The workspace's `library/` and dot-folders are hidden; files that aren't Markdown show in muted text and open in the system app. There is no separate Recent group: Home, ⌘K and the edit-time order already lead back to recent docs.
+- **Organising.** Rows have the Chat list's hover ellipsis: Rename and Delete for a doc; New doc, New folder, Rename and Delete for a folder. Renaming happens in place on the row. Dragging a row onto a folder moves it there, onto empty space moves it to the root. Delete is immediate and offers Undo in its toast.
+- **New doc.** ⌘N or the New doc row. It never asks where to go: it lands in the folder last clicked or the open doc's folder, else at the workspace root. The first line is the title. Until the user renames the file, its name follows the first line; an empty first line names it by time (`2026-10-08 21.35.md`). Nothing is ever called "Untitled". A new doc left without a single character is gone once the user moves on.
+- **Editor.** The text on disk is the document: opening a file and leaving it never changes a byte, and syntax owlit doesn't know passes through untouched. Markdown marks hide while the cursor is away from them and come back on the line being edited; an unfocused doc reads clean. Headings, emphasis, ==highlights==, links, lists, task boxes, quotes, rules and code are drawn in place; tables, math, embeds and callouts are to follow. Body text is 15px in the 768px column under a one-line header (the folder path and the title, an ellipsis menu at the right); there is no toolbar. The title line is 22px medium; headings below it are 18px and 15px semibold. Front matter shows as quiet monospace and is never read as the title. It saves on every change and never says "Saved", and a doc reopens with the cursor where it was left.
+- **Citations in docs.** @ opens the same mention popup as the composer. On disk a mention is a link to its `owlit://` address; on screen it is drawn like every other mention, one token that is deleted whole and opens its item on click. A paper is cited the way a writer would, "Vaswani et al. 2017", with its full title on hover.
+- **Selection.** Selecting text brings up Ask · Rewrite · Find support. Each opens the agent window with the selection attached.
+- **Agent edits.** An edit the agent proposes is shown in place before anything changes: removed words struck through in the muted tone, new words on a faint `success` tint, and one line under them, "Suggested by the agent", with Discard and Apply. Removal is not an error, so it is never red. Apply can be undone.
+- **Agent notes.** A note the agent leaves on a passage is a small marker in the margin beside its paragraph; clicking it opens a card with who wrote it and when, the note, and actions. Notes are kept beside the file, never written into it. If the passage changes outside owlit and can't be found again, the note says so instead of disappearing.
+
+### Agent window
+
+- **One window, everywhere but Chat.** ⌘J, the button at the right end of the top bar, or Ask on a selection calls it. At rest nothing shows.
+- **Ask bar, then panel.** It first appears as a small ask bar floating at the bottom centre of the page, on the `card` surface with the composer's radius and shadow. The first message turns it into a docked panel, so a quick question stays light and a conversation never covers the text. Esc closes either.
+- **Docked panel.** The third part of the sheet: 400px on the `sidebar-panel` tone, split from the page by the same hairline as the list panel. While it is open the list panel folds, so the page keeps its full column; closing it brings the list back. The right side holds one panel at a time: on a paper page it takes the details panel's place.
+- **It is a chat.** Each conversation is an ordinary chat and appears in the Chat list. The header has the chat's title (a menu to switch chats), New chat, Open in Chat and Close.
+- **Context.** Removable chips above the input name what the agent can see: the doc or paper on screen, and a selection if one was sent. The page chip follows the user as they move; the conversation stays. A selection is used once: after the reply its chip goes, and the selection stays in the thread as a short muted quote above the message it was sent with.
 
 ## Do's and Don'ts
 

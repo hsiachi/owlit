@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docs and agent window</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+/* Tokens copied from app/src/index.css */
+:root {
+  --background: oklch(0.99 0.002 85);
+  --foreground: oklch(0.21 0.008 60);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.25 0.008 60);
+  --primary-foreground: oklch(0.985 0.003 85);
+  --muted: oklch(0.3 0.02 65 / 5%);
+  --secondary: oklch(0.3 0.02 65 / 5%);
+  --muted-foreground: oklch(0.505 0.012 65);
+  --accent: oklch(0.3 0.02 65 / 6%);
+  --destructive: oklch(0.55 0.16 25);
+  --success: oklch(0.56 0.1 155);
+  --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.942 0.007 80);
+  --sidebar-panel: oklch(0.976 0.004 85);
+  --sidebar-accent: oklch(0.3 0.02 65 / 6.5%);
+  --mention: oklch(0.48 0.09 255);
+  --well: oklch(0.962 0.005 82);
+  --ins: oklch(0.56 0.1 155 / 12%);
+  --shadow-raise: 0 1px 2px oklch(0.3 0.02 60 / 0.05), 0 4px 14px oklch(0.3 0.02 60 / 0.05);
+  --shadow-float: 0 2px 6px oklch(0.3 0.02 60 / 0.08), 0 12px 32px oklch(0.3 0.02 60 / 0.12);
+  color-scheme: light;
+}
+.dark {
+  --background: oklch(0.215 0.005 60);
+  --foreground: oklch(0.935 0.006 80);
+  --card: oklch(0.245 0.006 60);
+  --popover: oklch(0.255 0.006 60);
+  --primary: oklch(0.92 0.006 80);
+  --primary-foreground: oklch(0.215 0.005 60);
+  --muted: oklch(0.95 0.01 80 / 7%);
+  --secondary: oklch(0.95 0.01 80 / 7%);
+  --muted-foreground: oklch(0.7 0.01 70);
+  --accent: oklch(0.95 0.01 80 / 8%);
+  --destructive: oklch(0.68 0.13 22);
+  --success: oklch(0.72 0.09 155);
+  --border: oklch(0.935 0.01 80 / 10%);
+  --sidebar: oklch(0.155 0.004 60);
+  --sidebar-panel: oklch(0.19 0.005 60);
+  --sidebar-accent: oklch(0.95 0.01 80 / 8%);
+  --mention: oklch(0.78 0.07 255);
+  --well: oklch(0.185 0.005 60);
+  --ins: oklch(0.72 0.09 155 / 16%);
+  --shadow-raise: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 14px oklch(0 0 0 / 0.2);
+  --shadow-float: 0 2px 6px oklch(0 0 0 / 0.35), 0 12px 32px oklch(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; background: var(--sidebar); color: var(--foreground); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
+input, textarea { font: inherit; color: inherit; }
+svg.lucide { width: 16px; height: 16px; stroke-width: 2; flex: none; }
+.muted { color: var(--muted-foreground); }
+
+/* ---- Frame ---- */
+.frame { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: 40px 1fr; height: 100vh; }
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; padding: 0 6px; color: var(--muted-foreground); min-width: 0; }
+.topbar .spacer { flex: 1; }
+.rail { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+.icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--muted-foreground); transition: background .12s, color .12s; flex: none; }
+.icon-btn:hover { background: var(--accent); color: var(--foreground); }
+.icon-btn.on { background: var(--accent); color: var(--foreground); }
+.rail .icon-btn { width: 32px; height: 32px; }
+.rail .icon-btn.active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.08); }
+
+/* Mock-only controls, not part of the design */
+.mock { display: flex; align-items: center; gap: 4px; margin-right: 10px; }
+.mock-label { font-size: 11px; color: var(--muted-foreground); opacity: .75; margin-right: 2px; white-space: nowrap; }
+.mock-switch { display: flex; gap: 2px; font-size: 12px; padding: 2px; border-radius: 8px; background: var(--muted); }
+.mock-switch button { padding: 3px 9px; border-radius: 6px; color: var(--muted-foreground); white-space: nowrap; }
+.mock-switch button.on { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.08); }
+.mock-note { position: fixed; left: 48px; bottom: 10px; z-index: 50; max-width: 300px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground); background: var(--popover); border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; box-shadow: var(--shadow-raise); }
+.mock-note b { color: var(--foreground); font-weight: 500; }
+.mock-note .x { float: right; margin: -2px -4px 0 6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; }
+.mock-note .x:hover { background: var(--accent); }
+.mock-note .x svg.lucide { width: 13px; height: 13px; }
+
+.sheetwrap { display: flex; min-height: 0; margin: 0 4px 4px 0; position: relative; }
+.lpanel { width: 260px; flex: none; background: var(--sidebar-panel); border: 1px solid var(--border); border-right-width: .5px; border-radius: 10px 0 0 10px; overflow: auto; padding: 8px 8px 16px; }
+.sheet { flex: 1; min-width: 0; border: 1px solid var(--border); border-left: 0; border-radius: 0 10px 10px 0; background: var(--background); overflow: hidden; position: relative; display: flex; }
+.sheetwrap.nolist .lpanel { display: none; }
+.sheetwrap.nolist .sheet { border-left: 1px solid var(--border); border-radius: 10px 0 0 10px; }
+.sheetwrap:not(.docked) .sheet { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+.sheetwrap:not(.docked).nolist .sheet { border-radius: 10px; }
+.sheetwrap.docked .sheet { border-radius: 0; border-right-width: .5px; }
+.sheetwrap.docked.nolist .sheet { border-radius: 10px 0 0 10px; }
+
+/* ---- List panel: file tree ---- */
+.search { width: 100%; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 14px; }
+.search kbd { margin-left: auto; font: inherit; font-size: 12px; }
+.newrow { margin-top: 6px; width: 100%; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; background: var(--sidebar-accent); font-size: 14px; }
+.tree { margin-top: 14px; display: flex; flex-direction: column; }
+.trow { width: 100%; height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 8px; font-size: 14px; color: var(--foreground); white-space: nowrap; }
+.trow:hover { background: var(--sidebar-accent); }
+.trow.on { background: color-mix(in oklch, var(--foreground) 8%, transparent); }
+.trow .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.trow .chev { color: var(--muted-foreground); width: 14px; height: 14px; transition: transform .12s; }
+.trow.open .chev { transform: rotate(90deg); }
+.trow.file { padding-left: 28px; }
+.trow.file.l2 { padding-left: 28px; }
+.trow.file.root { padding-left: 10px; }
+.trow .hint { color: var(--muted-foreground); font-size: 13px; }
+.trow.other .name { color: var(--muted-foreground); }
+.kids { display: flex; flex-direction: column; }
+.kids.hide { display: none; }
+
+/* ---- Doc page ---- */
+.main { flex: 1; overflow-y: auto; min-width: 0; position: relative; }
+.dochead { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 10px 0 16px; background: var(--background); font-size: 13px; color: var(--muted-foreground); }
+.dochead .crumb b { color: var(--foreground); font-weight: 400; }
+.dochead .spacer { flex: 1; }
+.col { max-width: 768px; margin: 0 auto; padding: 28px 24px 160px; position: relative; }
+.doc { font-size: 15px; line-height: 1.7; outline: none; }
+.doc h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.25; margin-bottom: 18px; }
+.doc h2 { font-size: 18px; font-weight: 500; margin: 26px 0 8px; }
+.doc p { margin: 0 0 14px; position: relative; }
+.cite { color: var(--mention); border-radius: 4px; padding: 0 1px; }
+.cite:hover { background: color-mix(in oklch, var(--mention) 10%, transparent); }
+.doc del { color: var(--muted-foreground); text-decoration: line-through; }
+.doc ins { background: var(--ins); text-decoration: none; border-radius: 3px; }
+.editbar { display: flex; align-items: center; gap: 6px; margin: -6px 0 16px; font-size: 13px; color: var(--muted-foreground); }
+.editbar .spacer { flex: 1; }
+.btn { height: 28px; padding: 0 10px; border-radius: 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn.ghost { color: var(--muted-foreground); }
+.btn.ghost:hover { background: var(--accent); color: var(--foreground); }
+.btn.primary { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
+.btn.line { border: 1px solid var(--border); background: var(--card); }
+.btn.line:hover { background: color-mix(in oklch, var(--card) 92%, var(--foreground)); }
+
+/* Margin note marker, beside its paragraph */
+.mnote { position: absolute; right: -34px; top: 3px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; color: var(--muted-foreground); }
+.mnote:hover, .mnote.on { background: var(--accent); color: var(--foreground); }
+.mnote svg.lucide { width: 14px; height: 14px; }
+.mcard { position: absolute; right: -34px; top: 30px; width: 280px; z-index: 5; background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); padding: 12px 14px; font-size: 14px; line-height: 1.5; display: none; }
+.mcard.show { display: block; }
+.mcard .who { font-size: 12px; color: var(--muted-foreground); margin-bottom: 4px; }
+.mcard .acts { display: flex; gap: 4px; margin: 10px -6px -4px; }
+
+/* Selection menu */
+.selmenu { position: fixed; z-index: 30; display: none; gap: 2px; padding: 3px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 13px; }
+.selmenu.show { display: flex; }
+.selmenu button { height: 28px; padding: 0 10px; border-radius: 7px; white-space: nowrap; }
+.selmenu button:hover { background: var(--accent); }
+
+/* ---- Paper page (simplified) ---- */
+.paper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.paper .well { flex: 1; overflow: auto; background: var(--well); padding: 24px; }
+.page { max-width: 620px; margin: 0 auto; background: var(--card); box-shadow: var(--shadow-raise); border-radius: 2px; padding: 48px 56px; font-family: Georgia, serif; font-size: 13px; line-height: 1.6; color: var(--foreground); }
+.page h3 { font-size: 18px; font-weight: 400; text-align: center; margin-bottom: 6px; }
+.page .au { text-align: center; color: var(--muted-foreground); margin-bottom: 22px; }
+.page p { margin-bottom: 10px; text-align: justify; }
+.page mark { background: oklch(0.92 0.1 95 / 0.6); color: inherit; }
+.details { width: 380px; flex: none; border-left: .5px solid var(--border); padding: 20px 20px; overflow: auto; }
+.details h2 { font-size: 18px; font-weight: 500; line-height: 1.375; }
+.details .meta { font-size: 13px; color: var(--muted-foreground); margin-top: 6px; }
+.details .tabs { display: flex; gap: 14px; margin-top: 18px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.details .tabs span { padding: 6px 2px; color: var(--muted-foreground); }
+.details .tabs span.on { color: var(--foreground); box-shadow: inset 0 -2px 0 var(--foreground); }
+.details .body { margin-top: 14px; font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
+
+/* ---- Agent window ---- */
+.agent { display: flex; flex-direction: column; min-height: 0; background: var(--background); }
+.ahead { display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 8px 0 12px; flex: none; }
+.atitle { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px; margin-left: -6px; border-radius: 8px; font-size: 14px; font-weight: 500; min-width: 0; }
+.atitle:hover { background: var(--accent); }
+.atitle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atitle svg.lucide { width: 14px; height: 14px; color: var(--muted-foreground); }
+.ahead .spacer { flex: 1; }
+.athread { flex: 1; overflow-y: auto; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 18px; mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent); }
+.aempty { margin: auto 0 4px; display: flex; flex-direction: column; gap: 10px; }
+.aempty .lead { font-size: 15px; }
+.starters { display: flex; flex-wrap: wrap; gap: 6px; }
+.starter { height: 28px; padding: 0 11px; border-radius: 9999px; background: var(--secondary); color: var(--muted-foreground); font-size: 13px; }
+.starter:hover { color: var(--foreground); background: var(--accent); }
+.uquote { align-self: flex-end; max-width: 85%; margin-bottom: -12px; font-size: 13px; color: var(--muted-foreground); border-right: 2px solid var(--border); padding-right: 8px; text-align: right; }
+.umsg { align-self: flex-end; max-width: 85%; background: var(--secondary); border-radius: 14px; padding: 8px 12px; font-size: 15px; line-height: 1.55; white-space: pre-wrap; }
+.amsg { font-size: 15px; line-height: 1.625; display: flex; flex-direction: column; gap: 10px; }
+.steps { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
+.steps svg.lucide { width: 14px; height: 14px; }
+.amsg .meta { font-size: 12px; color: var(--muted-foreground); }
+.sugg { border: 1px solid var(--border); background: var(--card); border-radius: 10px; padding: 10px 12px; font-size: 14px; display: flex; flex-direction: column; gap: 8px; }
+.sugg .t { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 13px; }
+.sugg .t b { color: var(--foreground); font-weight: 500; }
+.sugg .d { font-size: 14px; line-height: 1.55; }
+.sugg .acts { display: flex; gap: 6px; justify-content: flex-end; }
+.typing { display: inline-flex; gap: 4px; padding: 6px 0; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-foreground); opacity: .5; animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 50% { opacity: .15; } }
+
+.acomposer { margin: 0 12px 12px; flex: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-raise); transition: border-color .15s, box-shadow .15s; }
+.acomposer:focus-within { border-color: color-mix(in oklch, var(--foreground) 22%, transparent); box-shadow: var(--shadow-float); }
+.ctx { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 8px 0; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; max-width: 100%; padding: 0 4px 0 8px; border-radius: 8px; background: var(--muted); font-size: 12px; color: var(--muted-foreground); }
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip b { font-weight: 400; color: var(--mention); }
+.chip button { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 5px; }
+.chip button:hover { background: var(--accent); color: var(--foreground); }
+.chip svg.lucide { width: 12px; height: 12px; }
+.acomposer textarea { display: block; width: 100%; resize: none; border: 0; outline: 0; background: transparent; padding: 10px 12px 4px; font-size: 15px; line-height: 1.5; height: 52px; }
+.acomposer textarea::placeholder { color: var(--muted-foreground); }
+.afoot { display: flex; align-items: center; gap: 4px; padding: 0 8px 8px; }
+.afoot .spacer { flex: 1; }
+.picker { height: 28px; padding: 0 6px; border-radius: 8px; display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--muted-foreground); }
+.picker:hover { background: var(--accent); color: var(--foreground); }
+.picker svg.lucide { width: 13px; height: 13px; }
+.send { width: 28px; height: 28px; border-radius: 9999px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); }
+.send svg.lucide { width: 15px; height: 15px; }
+.round { width: 28px; height: 28px; border-radius: 9999px; display: grid; place-items: center; color: var(--muted-foreground); }
+.round:hover { background: var(--accent); color: var(--foreground); }
+
+/* A: floating card over the sheet */
+.agent.va { position: absolute; z-index: 20; right: 16px; bottom: 16px; width: 400px; height: min(600px, calc(100% - 32px)); background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); overflow: hidden; }
+.agent.va .athread { background: var(--popover); }
+.launcher { position: absolute; z-index: 19; right: 16px; bottom: 16px; width: 44px; height: 44px; border-radius: 9999px; display: grid; place-items: center; background: var(--popover); border: 1px solid var(--border); box-shadow: var(--shadow-float); color: var(--foreground); }
+.launcher svg.lucide { width: 18px; height: 18px; }
+.launcher:hover { background: color-mix(in oklch, var(--popover) 94%, var(--foreground)); }
+
+/* B: docked panel, the third part of the sheet */
+.dock { width: 400px; flex: none; display: flex; border: 1px solid var(--border); border-left: 0; border-radius: 0 10px 10px 0; background: var(--sidebar-panel); overflow: hidden; }
+.dock .agent { flex: 1; background: var(--sidebar-panel); }
+
+/* C: bottom bar that grows into a sheet */
+.cbar { position: absolute; z-index: 20; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(600px, calc(100% - 48px)); display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px 0 14px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.cbar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; }
+.cbar input::placeholder { color: var(--muted-foreground); }
+.cbar .kbd { font-size: 12px; color: var(--muted-foreground); }
+.cbar .ctx { padding: 0; flex-wrap: nowrap; }
+.cbar:focus-within { border-color: color-mix(in oklch, var(--foreground) 22%, transparent); }
+.agent.vc { position: absolute; z-index: 20; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(680px, calc(100% - 48px)); height: min(66%, 620px); background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); overflow: hidden; }
+.agent.vc .athread { background: var(--popover); }
+
+.hide { display: none !important; }
+
+/* Toast */
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <div class="topbar">
+    <button class="icon-btn"><i data-lucide="arrow-left"></i></button>
+    <button class="icon-btn"><i data-lucide="arrow-right"></i></button>
+    <button class="icon-btn" id="listToggle" title="Toggle list panel"><i data-lucide="panel-left"></i></button>
+    <div class="spacer"></div>
+    <div class="mock"><span class="mock-label">Agent window</span>
+      <div class="mock-switch" id="swVariant">
+        <button data-v="a">A · Float</button><button data-v="b">B · Dock</button><button data-v="c">C · Bar</button><button data-v="bc" class="on">C → B</button>
+      </div>
+    </div>
+    <div class="mock"><span class="mock-label">Page</span>
+      <div class="mock-switch" id="swPage"><button data-p="doc" class="on">Doc</button><button data-p="paper">Paper</button></div>
+    </div>
+    <div class="mock"><div class="mock-switch" id="swTheme"><button data-t="light" class="on">Light</button><button data-t="dark">Dark</button></div></div>
+    <button class="icon-btn" id="agentBtn" title="Agent  ⌘J"><i data-lucide="panel-right"></i></button>
+  </div>
+
+  <nav class="rail">
+    <button class="icon-btn"><i data-lucide="house"></i></button>
+    <button class="icon-btn"><i data-lucide="message-square"></i></button>
+    <button class="icon-btn active" id="railDocs"><i data-lucide="file-text"></i></button>
+    <button class="icon-btn"><i data-lucide="network"></i></button>
+    <button class="icon-btn" id="railLib"><i data-lucide="book-open"></i></button>
+  </nav>
+
+  <div class="sheetwrap" id="sw">
+    <aside class="lpanel" id="lpanel">
+      <button class="search"><i data-lucide="search"></i>Search<kbd>⌘K</kbd></button>
+      <button class="newrow"><i data-lucide="plus"></i>New doc</button>
+      <div class="tree" id="tree">
+        <button class="trow folder open" data-f="writing"><i data-lucide="chevron-right" class="chev"></i><span class="name">writing</span></button>
+        <div class="kids" data-k="writing">
+          <button class="trow file on"><span class="name">CHI related work</span></button>
+          <button class="trow file"><span class="name">Proposal draft</span></button>
+          <button class="trow file"><span class="name">Rebuttal notes</span></button>
+        </div>
+        <button class="trow folder open" data-f="notes"><i data-lucide="chevron-right" class="chev"></i><span class="name">notes</span></button>
+        <div class="kids" data-k="notes">
+          <button class="trow file"><span class="name">This might not be only about timing</span></button>
+          <button class="trow file"><span class="name">Advisor meeting 10-29</span></button>
+          <button class="trow file"><span class="name">Reading log</span></button>
+          <button class="trow file other"><span class="name">timing-sketch.png</span></button>
+        </div>
+        <button class="trow folder" data-f="meetings"><i data-lucide="chevron-right" class="chev"></i><span class="name">meetings</span></button>
+        <div class="kids hide" data-k="meetings">
+          <button class="trow file"><span class="name">2026-10-02</span></button>
+          <button class="trow file"><span class="name">2026-09-18</span></button>
+        </div>
+        <button class="trow folder" data-f="experiments"><i data-lucide="chevron-right" class="chev"></i><span class="name">experiments</span></button>
+        <div class="kids hide" data-k="experiments">
+          <button class="trow file"><span class="name">Experiment plan</span></button>
+        </div>
+        <button class="trow file root"><span class="name">Ideas</span></button>
+      </div>
+    </aside>
+
+    <div class="sheet" id="sheet">
+      <!-- Doc page -->
+      <div class="main" id="docPage">
+        <div class="dochead">
+          <span class="crumb">writing / <b>CHI related work</b></span>
+          <div class="spacer"></div>
+          <button class="icon-btn"><i data-lucide="ellipsis-vertical"></i></button>
+        </div>
+        <div class="col">
+          <div class="doc" id="doc" contenteditable="true" spellcheck="false">
+            <h1>Related work</h1>
+            <h2>Timing of proactive assistance</h2>
+            <p id="p1">Prior work on proactive assistance has largely asked when an agent should interrupt. Iqbal and Bailey showed that deferring notifications to task boundaries reduces disruption <span class="cite" contenteditable="false">Iqbal 2008</span>, and later studies refined the boundary notion for mobile contexts <span class="cite" contenteditable="false">Nguyen 2023</span>.</p>
+            <p id="p2">To our knowledge, no work has compared task-boundary timing with user control over the suggestion itself.<button class="mnote" id="mnote" contenteditable="false" title="Agent note"><i data-lucide="message-square-text"></i></button></p>
+            <div class="mcard" id="mcard" contenteditable="false">
+              <div class="who">Agent note · from a check on 10/18</div>
+              "No work has compared" goes beyond what your two searches covered (HCI venues, 2018–2025). Narrow the claim, or search further.
+              <div class="acts"><button class="btn ghost" data-ask="Narrow this claim to what my searches covered.">Narrow it</button><button class="btn ghost" data-ask="Search further for work comparing task-boundary timing with user control.">Search further</button><button class="btn ghost" id="dismissNote">Dismiss</button></div>
+            </div>
+            <div class="editbar hide" id="editbar" contenteditable="false">
+              <i data-lucide="sparkles" style="width:14px;height:14px"></i>Suggested by the agent
+              <div class="spacer"></div>
+              <button class="btn ghost" id="discard">Discard</button><button class="btn primary" id="apply">Apply</button>
+            </div>
+            <p id="p3">A separate line of work examines whether users want the agent to explain itself <span class="cite" contenteditable="false">Marín 2024</span>. Explanations after the fact were preferred in notification settings, though the evidence for conversational agents is thin.</p>
+            <h2>Control and refusal</h2>
+            <p>Chen et al. found that acceptance rose when users could defer a suggestion <span class="cite" contenteditable="false">Chen 2025</span>, while Sato and Ito define control as the ability to refuse outright <span class="cite" contenteditable="false">Sato 2025</span>. The two definitions are not interchangeable, and neither study varies timing.</p>
+            <p>Our study treats timing and control as separate factors, so that their effects on acceptance can be told apart.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paper page -->
+      <div class="paper hide" id="paperPage">
+        <div class="dochead"><span class="crumb">Library › <b>Deferral increases acceptance of proactive suggestions</b></span><div class="spacer"></div><span>4 of 23</span><button class="icon-btn"><i data-lucide="chevron-left"></i></button><button class="icon-btn"><i data-lucide="chevron-right"></i></button><button class="icon-btn on" id="detailsBtn"><i data-lucide="panel-right-open"></i></button></div>
+        <div style="display:flex;flex:1;min-height:0">
+          <div class="well">
+            <div class="page">
+              <h3>Deferral Increases Acceptance of Proactive Suggestions</h3>
+              <div class="au">Chen, Park, Alvarez · CHI 2025</div>
+              <p><b>Abstract.</b> Proactive assistants interrupt users at moments the system chooses. We ran a field study (N = 48) of a writing assistant that offered suggestions either immediately or with an option to defer them. <mark>Acceptance rose from 31% to 47% when deferral was available</mark>, while perceived disruption did not change.</p>
+              <p><b>1 Introduction.</b> Prior work frames the problem as one of timing: find the moment of least cost, then interrupt. We argue that the cost of an interruption also depends on what the user can do with it. A suggestion that can be postponed is a different object from one that must be answered now.</p>
+              <p>We hold timing constant across conditions and vary only whether the user can defer. This lets us separate the effect of control from the effect of the moment chosen.</p>
+              <p><b>2 Related work.</b> Notification research established that interruptions at task boundaries are less disruptive. Work on mixed-initiative interfaces argued that users should be able to direct and dismiss automated services.</p>
+            </div>
+          </div>
+          <aside class="details" id="details">
+            <h2>Deferral increases acceptance of proactive suggestions</h2>
+            <div class="meta">Chen, Park, Alvarez · CHI 2025</div>
+            <div class="tabs"><span class="on">Notes</span><span>Highlights</span><span>About</span></div>
+            <div class="body">Is the evidence enough? Timing is held constant, so this says nothing about boundaries.</div>
+          </aside>
+        </div>
+      </div>
+
+      <button class="launcher hide" id="launcher" title="Agent  ⌘J"><i data-lucide="message-circle"></i></button>
+      <div class="cbar hide" id="cbar">
+        <div class="ctx" id="cbarCtx"></div>
+        <input id="cbarInput" placeholder="Ask the agent…">
+        <span class="kbd" id="cbarKbd">⌘J</span>
+        <button class="send" id="cbarSend"><i data-lucide="arrow-up"></i></button>
+      </div>
+    </div>
+
+    <aside class="dock hide" id="dock"></aside>
+  </div>
+</div>
+
+<!-- The one agent window; moved between containers by variant, parked here when closed -->
+<div class="hide" id="park">
+<div class="agent" id="agent">
+  <div class="ahead">
+    <button class="atitle" title="Switch chat"><span id="atitle">New chat</span><i data-lucide="chevron-down"></i></button>
+    <div class="spacer"></div>
+    <button class="icon-btn" title="New chat" id="newChat"><i data-lucide="square-pen"></i></button>
+    <button class="icon-btn" title="Open in Chat"><i data-lucide="maximize-2"></i></button>
+    <button class="icon-btn" title="Close  Esc" id="closeAgent"><i data-lucide="x"></i></button>
+  </div>
+  <div class="athread" id="thread"></div>
+  <div class="acomposer">
+    <div class="ctx" id="ctx"></div>
+    <textarea id="input" placeholder="Ask about this doc…"></textarea>
+    <div class="afoot">
+      <button class="round"><i data-lucide="plus"></i></button>
+      <div class="spacer"></div>
+      <button class="picker">Claude Code<i data-lucide="chevron-down"></i></button>
+      <button class="send" id="send"><i data-lucide="arrow-up"></i></button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="selmenu" id="selmenu"><button data-sel="ask">Ask</button><button data-sel="rewrite">Rewrite</button><button data-sel="support">Find support</button></div>
+
+<div class="mock-note" id="note"></div>
+
+<script>
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+
+const NOTES = {
+  a: "<b>A · Float.</b> A round button in the corner opens a card over the page. Nothing reflows, but on a 1280px window the card covers the right part of the text and the margin notes.",
+  b: "<b>B · Dock.</b> The button at the right of the top bar (or ⌘J) opens a panel as the third part of the sheet. The list panel folds away so the text keeps its full 768px column. On a paper page it takes the details panel's place.",
+  c: "<b>C · Bar.</b> An ask bar always floats at the bottom of the page. Sending grows it into a sheet over the lower part of the page; Esc or × shrinks it back to the bar.",
+  bc: "<b>C → B (proposed).</b> Nothing shows at rest. ⌘J, the top-bar button or Ask on a selection brings up a small ask bar; the first message turns it into the docked panel. Quick questions stay light; a conversation gets room without covering the text.",
+}
+
+const state = {
+  variant: "bc",
+  page: "doc",
+  stage: "closed", // closed | bar | open
+  listOpen: true,
+  listAuto: false, // list panel folded by the dock, restored when the dock closes
+  ctx: [],
+  messages: [],
+  pendingEdit: false,
+  noteOff: false,
+}
+
+function defaultCtx() {
+  return state.page === "doc"
+    ? [{ kind: "doc", label: "CHI related work" }]
+    : [{ kind: "paper", label: "Chen et al. 2025" }]
+}
+
+/* ---------- Layout per variant ---------- */
+function render() {
+  const v = state.variant
+  const sw = $("#sw"), dock = $("#dock"), agent = $("#agent")
+  // Pages
+  $("#docPage").classList.toggle("hide", state.page !== "doc")
+  $("#paperPage").classList.toggle("hide", state.page !== "paper")
+  $("#railDocs").classList.toggle("active", state.page === "doc")
+  $("#railLib").classList.toggle("active", state.page === "paper")
+  $("#input").placeholder = state.page === "doc" ? "Ask about this doc…" : "Ask about this paper…"
+
+  const docked = state.stage === "open" && (v === "b" || v === "bc")
+  // The library has no list panel; the doc page folds it while the dock is open
+  const listVisible = state.page === "doc" && state.listOpen && !(docked && state.listAuto)
+  sw.classList.toggle("nolist", !listVisible)
+  sw.classList.toggle("docked", docked)
+  dock.classList.toggle("hide", !docked)
+  // On the paper page the dock takes the details panel's slot
+  $("#details").classList.toggle("hide", docked || !$("#detailsBtn").classList.contains("on"))
+
+  // Where the agent lives
+  agent.className = "agent"
+  if (state.stage === "open") {
+    if (docked) dock.appendChild(agent)
+    else { $("#sheet").appendChild(agent); agent.classList.add(v === "a" ? "va" : "vc") }
+  } else $("#park").appendChild(agent)
+
+  $("#launcher").classList.toggle("hide", !(v === "a" && state.stage !== "open"))
+  const showBar = (v === "c" && state.stage !== "open") || (v === "bc" && state.stage === "bar")
+  $("#cbar").classList.toggle("hide", !showBar)
+  $("#cbarKbd").classList.toggle("hide", v === "bc")
+  $("#agentBtn").style.visibility = v === "a" || v === "c" ? "hidden" : ""
+  $("#agentBtn").classList.toggle("on", state.stage !== "closed")
+
+  renderCtx()
+  renderThread()
+  $("#note").innerHTML = state.noteOff ? "" : `<button class="x" id="noteX"><i data-lucide="x"></i></button>${NOTES[v]}`
+  $("#note").classList.toggle("hide", state.noteOff)
+  lucide.createIcons()
+  $("#noteX")?.addEventListener("click", () => { state.noteOff = true; render() })
+}
+
+function chipHTML(c, i) {
+  const label = c.kind === "sel" ? `Selection · “${c.label}”` : `<b>${c.label}</b>`
+  return `<span class="chip"><span>${label}</span><button data-rm="${i}"><i data-lucide="x"></i></button></span>`
+}
+function renderCtx() {
+  const html = state.ctx.map(chipHTML).join("")
+  $("#ctx").innerHTML = html
+  $("#ctx").classList.toggle("hide", !state.ctx.length)
+  // The bar shows only a selection chip, to stay one line
+  $("#cbarCtx").innerHTML = state.ctx.map((c, i) => c.kind === "sel" ? chipHTML({ ...c, label: c.label.slice(0, 18) + "…" }, i) : "").join("")
+}
+
+function renderThread() {
+  const t = $("#thread")
+  if (!state.messages.length) {
+    const starters = state.page === "doc"
+      ? ["Check my citations", "Tighten this section", "What am I missing?"]
+      : ["Summarize the method", "How does this relate to my draft?", "What is held constant?"]
+    t.innerHTML = `<div class="aempty"><div class="lead muted">${state.page === "doc" ? "Ask about this doc, or anything else." : "Ask about this paper, or anything else."}</div>
+      <div class="starters">${starters.map((s) => `<button class="starter" data-ask="${s}">${s}</button>`).join("")}</div></div>`
+    return
+  }
+  t.innerHTML = state.messages.map((m) => {
+    if (m.role === "user") return `${m.quote ? `<div class="uquote">“${m.quote}”</div>` : ""}<div class="umsg">${m.text}</div>`
+    if (m.typing) return `<div class="amsg"><div class="typing"><i></i><i></i><i></i></div></div>`
+    return `<div class="amsg">${m.html}</div>`
+  }).join("")
+  t.scrollTop = t.scrollHeight
+}
+
+/* ---------- Opening and closing ---------- */
+function openAgent(withSelection) {
+  if (!state.ctx.length || state.stage === "closed") state.ctx = defaultCtx()
+  if (withSelection) {
+    state.ctx = state.ctx.filter((c) => c.kind !== "sel")
+    state.ctx.push({ kind: "sel", label: withSelection })
+  }
+  const v = state.variant
+  if (v === "bc" && state.stage !== "open" && !state.messages.length) state.stage = "bar"
+  else if (v === "c" && withSelection && state.stage !== "open") state.stage = "closed" // the bar takes the selection
+  else state.stage = "open"
+  if ((v === "b" || v === "bc") && state.stage === "open") state.listAuto = true
+  render()
+  setTimeout(() => (state.stage === "open" ? $("#input") : $("#cbarInput")).focus(), 0)
+}
+function closeAgent() {
+  state.stage = state.variant === "c" ? "closed" : "closed"
+  state.listAuto = false
+  render()
+}
+function toggleAgent() { state.stage === "closed" ? openAgent() : closeAgent() }
+
+/* ---------- Conversation ---------- */
+function send(text) {
+  text = (text || "").trim()
+  if (!text) return
+  if (!state.ctx.length) state.ctx = defaultCtx()
+  const sel = state.ctx.find((c) => c.kind === "sel")
+  state.messages.push({ role: "user", text, quote: sel?.label })
+  if (state.messages.length === 1) $("#atitle").textContent = text.length > 34 ? text.slice(0, 34) + "…" : text
+  state.messages.push({ role: "agent", typing: true })
+  if (state.stage !== "open") {
+    state.stage = "open"
+    if (state.variant === "b" || state.variant === "bc") state.listAuto = true
+  }
+  $("#input").value = ""; $("#cbarInput").value = ""
+  render()
+  setTimeout(() => {
+    state.messages.pop()
+    state.messages.push({ role: "agent", html: reply(text) })
+    // Context chips stay for the next turn, the selection is used up
+    state.ctx = state.ctx.filter((c) => c.kind !== "sel")
+    render()
+  }, 900)
+}
+
+function reply(text) {
+  const hasSel = state.ctx.some((c) => c.kind === "sel")
+  if (state.page === "paper") {
+    return `<button class="steps"><i data-lucide="chevron-right"></i>2 steps</button>
+      <div>Timing is held constant: every suggestion arrives at the same point in the writing session, and only the option to defer changes. So the 31% → 47% rise is about control, not about when the suggestion came.</div>
+      <div>Your note on this paper asks whether the evidence is enough. One caution in that direction: the study is a single writing tool over two weeks.</div>
+      <div class="meta">Sonnet 5.5 · now</div>`
+  }
+  if (/narrow|claim|rewrite|tighten|support|check|citation/i.test(text) || hasSel) {
+    return `<button class="steps"><i data-lucide="chevron-right"></i>3 steps</button>
+      <div>The sentence claims more than your searches covered. Both searches (10/18, 10/22) were limited to HCI venues from 2018 to 2025, and <span class="cite">Chen 2025</span> comes close but holds timing constant.</div>
+      <div class="sugg"><div class="t"><i data-lucide="file-pen-line" style="width:14px;height:14px"></i>Edit to <b>CHI related work</b> · 1 sentence</div>
+        <div class="d">Within the venues we searched (HCI, 2018–2025), no work directly compares task-boundary timing with user control; Chen et al. come closest but hold timing constant.</div>
+        <div class="acts"><button class="btn ghost" data-review>Show in doc</button></div></div>
+      <div class="meta">Sonnet 5.5 · now</div>`
+  }
+  return `<button class="steps"><i data-lucide="chevron-right"></i>2 steps</button>
+    <div>The section separates timing from control well. What it lacks is the notification-management line your reviewer named: <span class="cite">Iqbal 2008</span> is cited for timing only, and nothing covers how users manage or batch notifications.</div>
+    <div class="meta">Sonnet 5.5 · now</div>`
+}
+
+/* ---------- Agent edit shown in the doc ---------- */
+const P2_OLD = $("#p2").childNodes[0].textContent
+const P2_NEW = "Within the venues we searched (HCI, 2018–2025), no work directly compares task-boundary timing with user control; Chen et al. come closest but hold timing constant."
+function showEdit() {
+  if (state.page !== "doc") return
+  const p2 = $("#p2")
+  p2.childNodes[0].remove()
+  p2.insertAdjacentHTML("afterbegin", `<span id="diff"><del>${P2_OLD}</del> <ins>${P2_NEW}</ins></span>`)
+  $("#editbar").classList.remove("hide")
+  $("#mcard").classList.remove("show")
+  $("#p2").scrollIntoView({ block: "center", behavior: "smooth" })
+  lucide.createIcons()
+}
+function settleEdit(apply) {
+  $("#diff").replaceWith(document.createTextNode(apply ? P2_NEW : P2_OLD))
+  $("#editbar").classList.add("hide")
+  if (apply) {
+    $("#mnote").remove()
+    toast("Edit applied", true)
+  }
+}
+function toast(text, undo) {
+  $(".toast")?.remove()
+  document.body.insertAdjacentHTML("beforeend", `<div class="toast">${text}${undo ? `<button class="btn ghost">Undo</button>` : ""}</div>`)
+  setTimeout(() => $(".toast")?.remove(), 3000)
+}
+
+/* ---------- Events ---------- */
+$("#swVariant").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return
+  $$("#swVariant button").forEach((x) => x.classList.toggle("on", x === b))
+  state.variant = b.dataset.v
+  state.stage = "closed"; state.listAuto = false; state.noteOff = false
+  render()
+})
+$("#swPage").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return
+  $$("#swPage button").forEach((x) => x.classList.toggle("on", x === b))
+  state.page = b.dataset.p
+  // Context follows the page; the conversation stays
+  state.ctx = state.stage === "closed" ? [] : defaultCtx()
+  render()
+})
+$("#swTheme").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return
+  $$("#swTheme button").forEach((x) => x.classList.toggle("on", x === b))
+  document.documentElement.classList.toggle("dark", b.dataset.t === "dark")
+})
+$("#listToggle").addEventListener("click", () => {
+  if (state.listAuto && state.stage === "open") state.listAuto = false
+  else state.listOpen = !state.listOpen
+  render()
+})
+$("#detailsBtn").addEventListener("click", (e) => {
+  if (state.stage === "open" && (state.variant === "b" || state.variant === "bc")) closeAgent()
+  else e.currentTarget.classList.toggle("on")
+  render()
+})
+$("#agentBtn").addEventListener("click", toggleAgent)
+$("#launcher").addEventListener("click", () => openAgent())
+$("#closeAgent").addEventListener("click", closeAgent)
+$("#newChat").addEventListener("click", () => { state.messages = []; $("#atitle").textContent = "New chat"; state.ctx = defaultCtx(); render() })
+$("#send").addEventListener("click", () => send($("#input").value))
+$("#cbarSend").addEventListener("click", () => send($("#cbarInput").value))
+$("#input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(e.target.value) } })
+$("#cbarInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); send(e.target.value) } })
+$("#cbarInput").addEventListener("focus", () => { if (!state.ctx.length) { state.ctx = defaultCtx(); renderCtx(); lucide.createIcons() } })
+
+document.addEventListener("click", (e) => {
+  const rm = e.target.closest("[data-rm]")
+  if (rm) { state.ctx.splice(+rm.dataset.rm, 1); renderCtx(); lucide.createIcons(); return }
+  const ask = e.target.closest("[data-ask]")
+  if (ask) {
+    $("#mcard").classList.remove("show"); $("#mnote").classList.remove("on")
+    if (state.stage === "closed" || state.stage === "bar") { state.ctx = defaultCtx(); if (ask.closest("#mcard")) state.ctx.push({ kind: "sel", label: "To our knowledge, no work has compared…" }) }
+    send(ask.dataset.ask); return
+  }
+  if (e.target.closest("[data-review]")) { showEdit(); return }
+  if (e.target.closest("#apply")) { settleEdit(true); return }
+  if (e.target.closest("#discard")) { settleEdit(false); return }
+  if (e.target.closest("#mnote")) { $("#mcard").classList.toggle("show"); $("#mnote").classList.toggle("on"); return }
+  if (e.target.closest("#dismissNote")) { $("#mcard").classList.remove("show"); $("#mnote").remove(); return }
+  if (!e.target.closest("#mcard")) { $("#mcard").classList.remove("show"); $("#mnote")?.classList.remove("on") }
+})
+
+// Folders
+$("#tree").addEventListener("click", (e) => {
+  const f = e.target.closest(".folder"); if (!f) return
+  f.classList.toggle("open")
+  document.querySelector(`[data-k="${f.dataset.f}"]`).classList.toggle("hide")
+})
+
+// Selection menu over the doc and the paper page
+let lastSel = ""
+document.addEventListener("mouseup", (e) => {
+  if (e.target.closest("#selmenu")) return
+  setTimeout(() => {
+    const sel = window.getSelection()
+    const text = sel.toString().trim()
+    const inside = sel.rangeCount && (sel.anchorNode.parentElement.closest("#doc") || sel.anchorNode.parentElement.closest(".page"))
+    const m = $("#selmenu")
+    if (text.length > 3 && inside) {
+      const r = sel.getRangeAt(0).getBoundingClientRect()
+      lastSel = text.length > 40 ? text.slice(0, 40) + "…" : text
+      m.style.left = Math.max(8, r.left + r.width / 2 - 100) + "px"
+      m.style.top = (r.top - 42) + "px"
+      m.classList.add("show")
+    } else m.classList.remove("show")
+  }, 0)
+})
+$("#selmenu").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return
+  $("#selmenu").classList.remove("show")
+  const kind = b.dataset.sel
+  if (kind === "ask") openAgent(lastSel)
+  else {
+    if (state.stage === "closed" || state.stage === "bar") state.ctx = defaultCtx()
+    state.ctx = state.ctx.filter((c) => c.kind !== "sel"); state.ctx.push({ kind: "sel", label: lastSel })
+    send(kind === "rewrite" ? "Rewrite this." : "Find support for this.")
+  }
+  window.getSelection().removeAllRanges()
+})
+
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") { e.preventDefault(); toggleAgent() }
+  if (e.key === "Escape") {
+    if ($("#selmenu").classList.contains("show")) { $("#selmenu").classList.remove("show"); return }
+    if (state.stage !== "closed") closeAgent()
+  }
+})
+
+render()
+</script>
+</body>
+</html>

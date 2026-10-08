@@ -1,6 +1,7 @@
 import type { ComponentType } from "react"
 import { BookOpen, FileText, House, MessageSquare, Network } from "lucide-react"
 import { ChatListPanel } from "@/features/chat/components/ChatListPanel"
+import { DocsListPanel } from "@/features/docs/components/DocsListPanel"
 
 export interface NavItem {
   to: string
@@ -13,7 +14,7 @@ export interface NavItem {
 export const nav: NavItem[] = [
   { to: "/", label: "Home", icon: House },
   { to: "/chat", label: "Chat", icon: MessageSquare, panel: ChatListPanel },
-  { to: "/docs", label: "Docs", icon: FileText },
+  { to: "/docs", label: "Docs", icon: FileText, panel: DocsListPanel },
   { to: "/knowledge", label: "Knowledge", icon: Network },
   { to: "/library", label: "Library", icon: BookOpen },
 ]

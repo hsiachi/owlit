@@ -1,0 +1,97 @@
+import type { WorkspaceFile } from "../types"
+
+const HOUR = 3_600_000
+const DAY = 24 * HOUR
+const now = Date.now()
+const ago = (ms: number) => now - ms
+
+// A small workspace about tool use in language models. Citations point at the Library's mock papers p1–p8.
+const relatedWork = `# Related work
+
+## Reasoning before acting
+
+Prompting a model to write out intermediate steps improves multi-step problems without any training [Wei et al. 2022](owlit://library/p5). The gains appear only at scale, which fits the broader picture from [Kaplan et al. 2020](owlit://library/p8): capabilities that look absent in small models show up once compute crosses a threshold.
+
+## Acting with tools
+
+[Yao et al. 2022](owlit://library/p7) interleave reasoning traces with actions, so the model can look things up mid-thought instead of guessing. [Schick et al. 2023](owlit://library/p6) go further and let the model decide *when* to call an API, learning this from its own filtered samples.
+
+Retrieval is the oldest form of this idea. [Lewis et al. 2020](owlit://library/p4) attach a dense retriever to a generator and train them together; the model's knowledge then lives partly outside its weights.
+
+To our knowledge, no work has compared learned tool calls with retrieval on the same tasks.
+`
+
+const proposal = `# Proposal draft
+
+**Question.** When should a language model reach for a tool instead of answering from memory?
+
+**Why now.** Few-shot prompting made it cheap to try new behaviours [Brown et al. 2020](owlit://library/p2), and instruction tuning made models follow them reliably [Ouyang et al. 2022](owlit://library/p3).
+
+## Plan
+
+1. Collect questions where the answer changes over time
+2. Compare three settings: no tools, retrieval only, learned tool calls
+3. Measure accuracy and how often the model calls a tool it didn't need
+
+- [x] Pick the question set
+- [ ] Ask about compute budget
+- [ ] Draft the evaluation section
+`
+
+const toolNotes = `# Tool use reading notes
+
+> The model decides which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results.
+
+That sentence is the whole pitch of [Schick et al. 2023](owlit://library/p6). Things to check:
+
+- How do they filter the self-generated calls? Loss reduction on the next tokens.
+- Does it ever *hurt* to call a tool? They report it on some tasks.
+- Compare with [Yao et al. 2022](owlit://library/p7), where the trace is written by prompting, not learned.
+
+\`\`\`text
+[Calculator(400 / 1400) → 0.29]
+\`\`\`
+`
+
+const readingLog = `---
+tags: [log]
+started: 2026-09-14
+---
+Reading log
+
+- 09-14 · Attention Is All You Need, again for the positional encoding section
+- 09-20 · Scaling laws: the compute-optimal frontier figure
+- 10-03 · ReAct, sections 3 and 4
+`
+
+const hunch = `Maybe retrieval and tool use are the same problem
+
+Both decide when outside information beats what the weights already hold. If that's right, the trigger should look similar in both: uncertainty about a fact, not about reasoning.
+`
+
+const advisor = `# Advisor meeting 10-02
+
+- Narrow the claim in related work: "no work compared" needs a search behind it
+- Try the time-sensitive questions first, they make the case clearest
+- Next meeting: bring one table, not slides
+`
+
+const ideas = `# Ideas
+
+- A tool that says "I don't know" instead of returning stale data
+- Measure tool calls per correct answer, not just accuracy
+- ==Ask: is chain of thought itself a tool?==
+`
+
+export const seedFiles: WorkspaceFile[] = [
+  { id: "d1", path: "writing/Related work.md", content: relatedWork, createdAt: ago(9 * DAY), modifiedAt: ago(2 * HOUR), nameLocked: true },
+  { id: "d2", path: "writing/Proposal draft.md", content: proposal, createdAt: ago(20 * DAY), modifiedAt: ago(3 * DAY), nameLocked: true },
+  { id: "d3", path: "notes/Tool use reading notes.md", content: toolNotes, createdAt: ago(6 * DAY), modifiedAt: ago(1 * DAY) },
+  { id: "d4", path: "notes/Reading log.md", content: readingLog, createdAt: ago(24 * DAY), modifiedAt: ago(5 * DAY), nameLocked: true },
+  { id: "d5", path: "notes/Maybe retrieval and tool use are the same problem.md", content: hunch, createdAt: ago(4 * DAY), modifiedAt: ago(4 * DAY) },
+  { id: "d6", path: "notes/react-trace.png", createdAt: ago(7 * DAY), modifiedAt: ago(7 * DAY) },
+  { id: "d7", path: "meetings/Advisor meeting 10-02.md", content: advisor, createdAt: ago(6 * DAY), modifiedAt: ago(6 * DAY), nameLocked: true },
+  { id: "d8", path: "Ideas.md", content: ideas, createdAt: ago(30 * DAY), modifiedAt: ago(10 * DAY), nameLocked: true },
+]
+
+export const seedFolders = ["writing", "notes", "meetings", "experiments"]
