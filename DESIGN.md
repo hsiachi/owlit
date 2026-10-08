@@ -28,6 +28,16 @@ colors:
   warning: "oklch(0.66 0.12 70)"
   destructive: "oklch(0.55 0.16 25)"
   success: "oklch(0.56 0.1 155)"
+  # Marks that carry meaning: the star, and eight tag hues
+  star: "oklch(0.76 0.13 75)"
+  tag-red: "oklch(0.64 0.11 28)"
+  tag-orange: "oklch(0.7 0.11 55)"
+  tag-amber: "oklch(0.76 0.11 85)"
+  tag-green: "oklch(0.66 0.09 145)"
+  tag-teal: "oklch(0.66 0.07 195)"
+  tag-blue: "oklch(0.62 0.09 250)"
+  tag-violet: "oklch(0.6 0.1 295)"
+  tag-pink: "oklch(0.68 0.1 350)"
 typography:
   display:
     fontFamily: Instrument Serif
@@ -35,6 +45,17 @@ typography:
     fontWeight: 400
     lineHeight: 1
     letterSpacing: -0.025em
+  title:
+    fontFamily: Figtree
+    fontSize: 22px
+    fontWeight: 500
+    lineHeight: 1.25
+    letterSpacing: -0.015em
+  heading:
+    fontFamily: Figtree
+    fontSize: 18px
+    fontWeight: 500
+    lineHeight: 1.375
   body:
     fontFamily: Figtree
     fontSize: 15px
@@ -161,6 +182,47 @@ components:
     backgroundColor: "{colors.popover}"
     textColor: "{colors.foreground}"
     rounded: "{rounded.full}"
+  page-title:
+    textColor: "{colors.foreground}"
+    typography: "{typography.title}"
+  find-field:
+    backgroundColor: "{colors.card}"
+    textColor: "{colors.foreground}"
+    typography: "{typography.body}"
+    rounded: "{rounded.xl}"
+  filter-chip:
+    textColor: "{colors.muted-foreground}"
+    typography: "{typography.secondary}"
+    rounded: "{rounded.full}"
+  filter-chip-active:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.foreground}"
+  peek:
+    backgroundColor: "{colors.card}"
+    rounded: "{rounded.xl}"
+  paper-heading:
+    textColor: "{colors.foreground}"
+    typography: "{typography.heading}"
+  star-mark:
+    textColor: "{colors.star}"
+  tag-dot-red:
+    backgroundColor: "{colors.tag-red}"
+  tag-dot-orange:
+    backgroundColor: "{colors.tag-orange}"
+  tag-dot-amber:
+    backgroundColor: "{colors.tag-amber}"
+  tag-dot-green:
+    backgroundColor: "{colors.tag-green}"
+  tag-dot-teal:
+    backgroundColor: "{colors.tag-teal}"
+  tag-dot-blue:
+    backgroundColor: "{colors.tag-blue}"
+  tag-dot-violet:
+    backgroundColor: "{colors.tag-violet}"
+  tag-dot-pink:
+    backgroundColor: "{colors.tag-pink}"
+  reader-well:
+    backgroundColor: "{colors.sidebar-panel}"
 ---
 
 # owlit design
@@ -208,7 +270,7 @@ Surfaces, back to front (OKLCH lightness):
 | Raised: composer, inputs, cards, selected rail icon | `card` | 1.0 | 0.245 |
 | Floating: menus, dialogs, floating buttons | `popover` | 1.0 | 0.255 |
 
-Text and accents in dark mode: `foreground` 0.935, `muted-foreground` 0.7, `mention` `oklch(0.78 0.07 255)`, `warning` `oklch(0.78 0.11 75)`, `destructive` `oklch(0.68 0.13 22)`. State fills become 7 to 8% tints of near-white, and borders become 10% white.
+Text and accents in dark mode: `foreground` 0.935, `muted-foreground` 0.7, `mention` `oklch(0.78 0.07 255)`, `warning` `oklch(0.78 0.11 75)`, `destructive` `oklch(0.68 0.13 22)`, `star` `oklch(0.8 0.12 80)`; tag hues lift to lightness 0.7 to 0.8 with slightly lower chroma. State fills become 7 to 8% tints of near-white, and borders become 10% white.
 
 The composer is the brightest thing in the main sheet, with a soft shadow. It's the place the user acts on most, so it is lifted rather than coloured.
 
@@ -221,6 +283,15 @@ Accent colours are low in chroma and used sparingly:
 | `destructive` | Errors and irreversible actions, never a user's own choice |
 | `success` | Use rarely; completion is usually shown by quieting a row |
 
+Marks that carry meaning, never fills or washes:
+
+| Token | Role |
+|---|---|
+| `star` | A starred paper: the small filled star after its title, and the active star toggle |
+| `tag-*` | Eight low-chroma hues. Each tag gets one, picked from its name so it is the same everywhere, shown only as a small dot beside the tag's name |
+
+Highlights in the PDF reader will carry their own four colours. Everything else in the Library stays neutral; primary buttons remain near-black and there is no brand accent.
+
 To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: in shadcn, `muted` is a neutral surface role, not a softer copy of another colour. Use opacity on the same token for fills, for example `bg-destructive/10`, but not for text people need to read.
 
 **Contrast.** Readable text meets WCAG AA (4.5:1) on every surface it can sit on, including hover and selection fills. Secondary text uses `muted-foreground` at full strength. Don't fade it further with opacity; if something should look lighter, it probably belongs behind a hover instead. Decorative marks (separator dots, idle plan circles) can be fainter.
@@ -228,8 +299,8 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 ## Typography
 
 - **Figtree** for the whole interface: round, open and friendly at small sizes.
-- **Instrument Serif** for display moments only, such as the empty-state greeting and, later, page titles. Never for body text or controls.
-- The scale is 15px (body and messages), 14px (UI), 13px (secondary: pickers, chips, small buttons) and 12px (captions: group labels, status chips, meta lines). Nothing smaller, and no in-between sizes like 0.8rem or 11px.
+- **Instrument Serif** for the Chat greeting only. Never for page titles, paper titles, body text or controls: a long title set in it is tiring to read.
+- The scale is 22px (page titles), 18px (a paper's title on its own page), 15px (body and messages), 14px (UI), 13px (secondary: pickers, chips, small buttons) and 12px (captions: group labels, status chips, meta lines). Nothing smaller, and no in-between sizes like 0.8rem or 11px.
 - Weight does the work of hierarchy before size or colour does. Medium (500) is the heaviest weight in UI chrome, including table headers. Semibold appears only in rendered markdown headings and bold text.
 - Code is the system monospace at 0.85em, on a `muted` fill.
 
@@ -238,6 +309,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - The frame is a 4px gap (`frame-gap`) around the main sheet. The icon rail is 32px buttons plus one frame gap on each side.
 - The list panel and main area form one sheet, split by a 0.5px hairline. The list panel has a fixed width, so collapsing clips it rather than squeezing it.
 - Messages and the composer share one centred column, at most 768px wide with a 16px gutter. Messages fade out above the composer instead of running into it.
+- Library pages use the same 768px column, widening for the table layout. The whole page scrolls, header included.
 - List rows are 36px and menu rows are 32px.
 - Grouped lists follow a spacing ladder: a label sits closest to its own rows, rows are evenly spaced, and the gap between groups is clearly the largest. If two of these distances look alike, the grouping stops reading.
 - Dividers stop at the text edges rather than running edge to edge.
@@ -283,6 +355,19 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - **Dialogs.** The title carries an info icon instead of a description paragraph. Content is one bordered list with dividers, one line per row. Row actions are icon buttons with tooltips. Secondary forms are folded behind a text button; Esc folds them before it closes the dialog.
 - **Local agents dialog.** A ready agent shows its name and version, quietly. An agent that isn't installed shows a "Not installed" chip, plus a second line with its install command in muted monospace, next to a copy button. A broken agent shows a red "Error" chip and the error on the second line.
 
+### Library
+
+- **Structure.** The Library is a page titled "Library" with two underline tabs, **Up next** and **All papers**; a third (Feed) may join later. It has no list panel: its filters live in the page. Up next will hold what to read next, chosen by owlit and agents; its content is still to be designed, so for now it is an empty state.
+- **Three levels, one job each.** A row identifies a paper, a peek decides whether to read it, the paper page is for reading. Click goes one level deeper; Esc or Back goes one level up. Each fact has one home and one look: status is a text menu ("Unread ▾") in the peek and on the paper page and nowhere else; in the list it shows only through tone.
+- **Header.** The 22px title, then the tabs, with a sort menu and a List / Table toggle at the right end of the tab line.
+- **Find field.** One field to find and to add, raised like the composer. Words filter the list. A DOI, arXiv id or link replaces the list with one card: "Looking up…", then the paper with Add (Enter), or "Already in your library" with Open. A paperclip adds a PDF file; dropping a PDF anywhere on the page also works. `/` focuses it.
+- **Filters.** Rounded chips All · Reading · Starred · Unread · Read with counts, then a Tags menu at the right end of the same line (dot, name, count; picks stay open). Picked tags show as chips with a remove ×. Chips are for filters only; pages are tabs, so a page and a filter never look alike.
+- **Rows (list).** One 36px line: title, short authors · year in muted text, a star mark if starred. Grouped by when they were added (Today, Previous 7 days, Previous 30 days, Earlier), by year when sorted by year. Read papers have a muted title. No tags, dates, status glyphs or reading progress on rows. Hover shows a star toggle and a vertical ellipsis.
+- **Table.** The same papers in the ruled table look used for answers, plus a hover fill: Title · Authors · Year · Venue · Tags (first tag with its dot, then "+N") · Status (blank when unread) · Added. Headers sort; on hover the date gives way to the row's actions.
+- **Peek.** A plain click opens the row in place as a raised card: full title, all authors, venue and year, the abstract, then one line with tags, status menu, star, ellipsis and the primary button (Read, Continue or Open). One peek at a time; ↑↓ move it, Space toggles it, Enter opens the paper.
+- **Selection.** ⌘-click and ⇧-click select without peeking. Two or more selected bring up a floating bar at the bottom: "N selected · Star · Mark as · Add tag · Remove · ×".
+- **Paper page.** A breadcrumb "Library › title", "N of M" with previous and next, and a details toggle, with no rule under them. The reader sits on a well one step darker than the sheet so pages are the brightest surface. The details panel (380px) has the 18px title, authors and venue, one control line (status, star, ellipsis), and underline tabs Notes · Highlights · About.
+
 ## Do's and Don'ts
 
 Do:
@@ -300,6 +385,8 @@ Don't:
 - Use red for anything the user chose.
 - Use coloured or tinted cards for routine process steps, or repeat a step on a line of its own.
 - Use two-line rows where a title plus an inline muted detail fits.
+- Show reading progress (rings, bars, "p. 6 of 19") in lists; a paper simply reopens where it was left.
+- Use the same look for a page switch and a filter.
 - Use raw Tailwind palette colours (`emerald-*`, `amber-*`, `blue-*`) in feature code.
 - Override padding or radius in a single menu; change the shared component instead.
 - Use opaque grey fills for hover, selection or chips.
@@ -309,4 +396,4 @@ Don't:
 - Box tables with full grids, or outline chips that sit next to bordered surfaces.
 - Write description paragraphs under dialog titles, put text labels on self-explanatory icon buttons, or leave secondary forms always open.
 - Hide the one thing a user needs (a fix, a full title) behind a tooltip.
-- Use type sizes outside 15, 14, 13 and 12px in the UI.
+- Use type sizes outside 22, 18, 15, 14, 13 and 12px in the UI.

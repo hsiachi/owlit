@@ -1,184 +1,208 @@
-import { useEffect, useRef } from "react"
-import { MoreHorizontalIcon } from "lucide-react"
+import { EllipsisVerticalIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { usePaperActions } from "../actions"
-import { formatAdded, paperMeta } from "../lib/format"
+import type { PaperGroup } from "../lib/filter"
+import { formatAdded, shortAuthors } from "../lib/format"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useUiStore } from "../ui-store"
 import { PaperContextContent, PaperDropdownContent } from "./PaperMenu"
-import { StarButton } from "./StarButton"
-import { StatusDot } from "./StatusSelect"
+import { PaperPeek } from "./PaperPeek"
+import { StarButton, StarMark } from "./StarButton"
+import { TagDot } from "./TagsEditor"
 
-const MAX_TAGS = 2
-
-// The library list. Rows select like a file list: click, ⌘-click, ⇧-click; Enter or
-// double-click opens the paper; right-click or ⋯ for actions.
-export function PaperList({ papers }: { papers: Paper[] }) {
+// Click selects and peeks, ⌘-click toggles, ⇧-click extends, double-click opens. Right-click on
+// an unselected row acts on that row alone.
+function useRowHandlers(paper: Paper, order: string[]) {
+  const click = useUiStore((s) => s.click)
+  const selected = useUiStore((s) => s.selectedIds.includes(paper.id))
   const selectedIds = useUiStore((s) => s.selectedIds)
-  const activeId = useUiStore((s) => s.activeId)
-  const select = useUiStore((s) => s.select)
-  const selectAll = useUiStore((s) => s.selectAll)
-  const clearSelection = useUiStore((s) => s.clearSelection)
-  const scrollTop = useUiStore((s) => s.scrollTop)
-  const setScrollTop = useUiStore((s) => s.setScrollTop)
-  const toggleStar = useLibraryStore((s) => s.toggleStar)
-  const setStatus = useLibraryStore((s) => s.setStatus)
   const actions = usePaperActions()
-
-  const order = papers.map((p) => p.id)
-  const selectedSet = new Set(selectedIds)
-  const scroller = useRef<HTMLDivElement>(null)
-
-  // Restore the scroll position left when a paper was opened, and remember it on the way out
-  useEffect(() => {
-    const el = scroller.current
-    if (!el) return
-    el.scrollTop = scrollTop
-    return () => setScrollTop(el.scrollTop)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Keep the keyboard cursor in view
-  useEffect(() => {
-    if (!activeId) return
-    scroller.current
-      ?.querySelector<HTMLElement>(`[data-paper-id="${activeId}"]`)
-      ?.scrollIntoView({ block: "nearest" })
-  }, [activeId])
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.target as HTMLElement).closest("input, textarea, [contenteditable]")) return
-    const idx = activeId ? order.indexOf(activeId) : -1
-    const mod = e.metaKey || e.ctrlKey
-    switch (e.key) {
-      case "ArrowDown":
-      case "ArrowUp": {
-        e.preventDefault()
-        if (order.length === 0) return
-        const next = e.key === "ArrowDown" ? Math.min(idx + 1, order.length - 1) : Math.max(idx - 1, 0)
-        select(order[next], e.shiftKey ? "range" : "single", order)
-        return
-      }
-      case "Enter":
-        if (activeId) actions.open(activeId)
-        return
-      case "s":
-      case "S":
-        if (mod || e.altKey) return
-        if (selectedIds.length > 0) {
-          const papersById = useLibraryStore.getState().papers
-          const all = selectedIds.every((id) => papersById[id]?.starred)
-          actions.setStarred(selectedIds, !all)
-        }
-        return
-      case "Backspace":
-      case "Delete":
-        if (selectedIds.length > 0) actions.remove(selectedIds)
-        return
-      case "Escape":
-        clearSelection()
-        return
-      case "a":
-        if (mod) {
-          e.preventDefault()
-          selectAll(order)
-        }
-        return
-    }
+  return {
+    selected,
+    menuIds: selected ? selectedIds : [paper.id],
+    handlers: {
+      "data-paper-id": paper.id,
+      onClick: (e: React.MouseEvent) => {
+        if ((e.target as HTMLElement).closest("button")) return
+        if (e.detail === 2) return actions.open(paper.id)
+        click(paper.id, e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single", order)
+      },
+      onContextMenu: () => {
+        if (!selected) useUiStore.setState({ selectedIds: [paper.id], cursorId: paper.id, anchorId: paper.id })
+      },
+    },
   }
+}
 
-  const onRowClick = (e: React.MouseEvent, id: string) => {
-    if (e.shiftKey) select(id, "range", order)
-    else if (e.metaKey || e.ctrlKey) select(id, "toggle", order)
-    else select(id, "single", order)
-  }
-
+// Star and ellipsis, shown while the row is hovered, focused or has its menu open
+function RowActions({ paper, menuIds, className }: { paper: Paper; menuIds: string[]; className?: string }) {
+  const toggleStar = useLibraryStore((s) => s.toggleStar)
   return (
-    <div
-      ref={scroller}
-      tabIndex={0}
-      onKeyDown={onKeyDown}
-      className="min-h-0 flex-1 overflow-y-auto outline-none"
-      aria-label="Papers"
-    >
-      <div className="mx-auto w-full max-w-4xl px-6 pb-10">
-        {papers.map((paper) => {
-          const selected = selectedSet.has(paper.id)
-          const active = paper.id === activeId
-          // Right-click on an unselected row acts on that row alone
-          const menuIds = selected ? selectedIds : [paper.id]
-          const hiddenTags = paper.tags.length - MAX_TAGS
-          return (
-            <ContextMenu key={paper.id}>
-              <ContextMenuTrigger asChild>
-                <div
-                  data-paper-id={paper.id}
-                  onClick={(e) => onRowClick(e, paper.id)}
-                  onDoubleClick={() => actions.open(paper.id)}
-                  onContextMenu={() => {
-                    if (!selected) select(paper.id, "single", order)
-                  }}
-                  className={cn(
-                    "group/row flex h-10 cursor-default items-center gap-2 rounded-md pr-1 pl-1.5 text-sm select-none transition-colors hover:bg-muted/70",
-                    selected && "bg-foreground/5 hover:bg-foreground/5",
-                    active && "bg-foreground/8 hover:bg-foreground/8",
-                  )}
-                >
-                  <StarButton
-                    size="icon-xs"
-                    starred={paper.starred}
-                    onToggle={() => toggleStar(paper.id)}
-                    className={cn(!paper.starred && "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100")}
-                  />
-                  {/* The title keeps its width; the citation line takes what's left */}
-                  <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
-                    <span className="max-w-[72%] shrink-0 truncate">{paper.title}</span>
-                    <span className="min-w-0 truncate text-[13px] text-muted-foreground">{paperMeta(paper)}</span>
-                  </span>
-                  {paper.tags.length > 0 && (
-                    <span className="hidden shrink-0 items-center gap-1 @2xl:flex">
-                      {paper.tags.slice(0, MAX_TAGS).map((t) => (
-                        <span key={t} className="rounded-md bg-muted px-1.5 py-px text-[11px] leading-4 text-muted-foreground">
-                          {t}
-                        </span>
-                      ))}
-                      {hiddenTags > 0 && <span className="text-[11px] text-muted-foreground">+{hiddenTags}</span>}
-                    </span>
-                  )}
-                  <StatusDot value={paper.status} onChange={(s) => setStatus([paper.id], s)} />
-                  <span className="hidden w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums @3xl:inline">
-                    {formatAdded(paper.addedAt)}
-                  </span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Actions"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (!selected) select(paper.id, "single", order)
-                        }}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                        className="text-muted-foreground opacity-0 group-hover/row:opacity-100 data-[state=open]:opacity-100 focus-visible:opacity-100"
-                      >
-                        <MoreHorizontalIcon />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <PaperDropdownContent ids={menuIds} />
-                  </DropdownMenu>
-                </div>
-              </ContextMenuTrigger>
-              <PaperContextContent ids={menuIds} />
-            </ContextMenu>
-          )
-        })}
-        {papers.length === 0 && <p className="py-16 text-center text-sm text-muted-foreground">No papers match.</p>}
-      </div>
+    <span className={cn("hidden shrink-0 items-center group-hover/row:flex group-focus-within/row:flex has-data-[state=open]:flex", className)}>
+      <StarButton size="icon-xs" starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-xs" aria-label="More actions" className="text-muted-foreground hover:bg-foreground/8 data-[state=open]:bg-foreground/8">
+            <EllipsisVerticalIcon />
+          </Button>
+        </DropdownMenuTrigger>
+        <PaperDropdownContent ids={menuIds} />
+      </DropdownMenu>
+    </span>
+  )
+}
+
+function ListRow({ paper, order }: { paper: Paper; order: string[] }) {
+  const { selected, menuIds, handlers } = useRowHandlers(paper, order)
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          {...handlers}
+          className={cn(
+            "group/row flex h-9 cursor-default items-center gap-2 rounded-md pr-1 pl-2.5 text-sm select-none hover:bg-muted",
+            selected && "bg-accent hover:bg-accent",
+          )}
+        >
+          {/* Finished papers recede; the title keeps its width and the authors take what's left */}
+          <span className={cn("min-w-0 truncate", paper.status === "read" && "text-muted-foreground")}>{paper.title}</span>
+          <span className="shrink-0 text-[13px] text-muted-foreground">
+            {[shortAuthors(paper.authors), paper.year].filter(Boolean).join(" · ")}
+          </span>
+          {paper.starred && <StarMark />}
+          <span className="flex-1" />
+          <RowActions paper={paper} menuIds={menuIds} />
+        </div>
+      </ContextMenuTrigger>
+      <PaperContextContent ids={menuIds} />
+    </ContextMenu>
+  )
+}
+
+export function PaperList({ groups, order }: { groups: PaperGroup[]; order: string[] }) {
+  const peekId = useUiStore((s) => s.peekId)
+  return (
+    <div className="flex flex-col gap-6">
+      {groups.map((g, i) => (
+        <section key={g.label ?? i}>
+          {g.label && <h2 className="mb-1 px-2.5 text-xs text-muted-foreground">{g.label}</h2>}
+          {g.papers.map((p) => (p.id === peekId ? <PaperPeek key={p.id} paper={p} /> : <ListRow key={p.id} paper={p} order={order} />))}
+        </section>
+      ))}
     </div>
+  )
+}
+
+const COLUMNS = [
+  { key: "title", label: "Title", width: undefined, sort: "title" },
+  { key: "authors", label: "Authors", width: "8.5rem", sort: "authors" },
+  { key: "year", label: "Year", width: "4rem", sort: "year" },
+  { key: "venue", label: "Venue", width: "7rem", sort: "venue" },
+  { key: "tags", label: "Tags", width: "9rem" },
+  { key: "status", label: "Status", width: "5rem" },
+  { key: "added", label: "Added", width: "6rem", sort: "addedAt" },
+] as const
+
+function TableRow({ paper, order }: { paper: Paper; order: string[] }) {
+  const { selected, menuIds, handlers } = useRowHandlers(paper, order)
+  const td = cn("h-9 truncate border-b px-2.5 text-[13px] text-muted-foreground group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <tr {...handlers} className="group/row cursor-default select-none">
+          <td className={cn(td, "rounded-l-md text-sm text-foreground", paper.status === "read" && "text-muted-foreground")}>
+            <span className="flex items-center gap-2">
+              <span className="truncate">{paper.title}</span>
+              {paper.starred && <StarMark />}
+            </span>
+          </td>
+          <td className={td}>{shortAuthors(paper.authors)}</td>
+          <td className={cn(td, "tabular-nums")}>{paper.year}</td>
+          <td className={td}>{paper.venue}</td>
+          <td className={td}>
+            {paper.tags.length > 0 && (
+              <span className="flex items-center gap-1.5">
+                <TagDot tag={paper.tags[0]} className="size-1.5" />
+                <span className="truncate">{paper.tags[0]}</span>
+                {paper.tags.length > 1 && <span className="shrink-0">+{paper.tags.length - 1}</span>}
+              </span>
+            )}
+          </td>
+          <td className={td}>{paper.status === "unread" ? "" : paper.status === "reading" ? "Reading" : "Read"}</td>
+          <td className={cn(td, "rounded-r-md tabular-nums")}>
+            {/* The date gives way to the row's actions on hover */}
+            <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">{formatAdded(paper.addedAt)}</span>
+            <RowActions paper={paper} menuIds={menuIds} className="-my-1 -mr-1.5 justify-end" />
+          </td>
+        </tr>
+      </ContextMenuTrigger>
+      <PaperContextContent ids={menuIds} />
+    </ContextMenu>
+  )
+}
+
+// The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
+// Column headers sort; clicking a row peeks in a full-width row beneath it.
+export function PaperTable({ papers, order }: { papers: Paper[]; order: string[] }) {
+  const peekId = useUiStore((s) => s.peekId)
+  const sort = useUiStore((s) => s.sort)
+  const sortBy = useUiStore((s) => s.sortBy)
+  return (
+    <table className="w-full table-fixed border-separate border-spacing-0">
+      <colgroup>
+        {COLUMNS.map((c) => (
+          <col key={c.key} style={{ width: c.width }} />
+        ))}
+      </colgroup>
+      <thead>
+        <tr>
+          {COLUMNS.map((c, i) => {
+            const active = "sort" in c && sort.key === c.sort
+            return (
+              <th
+                key={c.key}
+                aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}
+                className="sticky top-0 z-10 h-8 bg-background px-2.5 text-left text-xs font-medium text-muted-foreground"
+              >
+                {/* The tint sits on a layer so the sticky header stays opaque over scrolled rows */}
+                <span
+                  aria-hidden
+                  className={cn("absolute inset-0 -z-10 bg-muted", i === 0 && "rounded-l-md", i === COLUMNS.length - 1 && "rounded-r-md")}
+                />
+                {"sort" in c ? (
+                  <button
+                    type="button"
+                    onClick={() => sortBy(c.sort)}
+                    className={cn("-mx-1 rounded px-1 hover:text-foreground", active && "text-foreground")}
+                  >
+                    {c.label}
+                    {active && <span className="ml-1">{sort.desc ? "↓" : "↑"}</span>}
+                  </button>
+                ) : (
+                  c.label
+                )}
+              </th>
+            )
+          })}
+        </tr>
+      </thead>
+      <tbody>
+        {papers.map((p) =>
+          p.id === peekId ? (
+            <tr key={p.id}>
+              <td colSpan={COLUMNS.length} className="px-1.5">
+                <PaperPeek paper={p} />
+              </td>
+            </tr>
+          ) : (
+            <TableRow key={p.id} paper={p} order={order} />
+          ),
+        )}
+      </tbody>
+    </table>
   )
 }

@@ -11,7 +11,51 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { tagColorVar } from "../lib/tags"
 import { collectTags, useLibraryStore } from "../store"
+
+// A tag's colour: the one mark that tells tags apart at a glance
+export function TagDot({ tag, className }: { tag: string; className?: string }) {
+  return <span aria-hidden className={cn("size-2 shrink-0 rounded-full", className)} style={{ backgroundColor: tagColorVar(tag) }} />
+}
+
+// A tag on a translucent fill. Clicking it shows every paper with that tag; with onRemove it
+// also carries a remove button on hover.
+export function TagChip({
+  tag,
+  onClick,
+  onRemove,
+  className,
+}: {
+  tag: string
+  onClick?: () => void
+  onRemove?: () => void
+  className?: string
+}) {
+  return (
+    <span className={cn("group/tag inline-flex h-6 items-center rounded-md bg-muted text-xs text-foreground", className)}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!onClick}
+        className={cn("flex h-full items-center gap-1.5 rounded-md pl-2 outline-none", onRemove ? "pr-1" : "pr-2", onClick && "hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50")}
+      >
+        <TagDot tag={tag} className="size-1.5" />
+        {tag}
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          aria-label={`Remove tag ${tag}`}
+          onClick={onRemove}
+          className="mr-1 grid size-4 place-items-center rounded-sm text-muted-foreground opacity-0 group-hover/tag:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100"
+        >
+          <XIcon className="size-3" />
+        </button>
+      )}
+    </span>
+  )
+}
 
 // A popover listing every tag in the library, with "Create" for a new one.
 // `selected` tags show a check; picking one calls onPick either way.
@@ -41,7 +85,7 @@ export function TagPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align={align} className="w-56 p-0">
+      <PopoverContent align={align} className="w-60 p-0">
         <Command>
           <CommandInput placeholder="Find or create a tag" value={query} onValueChange={setQuery} />
           <CommandList>
@@ -49,15 +93,15 @@ export function TagPicker({
             {canCreate && (
               <CommandGroup>
                 <CommandItem value={`create-${q}`} onSelect={() => pick(q)}>
-                  <PlusIcon />
                   Create “{q}”
                 </CommandItem>
               </CommandGroup>
             )}
             {allTags.length > 0 && (
-              <CommandGroup heading="Tags">
+              <CommandGroup>
                 {allTags.map((tag) => (
                   <CommandItem key={tag} value={tag} onSelect={() => pick(tag)}>
+                    <TagDot tag={tag} />
                     <span className="flex-1 truncate">{tag}</span>
                     {selected.includes(tag) && <CheckIcon className="text-muted-foreground" />}
                   </CommandItem>
@@ -71,38 +115,29 @@ export function TagPicker({
   )
 }
 
-// The tag list on one paper: chips with remove, plus an add button
+// The tags on one paper: chips that open the tag, remove on hover, and an add button
 export function TagsEditor({
   tags,
   onChange,
+  onOpenTag,
   className,
 }: {
   tags: string[]
   onChange: (tags: string[]) => void
+  onOpenTag?: (tag: string) => void
   className?: string
 }) {
-  const toggle = (tag: string) =>
-    onChange(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag])
+  const toggle = (tag: string) => onChange(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag])
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {tags.map((tag) => (
-        <span key={tag} className="group/tag inline-flex h-6 items-center gap-0.5 rounded-md bg-muted pr-1 pl-2 text-xs text-foreground/80">
-          {tag}
-          <button
-            type="button"
-            aria-label={`Remove tag ${tag}`}
-            onClick={() => toggle(tag)}
-            className="rounded-sm p-0.5 text-muted-foreground opacity-60 hover:bg-foreground/10 hover:text-foreground group-hover/tag:opacity-100"
-          >
-            <XIcon className="size-3" />
-          </button>
-        </span>
+        <TagChip key={tag} tag={tag} onClick={onOpenTag && (() => onOpenTag(tag))} onRemove={() => toggle(tag)} />
       ))}
       <TagPicker selected={tags} onPick={toggle}>
         <Button variant="ghost" size="xs" className="font-normal text-muted-foreground">
           <PlusIcon />
-          {tags.length === 0 ? "Add tag" : null}
+          Tag
         </Button>
       </TagPicker>
     </div>

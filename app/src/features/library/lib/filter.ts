@@ -1,7 +1,7 @@
-import type { Paper, ReadStatus } from "../types"
+import type { Paper } from "../types"
 import type { Sort, StatusFilter } from "../ui-store"
 
-const STATUS_RANK: Record<ReadStatus, number> = { unread: 0, reading: 1, read: 2 }
+const firstSurname = (p: Paper) => p.authors[0]?.trim().split(/\s+/).at(-1) ?? ""
 
 export function matchesQuery(p: Paper, q: string): boolean {
   if (!q) return true
@@ -39,11 +39,11 @@ export function compare(a: Paper, b: Paper, sort: Sort): number {
     case "year":
       r = (a.year ?? 0) - (b.year ?? 0)
       break
+    case "authors":
+      r = firstSurname(a).localeCompare(firstSurname(b))
+      break
     case "venue":
       r = (a.venue ?? "").localeCompare(b.venue ?? "")
-      break
-    case "status":
-      r = STATUS_RANK[a.status] - STATUS_RANK[b.status]
       break
   }
   if (r === 0) r = b.addedAt - a.addedAt
@@ -57,7 +57,7 @@ export interface ListParams {
   sort: Sort
 }
 
-// The table's rows: what the toolbar's search, filter chips, tag filter and sort leave
+// The rows of All papers: what the search, filter chips, tag filter and sort leave
 export function visiblePapers(papers: Record<string, Paper>, params: ListParams): Paper[] {
   const q = params.query.trim()
   return Object.values(papers)
@@ -75,4 +75,40 @@ export function countByFilter(papers: Record<string, Paper>): Record<StatusFilte
     c[p.status]++
   }
   return c
+}
+
+export interface PaperGroup {
+  label: string | null
+  papers: Paper[]
+}
+
+const DAY = 86_400_000
+const AGE_BANDS: [string, number][] = [
+  ["Today", DAY],
+  ["Previous 7 days", 7 * DAY],
+  ["Previous 30 days", 30 * DAY],
+  ["Earlier", Infinity],
+]
+
+// The list layout's groups, in the spirit of the chat history: by age when sorted by date added,
+// by year when sorted by year, one count while searching, and none for the alphabetical sorts
+export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now()): PaperGroup[] {
+  if (searching) return [{ label: `${papers.length} ${papers.length === 1 ? "paper" : "papers"}`, papers }]
+  if (sort.key === "addedAt") {
+    const groups = AGE_BANDS.map(([label]) => ({ label, papers: [] as Paper[] }))
+    for (const p of papers) groups[AGE_BANDS.findIndex(([, max]) => now - p.addedAt < max)].papers.push(p)
+    if (!sort.desc) groups.reverse()
+    return groups.filter((g) => g.papers.length > 0)
+  }
+  if (sort.key === "year") {
+    const groups: PaperGroup[] = []
+    for (const p of papers) {
+      const label = p.year ? String(p.year) : "No year"
+      const last = groups.at(-1)
+      if (last?.label === label) last.papers.push(p)
+      else groups.push({ label, papers: [p] })
+    }
+    return groups
+  }
+  return [{ label: null, papers }]
 }
