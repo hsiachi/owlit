@@ -116,7 +116,7 @@
     --sidebar-panel: oklch(0.976 0.004 85);
     --mention: oklch(0.48 0.09 255);
     /* Star and tag colours: low-chroma marks that carry meaning, never fills */
-    --star: oklch(0.76 0.13 75);
+    --star: oklch(0.64 0.13 72);
     --tag-red: oklch(0.64 0.11 28);
     --tag-orange: oklch(0.7 0.11 55);
     --tag-amber: oklch(0.76 0.11 85);

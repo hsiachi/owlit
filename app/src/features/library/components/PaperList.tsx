@@ -1,3 +1,5 @@
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -5,7 +7,7 @@ import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { usePaperActions } from "../actions"
 import type { PaperGroup } from "../lib/filter"
-import { formatAdded, shortAuthors } from "../lib/format"
+import { formatAdded, shortAuthors, shortVenue } from "../lib/format"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useUiStore } from "../ui-store"
@@ -68,12 +70,12 @@ function ListRow({ paper, order }: { paper: Paper; order: string[] }) {
             selected && "bg-accent hover:bg-accent",
           )}
         >
-          {/* Finished papers recede; the title keeps its width and the authors take what's left */}
+          {/* Finished papers recede; the star belongs to the title, and the authors take what's left */}
           <span className={cn("min-w-0 truncate", paper.status === "read" && "text-muted-foreground")}>{paper.title}</span>
+          {paper.starred && <StarMark />}
           <span className="shrink-0 text-[13px] text-muted-foreground">
             {[shortAuthors(paper.authors), paper.year].filter(Boolean).join(" · ")}
           </span>
-          {paper.starred && <StarMark />}
           <span className="flex-1" />
           <RowActions paper={paper} menuIds={menuIds} />
         </div>
@@ -99,41 +101,83 @@ export function PaperList({ groups, order }: { groups: PaperGroup[]; order: stri
 
 const COLUMNS = [
   { key: "title", label: "Title", width: undefined, sort: "title" },
-  { key: "authors", label: "Authors", width: "8.5rem", sort: "authors" },
-  { key: "year", label: "Year", width: "4rem", sort: "year" },
-  { key: "venue", label: "Venue", width: "7rem", sort: "venue" },
-  { key: "tags", label: "Tags", width: "9rem" },
-  { key: "status", label: "Status", width: "5rem" },
-  { key: "added", label: "Added", width: "6rem", sort: "addedAt" },
+  { key: "authors", label: "Authors", width: 136, sort: "authors" },
+  { key: "year", label: "Year", width: 64, sort: "year" },
+  { key: "venue", label: "Venue", width: 112, sort: "venue" },
+  { key: "tags", label: "Tags", width: 144 },
+  { key: "status", label: "Status", width: 80 },
+  { key: "added", label: "Added", width: 96, sort: "addedAt" },
 ] as const
 
-function TableRow({ paper, order }: { paper: Paper; order: string[] }) {
+type Column = (typeof COLUMNS)[number]
+type ColumnKey = Column["key"]
+
+// The title is what identifies a paper, so it never gets narrower than this. When the table
+// can't fit every column, they give way least-needed first; Year and Added (which holds the
+// row's actions) always stay.
+const TITLE_MIN = 320
+const GIVE_WAY: ColumnKey[] = ["venue", "status", "tags", "authors"]
+
+function useColumns(table: React.RefObject<HTMLTableElement | null>): Column[] {
+  // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
+  // before paint, so the table never shows a frame with every column squeezed in; and it only
+  // re-renders when a column actually comes or goes.
+  const [hidden, setHidden] = useState(0)
+  useLayoutEffect(() => {
+    const el = table.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width
+      let n = 0
+      let fixed = COLUMNS.reduce((sum, c) => sum + (c.width ?? 0), 0)
+      while (n < GIVE_WAY.length && width - fixed < TITLE_MIN) {
+        fixed -= COLUMNS.find((c) => c.key === GIVE_WAY[n])?.width ?? 0
+        n++
+      }
+      flushSync(() => setHidden(n))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [table])
+  return useMemo(() => COLUMNS.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [hidden])
+}
+
+function TableRow({ paper, order, columns }: { paper: Paper; order: string[]; columns: Set<ColumnKey> }) {
   const { selected, menuIds, handlers } = useRowHandlers(paper, order)
   // Square cells with a hairline under each row (none under the last), as in answer tables
   const td = cn("h-9 truncate border-b px-2.5 text-[13px] text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
+  const venue = paper.venue && shortVenue(paper.venue)
+  // Status says "Read" in its own column; only when that column has given way does the title recede instead
+  const muted = paper.status === "read" && !columns.has("status")
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <tr {...handlers} className="group/row cursor-default select-none">
-          <td className={cn(td, "text-sm text-foreground", paper.status === "read" && "text-muted-foreground")}>
+          <td className={cn(td, "text-sm text-foreground", muted && "text-muted-foreground")}>
             <span className="flex items-center gap-2">
               <span className="truncate">{paper.title}</span>
               {paper.starred && <StarMark />}
             </span>
           </td>
-          <td className={td}>{shortAuthors(paper.authors)}</td>
+          {columns.has("authors") && <td className={td}>{shortAuthors(paper.authors)}</td>}
           <td className={cn(td, "tabular-nums")}>{paper.year}</td>
-          <td className={td}>{paper.venue}</td>
-          <td className={td}>
-            {paper.tags.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <TagDot tag={paper.tags[0]} className="size-1.5" />
-                <span className="truncate">{paper.tags[0]}</span>
-                {paper.tags.length > 1 && <span className="shrink-0">+{paper.tags.length - 1}</span>}
-              </span>
-            )}
-          </td>
-          <td className={td}>{paper.status === "unread" ? "" : paper.status === "reading" ? "Reading" : "Read"}</td>
+          {columns.has("venue") && (
+            <td className={td} title={venue !== paper.venue ? paper.venue : undefined}>
+              {venue}
+            </td>
+          )}
+          {columns.has("tags") && (
+            <td className={td}>
+              {paper.tags.length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <TagDot tag={paper.tags[0]} className="size-1.5" />
+                  <span className="truncate">{paper.tags[0]}</span>
+                  {paper.tags.length > 1 && <span className="shrink-0">+{paper.tags.length - 1}</span>}
+                </span>
+              )}
+            </td>
+          )}
+          {columns.has("status") && <td className={td}>{paper.status === "unread" ? "" : paper.status === "reading" ? "Reading" : "Read"}</td>}
           <td className={cn(td, "tabular-nums")}>
             {/* The date gives way to the row's actions on hover */}
             <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">{formatAdded(paper.addedAt)}</span>
@@ -152,16 +196,19 @@ export function PaperTable({ papers, order }: { papers: Paper[]; order: string[]
   const peekId = useUiStore((s) => s.peekId)
   const sort = useUiStore((s) => s.sort)
   const sortBy = useUiStore((s) => s.sortBy)
+  const table = useRef<HTMLTableElement>(null)
+  const columns = useColumns(table)
+  const shown = useMemo(() => new Set(columns.map((c) => c.key)), [columns])
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0">
+    <table ref={table} className="w-full table-fixed border-separate border-spacing-0">
       <colgroup>
-        {COLUMNS.map((c) => (
+        {columns.map((c) => (
           <col key={c.key} style={{ width: c.width }} />
         ))}
       </colgroup>
       <thead>
         <tr>
-          {COLUMNS.map((c, i) => {
+          {columns.map((c, i) => {
             const active = "sort" in c && sort.key === c.sort
             return (
               <th
@@ -173,7 +220,7 @@ export function PaperTable({ papers, order }: { papers: Paper[]; order: string[]
                     rows and a 4px band of sheet separates it from the first row's hover fill */}
                 <span
                   aria-hidden
-                  className={cn("absolute inset-0 -z-10 bg-muted", i === 0 && "rounded-l-md", i === COLUMNS.length - 1 && "rounded-r-md")}
+                  className={cn("absolute inset-0 -z-10 bg-muted", i === 0 && "rounded-l-md", i === columns.length - 1 && "rounded-r-md")}
                 />
                 {"sort" in c ? (
                   <button
@@ -196,12 +243,12 @@ export function PaperTable({ papers, order }: { papers: Paper[]; order: string[]
         {papers.map((p) =>
           p.id === peekId ? (
             <tr key={p.id}>
-              <td colSpan={COLUMNS.length} className="px-1.5">
+              <td colSpan={columns.length} className="px-1.5">
                 <PaperPeek paper={p} />
               </td>
             </tr>
           ) : (
-            <TableRow key={p.id} paper={p} order={order} />
+            <TableRow key={p.id} paper={p} order={order} columns={shown} />
           ),
         )}
       </tbody>

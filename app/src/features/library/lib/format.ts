@@ -15,6 +15,19 @@ export function paperMeta(p: Paper): string {
   return [shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(" · ")
 }
 
+// A venue short enough for a table cell. Long names become the initials of their capitalised
+// words, with all-caps words kept whole: "Communications of the ACM" → "CACM",
+// "International Conference on Intelligence Analysis" → "ICIA". Short names pass through.
+export function shortVenue(venue: string): string {
+  const v = venue.trim()
+  const acronym = v.match(/\(([A-Z][A-Za-z]*[A-Z])\)/)
+  if (acronym) return acronym[1]
+  if (v.length <= 16) return v
+  const words = v.split(/\s+/).filter((w) => /^[A-Z]/.test(w))
+  if (words.length < 2) return v
+  return words.map((w) => (w === w.toUpperCase() ? w : w[0])).join("")
+}
+
 export function citationLabel(p: Paper): string {
   return p.year ? `${shortAuthors(p.authors)} ${p.year}` : shortAuthors(p.authors)
 }

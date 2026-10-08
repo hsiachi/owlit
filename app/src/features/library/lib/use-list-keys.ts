@@ -26,7 +26,14 @@ export function usePaperListKeys(order: string[]) {
   }, [cursorId])
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.target as HTMLElement).closest("input, textarea, [contenteditable], [role=menu], button")) return
+    // A menu button already used the key (↓ opens its menu)
+    if (e.defaultPrevented) return
+    const target = e.target as HTMLElement
+    if (target.closest("input, textarea, [contenteditable], [role=menu], [role=tablist]")) return
+    // A button keeps Enter and Space, but ↑↓ still reach the list, so a click on a chip or the
+    // layout toggle doesn't leave the keyboard stranded in the toolbar
+    const onControl = !!target.closest("button, a")
+    if (onControl && e.key !== "ArrowDown" && e.key !== "ArrowUp") return
     const ui = useUiStore.getState()
     const idx = ui.cursorId ? order.indexOf(ui.cursorId) : -1
     const mod = e.metaKey || e.ctrlKey
@@ -37,6 +44,8 @@ export function usePaperListKeys(order: string[]) {
         if (order.length === 0) return
         const next = idx < 0 ? 0 : e.key === "ArrowDown" ? Math.min(idx + 1, order.length - 1) : Math.max(idx - 1, 0)
         ui.moveCursor(order[next], e.shiftKey, order)
+        // Take focus into the list so the next Enter or Space acts on the row, not the control
+        if (onControl) scroller.current?.focus({ preventScroll: true })
         return
       }
       case " ":

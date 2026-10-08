@@ -1,17 +1,21 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-// How the paper page is laid out, remembered across papers and sessions
+// How the Library and the paper page are laid out, remembered across papers and sessions
 export type PanelTab = "notes" | "highlights" | "about"
+export type Layout = "list" | "table"
 
 export const PANEL_DEFAULT = 380
 export const PANEL_MIN = 320
 
 interface PrefsState {
+  // All papers as a list or a table
+  layout: Layout
   panelOpen: boolean
   panelWidth: number
   // The tab last used, so someone taking notes keeps Notes open from paper to paper
   panelTab: PanelTab
+  setLayout: (layout: Layout) => void
   setPanelOpen: (open: boolean) => void
   setPanelWidth: (width: number) => void
   setPanelTab: (tab: PanelTab) => void
@@ -20,9 +24,11 @@ interface PrefsState {
 export const usePrefsStore = create<PrefsState>()(
   persist(
     (set) => ({
+      layout: "table",
       panelOpen: true,
       panelWidth: PANEL_DEFAULT,
       panelTab: "about",
+      setLayout: (layout) => set({ layout }),
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setPanelWidth: (panelWidth) => set({ panelWidth }),
       setPanelTab: (panelTab) => set({ panelTab }),
