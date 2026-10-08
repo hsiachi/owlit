@@ -81,6 +81,7 @@ const ideas = `# Ideas
 - A tool that says "I don't know" instead of returning stale data
 - Measure tool calls per correct answer, not just accuracy
 - ==Ask: is chain of thought itself a tool?==
+- Follow up on [Maybe retrieval and tool use are the same problem](owlit://docs/notes/Maybe%20retrieval%20and%20tool%20use%20are%20the%20same%20problem.md)
 `
 
 export const seedFiles: WorkspaceFile[] = [

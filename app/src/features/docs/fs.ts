@@ -2,8 +2,9 @@ import { undo } from "@codemirror/commands"
 import type { EditorView } from "@codemirror/view"
 import { toast } from "sonner"
 import { setWorkspaceFs } from "@/features/chat/agent/client"
+import { docUri } from "./lib/mentions"
 import { useDocsStore } from "./store"
-import { displayName } from "./types"
+import { displayName, isMarkdown } from "./types"
 
 // Docs open in an editor, by file id. An agent's write to an open doc goes through its editor, so it lands
 // as one undoable change and the cursor stays where the user left it.
@@ -27,13 +28,47 @@ export function spanChange(from: string, to: string) {
   return { from: start, to: from.length - end, insert: to.slice(start, to.length - end) }
 }
 
+// The text of a doc as it is now: the open editor's, else the stored file's
+const currentText = (id: string) => openEditors.get(id)?.state.doc.toString() ?? useDocsStore.getState().files[id]?.content ?? ""
+
+// Writes a doc without the user having typed it: through its editor when open, else straight to the file
+function rewrite(id: string, content: string) {
+  const view = openEditors.get(id)
+  if (!view) return useDocsStore.getState().writeDoc(id, content)
+  const change = spanChange(view.state.doc.toString(), content)
+  if (change.from !== change.to || change.insert) view.dispatch({ changes: change })
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+// When a doc is renamed or moved, links to it in every other doc follow. A link whose label is still the
+// doc's old name takes the new one; a label the writer chose stays.
+useDocsStore.subscribe((state, prev) => {
+  const moves = Object.values(state.files).flatMap((f) => {
+    const before = prev.files[f.id]
+    return before && before.path !== f.path && isMarkdown(f.path) ? [{ from: before.path, to: f.path }] : []
+  })
+  if (!moves.length) return
+  for (const doc of Object.values(state.files)) {
+    if (!isMarkdown(doc.path)) continue
+    const text = currentText(doc.id)
+    let next = text
+    for (const { from, to } of moves) {
+      const oldUri = docUri(from)
+      if (!next.includes(oldUri)) continue
+      next = next.replace(new RegExp(`\\[([^\\]]*)\\]\\(${escapeRe(oldUri)}\\)`, "g"), (_m, label: string) =>
+        `[${label === displayName(from) ? displayName(to) : label}](${docUri(to)})`,
+      )
+    }
+    if (next !== text) rewrite(doc.id, next)
+  }
+})
+
 // What agents read and write, the way ACP's fs/read_text_file and fs/write_text_file are served by the app
 setWorkspaceFs({
   async readTextFile(path) {
     const file = fileAt(path)
-    if (!file) return null
-    const view = openEditors.get(file.id)
-    return view ? view.state.doc.toString() : (file.content ?? "")
+    return file ? currentText(file.id) : null
   },
 
   async writeTextFile(path, content) {
