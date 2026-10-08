@@ -43,7 +43,7 @@ function Status({ c }: { c: Connector }) {
     return (
       <span
         className={cn(
-          "rounded-md px-1.5 py-0.5 text-[11px] leading-4",
+          "rounded-md px-1.5 py-0.5 text-xs leading-4",
           c.status === "error" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
         )}
       >
@@ -73,13 +73,19 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
           <span className={cn("truncate font-medium", unavailable && "text-muted-foreground")}>{c.name}</span>
           <Status c={c} />
         </div>
-        {/* Only problems and user-entered commands earn a second line */}
+        {/* Only problems and user-entered commands earn a second line. A missing agent shows the
+            command that fixes it, since that's the one thing the user needs here. */}
         {c.status === "error" && c.error && <div className="mt-0.5 truncate text-[13px] text-destructive">{c.error}</div>}
+        {c.status === "not_installed" && c.installHint && (
+          <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={c.installHint}>
+            {c.installHint}
+          </div>
+        )}
         {!c.builtIn && <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{c.command}</div>}
       </div>
       <div className="flex shrink-0 items-center">
         {c.status === "not_installed" && c.installHint && (
-          <IconAction label={`Copy install command: ${c.installHint}`} onClick={copyInstall}>
+          <IconAction label="Copy install command" onClick={copyInstall}>
             <CopyIcon />
           </IconAction>
         )}

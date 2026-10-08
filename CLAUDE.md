@@ -1,3 +1,3 @@
 # owlit
 
-UI work follows the style guide in `docs/ui-style.md`: read it before changing any interface, and update it when a style decision changes.
+UI work follows `DESIGN.md` (tokens in its front matter, rationale in the body): read it before changing any interface, and update it in the same change whenever a style decision changes.

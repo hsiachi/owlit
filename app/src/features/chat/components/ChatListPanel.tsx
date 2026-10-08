@@ -84,7 +84,15 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
         <SidebarMenuButton
           asChild
           isActive={active}
-          className={cn(rowClass, keepRowInIconMode, "pr-8 group-data-[collapsible=icon]:pr-8! group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent")}
+          // The title gets the full row (cancelling the primitive's fixed pr-8 for the action); room for
+          // the actions button is only made while it shows
+          className={cn(
+            rowClass,
+            keepRowInIconMode,
+            "group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent",
+            "group-has-data-[sidebar=menu-action]/menu-item:pr-2.5",
+            "group-hover/menu-item:pr-8! group-focus-within/menu-item:pr-8! group-has-[[data-state=open]]/menu-item:pr-8!",
+          )}
         >
           <NavLink to={`/chat/${chat.id}`}>
             <span className="truncate">{chat.title}</span>
@@ -157,7 +165,7 @@ export function ChatListPanel() {
         {groups.map((g) => (
           // Spacing ladder: label to its rows (tight) < row to row < group to group (wide)
           <SidebarGroup key={g.label} className="px-2.5 pt-5 pb-0 first:pt-2">
-            <SidebarGroupLabel className={cn(keepLabelInIconMode, "h-6 items-end px-2.5 pb-1.5 text-[11px] font-normal text-muted-foreground")}>{g.label}</SidebarGroupLabel>
+            <SidebarGroupLabel className={cn(keepLabelInIconMode, "h-6 items-end px-2.5 pb-1.5 text-xs font-normal text-muted-foreground")}>{g.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0">
                 {g.chats.map((c) => (

@@ -70,7 +70,8 @@ export function ChatView() {
               </MessageGroup>
             </MessageScrollerContent>
           </MessageScrollerViewport>
-          <MessageScrollerButton className="bottom-6" />
+          {/* Floats above the text like a menu would: popover surface and a soft shadow */}
+          <MessageScrollerButton className="bottom-6 bg-popover shadow-md" />
         </MessageScroller>
       </MessageScrollerProvider>
       {/* Messages fade out above the composer instead of running into it */}

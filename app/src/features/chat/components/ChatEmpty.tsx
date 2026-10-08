@@ -1,6 +1,5 @@
 import { useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { BookOpenIcon, FileTextIcon, NetworkIcon, ScaleIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useChatStore } from "../store"
 import type { PromptInput, SourceKind } from "../types"
@@ -15,11 +14,11 @@ function greeting() {
 }
 
 // Each starter fills a prompt stem and opens the mention popup on the source it needs
-const suggestions: { icon: typeof BookOpenIcon; label: string; prompt: string; kind: SourceKind | "all" }[] = [
-  { icon: BookOpenIcon, label: "Summarize a paper", prompt: "Summarize the key contributions of ", kind: "paper" },
-  { icon: ScaleIcon, label: "Compare two papers", prompt: "Compare the methods and findings of ", kind: "paper" },
-  { icon: FileTextIcon, label: "Draft a note in Docs", prompt: "Write a short note into ", kind: "doc" },
-  { icon: NetworkIcon, label: "Check a claim", prompt: "What evidence in the Library supports ", kind: "knowledge" },
+const suggestions: { label: string; prompt: string; kind: SourceKind | "all" }[] = [
+  { label: "Summarize a paper", prompt: "Summarize the key contributions of ", kind: "paper" },
+  { label: "Compare two papers", prompt: "Compare the methods and findings of ", kind: "paper" },
+  { label: "Draft a note in Docs", prompt: "Write a short note into ", kind: "doc" },
+  { label: "Check a claim", prompt: "What evidence in the Library supports ", kind: "knowledge" },
 ]
 
 // /chat with no conversation selected: greeting, composer, starter prompts
@@ -42,18 +41,18 @@ export function ChatEmpty() {
         <Composer ref={composer} onSubmit={start} autoFocus />
       </div>
       <div className="flex max-w-3xl flex-wrap justify-center gap-2">
+        {/* Words only on a translucent fill: no outline to stack against the composer's border */}
         {suggestions.map((s) => (
           <Button
             key={s.label}
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="rounded-full font-normal text-muted-foreground"
+            className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground"
             onClick={() => {
               composer.current?.setText(s.prompt)
               composer.current?.openMention(s.kind)
             }}
           >
-            <s.icon />
             {s.label}
           </Button>
         ))}

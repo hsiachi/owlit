@@ -72,7 +72,7 @@
     --secondary: oklch(0.3 0.02 65 / 5%);
     --secondary-foreground: oklch(0.25 0.008 60);
     --muted: oklch(0.3 0.02 65 / 5%);
-    --muted-foreground: oklch(0.53 0.012 65);
+    --muted-foreground: oklch(0.505 0.012 65);
     --accent: oklch(0.3 0.02 65 / 6%);
     --accent-foreground: oklch(0.25 0.008 60);
     --destructive: oklch(0.55 0.16 25);
@@ -216,7 +216,11 @@
   border-left: 2px solid var(--border);
   color: var(--muted-foreground);
 }
+/* Tables are ruled, not boxed: a tinted header and a hairline under each row, no outer frame or column lines */
 .markdown table { margin: 0.75rem 0; width: 100%; border-collapse: collapse; font-size: 0.9em; }
-.markdown th, .markdown td { padding: 0.4rem 0.6rem; border: 1px solid var(--border); text-align: left; }
-.markdown th { background: var(--muted); font-weight: 600; }
+.markdown th, .markdown td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+.markdown th { background: var(--muted); font-weight: 500; border-bottom: 0; }
+.markdown th:first-child { border-radius: calc(var(--radius) * 0.8) 0 0 calc(var(--radius) * 0.8); }
+.markdown th:last-child { border-radius: 0 calc(var(--radius) * 0.8) calc(var(--radius) * 0.8) 0; }
+.markdown tr:last-child td { border-bottom: 0; }
 .markdown hr { margin: 1rem 0; border-color: var(--border); }
