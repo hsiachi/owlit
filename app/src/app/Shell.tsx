@@ -6,6 +6,7 @@ import { matchNav } from "@/app/nav"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Toaster } from "@/components/ui/sonner"
 
 export function Shell() {
   const navigate = useNavigate()
@@ -43,13 +44,14 @@ export function Shell() {
           <div className="flex min-h-0 flex-1">
             <AppSidebar />
             {/* Main area: forms one rounded sheet with the list panel; becomes the whole sheet when collapsed */}
-            <SidebarInset className="mr-2 mb-2 min-h-0 overflow-auto rounded-r-xl border-y border-r md:peer-data-[state=collapsed]:rounded-l-xl md:peer-data-[state=collapsed]:border-l">
-              <div className="flex flex-1 flex-col gap-4 p-4">
+            <SidebarInset className="mr-2 mb-2 min-h-0 overflow-hidden rounded-r-xl border-y border-r md:peer-data-[state=collapsed]:rounded-l-xl md:peer-data-[state=collapsed]:border-l">
+              <div className="flex min-h-0 flex-1 flex-col">
                 <Outlet />
               </div>
             </SidebarInset>
           </div>
         </SidebarProvider>
+        <Toaster position="bottom-right" />
       </div>
     </TooltipProvider>
   )

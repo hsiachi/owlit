@@ -5,8 +5,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
-  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -60,23 +58,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {activeItem?.panel && (
         <Sidebar
           collapsible="none"
-          className="hidden flex-1 rounded-l-xl border bg-background md:flex"
+          className="hidden min-w-0 flex-1 rounded-l-xl border bg-background md:flex"
         >
-          <SidebarHeader className="gap-3.5 border-b p-4">
-            <div className="flex w-full items-center justify-between">
-              <div className="text-base font-medium text-foreground">
-                {activeItem?.label}
-              </div>
-            </div>
-            <SidebarInput placeholder="Search…" />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup className="px-0">
-              <SidebarGroupContent>
-                <div className="p-4 text-sm text-muted-foreground">Nothing here yet.</div>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
+          <activeItem.panel />
         </Sidebar>
       )}
     </Sidebar>

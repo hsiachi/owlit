@@ -1,9 +1,18 @@
+import type { ComponentType } from "react"
 import { BookOpen, FileText, House, MessageSquare, Network } from "lucide-react"
+import { ChatListPanel } from "@/features/chat/components/ChatListPanel"
 
-// panel: whether this place has the second-column list panel (only Chat for now)
-export const nav = [
+export interface NavItem {
+  to: string
+  label: string
+  icon: typeof House
+  // Content of the second-column list panel, when this place has one
+  panel?: ComponentType
+}
+
+export const nav: NavItem[] = [
   { to: "/", label: "Home", icon: House },
-  { to: "/chat", label: "Chat", icon: MessageSquare, panel: true },
+  { to: "/chat", label: "Chat", icon: MessageSquare, panel: ChatListPanel },
   { to: "/docs", label: "Docs", icon: FileText },
   { to: "/knowledge", label: "Knowledge", icon: Network },
   { to: "/library", label: "Library", icon: BookOpen },
