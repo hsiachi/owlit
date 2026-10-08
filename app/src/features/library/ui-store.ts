@@ -67,7 +67,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   filter: "all",
   tags: [],
   sort: { key: "addedAt", desc: true },
-  layout: "list",
+  layout: "table",
   selectedIds: [],
   cursorId: null,
   anchorId: null,

@@ -109,12 +109,13 @@ const COLUMNS = [
 
 function TableRow({ paper, order }: { paper: Paper; order: string[] }) {
   const { selected, menuIds, handlers } = useRowHandlers(paper, order)
-  const td = cn("h-9 truncate border-b px-2.5 text-[13px] text-muted-foreground group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
+  // Square cells with a hairline under each row (none under the last), as in answer tables
+  const td = cn("h-9 truncate border-b px-2.5 text-[13px] text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <tr {...handlers} className="group/row cursor-default select-none">
-          <td className={cn(td, "rounded-l-md text-sm text-foreground", paper.status === "read" && "text-muted-foreground")}>
+          <td className={cn(td, "text-sm text-foreground", paper.status === "read" && "text-muted-foreground")}>
             <span className="flex items-center gap-2">
               <span className="truncate">{paper.title}</span>
               {paper.starred && <StarMark />}
@@ -133,7 +134,7 @@ function TableRow({ paper, order }: { paper: Paper; order: string[] }) {
             )}
           </td>
           <td className={td}>{paper.status === "unread" ? "" : paper.status === "reading" ? "Reading" : "Read"}</td>
-          <td className={cn(td, "rounded-r-md tabular-nums")}>
+          <td className={cn(td, "tabular-nums")}>
             {/* The date gives way to the row's actions on hover */}
             <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">{formatAdded(paper.addedAt)}</span>
             <RowActions paper={paper} menuIds={menuIds} className="-my-1 -mr-1.5 justify-end" />

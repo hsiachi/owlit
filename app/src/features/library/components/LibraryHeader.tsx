@@ -113,7 +113,7 @@ export function LayoutToggle() {
 }
 
 // One field to find and to add: words filter the list, a DOI / arXiv id / link offers to add.
-// Raised like the composer, since it's where the page is used from.
+// A bright field on the sheet; focus darkens its border.
 export function FindField({ onSubmit, onPickFiles }: { onSubmit: () => void; onPickFiles: (files: File[]) => void }) {
   const query = useUiStore((s) => s.query)
   const setQuery = useUiStore((s) => s.setQuery)
@@ -133,7 +133,7 @@ export function FindField({ onSubmit, onPickFiles }: { onSubmit: () => void; onP
   }, [])
 
   return (
-    <div className="mt-4 flex h-11 items-center gap-2 rounded-xl border bg-card pr-1.5 pl-3.5 shadow-sm transition-[border-color,box-shadow] focus-within:border-foreground/20 focus-within:shadow-md">
+    <div className="mt-4 flex h-11 items-center gap-2 rounded-xl border bg-card pr-1.5 pl-3.5 transition-colors focus-within:border-foreground/30">
       <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
       <input
         ref={input}

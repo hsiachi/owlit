@@ -11,7 +11,7 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
   const actions = usePaperActions()
   if (!lookup) return null
   return (
-    <div className="mt-5 flex items-center gap-3.5 rounded-xl border bg-card py-3 pr-3.5 pl-4 shadow-sm">
+    <div className="mt-5 flex items-center gap-3.5 rounded-xl border bg-card py-3 pr-3.5 pl-4">
       {lookup.state === "loading" && (
         <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
           <Spinner className="size-3.5" />
