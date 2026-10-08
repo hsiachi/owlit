@@ -63,12 +63,12 @@ function useMenuSections(papers: Paper[], afterRemove?: () => void): Section[] {
   })
   sections.push(first)
 
-  if (single) {
-    sections.push([
-      { key: "cite", label: "Copy citation", onSelect: () => actions.copyCitation(single) },
-      { key: "edit", label: "Edit details", onSelect: () => actions.editDetails(single.id) },
-    ])
-  }
+  const copy: Section = [
+    { key: "cite", label: papers.length > 1 ? "Copy citations" : "Copy citation", onSelect: () => actions.copyCitation(papers) },
+    { key: "bibtex", label: "Copy BibTeX", onSelect: () => actions.copyBibtex(papers) },
+  ]
+  if (single) copy.push({ key: "edit", label: "Edit details", onSelect: () => actions.editDetails(single.id) })
+  sections.push(copy)
 
   sections.push([
     {

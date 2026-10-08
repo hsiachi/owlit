@@ -19,18 +19,6 @@ export function citationLabel(p: Paper): string {
   return p.year ? `${shortAuthors(p.authors)} ${p.year}` : shortAuthors(p.authors)
 }
 
-// A plain-text reference line, enough to paste into a note
-export function citation(p: Paper): string {
-  const parts = [p.authors.join(", ") || "Unknown authors"]
-  if (p.year) parts[0] += ` (${p.year})`
-  parts.push(p.title)
-  if (p.venue) parts.push(p.venue)
-  if (p.ids.doi) parts.push(`https://doi.org/${p.ids.doi}`)
-  else if (p.ids.arxiv) parts.push(`arXiv:${p.ids.arxiv}`)
-  else if (p.ids.url) parts.push(p.ids.url)
-  return parts.join(". ") + "."
-}
-
 export function externalLinks(p: Paper): { label: string; href: string }[] {
   const links: { label: string; href: string }[] = []
   if (p.ids.doi) links.push({ label: `doi:${p.ids.doi}`, href: `https://doi.org/${p.ids.doi}` })

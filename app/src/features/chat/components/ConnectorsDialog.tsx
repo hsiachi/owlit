@@ -193,7 +193,7 @@ export function ConnectorsDialog() {
             Local agents
             <Tooltip>
               <TooltipTrigger asChild>
-                <button type="button" className="rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50" aria-label="About local agents">
+                <button type="button" className="rounded-full text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50" aria-label="About local agents">
                   <InfoIcon className="size-3.5" />
                 </button>
               </TooltipTrigger>

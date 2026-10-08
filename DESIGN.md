@@ -38,6 +38,16 @@ colors:
   tag-blue: "oklch(0.62 0.09 250)"
   tag-violet: "oklch(0.6 0.1 295)"
   tag-pink: "oklch(0.68 0.1 350)"
+  # PDF marks: the page is white in both themes, so these never flip
+  highlight-yellow: "oklch(0.93 0.11 98)"
+  highlight-green: "oklch(0.91 0.08 150)"
+  highlight-blue: "oklch(0.9 0.055 240)"
+  highlight-pink: "oklch(0.9 0.065 355)"
+  highlight-yellow-mark: "oklch(0.82 0.15 92)"
+  highlight-green-mark: "oklch(0.72 0.13 150)"
+  highlight-blue-mark: "oklch(0.68 0.1 245)"
+  highlight-pink-mark: "oklch(0.7 0.13 355)"
+  pdf-selection: "oklch(0.86 0.06 255)"
 typography:
   display:
     fontFamily: Instrument Serif
@@ -223,6 +233,35 @@ components:
     backgroundColor: "{colors.tag-pink}"
   reader-well:
     backgroundColor: "{colors.sidebar-panel}"
+  reader-pill:
+    backgroundColor: "{colors.popover}"
+    textColor: "{colors.muted-foreground}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.full}"
+  highlight-popover:
+    backgroundColor: "{colors.popover}"
+    rounded: "{rounded.xl}"
+  pdf-selection:
+    backgroundColor: "{colors.pdf-selection}"
+  highlight-yellow:
+    backgroundColor: "{colors.highlight-yellow}"
+  highlight-green:
+    backgroundColor: "{colors.highlight-green}"
+  highlight-blue:
+    backgroundColor: "{colors.highlight-blue}"
+  highlight-pink:
+    backgroundColor: "{colors.highlight-pink}"
+  highlight-bar-yellow:
+    backgroundColor: "{colors.highlight-yellow-mark}"
+  highlight-bar-green:
+    backgroundColor: "{colors.highlight-green-mark}"
+  highlight-bar-blue:
+    backgroundColor: "{colors.highlight-blue-mark}"
+  highlight-bar-pink:
+    backgroundColor: "{colors.highlight-pink-mark}"
+  command-palette:
+    backgroundColor: "{colors.popover}"
+    rounded: "{rounded.xl}"
 ---
 
 # owlit design
@@ -291,7 +330,7 @@ Marks that carry meaning, never fills or washes:
 | `star` | A starred paper: the small filled star after its title, and the active star toggle |
 | `tag-*` | Eight low-chroma hues. Each tag gets one, picked from its name so it is the same everywhere, shown only as a small dot beside the tag's name |
 
-Highlights in the PDF reader will carry their own four colours. Everything else in the Library stays neutral; primary buttons remain near-black and there is no brand accent.
+PDF marks are the one place colour does not follow the theme. A rendered page is white in both themes, so the four highlight colours (`highlight-yellow`, `-green`, `-blue`, `-pink`) and the text selection colour (`pdf-selection`) are set once and never flip. Highlights are drawn with multiply, so they tint the page like a marker and the glyphs under them stay black. Each colour has a deeper `-mark` twin for places that are not the page: the thin bar beside a highlight in the list and the dots in its menu. The colours have no names or meanings; the reader decides what yellow means. Everything else in the Library stays neutral; primary buttons remain near-black and there is no brand accent.
 
 To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: in shadcn, `muted` is a neutral surface role, not a softer copy of another colour. Use opacity on the same token for fills, for example `bg-destructive/10`, but not for text people need to read.
 
@@ -320,6 +359,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - Layers are told apart by tone first (see the surface table). Lines and shadows come second.
 - Shadows are for things that float or that the user acts on: the composer, menus, dialogs and floating buttons. Content never gets a shadow.
 - Focus on a text field darkens its border; there is no halo ring. The composer does the same at a larger scale: its border darkens and its shadow deepens.
+- Focus marks are for keyboard navigation. Controls (buttons, tabs, chips, rows) show their focus ring only after Tab, arrows or Esc; after a click, a control that gets focus back, such as a menu trigger when its menu closes, shows nothing. Text fields are the exception: they darken their border however they were reached. In code this is the `focus-key:` variant; `focus-visible:` is kept for text fields.
 - A control that floats over content, such as the scroll-to-bottom button, uses the `popover` surface and a soft shadow so it never reads as part of the text beneath.
 - Dialogs dim and blur what is behind them.
 
@@ -340,6 +380,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 
 - **List panel.** A search field that opens the palette, a full-width "New chat" row, then chats grouped by recency. Titles use the full row. Hovering a row (or focusing it, or opening its menu) shows a vertical ellipsis in a small square, and only then does the title make room for it. The square darkens on its own hover while the row stays lit.
 - **Composer.** Three plain-text pickers on the right: agent, model with reasoning effort, and permission mode marked by a shield. All three use the same muted tone. The model and effort read as "Sonnet 5.5 · Medium", and effort is a submenu row inside the model menu. A one-line banner appears inside the composer only when the selected agent can't run.
+- **Command palette.** ⌘K anywhere opens one palette for the whole app: papers and chats, with the place you are in first. Before anything is typed each group shows its six most recent items. Every typed word has to appear in what an item is known by (title, authors, venue, tags, ids, abstract, or a chat's own words); a match in the title ranks first. Rows are a kind icon, the title, and muted details on the same line.
 - **Starter prompts.** Words only, on a translucent `secondary` fill with full rounding. No outline, so they don't stack another border under the composer's, and no icons.
 - **Menus.** Words only. The selected item has a check mark on the right; status is a small chip in the same right-hand slot. A destructive item is red text at rest and fills solid red when highlighted.
 - **Mentions.** Muted blue text. In messages, no fill until hover. In the composer, a faint fill so the token reads as one unit.
@@ -367,7 +408,12 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - **Table** (the default layout). The same ruled look as answer tables: a tinted header with rounded ends, square body cells, a hairline under every row but the last, plus a square hover fill. A 4px band of sheet sits under the header so a filled first row never merges with the header's tint. Columns: Title · Authors · Year · Venue · Tags (first tag with its dot, then "+N") · Status (blank when unread) · Added. Headers sort; on hover the date gives way to the row's actions.
 - **Peek.** A plain click opens the row in place as a raised card: full title, all authors, venue and year, the abstract, then one line with tags, status menu, star, ellipsis and the primary button (Read, Continue or Open). One peek at a time; ↑↓ move it, Space toggles it, Enter opens the paper.
 - **Selection.** Nothing is selected until the user clicks; coming back from a paper keeps only the keyboard cursor, not a highlight. ⌘-click and ⇧-click select without peeking. Two or more selected bring up a floating bar at the bottom: "N selected · Star · Mark as · Add tag · Remove · ×".
-- **Paper page.** A breadcrumb "Library › title", "N of M" with previous and next, and a details toggle, with no rule under them. The reader sits on a well one step darker than the sheet so pages are the brightest surface. The details panel (380px) has the 18px title, authors and venue, one control line (status, star, ellipsis), and underline tabs Notes · Highlights · About.
+- **Paper page.** A breadcrumb "Library › title", "N of M" with previous and next, and a details toggle, with no rule under them. The reader sits on a well one step darker than the sheet so pages are the brightest surface. The details panel has the 18px title, authors and venue, one control line (status, star, ellipsis), and underline tabs Notes · Highlights · About. It is 380px by default; its left edge drags between 320px and half the page, and a double-click puts it back. Its width, whether it is open, and the last tab used carry over from paper to paper.
+- **Reader.** White pages with a hairline edge, 24px of well around them and 16px between them, fitted to the width. Two floating pills and no toolbar: zoom and find at the top right (the percentage is the control: it cycles fit width, 100% and fit page; ⌘F opens find in its place), and the page number at the bottom centre. Both use the menu material (popover surface, hairline ring, soft shadow). The page number sits on the text, so it shows while the reader scrolls or points at it and fades once they stop; after a link inside the PDF has moved the reader it gains "← N", which returns to where the link was followed, and stays until used. Find starts from the current page and brings each match into view; all matches get a neutral tint, so they never pass for a highlight, and the current one is orange. Internal links (citations, section references) are a thin rule under the text, never a fill; external links are not followed. A paper reopens exactly where it was left, with nothing to say so.
+- **Text in the PDF.** Selecting text brings up one popover beside it, in the menu material: four colour dots (the current colour carries a check, as a selected menu item does), then Copy and Comment as icon buttons with tooltips. A dot keeps the selection as a highlight. Comment keeps it in the last colour used and opens a comment field in the same popover, saved as it is typed; ⌘↵ or Esc closes it. Clicking a highlight brings up the same popover with its colour marked and Delete added, so a highlight looks like a selection that was kept. 1–4 pick a colour and ⌘C copies while it is open. Copied text has line breaks and end-of-line hyphens mended. Under the pointer, a highlight turns a step deeper so it reads as something to click, and a commented one shows its comment; nothing else marks it on the page.
+- **Highlights tab.** Reading order, grouped under 12px "Page N" labels; the tab shows the count in muted text, and "Copy all" (Markdown quotes with page numbers) sits at the right end of the tab line. Each item is the quote, up to four lines, beside a 3px bar in its colour, with the comment under it in body text. Click jumps the reader to the passage and rings it twice; a highlight clicked in the PDF is marked and scrolled into view here. Hover shows a vertical ellipsis: Color, Edit comment, Copy, Add to note, Delete.
+- **Notes tab.** One note per paper, stored as Markdown and drawn with the same styles as answers. It has no box or fill: the panel is its page, the note is content rather than a form, and the composer stays the only lifted input. The empty space under the text belongs to the note, so a click there puts the cursor at the end. Markdown shortcuts as you type, and @ for the same mention popup as the composer. In Markdown a mention is a link to its `owlit://` address, the form agents use. Add to note appends the highlight as a quote whose "p. N" is a link back to the passage. It saves on every change and never says "Saved".
+- **Citations.** Every paper menu has Copy citation (APA 7) and Copy BibTeX; with several papers selected they copy one entry per paper, and the floating bar has Copy BibTeX too. BibTeX keys follow the familiar `vaswani2017attention` shape, titles keep their capitals in double braces, and the entry type comes from what kind of publication it is (an arXiv id alone is a preprint).
 
 ### Docs
 

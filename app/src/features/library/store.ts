@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware"
 import type { LibraryClient } from "./client"
 import { MockLibraryClient } from "./mock-client"
 import { seedPapers } from "./mocks/papers"
-import type { Highlight, Paper, PaperNote, ReadStatus, ResolvedPaper } from "./types"
+import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "./types"
 
 export const libraryClient: LibraryClient = new MockLibraryClient()
 
@@ -31,10 +31,21 @@ interface LibraryState {
   removeTag: (ids: string[], tag: string) => void
   // Called when the PDF is opened: records the time and moves unread → reading
   markOpened: (id: string) => void
-  setLastPage: (id: string, page: number) => void
+  setPosition: (id: string, position: ReadingPosition) => void
+
+  addHighlight: (h: Omit<Highlight, "id" | "createdAt">) => Highlight
+  updateHighlight: (id: string, patch: Partial<Pick<Highlight, "color" | "comment">>) => void
+  // Returns what was removed so the caller can offer undo
+  removeHighlight: (id: string) => Highlight | undefined
+  restoreHighlight: (h: Highlight) => void
+  // The colour a new highlight gets when none was picked, e.g. from Comment
+  lastColor: HighlightColor
 
   setNote: (paperId: string, content: string) => void
 }
+
+// A removed paper's highlights and note, held until the session ends so Undo brings them back too
+const removedWith = new Map<string, { highlights: Highlight[]; note?: PaperNote }>()
 
 const normalizeTag = (tag: string) => tag.trim().toLowerCase().replace(/\s+/g, "-")
 
@@ -79,9 +90,11 @@ export const useLibraryStore = create<LibraryState>()(
           const highlights = { ...s.highlights }
           const notes = { ...s.notes }
           for (const id of ids) {
+            const own = Object.values(highlights).filter((h) => h.paperId === id)
+            removedWith.set(id, { highlights: own, note: notes[id] })
             delete papers[id]
             delete notes[id]
-            for (const h of Object.values(highlights)) if (h.paperId === id) delete highlights[h.id]
+            for (const h of own) delete highlights[h.id]
           }
           return { papers, highlights, notes }
         })
@@ -89,9 +102,18 @@ export const useLibraryStore = create<LibraryState>()(
       },
 
       restorePapers: (papers) =>
-        set((s) => ({
-          papers: { ...s.papers, ...Object.fromEntries(papers.map((p) => [p.id, p])) },
-        })),
+        set((s) => {
+          const highlights = { ...s.highlights }
+          const notes = { ...s.notes }
+          for (const p of papers) {
+            const kept = removedWith.get(p.id)
+            if (!kept) continue
+            for (const h of kept.highlights) highlights[h.id] = h
+            if (kept.note) notes[p.id] = kept.note
+            removedWith.delete(p.id)
+          }
+          return { papers: { ...s.papers, ...Object.fromEntries(papers.map((p) => [p.id, p])) }, highlights, notes }
+        }),
 
       toggleStar: (id) =>
         set((s) => {
@@ -161,19 +183,64 @@ export const useLibraryStore = create<LibraryState>()(
           }
         }),
 
-      setLastPage: (id, page) =>
+      setPosition: (id, position) =>
         set((s) => {
           const p = s.papers[id]
-          if (!p || p.lastPage === page) return s
-          return { papers: { ...s.papers, [id]: { ...p, lastPage: page } } }
+          if (!p || (p.position?.page === position.page && p.position.y === position.y)) return s
+          return { papers: { ...s.papers, [id]: { ...p, position } } }
         }),
+
+      addHighlight: (h) => {
+        const highlight: Highlight = { ...h, id: newId(), createdAt: Date.now() }
+        set((s) => ({ highlights: { ...s.highlights, [highlight.id]: highlight }, lastColor: highlight.color }))
+        return highlight
+      },
+
+      updateHighlight: (id, patch) =>
+        set((s) => {
+          const h = s.highlights[id]
+          if (!h) return s
+          return {
+            highlights: { ...s.highlights, [id]: { ...h, ...patch } },
+            lastColor: patch.color ?? s.lastColor,
+          }
+        }),
+
+      removeHighlight: (id) => {
+        const removed = get().highlights[id]
+        if (!removed) return undefined
+        set((s) => {
+          const highlights = { ...s.highlights }
+          delete highlights[id]
+          return { highlights }
+        })
+        return removed
+      },
+
+      restoreHighlight: (h) => set((s) => ({ highlights: { ...s.highlights, [h.id]: h } })),
+
+      lastColor: "yellow",
 
       setNote: (paperId, content) =>
         set((s) => ({
           notes: { ...s.notes, [paperId]: { paperId, content, updatedAt: Date.now() } },
         })),
     }),
-    { name: "owlit-library", version: 1 },
+    {
+      name: "owlit-library",
+      version: 2,
+      // v1 kept only a page number; it becomes the top of that page
+      migrate: (persisted, version) => {
+        const state = persisted as { papers?: Record<string, Paper & { lastPage?: number }> }
+        if (version < 2 && state.papers) {
+          for (const p of Object.values(state.papers)) {
+            if (p.lastPage) p.position = { page: p.lastPage, y: 0 }
+            delete p.lastPage
+          }
+        }
+        return state as LibraryState
+      },
+    },
   ),
 )
 

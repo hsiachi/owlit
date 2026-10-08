@@ -1,25 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, ExternalLinkIcon, PanelRightIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { CopyAllHighlights, HighlightsList, useHighlightCount } from "../components/HighlightsList"
 import { PaperDropdownContent } from "../components/PaperMenu"
 import { StarButton } from "../components/StarButton"
 import { StatusMenu } from "../components/StatusMenu"
 import { TagsEditor } from "../components/TagsEditor"
 import { externalLinks, formatAdded } from "../lib/format"
 import { visiblePapers } from "../lib/filter"
+import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../prefs-store"
+import { NoteEditor } from "../notes/NoteEditor"
+import { addHighlightToNote } from "../notes/note-actions"
+import { PdfReader } from "../reader/PdfReader"
 import { libraryClient, useLibraryStore } from "../store"
-import type { Paper } from "../types"
+import type { Highlight, Paper } from "../types"
 import { useUiStore } from "../ui-store"
-
-type PanelTab = "notes" | "highlights" | "about"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -40,9 +42,8 @@ export function PaperPage() {
   const navigate = useNavigate()
   const paper = useLibraryStore((s) => s.papers[paperId])
   const markOpened = useLibraryStore((s) => s.markOpened)
-  const note = useLibraryStore((s) => s.notes[paperId])
-  const [panelOpen, setPanelOpen] = useState(true)
-  const [tab, setTab] = useState<PanelTab>(note?.content ? "notes" : "about")
+  const panelOpen = usePrefsStore((s) => s.panelOpen)
+  const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
 
   // Previous / next walk All papers as it is currently filtered and sorted
   const papers = useLibraryStore((s) => s.papers)
@@ -99,30 +100,76 @@ export function PaperPage() {
         <IconButton label="Next paper" disabled={!nextId} onClick={() => go(nextId)}>
           <ChevronDownIcon />
         </IconButton>
-        <IconButton label={panelOpen ? "Hide details" : "Show details"} pressed={panelOpen} onClick={() => setPanelOpen((o) => !o)}>
+        <IconButton label={panelOpen ? "Hide details" : "Show details"} pressed={panelOpen} onClick={() => setPanelOpen(!panelOpen)}>
           <PanelRightIcon />
         </IconButton>
       </header>
 
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
-        <main className={cn("flex min-w-0 flex-1 flex-col overflow-auto bg-sidebar-panel", panelOpen && "rounded-tr-lg")}>
-          {paper.pdf ? <ReaderPlaceholder paper={paper} /> : <NoPdf paper={paper} />}
+        <main className={cn("flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", panelOpen && "rounded-tr-lg")}>
+          {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf paper={paper} />}
         </main>
-        {panelOpen && <DetailsPanel paper={paper} tab={tab} onTabChange={setTab} />}
+        {panelOpen && (
+          <>
+            <ResizeHandle />
+            <DetailsPanel paper={paper} />
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-function DetailsPanel({ paper, tab, onTabChange }: { paper: Paper; tab: PanelTab; onTabChange: (t: PanelTab) => void }) {
+// Drag the panel's left edge to widen it for writing; double-click puts it back
+function ResizeHandle() {
+  const width = usePrefsStore((s) => s.panelWidth)
+  const setWidth = usePrefsStore((s) => s.setPanelWidth)
+  const start = useRef<{ x: number; width: number; max: number } | null>(null)
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize details"
+      aria-valuenow={width}
+      className="group/resize relative z-10 w-0 cursor-col-resize"
+      onPointerDown={(e) => {
+        const row = e.currentTarget.parentElement
+        if (!row) return
+        e.currentTarget.setPointerCapture(e.pointerId)
+        start.current = { x: e.clientX, width, max: Math.max(PANEL_MIN, row.clientWidth / 2) }
+      }}
+      onPointerMove={(e) => {
+        const s = start.current
+        if (!s) return
+        setWidth(Math.round(Math.min(s.max, Math.max(PANEL_MIN, s.width + s.x - e.clientX))))
+      }}
+      onPointerUp={() => (start.current = null)}
+      onDoubleClick={() => setWidth(PANEL_DEFAULT)}
+    >
+      <div className="absolute inset-y-0 -left-1 w-2" />
+      <div className="absolute inset-y-0 -left-px w-0.5 bg-transparent transition-colors group-hover/resize:bg-border group-active/resize:bg-foreground/20" />
+    </div>
+  )
+}
+
+function DetailsPanel({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const toggleStar = useLibraryStore((s) => s.toggleStar)
   const setStatus = useLibraryStore((s) => s.setStatus)
+  const width = usePrefsStore((s) => s.panelWidth)
+  const tab = usePrefsStore((s) => s.panelTab)
+  const setTab = usePrefsStore((s) => s.setPanelTab)
+  const highlightCount = useHighlightCount(paper.id)
   const published = [paper.venue, paper.year].filter(Boolean).join(" · ")
 
+  const addToNote = (h: Highlight) => {
+    addHighlightToNote(h)
+    setTab("notes")
+  }
+
   return (
-    <aside className="flex w-[380px] shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-10">
+    <aside style={{ width }} className="flex shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-4">
       <h1 className="text-lg leading-snug font-medium text-balance">{paper.title}</h1>
       <p className="mt-2 text-[13px] leading-normal text-muted-foreground">
         {paper.authors.join(", ") || "Unknown authors"}
@@ -146,17 +193,23 @@ function DetailsPanel({ paper, tab, onTabChange }: { paper: Paper; tab: PanelTab
         </DropdownMenu>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => onTabChange(v as PanelTab)} className="mt-5 gap-4">
-        <TabsList variant="line" className="-ml-1.5">
-          <TabsTrigger value="notes" className="px-1.5">Notes</TabsTrigger>
-          <TabsTrigger value="highlights" className="px-1.5">Highlights</TabsTrigger>
-          <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
-        </TabsList>
-        <TabsContent value="notes">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as PanelTab)} className="mt-5 flex-1 gap-4">
+        <div className="flex items-center justify-between">
+          <TabsList variant="line" className="-ml-1.5">
+            <TabsTrigger value="notes" className="px-1.5">Notes</TabsTrigger>
+            <TabsTrigger value="highlights" className="px-1.5">
+              Highlights
+              {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
+          </TabsList>
+          {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
+        </div>
+        <TabsContent value="notes" className="flex flex-col">
           <NoteEditor paperId={paper.id} />
         </TabsContent>
         <TabsContent value="highlights">
-          <p className="text-[13px] text-muted-foreground">Select text in the PDF to highlight it. Highlights will be listed here by page.</p>
+          <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
         </TabsContent>
         <TabsContent value="about">
           <About paper={paper} />
@@ -204,25 +257,6 @@ function About({ paper }: { paper: Paper }) {
         <dt className="text-muted-foreground">File</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (paper.pdf.pages ? `PDF, ${paper.pdf.pages} pages` : "PDF") : "No PDF"}</dd>
       </dl>
-    </div>
-  )
-}
-
-// Stands in for the EmbedPDF reader until it is ported
-function ReaderPlaceholder({ paper }: { paper: Paper }) {
-  return (
-    <div className="m-auto flex max-w-sm flex-col items-center gap-2 p-6 text-center">
-      <p className="text-[15px] font-medium">The reader comes next</p>
-      <p className="text-sm text-muted-foreground">
-        Highlights and notes in the PDF arrive with the next phase.
-        {paper.lastPage ? ` It will reopen on page ${paper.lastPage}.` : ""}
-      </p>
-      <Button variant="outline" size="sm" className="mt-2" asChild>
-        <a href={paper.pdf?.url} target="_blank" rel="noreferrer">
-          <ExternalLinkIcon />
-          Open PDF in browser
-        </a>
-      </Button>
     </div>
   )
 }
@@ -299,15 +333,3 @@ function NoPdf({ paper }: { paper: Paper }) {
   )
 }
 
-function NoteEditor({ paperId }: { paperId: string }) {
-  const note = useLibraryStore((s) => s.notes[paperId])
-  const setNote = useLibraryStore((s) => s.setNote)
-  return (
-    <Textarea
-      value={note?.content ?? ""}
-      onChange={(e) => setNote(paperId, e.target.value)}
-      placeholder="What do you take from this paper? Your note stays with it."
-      className="min-h-64 resize-none rounded-none border-0 bg-transparent p-0 text-[15px] leading-relaxed shadow-none focus-visible:border-0 dark:bg-transparent"
-    />
-  )
-}

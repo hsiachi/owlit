@@ -5,6 +5,10 @@ export type ReadStatus = "unread" | "reading" | "read"
 
 export type HighlightColor = "yellow" | "green" | "blue" | "pink"
 
+// What kind of publication it is, which decides the BibTeX entry type. Filled by the resolver;
+// unknown papers fall back on their ids (arXiv only → preprint).
+export type PaperKind = "article" | "conference" | "preprint" | "book" | "thesis" | "other"
+
 export interface PaperIds {
   doi?: string
   arxiv?: string
@@ -33,12 +37,20 @@ export interface Paper {
   // unread on add; reading is set automatically when the PDF is first opened; read is manual
   status: ReadStatus
   tags: string[]
-  // Reading position, so a paper reopens where it was left
+  kind?: PaperKind
   lastOpenedAt?: number
-  lastPage?: number
+  // Reading position, so a paper reopens where it was left
+  position?: ReadingPosition
 }
 
-// Page-space rectangle, as EmbedPDF's selection reports it
+// The top of what was on screen: a 1-based page and a distance from that page's top edge in
+// PDF points, so it survives a change of zoom or window width
+export interface ReadingPosition {
+  page: number
+  y: number
+}
+
+// Rectangle in PDF points from the page's top-left corner, as EmbedPDF's selection reports it
 export interface Rect {
   x: number
   y: number
@@ -46,12 +58,18 @@ export interface Rect {
   h: number
 }
 
+export interface PageRect extends Rect {
+  // 0-based
+  page: number
+}
+
 export interface Highlight {
   id: string
   paperId: string
-  // 0-based
+  // 0-based page the highlight starts on; a selection across a page break keeps one record
   page: number
-  rects: Rect[]
+  // One rect per line, in reading order
+  rects: PageRect[]
   text: string
   color: HighlightColor
   comment?: string

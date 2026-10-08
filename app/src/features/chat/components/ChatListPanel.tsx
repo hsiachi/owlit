@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar"
 import { groupChats } from "../lib/group-chats"
 import { useChatStore } from "../store"
-import { useUiStore } from "../ui-store"
+import { usePaletteStore } from "@/app/palette-store"
 import type { Chat } from "../types"
 
 // Rows are a touch taller than the shadcn default so the list breathes
@@ -77,7 +77,7 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
               setRenaming(false)
             }
           }}
-          className="h-9 w-full rounded-md border bg-card px-2.5 text-sm outline-none focus-visible:border-foreground/30"
+          className="h-9 w-full rounded-md border bg-card px-2.5 text-sm outline-none focus-key:border-foreground/30"
           aria-label="Rename chat"
         />
       ) : (
@@ -129,18 +129,18 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
 export function ChatListPanel() {
   const { chatId } = useParams()
   const chats = useChatStore((s) => s.chats)
-  const setSearchOpen = useUiStore((s) => s.setSearchOpen)
+  const setSearchOpen = usePaletteStore((s) => s.setOpen)
 
   const groups = useMemo(() => groupChats(Object.values(chats)), [chats])
 
   return (
     <>
       <SidebarHeader className="gap-1.5 px-2.5 pt-2.5 pb-1">
-        {/* Looks like a search field, opens the ⌘K palette which also searches message text */}
+        {/* Looks like a search field, opens the ⌘K palette, which also finds papers and message text */}
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-visible:border-foreground/30 focus-visible:text-foreground"
+          className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-key:border-foreground/30 focus-key:text-foreground"
         >
           <SearchIcon className="size-4" />
           <span className="flex-1 text-left">Search</span>

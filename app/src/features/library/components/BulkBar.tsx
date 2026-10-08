@@ -44,6 +44,9 @@ export function BulkBar() {
           <ChevronDownIcon />
         </Button>
       </TagPicker>
+      <Button variant="ghost" size="sm" className="font-normal" onClick={() => actions.copyBibtex(ids.map((id) => papers[id]).filter(Boolean))}>
+        Copy BibTeX
+      </Button>
       <span className="mx-1 h-4 w-px bg-border" />
       <Button variant="ghost" size="sm" className="font-normal text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => actions.remove(ids)}>
         Remove
