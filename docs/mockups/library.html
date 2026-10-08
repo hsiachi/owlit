@@ -288,13 +288,36 @@ tbody td.peekcell .peek { margin: 6px 0 8px; }
 .kv a { color: var(--foreground); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
 .abs { font-size: 14px; line-height: 1.6; color: color-mix(in oklch, var(--foreground) 86%, transparent); }
 </style>
-</head>
+<style>
+/* Round 3: no list panel; the page title is the switch between Up next and Library */
+.sheet { border-left: 1px solid var(--border); border-radius: 10px; }
+.switch { display: flex; align-items: baseline; gap: 18px; }
+.switch button { font-size: 22px; font-weight: 500; letter-spacing: -0.005em; color: color-mix(in oklch, var(--foreground) 32%, transparent); transition: color .12s; }
+.switch button:hover { color: color-mix(in oklch, var(--foreground) 60%, transparent); }
+.switch button.on { color: var(--foreground); }
+.switch .n { font-size: 13px; font-weight: 400; color: var(--muted-foreground); margin-left: 6px; }
+.status-line { margin-top: 6px; padding: 0 2px; font-size: 13px; color: var(--muted-foreground); display: flex; align-items: center; gap: 6px; }
+.status-line button { color: var(--muted-foreground); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+.status-line button:hover { color: var(--foreground); }
+.views { margin-top: 14px; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.views .spacer { flex: 1; }
+.chip .dot { width: 7px; height: 7px; }
+.chip.tagchip { padding: 0 6px 0 10px; }
+.chip.tagchip svg.lucide { width: 13px; height: 13px; }
+.row .add { flex: none; height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); display: inline-flex; align-items: center; gap: 4px; }
+.row .add:hover { background: var(--muted); }
+.row .add svg.lucide { width: 13px; height: 13px; }
+.row .added { flex: none; font-size: 12.5px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; }
+.row .added svg.lucide { width: 13px; height: 13px; }
+.label .src { color: var(--foreground); opacity: .8; }
+.menu .dot { margin-right: 8px; }
+.menu .mi { display: flex; align-items: center; }
+</style>
 <body>
 <div class="frame">
   <div class="topbar">
     <button class="icon-btn" id="back" title="Back"><i data-lucide="arrow-left"></i></button>
     <button class="icon-btn" title="Forward"><i data-lucide="arrow-right"></i></button>
-    <button class="icon-btn" id="toggle-panel" title="Toggle sidebar"><i data-lucide="panel-left"></i></button>
     <div class="spacer"></div>
     <span class="mock-label">Mockup</span>
     <div class="mock-switch" id="theme"><button data-t="light" class="on">Light</button><button data-t="dark">Dark</button></div>
@@ -306,10 +329,7 @@ tbody td.peekcell .peek { margin: 6px 0 8px; }
     <button class="icon-btn" title="Knowledge"><i data-lucide="network"></i></button>
     <button class="icon-btn active" title="Library"><i data-lucide="book-open"></i></button>
   </nav>
-  <div class="sheetwrap" id="wrap">
-    <aside class="lpanel" id="lpanel"></aside>
-    <main class="sheet" id="sheet"></main>
-  </div>
+  <div class="sheetwrap"><main class="sheet" id="sheet"></main></div>
 </div>
 
 <script>
@@ -317,25 +337,30 @@ const PAPERS = [{"id":"p1","t":"Attention Is All You Need","a":["Ashish Vaswani"
 const DAY = 86400000, now = Date.now();
 PAPERS.forEach(p => { p.added = now - p.d * DAY; });
 
+// Papers owlit found outside the library (a search run, an agent). Accepting one adds it.
+const EXTERNAL = [
+  { id: "x1", t: "Threddy: An Interactive System for Personalized Thread-based Exploration and Organization of Scientific Literature", a: ["Hyeonsu B. Kang", "Joseph Chee Chang", "Yongsung Kim", "Aniket Kittur"], y: 2022, v: "UIST", ab: "Lets researchers pull threads of related work out of the papers they read and organize them into a personal structure that grows as they read more.", tags: [], ids: { doi: "10.1145/3526113.3545660" }, ext: true },
+  { id: "x2", t: "PaperWeaver: Enriching Topical Paper Alerts by Contextualizing Recommended Papers with User-collected Papers", a: ["Yoonjoo Lee", "Hyeonsu B. Kang", "Matt Latzke", "Juho Kim", "Jonathan Bragg", "Joseph Chee Chang", "Pao Siangliulue"], y: 2024, v: "CHI", ab: "Explains each recommended paper in terms of papers the user has already collected, so alerts can be triaged against what the reader already knows.", tags: [], ids: { arxiv: "2403.02939" }, ext: true },
+  { id: "x3", t: "CiteRead: Integrating Localized Citation Contexts into Scientific Paper Reading", a: ["Napol Rachatasumrit", "Jonathan Bragg", "Amy X. Zhang", "Daniel S. Weld"], y: 2022, v: "IUI", ab: "Shows, next to a passage, what later papers said when they cited it, turning a paper's citations into commentary on the text.", tags: [], ids: { doi: "10.1145/3490099.3511162" }, ext: true },
+];
+
 const TAG_COLOR = { llm: "green", agents: "orange", hci: "violet", sensemaking: "teal", "reading-tools": "blue", prompting: "pink", rag: "red", alignment: "amber", "to-cite": "amber" };
 const tagColor = t => `var(--tag-${TAG_COLOR[t] || "blue"})`;
 
-// Why a paper is in Up next. Mock signals: cited by / shares a tag with what you're reading, added by an agent, mentioned in a chat.
-const WHY = {
-  p11: "Cited by Synergi, which you're reading",
-  p15: "Added by Claude Code yesterday",
-  p12: "Added by Claude Code from “Draft the related work section”",
-  p14: "Shares #agents with ReAct, which you're reading",
-  p5: "Mentioned in your chat “Compare RLHF and instruction tuning”",
-  p6: "Shares #agents with ReAct, which you're reading",
-  p13: "Starred authors: Zamfirescu-Pereira, Hartmann",
-};
-const NEXT_ORDER = ["p11", "p15", "p12", "p14", "p5", "p6", "p13"];
+// Up next, grouped by why each paper is there. Groups are recomputed as the reader's state changes.
+const NEXT = [
+  { label: "Continue reading", ids: () => PAPERS.filter(p => p.s === "reading").sort((a, b) => a.d - b.d).map(p => p.id) },
+  { label: "Because you're reading", src: "Synergi", ids: () => ["p11", "x1", "x3"] },
+  { label: "From your search", src: "“scholarly paper recommendation”", ids: () => ["x2"] },
+  { label: "Found by Claude Code", ids: () => ["p15", "p12"] },
+  { label: "Shares #agents with", src: "ReAct", ids: () => ["p14", "p6"] },
+];
 
 const state = {
-  screen: "library", paperId: null, panelOpen: true,
-  nav: "next", layout: "list", query: "", sort: "added",
+  screen: "list", page: "next", paperId: null,
+  filter: "all", tags: [], layout: "list", query: "", sort: "added",
   peek: null, selected: new Set(), anchor: null, tab: "notes", menu: null, lookup: null,
+  dismissed: new Set(), justAdded: new Set(),
 };
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -343,30 +368,22 @@ const surname = a => a.trim().split(/\s+/).pop();
 const shortAuthors = a => !a.length ? "" : a.length === 1 ? surname(a[0]) : a.length === 2 ? `${surname(a[0])} & ${surname(a[1])}` : `${surname(a[0])} et al.`;
 const meta = p => [shortAuthors(p.a), p.y].filter(Boolean).join(" · ");
 const icon = n => `<i data-lucide="${n}"></i>`;
-const byId = id => PAPERS.find(p => p.id === id);
+const byId = id => PAPERS.find(p => p.id === id) || EXTERNAL.find(p => p.id === id);
 const ago = d => d < 1 ? "Today" : d < 2 ? "Yesterday" : d < 7 ? `${Math.round(d)} days ago` : new Date(now - d * DAY).toLocaleDateString("en", { month: "short", day: "numeric" });
 const REF = /^(10\.\d{4,9}\/\S+|(arxiv:)?\d{4}\.\d{4,5}(v\d+)?|https?:\/\/\S+)$/i;
 const isRef = q => REF.test(q.trim());
 const STATUS = { unread: "Unread", reading: "Reading", read: "Read" };
-
-const NAV = [
-  ["next", "Up next", () => NEXT_ORDER.length],
-  ["inbox", "Inbox", () => PAPERS.filter(p => p.by === "agent" && p.s === "unread").length],
-  ["reading", "Reading", () => PAPERS.filter(p => p.s === "reading").length],
-  ["starred", "Starred", () => PAPERS.filter(p => p.st).length],
-  ["all", "All papers", () => PAPERS.length],
-];
+const FILTERS = [["all", "All"], ["reading", "Reading"], ["starred", "Starred"], ["unread", "Unread"], ["read", "Read"]];
+const SORTS = [["added", "Recently added"], ["year", "Year"], ["title", "Title"]];
 const allTags = () => { const m = {}; PAPERS.forEach(p => p.tags.forEach(t => m[t] = (m[t] || 0) + 1)); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
-const navTitle = () => state.nav.startsWith("tag:") ? state.nav.slice(4) : NAV.find(n => n[0] === state.nav)[1];
 
-function inView(p) {
-  const n = state.nav;
-  if (n === "next") return NEXT_ORDER.includes(p.id) || p.s === "reading";
-  if (n === "inbox") return p.by === "agent" && p.s === "unread";
-  if (n === "reading") return p.s === "reading";
-  if (n === "starred") return p.st;
-  if (n.startsWith("tag:")) return p.tags.includes(n.slice(4));
-  return true;
+function inFilter(p) {
+  const f = state.filter;
+  if (f === "reading" && p.s !== "reading") return false;
+  if (f === "starred" && !p.st) return false;
+  if (f === "unread" && p.s !== "unread") return false;
+  if (f === "read" && p.s !== "read") return false;
+  return state.tags.every(t => p.tags.includes(t));
 }
 function matchesQuery(p) {
   const q = state.query.trim().toLowerCase();
@@ -382,60 +399,65 @@ function sorted(list) {
   if (s === "venue") return l.sort((a, b) => (a.v || "").localeCompare(b.v || ""));
   return l.sort((a, b) => b.added - a.added);
 }
+const inLibrary = p => !p.ext || state.justAdded.has(p.id);
 
-/* ---------------- Panel ---------------- */
-function renderPanel() {
-  return NAV.map(([id, label, count]) => {
-    const n = count();
-    if (id === "inbox" && !n) return "";
-    return `<button class="prow ${state.nav === id && state.screen === "library" ? "on" : ""}" data-nav="${id}">${label}<span class="c tnum">${id === "next" ? "" : n}</span></button>`;
-  }).join("") +
-  `<div class="plabel">Tags</div>` +
-  allTags().map(([t, n]) => `<button class="prow ${state.nav === "tag:" + t && state.screen === "library" ? "on" : ""}" data-nav="tag:${esc(t)}"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}<span class="c tnum">${n}</span></button>`).join("");
+/* ---------------- Shared header: the title is the switch ---------------- */
+function header(right) {
+  return `<div class="head">
+    <div class="switch">
+      <button class="${state.page === "next" ? "on" : ""}" data-page="next">Up next</button>
+      <button class="${state.page === "library" ? "on" : ""}" data-page="library">Library</button>
+    </div>
+    <span class="spacer"></span>${right}
+  </div>`;
+}
+
+/* ---------------- Up next ---------------- */
+function renderNext() {
+  let h = `<div class="main" id="scroller"><div class="col">
+    ${header("")}
+    <div class="status-line">Ordered by what you've been reading · updated 2 hours ago · <button>Refresh</button></div>`;
+  NEXT.forEach(g => {
+    const items = g.ids().map(byId).filter(p => p && !state.dismissed.has(p.id));
+    if (!items.length) return;
+    h += `<div class="section"><div class="label">${esc(g.label)}${g.src ? ` <span class="src">&nbsp;${esc(g.src)}</span>` : ""}</div>${items.map(p => state.peek === p.id ? renderPeek(p, true) : renderRow(p, true)).join("")}</div>`;
+  });
+  return h + `</div></div>`;
 }
 
 /* ---------------- Library ---------------- */
-const SORTS = [["added", "Recently added"], ["year", "Year"], ["title", "Title"]];
 function renderLibrary() {
   const q = state.query.trim();
-  const smart = state.nav === "next";
-  const list = PAPERS.filter(p => inView(p) && matchesQuery(p));
+  const list = PAPERS.filter(p => inFilter(p) && matchesQuery(p)).concat(EXTERNAL.filter(p => state.justAdded.has(p.id) && state.filter === "all" && matchesQuery(p)).map(p => ({ ...p, d: 0, added: now, s: "unread" })));
   const table = state.layout === "table";
-  const tag = state.nav.startsWith("tag:") ? state.nav.slice(4) : null;
+  const counts = Object.fromEntries(FILTERS.map(([id]) => [id, PAPERS.filter(p => { const f = state.filter, t = state.tags; state.filter = id; state.tags = []; const r = inFilter(p); state.filter = f; state.tags = t; return r; }).length]));
 
   let h = `<div class="main" id="scroller"><div class="col ${table ? "wide" : ""}">
-    <div class="head">
-      <h1>${tag ? `<span class="dot" style="--c:${tagColor(tag)}"></span>` : ""}${esc(navTitle())}</h1>
-      <span class="spacer"></span>
-      ${smart || table ? "" : `<button class="sort" data-menu="sort">${SORTS.find(s => s[0] === state.sort)?.[1] || "Recently added"}${icon("chevron-down")}</button>`}
-      <div class="seg"><button class="${!table ? "on" : ""}" data-layout="list" title="List">${icon("list")}</button><button class="${table ? "on" : ""}" data-layout="table" title="Table">${icon("table-2")}</button></div>
-    </div>
-    ${smart ? `<div class="head"><div class="sub">Papers you're in the middle of, then what's worth reading next and why.</div></div>` : ""}
+    ${header(`${table ? "" : `<button class="sort" data-menu="sort">${SORTS.find(s => s[0] === state.sort)?.[1] || "Recently added"}${icon("chevron-down")}</button>`}
+      <div class="seg"><button class="${!table ? "on" : ""}" data-layout="list" title="List">${icon("list")}</button><button class="${table ? "on" : ""}" data-layout="table" title="Table">${icon("table-2")}</button></div>`)}
     <label class="find">
       ${icon("search")}
       <input id="q" value="${esc(state.query)}" placeholder="Search, or paste a DOI, arXiv id or link to add" autocomplete="off" spellcheck="false">
       ${q ? `<button class="icon-btn sm" data-clear title="Clear">${icon("x")}</button>` : `<span class="kbd">/</span>`}
       <button class="icon-btn sm" title="Add a PDF file">${icon("paperclip")}</button>
-    </label>`;
+    </label>
+    <div class="views">
+      ${FILTERS.map(([id, label]) => `<button class="chip ${state.filter === id ? "on" : ""}" data-filter="${id}">${label}<span class="n tnum">${counts[id]}</span></button>`).join("")}
+      <span class="spacer"></span>
+      ${state.tags.map(t => `<button class="chip on tagchip" data-untag="${esc(t)}" title="Remove filter"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}${icon("x")}</button>`).join("")}
+      <button class="chip tagchip" data-menu="tags">Tags${icon("chevron-down")}</button>
+    </div>`;
 
   if (q && isRef(q)) h += renderCandidate(q);
   else if (!list.length) h += `<div class="empty">No papers match.</div>`;
-  else if (table) h += renderTable(smart ? orderNext(list) : sorted(list));
-  else if (smart && !q) {
-    const reading = list.filter(p => p.s === "reading").sort((a, b) => a.d - b.d);
-    const next = NEXT_ORDER.map(byId).filter(p => list.includes(p));
-    h += `<div class="section"><div class="label">Continue reading</div>${reading.map(p => rowOrPeek(p)).join("")}</div>`;
-    h += `<div class="section"><div class="label">Read next</div>${next.map(p => rowOrPeek(p, WHY[p.id])).join("")}</div>`;
-  } else {
-    groups(sorted(list)).forEach(g => {
-      h += `<div class="section">${g.label != null ? `<div class="label">${esc(g.label)}</div>` : ""}${g.items.map(p => rowOrPeek(p)).join("")}</div>`;
-    });
-  }
+  else if (table) h += renderTable(sorted(list));
+  else groups(sorted(list)).forEach(g => {
+    h += `<div class="section">${g.label != null ? `<div class="label">${esc(g.label)}</div>` : ""}${g.items.map(p => state.peek === p.id ? renderPeek(p) : renderRow(p)).join("")}</div>`;
+  });
   h += `</div></div>`;
   if (state.selected.size > 1) h += renderBulk();
   return h;
 }
-const orderNext = list => [...list.filter(p => p.s === "reading"), ...NEXT_ORDER.map(byId).filter(p => list.includes(p))];
 
 function groups(list) {
   if (state.query.trim()) return [{ label: `${list.length} ${list.length === 1 ? "paper" : "papers"}`, items: list }];
@@ -445,57 +467,51 @@ function groups(list) {
   return bands.map(([label, lo, hi]) => ({ label, items: list.filter(p => p.d >= lo && p.d < hi) })).filter(g => g.items.length);
 }
 
-const rowOrPeek = (p, why) => state.peek === p.id ? renderPeek(p, why) : renderRow(p, why);
-function renderRow(p, why) {
+function renderRow(p, suggested) {
+  const ext = p.ext && !state.justAdded.has(p.id);
+  const right = ext
+    ? `<button class="add" data-add="${p.id}">${icon("plus")}Add</button>`
+    : p.ext ? `<span class="added">${icon("check")}Added</span>` : "";
   const acts = `<span class="acts">
-      <button class="icon-btn sm star ${p.st ? "on" : ""}" data-star="${p.id}" title="${p.st ? "Unstar" : "Star"}">${icon("star")}</button>
-      <button class="icon-btn sm" data-menu="row:${p.id}" title="More">${icon("ellipsis-vertical")}</button>
+      ${ext ? "" : `<button class="icon-btn sm star ${p.st ? "on" : ""}" data-star="${p.id}" title="${p.st ? "Unstar" : "Star"}">${icon("star")}</button>`}
+      ${suggested ? `<button class="icon-btn sm" data-dismiss="${p.id}" title="Not interested">${icon("x")}</button>` : `<button class="icon-btn sm" data-menu="row:${p.id}" title="More">${icon("ellipsis-vertical")}</button>`}
     </span>`;
-  // In Up next the reason is the point of the row, so it earns a second line
-  if (why) return `<div class="row two ${state.selected.has(p.id) ? "sel" : ""}" data-row="${p.id}">
-    <span class="stack"><span class="line"><span class="title">${esc(p.t)}</span><span class="meta">${esc(meta(p))}</span>${p.st ? `<span class="star-mark">${icon("star")}</span>` : ""}</span>
-    <span class="why">${esc(why)}</span></span><span class="fill"></span>${acts}</div>`;
-  return `<div class="row ${p.s === "read" ? "done" : ""} ${state.selected.has(p.id) ? "sel" : ""}" data-row="${p.id}">
+  return `<div class="row ${!suggested && p.s === "read" ? "done" : ""} ${state.selected.has(p.id) ? "sel" : ""}" data-row="${p.id}">
     <span class="title">${esc(p.t)}</span><span class="meta">${esc(meta(p))}</span>
-    ${p.st ? `<span class="star-mark" title="Starred">${icon("star")}</span>` : ""}<span class="fill"></span>${acts}</div>`;
+    ${p.st ? `<span class="star-mark" title="Starred">${icon("star")}</span>` : ""}<span class="fill"></span>${acts}${right}</div>`;
 }
 
-function renderPeek(p, why) {
-  const openLabel = !p.pdf ? "Open" : p.s === "reading" ? "Continue" : "Read";
+function renderPeek(p, suggested) {
+  const ext = p.ext && !state.justAdded.has(p.id);
+  const primary = ext ? `<button class="btn" data-add="${p.id}">Add to library</button>`
+    : `<button class="btn" data-open="${p.id}">${p.ext || !p.pdf ? "Open" : p.s === "reading" ? "Continue" : "Read"}</button>`;
   return `<div class="peek" data-peek="${p.id}">
     <div class="pt">${esc(p.t)}</div>
-    <div class="pa">${esc(p.a.join(", "))}<br>${esc([p.v, p.y].filter(Boolean).join(" · "))}</div>
+    <div class="pa">${esc(p.a.join(", "))}<br>${esc([p.v, p.y].filter(Boolean).join(" · "))}${ext ? " · Not in your library" : ""}</div>
     <div class="ab">${esc(p.ab)}</div>
-    ${why ? `<div class="why">${icon("sparkles")}${esc(why)}</div>` : ""}
     <div class="foot">
-      <div class="tags">${p.tags.map(t => `<button class="tag" data-nav="tag:${esc(t)}"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}</button>`).join("")}<button class="tag add">${icon("plus")}Tag</button></div>
+      ${ext ? "" : `<div class="tags">${p.tags.map(t => `<button class="tag" data-tagnav="${esc(t)}"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}</button>`).join("")}<button class="tag add">${icon("plus")}Tag</button></div>`}
       <span style="flex:1"></span>
-      <button class="text-btn" data-menu="status:${p.id}">${STATUS[p.s]}${icon("chevron-down")}</button>
-      <button class="icon-btn sm star ${p.st ? "on" : ""}" data-star="${p.id}" title="${p.st ? "Unstar" : "Star"}">${icon("star")}</button>
-      <button class="icon-btn sm" data-menu="row:${p.id}" title="More">${icon("ellipsis-vertical")}</button>
-      <button class="btn" data-open="${p.id}" style="margin-left:6px">${openLabel}</button>
+      ${ext ? "" : `<button class="text-btn" data-menu="status:${p.id}">${STATUS[p.s] || "Unread"}${icon("chevron-down")}</button>
+      <button class="icon-btn sm star ${p.st ? "on" : ""}" data-star="${p.id}" title="${p.st ? "Unstar" : "Star"}">${icon("star")}</button>`}
+      ${suggested ? `<button class="text-btn" data-dismiss="${p.id}">Not interested</button>` : `<button class="icon-btn sm" data-menu="row:${p.id}" title="More">${icon("ellipsis-vertical")}</button>`}
+      <span style="width:6px"></span>${primary}
     </div>
   </div>`;
 }
 
 function renderTable(list) {
-  const smart = state.nav === "next";
-  const cols = [
-    ["title", "Title", "auto"], ["authors", "Authors", "128px"], ["year", "Year", "62px"], ["venue", "Venue", "100px"],
-    ["tags", "Tags", "144px"], ["status", "Status", "72px"], ["added", "Added", "88px"],
-  ];
+  const cols = [["title", "Title", "auto"], ["authors", "Authors", "128px"], ["year", "Year", "62px"], ["venue", "Venue", "100px"], ["tags", "Tags", "144px"], ["status", "Status", "72px"], ["added", "Added", "88px"]];
   const sortable = { title: 1, authors: 1, year: 1, venue: 1, added: 1 };
   return `<table><colgroup>${cols.map(c => `<col style="width:${c[2]}">`).join("")}</colgroup>
-    <thead><tr>${cols.map(([k, l]) => `<th>${sortable[k] && !smart ? `<button class="${state.sort === k ? "on" : ""}" data-sort="${k}">${l}${state.sort === k ? icon(k === "title" || k === "authors" || k === "venue" ? "chevron-up" : "chevron-down") : ""}</button>` : l}</th>`).join("")}</tr></thead>
+    <thead><tr>${cols.map(([k, l]) => `<th>${sortable[k] ? `<button class="${state.sort === k ? "on" : ""}" data-sort="${k}">${l}${state.sort === k ? icon(k === "year" || k === "added" ? "chevron-down" : "chevron-up") : ""}</button>` : l}</th>`).join("")}</tr></thead>
     <tbody>${list.map(p => `<tr class="r ${p.s === "read" ? "done" : ""} ${state.selected.has(p.id) ? "sel" : ""}" data-row="${p.id}">
       <td class="t"><div class="cell"><span>${esc(p.t)}</span>${p.st ? `<span class="star-mark">${icon("star")}</span>` : ""}</div></td>
-      <td>${esc(shortAuthors(p.a))}</td>
-      <td class="tnum">${p.y || ""}</td>
-      <td>${esc(p.v || "")}</td>
+      <td>${esc(shortAuthors(p.a))}</td><td class="tnum">${p.y || ""}</td><td>${esc(p.v || "")}</td>
       <td>${p.tags.slice(0, 1).map(t => `<span class="tg"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}</span>`).join("")}${p.tags.length > 1 ? `+${p.tags.length - 1}` : ""}</td>
       <td>${p.s === "unread" ? "" : STATUS[p.s]}</td>
       <td class="tnum"><span class="date">${ago(p.d)}</span><span class="acts"><button class="icon-btn sm star ${p.st ? "on" : ""}" data-star="${p.id}" title="${p.st ? "Unstar" : "Star"}">${icon("star")}</button><button class="icon-btn sm" data-menu="row:${p.id}" title="More">${icon("ellipsis-vertical")}</button></span></td>
-    </tr>${state.peek === p.id ? `<tr><td colspan="${cols.length}" class="peekcell">${renderPeek(p, smart ? WHY[p.id] : null)}</td></tr>` : ""}`).join("")}</tbody></table>`;
+    </tr>${state.peek === p.id ? `<tr><td colspan="${cols.length}" class="peekcell">${renderPeek(p)}</td></tr>` : ""}`).join("")}</tbody></table>`;
 }
 
 function renderCandidate(q) {
@@ -517,12 +533,13 @@ function renderBulk() {
 /* ---------------- Paper ---------------- */
 function renderPaper() {
   const p = byId(state.paperId);
-  const inList = PAPERS.filter(inView);
-  const order = (state.nav === "next" ? orderNext(inList) : sorted(inList)).map(x => x.id);
+  const order = state.page === "next"
+    ? NEXT.flatMap(g => g.ids()).filter(id => !state.dismissed.has(id) && inLibrary(byId(id)))
+    : sorted(PAPERS.filter(inFilter)).map(x => x.id);
   const i = order.indexOf(p.id);
   return `<div class="paper ${state.side === false ? "nopanel" : ""}">
     <div class="phead">
-      <div class="crumb"><button data-home>${esc(navTitle())}</button>${icon("chevron-right")}<span class="cur">${esc(p.t)}</span></div>
+      <div class="crumb"><button data-home>${state.page === "next" ? "Up next" : "Library"}</button>${icon("chevron-right")}<span class="cur">${esc(p.t)}</span></div>
       ${i >= 0 ? `<span class="pos tnum">${i + 1} of ${order.length}</span>` : ""}
       <button class="icon-btn" data-go="${order[i - 1] || ""}" title="Previous">${icon("chevron-up")}</button>
       <button class="icon-btn" data-go="${order[i + 1] || ""}" title="Next">${icon("chevron-down")}</button>
@@ -570,10 +587,10 @@ function renderSide(p) {
   else pane = `<div class="abs">${esc(p.ab)}</div><dl class="kv">
       <dt>Tags</dt><dd class="tags">${p.tags.map(t => `<span class="tag"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}</span>`).join("")}<button class="tag add">${icon("plus")}</button></dd>
       ${p.ids.doi ? `<dt>DOI</dt><dd><a href="#">${esc(p.ids.doi)}</a></dd>` : ""}${p.ids.arxiv ? `<dt>arXiv</dt><dd><a href="#">${esc(p.ids.arxiv)}</a></dd>` : ""}
-      <dt>Added</dt><dd>${ago(p.d)}${p.by === "agent" ? " by Claude Code" : ""}</dd><dt>File</dt><dd>${p.pdf ? `${p.pg} pages` : `<span class="muted">No PDF</span>`}</dd></dl>`;
+      <dt>Added</dt><dd>${ago(p.d ?? 0)}${p.by === "agent" ? " by Claude Code" : ""}</dd><dt>File</dt><dd>${p.pdf ? `${p.pg} pages` : `<span class="muted">No PDF</span>`}</dd></dl>`;
   return `<h2 class="st">${esc(p.t)}</h2>
     <div class="sa">${esc(p.a.join(", "))}<br>${esc([p.v, p.y].filter(Boolean).join(" · "))}</div>
-    <div class="ctrl"><button class="text-btn" data-menu="status:${p.id}">${STATUS[p.s]}${icon("chevron-down")}</button>
+    <div class="ctrl"><button class="text-btn" data-menu="status:${p.id}">${STATUS[p.s] || "Unread"}${icon("chevron-down")}</button>
       <button class="icon-btn sm star ${p.st ? "on" : ""}" data-star="${p.id}" title="${p.st ? "Unstar" : "Star"}">${icon("star")}</button>
       <button class="icon-btn sm" data-menu="row:${p.id}" title="More">${icon("ellipsis-vertical")}</button></div>
     <div class="tabs">${tabs.map(([id, l]) => `<button class="chip ${state.tab === id ? "on" : ""}" data-tab="${id}">${l}</button>`).join("")}</div>
@@ -585,21 +602,19 @@ function renderMenu() {
   const { kind, id, x, y } = state.menu;
   let items = "";
   if (kind === "sort") items = SORTS.map(([k, l]) => `<button data-sort="${k}">${l}${state.sort === k ? icon("check") : ""}</button>`).join("");
+  if (kind === "tags") items = allTags().map(([t, n]) => `<button data-tag="${esc(t)}"><span class="mi"><span class="dot" style="--c:${tagColor(t)}"></span>${esc(t)}</span>${state.tags.includes(t) ? icon("check") : `<span class="muted tnum" style="font-size:12px">${n}</span>`}</button>`).join("");
   if (kind === "status") { const p = byId(id); items = Object.entries(STATUS).map(([k, l]) => `<button data-set-status="${id}:${k}">${l}${p.s === k ? icon("check") : ""}</button>`).join(""); }
   if (kind === "row") items = `<button data-open="${id}">Open</button><button>Copy citation</button><button>Copy BibTeX</button><button>Mention in Chat</button><button>Edit details</button><div class="hr"></div><button class="danger">Remove from library</button>`;
   return `<div class="menu" style="left:${x}px;top:${y}px">${items}</div>`;
 }
 
 /* ---------------- Render + events ---------------- */
-const sheet = document.getElementById("sheet"), lpanel = document.getElementById("lpanel"), wrap = document.getElementById("wrap");
+const sheet = document.getElementById("sheet");
 function render(keepFocus) {
   const scroll = document.getElementById("scroller")?.scrollTop || 0;
   const focused = document.activeElement?.id === "q";
   const caret = focused ? document.activeElement.selectionStart : null;
-  lpanel.innerHTML = renderPanel();
-  // Reading wants width: the paper page collapses the sidebar unless the user reopens it
-  wrap.classList.toggle("collapsed", !(state.screen === "library" ? state.panelOpen : state.panelOnPaper));
-  sheet.innerHTML = (state.screen === "library" ? renderLibrary() : renderPaper()) + renderMenu();
+  sheet.innerHTML = (state.screen === "paper" ? renderPaper() : state.page === "next" ? renderNext() : renderLibrary()) + renderMenu();
   lucide.createIcons();
   const sc = document.getElementById("scroller"); if (sc) sc.scrollTop = scroll;
   if (focused || keepFocus) { const q = document.getElementById("q"); q?.focus(); if (caret != null) q.setSelectionRange(caret, caret); }
@@ -608,10 +623,11 @@ function render(keepFocus) {
 sheet.addEventListener("input", e => { if (e.target.id === "q") { state.query = e.target.value; state.peek = null; render(true); } });
 sheet.addEventListener("keydown", e => { if (e.target.id === "q" && e.key === "Escape") { state.query = ""; e.target.blur(); render(); } });
 
-function onClick(e) {
+sheet.addEventListener("click", e => {
   const t = e.target.closest("button, [data-row], .peek");
   const menuWasOpen = !!state.menu;
-  if (!e.target.closest(".menu") && !e.target.closest("[data-menu]")) state.menu = null;
+  const keepMenu = e.target.closest(".menu [data-tag]");
+  if (!keepMenu && !e.target.closest("[data-menu]")) state.menu = null;
   if (!t) { if (menuWasOpen) render(); return; }
   const d = t.dataset;
   if (d.menu) {
@@ -619,14 +635,20 @@ function onClick(e) {
     const [kind, id] = d.menu.split(":");
     const same = state.menu && state.menu.kind === kind && state.menu.id === id;
     state.menu = same ? null : { kind, id, x: Math.min(r.left - s.left, s.width - 210), y: r.bottom - s.top + 4 };
-    if (kind === "sort" && state.menu) state.menu.x = r.right - s.left - 190;
+    if ((kind === "sort" || kind === "tags") && state.menu) state.menu.x = r.right - s.left - 200;
     return render();
   }
-  if (d.nav) { state.nav = d.nav; state.screen = "library"; state.peek = null; state.query = ""; state.selected.clear(); if (state.nav !== "all" && state.sort !== "added" && !state.nav.startsWith("tag:")) state.sort = "added"; return render(); }
+  if (d.page) { state.page = d.page; state.peek = null; state.selected.clear(); return render(); }
+  if (d.filter) { state.filter = d.filter; state.peek = null; return render(); }
+  if (d.tag) { state.tags = state.tags.includes(d.tag) ? state.tags.filter(x => x !== d.tag) : [...state.tags, d.tag]; return render(); }
+  if (d.untag) { state.tags = state.tags.filter(x => x !== d.untag); return render(); }
+  if (d.tagnav) { state.page = "library"; state.screen = "list"; state.tags = [d.tagnav]; state.filter = "all"; state.peek = null; return render(); }
   if (d.layout) { state.layout = d.layout; state.peek = null; return render(); }
   if (d.sort) { state.sort = d.sort; state.menu = null; return render(); }
   if (d.setStatus) { const [id, s] = d.setStatus.split(":"); byId(id).s = s; state.menu = null; return render(); }
   if (d.star) { const p = byId(d.star); p.st = !p.st; return render(); }
+  if (d.add) { state.justAdded.add(d.add); return render(); }
+  if (d.dismiss) { state.dismissed.add(d.dismiss); if (state.peek === d.dismiss) state.peek = null; return render(); }
   if (d.clear !== undefined) { state.query = ""; return render(true); }
   if (d.unselect !== undefined) { state.selected.clear(); return render(); }
   if (d.open) return openPaper(d.open);
@@ -636,7 +658,7 @@ function onClick(e) {
   if (d.tab) { state.tab = d.tab; return render(); }
   if (d.row) {
     const id = d.row;
-    if (e.detail === 2) return openPaper(id);
+    if (e.detail === 2) { const p = byId(id); return inLibrary(p) ? openPaper(id) : undefined; }
     if (e.metaKey || e.ctrlKey) { state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id); state.anchor = id; state.peek = null; return render(); }
     if (e.shiftKey && state.anchor) {
       const order = [...sheet.querySelectorAll("[data-row],[data-peek]")].map(n => n.dataset.row || n.dataset.peek);
@@ -648,20 +670,19 @@ function onClick(e) {
   }
   if (t.classList.contains("peek") && !e.target.closest("button")) { state.peek = null; return render(); }
   if (menuWasOpen) render();
-}
-sheet.addEventListener("click", onClick);
-lpanel.addEventListener("click", onClick);
-
-function openPaper(id) { state.screen = "paper"; state.paperId = id; state.menu = null; state.panelOnPaper = false; state.tab = byId(id).pdf ? (id === "p10" ? "notes" : "highlights") : "about"; render(); }
-function goHome() { state.screen = "library"; state.menu = null; render(); }
-document.getElementById("back").addEventListener("click", goHome);
-document.getElementById("toggle-panel").addEventListener("click", () => {
-  if (state.screen === "library") state.panelOpen = !state.panelOpen; else state.panelOnPaper = !state.panelOnPaper;
-  render();
 });
+
+function openPaper(id) {
+  const p = byId(id);
+  if (p.ext) { p.pdf = null; p.s = "unread"; p.d = 0; }
+  state.screen = "paper"; state.paperId = id; state.menu = null;
+  state.tab = p.pdf ? (id === "p10" ? "notes" : "highlights") : "about"; render();
+}
+function goHome() { state.screen = "list"; state.menu = null; render(); }
+document.getElementById("back").addEventListener("click", goHome);
 window.addEventListener("keydown", e => {
-  if (e.key === "/" && document.activeElement?.id !== "q" && state.screen === "library") { e.preventDefault(); document.getElementById("q").focus(); }
-  if (e.key === "Escape" && state.screen === "library" && document.activeElement?.id !== "q") { state.peek = null; state.selected.clear(); state.menu = null; render(); }
+  if (e.key === "/" && document.activeElement?.id !== "q" && state.page === "library" && state.screen === "list") { e.preventDefault(); document.getElementById("q").focus(); }
+  if (e.key === "Escape" && state.screen === "list" && document.activeElement?.id !== "q") { state.peek = null; state.selected.clear(); state.menu = null; render(); }
 });
 document.getElementById("theme").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
@@ -669,10 +690,10 @@ document.getElementById("theme").addEventListener("click", e => {
   document.querySelectorAll("#theme button").forEach(x => x.classList.toggle("on", x === b));
 });
 
-// Deep links for review: #nav=all&layout=table, #peek=p14, #paper=p10, #dark
+// Deep links for review: #page=library&layout=table, #peek=x1, #paper=p10, #dark
 const hash = new URLSearchParams(location.hash.slice(1));
 if (hash.has("dark")) document.querySelector('#theme [data-t="dark"]').click();
-if (hash.get("nav")) state.nav = hash.get("nav");
+if (hash.get("page")) state.page = hash.get("page");
 if (hash.get("layout")) state.layout = hash.get("layout");
 if (hash.get("peek")) state.peek = hash.get("peek");
 if (hash.get("paper")) { state.screen = "paper"; state.paperId = hash.get("paper"); state.tab = hash.get("tab") || "notes"; }

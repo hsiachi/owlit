@@ -8,8 +8,8 @@ Clickable mockup: `docs/mockups/library.html` (served by the dev server at `/_mo
 `#paper=p10`, `#peek=p14`, `#dark` deep-link into states).
 
 Still decided: PDF viewer is EmbedPDF; tags only, collections go to Knowledge as Topics later; owlit is
-a local desktop app; a paper is a page. Changed in round 2: the Library now has a list panel, for
-places (views and tags), never for papers.
+a local desktop app; a paper is a page. Round 3: two pages (Up next, Library) switched by the title; no
+list panel for now.
 
 ## What the Library is for
 
@@ -40,28 +40,37 @@ Everything below is derived from these five.
 - **Four ways to narrow, all at once.** Status chips, search, a tag popover and a sort menu share one
   line with the page title's weight.
 
-## Structure: places, then three levels
+## Structure: two pages, then three levels
 
-The Library gets the same list panel as Chat, but it holds **places**, not papers:
+The Library has two pages, switched by its title: **Up next** and **Library**. The title is two
+words side by side, the current one in full colour and the other one lighter, so switching costs
+no extra chrome. A third word (Feed) can join later; whether feeds live here is still open. There
+is no list panel: with filters and tags inside the Library page it would hold two rows. A panel
+becomes worth it once there is a growing list to put in it, such as search runs or feeds.
 
-- **Up next**: papers you're in the middle of, then a short list of what to read next, each with
-  the reason it's there ("Cited by Synergi, which you're reading", "Added by Claude Code from
-  “Draft the related work section”", "Shares #agents with ReAct"). The only ordering owlit chooses
-  for you, and it always says why. Default view.
-- **Inbox**: unread papers added by an agent. Only shown when non-empty.
-- **Reading**, **Starred**, **All papers** (plain chronological, the anchor), with counts.
-- **Tags**, each with its colour dot and count. Selecting one is a view like any other.
+- **Up next** answers "what should I read next?". owlit and agents decide what is on it, and it
+  changes as the reader's state changes. Rows are grouped by why they are there: Continue
+  reading · Because you're reading *Synergi* · From your search *“…”* · Found by Claude Code ·
+  Shares #agents with *ReAct*. The group label is the reason, so rows stay one line. It can hold
+  papers that are **not in the library** yet: those carry an Add button, and their peek says "Not
+  in your library" with Add to library as the primary action. Every row can be dismissed (×, "Not
+  interested"), which is the feedback the reordering learns from. One muted line on top says what
+  the order is based on and when it was refreshed. Default page.
+- **Library** answers "what do I have?". The user is in control of it: find-and-add field, filter
+  chips All · Reading · Starred · Unread · Read with counts, a Tags menu on the right of the same
+  line (colour dot, name, count; selected tags show as removable chips), sort menu and List /
+  Table toggle in the header.
 
-Within a view there are three levels, each with one job:
+Within either page there are three levels, each with one job:
 
 | Level | The question it answers | Where | What it shows |
 |---|---|---|---|
-| View | What's here, in what order? | `/library` (+ view) | Rows in List or Table layout |
-| Peek | Is this worth reading? | The row, opened in place | Full title, authors, venue, abstract, reason (Up next), tags, status, Read |
+| Page | What's here, in what order? | `/library`, `/library/all` | Rows (List or Table on Library) |
+| Peek | Is this worth reading? | The row, opened in place | Full title, authors, venue, abstract, tags, status, Read / Add |
 | Paper page | Read it, and keep what I take from it | `/library/:id` | The PDF, with Notes, Highlights and About beside it |
 
-Click goes one level deeper; Esc or Back goes one level up. The panel collapses on the paper page,
-because reading wants the width; the shell's toggle brings it back.
+Click goes one level deeper; Esc or Back goes one level up. The paper page's breadcrumb starts
+with the page you came from ("Up next ›" or "Library ›").
 
 ### Where each piece of information lives
 
@@ -70,7 +79,7 @@ because reading wants the width; the shell's toggle brings it back.
 | Title | one line, truncated last | Title column | full | panel title; breadcrumb |
 | Authors, year | short, muted | Authors, Year columns | full list, venue | full list, venue |
 | Venue | — | Venue column | yes | yes |
-| Why it's suggested | second line (Up next only) | — | yes, with a sparkle | — |
+| Why it's suggested | the group label (Up next) | — | — | — |
 | Star | amber mark; toggle on hover | amber mark; toggle on hover | toggle | toggle |
 | Status | read titles are quieter; nothing else | Status column (blank = unread) | text menu | text menu |
 | Tags | — | first tag + count | chips, click to open the tag | About |
@@ -80,27 +89,26 @@ because reading wants the width; the shell's toggle brings it back.
 No reading progress anywhere in the list: no rings, bars or "p. 6 of 19". A paper simply reopens
 where you left it, and the page number lives only in the reader's dock.
 
-## A view
+## The Library page
 
 One column, 768px for List and up to 1120px for Table:
 
-1. **Header line**: the view's name (Figtree, 22px, medium; a tag view shows its dot), and on the
-   right a quiet sort menu (Recently added · Year · Title; not in Up next or Table, where the
-   column headers sort) and a List / Table toggle. Up next adds one muted line saying what it is.
-2. **One field for find and add**, raised like the composer. Typing filters the view live.
+1. **Header line**: the Up next / Library switch (Figtree, 22px, medium), and on the right a quiet
+   sort menu (Recently added · Year · Title; not in Table, where the column headers sort) and a
+   List / Table toggle.
+2. **Filter line**: chips All · Reading · Starred · Unread · Read with counts; Tags menu at the end.
+3. **One field for find and add**, raised like the composer. Typing filters the view live.
    Pasting a DOI, arXiv id or link turns the results into a single card: "Looking up…", then the
    resolved paper with Add (↵), or "Already in your library" with Open. A paperclip adds a PDF
    file; dropping a PDF anywhere still works. `/` focuses, Esc clears.
-3. **List layout**: rows grouped like Chat's history (Today · Previous 7 days · Previous 30 days
-   · Earlier; by year when sorted by year; one "N papers" label while searching). Up next has two
-   groups instead: Continue reading, Read next.
-4. **Table layout**: header text only, one hairline under it, no grid. Columns Title · Authors ·
+4. **List layout**: rows grouped like Chat's history (Today · Previous 7 days · Previous 30 days
+   · Earlier; by year when sorted by year; one "N papers" label while searching).
+5. **Table layout**: header text only, one hairline under it, no grid. Columns Title · Authors ·
    Year · Venue · Tags · Status · Added; click a header to sort. Hovering a row swaps the date
    for star and ellipsis. Clicking a row peeks, in a full-width row under it.
 
 **Row (List)**: 36px, one line: title, short authors · year in muted text, an amber star if
-starred. Read papers have a quieter title. Hover shows star and ellipsis. In Up next a row gets a
-second line, the reason, because the reason is what the view is for.
+starred. Read papers have a quieter title. Hover shows star and ellipsis.
 
 **Peek**: the row opens in place into a raised card: full title, all authors, venue and year,
 the abstract, the reason in Up next, then tags (click to open that tag), status menu, star,
@@ -213,12 +221,12 @@ fetching, full-text search, agent access to the library.
 
 ## Open questions for this round
 
-1. **How smart is Up next?** The mock uses signals owlit can compute locally: cited by or sharing
-   a tag with a paper you're reading, added by an agent, mentioned in a chat. A ranking model or
-   an agent writing the reasons is possible later; the rule that every item shows its reason stays.
-2. **Inbox as its own place**, or fold agent-added papers into Up next only?
-3. **Table columns**: is Status worth a column, or is the quieter title enough there too?
-4. **Tag colours**: picked by you, or assigned automatically and changeable?
+1. **Default page**: Up next (recommended) or Library?
+2. **Papers not in the library on Up next**: is the Add button enough to tell them apart?
+3. **How smart is Up next?** The mock groups by signals owlit can compute locally (citations,
+   shared tags, agent finds, search runs). Re-ranking by the reader's knowledge state needs
+   Knowledge to exist first.
+4. **Feed**: a third page here, or somewhere else? Deferred.
 
 ## Decisions log
 
@@ -231,3 +239,6 @@ fetching, full-text search, agent access to the library.
 - 2026-10-08 (round 2): accepted three levels, peek, find-and-add. Asked for less showy type
   and no reading progress. Proposed: places panel (Up next, Inbox, Reading, Starred, All papers,
   Tags), List / Table layouts, colour only for tags, star and highlights.
+- 2026-10-08 (round 3): hsiachi proposed splitting into Up next (smart, dynamic, may include
+  papers found by search) and Library (the whole collection, filters inside). Mocked as two pages
+  switched by the title; the places panel from round 2 is dropped.
