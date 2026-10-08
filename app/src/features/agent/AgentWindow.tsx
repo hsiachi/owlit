@@ -98,12 +98,12 @@ export function AgentToggle() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Agent" aria-pressed={stage !== "closed"} onClick={toggle} className={cn("ml-auto", stage !== "closed" && "bg-accent text-foreground")}>
+        <Button variant="ghost" size="icon-sm" aria-label="Owlit" aria-pressed={stage !== "closed"} onClick={toggle} className={cn("ml-auto", stage !== "closed" && "bg-accent text-foreground")}>
           <PanelRightIcon />
         </Button>
       </TooltipTrigger>
       <TooltipContent className="flex items-center gap-1.5">
-        Agent <Kbd>⌘J</Kbd>
+        Owlit <Kbd>⌘J</Kbd>
       </TooltipContent>
     </Tooltip>
   )
@@ -151,9 +151,9 @@ export function AgentAskBar() {
           }
           if (e.key === "Escape") useAgentWindow.getState().close()
         }}
-        placeholder={context[0] ? `Ask about ${context[0].kind === "paper" ? "this paper" : "this doc"}…` : "Ask the agent…"}
+        placeholder={context[0] ? `Ask about ${context[0].kind === "paper" ? "this paper" : "this doc"}…` : "Ask Owlit…"}
         className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
-        aria-label="Ask the agent"
+        aria-label="Ask Owlit"
       />
       <Button size="icon-sm" className="rounded-full" disabled={!text.trim()} onClick={send} aria-label="Send">
         <ArrowUpIcon />
@@ -184,7 +184,7 @@ export function AgentPanel() {
   const modelName = (connectorId?: string, modelId?: string) => connectors.find((c) => c.id === connectorId)?.models.find((m) => m.id === modelId)?.name
 
   return (
-    <aside className="flex w-[400px] shrink-0 flex-col border-l-[0.5px] bg-sidebar-panel" aria-label="Agent" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}>
+    <aside className="flex w-[400px] shrink-0 flex-col border-l-[0.5px] bg-sidebar-panel" aria-label="Owlit" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}>
       <header className="flex h-11 shrink-0 items-center gap-0.5 pr-2 pl-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -262,7 +262,7 @@ export function AgentPanel() {
           streaming={streaming}
           onCancel={() => chat && useChatStore.getState().cancel(chat.id)}
           onSubmit={(input) => send(input, context)}
-          placeholder={chat?.messages.length ? "Ask a follow-up…" : "Ask the agent…"}
+          placeholder={chat?.messages.length ? "Ask a follow-up…" : "Ask Owlit…"}
           header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
         />
       </div>

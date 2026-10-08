@@ -196,7 +196,10 @@ export const useDocsStore = create<DocsState>()(
       // Stores saved before notes existed get the seed notes for docs they still have
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<DocsState>
-        return { ...current, ...p, notes: p.notes ?? Object.fromEntries(Object.entries(current.notes).filter(([id]) => (p.files ?? current.files)[id])) }
+        const notes = p.notes ?? Object.fromEntries(Object.entries(current.notes).filter(([id]) => (p.files ?? current.files)[id]))
+        // Notes are signed by Owlit, whichever local agent ran underneath; older ones named the engine
+        const signed = Object.fromEntries(Object.entries(notes).map(([id, list]) => [id, list.map((n) => ({ ...n, by: "Owlit" }))]))
+        return { ...current, ...p, notes: signed }
       },
     },
   ),

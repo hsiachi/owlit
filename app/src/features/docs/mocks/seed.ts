@@ -129,7 +129,7 @@ export const seedNotes: Record<string, AgentNote[]> = {
       prefix: "partly outside its weights.\n\n",
       suffix: "\n",
       text: "\u201cNo work has compared\u201d goes further than your reading can show. Narrow it to the studies you've read, or search further before you submit.",
-      by: "Claude Code",
+      by: "Owlit",
       createdAt: ago(2 * DAY),
     },
   ],

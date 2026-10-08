@@ -61,8 +61,7 @@ export class MockAgentClient implements AgentClient {
       // Asked to review a doc: notes in its margin rather than edits
       const doc = selection?.source.kind === "doc" ? selection.source : sources.find((s) => s.kind === "doc")
       if (doc && WANTS_REVIEW.test(text)) {
-        const by = builtInConnectors.find((c) => c.id === req.connectorId)?.name ?? "Agent"
-        return await this.review(emit, signal, doc, by, req.chatId)
+        return await this.review(emit, signal, doc, "Owlit", req.chatId)
       }
 
       // Asked from a doc about a passage: rewrite it in place, or find papers behind it

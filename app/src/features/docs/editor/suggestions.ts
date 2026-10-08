@@ -90,7 +90,7 @@ class BarWidget extends WidgetType {
     const bar = document.createElement("div")
     bar.className = "cm-suggest-bar"
     const label = document.createElement("span")
-    label.textContent = "Suggested by the agent"
+    label.textContent = "Suggested by Owlit"
     const discard = document.createElement("button")
     discard.type = "button"
     discard.className = "cm-suggest-discard"
