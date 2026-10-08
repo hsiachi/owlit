@@ -76,6 +76,11 @@ class NoteWidget extends WidgetType {
   toDOM() {
     const box = document.createElement("div")
     box.className = "cm-note"
+    // Who said it comes first, so the note never reads as the writer's own text
+    const meta = document.createElement("p")
+    meta.className = "cm-note-meta"
+    meta.textContent = `${this.note.by} · ${day(this.note.createdAt)}`
+    box.append(meta)
     if (this.lost) {
       const gone = document.createElement("p")
       gone.className = "cm-note-lost"
@@ -86,8 +91,8 @@ class NoteWidget extends WidgetType {
     const text = document.createElement("p")
     text.className = "cm-note-text"
     text.textContent = this.note.text
-    const meta = document.createElement("p")
-    meta.className = "cm-note-meta"
+    const actions = document.createElement("div")
+    actions.className = "cm-note-actions"
     const action = (label: string, run: () => void) => {
       const b = document.createElement("button")
       b.type = "button"
@@ -96,13 +101,11 @@ class NoteWidget extends WidgetType {
       b.onclick = run
       return b
     }
-    meta.append(
-      `${this.note.by} · ${day(this.note.createdAt)} · `,
-      action("Chat about this", () => this.actions.onChat(this.note)),
-      " · ",
+    actions.append(
       action("Dismiss", () => this.actions.onDismiss(this.note)),
+      action("Chat about this", () => this.actions.onChat(this.note)),
     )
-    box.append(text, meta)
+    box.append(text, actions)
     return box
   }
   ignoreEvent() {
@@ -198,36 +201,51 @@ export function marginNotes(actions: Actions): Extension {
   ])
 
   const theme = EditorView.theme({
-    // The gutter rule: 2px, quiet until hovered or open; the button around it is the click target
-    ".cm-note-bars": { position: "absolute", top: "0", left: "-19px", width: "12px" },
+    // The gutter rule: 3px in the warning tone, since a note waits on the user. Softer at rest, full when
+    // hovered or open; the button around it is the click target.
+    ".cm-note-bars": { position: "absolute", top: "0", left: "-20px", width: "12px" },
     ".cm-note-bar": { position: "absolute", left: "0", width: "12px", padding: "0", background: "none", border: "none", cursor: "pointer" },
     ".cm-note-bar::before": {
       content: '""',
       position: "absolute",
-      left: "5px",
+      left: "4px",
       top: "0",
       bottom: "0",
-      width: "2px",
-      borderRadius: "1px",
-      backgroundColor: "color-mix(in oklch, var(--foreground) 32%, transparent)",
+      width: "3px",
+      borderRadius: "2px",
+      backgroundColor: "color-mix(in oklch, var(--warning) 65%, transparent)",
       transition: "background-color 0.15s",
     },
-    ".cm-note-bar:hover::before, .cm-note-bar-open::before": { backgroundColor: "color-mix(in oklch, var(--foreground) 60%, transparent)" },
-    // The open note reads as the margin rule running on from the passage into it: no box, no shadow, a 14px
-    // note and one muted line, the text lined up with the body
+    ".cm-note-bar:hover::before, .cm-note-bar-open::before": { backgroundColor: "var(--warning)" },
+    // The open note is plainly not the doc: a raised card under the paragraph whose left edge carries the
+    // rule on from the passage. Who wrote it comes first, the actions sit at the bottom right.
     ".cm-note": {
-      margin: "2px 0 14px -14px",
-      padding: "2px 0 2px 12px",
-      borderLeft: "2px solid color-mix(in oklch, var(--foreground) 60%, transparent)",
+      margin: "4px 0 14px -16px",
+      padding: "8px 12px 6px 13px",
+      backgroundColor: "var(--card)",
+      border: "1px solid var(--border)",
+      borderLeft: "3px solid var(--warning)",
+      borderRadius: "4px 10px 10px 4px",
       fontSize: "14px",
       lineHeight: "1.55",
       cursor: "default",
     },
     ".cm-note p": { margin: "0" },
+    ".cm-note-meta": { fontSize: "12px", color: "var(--muted-foreground)", marginBottom: "2px !important" },
     ".cm-note-lost": { fontSize: "13px", color: "var(--muted-foreground)", marginBottom: "4px !important" },
-    ".cm-note-meta": { marginTop: "4px !important", fontSize: "13px", color: "var(--muted-foreground)" },
-    ".cm-note-meta button": { padding: "0", background: "none", border: "none", color: "inherit", cursor: "pointer" },
-    ".cm-note-meta button:hover": { color: "var(--foreground)" },
+    ".cm-note-actions": { display: "flex", justifyContent: "flex-end", gap: "2px", marginTop: "4px", marginRight: "-6px" },
+    ".cm-note-actions button": {
+      height: "26px",
+      padding: "0 8px",
+      borderRadius: "8px",
+      fontSize: "13px",
+      background: "none",
+      border: "none",
+      color: "var(--muted-foreground)",
+      cursor: "pointer",
+    },
+    ".cm-note-actions button:hover": { backgroundColor: "var(--accent)", color: "var(--foreground)" },
+    ".cm-note-actions button:last-child": { color: "var(--foreground)" },
   })
 
   return [field, bars, esc, theme]
