@@ -10,6 +10,11 @@ export function shortAuthors(authors: string[]): string {
   return `${surname(authors[0])} et al.`
 }
 
+// The one-line citation shown after a title: "Pirolli & Card · 2005 · CHI"
+export function paperMeta(p: Paper): string {
+  return [shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(" · ")
+}
+
 export function citationLabel(p: Paper): string {
   return p.year ? `${shortAuthors(p.authors)} ${p.year}` : shortAuthors(p.authors)
 }

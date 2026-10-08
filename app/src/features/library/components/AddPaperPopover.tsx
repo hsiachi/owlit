@@ -64,10 +64,10 @@ export function AddPaperPopover() {
       <PopoverTrigger asChild>
         <Button size="sm">
           <PlusIcon />
-          Add
+          Add paper
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80">
+      <PopoverContent align="end" className="w-80 rounded-xl p-4">
         <PopoverHeader>
           <PopoverTitle>Add a paper</PopoverTitle>
           <PopoverDescription>Paste a DOI, an arXiv id or a URL.</PopoverDescription>

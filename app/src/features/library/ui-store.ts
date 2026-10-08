@@ -35,6 +35,7 @@ interface UiState {
   clearTags: () => void
   setSort: (sort: Sort) => void
   sortBy: (key: SortKey) => void
+  setSortDesc: (desc: boolean) => void
 
   // Click semantics: plain click selects one, ⌘ toggles, ⇧ extends from the anchor
   select: (id: string, mode: "single" | "toggle" | "range", order: string[]) => void
@@ -76,6 +77,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
           ? { key, desc: !s.sort.desc }
           : { key, desc: key === "addedAt" || key === "year" },
     })),
+
+  setSortDesc: (desc) => set((s) => ({ sort: { ...s.sort, desc } })),
 
   select: (id, mode, order) => {
     const s = get()

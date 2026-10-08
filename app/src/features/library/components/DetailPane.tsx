@@ -1,19 +1,23 @@
-import { BookOpenIcon, MoreHorizontalIcon, StarIcon, StarOffIcon, TagIcon, Trash2Icon, XIcon } from "lucide-react"
+import { BookOpenIcon, MoreHorizontalIcon, XIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { usePaperActions } from "../actions"
+import { shortAuthors } from "../lib/format"
+import { STATUS_LABEL, STATUS_ORDER } from "../lib/status"
 import { useLibraryStore } from "../store"
-import type { Paper, ReadStatus } from "../types"
+import type { Paper } from "../types"
 import { useUiStore } from "../ui-store"
 import { PaperInfo } from "./PaperInfo"
 import { PaperDropdownContent } from "./PaperMenu"
 import { StarButton } from "./StarButton"
-import { STATUS_LABEL, STATUS_ORDER } from "../lib/status"
-import { StatusIcon } from "./StatusSelect"
+import { StatusIcon, StatusSelect } from "./StatusSelect"
 import { TagPicker } from "./TagsEditor"
 
-// Right of the table: one selected paper in full, or the actions that apply to several
+const MAX_LISTED = 6
+
+// Right of the list: one selected paper in full, or the actions that apply to several
 export function DetailPane() {
   const selectedIds = useUiStore((s) => s.selectedIds)
   const activeId = useUiStore((s) => s.activeId)
@@ -24,122 +28,122 @@ export function DetailPane() {
   const active = activeId ? papers[activeId] : undefined
 
   return (
-    <aside className="flex w-[360px] shrink-0 flex-col border-l">
+    <aside className="relative flex w-[340px] shrink-0 flex-col border-l">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Close details"
+        onClick={() => setDetailOpen(false)}
+        className="absolute top-2.5 right-2.5 z-10 text-muted-foreground"
+      >
+        <XIcon />
+      </Button>
       {selected.length > 1 ? (
-        <BulkPane papers={selected} onClose={() => setDetailOpen(false)} />
+        <BulkPane papers={selected} />
       ) : active ? (
-        <SinglePane paper={active} onClose={() => setDetailOpen(false)} />
+        <SinglePane paper={active} />
       ) : (
-        <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
-          Select a paper.
-        </div>
+        <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">Select a paper.</div>
       )}
     </aside>
   )
 }
 
-function SinglePane({ paper, onClose }: { paper: Paper; onClose: () => void }) {
+function SinglePane({ paper }: { paper: Paper }) {
   const toggleStar = useLibraryStore((s) => s.toggleStar)
+  const setStatus = useLibraryStore((s) => s.setStatus)
   const actions = usePaperActions()
+  const subtitle = [shortAuthors(paper.authors), paper.year].filter(Boolean).join(" · ")
 
   return (
-    <>
-      <header className="flex items-start gap-1 border-b p-3 pl-4">
-        <h2 className="flex-1 pt-1 text-sm font-medium leading-snug">{paper.title}</h2>
-        <StarButton starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More actions">
-              <MoreHorizontalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <PaperDropdownContent ids={[paper.id]} />
-        </DropdownMenu>
-        <Button variant="ghost" size="icon-sm" aria-label="Close details" onClick={onClose}>
-          <XIcon />
-        </Button>
-      </header>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="p-4">
-          <PaperInfo paper={paper} />
+    <ScrollArea className="min-h-0 flex-1">
+      <div className="px-5 pt-5 pb-8">
+        <h2 className="pr-8 text-[15px] leading-snug font-medium text-balance">{paper.title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+        <div className="mt-4 flex items-center gap-1.5">
+          <Button size="sm" onClick={() => actions.open(paper.id)}>
+            <BookOpenIcon />
+            Open
+          </Button>
+          <StatusSelect value={paper.status} onChange={(s) => setStatus([paper.id], s)} />
+          <StarButton size="icon-sm" starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <PaperDropdownContent ids={[paper.id]} align="start" />
+          </DropdownMenu>
         </div>
-      </ScrollArea>
-      <footer className="flex gap-2 border-t p-3">
-        <Button className="flex-1" onClick={() => actions.open(paper.id)}>
-          <BookOpenIcon />
-          Open
-        </Button>
-        <Button variant="outline" onClick={() => actions.editDetails(paper.id)}>
-          Edit details
-        </Button>
-      </footer>
-    </>
+        <PaperInfo paper={paper} className="mt-7" />
+      </div>
+    </ScrollArea>
   )
 }
 
-function BulkPane({ papers, onClose }: { papers: Paper[]; onClose: () => void }) {
+function BulkPane({ papers }: { papers: Paper[] }) {
   const actions = usePaperActions()
   const addTag = useLibraryStore((s) => s.addTag)
   const ids = papers.map((p) => p.id)
   const allStarred = papers.every((p) => p.starred)
+  const hidden = papers.length - MAX_LISTED
 
   return (
-    <>
-      <header className="flex items-center gap-1 border-b p-3 pl-4">
-        <h2 className="flex-1 text-sm font-medium">{papers.length} papers selected</h2>
-        <Button variant="ghost" size="icon-sm" aria-label="Clear selection" onClick={onClose}>
-          <XIcon />
-        </Button>
-      </header>
-      <div className="flex flex-col gap-5 p-4">
-        <Section label="Star">
-          <Button variant="outline" size="sm" onClick={() => actions.setStarred(ids, !allStarred)}>
-            {allStarred ? <StarOffIcon /> : <StarIcon />}
-            {allStarred ? "Unstar all" : "Star all"}
-          </Button>
-        </Section>
-        <Section label="Status">
-          <div className="flex flex-wrap gap-2">
-            {STATUS_ORDER.map((s: ReadStatus) => (
-              <Button key={s} variant="outline" size="sm" onClick={() => actions.setStatus(ids, s)}>
-                <StatusIcon status={s} />
-                {STATUS_LABEL[s]}
-              </Button>
-            ))}
-          </div>
-        </Section>
-        <Section label="Tags">
-          <TagPicker onPick={(tag) => addTag(ids, tag)}>
-            <Button variant="outline" size="sm">
-              <TagIcon />
-              Add a tag to all
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="px-5 pt-5">
+        <h2 className="pr-8 text-[15px] leading-snug font-medium">{papers.length} papers selected</h2>
+        <ul className="mt-2 flex flex-col gap-0.5 text-sm text-muted-foreground">
+          {papers.slice(0, MAX_LISTED).map((p) => (
+            <li key={p.id} className="truncate">
+              {p.title}
+            </li>
+          ))}
+          {hidden > 0 && <li>and {hidden} more</li>}
+        </ul>
+        <div className="mt-6 flex flex-col gap-5">
+          <Section label="Star">
+            <Button variant="outline" size="sm" className="w-fit font-normal" onClick={() => actions.setStarred(ids, !allStarred)}>
+              {allStarred ? "Unstar all" : "Star all"}
             </Button>
-          </TagPicker>
-        </Section>
-        <Section label="Selected">
-          <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-            {papers.map((p) => (
-              <li key={p.id} className="truncate">
-                {p.title}
-              </li>
-            ))}
-          </ul>
-        </Section>
+          </Section>
+          <Section label="Mark as">
+            <div className="flex flex-wrap gap-1.5">
+              {STATUS_ORDER.map((s) => (
+                <Button key={s} variant="outline" size="sm" className="font-normal" onClick={() => actions.setStatus(ids, s)}>
+                  <StatusIcon status={s} />
+                  {STATUS_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </Section>
+          <Section label="Tags">
+            <TagPicker onPick={(tag) => addTag(ids, tag)}>
+              <Button variant="outline" size="sm" className="w-fit font-normal">
+                Add a tag to all
+              </Button>
+            </TagPicker>
+          </Section>
+        </div>
       </div>
-      <footer className="mt-auto border-t p-3">
-        <Button variant="outline" className="w-full text-destructive" onClick={() => actions.remove(ids)}>
-          <Trash2Icon />
+      <div className="mt-auto px-5 pb-5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="font-normal text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => actions.remove(ids)}
+        >
           Remove {papers.length} papers
         </Button>
-      </footer>
-    </>
+      </div>
+    </div>
   )
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
       {children}
     </div>
   )

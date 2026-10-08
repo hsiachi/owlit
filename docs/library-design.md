@@ -79,11 +79,14 @@ main area itself, and a paper opens as its own page. Chat keeps its panel becaus
 short titles; a library needs a table.
 
 **Library page** (`/library`)
-- Toolbar: search, filter chips All · Starred · Unread · Reading · Read (Inbox appears once
-  agent adds exist), tag multi-select, Add button.
-- Full-width table, sortable by column: star, title (authors beneath), year, venue, tags,
-  status, added. Default sort: recently added. Multi-select with shift / ⌘-click for bulk tag,
-  status and remove.
+- Page header in the Chat/Claude idiom: big title + Add paper; below it filter chips
+  All · Starred · Unread · Reading · Read with counts (Inbox appears once agent adds exist),
+  then search (`/` focuses it), tag multi-select and a sort menu (key + direction).
+- A quiet list rather than a spreadsheet: one line per paper, title followed inline by
+  "authors · year · venue" in muted text (the ⌘K-palette row pattern), then tag chips, a
+  status glyph (click to change), date added, ⋯. No header row; sorting lives in the sort
+  menu. Secondary columns drop out as the column narrows. Multi-select with shift / ⌘-click
+  for bulk tag, status and remove.
 - Single click selects and opens a right **detail pane**: abstract, metadata, external links,
   tags editor, status, edit details. Enough for triage without starting the PDF engine.
 - Enter or double-click opens the paper page. Row menu (⋯ / right-click): open, star, set

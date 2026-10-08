@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react"
-import { BookOpenIcon, FileUpIcon, PlusIcon } from "lucide-react"
+import { FileUpIcon, PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { DetailPane } from "../components/DetailPane"
-import { LibraryToolbar } from "../components/LibraryToolbar"
-import { PaperTable } from "../components/PaperTable"
+import { LibraryHeader } from "../components/LibraryHeader"
+import { PaperList } from "../components/PaperList"
 import { addPdfFiles } from "../lib/add-pdfs"
 import { visiblePapers } from "../lib/filter"
 import { useLibraryStore } from "../store"
@@ -30,7 +30,7 @@ export function LibraryPage() {
 
   return (
     <div
-      className="relative flex min-h-0 flex-1 flex-col"
+      className="relative flex min-h-0 flex-1"
       // Counting enter/leave pairs is what keeps the overlay from flickering over child elements
       onDragEnter={(e) => hasFiles(e) && setDragging((n) => n + 1)}
       onDragLeave={(e) => hasFiles(e) && setDragging((n) => Math.max(0, n - 1))}
@@ -42,14 +42,10 @@ export function LibraryPage() {
         addPdfFiles(Array.from(e.dataTransfer.files))
       }}
     >
-      <LibraryToolbar />
       {empty ? (
-        <Empty className="m-4 border">
+        <Empty className="border-0">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <BookOpenIcon />
-            </EmptyMedia>
-            <EmptyTitle>Your library is empty</EmptyTitle>
+            <EmptyTitle className="font-heading text-2xl font-medium tracking-tight">Your library is empty</EmptyTitle>
             <EmptyDescription>Add a paper by DOI, arXiv id or URL, or drop a PDF anywhere on this page.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -60,13 +56,17 @@ export function LibraryPage() {
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="flex min-h-0 flex-1">
-          <PaperTable papers={visible} />
+        <>
+          {/* Container queries let the list drop its secondary columns when the detail pane narrows it */}
+          <div className="@container flex min-w-0 flex-1 flex-col">
+            <LibraryHeader />
+            <PaperList papers={visible} />
+          </div>
           {detailOpen && <DetailPane />}
-        </div>
+        </>
       )}
       {dragging > 0 && (
-        <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-ring bg-background/80">
+        <div className="pointer-events-none absolute inset-3 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-foreground/20 bg-background/80 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-sm font-medium">
             <FileUpIcon className="size-4" />
             Drop PDF to add

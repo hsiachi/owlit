@@ -84,15 +84,16 @@ export function PaperPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2 pl-4">
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b pr-2 pl-5">
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium" title={paper.title}>
           {paper.title}
         </h1>
+        <StatusSelect value={paper.status} onChange={(s) => setStatus([paper.id], s)} />
         <StarButton starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
-        <StatusSelect value={paper.status} onChange={(s) => setStatus([paper.id], s)} className="mx-1" />
+        <div className="mx-1 h-4 w-px bg-border" />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" disabled={!prevId} onClick={() => go(prevId)} aria-label="Previous paper">
+            <Button variant="ghost" size="icon-sm" disabled={!prevId} onClick={() => go(prevId)} aria-label="Previous paper" className="text-muted-foreground">
               <ChevronUpIcon />
             </Button>
           </TooltipTrigger>
@@ -100,7 +101,7 @@ export function PaperPage() {
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" disabled={!nextId} onClick={() => go(nextId)} aria-label="Next paper">
+            <Button variant="ghost" size="icon-sm" disabled={!nextId} onClick={() => go(nextId)} aria-label="Next paper" className="text-muted-foreground">
               <ChevronDownIcon />
             </Button>
           </TooltipTrigger>
@@ -113,7 +114,7 @@ export function PaperPage() {
               size="icon-sm"
               aria-pressed={panelOpen}
               onClick={() => setPanelOpen((o) => !o)}
-              className={cn(panelOpen && "bg-accent text-accent-foreground")}
+              className={cn("text-muted-foreground", panelOpen && "bg-muted text-foreground")}
               aria-label="Toggle side panel"
             >
               <PanelRightIcon />
@@ -123,7 +124,7 @@ export function PaperPage() {
         </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More actions">
+            <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
               <MoreHorizontalIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -138,14 +139,14 @@ export function PaperPage() {
         {panelOpen && (
           <aside className="flex w-[340px] shrink-0 flex-col border-l">
             <Tabs value={tab} onValueChange={(v) => setTab(v as PanelTab)} className="min-h-0 flex-1 gap-0">
-              <TabsList variant="line" className="h-10 w-full justify-start border-b px-2">
-                <TabsTrigger value="info">Info</TabsTrigger>
-                <TabsTrigger value="highlights">Highlights</TabsTrigger>
-                <TabsTrigger value="note">Note</TabsTrigger>
+              <TabsList variant="line" className="h-11 w-full justify-start gap-1 border-b px-3">
+                <TabsTrigger value="info" className="flex-none px-2 font-normal">Info</TabsTrigger>
+                <TabsTrigger value="highlights" className="flex-none px-2 font-normal">Highlights</TabsTrigger>
+                <TabsTrigger value="note" className="flex-none px-2 font-normal">Note</TabsTrigger>
               </TabsList>
               <TabsContent value="info" className="min-h-0 flex-1">
                 <ScrollArea className="h-full">
-                  <div className="p-4">
+                  <div className="px-5 py-5">
                     <PaperInfo paper={paper} />
                   </div>
                 </ScrollArea>
@@ -282,7 +283,7 @@ function NoteEditor({ paperId }: { paperId: string }) {
       value={note?.content ?? ""}
       onChange={(e) => setNote(paperId, e.target.value)}
       placeholder="Your note on this paper…"
-      className="h-full resize-none rounded-none border-0 p-4 shadow-none focus-visible:ring-0"
+      className="h-full resize-none rounded-none border-0 p-5 text-[15px] leading-relaxed shadow-none focus-visible:ring-0"
     />
   )
 }

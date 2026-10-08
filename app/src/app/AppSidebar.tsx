@@ -5,8 +5,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
-  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -41,7 +39,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       }}
                       onClick={() => item.panel && setOpen(true)}
                       isActive={activeItem?.to === item.to}
-                      className="px-2.5 md:px-2"
+                      className="px-2.5 md:px-2 data-active:bg-background data-active:shadow-xs"
                     >
                       <NavLink to={item.to}>
                         <item.icon />
@@ -56,27 +54,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarContent>
       </Sidebar>
 
-      {/* Second column: the current place's list; forms one rounded sheet with the main area; hidden when collapsed */}
+      {/* Second column: the current place's list; left half of the sheet, lightly tinted and divided from the main area by its border */}
       {activeItem?.panel && (
-        <Sidebar
-          collapsible="none"
-          className="hidden flex-1 rounded-l-xl border bg-background md:flex"
-        >
-          <SidebarHeader className="gap-3.5 border-b p-4">
-            <div className="flex w-full items-center justify-between">
-              <div className="text-base font-medium text-foreground">
-                {activeItem?.label}
-              </div>
-            </div>
-            <SidebarInput placeholder="Search…" />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup className="px-0">
-              <SidebarGroupContent>
-                <div className="p-4 text-sm text-muted-foreground">Nothing here yet.</div>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
+        <Sidebar collapsible="none" className="ml-2 hidden min-w-0 flex-1 rounded-l-xl border bg-sidebar-panel md:flex">
+          <activeItem.panel />
         </Sidebar>
       )}
     </Sidebar>

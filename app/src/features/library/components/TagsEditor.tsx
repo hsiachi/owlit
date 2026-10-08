@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react"
-import { CheckIcon, PlusIcon, TagIcon, XIcon } from "lucide-react"
+import { CheckIcon, PlusIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -59,7 +58,6 @@ export function TagPicker({
               <CommandGroup heading="Tags">
                 {allTags.map((tag) => (
                   <CommandItem key={tag} value={tag} onSelect={() => pick(tag)}>
-                    <TagIcon />
                     <span className="flex-1 truncate">{tag}</span>
                     {selected.includes(tag) && <CheckIcon className="text-muted-foreground" />}
                   </CommandItem>
@@ -73,7 +71,7 @@ export function TagPicker({
   )
 }
 
-// The tag list on one paper: badges with remove, plus an add button
+// The tag list on one paper: chips with remove, plus an add button
 export function TagsEditor({
   tags,
   onChange,
@@ -89,20 +87,20 @@ export function TagsEditor({
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
       {tags.map((tag) => (
-        <Badge key={tag} variant="secondary" className="gap-0.5 pr-1">
+        <span key={tag} className="group/tag inline-flex h-6 items-center gap-0.5 rounded-md bg-muted pr-1 pl-2 text-xs text-foreground/80">
           {tag}
           <button
             type="button"
             aria-label={`Remove tag ${tag}`}
             onClick={() => toggle(tag)}
-            className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+            className="rounded-sm p-0.5 text-muted-foreground opacity-60 hover:bg-foreground/10 hover:text-foreground group-hover/tag:opacity-100"
           >
             <XIcon className="size-3" />
           </button>
-        </Badge>
+        </span>
       ))}
       <TagPicker selected={tags} onPick={toggle}>
-        <Button variant="ghost" size="xs" className="text-muted-foreground">
+        <Button variant="ghost" size="xs" className="font-normal text-muted-foreground">
           <PlusIcon />
           {tags.length === 0 ? "Add tag" : null}
         </Button>
