@@ -12,7 +12,7 @@ import { freshDocIds, useDocsStore } from "../store"
 import type { WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
-import { selectionMenu, type SelectionAction } from "./selection-menu"
+import { selectionMenu } from "./selection-menu"
 import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
 import { Highlight } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
@@ -26,16 +26,10 @@ function respondToEdit(edit: PendingEdit, apply: boolean) {
   if (option) useChatStore.getState().respondPermission(edit.chatId, edit.requestId, option.optionId)
 }
 
-// A selected passage goes to the agent window: Ask waits for the question, the others send at once
-function runSelection(fileId: string, action: SelectionAction, text: string) {
+// A selected passage goes to the agent window, which waits for the question
+function chatAbout(fileId: string, text: string) {
   const file = useDocsStore.getState().files[fileId]
-  if (!file) return
-  const source = docMentionable(file)
-  const win = useAgentWindow.getState()
-  if (action === "ask") return win.open({ text, source })
-  useAgentWindow.setState({ selection: { text, source } })
-  const ask = action === "rewrite" ? "Rewrite this passage." : "Find support for this passage."
-  win.send({ text: ask, mentions: [], attachments: [] }, win.hiddenContext === source.uri ? [] : [source])
+  if (file) useAgentWindow.getState().open({ text, source: docMentionable(file) })
 }
 
 const SAVE_DELAY = 300
@@ -86,7 +80,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
           }),
           mentionPopup((query) => docMentionItems(query, id)),
-          selectionMenu((action, text) => runSelection(id, action, text)),
+          selectionMenu((text) => chatAbout(id, text)),
           agentSuggestions(respondToEdit),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)

@@ -1,20 +1,19 @@
-import { StateField, type EditorState, type Extension } from "@codemirror/state"
+import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { EditorView, showTooltip, type Tooltip } from "@codemirror/view"
 
-export type SelectionAction = "ask" | "rewrite" | "support"
+// While the mouse is held down the user is still choosing; the menu waits for the release
+const setDragging = StateEffect.define<boolean>()
+const dragging = StateField.define<boolean>({
+  create: () => false,
+  update: (value, tr) => tr.effects.reduce((v, e) => (e.is(setDragging) ? e.value : v), value),
+})
 
-const ACTIONS: { id: SelectionAction; label: string }[] = [
-  { id: "ask", label: "Ask" },
-  { id: "rewrite", label: "Rewrite" },
-  { id: "support", label: "Find support" },
-]
-
-// Selecting text brings up Ask · Rewrite · Find support above it; each hands the passage to the agent window
-export function selectionMenu(run: (action: SelectionAction, text: string, view: EditorView) => void): Extension {
+// A selected passage offers one action above it, "Chat with owlit", which hands it to the agent window
+export function selectionMenu(chat: (text: string, view: EditorView) => void): Extension {
   const tooltip = (state: EditorState): Tooltip | null => {
     const sel = state.selection.main
     // A stray click-drag of a character or two is not a passage
-    if (sel.empty || state.sliceDoc(sel.from, sel.to).trim().length < 3) return null
+    if (state.field(dragging) || sel.empty || state.sliceDoc(sel.from, sel.to).trim().length < 3) return null
     return {
       pos: sel.from,
       end: sel.to,
@@ -23,30 +22,39 @@ export function selectionMenu(run: (action: SelectionAction, text: string, view:
       create: (view) => {
         const dom = document.createElement("div")
         dom.className = "cm-selection-menu"
-        for (const a of ACTIONS) {
-          const button = document.createElement("button")
-          button.type = "button"
-          button.textContent = a.label
-          // Keep the selection and focus in the editor while clicking
-          button.onmousedown = (e) => e.preventDefault()
-          button.onclick = () => {
-            const { from, to } = view.state.selection.main
-            run(a.id, view.state.sliceDoc(from, to), view)
-          }
-          dom.append(button)
+        const button = document.createElement("button")
+        button.type = "button"
+        button.textContent = "Chat with owlit"
+        // Keep the selection and focus in the editor while clicking
+        button.onmousedown = (e) => e.preventDefault()
+        button.onclick = () => {
+          const { from, to } = view.state.selection.main
+          chat(view.state.sliceDoc(from, to), view)
         }
-        return { dom }
+        dom.append(button)
+        // Lifted clear of the selected line, so it never sits on the words being chosen
+        return { dom, offset: { x: 0, y: 8 } }
       },
     }
   }
 
   const field = StateField.define<Tooltip | null>({
     create: tooltip,
-    update: (value, tr) => (tr.docChanged || tr.selection ? tooltip(tr.state) : value),
+    update: (value, tr) => (tr.docChanged || tr.selection || tr.effects.some((e) => e.is(setDragging)) ? tooltip(tr.state) : value),
     provide: (f) => showTooltip.from(f),
+  })
+
+  const mouse = EditorView.domEventHandlers({
+    mousedown(e, view) {
+      if (e.button !== 0) return false
+      view.dispatch({ effects: setDragging.of(true) })
+      // The release may happen outside the editor
+      document.addEventListener("mouseup", () => view.dispatch({ effects: setDragging.of(false) }), { once: true })
+      return false
+    },
   })
 
   // Only while the editor has focus, so a selection left behind doesn't keep a menu floating
   const focusOnly = EditorView.theme({ "&:not(.cm-focused) .cm-selection-menu": { display: "none" } })
-  return [field, focusOnly]
+  return [dragging, field, mouse, focusOnly]
 }

@@ -71,16 +71,16 @@ export const docTheme = EditorView.theme({
   ".cm-selection-menu": {
     display: "flex",
     gap: "2px",
-    padding: "3px",
-    marginBottom: "6px",
+    padding: "2px",
     backgroundColor: "var(--popover)",
     border: "1px solid var(--border)",
-    borderRadius: "10px",
+    // Concentric with the 6px item inside it
+    borderRadius: "8px",
     boxShadow: "0 2px 6px oklch(0.3 0.02 60 / 0.08), 0 12px 32px oklch(0.3 0.02 60 / 0.12)",
     fontFamily: "var(--font-sans, inherit)",
     fontSize: "13px",
   },
-  ".cm-selection-menu button": { height: "28px", padding: "0 10px", borderRadius: "7px", color: "var(--foreground)", cursor: "default" },
+  ".cm-selection-menu button": { height: "24px", padding: "0 8px", borderRadius: "6px", color: "var(--foreground)", cursor: "default" },
   ".cm-selection-menu button:hover": { backgroundColor: "var(--accent)" },
 
   // An agent's proposed edit: removal is not an error, so it is struck through in the muted tone, not red
