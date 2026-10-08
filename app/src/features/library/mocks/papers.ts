@@ -12,6 +12,7 @@ export const seedPapers: Paper[] = [
     authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Łukasz Kaiser", "Illia Polosukhin"],
     year: 2017,
     venue: "NeurIPS",
+    kind: "conference",
     abstract:
       "Introduces the Transformer, a sequence model built entirely on attention, dropping recurrence and convolution while training faster and translating better.",
     ids: { arxiv: "1706.03762" },
@@ -22,7 +23,7 @@ export const seedPapers: Paper[] = [
     status: "read",
     tags: ["llm", "to-cite"],
     lastOpenedAt: daysAgo(30),
-    lastPage: 7,
+    position: { page: 7, y: 0 },
   },
   {
     id: "p2",
@@ -30,6 +31,7 @@ export const seedPapers: Paper[] = [
     authors: ["Tom B. Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah", "Jared Kaplan", "Prafulla Dhariwal", "Arvind Neelakantan", "Pranav Shyam", "Girish Sastry", "Amanda Askell"],
     year: 2020,
     venue: "NeurIPS",
+    kind: "conference",
     abstract:
       "Scales an autoregressive language model to 175B parameters and shows that task descriptions and a few examples in the prompt replace fine-tuning on many benchmarks.",
     ids: { arxiv: "2005.14165" },
@@ -40,7 +42,7 @@ export const seedPapers: Paper[] = [
     status: "read",
     tags: ["llm"],
     lastOpenedAt: daysAgo(40),
-    lastPage: 12,
+    position: { page: 12, y: 0 },
   },
   {
     id: "p3",
@@ -48,6 +50,7 @@ export const seedPapers: Paper[] = [
     authors: ["Long Ouyang", "Jeff Wu", "Xu Jiang", "Diogo Almeida", "Carroll L. Wainwright", "Pamela Mishkin", "Chong Zhang", "Sandhini Agarwal", "Katarina Slama", "Alex Ray"],
     year: 2022,
     venue: "NeurIPS",
+    kind: "conference",
     abstract:
       "Fine-tunes GPT-3 with supervised demonstrations and reinforcement learning from human preference rankings, producing models people prefer despite far fewer parameters.",
     ids: { arxiv: "2203.02155" },
@@ -58,7 +61,7 @@ export const seedPapers: Paper[] = [
     status: "reading",
     tags: ["llm", "alignment"],
     lastOpenedAt: daysAgo(2),
-    lastPage: 9,
+    position: { page: 9, y: 0 },
   },
   {
     id: "p4",
@@ -66,6 +69,7 @@ export const seedPapers: Paper[] = [
     authors: ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus", "Fabio Petroni", "Vladimir Karpukhin", "Naman Goyal", "Heinrich Küttler", "Mike Lewis", "Wen-tau Yih", "Tim Rocktäschel", "Sebastian Riedel", "Douwe Kiela"],
     year: 2020,
     venue: "NeurIPS",
+    kind: "conference",
     abstract:
       "Combines a pre-trained seq2seq model with a dense retriever over Wikipedia so generation can draw on non-parametric memory, improving open-domain QA and factuality.",
     ids: { arxiv: "2005.11401" },
@@ -76,7 +80,7 @@ export const seedPapers: Paper[] = [
     status: "read",
     tags: ["rag", "llm", "to-cite"],
     lastOpenedAt: daysAgo(20),
-    lastPage: 19,
+    position: { page: 19, y: 0 },
   },
   {
     id: "p5",
@@ -84,6 +88,7 @@ export const seedPapers: Paper[] = [
     authors: ["Jason Wei", "Xuezhi Wang", "Dale Schuurmans", "Maarten Bosma", "Brian Ichter", "Fei Xia", "Ed H. Chi", "Quoc V. Le", "Denny Zhou"],
     year: 2022,
     venue: "NeurIPS",
+    kind: "conference",
     abstract:
       "Shows that including worked reasoning steps in few-shot exemplars unlocks arithmetic, commonsense and symbolic reasoning in sufficiently large models.",
     ids: { arxiv: "2201.11903" },
@@ -100,6 +105,7 @@ export const seedPapers: Paper[] = [
     authors: ["Timo Schick", "Jane Dwivedi-Yu", "Roberto Dessì", "Roberta Raileanu", "Maria Lomeli", "Luke Zettlemoyer", "Nicola Cancedda", "Thomas Scialom"],
     year: 2023,
     venue: "NeurIPS",
+    kind: "conference",
     abstract:
       "A model learns, from a handful of demonstrations, to insert API calls into text where they reduce future-token loss, acquiring tool use in a self-supervised way.",
     ids: { arxiv: "2302.04761" },
@@ -116,6 +122,7 @@ export const seedPapers: Paper[] = [
     authors: ["Shunyu Yao", "Jeffrey Zhao", "Dian Yu", "Nan Du", "Izhak Shafran", "Karthik Narasimhan", "Yuan Cao"],
     year: 2023,
     venue: "ICLR",
+    kind: "conference",
     abstract:
       "Interleaves reasoning traces with actions against an environment, so a model can plan, query tools and revise its plan from what comes back.",
     ids: { arxiv: "2210.03629" },
@@ -126,7 +133,7 @@ export const seedPapers: Paper[] = [
     status: "reading",
     tags: ["agents"],
     lastOpenedAt: daysAgo(1),
-    lastPage: 4,
+    position: { page: 4, y: 0 },
   },
   {
     id: "p8",
@@ -134,6 +141,7 @@ export const seedPapers: Paper[] = [
     authors: ["Jared Kaplan", "Sam McCandlish", "Tom Henighan", "Tom B. Brown", "Benjamin Chess", "Rewon Child", "Scott Gray", "Alec Radford", "Jeffrey Wu", "Dario Amodei"],
     year: 2020,
     venue: "arXiv",
+    kind: "preprint",
     abstract:
       "Measures how language-model loss scales as smooth power laws in model size, dataset size and compute, and derives compute-optimal allocation from them.",
     ids: { arxiv: "2001.08361" },
@@ -150,6 +158,7 @@ export const seedPapers: Paper[] = [
     authors: ["Joseph Chee Chang", "Amy X. Zhang", "Jonathan Bragg", "Andrew Head", "Kyle Lo", "Doug Downey", "Daniel S. Weld"],
     year: 2023,
     venue: "CHI",
+    kind: "conference",
     abstract:
       "A reading interface that annotates inline citations with the reader's own history: what they have read, saved or cited before, so familiar and promising references stand out.",
     ids: { doi: "10.1145/3544548.3580847", arxiv: "2302.07302" },
@@ -160,7 +169,7 @@ export const seedPapers: Paper[] = [
     status: "read",
     tags: ["hci", "reading-tools", "to-cite"],
     lastOpenedAt: daysAgo(5),
-    lastPage: 15,
+    position: { page: 15, y: 0 },
   },
   {
     id: "p10",
@@ -168,6 +177,7 @@ export const seedPapers: Paper[] = [
     authors: ["Hyeonsu B. Kang", "Sherry Tongshuang Wu", "Joseph Chee Chang", "Aniket Kittur"],
     year: 2023,
     venue: "UIST",
+    kind: "conference",
     abstract:
       "Lets researchers seed a synthesis with citation contexts from papers they already trust, then uses an LLM to organise a related literature into a hierarchical outline they can steer.",
     ids: { doi: "10.1145/3586183.3606759" },
@@ -178,7 +188,7 @@ export const seedPapers: Paper[] = [
     status: "reading",
     tags: ["hci", "sensemaking"],
     lastOpenedAt: daysAgo(3),
-    lastPage: 6,
+    position: { page: 6, y: 0 },
   },
   {
     id: "p11",
@@ -186,6 +196,7 @@ export const seedPapers: Paper[] = [
     authors: ["Srishti Palani", "Aakanksha Naik", "Doug Downey", "Amy X. Zhang", "Jonathan Bragg", "Joseph Chee Chang"],
     year: 2023,
     venue: "CHI",
+    kind: "conference",
     abstract:
       "Surfaces related-work paragraphs from many papers on a topic and groups them, so a newcomer can see how a field has already been organised before writing their own review.",
     ids: { doi: "10.1145/3544548.3580841" },
@@ -201,6 +212,7 @@ export const seedPapers: Paper[] = [
     authors: ["Kyle Lo", "Joseph Chee Chang", "Andrew Head", "Jonathan Bragg", "Amy X. Zhang", "Cassidy Trier", "Chloe Anastasiades", "Tal August", "Russell Authur", "Danielle Bragg"],
     year: 2024,
     venue: "Communications of the ACM",
+    kind: "article",
     abstract:
       "Reports on a multi-year effort to build and study AI-augmented reading interfaces for scientific papers, from skimming aids to citation context and definitions.",
     ids: { doi: "10.1145/3659096", arxiv: "2303.14334" },
@@ -217,6 +229,7 @@ export const seedPapers: Paper[] = [
     authors: ["J.D. Zamfirescu-Pereira", "Richmond Y. Wong", "Bjoern Hartmann", "Qian Yang"],
     year: 2023,
     venue: "CHI",
+    kind: "conference",
     abstract:
       "A study of non-experts writing prompts in a chatbot design tool, finding opportunistic rather than systematic strategies and expectations borrowed from human instruction.",
     ids: { doi: "10.1145/3544548.3581388" },
@@ -232,6 +245,7 @@ export const seedPapers: Paper[] = [
     authors: ["Joon Sung Park", "Joseph C. O'Brien", "Carrie J. Cai", "Meredith Ringel Morris", "Percy Liang", "Michael S. Bernstein"],
     year: 2023,
     venue: "UIST",
+    kind: "conference",
     abstract:
       "Populates a sandbox town with LLM-driven agents that remember, reflect and plan, and observes believable individual and emergent social behaviour.",
     ids: { doi: "10.1145/3586183.3606763", arxiv: "2304.03442" },
@@ -248,6 +262,7 @@ export const seedPapers: Paper[] = [
     authors: ["Raymond Fok", "Hita Kambhamettu", "Luca Soldaini", "Jonathan Bragg", "Kyle Lo", "Marti A. Hearst", "Andrew Head", "Daniel S. Weld"],
     year: 2023,
     venue: "IUI",
+    kind: "conference",
     abstract:
       "Highlights salient sentences in a paper by rhetorical facet (objective, method, result) so readers can skim with the structure of the argument visible.",
     ids: { doi: "10.1145/3581641.3584034", arxiv: "2205.04561" },
@@ -264,6 +279,7 @@ export const seedPapers: Paper[] = [
     authors: ["Peter Pirolli", "Stuart Card"],
     year: 2005,
     venue: "International Conference on Intelligence Analysis",
+    kind: "conference",
     abstract:
       "Describes sensemaking as two interleaved loops, foraging for information and building schemas from it, and locates where tools could help in each.",
     ids: {},

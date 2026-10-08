@@ -38,7 +38,7 @@ export function TagChip({
         type="button"
         onClick={onClick}
         disabled={!onClick}
-        className={cn("flex h-full items-center gap-1.5 rounded-md pl-2 outline-none", onRemove ? "pr-1" : "pr-2", onClick && "hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50")}
+        className={cn("flex h-full items-center gap-1.5 rounded-md pl-2 outline-none", onRemove ? "pr-1" : "pr-2", onClick && "hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50")}
       >
         <TagDot tag={tag} className="size-1.5" />
         {tag}
@@ -48,7 +48,7 @@ export function TagChip({
           type="button"
           aria-label={`Remove tag ${tag}`}
           onClick={onRemove}
-          className="mr-1 grid size-4 place-items-center rounded-sm text-muted-foreground opacity-0 group-hover/tag:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100"
+          className="mr-1 grid size-4 place-items-center rounded-sm text-muted-foreground opacity-0 group-hover/tag:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-key:opacity-100"
         >
           <XIcon className="size-3" />
         </button>

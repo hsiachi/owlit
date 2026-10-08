@@ -98,7 +98,7 @@ export function LayoutToggle() {
               aria-label={l.label}
               onClick={() => setLayout(l.id)}
               className={cn(
-                "grid h-6 w-7 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+                "grid h-6 w-7 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
                 layout === l.id && "bg-card text-foreground shadow-xs",
               )}
             >
@@ -189,7 +189,7 @@ const FILTERS: { id: StatusFilter; label: string }[] = [
   { id: "read", label: "Read" },
 ]
 
-const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
 
 // Status chips on the left, the tag filter on the right of the same line
 export function FilterBar() {

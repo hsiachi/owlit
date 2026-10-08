@@ -5,6 +5,10 @@
 @import "@fontsource/instrument-serif";
 
 @custom-variant dark (&:is(.dark *));
+/* Focus marks for keyboard navigation only. main.tsx records how the user last moved; after a
+   click, a control that gets focus back (a menu trigger, a tab) shows nothing. Text fields keep
+   plain focus-visible: they darken their border however they were reached. */
+@custom-variant focus-key (&:focus-visible:where([data-modality="keyboard"] *));
 
 @theme inline {
     /* Figtree: round, open sans for the whole UI. Instrument Serif: display only (greetings, page titles) */
@@ -30,6 +34,18 @@
     --color-tag-blue: var(--tag-blue);
     --color-tag-violet: var(--tag-violet);
     --color-tag-pink: var(--tag-pink);
+    --color-highlight-yellow: var(--highlight-yellow);
+    --color-highlight-green: var(--highlight-green);
+    --color-highlight-blue: var(--highlight-blue);
+    --color-highlight-pink: var(--highlight-pink);
+    --color-pdf-selection: var(--pdf-selection);
+    /* A highlight reached from the list rings twice so the eye finds it */
+    --animate-highlight-flash: highlight-flash 1.2s ease-out;
+    @keyframes highlight-flash {
+        0%, 50% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--pdf-flash) 45%, transparent); }
+        25%, 75% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--pdf-flash) 10%, transparent); }
+        100% { box-shadow: 0 0 0 3px transparent; }
+    }
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -109,6 +125,26 @@
     --tag-blue: oklch(0.62 0.09 250);
     --tag-violet: oklch(0.6 0.1 295);
     --tag-pink: oklch(0.68 0.1 350);
+    /* PDF marks. A rendered page is white in both themes, so these are set once and never flip.
+       They are drawn with multiply, so the glyphs under them stay black. */
+    --highlight-yellow: oklch(0.93 0.11 98);
+    --highlight-green: oklch(0.91 0.08 150);
+    --highlight-blue: oklch(0.9 0.055 240);
+    --highlight-pink: oklch(0.9 0.065 355);
+    --pdf-selection: oklch(0.86 0.06 255);
+    /* Find matches: a neutral tint for all, so they never pass for a highlight; orange for the current one */
+    --pdf-search: oklch(0.87 0.012 75);
+    --pdf-search-active: oklch(0.8 0.13 60);
+    --pdf-link: oklch(0.48 0.09 255);
+    --pdf-page-edge: oklch(0 0 0 / 9%);
+    --pdf-flash: oklch(0.55 0.08 70);
+    /* Marks drawn on a highlight colour, such as the check on the current colour's dot */
+    --pdf-ink: oklch(0.3 0.02 65 / 70%);
+    /* The same four hues, deep enough to read as a thin bar on any surface */
+    --highlight-yellow-mark: oklch(0.82 0.15 92);
+    --highlight-green-mark: oklch(0.72 0.13 150);
+    --highlight-blue-mark: oklch(0.68 0.1 245);
+    --highlight-pink-mark: oklch(0.7 0.13 355);
     --sidebar-foreground: oklch(0.21 0.008 60);
     --sidebar-primary: oklch(0.25 0.008 60);
     --sidebar-primary-foreground: oklch(0.985 0.003 85);
@@ -169,6 +205,10 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  /* The browser's own focus outline follows the same rule */
+  :root:not([data-modality="keyboard"]) :focus-visible:not(input, textarea, [contenteditable="true"]) {
+    outline: none;
     }
   body {
     @apply bg-background text-foreground;
@@ -177,6 +217,22 @@
     @apply font-sans;
     }
 }
+/* ---- Paper note (Tiptap, rendered with the .markdown styles) ---- */
+.note-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+/* A quote's page link back to its highlight: part of the quote, not a call to action */
+.markdown a[href^="owlit://highlight/"] {
+  color: inherit;
+  text-decoration-color: var(--border);
+  cursor: pointer;
+}
+.markdown a[href^="owlit://highlight/"]:hover { text-decoration-color: currentColor; }
+
 /* ---- Chat composer (Tiptap) ---- */
 .tiptap-composer p {
   margin: 0;

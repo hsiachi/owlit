@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { AppSidebar } from "@/app/AppSidebar"
+import { CommandPalette } from "@/app/CommandPalette"
 import { matchNav } from "@/app/nav"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -53,6 +54,7 @@ export function Shell() {
             </SidebarInset>
           </div>
         </SidebarProvider>
+        <CommandPalette />
         <Toaster position="bottom-right" />
       </div>
     </TooltipProvider>

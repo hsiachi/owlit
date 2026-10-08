@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { citation } from "./lib/format"
+import { copyText } from "./lib/clipboard"
+import { apaCitation, bibtex } from "./lib/cite"
 import { useLibraryStore } from "./store"
 import type { Paper, ReadStatus } from "./types"
 import { useUiStore } from "./ui-store"
@@ -21,13 +22,13 @@ export function usePaperActions() {
 
   const setStatus = (ids: string[], status: ReadStatus) => setStatusInStore(ids, status)
 
-  const copyCitation = async (paper: Paper) => {
-    try {
-      await navigator.clipboard.writeText(citation(paper))
-      toast("Citation copied")
-    } catch {
-      toast.error("Could not write to the clipboard")
-    }
+  // APA, one reference per line
+  const copyCitation = async (papers: Paper[]) => {
+    if (await copyText(papers.map(apaCitation).join("\n\n"))) toast(papers.length > 1 ? `${papers.length} citations copied` : "Citation copied")
+  }
+
+  const copyBibtex = async (papers: Paper[]) => {
+    if (await copyText(papers.map(bibtex).join("\n\n"))) toast(papers.length > 1 ? `BibTeX for ${papers.length} papers copied` : "BibTeX copied")
   }
 
   // Removal is immediate; the toast's Undo puts everything back
@@ -44,5 +45,5 @@ export function usePaperActions() {
 
   const editDetails = (id: string) => setEditingId(id)
 
-  return { open, setStarred, setStatus, copyCitation, remove, editDetails }
+  return { open, setStarred, setStatus, copyCitation, copyBibtex, remove, editDetails }
 }
