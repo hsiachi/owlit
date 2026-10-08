@@ -4,14 +4,16 @@ import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirro
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
+import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { registerEditor } from "../fs"
 import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
-import type { WorkspaceFile } from "../types"
+import type { AgentNote, WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
+import { marginNotes, setNotes } from "./margin-notes"
 import { selectionMenu } from "./selection-menu"
 import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
 import { Highlight } from "./syntax"
@@ -30,6 +32,11 @@ function respondToEdit(edit: PendingEdit, apply: boolean) {
 function chatAbout(fileId: string, text: string) {
   const file = useDocsStore.getState().files[fileId]
   if (file) useAgentWindow.getState().open({ text, source: docMentionable(file) })
+}
+
+function dismissNote(fileId: string, note: AgentNote) {
+  const removed = useDocsStore.getState().removeNote(fileId, note.id)
+  if (removed) toast("Note dismissed", { action: { label: "Undo", onClick: () => useDocsStore.getState().restoreNote(fileId, removed) } })
 }
 
 const SAVE_DELAY = 300
@@ -82,6 +89,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           mentionPopup((query) => docMentionItems(query, id)),
           selectionMenu((text) => chatAbout(id, text)),
           agentSuggestions(respondToEdit),
+          marginNotes({ onChat: (note) => chatAbout(id, note.quote), onDismiss: (note) => dismissNote(id, note) }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
@@ -112,11 +120,21 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     syncEdits()
     const unsubscribe = useChatStore.subscribe(syncEdits)
 
+    // The doc's margin notes follow the store
+    let notes = useDocsStore.getState().notes[id]
+    view.dispatch({ effects: setNotes.of(notes ?? []) })
+    const unsubscribeNotes = useDocsStore.subscribe((s) => {
+      if (s.notes[id] === notes) return
+      notes = s.notes[id]
+      view.dispatch({ effects: setNotes.of(notes ?? []) })
+    })
+
     window.addEventListener("beforeunload", flush)
     return () => {
       window.removeEventListener("beforeunload", flush)
       flush()
       unsubscribe()
+      unsubscribeNotes()
       unregister()
       view.destroy()
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it

@@ -1,4 +1,4 @@
-import type { WorkspaceFile } from "../types"
+import type { AgentNote, WorkspaceFile } from "../types"
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -96,3 +96,18 @@ export const seedFiles: WorkspaceFile[] = [
 ]
 
 export const seedFolders = ["writing", "notes", "meetings", "experiments"]
+
+// One note an agent left on the draft's overclaim, as if from an earlier review
+export const seedNotes: Record<string, AgentNote[]> = {
+  d1: [
+    {
+      id: "n1",
+      quote: "To our knowledge, no work has compared learned tool calls with retrieval on the same tasks.",
+      prefix: "partly outside its weights.\n\n",
+      suffix: "\n",
+      text: "\u201cNo work has compared\u201d goes further than your reading can show. Narrow it to the studies you've read, or search further before you submit.",
+      by: "Claude Code",
+      createdAt: ago(2 * DAY),
+    },
+  ],
+}

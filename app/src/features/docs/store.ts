@@ -1,8 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { cleanName, extOf, nameFromFirstLine, timeName, uniquePath } from "./lib/naming"
-import { seedFiles, seedFolders } from "./mocks/seed"
-import { baseName, isMarkdown, joinPath, parentPath, type WorkspaceFile } from "./types"
+import { seedFiles, seedFolders, seedNotes } from "./mocks/seed"
+import { baseName, isMarkdown, joinPath, parentPath, type AgentNote, type WorkspaceFile } from "./types"
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -39,6 +39,12 @@ interface DocsState {
   moveFolder: (path: string, parent: string) => string
   deleteFolder: (path: string) => Removed
   restore: (removed: Removed) => void
+
+  // Agents' notes, by file id, so a note stays with its doc through renames and moves
+  notes: Record<string, AgentNote[]>
+  addNote: (fileId: string, note: AgentNote) => void
+  removeNote: (fileId: string, noteId: string) => AgentNote | undefined
+  restoreNote: (fileId: string, note: AgentNote) => void
 }
 
 function pathTaken(files: Record<string, WorkspaceFile>, folders: string[], selfId?: string) {
@@ -61,6 +67,7 @@ export const useDocsStore = create<DocsState>()(
     (set, get) => ({
       files: Object.fromEntries(seedFiles.map((f) => [f.id, f])),
       folders: seedFolders,
+      notes: seedNotes,
 
       createDoc: (folder) => {
         const t = Date.now()
@@ -166,13 +173,32 @@ export const useDocsStore = create<DocsState>()(
         return removed
       },
 
+      addNote: (fileId, note) => set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []), note] } })),
+
+      removeNote: (fileId, noteId) => {
+        const note = get().notes[fileId]?.find((n) => n.id === noteId)
+        set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).filter((n) => n.id !== noteId) } }))
+        return note
+      },
+
+      restoreNote: (fileId, note) =>
+        set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []).filter((n) => n.id !== note.id), note].sort((a, b) => a.createdAt - b.createdAt) } })),
+
       restore: ({ files, folders }) =>
         set((s) => ({
           files: { ...s.files, ...Object.fromEntries(files.map((f) => [f.id, f])) },
           folders: [...s.folders, ...folders.filter((f) => !s.folders.includes(f))],
         })),
     }),
-    { name: "owlit-docs", version: 1 },
+    {
+      name: "owlit-docs",
+      version: 1,
+      // Stores saved before notes existed get the seed notes for docs they still have
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<DocsState>
+        return { ...current, ...p, notes: p.notes ?? Object.fromEntries(Object.entries(current.notes).filter(([id]) => (p.files ?? current.files)[id])) }
+      },
+    },
   ),
 )
 

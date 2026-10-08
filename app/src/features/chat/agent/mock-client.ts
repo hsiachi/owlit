@@ -1,7 +1,7 @@
 import { useLibraryStore } from "@/features/library/store"
 import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
-import { getWorkspaceFs, type AgentClient, type PromptRequest } from "./client"
+import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -57,6 +57,13 @@ export class MockAgentClient implements AgentClient {
 
       await sleep(300, signal)
       for (const m of sources) await this.readTool(emit, signal, m)
+
+      // Asked to review a doc: notes in its margin rather than edits
+      const doc = selection?.source.kind === "doc" ? selection.source : sources.find((s) => s.kind === "doc")
+      if (doc && WANTS_REVIEW.test(text)) {
+        const by = builtInConnectors.find((c) => c.id === req.connectorId)?.name ?? "Agent"
+        return await this.review(emit, signal, doc, by, req.chatId)
+      }
 
       // Asked from a doc about a passage: rewrite it in place, or find papers behind it
       if (selection?.source.kind === "doc") {
@@ -164,6 +171,34 @@ export class MockAgentClient implements AgentClient {
     return "end_turn"
   }
 
+  // Reads the doc and leaves a note beside each sentence that claims more than it shows
+  private async review(emit: (u: SessionUpdate) => void, signal: AbortSignal, doc: Mentionable, by: string, chatId: string): Promise<StopReason> {
+    const path = docPath(doc.uri)
+    const fs = getWorkspaceFs()
+    const notes = getWorkspaceNotes()
+    const text = path && fs ? await fs.readTextFile(path) : null
+    if (!path || !notes || text === null) {
+      await this.stream(emit, signal, "I couldn't open that doc.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    const found = reviewNotes(text).slice(0, 3)
+    let left = 0
+    for (const f of found) {
+      const id = `tc-${crypto.randomUUID()}`
+      emit({ type: "tool_call", toolCallId: id, title: `Note on ${doc.title}`, kind: "other", status: "in_progress", locations: [{ path }] })
+      await sleep(500, signal)
+      const ok = await notes.addNote({ path, quote: f.quote, text: f.note, by, chatId })
+      if (ok) left++
+      emit({ type: "tool_call_update", toolCallId: id, status: ok ? "completed" : "failed", content: `“${f.quote.slice(0, 60)}${f.quote.length > 60 ? "…" : ""}”` })
+    }
+    await sleep(300, signal)
+    const answer = left
+      ? `I left ${left} ${left === 1 ? "note" : "notes"} in the margin of [${doc.title}](${doc.uri}), beside the sentences that claim more than the text shows. Dismiss any you disagree with; the doc itself is unchanged.`
+      : `Nothing in [${doc.title}](${doc.uri}) claims more than it shows, so I left no notes.`
+    await this.stream(emit, signal, answer, "agent_message_chunk", 14)
+    return "end_turn"
+  }
+
   private async findSupport(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection): Promise<StopReason> {
     const id = `tc-${crypto.randomUUID()}`
     emit({ type: "tool_call", toolCallId: id, title: "Searching the Library", kind: "search", status: "in_progress" })
@@ -247,8 +282,30 @@ function formatBytes(n: number) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
+const WANTS_REVIEW = /\b(review|check|critique|feedback|comments?|proofread)\b/i
 const WANTS_REWRITE = /\b(rewrite|tighten|shorten|narrow|rephrase|fix|edit|improve)\b/i
 const WANTS_SUPPORT = /\b(support|evidence|cite|citations?|sources?|back up)\b/i
+
+// Sentences that claim more than they show, with what to do about each
+const CLAIMS: { test: RegExp; note: string }[] = [
+  { test: /\b(no (work|study|one)|to our knowledge|none of|nobody)\b/i, note: "This says nothing like it exists, which a reading list can't show. Narrow it to what you've read, or search further first." },
+  { test: /\b(always|never|every|all) /i, note: "An absolute invites a counterexample. Say where it holds." },
+  { test: /\b(clearly|obviously|of course|undoubtedly)\b/i, note: "This asks the reader to take it on trust. Show it, or cite where it's shown." },
+  { test: /\b(only|first) (work|study|paper|to)\b/i, note: "\u201cFirst\u201d and \u201conly\u201d are hard to defend. Check the claim or soften it." },
+]
+
+function reviewNotes(doc: string): { quote: string; note: string }[] {
+  const body = doc.replace(/^---\n[\s\S]*?\n---\n/, "")
+  const out: { quote: string; note: string }[] = []
+  for (const line of body.split("\n")) {
+    if (/^\s*(#|```|\||>)/.test(line)) continue
+    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+      const claim = CLAIMS.find((c) => c.test.test(sentence))
+      if (claim && sentence.trim().length > 20) out.push({ quote: sentence.trim(), note: claim.note })
+    }
+  }
+  return out
+}
 
 // owlit://docs/writing/Related%20work.md → "writing/Related work.md"
 function docPath(uri: string) {

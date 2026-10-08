@@ -1,7 +1,7 @@
 import { undo } from "@codemirror/commands"
 import type { EditorView } from "@codemirror/view"
 import { toast } from "sonner"
-import { setWorkspaceFs } from "@/features/chat/agent/client"
+import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { docUri } from "./lib/mentions"
 import { useDocsStore } from "./store"
 import { displayName, isMarkdown } from "./types"
@@ -90,5 +90,29 @@ setWorkspaceFs({
       description: displayName(file.path),
       action: { label: "Undo", onClick: () => undo(view) },
     })
+  },
+})
+
+const CONTEXT = 32
+
+// Agents' notes land beside the doc, anchored by the quoted passage and a little text either side of it
+setWorkspaceNotes({
+  async addNote({ path, quote, text, by, chatId }) {
+    const file = fileAt(path)
+    if (!file) return false
+    const doc = currentText(file.id)
+    const at = doc.indexOf(quote)
+    if (at < 0 || !quote.trim()) return false
+    useDocsStore.getState().addNote(file.id, {
+      id: crypto.randomUUID().slice(0, 8),
+      quote,
+      prefix: doc.slice(Math.max(0, at - CONTEXT), at),
+      suffix: doc.slice(at + quote.length, at + quote.length + CONTEXT),
+      text,
+      by,
+      chatId,
+      createdAt: Date.now(),
+    })
+    return true
   },
 })

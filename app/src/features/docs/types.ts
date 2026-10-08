@@ -14,6 +14,20 @@ export interface WorkspaceFile {
   nameLocked?: boolean
 }
 
+// A note an agent left on a passage of a doc. It lives beside the file, never in it, and finds its passage
+// again by the quoted words plus a little of the text on either side.
+export interface AgentNote {
+  id: string
+  quote: string
+  prefix: string
+  suffix: string
+  text: string
+  // Who wrote it, e.g. "Claude Code"
+  by: string
+  chatId?: string
+  createdAt: number
+}
+
 export const isMarkdown = (path: string) => /\.md$/i.test(path)
 
 export const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1)
