@@ -312,6 +312,19 @@ tbody td.peekcell .peek { margin: 6px 0 8px; }
 .label .src { color: var(--foreground); opacity: .8; }
 .menu .dot { margin-right: 8px; }
 .menu .mi { display: flex; align-items: center; }
+.libtitle { font-size: 22px; font-weight: 500; letter-spacing: -0.005em; }
+.ultabs { display: flex; gap: 22px; margin-top: 14px; padding: 0 2px; }
+.ultabs button { position: relative; height: 30px; font-size: 14px; color: var(--muted-foreground); transition: color .12s; }
+.ultabs button:hover { color: var(--foreground); }
+.ultabs button.on { color: var(--foreground); font-weight: 500; }
+.ultabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--foreground); }
+.segtabs { display: flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--muted); background: color-mix(in oklch, var(--foreground) 6%, transparent); }
+.segtabs button { height: 28px; padding: 0 14px; border-radius: 8px; font-size: 13.5px; color: var(--muted-foreground); }
+.segtabs button:hover { color: var(--foreground); }
+.segtabs button.on { background: var(--card); color: var(--foreground); font-weight: 500; box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.1); }
+.upnext-empty { margin: 72px auto 0; max-width: 380px; text-align: center; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
+.upnext-empty .t { color: var(--foreground); font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+
 </style>
 <body>
 <div class="frame">
@@ -319,6 +332,9 @@ tbody td.peekcell .peek { margin: 6px 0 8px; }
     <button class="icon-btn" id="back" title="Back"><i data-lucide="arrow-left"></i></button>
     <button class="icon-btn" title="Forward"><i data-lucide="arrow-right"></i></button>
     <div class="spacer"></div>
+    <span class="mock-label">Tabs</span>
+    <div class="mock-switch" id="tabstyle"><button data-v="title">Title</button><button data-v="underline" class="on">Underline</button><button data-v="segmented">Segmented</button></div>
+    <span style="width:14px"></span>
     <span class="mock-label">Mockup</span>
     <div class="mock-switch" id="theme"><button data-t="light" class="on">Light</button><button data-t="dark">Dark</button></div>
   </div>
@@ -357,7 +373,8 @@ const NEXT = [
 ];
 
 const state = {
-  screen: "list", page: "next", paperId: null,
+  tabStyle: "underline",
+  screen: "list", page: "library", paperId: null,
   filter: "all", tags: [], layout: "list", query: "", sort: "added",
   peek: null, selected: new Set(), anchor: null, tab: "notes", menu: null, lookup: null,
   dismissed: new Set(), justAdded: new Set(),
@@ -403,26 +420,20 @@ const inLibrary = p => !p.ext || state.justAdded.has(p.id);
 
 /* ---------------- Shared header: the title is the switch ---------------- */
 function header(right) {
-  return `<div class="head">
-    <div class="switch">
-      <button class="${state.page === "next" ? "on" : ""}" data-page="next">Up next</button>
-      <button class="${state.page === "library" ? "on" : ""}" data-page="library">Library</button>
-    </div>
-    <span class="spacer"></span>${right}
-  </div>`;
+  const v = state.tabStyle;
+  const second = v === "title" ? "Library" : "All papers";
+  const tab = (id, label) => `<button class="${state.page === id ? "on" : ""}" data-page="${id}">${label}</button>`;
+  if (v === "title") return `<div class="head"><div class="switch">${tab("next", "Up next")}${tab("library", second)}</div><span class="spacer"></span>${right}</div>`;
+  if (v === "segmented") return `<div class="head"><div class="segtabs">${tab("next", "Up next")}${tab("library", second)}</div><span class="spacer"></span>${right}</div>`;
+  return `<div class="head"><span class="libtitle">Library</span><span class="spacer"></span></div>
+    <div class="head" style="min-height:0"><div class="ultabs">${tab("next", "Up next")}${tab("library", second)}</div><span class="spacer"></span><div style="margin-top:14px;display:flex;gap:8px;align-items:center">${right}</div></div>`;
 }
 
 /* ---------------- Up next ---------------- */
 function renderNext() {
-  let h = `<div class="main" id="scroller"><div class="col">
-    ${header("")}
-    <div class="status-line">Ordered by what you've been reading · updated 2 hours ago · <button>Refresh</button></div>`;
-  NEXT.forEach(g => {
-    const items = g.ids().map(byId).filter(p => p && !state.dismissed.has(p.id));
-    if (!items.length) return;
-    h += `<div class="section"><div class="label">${esc(g.label)}${g.src ? ` <span class="src">&nbsp;${esc(g.src)}</span>` : ""}</div>${items.map(p => state.peek === p.id ? renderPeek(p, true) : renderRow(p, true)).join("")}</div>`;
-  });
-  return h + `</div></div>`;
+  return `<div class="main" id="scroller"><div class="col">${header("")}
+    <div class="upnext-empty"><div class="t">Nothing here yet</div>What to read next will appear here, ordered by what you're reading and what your searches turn up.</div>
+  </div></div>`;
 }
 
 /* ---------------- Library ---------------- */
@@ -539,7 +550,7 @@ function renderPaper() {
   const i = order.indexOf(p.id);
   return `<div class="paper ${state.side === false ? "nopanel" : ""}">
     <div class="phead">
-      <div class="crumb"><button data-home>${state.page === "next" ? "Up next" : "Library"}</button>${icon("chevron-right")}<span class="cur">${esc(p.t)}</span></div>
+      <div class="crumb"><button data-home>Library</button>${icon("chevron-right")}<span class="cur">${esc(p.t)}</span></div>
       ${i >= 0 ? `<span class="pos tnum">${i + 1} of ${order.length}</span>` : ""}
       <button class="icon-btn" data-go="${order[i - 1] || ""}" title="Previous">${icon("chevron-up")}</button>
       <button class="icon-btn" data-go="${order[i + 1] || ""}" title="Next">${icon("chevron-down")}</button>
@@ -683,6 +694,12 @@ document.getElementById("back").addEventListener("click", goHome);
 window.addEventListener("keydown", e => {
   if (e.key === "/" && document.activeElement?.id !== "q" && state.page === "library" && state.screen === "list") { e.preventDefault(); document.getElementById("q").focus(); }
   if (e.key === "Escape" && state.screen === "list" && document.activeElement?.id !== "q") { state.peek = null; state.selected.clear(); state.menu = null; render(); }
+});
+document.getElementById("tabstyle").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.tabStyle = b.dataset.v;
+  document.querySelectorAll("#tabstyle button").forEach(x => x.classList.toggle("on", x === b));
+  render();
 });
 document.getElementById("theme").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;

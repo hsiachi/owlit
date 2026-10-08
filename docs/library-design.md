@@ -42,24 +42,30 @@ Everything below is derived from these five.
 
 ## Structure: two pages, then three levels
 
-The Library has two pages, switched by its title: **Up next** and **Library**. The title is two
-words side by side, the current one in full colour and the other one lighter, so switching costs
-no extra chrome. A third word (Feed) can join later; whether feeds live here is still open. There
-is no list panel: with filters and tags inside the Library page it would hold two rows. A panel
+The Library has two pages, **Up next** and **All papers**, as tabs under the page title
+"Library". Three tab styles are in the mockup (top bar, "Tabs"); the leaning is underline tabs:
+
+- *Title as the switch* ("Up next  Library" at title size): the quietest, but the lighter word
+  reads as a subtitle rather than something to click.
+- *Underline tabs* under a "Library" title (leaning): the most familiar tab form; the title says
+  where you are and the tabs read as parts of it; a third tab (Feed) fits without change. Only the
+  active tab is underlined, with no rule across the page.
+- *Segmented control* in place of the title: clear, but it sits beside the List / Table toggle and
+  the two controls look alike.
+- Rounded chips were ruled out: they are the filter look (All · Reading · …), so a page and a
+  filter would be drawn the same way.
+
+There is no list panel: with filters and tags inside All papers it would hold two rows. A panel
 becomes worth it once there is a growing list to put in it, such as search runs or feeds.
 
-- **Up next** answers "what should I read next?". owlit and agents decide what is on it, and it
-  changes as the reader's state changes. Rows are grouped by why they are there: Continue
-  reading · Because you're reading *Synergi* · From your search *“…”* · Found by Claude Code ·
-  Shares #agents with *ReAct*. The group label is the reason, so rows stay one line. It can hold
-  papers that are **not in the library** yet: those carry an Add button, and their peek says "Not
-  in your library" with Add to library as the primary action. Every row can be dismissed (×, "Not
-  interested"), which is the feedback the reordering learns from. One muted line on top says what
-  the order is based on and when it was refreshed. Default page.
-- **Library** answers "what do I have?". The user is in control of it: find-and-add field, filter
+- **Up next** answers "what should I read next?". Its content is designed later; for now it is an
+  empty state. Direction so far: owlit and agents decide what is on it, it changes with the
+  reader's state and new search runs, it may hold papers not yet in the library (with Add), every
+  item can be dismissed, and every group says why it is there.
+- **All papers** answers "what do I have?". The user is in control: find-and-add field, filter
   chips All · Reading · Starred · Unread · Read with counts, a Tags menu on the right of the same
   line (colour dot, name, count; selected tags show as removable chips), sort menu and List /
-  Table toggle in the header.
+  Table toggle beside the tabs.
 
 Within either page there are three levels, each with one job:
 
@@ -221,12 +227,10 @@ fetching, full-text search, agent access to the library.
 
 ## Open questions for this round
 
-1. **Default page**: Up next (recommended) or Library?
-2. **Papers not in the library on Up next**: is the Add button enough to tell them apart?
-3. **How smart is Up next?** The mock groups by signals owlit can compute locally (citations,
-   shared tags, agent finds, search runs). Re-ranking by the reader's knowledge state needs
-   Knowledge to exist first.
-4. **Feed**: a third page here, or somewhere else? Deferred.
+1. **Tab style**: underline tabs (leaning), title switch, or segmented.
+2. **Default tab**: Up next or All papers. While Up next is empty, All papers.
+3. **Up next content**: deferred to its own design round.
+4. **Feed**: a third tab here, or somewhere else? Deferred.
 
 ## Decisions log
 
@@ -242,3 +246,5 @@ fetching, full-text search, agent access to the library.
 - 2026-10-08 (round 3): hsiachi proposed splitting into Up next (smart, dynamic, may include
   papers found by search) and Library (the whole collection, filters inside). Mocked as two pages
   switched by the title; the places panel from round 2 is dropped.
+- 2026-10-08 (round 4): Up next left empty for now. Tab styles compared in the mockup; second
+  tab renamed "All papers" under a "Library" title.
