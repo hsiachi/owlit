@@ -101,7 +101,7 @@ function StatusChip({ c }: { c: Connector }) {
       <span
         title={c.status === "error" ? c.error : undefined}
         className={cn(
-          "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] leading-4",
+          "shrink-0 rounded-md px-1.5 py-0.5 text-xs leading-4",
           c.status === "error" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
         )}
       >
@@ -143,7 +143,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => openConnectors(true)}>
-            Manage connectors…
+            Manage agents…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -152,8 +152,14 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <PickerButton aria-label="Choose model and effort">
-              <span className="max-w-32 truncate text-foreground/90">{model?.name}</span>
-              {effort && <span className="max-w-24 truncate text-muted-foreground">{effort.name}</span>}
+              {/* All three triggers share one tone; a dot separates the model from its effort */}
+              <span className="max-w-32 truncate">{model?.name}</span>
+              {effort && (
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <span className="max-w-24 truncate">{effort.name}</span>
+                </>
+              )}
             </PickerButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">

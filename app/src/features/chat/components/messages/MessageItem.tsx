@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { MentionBadge } from "../composer/MentionBadge"
-import { PermissionPart, PlanPart, StepsPart, TextPart, type StepPart } from "./parts"
+import { PermissionPart, PlanPart, StepsPart, TextPart, type PermissionOutcomes, type StepPart } from "./parts"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -42,11 +42,18 @@ function CopyButton({ text }: { text: string }) {
 
 const timeOf = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
-// Fold consecutive thoughts and tool calls into one steps block; everything else stays a part
+// Fold consecutive thoughts and tool calls into one steps block; everything else stays a part.
+// An answered permission folds into its tool call's row, so the steps on either side of it merge.
 type Segment = { type: "steps"; key: string; parts: StepPart[] } | { type: "part"; key: string; part: Exclude<MessagePart, StepPart> }
-function segment(parts: MessagePart[]): Segment[] {
+function segment(parts: MessagePart[]): { segments: Segment[]; outcomes: PermissionOutcomes } {
+  const toolCallIds = new Set(parts.flatMap((p) => (p.type === "tool_call" ? [p.toolCallId] : [])))
+  const outcomes: PermissionOutcomes = {}
   const out: Segment[] = []
   parts.forEach((p, i) => {
+    if (p.type === "permission" && p.outcome && toolCallIds.has(p.toolCallId)) {
+      outcomes[p.toolCallId] = p.outcome
+      return
+    }
     if (p.type === "thought" || p.type === "tool_call") {
       const last = out[out.length - 1]
       if (last?.type === "steps") last.parts.push(p)
@@ -55,7 +62,7 @@ function segment(parts: MessagePart[]): Segment[] {
       out.push({ type: "part", key: p.type === "permission" ? p.requestId : `${p.type}-${i}`, part: p })
     }
   })
-  return out
+  return { segments: out, outcomes }
 }
 
 // Split "@[label]" markers out of the text so they can render as chips
@@ -110,13 +117,13 @@ export function AssistantMessage({
   const streaming = message.status === "streaming"
   const last = message.parts[message.parts.length - 1]
   const text = messageText(message)
-  const segments = segment(message.parts)
+  const { segments, outcomes } = segment(message.parts)
   return (
     <Message className="text-[15px]">
       <MessageContent className="gap-3">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1
-          if (seg.type === "steps") return <StepsPart key={seg.key} parts={seg.parts} active={streaming && isLast} />
+          if (seg.type === "steps") return <StepsPart key={seg.key} parts={seg.parts} active={streaming && isLast} outcomes={outcomes} />
           const { part } = seg
           switch (part.type) {
             case "text":
@@ -138,6 +145,11 @@ export function AssistantMessage({
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
+          {/* Which model answered, and when, stays visible and lines up with the answer's left edge;
+              the actions appear after it on hover, so they never push it in */}
+          <span className="mr-1 text-xs font-normal text-muted-foreground">
+            {[modelName, timeOf(message.createdAt)].filter(Boolean).join(" · ")}
+          </span>
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             {text && <CopyButton text={text} />}
             {onRegenerate && (
@@ -150,10 +162,6 @@ export function AssistantMessage({
                 <TooltipContent>Regenerate</TooltipContent>
               </Tooltip>
             )}
-          </span>
-          {/* Which model answered, and when, stays visible */}
-          <span className="ml-1 text-xs font-normal text-muted-foreground/80">
-            {[modelName, timeOf(message.createdAt)].filter(Boolean).join(" · ")}
           </span>
         </MessageFooter>
       )}
