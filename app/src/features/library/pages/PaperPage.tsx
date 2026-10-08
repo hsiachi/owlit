@@ -96,8 +96,13 @@ export function PaperPage() {
           <Link to="/library" className="-ml-1 shrink-0 rounded-md px-1 py-0.5 hover:bg-muted hover:text-foreground">
             Library
           </Link>
-          <ChevronRightIcon className="size-3.5 shrink-0" />
-          <span className="truncate text-foreground">{paper.title}</span>
+          {/* With the details open the title is right there in the panel, so the trail stops at Library */}
+          {!panelOpen && (
+            <>
+              <ChevronRightIcon className="size-3.5 shrink-0" />
+              <span className="truncate text-foreground">{paper.title}</span>
+            </>
+          )}
         </nav>
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">

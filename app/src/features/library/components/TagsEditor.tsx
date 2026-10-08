@@ -19,8 +19,9 @@ export function TagDot({ tag, className }: { tag: string; className?: string }) 
   return <span aria-hidden className={cn("size-2 shrink-0 rounded-full", className)} style={{ backgroundColor: tagColorVar(tag) }} />
 }
 
-// A tag on a translucent fill. Clicking it shows every paper with that tag; with onRemove it
-// also carries a remove button on hover.
+// A tag on a translucent fill, used where a tag can be acted on (the peek, About): clicking it
+// shows every paper with that tag; with onRemove it also carries a remove button on hover, whose
+// hit area reaches 24px past the small glyph. Read-only places show just the dot and the name.
 export function TagChip({
   tag,
   onClick,
@@ -48,7 +49,7 @@ export function TagChip({
           type="button"
           aria-label={`Remove tag ${tag}`}
           onClick={onRemove}
-          className="mr-1 grid size-4 place-items-center rounded-sm text-muted-foreground opacity-0 group-hover/tag:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-key:opacity-100"
+          className="relative mr-1 grid size-4 place-items-center rounded-sm text-muted-foreground after:absolute after:-inset-1 after:content-[''] opacity-0 group-hover/tag:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-key:opacity-100"
         >
           <XIcon className="size-3" />
         </button>

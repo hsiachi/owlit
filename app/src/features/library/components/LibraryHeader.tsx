@@ -14,7 +14,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
-import { type Layout, type SortKey, type StatusFilter, useUiStore } from "../ui-store"
+import { type Layout, usePrefsStore } from "../prefs-store"
+import { type SortKey, type StatusFilter, useUiStore } from "../ui-store"
 import { TagDot } from "./TagsEditor"
 
 // The Library's two pages, as underline tabs under its title. A third (Feed) can join later.
@@ -84,8 +85,9 @@ const LAYOUTS: { id: Layout; label: string; icon: typeof ListIcon }[] = [
 ]
 
 export function LayoutToggle() {
-  const layout = useUiStore((s) => s.layout)
-  const setLayout = useUiStore((s) => s.setLayout)
+  const layout = usePrefsStore((s) => s.layout)
+  const setLayout = usePrefsStore((s) => s.setLayout)
+  const closePeek = useUiStore((s) => s.closePeek)
   return (
     <div role="radiogroup" aria-label="Layout" className="flex gap-0.5 rounded-lg bg-muted p-0.5">
       {LAYOUTS.map((l) => (
@@ -96,7 +98,10 @@ export function LayoutToggle() {
               role="radio"
               aria-checked={layout === l.id}
               aria-label={l.label}
-              onClick={() => setLayout(l.id)}
+              onClick={() => {
+                setLayout(l.id)
+                closePeek()
+              }}
               className={cn(
                 "grid h-6 w-7 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
                 layout === l.id && "bg-card text-foreground shadow-xs",

@@ -5,7 +5,6 @@ import { create } from "zustand"
 
 export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read"
 export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue"
-export type Layout = "list" | "table"
 
 export interface Sort {
   key: SortKey
@@ -18,7 +17,6 @@ interface UiState {
   // Tag filter: a paper must carry every selected tag
   tags: string[]
   sort: Sort
-  layout: Layout
 
   // selectedIds is the selection; cursorId is the keyboard cursor and the row a plain click
   // last landed on; anchorId is where a shift-range starts; peekId is the row opened in place
@@ -36,7 +34,6 @@ interface UiState {
   showTag: (tag: string) => void
   clearTags: () => void
   sortBy: (key: SortKey) => void
-  setLayout: (layout: Layout) => void
 
   // A plain click selects the row and opens or folds its peek; ⌘ toggles and ⇧ extends
   // the selection without peeking
@@ -67,7 +64,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
   filter: "all",
   tags: [],
   sort: { key: "addedAt", desc: true },
-  layout: "table",
   selectedIds: [],
   cursorId: null,
   anchorId: null,
@@ -85,7 +81,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // Picking the current key again flips the direction; a new key starts in its natural direction
   sortBy: (key) =>
     set((s) => ({ sort: s.sort.key === key ? { key, desc: !s.sort.desc } : { key, desc: naturalDesc(key) } })),
-  setLayout: (layout) => set({ layout, peekId: null }),
 
   click: (id, mode, order) => {
     const s = get()

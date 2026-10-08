@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react"
 import { FileUpIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
 import { FilterBar, FindField, LayoutToggle, LibraryHeader, SortMenu } from "../components/LibraryHeader"
@@ -10,24 +9,24 @@ import { groupPapers, visiblePapers } from "../lib/filter"
 import { looksLikeRef } from "../lib/ref"
 import { usePaperListKeys } from "../lib/use-list-keys"
 import { useRefLookup } from "../lib/use-ref-lookup"
+import { usePrefsStore } from "../prefs-store"
 import { useLibraryStore } from "../store"
 import { useUiStore } from "../ui-store"
 
-// Scrolls the whole page; the column is as wide as the chat thread, wider for the table
+// Scrolls the whole page. One width for every Library page and layout, so switching tabs or
+// between list and table never moves the header.
 export function LibraryShell({
-  wide,
   scroller,
   onKeyDown,
   children,
 }: {
-  wide?: boolean
   scroller?: React.Ref<HTMLDivElement>
   onKeyDown?: (e: React.KeyboardEvent) => void
   children: React.ReactNode
 }) {
   return (
     <div ref={scroller} tabIndex={-1} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto outline-none">
-      <div className={cn("mx-auto w-full px-6 pt-10 pb-24", wide ? "max-w-6xl" : "max-w-3xl")}>{children}</div>
+      <div className="mx-auto w-full max-w-6xl px-6 pt-10 pb-24">{children}</div>
     </div>
   )
 }
@@ -39,7 +38,7 @@ export function LibraryPage() {
   const filter = useUiStore((s) => s.filter)
   const tags = useUiStore((s) => s.tags)
   const sort = useUiStore((s) => s.sort)
-  const layout = useUiStore((s) => s.layout)
+  const layout = usePrefsStore((s) => s.layout)
   const [dragging, setDragging] = useState(0)
 
   const refInput = looksLikeRef(query) ? query.trim() : null
@@ -72,7 +71,7 @@ export function LibraryPage() {
         addPdfFiles(Array.from(e.dataTransfer.files))
       }}
     >
-      <LibraryShell wide={table} scroller={scroller} onKeyDown={onKeyDown}>
+      <LibraryShell scroller={scroller} onKeyDown={onKeyDown}>
         <LibraryHeader
           actions={
             <>
