@@ -55,10 +55,13 @@ useDocsStore.subscribe((state, prev) => {
     let next = text
     for (const { from, to } of moves) {
       const oldUri = docUri(from)
-      if (!next.includes(oldUri)) continue
-      next = next.replace(new RegExp(`\\[([^\\]]*)\\]\\(${escapeRe(oldUri)}\\)`, "g"), (_m, label: string) =>
-        `[${label === displayName(from) ? displayName(to) : label}](${docUri(to)})`,
-      )
+      if (next.includes(oldUri))
+        next = next.replace(new RegExp(`\\[([^\\]]*)\\]\\(${escapeRe(oldUri)}\\)`, "g"), (_m, label: string) =>
+          `[${label === displayName(from) ? displayName(to) : label}](${docUri(to)})`,
+        )
+      // [[Name]], [[Name|shown]] and [[Name#heading]] follow a rename too; a move alone doesn't change them
+      if (displayName(from) !== displayName(to))
+        next = next.replace(new RegExp(`(!?\\[\\[)${escapeRe(displayName(from))}(?=[\\]|#])`, "gi"), `$1${displayName(to)}`)
     }
     if (next !== text) rewrite(doc.id, next)
   }
