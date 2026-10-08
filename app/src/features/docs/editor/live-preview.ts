@@ -145,6 +145,40 @@ class LabelWidget extends WidgetType {
   }
 }
 
+// A code block's language, quietly in its top right corner while the fences are hidden
+class CodeLangWidget extends WidgetType {
+  readonly lang: string
+  constructor(lang: string) {
+    super()
+    this.lang = lang
+  }
+  eq(other: CodeLangWidget) {
+    return other.lang === this.lang
+  }
+  toDOM() {
+    const span = document.createElement("span")
+    span.className = "cm-code-lang"
+    span.textContent = this.lang
+    return span
+  }
+}
+
+// The heading level the doc's sections use: the shallowest one below the title. "# Title" with "## Section"
+// and "# Title" with "# Section" both give their sections the larger heading size.
+function sectionLevel(state: EditorState, titleLine: number) {
+  let level = 7
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name.startsWith("ATXHeading")) {
+        if (state.doc.lineAt(node.from).number !== titleLine) level = Math.min(level, Number(node.name.slice(-1)))
+        return false
+      }
+      if (node.name === "Paragraph" || node.name === "FencedCode" || node.name === "Table") return false
+    },
+  })
+  return level
+}
+
 const bullet = Decoration.replace({ widget: new BulletWidget() })
 const hidden = Decoration.replace({})
 const lineDeco = (cls: string) => Decoration.line({ class: cls })
@@ -186,12 +220,14 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
   // A mark plus the space after it ("# ", "> ")
   const withSpace = (node: SyntaxNode) => (doc.sliceString(node.to, node.to + 1) === " " ? node.to + 1 : node.to)
 
-  // Front matter is drawn quietly and never parsed as Markdown (its "---" would read as a rule or heading)
+  // Front matter is drawn quietly and never parsed as Markdown (its "---" would read as a rule or heading).
+  // Away from the cursor it folds into one line (see block-preview); this is how it reads while edited.
   const fmEnd = frontmatterEnd(doc.sliceString(0, Math.min(doc.length, 4000)))
-  if (fmEnd) lines(0, Math.max(0, fmEnd - 1), () => "cm-frontmatter")
+  if (fmEnd) lines(0, Math.max(0, fmEnd - 1), (n, _, last) => (n === last ? "cm-frontmatter cm-frontmatter-last" : "cm-frontmatter"))
   // The first line after any front matter is the doc's title
   const title = doc.lineAt(Math.min(fmEnd, doc.length))
   decos.push(lineDeco("cm-doc-title").range(title.from))
+  const sections = sectionLevel(state, title.number)
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
@@ -207,7 +243,9 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
           case "ATXHeading4":
           case "ATXHeading5":
           case "ATXHeading6":
-            if (doc.lineAt(ref.from).number !== title.number) decos.push(lineDeco(`cm-h${ref.name.slice(-1)}`).range(doc.lineAt(ref.from).from))
+            // Sized by rank under the title, not by the number of #s: sections are 18px, everything below 15px
+            if (doc.lineAt(ref.from).number !== title.number)
+              decos.push(lineDeco(Number(ref.name.slice(-1)) <= sections ? "cm-h1" : "cm-h2").range(doc.lineAt(ref.from).from))
             break
           case "HeaderMark":
             if (node.parent?.name.startsWith("ATX") && !lineTouched(ref.from)) hide(ref.from, withSpace(node))
@@ -245,16 +283,26 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
             break
           }
           case "ListMark": {
+            // Each item hangs: its marker sits in a fixed box and wrapped lines line up with the text, not the
+            // marker. Nesting steps in by the same box, whatever spaces the file uses.
+            const line = doc.lineAt(ref.from)
             const list = node.parent?.parent?.name
             const isTask = !!node.nextSibling && node.nextSibling.name === "Task"
-            if (list === "BulletList" && !isTask && !lineTouched(ref.from)) decos.push(bullet.range(ref.from, ref.to))
-            else if (list === "BulletList" && isTask && !lineTouched(ref.from)) hide(ref.from, withSpace(node))
-            else decos.push(mark("cm-list-mark").range(ref.from, ref.to))
+            const touched = lineTouched(ref.from)
+            const end = withSpace(node)
+            let depth = 0
+            for (let p: SyntaxNode | null = node.parent; p; p = p.parent) if (p.name === "ListItem") depth++
+            decos.push(Decoration.line({ class: "cm-li", attributes: { style: `--li-depth: ${Math.max(1, depth)}` } }).range(line.from))
+            if (!touched) hide(line.from, ref.from)
+            if (list === "BulletList" && !isTask && !touched) decos.push(bullet.range(ref.from, end))
+            else if (list === "BulletList" && isTask && !touched) hide(ref.from, end)
+            else decos.push(mark("cm-list-mark").range(ref.from, end))
             break
           }
           case "TaskMarker": {
             const checked = /x/i.test(doc.sliceString(ref.from, ref.to))
-            if (!touches(ref.from, ref.to)) decos.push(Decoration.replace({ widget: new TaskWidget(checked) }).range(ref.from, ref.to))
+            const end = doc.sliceString(ref.to, ref.to + 1) === " " ? ref.to + 1 : ref.to
+            if (!touches(ref.from, ref.to)) decos.push(Decoration.replace({ widget: new TaskWidget(checked) }).range(ref.from, end))
             if (checked && node.parent) decos.push(mark("cm-task-done").range(ref.to, node.parent.to))
             break
           }
@@ -301,9 +349,26 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
               decos.push(mark("cm-hr-text").range(ref.from, ref.to))
             }
             break
-          case "FencedCode":
-            lines(ref.from, ref.to, (n, first, last) => `cm-code${n === first ? " cm-code-first" : ""}${n === last ? " cm-code-last" : ""}`)
+          case "FencedCode": {
+            // The fences hide while the cursor is outside the block, leaving the language in the corner
+            const open = doc.lineAt(ref.from)
+            const close = doc.lineAt(ref.to)
+            const closed = close.number > open.number && /^\s*(`{3,}|~{3,})\s*$/.test(close.text)
+            const folded = !touches(ref.from, ref.to)
+            lines(ref.from, ref.to, (n, first, last) => {
+              let cls = "cm-code"
+              if (n === first) cls += folded ? " cm-code-first cm-code-fence" : " cm-code-first"
+              if (n === last) cls += folded && closed ? " cm-code-last cm-code-fence" : " cm-code-last"
+              return cls
+            })
+            if (folded) {
+              const info = node.getChild("CodeInfo")
+              const lang = info ? doc.sliceString(info.from, info.to) : ""
+              decos.push(Decoration.replace({ widget: new CodeLangWidget(lang) }).range(open.from, open.to))
+              if (closed) hide(close.from, close.to)
+            }
             break
+          }
           case "Table":
             lines(ref.from, ref.to, () => "cm-table")
             break

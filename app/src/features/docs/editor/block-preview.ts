@@ -1,11 +1,12 @@
 import { syntaxTree } from "@codemirror/language"
-import { StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
+import { StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view"
 import katex from "katex"
+import { frontmatterEnd } from "../lib/naming"
 import { renderInline } from "./render-inline"
 
-// Live preview for whole blocks: a table or a $$ math block is drawn in place of its lines while the cursor
-// is outside it. Clicking the drawing puts the cursor in, which brings the Markdown back.
+// Live preview for whole blocks: a table, a $$ math block or the front matter is drawn in place of its lines
+// while the cursor is outside it. Clicking the drawing puts the cursor in, which brings the Markdown back.
 
 abstract class BlockWidget extends WidgetType {
   readonly source: string
@@ -80,9 +81,36 @@ class MathBlockWidget extends BlockWidget {
   }
 }
 
-function build(state: EditorState): DecorationSet {
+// Front matter as one quiet line of its fields, "tags: log · started: 2026-09-14"
+class FrontMatterWidget extends BlockWidget {
+  draw() {
+    const div = document.createElement("div")
+    div.className = "cm-frontmatter-folded"
+    const fields = this.source
+      .split("\n")
+      .slice(1, -1)
+      .map((line) => /^([\w-]+):\s*(.*)$/.exec(line))
+      .filter((m) => m !== null)
+      .map(([, key, value]) => {
+        const shown = value.replace(/^\[(.*)\]$/, "$1").replace(/["']/g, "").trim()
+        return shown ? `${key}: ${shown}` : key
+      })
+    div.textContent = fields.join(" · ") || "Front matter"
+    return div
+  }
+}
+
+// Whether the editor has focus: an unfocused doc reads clean, wherever its cursor was left
+const setFocused = StateEffect.define<boolean>()
+
+function build(state: EditorState, focused: boolean): DecorationSet {
   const decos: Range<Decoration>[] = []
-  const ranges = state.selection.ranges
+  const ranges = focused ? state.selection.ranges : []
+  const fmEnd = frontmatterEnd(state.sliceDoc(0, Math.min(state.doc.length, 4000)))
+  if (fmEnd) {
+    const to = state.doc.lineAt(fmEnd - 1).to
+    if (!ranges.some((r) => r.from <= to)) decos.push(Decoration.replace({ widget: new FrontMatterWidget(state.sliceDoc(0, to)), block: true }).range(0, to))
+  }
   syntaxTree(state).iterate({
     enter: (node) => {
       if (node.name !== "Table" && node.name !== "BlockMath") return
@@ -99,8 +127,15 @@ function build(state: EditorState): DecorationSet {
   return Decoration.set(decos)
 }
 
-export const blockPreview: Extension = StateField.define<DecorationSet>({
-  create: build,
-  update: (value, tr) => (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state) ? build(tr.state) : value),
-  provide: (f) => EditorView.decorations.from(f),
-})
+export const blockPreview: Extension = [
+  StateField.define<{ focused: boolean; decos: DecorationSet }>({
+    create: (state) => ({ focused: false, decos: build(state, false) }),
+    update: (value, tr) => {
+      const focused = tr.effects.reduce((f, e) => (e.is(setFocused) ? e.value : f), value.focused)
+      const changed = focused !== value.focused || tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)
+      return changed ? { focused, decos: build(tr.state, focused) } : value
+    },
+    provide: (f) => EditorView.decorations.from(f, (v) => v.decos),
+  }),
+  EditorView.focusChangeEffect.of((_, focusing) => setFocused.of(focusing)),
+]

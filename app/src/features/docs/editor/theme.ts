@@ -15,11 +15,11 @@ export const docTheme = EditorView.theme({
   ".cm-cursor": { borderLeftColor: "var(--foreground)", borderLeftWidth: "1.5px" },
   ".cm-placeholder": { color: "var(--muted-foreground)" },
 
-  // Headings sit after a blank line already, so they add only a little room of their own
   ".cm-doc-title": { fontSize: "22px", fontWeight: "500", lineHeight: "1.3", letterSpacing: "-0.015em", paddingBottom: "6px !important" },
-  ".cm-h1": { fontSize: "18px", fontWeight: "600", lineHeight: "1.4", paddingTop: "6px !important" },
-  ".cm-h2": { fontSize: "15px", fontWeight: "600", paddingTop: "4px !important" },
-  ".cm-h3, .cm-h4, .cm-h5, .cm-h6": { fontWeight: "600" },
+  // Headings are sized by rank (see live-preview): sections 18px, anything deeper 15px. Each sits after a blank
+  // line already; the extra room above it, and none below, ties it to the text it heads.
+  ".cm-h1": { fontSize: "18px", fontWeight: "600", lineHeight: "1.4", paddingTop: "16px !important" },
+  ".cm-h2": { fontSize: "15px", fontWeight: "600", paddingTop: "10px !important" },
 
   ".cm-mention": {
     color: "var(--mention)",
@@ -31,16 +31,21 @@ export const docTheme = EditorView.theme({
   },
   ".cm-mention:hover": { backgroundColor: "color-mix(in oklch, var(--mention) 10%, transparent)" },
   ".cm-link": { textDecoration: "underline", textUnderlineOffset: "3px", textDecorationColor: "color-mix(in oklch, var(--foreground) 35%, transparent)" },
-  ".cm-highlight": { backgroundColor: "color-mix(in oklch, var(--tag-amber) 30%, transparent)", borderRadius: "3px" },
+  ".cm-highlight": { backgroundColor: "var(--text-highlight)", borderRadius: "3px" },
   ".cm-inline-code": { fontFamily: mono, fontSize: "0.85em", backgroundColor: "var(--muted)", borderRadius: "4px", padding: "0.1em 0.3em" },
 
-  ".cm-bullet": { display: "inline-block", width: "1ch", color: "var(--muted-foreground)" },
-  ".cm-list-mark": { color: "var(--muted-foreground)" },
+  // List items hang: the marker sits in a 1.5em box at the start of the first line, and the text, including
+  // wrapped lines, starts after it. Each level of nesting steps in by one box.
+  ".cm-line.cm-li": { paddingLeft: "calc(var(--li-depth) * 1.5em)", textIndent: "-1.5em" },
+  ".cm-li *": { textIndent: "0" },
+  ".cm-bullet": { display: "inline-block", width: "1.5em", paddingLeft: "0.3em", color: "var(--muted-foreground)" },
+  ".cm-list-mark": { display: "inline-block", minWidth: "1.5em", color: "var(--muted-foreground)" },
   ".cm-task": {
     display: "inline-block",
     width: "14px",
     height: "14px",
-    marginRight: "4px",
+    // The box and its gap fill the same 1.5em as a bullet
+    marginRight: "calc(1.5em - 14px)",
     verticalAlign: "-2px",
     border: "1.5px solid color-mix(in oklch, var(--foreground) 35%, transparent)",
     borderRadius: "4px",
@@ -63,6 +68,17 @@ export const docTheme = EditorView.theme({
   ".cm-code": { fontFamily: mono, fontSize: "13px", backgroundColor: "var(--muted)", padding: "0 14px !important" },
   ".cm-code-first": { borderTopLeftRadius: "10px", borderTopRightRadius: "10px", paddingTop: "6px !important" },
   ".cm-code-last": { borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", paddingBottom: "6px !important" },
+  // A hidden fence leaves only a little room, and the opening one holds the language in the corner
+  ".cm-code-fence": { lineHeight: "8px", position: "relative" },
+  ".cm-code-lang": {
+    position: "absolute",
+    top: "6px",
+    right: "14px",
+    fontFamily: "var(--font-sans, inherit)",
+    fontSize: "12px",
+    lineHeight: "1.33",
+    color: "var(--muted-foreground)",
+  },
   ".cm-table": { fontFamily: mono, fontSize: "13px" },
   // A drawn table keeps the answer tables' ruled look; a little room above and below it
   ".cm-block-table": { padding: "4px 0 8px", fontSize: "14px", cursor: "text" },
@@ -81,6 +97,9 @@ export const docTheme = EditorView.theme({
   ".cm-wikilink": { color: "var(--muted-foreground)", textDecoration: "underline dotted", textUnderlineOffset: "3px" },
   ".cm-embed": { fontSize: "13px", color: "var(--muted-foreground)", backgroundColor: "var(--muted)", borderRadius: "6px", padding: "1px 6px" },
   ".cm-frontmatter": { fontFamily: mono, fontSize: "13px", color: "var(--muted-foreground)" },
+  ".cm-frontmatter-last": { paddingBottom: "12px !important" },
+  // Away from the cursor, front matter is one 12px line of its fields above the title
+  ".cm-frontmatter-folded": { paddingBottom: "12px", fontSize: "12px", lineHeight: "1.33", color: "var(--muted-foreground)", cursor: "text" },
 
   // Floating pieces drawn by the editor take the menu look: popover surface, 10px corners, soft shadow
   ".cm-tooltip": { border: "none", backgroundColor: "transparent" },

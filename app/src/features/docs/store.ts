@@ -45,6 +45,8 @@ interface DocsState {
   addNote: (fileId: string, note: AgentNote) => void
   removeNote: (fileId: string, noteId: string) => AgentNote | undefined
   restoreNote: (fileId: string, note: AgentNote) => void
+  // Notes whose passage was edited keep finding it: their quote and context become the text as it is now
+  reanchorNotes: (fileId: string, moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">>) => void
 }
 
 function pathTaken(files: Record<string, WorkspaceFile>, folders: string[], selfId?: string) {
@@ -183,6 +185,9 @@ export const useDocsStore = create<DocsState>()(
 
       restoreNote: (fileId, note) =>
         set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []).filter((n) => n.id !== note.id), note].sort((a, b) => a.createdAt - b.createdAt) } })),
+
+      reanchorNotes: (fileId, moved) =>
+        set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).map((n) => (moved[n.id] ? { ...n, ...moved[n.id] } : n)) } })),
 
       restore: ({ files, folders }) =>
         set((s) => ({

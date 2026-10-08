@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DocEditor } from "../editor/DocEditor"
-import { anchor } from "../editor/margin-notes"
+import { anchor } from "../editor/agent-notes"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
@@ -17,12 +17,13 @@ export function DocPage() {
   const file = useDocsStore((s) => s.files[docId])
   const folder = file ? parentPath(file.path) : ""
 
-  // The panel follows the open doc: its folder opens, and new docs land beside it
+  // The panel follows the open doc: its folder opens (and folders opened only for the last doc close), and
+  // new docs land beside it
   useEffect(() => {
     if (!file) return
     const ui = useDocsUiStore.getState()
     ui.openedDoc(file.id, folder)
-    if (folder) ui.expandTo(folder)
+    ui.revealDoc(folder)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docId, folder])
 
@@ -49,14 +50,31 @@ export function DocPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* Starts at the sheet's edge, as the paper page's breadcrumb does, rather than at the text column */}
       <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-[13px]">
-        <nav aria-label="Location" className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
-          {folder.split("/").filter(Boolean).map((part) => (
-            <Fragment key={part}>
-              <span className="shrink-0">{part}</span>
-              <span className="shrink-0">/</span>
-            </Fragment>
-          ))}
+        <nav aria-label="Location" className="flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
+          {folder
+            .split("/")
+            .filter(Boolean)
+            .map((part, i, parts) => {
+              const path = parts.slice(0, i + 1).join("/")
+              return (
+                <Fragment key={path}>
+                  {/* A folder shows itself in the list, selected, so a new doc lands there */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useDocsUiStore.getState().expandTo(path)
+                      useDocsUiStore.getState().selectFolder(path)
+                    }}
+                    className="-mx-1 shrink-0 rounded-md px-1 py-0.5 outline-hidden transition-colors hover:bg-accent hover:text-foreground focus-key:bg-accent"
+                  >
+                    {part}
+                  </button>
+                  <span className="shrink-0 px-0.5">/</span>
+                </Fragment>
+              )
+            })}
           <span className="truncate text-foreground">{displayName(file.path)}</span>
         </nav>
         <NoteCount docId={file.id} />

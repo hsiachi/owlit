@@ -120,9 +120,19 @@ export const seedFiles: WorkspaceFile[] = [
 
 export const seedFolders = ["writing", "notes", "meetings", "experiments"]
 
-// One note an agent left on the draft's overclaim, as if from an earlier review
+// Notes an agent left on the draft, as if from an earlier review: one on a sentence inside a paragraph, one
+// on the closing overclaim
 export const seedNotes: Record<string, AgentNote[]> = {
   d1: [
+    {
+      id: "n2",
+      quote: "The gains appear only at scale",
+      prefix: "(owlit://library/p5). ",
+      suffix: ", which fits the broader",
+      text: "“Only” is stronger than the paper: the threshold varies by task. “Mostly at scale” would hold, or cite a second source.",
+      by: "Owlit",
+      createdAt: ago(2 * DAY + HOUR),
+    },
     {
       id: "n1",
       quote: "To our knowledge, no work has compared learned tool calls with retrieval on the same tasks.",

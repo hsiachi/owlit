@@ -1,9 +1,14 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+// "a/b/c" → ["a", "a/b", "a/b/c"]; nothing for the workspace root
+const ancestors = (path: string) => (path ? path.split("/").map((_, i, parts) => parts.slice(0, i + 1).join("/")) : [])
+
 // Panel and navigation state for Docs; the open folders and the last doc survive a reload
 interface DocsUiState {
   expanded: Record<string, boolean>
+  // Folders opened only to show the open doc; they close again when the user moves to a doc elsewhere
+  autoOpened: string[]
   // Where "New doc" lands: the folder last clicked, or the open doc's folder ("" is the workspace root)
   targetFolder: string
   // A folder row the user clicked last, shown as selected until a doc is opened
@@ -16,6 +21,7 @@ interface DocsUiState {
 
   setExpanded: (path: string, open: boolean) => void
   expandTo: (path: string) => void
+  revealDoc: (folder: string) => void
   selectFolder: (path: string | null) => void
   openedDoc: (id: string, folder: string) => void
   setRenaming: (key: string | null) => void
@@ -26,20 +32,39 @@ export const useDocsUiStore = create<DocsUiState>()(
   persist(
     (set) => ({
       expanded: { writing: true, notes: true },
+      autoOpened: [],
       targetFolder: "",
       selectedFolder: null,
       lastDocId: null,
       renaming: null,
       openNote: null,
 
-      setExpanded: (path, open) => set((s) => ({ expanded: { ...s.expanded, [path]: open } })),
+      // A folder the user opens or closes is theirs: it stays as they left it
+      setExpanded: (path, open) => set((s) => ({ expanded: { ...s.expanded, [path]: open }, autoOpened: s.autoOpened.filter((p) => p !== path) })),
       // Opens every folder on the way to a path so its row is visible
       expandTo: (path) =>
         set((s) => {
-          const parts = path.split("/")
+          const way = ancestors(path)
           const expanded = { ...s.expanded }
-          for (let i = 1; i <= parts.length; i++) expanded[parts.slice(0, i).join("/")] = true
-          return { expanded }
+          for (const p of way) expanded[p] = true
+          return { expanded, autoOpened: s.autoOpened.filter((p) => !way.includes(p)) }
+        }),
+      // Opens the way to the open doc's folder, and closes folders opened only for a doc the user has left
+      revealDoc: (folder) =>
+        set((s) => {
+          const way = ancestors(folder)
+          const expanded = { ...s.expanded }
+          const autoOpened: string[] = []
+          for (const p of s.autoOpened) {
+            if (way.includes(p)) autoOpened.push(p)
+            else expanded[p] = false
+          }
+          for (const p of way)
+            if (!expanded[p]) {
+              expanded[p] = true
+              autoOpened.push(p)
+            }
+          return { expanded, autoOpened }
         }),
       selectFolder: (path) => set(path === null ? { selectedFolder: null } : { selectedFolder: path, targetFolder: path }),
       openedDoc: (id, folder) => set({ lastDocId: id, targetFolder: folder, selectedFolder: null }),
@@ -48,7 +73,7 @@ export const useDocsUiStore = create<DocsUiState>()(
     }),
     {
       name: "owlit-docs-ui",
-      partialize: (s) => ({ expanded: s.expanded, lastDocId: s.lastDocId }),
+      partialize: (s) => ({ expanded: s.expanded, autoOpened: s.autoOpened, lastDocId: s.lastDocId }),
     },
   ),
 )

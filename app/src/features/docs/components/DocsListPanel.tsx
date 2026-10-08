@@ -16,10 +16,19 @@ import { useNewDoc } from "../use-new-doc"
 const DRAG_TYPE = "application/x-owlit-docs"
 type DragItem = { kind: "file"; id: string } | { kind: "folder"; path: string }
 
-// Same row look as the Chat list, a little tighter because a tree runs longer
+// Same row look as the Chat list, a little tighter because a tree runs longer. Focus lands on the button
+// inside, so the row lights up when it holds keyboard focus.
 const rowClass =
-  "group/row relative flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md pr-2 text-left text-sm outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:bg-sidebar-accent has-[[data-state=open]]:bg-sidebar-accent"
+  "group/row relative flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md pr-2 text-left text-sm outline-hidden transition-colors hover:bg-sidebar-accent has-focus-key:bg-sidebar-accent has-[[data-state=open]]:bg-sidebar-accent"
 const indent = (depth: number) => ({ paddingLeft: 8 + depth * 14 })
+// Every row keeps a chevron-wide slot, so names at the same depth line up whether they are folders or files
+const Slot = ({ children }: { children?: React.ReactNode }) => <span className="flex size-3.5 shrink-0 items-center justify-center">{children}</span>
+
+// A name cut short by the row shows in full on hover
+const fullNameOnHover = (name: string) => (e: React.MouseEvent<HTMLElement>) => {
+  const text = e.currentTarget.querySelector<HTMLElement>("[data-name]")
+  e.currentTarget.title = text && text.scrollWidth > text.clientWidth ? name : ""
+}
 
 function undoToast(title: string, name: string, removed: Removed) {
   toast(title, {
@@ -37,7 +46,7 @@ function RowMenu({ children, label }: { children: React.ReactNode; label: string
           type="button"
           aria-label={label}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-hidden group-hover/row:opacity-100 group-focus-within/row:opacity-100 hover:bg-foreground/8 hover:text-foreground focus-visible:opacity-100 data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground data-[state=open]:opacity-100"
+          className="absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-hidden group-hover/row:opacity-100 group-has-focus-key/row:opacity-100 hover:bg-foreground/8 hover:text-foreground focus-key:bg-foreground/8 data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground data-[state=open]:opacity-100"
         >
           <EllipsisVerticalIcon className="size-4" />
         </button>
@@ -62,7 +71,8 @@ function RenameInput({ initial, depth, onDone }: { initial: string; depth: numbe
         if (e.key === "Enter") onDone(draft)
         if (e.key === "Escape") onDone(null)
       }}
-      style={indent(depth)}
+      // The text stays where the name was: past the chevron slot, less the border
+      style={{ paddingLeft: indent(depth).paddingLeft + 17 }}
       className="h-8 w-full rounded-md border bg-card pr-2 text-sm outline-none focus-visible:border-foreground/30"
       aria-label="Rename"
     />
@@ -110,9 +120,13 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
           e.dataTransfer.effectAllowed = "move"
         }}
         onClick={open}
-        className={cn("min-w-0 flex-1 truncate py-1.5 pr-1 text-left outline-hidden group-hover/row:pr-6", depth === 0 && "pl-0.5", !node.markdown && "text-muted-foreground")}
+        onMouseEnter={fullNameOnHover(node.name)}
+        className={cn("flex min-w-0 flex-1 items-center gap-1 py-1.5 pr-1 text-left outline-hidden group-hover/row:pr-6", !node.markdown && "text-muted-foreground")}
       >
-        {node.name}
+        <Slot />
+        <span data-name className="truncate">
+          {node.name}
+        </span>
       </button>
       <RowMenu label="Doc actions">
         <DropdownMenuItem onSelect={() => setTimeout(() => setRenaming(node.file.id), 0)}>Rename</DropdownMenuItem>
@@ -185,10 +199,15 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
               selectFolder(node.path)
             }}
             aria-expanded={open}
+            onMouseEnter={fullNameOnHover(node.name)}
             className="flex min-w-0 flex-1 items-center gap-1 py-1.5 text-left outline-hidden group-hover/row:pr-6"
           >
-            <ChevronRightIcon className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
-            <span className={cn("truncate", !open && activeInside && "font-medium")}>{node.name}</span>
+            <Slot>
+              <ChevronRightIcon className={cn("size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} />
+            </Slot>
+            <span data-name className={cn("truncate", !open && activeInside && "font-medium")}>
+              {node.name}
+            </span>
           </button>
           <RowMenu label="Folder actions">
             <DropdownMenuItem
@@ -293,7 +312,7 @@ export function DocsListPanel() {
           <button
             type="button"
             onClick={() => newDoc()}
-            className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-sm outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:bg-sidebar-accent"
+            className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-sm outline-hidden transition-colors hover:bg-sidebar-accent focus-key:bg-sidebar-accent"
           >
             <span className="flex size-5 items-center justify-center rounded-full bg-foreground/8">
               <PlusIcon className="size-3.5" />
@@ -307,7 +326,7 @@ export function DocsListPanel() {
                 type="button"
                 aria-label="New folder"
                 onClick={newFolder}
-                className="absolute right-1.5 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/new:opacity-100 hover:bg-foreground/8 hover:text-foreground focus-visible:opacity-100"
+                className="absolute right-1.5 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/new:opacity-100 hover:bg-foreground/8 hover:text-foreground focus-key:opacity-100"
               >
                 <FolderPlusIcon className="size-4" />
               </button>

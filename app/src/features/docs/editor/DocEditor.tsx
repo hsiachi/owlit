@@ -14,7 +14,7 @@ import { displayName, isMarkdown, type AgentNote, type WorkspaceFile } from "../
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
-import { anchor, marginNotes, setNotes, setOpenNote } from "./margin-notes"
+import { agentNotes, noteSpots, setNotes, setOpenNote } from "./agent-notes"
 import { selectionMenu } from "./selection-menu"
 import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
 import { blockPreview } from "./block-preview"
@@ -46,7 +46,9 @@ function chatAbout(fileId: string, text: string) {
   if (file) useAgentWindow.getState().open({ text, source: docMentionable(file) })
 }
 
-function dismissNote(fileId: string, note: AgentNote) {
+// Dismissing a note moves on to the next one, so a review can be worked through in one go
+function dismissNote(fileId: string, note: AgentNote, next: string | null) {
+  useDocsUiStore.getState().setOpenNote(fileId, next)
   const removed = useDocsStore.getState().removeNote(fileId, note.id)
   if (removed) toast("Note dismissed", { action: { label: "Undo", onClick: () => useDocsStore.getState().restoreNote(fileId, removed) } })
 }
@@ -71,9 +73,14 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     let pending: string | null = null
     const flush = () => {
       clearTimeout(timer)
-      if (pending !== null) useDocsStore.getState().writeDoc(id, pending)
+      if (pending !== null) {
+        useDocsStore.getState().writeDoc(id, pending)
+        saveNotePlaces()
+      }
       pending = null
     }
+    // Passages edited while the doc was open are saved as they read now, so their notes find them next time
+    let saveNotePlaces = () => {}
 
     const content = file.content ?? ""
     const saved = lastSelection.get(id)
@@ -104,13 +111,13 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           mentionPopup((query) => docMentionItems(query, id)),
           selectionMenu((text) => chatAbout(id, text)),
           agentSuggestions(respondToEdit),
-          marginNotes({
+          agentNotes({
             onOpen: (noteId) => useDocsUiStore.getState().setOpenNote(id, noteId),
             onChat: (note) => {
               useDocsUiStore.getState().setOpenNote(id, null)
               chatAbout(id, note.quote)
             },
-            onDismiss: (note) => dismissNote(id, note),
+            onDismiss: (note, next) => dismissNote(id, note, next),
           }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
@@ -150,7 +157,19 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       notes = s.notes[id]
       view.dispatch({ effects: setNotes.of(notes ?? []) })
     })
-    // Which note is open is shared with the header's note count; opening one brings it into view
+    saveNotePlaces = () => {
+      const doc = view.state.doc
+      const moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">> = {}
+      for (const s of noteSpots(view.state)) {
+        const quote = doc.sliceString(s.from, s.to)
+        if (s.lost || quote === s.note.quote) continue
+        moved[s.note.id] = { quote, prefix: doc.sliceString(Math.max(0, s.from - 32), s.from), suffix: doc.sliceString(s.to, s.to + 32) }
+      }
+      if (Object.keys(moved).length) useDocsStore.getState().reanchorNotes(id, moved)
+    }
+
+    // Which note is open is shared with the header's note count. Opening one scrolls only as far as it
+    // takes to show the note, so a note opened from the text it sits under doesn't move the page.
     const openFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openNote?.docId === id ? s.openNote.noteId : null)
     let open = openFor(useDocsUiStore.getState())
     if (open) view.dispatch({ effects: setOpenNote.of(open) })
@@ -158,11 +177,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       const next = openFor(s)
       if (next === open) return
       open = next
-      const note = next ? notes?.find((n) => n.id === next) : undefined
-      const at = note ? anchor(view.state.doc.toString(), note) : null
-      view.dispatch({
-        effects: [setOpenNote.of(next), ...(note ? [EditorView.scrollIntoView(at ?? 0, { y: "center" })] : [])],
-      })
+      view.dispatch({ effects: setOpenNote.of(next) })
+      const spot = noteSpots(view.state).find((n) => n.note.id === next)
+      // Room below the passage's last line for the card
+      if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 160 }) })
     })
 
     window.addEventListener("beforeunload", flush)
