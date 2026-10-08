@@ -55,10 +55,11 @@ export function PaperPage() {
   const prevId = idx > 0 ? order[idx - 1] : null
   const nextId = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null
 
-  // Opening a paper with a PDF counts as starting to read it; the list's cursor follows
+  // Opening a paper with a PDF counts as starting to read it. The list's keyboard cursor follows so
+  // ↑↓ carry on from here after going back, but nothing is shown as selected.
   useEffect(() => {
     if (!paper) return
-    useUiStore.setState({ cursorId: paper.id, selectedIds: [paper.id], anchorId: paper.id })
+    useUiStore.setState({ cursorId: paper.id, anchorId: paper.id, selectedIds: [], peekId: null })
     if (paper.pdf) markOpened(paper.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId])

@@ -167,9 +167,10 @@ export function PaperTable({ papers, order }: { papers: Paper[]; order: string[]
               <th
                 key={c.key}
                 aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}
-                className="sticky top-0 z-10 h-8 bg-background px-2.5 text-left text-xs font-medium text-muted-foreground"
+                className="sticky top-0 z-10 h-9 border-b-4 border-background bg-background px-2.5 text-left text-xs font-medium text-muted-foreground"
               >
-                {/* The tint sits on a layer so the sticky header stays opaque over scrolled rows */}
+                {/* The tint sits on a layer inside the cell's padding, so the sticky header stays opaque over scrolled
+                    rows and a 4px band of sheet separates it from the first row's hover fill */}
                 <span
                   aria-hidden
                   className={cn("absolute inset-0 -z-10 bg-muted", i === 0 && "rounded-l-md", i === COLUMNS.length - 1 && "rounded-r-md")}
