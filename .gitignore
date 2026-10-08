@@ -2,3 +2,7 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# Local Claude Code state: preview config and agent worktrees
+.claude/launch.json
+.claude/worktrees/
