@@ -165,10 +165,10 @@ const notesField = StateField.define<NotesState>({
   update(value, tr) {
     let { spots, open } = value
     // While the doc is open a passage follows the edits: text typed at either end stays outside it, and a
-    // passage deleted whole is lost
+    // passage deleted whole is lost until its words come back (an undo)
     if (tr.docChanged)
       spots = spots.map((s) => {
-        if (s.lost) return lostSpot(tr.state, s.note)
+        if (s.lost) return locate(tr.state, s.note)
         const from = tr.changes.mapPos(s.from, 1)
         const to = tr.changes.mapPos(s.to, -1)
         return to > from ? { ...s, from, to } : lostSpot(tr.state, s.note)

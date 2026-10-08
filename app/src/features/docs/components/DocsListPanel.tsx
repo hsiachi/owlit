@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ChevronRightIcon, EllipsisVerticalIcon, FolderPlusIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -60,16 +60,23 @@ function RowMenu({ children, label }: { children: React.ReactNode; label: string
 
 function RenameInput({ initial, depth, onDone }: { initial: string; depth: number; onDone: (name: string | null) => void }) {
   const [draft, setDraft] = useState(initial)
+  // Enter or Esc ends it; the blur that follows as the input goes away must not end it again
+  const done = useRef(false)
+  const finish = (name: string | null) => {
+    if (done.current) return
+    done.current = true
+    onDone(name)
+  }
   return (
     <input
       autoFocus
       value={draft}
       onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => onDone(draft)}
+      onBlur={() => finish(draft)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onDone(draft)
-        if (e.key === "Escape") onDone(null)
+        if (e.key === "Enter") finish(draft)
+        if (e.key === "Escape") finish(null)
       }}
       // The text stays where the name was: past the chevron slot, less the border
       style={{ paddingLeft: indent(depth).paddingLeft + 17 }}

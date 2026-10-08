@@ -7,10 +7,10 @@ import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
-import { registerEditor } from "../fs"
+import { registerEditor, wikilinkFile } from "../fs"
 import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
-import { displayName, isMarkdown, type AgentNote, type WorkspaceFile } from "../types"
+import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
@@ -24,10 +24,7 @@ import "katex/dist/katex.min.css"
 
 // [[Name]] leads to the doc called Name (or at that path), wherever it is in the workspace
 function wikilinkRoute(name: string) {
-  const want = name.toLowerCase().replace(/\.md$/, "")
-  const file = Object.values(useDocsStore.getState().files).find(
-    (f) => isMarkdown(f.path) && (displayName(f.path).toLowerCase() === want || f.path.toLowerCase().replace(/\.md$/, "") === want),
-  )
+  const file = wikilinkFile(useDocsStore.getState().files, name)
   return file ? `/docs/${file.id}` : null
 }
 
@@ -40,10 +37,10 @@ function respondToEdit(edit: PendingEdit, apply: boolean) {
   if (option) useChatStore.getState().respondPermission(edit.chatId, edit.requestId, option.optionId)
 }
 
-// A selected passage goes to the agent window, which waits for the question
-function chatAbout(fileId: string, text: string) {
+// A selected passage goes to the agent window, which waits for the question; `from` says which occurrence
+function chatAbout(fileId: string, text: string, from?: number) {
   const file = useDocsStore.getState().files[fileId]
-  if (file) useAgentWindow.getState().open({ text, source: docMentionable(file) })
+  if (file) useAgentWindow.getState().open({ text, source: docMentionable(file), from })
 }
 
 // Dismissing a note moves on to the next one, so a review can be worked through in one go
@@ -88,7 +85,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       parent: host.current!,
       state: EditorState.create({
         doc: content,
-        selection: saved && saved.main.head <= content.length ? saved : undefined,
+        selection: saved && saved.ranges.every((r) => r.to <= content.length) ? saved : undefined,
         extensions: [
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
@@ -109,13 +106,13 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup((query) => docMentionItems(query, id)),
-          selectionMenu((text) => chatAbout(id, text)),
+          selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from)),
           agentSuggestions(respondToEdit),
           agentNotes({
             onOpen: (noteId) => useDocsUiStore.getState().setOpenNote(id, noteId),
             onChat: (note) => {
               useDocsUiStore.getState().setOpenNote(id, null)
-              chatAbout(id, note.quote)
+              chatAbout(id, note.quote, noteSpots(view.state).find((s) => s.note.id === note.id && !s.lost)?.from)
             },
             onDismiss: (note, next) => dismissNote(id, note, next),
           }),

@@ -1,13 +1,9 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { newId } from "@/lib/id"
 import { cleanName, extOf, nameFromFirstLine, timeName, uniquePath } from "./lib/naming"
 import { seedFiles, seedFolders, seedNotes } from "./mocks/seed"
 import { baseName, isMarkdown, joinPath, parentPath, type AgentNote, type WorkspaceFile } from "./types"
-
-const newId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID().slice(0, 8)
-    : Math.random().toString(36).slice(2, 10)
 
 // Docs started in this session. One left without a single character is discarded when the user moves
 // on, so a stray ⌘N leaves nothing behind; files that were already on disk are never touched this way.
@@ -29,8 +25,9 @@ interface DocsState {
   createDoc: (folder: string) => WorkspaceFile
   // A doc written whole at a chosen path (an agent creating a file); null if the path is taken
   createDocAt: (path: string, content: string) => WorkspaceFile | null
-  // Saves the text; while the file was never renamed by hand, its name follows the first line
-  writeDoc: (id: string, content: string) => void
+  // Saves the text; while the file was never renamed by hand, its name follows the first line. `keepTime`
+  // leaves the edit time alone, for changes the user didn't make (links following a renamed doc).
+  writeDoc: (id: string, content: string, keepTime?: boolean) => void
   renameFile: (id: string, name: string) => void
   moveFile: (id: string, folder: string) => void
   deleteFile: (id: string) => Removed
@@ -49,10 +46,12 @@ interface DocsState {
   reanchorNotes: (fileId: string, moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">>) => void
 }
 
+// A path is taken by a file, a folder the user made, or a folder that exists because it holds files
 function pathTaken(files: Record<string, WorkspaceFile>, folders: string[], selfId?: string) {
   const lower = (p: string) => p.toLowerCase()
   return (path: string) =>
-    Object.values(files).some((f) => f.id !== selfId && lower(f.path) === lower(path)) || folders.some((f) => lower(f) === lower(path))
+    Object.values(files).some((f) => f.id !== selfId && (lower(f.path) === lower(path) || lower(f.path).startsWith(lower(path) + "/"))) ||
+    folders.some((f) => lower(f) === lower(path))
 }
 
 // Rewrites every path under `from` to sit under `to` instead
@@ -90,7 +89,7 @@ export const useDocsStore = create<DocsState>()(
         return file
       },
 
-      writeDoc: (id, content) =>
+      writeDoc: (id, content, keepTime) =>
         set((s) => {
           const f = s.files[id]
           if (!f || f.content === content) return s
@@ -104,7 +103,7 @@ export const useDocsStore = create<DocsState>()(
             const numbered = current.startsWith(stem + " ") && /^\d+$/.test(current.slice(stem.length + 1)) && taken(joinPath(folder, stem + ".md"))
             if (stem !== current && !numbered) path = uniquePath(folder, stem, ".md", taken)
           }
-          return { files: { ...s.files, [id]: { ...f, content, path, modifiedAt: Date.now() } } }
+          return { files: { ...s.files, [id]: { ...f, content, path, modifiedAt: keepTime ? f.modifiedAt : Date.now() } } }
         }),
 
       renameFile: (id, name) =>
@@ -148,7 +147,8 @@ export const useDocsStore = create<DocsState>()(
         const clean = cleanName(name)
         if (!clean || clean === baseName(path)) return path
         const s = get()
-        const to = uniquePath(parentPath(path), clean, "", pathTaken(s.files, s.folders))
+        // A change of case only is the same folder, so it can't collide with itself
+        const to = clean.toLowerCase() === baseName(path).toLowerCase() ? joinPath(parentPath(path), clean) : uniquePath(parentPath(path), clean, "", pathTaken(s.files, s.folders))
         set(relocate(s, path, to))
         return to
       },

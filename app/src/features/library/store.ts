@@ -1,16 +1,12 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { newId } from "@/lib/id"
 import type { LibraryClient } from "./client"
 import { MockLibraryClient } from "./mock-client"
 import { seedPapers } from "./mocks/papers"
 import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "./types"
 
 export const libraryClient: LibraryClient = new MockLibraryClient()
-
-const newId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID().slice(0, 8)
-    : Math.random().toString(36).slice(2, 10)
 
 interface LibraryState {
   papers: Record<string, Paper>

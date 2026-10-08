@@ -1,10 +1,11 @@
 import { undo } from "@codemirror/commands"
 import type { EditorView } from "@codemirror/view"
 import { toast } from "sonner"
+import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { docUri } from "./lib/mentions"
 import { useDocsStore } from "./store"
-import { displayName, isMarkdown } from "./types"
+import { displayName, isMarkdown, type WorkspaceFile } from "./types"
 
 // Docs open in an editor, by file id. An agent's write to an open doc goes through its editor, so it lands
 // as one undoable change and the cursor stays where the user left it.
@@ -19,6 +20,14 @@ export function registerEditor(id: string, view: EditorView) {
 
 const fileAt = (path: string) => Object.values(useDocsStore.getState().files).find((f) => f.path === path)
 
+// The doc a [[wikilink]] names: the first called Name, or the one at that path
+export function wikilinkFile(files: Record<string, WorkspaceFile>, name: string) {
+  const want = name.toLowerCase().replace(/\.md$/, "")
+  return Object.values(files).find(
+    (f) => isMarkdown(f.path) && (displayName(f.path).toLowerCase() === want || f.path.toLowerCase().replace(/\.md$/, "") === want),
+  )
+}
+
 // The smallest change that turns `from` into `to`: one replaced span between a shared prefix and suffix
 export function spanChange(from: string, to: string) {
   let start = 0
@@ -31,10 +40,11 @@ export function spanChange(from: string, to: string) {
 // The text of a doc as it is now: the open editor's, else the stored file's
 const currentText = (id: string) => openEditors.get(id)?.state.doc.toString() ?? useDocsStore.getState().files[id]?.content ?? ""
 
-// Writes a doc without the user having typed it: through its editor when open, else straight to the file
+// Writes a doc without the user having typed it: through its editor when open, else straight to the file,
+// leaving its edit time as it was
 function rewrite(id: string, content: string) {
   const view = openEditors.get(id)
-  if (!view) return useDocsStore.getState().writeDoc(id, content)
+  if (!view) return useDocsStore.getState().writeDoc(id, content, true)
   const change = spanChange(view.state.doc.toString(), content)
   if (change.from !== change.to || change.insert) view.dispatch({ changes: change })
 }
@@ -46,22 +56,25 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 useDocsStore.subscribe((state, prev) => {
   const moves = Object.values(state.files).flatMap((f) => {
     const before = prev.files[f.id]
-    return before && before.path !== f.path && isMarkdown(f.path) ? [{ from: before.path, to: f.path }] : []
+    if (!before || before.path === f.path || !isMarkdown(f.path)) return []
+    // [[Name]] links follow only when the name led to this doc, not to another doc of the same name
+    const named = wikilinkFile(prev.files, displayName(before.path))?.id === f.id
+    return [{ from: before.path, to: f.path, named }]
   })
   if (!moves.length) return
   for (const doc of Object.values(state.files)) {
     if (!isMarkdown(doc.path)) continue
     const text = currentText(doc.id)
     let next = text
-    for (const { from, to } of moves) {
+    for (const { from, to, named } of moves) {
       const oldUri = docUri(from)
       if (next.includes(oldUri))
         next = next.replace(new RegExp(`\\[([^\\]]*)\\]\\(${escapeRe(oldUri)}\\)`, "g"), (_m, label: string) =>
           `[${label === displayName(from) ? displayName(to) : label}](${docUri(to)})`,
         )
       // [[Name]], [[Name|shown]] and [[Name#heading]] follow a rename too; a move alone doesn't change them
-      if (displayName(from) !== displayName(to))
-        next = next.replace(new RegExp(`(!?\\[\\[)${escapeRe(displayName(from))}(?=[\\]|#])`, "gi"), `$1${displayName(to)}`)
+      if (named && displayName(from) !== displayName(to))
+        next = next.replace(new RegExp(`(!?\\[\\[)${escapeRe(displayName(from))}(?=[\\]|#])`, "gi"), (_m, open: string) => open + displayName(to))
     }
     if (next !== text) rewrite(doc.id, next)
   }
@@ -86,12 +99,21 @@ setWorkspaceFs({
       useDocsStore.getState().writeDoc(file.id, content)
       return
     }
-    const change = spanChange(view.state.doc.toString(), content)
+    const before = view.state.doc.toString()
+    const change = spanChange(before, content)
     if (change.from === change.to && !change.insert) return
     view.dispatch({ changes: change, userEvent: "input.agent" })
+    const after = view.state.doc.toString()
     toast("Edit applied", {
       description: displayName(file.path),
-      action: { label: "Undo", onClick: () => undo(view) },
+      action: {
+        label: "Undo",
+        // Once the doc has been closed its editor's history is gone: the text goes back if nothing changed since
+        onClick: () => {
+          if (openEditors.get(file.id) === view) undo(view)
+          else if (currentText(file.id) === after) rewrite(file.id, before)
+        },
+      },
     })
   },
 })
@@ -107,7 +129,7 @@ setWorkspaceNotes({
     const at = doc.indexOf(quote)
     if (at < 0 || !quote.trim()) return false
     useDocsStore.getState().addNote(file.id, {
-      id: crypto.randomUUID().slice(0, 8),
+      id: newId(),
       quote,
       prefix: doc.slice(Math.max(0, at - CONTEXT), at),
       suffix: doc.slice(at + quote.length, at + quote.length + CONTEXT),

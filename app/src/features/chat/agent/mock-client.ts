@@ -148,7 +148,7 @@ export class MockAgentClient implements AgentClient {
     await this.stream(emit, signal, rewritten.why + "\n\n", "agent_message_chunk", 14)
     const title = selection.source.title
     const toolCallId = `tc-${crypto.randomUUID()}`
-    const diff = { path, oldText: before, newText: before.replace(selection.text, rewritten.text) }
+    const diff = { path, oldText: before, newText: replacePassage(before, selection, rewritten.text) }
     emit({ type: "tool_call", toolCallId, title: `Edit ${title}`, kind: "edit", status: "pending", locations: [{ path }], diff })
     let outcome: PermissionKind = "allow_once"
     if (!AUTO_MODES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
@@ -165,7 +165,7 @@ export class MockAgentClient implements AgentClient {
       emit({ type: "tool_call_update", toolCallId, status: "failed", content: "The passage changed before the edit could be applied." })
       return "end_turn"
     }
-    await fs.writeTextFile(path, now.replace(selection.text, rewritten.text))
+    await fs.writeTextFile(path, replacePassage(now, selection, rewritten.text))
     emit({ type: "tool_call_update", toolCallId, status: "completed", content: `Replaced 1 passage in ${path}` })
     return "end_turn"
   }
@@ -304,6 +304,15 @@ function reviewNotes(doc: string): { quote: string; note: string }[] {
     }
   }
   return out
+}
+
+// The selected passage replaced: the occurrence nearest where it was selected, as written (no $ patterns)
+function replacePassage(doc: string, selection: QuotedSelection, text: string) {
+  const near = selection.from ?? 0
+  let at = -1
+  for (let i = doc.indexOf(selection.text); i >= 0; i = doc.indexOf(selection.text, i + 1))
+    if (at < 0 || Math.abs(i - near) < Math.abs(at - near)) at = i
+  return at < 0 ? doc : doc.slice(0, at) + text + doc.slice(at + selection.text.length)
 }
 
 // owlit://docs/writing/Related%20work.md → "writing/Related work.md"

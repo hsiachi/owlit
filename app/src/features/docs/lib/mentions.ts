@@ -41,18 +41,11 @@ export const paperMentionable = (paper: Paper): Mentionable => ({
 export function docMentionItems(query: string, selfId?: string): DocMention[] {
   const papers: DocMention[] = Object.values(useLibraryStore.getState().papers)
     .sort((x, y) => (y.lastOpenedAt ?? y.addedAt) - (x.lastOpenedAt ?? x.addedAt))
-    .map((p) => ({
-      id: p.id,
-      kind: "paper",
-      title: p.title,
-      subtitle: shortCite(p).replace(/ (\d{4})$/, " · $1"),
-      uri: `owlit://library/${p.id}`,
-      label: shortCite(p),
-    }))
+    .map((p) => ({ ...paperMentionable(p), label: shortCite(p) }))
   const docs: DocMention[] = Object.values(useDocsStore.getState().files)
     .filter((f) => f.id !== selfId && isMarkdown(f.path))
     .sort((x, y) => y.modifiedAt - x.modifiedAt)
-    .map((f) => ({ id: f.id, kind: "doc", title: displayName(f.path), subtitle: parentPath(f.path) || undefined, uri: docUri(f.path), label: displayName(f.path) }))
+    .map((f) => ({ ...docMentionable(f), label: displayName(f.path) }))
   const items = [...papers, ...docs, ...knowledge.map((k) => ({ ...k, label: k.title }))]
 
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)

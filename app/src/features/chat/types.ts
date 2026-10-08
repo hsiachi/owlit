@@ -54,6 +54,8 @@ export interface QuotedSelection {
   text: string
   // The doc or paper it came from
   source: Mentionable
+  // Where it starts in a doc, so the passage is found again even when the same words appear twice
+  from?: number
 }
 
 export interface PlanEntry {
