@@ -52,10 +52,25 @@ interface Line extends TextLine {
   bold: boolean
 }
 
-export async function extractText(
-  bytes: Uint8Array,
-  options: { wasmPath?: string; signal?: AbortSignal; onPage?: (done: number, total: number) => void } = {},
-): Promise<PaperText> {
+export interface ReadOptions {
+  wasmPath?: string
+  signal?: AbortSignal
+  onPage?: (done: number, total: number) => void
+  // Only the first pages (what identifying a dropped file needs)
+  maxPages?: number
+}
+
+// What the file says about itself (its Info dictionary), often empty or a word processor's leftovers
+export interface PdfMeta {
+  title?: string
+  author?: string
+}
+
+export async function extractText(bytes: Uint8Array, options: ReadOptions = {}): Promise<PaperText> {
+  return (await readPdf(bytes, options)).text
+}
+
+export async function readPdf(bytes: Uint8Array, options: ReadOptions = {}): Promise<{ text: PaperText; meta: PdfMeta; pageCount: number }> {
   const m = await loadPdfium(options.wasmPath)
   const ptr = m.pdfium.wasmExports.malloc(bytes.length)
   // Emscripten's heap view; the package's types leave it out
@@ -68,9 +83,13 @@ export async function extractText(
   const box = m.pdfium.wasmExports.malloc(16)
   const nameBuffer = m.pdfium.wasmExports.malloc(128)
   const pages: { index: number; width: number; height: number; lines: Line[] }[] = []
+  let meta: PdfMeta = {}
+  let count = 0
   try {
-    const count = m.FPDF_GetPageCount(doc)
-    for (let index = 0; index < count; index++) {
+    count = m.FPDF_GetPageCount(doc)
+    meta = { title: metaText(m, doc, "Title"), author: metaText(m, doc, "Author") }
+    const last = Math.min(count, options.maxPages ?? count)
+    for (let index = 0; index < last; index++) {
       options.signal?.throwIfAborted()
       const page = m.FPDF_LoadPage(doc, index)
       if (!page) continue
@@ -98,7 +117,7 @@ export async function extractText(
       if (text) m.FPDFText_ClosePage(text)
       m.FPDF_ClosePage(page)
       pages.push({ index, width, height, lines: toLines(chars) })
-      options.onPage?.(index + 1, count)
+      options.onPage?.(index + 1, last)
       // Give way between pages
       await new Promise((resolve) => setImmediate(resolve))
     }
@@ -117,7 +136,20 @@ export async function extractText(
     pages: pages.map(({ index, width, height, lines }): TextPage => ({ index, width, height, blocks: toBlocks(lines, body, width, index) })),
   }
   if (characters < OCR_THRESHOLD * Math.max(1, pages.length)) result.needsOcr = true
-  return result
+  return { text: result, meta, pageCount: count }
+}
+
+// One entry of the Info dictionary, as UTF-16LE pdfium hands back
+function metaText(m: WrappedPdfiumModule, doc: number, tag: string) {
+  const length = m.FPDF_GetMetaText(doc, tag, 0, 0)
+  if (length <= 2) return undefined
+  const buffer = m.pdfium.wasmExports.malloc(length)
+  try {
+    m.FPDF_GetMetaText(doc, tag, buffer, length)
+    return m.pdfium.UTF16ToString(buffer).trim() || undefined
+  } finally {
+    m.pdfium.wasmExports.free(buffer)
+  }
 }
 
 // The font's weight, or its name when the weight isn't given (the standard fonts: Helvetica-Bold)

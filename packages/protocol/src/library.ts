@@ -150,6 +150,8 @@ export type PaperPatch = Partial<Omit<Paper, "id" | "pdf" | "addedAt" | "addedBy
 export interface LibraryChange {
   papers: Paper[]
   removed: string[]
+  // A paper that moved to another id (a local file given its DOI): old id → new id
+  renamed?: Record<string, string>
 }
 
 // library/papers/<id>/text.json: the paper's full text with where each line sits, so a passage can be

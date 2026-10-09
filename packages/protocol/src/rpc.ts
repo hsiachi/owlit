@@ -166,8 +166,11 @@ export interface Methods {
   "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
   // For each input, the id of the paper in the library it names, or null; asks no one
   "library.known": { params: { inputs: string[] }; result: (string | null)[] }
-  // Every paper, with every highlight and note
-  "library.list": { params: void; result: { papers: Paper[]; highlights: Highlight[]; notes: PaperNote[] } }
+  // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
+  "library.list": { params: void; result: { papers: Paper[]; highlights: Highlight[]; notes: PaperNote[]; aliases: Record<string, string> } }
+  // A PDF file dropped on the library: recognised (arXiv stamp, DOI) and added with its metadata, or
+  // kept as local-<hash>. The same file dropped again comes back with existed.
+  "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean } }
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
   "library.add": { params: { paper: ResolvedPaper; addedBy?: Paper["addedBy"] }; result: Paper }

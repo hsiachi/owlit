@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -47,6 +47,8 @@ export function PaperPage() {
   const { paperId = "" } = useParams()
   const navigate = useNavigate()
   const paper = useLibraryStore((s) => s.papers[paperId])
+  // A paper that moved (a local file given its DOI) still opens from its old link
+  const movedTo = useLibraryStore((s) => (s.papers[paperId] ? undefined : s.aliases[paperId]))
   const markOpened = useLibraryStore((s) => s.markOpened)
   const prefersPanel = usePrefsStore((s) => s.panelOpen)
   const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
@@ -99,6 +101,7 @@ export function PaperPage() {
     else useReaderStore.setState({ pendingPassage: passage })
   }, [paperId, passageId, setParams])
 
+  if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">

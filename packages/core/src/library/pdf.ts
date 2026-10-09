@@ -42,6 +42,8 @@ export interface Acquisition {
   at: number
   // Where a PDF found by hand goes
   dropHere: string
+  // Of the PDF in place: the same file dropped again is recognised
+  sha256?: string
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}

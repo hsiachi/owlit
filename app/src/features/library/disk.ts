@@ -63,11 +63,12 @@ function takeFromCore(update: () => void) {
 
 async function load() {
   const gen = generation
-  const { papers, highlights, notes } = await rpc.library.list()
+  const { papers, highlights, notes, aliases } = await rpc.library.list()
   if (gen !== generation) return
   takeFromCore(() =>
     useLibraryStore.setState({
       papers: byId(papers),
+      aliases,
       highlights: byId(highlights),
       notes: Object.fromEntries(notes.map((n) => [n.paperId, n])),
     }),
@@ -80,6 +81,11 @@ async function reload() {
   } catch (error) {
     console.warn("[owlit] couldn't read the library", error)
   }
+}
+
+// A paper core made or changed at the window's request (an imported PDF), taken without being sent back
+export function takePaper(paper: Paper) {
+  takeFromCore(() => useLibraryStore.setState((s) => ({ papers: { ...s.papers, [paper.id]: paper } })))
 }
 
 // ---- Differences, store → core
@@ -166,7 +172,12 @@ if (onDisk) {
     if (state.notes !== prev.notes) notesChanged(state.notes, prev.notes, state.papers)
   })
 
-  onNotify("library.changed", ({ papers, removed }) =>
+  onNotify("library.changed", ({ papers, removed, renamed }) => {
+    // A paper moved to another id: its highlights and notes move with it, so read the library again
+    if (renamed && Object.keys(renamed).length) {
+      enqueue(load)
+      return
+    }
     takeFromCore(() =>
       useLibraryStore.setState((s) => {
         const next = { ...s.papers }
@@ -174,8 +185,8 @@ if (onDisk) {
         for (const id of removed) delete next[id]
         return { papers: next }
       }),
-    ),
-  )
+    )
+  })
 
   onWorkspaceOpened(() => {
     generation++

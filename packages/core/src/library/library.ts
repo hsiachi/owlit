@@ -7,12 +7,16 @@ import {
   type Paper,
   type PaperNote,
   type PaperPatch,
+  type PaperIds,
   type PaperRecord,
+  type PaperState,
   type PaperText,
   type ResolvedPaper,
   type TaskPriority,
 } from "@owlit/protocol"
 import { watch, type FSWatcher } from "node:fs"
+import { createHash } from "node:crypto"
+import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, type Http } from "../net/http.ts"
@@ -34,9 +38,10 @@ import {
   writeAcquisition,
   type Attempt,
 } from "./pdf.ts"
-import { paperIdOf, parseRef, refOfIds } from "./refs.ts"
+import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { readText, writeText } from "./text/files.ts"
-import { extractText, UnreadablePdf } from "./text/extract.ts"
+import { extractText, readPdf, UnreadablePdf } from "./text/extract.ts"
+import { identify, type Identified } from "./text/identify.ts"
 import { NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import {
   applyPatch,
@@ -83,6 +88,8 @@ export class Library {
   private timer: ReturnType<typeof setTimeout> | undefined
   // Writes, one at a time, so a paper's files never race
   private writing: Promise<unknown> = Promise.resolve()
+  // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
+  private pdfHashes: Map<string, string> | undefined
 
   constructor(root: string, dataDir: string, services: LibraryServices) {
     this.root = root
@@ -99,7 +106,7 @@ export class Library {
   // ---- Reading
 
   // Every paper, with every highlight and note
-  async list(): Promise<{ papers: Paper[]; highlights: Highlight[]; notes: PaperNote[] }> {
+  async list(): Promise<{ papers: Paper[]; highlights: Highlight[]; notes: PaperNote[]; aliases: Record<string, string> }> {
     const papers: Paper[] = []
     const highlights: Highlight[] = []
     const notes: PaperNote[] = []
@@ -111,7 +118,7 @@ export class Library {
       const note = await readNote(this.root, id)
       if (note) notes.push(note)
     }
-    return { papers, highlights, notes }
+    return { papers, highlights, notes, aliases: await this.aliases() }
   }
 
   // The paper, or undefined when its folder has no readable paper.json
@@ -208,9 +215,50 @@ export class Library {
       const record = await readRecord(this.root, id)
       if (!record) throw notFound(id)
       const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt)
+      if (id.startsWith("local-") && patch.ids && paperIdOf(cleanIds(patch.ids))) return this.relink(id, record, state, patch)
       await writeState(this.root, id, applyPatch(state, record, patch))
       return (await this.get(id))!
     })
+  }
+
+  // A local paper the user has given a DOI or arXiv id becomes that paper: its folders move to the new
+  // id, its metadata is fetched, and the old id stays an alias so links to it still open it
+  private async relink(id: string, record: PaperRecord, state: PaperState, patch: PaperPatch): Promise<Paper> {
+    const ids = { ...record.ids, ...cleanIds(patch.ids!) }
+    const next = paperIdOf(ids)!
+    const other = await this.index.find(ids)
+    if (other && other !== id) {
+      throw new RpcFailure(RpcErrorCode.Conflict, "Another paper in your library already has that id.", { id: other })
+    }
+    this.scheduler?.cancelSubject(id)
+    await mkdir(path.dirname(paperStateDir(this.root, next)), { recursive: true })
+    await rename(paperDir(this.root, id), paperDir(this.root, next))
+    await rename(paperStateDir(this.root, id), paperStateDir(this.root, next)).catch(ignoreMissing)
+    await writeRecord(this.root, { ...record, id: next, ids })
+    const { ids: _ids, ...rest } = patch
+    await writeState(this.root, next, applyPatch(state, record, rest))
+    this.index.delete(id)
+    this.index.set(next, ids)
+    for (const [sha, paper] of this.pdfHashes ?? []) if (paper === id) this.pdfHashes!.set(sha, next)
+    const aliases = await this.aliases()
+    for (const [from, to] of Object.entries(aliases)) if (to === id) aliases[from] = next
+    aliases[id] = next
+    await writeJsonAtomic(this.aliasFile(), { version: 1, aliases })
+    this.queue("paper.metadata", next, "asked")
+    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, next, "background")
+    const paper = (await this.get(next))!
+    this.onChange({ papers: [paper], removed: [id], renamed: { [id]: next } })
+    return paper
+  }
+
+  // Old ids → the ids those papers have now
+  async aliases(): Promise<Record<string, string>> {
+    const kept = await readJson<{ aliases?: Record<string, string> }>(this.aliasFile()).catch(() => undefined)
+    return { ...kept?.aliases }
+  }
+
+  private aliasFile() {
+    return path.join(this.root, OWLIT_DIR, "papers", "aliases.json")
   }
 
   // To .owlit/trash/, both halves, so restore() (Undo) brings everything back
@@ -309,31 +357,112 @@ export class Library {
   attachPdf(id: string, file: string): Promise<Paper> {
     return this.serial(async () => {
       if (!(await readRecord(this.root, id))) throw notFound(id)
-      const handle = await open(file, "r").catch(() => {
-        throw new RpcFailure(RpcErrorCode.NotFound, "That file can't be opened.", { file })
-      })
-      const head = Buffer.alloc(5)
-      await handle.read(head, 0, 5, 0)
-      await handle.close()
-      if (head.toString("latin1") !== "%PDF-") throw new RpcFailure(RpcErrorCode.InvalidParams, "That file isn't a PDF.")
-      // A download still looking must not replace the user's file when it lands
-      const looking = this.scheduler?.list().find((t) => t.kind === "paper.pdf" && t.subject === id && !isTaskFinished(t))
-      if (looking) this.scheduler!.cancel(looking.id)
-      const dest = pdfFile(this.root, id)
-      await copyFile(file, `${dest}.part`)
-      await rename(`${dest}.part`, dest)
-      const previous = await readAcquisition(this.root, id)
-      await writeAcquisition(this.root, id, {
-        version: 1,
-        result: "ok",
-        route: "dropped",
-        tried: [...(previous?.tried ?? []), { route: "dropped", url: file, at: Date.now() }],
-        at: Date.now(),
-        dropHere: dest,
-      })
-      for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, "asked")
+      await assertPdf(file)
+      await this.placePdf(id, file, await sha256Of(file))
       return (await this.get(id))!
     })
+  }
+
+  // A PDF dropped on the library: which paper it is (arXiv's stamp, a DOI on its first pages), added
+  // with its metadata when the services know it, or kept as local-<hash> with a title guessed from the
+  // file. The same file dropped again is the paper it already is.
+  // Reading and looking up happen outside the write queue, so a slow service never holds up a star or a
+  // note; only placing the paper is queued.
+  async importPdf(file: string): Promise<{ paper: Paper; existed: boolean }> {
+    await assertPdf(file)
+    const sha = await sha256Of(file)
+    const same = await this.serial(() => this.paperWithPdf(sha))
+    if (same) return { paper: (await this.get(same))!, existed: true }
+
+    const bytes = await readFile(file)
+    let found: Identified = { authors: [] }
+    try {
+      const { text, meta } = await readPdf(bytes, { wasmPath: this.services.pdfiumWasm, maxPages: 2 })
+      found = identify(text, meta)
+    } catch (error) {
+      if (!(error instanceof UnreadablePdf)) throw error
+      throw new RpcFailure(RpcErrorCode.InvalidParams, error.message)
+    }
+    const name = path.basename(file).replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim()
+    let resolution: Resolution | undefined
+    if (found.ref) {
+      resolution = await resolve(this.services.http, found.ref, await this.services.settings(), { retries: 1 }).catch(() => undefined)
+      if (resolution) this.remember(resolution)
+    }
+    return this.serial(async () => {
+      // Dropped twice at once: the first one placed it
+      const placed = await this.paperWithPdf(sha)
+      if (placed) return { paper: (await this.get(placed))!, existed: true }
+      const ids = resolution?.ids ?? (found.ref ? { [found.ref.kind]: found.ref.value } : {})
+      // Known under one of its ids: the file joins that paper unless it already has one
+      const existing = await this.index.find(ids)
+      if (existing) {
+        if (!(await hasPdfFile(this.root, existing))) await this.placePdf(existing, file, sha)
+        return { paper: (await this.get(existing))!, existed: true }
+      }
+      const id = resolution?.id ?? paperIdOf(ids) ?? `local-${sha.slice(0, 12)}`
+      const record: PaperRecord = resolution
+        ? recordFrom(id, resolution)
+        : clean({
+            version: 1 as const,
+            id,
+            ids,
+            title: found.title ?? (name || "Untitled PDF"),
+            authors: found.authors,
+            fields: { title: found.title ? "pdf" : "file", ...(found.authors.length ? { authors: "pdf" } : {}) },
+          })
+      await mkdir(paperDir(this.root, id), { recursive: true })
+      if (resolution) await keepSources(this.root, id, resolution.records)
+      await writeRecord(this.root, record)
+      await writeState(this.root, id, freshState("user"))
+      this.index.set(id, record.ids)
+      // An id the services couldn't be asked about (offline) gets its metadata later
+      if (!resolution && found.ref) this.queue("paper.metadata", id, "asked")
+      await this.placePdf(id, file, sha)
+      return { paper: (await this.get(id))!, existed: false }
+    })
+  }
+
+  // The file becomes the paper's PDF, and the steps that read it follow
+  private async placePdf(id: string, file: string, sha: string) {
+    // A download still looking must not replace the user's file when it lands
+    const looking = this.scheduler?.list().find((t) => t.kind === "paper.pdf" && t.subject === id && !isTaskFinished(t))
+    if (looking) this.scheduler!.cancel(looking.id)
+    const dest = pdfFile(this.root, id)
+    await copyFile(file, `${dest}.part`)
+    await rename(`${dest}.part`, dest)
+    const previous = await readAcquisition(this.root, id)
+    await writeAcquisition(this.root, id, {
+      version: 1,
+      result: "ok",
+      route: "dropped",
+      tried: [...(previous?.tried ?? []), { route: "dropped", url: file, at: Date.now() }],
+      at: Date.now(),
+      dropHere: dest,
+      sha256: sha,
+    })
+    this.pdfHashes?.set(sha, id)
+    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, "asked")
+  }
+
+  // The paper whose PDF is this file, by its SHA-256 (kept in acquisition.json, or worked out once)
+  private async paperWithPdf(sha: string): Promise<string | undefined> {
+    if (!this.pdfHashes) {
+      const hashes = new Map<string, string>()
+      for (const id of await this.ids()) {
+        if (!(await hasPdfFile(this.root, id))) continue
+        const acquisition = await readAcquisition(this.root, id)
+        let hash = acquisition?.sha256
+        if (!hash) {
+          hash = await sha256Of(pdfFile(this.root, id))
+          if (acquisition) await writeAcquisition(this.root, id, { ...acquisition, sha256: hash })
+        }
+        hashes.set(hash, id)
+      }
+      this.pdfHashes = hashes
+    }
+    const id = this.pdfHashes.get(sha)
+    return id && (await hasPdfFile(this.root, id)) ? id : undefined
   }
 
   // Steps a paper is owed but never got (a PDF put in by hand or by another program, a run that failed
@@ -451,7 +580,9 @@ export class Library {
               continue
             }
             tried.push({ route: route.name, url: route.url, status: 200, at: Date.now() })
-            await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest })
+            const sha256 = await sha256Of(dest)
+            this.pdfHashes?.set(sha256, id)
+            await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
             for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, ctx.task.priority)
             await this.announce([id])
             return
@@ -595,3 +726,30 @@ function clean<T extends object>(value: T): T {
 }
 
 const mtimeOf = (file: string) => stat(file).then((info) => info.mtimeMs, () => 0)
+
+async function sha256Of(file: string) {
+  const hash = createHash("sha256")
+  for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer)
+  return hash.digest("hex")
+}
+
+async function assertPdf(file: string) {
+  const handle = await open(file, "r").catch(() => {
+    throw new RpcFailure(RpcErrorCode.NotFound, "That file can't be opened.", { file })
+  })
+  const head = Buffer.alloc(5)
+  await handle.read(head, 0, 5, 0)
+  await handle.close()
+  if (head.toString("latin1") !== "%PDF-") throw new RpcFailure(RpcErrorCode.InvalidParams, "That file isn't a PDF.")
+}
+
+// Ids as the user typed them, as the library keeps them: a DOI lowercased and without a doi.org prefix
+function cleanIds(ids: Partial<PaperIds>): PaperIds {
+  const out: PaperIds = {}
+  if (ids.doi?.trim()) out.doi = cleanDoi(ids.doi.trim().replace(/^(https?:\/\/(dx\.)?doi\.org\/|doi:\s*)/i, ""))
+  if (ids.arxiv?.trim()) out.arxiv = stripArxivVersion(ids.arxiv.trim().replace(/^arxiv:\s*/i, ""))
+  if (ids.s2?.trim()) out.s2 = ids.s2.trim().toLowerCase()
+  if (ids.openalex?.trim()) out.openalex = ids.openalex.trim().toUpperCase()
+  if (ids.url?.trim()) out.url = ids.url.trim()
+  return out
+}

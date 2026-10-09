@@ -1,22 +1,66 @@
 import { toast } from "sonner"
+import { isDesktop, rpc } from "@/lib/rpc"
+import { takePaper } from "../disk"
 import { libraryClient, useLibraryStore } from "../store"
 import { useUiStore } from "../ui-store"
 
-// Adds the papers in `files` and peeks the last one. Shared with the page-wide drop target.
+// Adds the papers in `files` and peeks the last one. Shared with the page-wide drop target. In the
+// desktop app core recognises each file (arXiv's stamp, a DOI) and keeps it in the workspace; one that
+// can't be read doesn't stop the rest.
 export async function addPdfFiles(files: File[]) {
   const pdfs = files.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name))
   if (pdfs.length === 0) {
     toast.error("Only PDF files can be added this way.")
     return
   }
+  const last = isDesktop ? await importInCore(pdfs) : await addInBrowser(pdfs)
+  if (last) useUiStore.setState({ selectedIds: [last], cursorId: last, anchorId: last, peekId: last, query: "", filter: "all", tags: [] })
+}
+
+async function importInCore(pdfs: File[]) {
+  // Recognising a file can mean asking the services, which takes a few seconds
+  const progress = toast.loading(pdfs.length > 1 ? `Adding 1 of ${pdfs.length}…` : `Adding ${pdfs[0].name}…`)
+  let last: string | null = null
+  let added = 0
+  let existing = 0
+  const unread: string[] = []
+  let lastTitle = ""
+  for (const [i, file] of pdfs.entries()) {
+    if (pdfs.length > 1) toast.loading(`Adding ${i + 1} of ${pdfs.length}…`, { id: progress })
+    try {
+      const path = window.owlit?.pathForFile(file)
+      if (!path) throw new Error("That file can't be read from here.")
+      const { paper, existed } = await rpc.library.importPdf({ path })
+      takePaper(paper)
+      last = paper.id
+      lastTitle = paper.title
+      if (existed) existing++
+      else added++
+    } catch (error) {
+      unread.push(file.name)
+      if (pdfs.length === 1) toast.error(error instanceof Error ? error.message : "Couldn't add that file.")
+    }
+  }
+  toast.dismiss(progress)
+  if (pdfs.length === 1) {
+    if (added) toast("Added to library", { description: lastTitle })
+    else if (existing) toast("Already in your library", { description: lastTitle })
+    return last
+  }
+  const parts = [`${added} added`, existing && `${existing} already in your library`, unread.length && `${unread.length} couldn't be read`].filter(Boolean)
+  toast(parts.join(" · "), { description: unread.length ? unread.join(", ") : undefined })
+  return last
+}
+
+async function addInBrowser(pdfs: File[]) {
   const { addPaper } = useLibraryStore.getState()
   let last: string | null = null
   for (const file of pdfs) {
     const resolved = await libraryClient.importPdf(file)
     last = addPaper(resolved).id
   }
-  if (last) useUiStore.setState({ selectedIds: [last], cursorId: last, anchorId: last, peekId: last, query: "", filter: "all", tags: [] })
   toast(pdfs.length === 1 ? "Added to library" : `Added ${pdfs.length} papers`, {
     description: pdfs.length === 1 ? pdfs[0].name : undefined,
   })
+  return last
 }

@@ -266,6 +266,7 @@ export class Core {
     this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
       library().removeHighlight(paperId, id),
     )
+    this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
