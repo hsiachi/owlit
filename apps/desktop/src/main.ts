@@ -291,6 +291,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
+    // A packaged app gets its icon from the bundle; a dev run is Electron's own binary, so set it here
+    if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon.png"))
     const browser = createBrowserHost()
     const core = new Core({
       userDataDir: app.getPath("userData"),
