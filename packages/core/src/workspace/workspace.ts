@@ -67,6 +67,7 @@ export class Workspace {
   }
 
   async dispose() {
+    this.docs.dispose()
     await this.release()
   }
 }

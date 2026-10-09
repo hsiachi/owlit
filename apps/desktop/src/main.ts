@@ -2,7 +2,7 @@
 // that is owlit's own logic lives in @owlit/core.
 
 import { Core } from "@owlit/core"
-import type { MethodName, ParamsOf, ResultOf, RpcRequest, WorkspaceInfo } from "@owlit/protocol"
+import type { DocsChange, MethodName, ParamsOf, ResultOf, RpcRequest, WorkspaceInfo } from "@owlit/protocol"
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
@@ -179,6 +179,14 @@ if (!app.requestSingleInstanceLock()) {
     attachCore(core)
     // Development aid: print every activity event the renderer reports
     if (process.env.OWLIT_LOG_ACTIVITY) core.activity.subscribe((event) => console.log("[activity]", JSON.stringify(event)))
+    // Development aid: print what the workspace watcher reports (paths only, not text)
+    if (process.env.OWLIT_LOG_DOCS) {
+      core.onNotify(({ method, params }) => {
+        if (method !== "docs.changed") return
+        const change = params as DocsChange
+        console.log("[docs.changed]", JSON.stringify({ ...change, changed: change.changed.map((f) => f.path) }))
+      })
+    }
     core.onNotify((notification) => {
       if (notification.method !== "workspace.opened") return
       current = notification.params as WorkspaceInfo

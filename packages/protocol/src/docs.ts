@@ -25,6 +25,18 @@ export interface DocsListing {
   folders: string[]
 }
 
+// What changed in the workspace outside core (another editor, Finder, git), settled into one message.
+// A renamed or moved file is in changed with its id and new path.
+export interface DocsChange {
+  // Files that appeared or changed, as they are now, Markdown with its text
+  changed: WorkspaceFile[]
+  // Files that are gone; id is "" for a file core never listed
+  deleted: { id: string; path: string }[]
+  folders: { created: string[]; deleted: string[] }
+  // Too much changed at once to describe: list everything again
+  reload?: boolean
+}
+
 // The data of a Conflict error from docs.write: the file as it is on disk now; content and modifiedAt
 // are null when the file is gone
 export interface DocConflict {

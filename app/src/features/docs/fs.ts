@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { docUri } from "./lib/mentions"
+import { isDiskChange } from "./disk"
 import { openEditor, replaceInEditor, spanChange } from "./editors"
 import { useDocsStore } from "./store"
 import { displayName, isMarkdown, type WorkspaceFile } from "./types"
@@ -31,6 +32,7 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 // When a doc is renamed or moved, links to it in every other doc follow. A link whose label is still the
 // doc's old name takes the new one; a label the writer chose stays.
 useDocsStore.subscribe((state, prev) => {
+  if (isDiskChange()) return
   const moves = Object.values(state.files).flatMap((f) => {
     const before = prev.files[f.id]
     if (!before || before.path === f.path || !isMarkdown(f.path)) return []

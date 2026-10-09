@@ -4,6 +4,7 @@ import { EllipsisVerticalIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { saveAgain } from "../disk"
 import { DocEditor } from "../editor/DocEditor"
 import { anchor } from "../editor/agent-notes"
 import { useDocsStore } from "../store"
@@ -79,6 +80,7 @@ export function DocPage() {
             })}
           <span className="truncate text-foreground">{displayName(file.path)}</span>
         </nav>
+        <DeletedOnDisk docId={file.id} />
         <NoteCount docId={file.id} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -101,6 +103,21 @@ export function DocPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+// Shown while the open doc has been deleted on disk by something else: the text stays readable and
+// Save again writes it back
+function DeletedOnDisk({ docId }: { docId: string }) {
+  const missing = useDocsStore((s) => !!s.missing[docId])
+  if (!missing) return null
+  return (
+    <>
+      <span className="shrink-0 px-1 text-muted-foreground">Deleted on disk</span>
+      <Button variant="ghost" size="sm" onClick={() => saveAgain(docId)} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
+        Save again
+      </Button>
+    </>
   )
 }
 

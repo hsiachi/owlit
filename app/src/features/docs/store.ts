@@ -24,6 +24,8 @@ interface DocsState {
   // Whether the workspace's files have been listed; until then an unknown doc id may still turn up
   loaded: boolean
   files: Record<string, WorkspaceFile>
+  // Open docs deleted on disk by something else; they stay on screen, read-only, until left
+  missing: Record<string, true>
   // Folders the user made; folders that hold files exist anyway. Kept so empty folders survive.
   folders: string[]
 
@@ -72,6 +74,7 @@ export const useDocsStore = create<DocsState>()(
     (set, get) => ({
       loaded: !isDesktop,
       files: isDesktop ? {} : Object.fromEntries(seedFiles.map((f) => [f.id, f])),
+      missing: {},
       folders: isDesktop ? [] : seedFolders,
       notes: isDesktop ? {} : seedNotes,
 

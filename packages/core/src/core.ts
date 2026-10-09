@@ -117,6 +117,7 @@ export class Core {
       // The current workspace stays open until the next one has opened, so a failed switch loses nothing
       const next = this.workspace?.root === root ? this.workspace : await Workspace.open(root, this.options.userDataDir, this.options.host)
       if (this.workspace && this.workspace !== next) await this.workspace.dispose()
+      if (this.workspace !== next) await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
       this.notifier.notify("workspace.opened", next.info)

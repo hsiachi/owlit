@@ -2,12 +2,13 @@ import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
-import { EditorSelection, EditorState, type Transaction } from "@codemirror/state"
+import { Compartment, EditorSelection, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { reportDocEdited } from "@/lib/activity"
+import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
 import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
@@ -95,6 +96,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     let saveNotePlaces = () => {}
 
     const saved = lastSelection.get(id)
+    // A doc deleted on disk while open can still be read and copied, not edited
+    const editable = new Compartment()
+    const lock = (missing: boolean) => [EditorState.readOnly.of(missing), EditorView.editable.of(!missing)]
+    let missing = !!useDocsStore.getState().missing[id]
     const view = new EditorView({
       parent: host.current!,
       state: EditorState.create({
@@ -102,6 +107,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
         selection: saved && saved.ranges.every((r) => r.to <= content.length) ? saved : undefined,
         extensions: [
           crlf ? [] : EditorState.lineSeparator.of("\n"),
+          editable.of(lock(missing)),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           markdown({ base: markdownLanguage, extensions: [Highlight, Wikilinks, MathSyntax] }),
@@ -162,6 +168,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     syncEdits()
     const unsubscribe = useChatStore.subscribe(syncEdits)
 
+    const unsubscribeMissing = useDocsStore.subscribe((s) => {
+      if (!!s.missing[id] === missing) return
+      missing = !!s.missing[id]
+      view.dispatch({ effects: editable.reconfigure(lock(missing)) })
+    })
+
     // The doc's margin notes follow the store
     let notes = useDocsStore.getState().notes[id]
     view.dispatch({ effects: setNotes.of(notes ?? []) })
@@ -203,15 +215,18 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       unsubscribe()
       unsubscribeNotes()
       unsubscribeOpen()
+      unsubscribeMissing()
       unregister()
       view.destroy()
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it
       setTimeout(() => {
         const left = useDocsStore.getState().files[id]
-        if (left && !left.content && freshDocIds.has(id) && !window.location.pathname.endsWith(`/docs/${id}`)) {
+        if (window.location.pathname.endsWith(`/docs/${id}`)) return
+        if (left && !left.content && freshDocIds.has(id)) {
           useDocsStore.getState().deleteFile(id)
           freshDocIds.delete(id)
         }
+        leftMissingDoc(id)
       })
     }
     // The editor owns the text while it is open; it is rebuilt only for another doc

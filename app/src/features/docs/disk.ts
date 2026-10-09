@@ -1,9 +1,9 @@
-import type { DocConflict, DocStat, WorkspaceFile } from "@owlit/protocol"
+import type { DocConflict, DocsChange, DocStat, WorkspaceFile } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
 import { toast } from "sonner"
-import { isDesktop, rpc, RpcError } from "@/lib/rpc"
+import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
-import { replaceInEditor } from "./editors"
+import { openEditor, replaceInEditor } from "./editors"
 import { freshDocIds, useDocsStore } from "./store"
 import { baseName, displayName, isMarkdown, isWithin } from "./types"
 
@@ -11,7 +11,8 @@ import { baseName, displayName, isMarkdown, isWithin } from "./types"
 // disk); each change is then sent to core in order, one at a time. Each op names files by the path core
 // last reported for them, so a name core had to make unique ("Notes 2") is followed rather than fought.
 // When core answers with a path the store didn't predict, the store takes core's. A failure reloads the
-// tree from disk, which is the truth.
+// tree from disk, which is the truth. Changes made outside owlit come in from core's watcher and are
+// applied the same way: to the store, and to an open editor as one change the user can undo.
 
 // What core last said about each file this window has on disk, by id
 const known = new Map<string, { path: string; modifiedAt: number }>()
@@ -72,17 +73,136 @@ async function failed(error: unknown) {
 // Replaces the store with the workspace as it is on disk. New docs that were never written stay.
 async function load() {
   const listing = await rpc.docs.list()
+  const before = new Map(written)
   known.clear()
   written.clear()
   for (const file of listing.files) remember(file, file.content)
-  useDocsStore.setState((s) => {
-    const unsaved = Object.values(s.files).filter((f) => freshDocIds.has(f.id) && !known.has(f.id))
-    return {
-      files: Object.fromEntries([...listing.files, ...unsaved].map((f) => [f.id, f])),
-      folders: listing.folders,
-      loaded: true,
+  fromDisk(() =>
+    useDocsStore.setState((s) => {
+      const unsaved = Object.values(s.files).filter((f) => freshDocIds.has(f.id) && !known.has(f.id))
+      return {
+        files: Object.fromEntries([...listing.files, ...unsaved].map((f) => [f.id, f])),
+        folders: listing.folders,
+        loaded: true,
+      }
+    }),
+  )
+  // Open docs the user hasn't touched since they were read show the disk's text
+  for (const file of listing.files) {
+    const old = before.get(file.id)
+    if (file.content !== undefined && old !== undefined && old !== file.content && editorShows(file.id, old)) {
+      replaceInEditor(file.id, file.content, "external")
     }
+  }
+}
+
+// ---- Changes made outside owlit ----
+
+// True while the store takes a change that came from disk. Renames that happen this way are someone
+// else's (Finder, git), so links to the file in other docs are not rewritten for them.
+let applyingDiskChange = false
+export const isDiskChange = () => applyingDiskChange
+
+function fromDisk(update: () => void) {
+  applyingDiskChange = true
+  try {
+    update()
+  } finally {
+    applyingDiskChange = false
+  }
+}
+
+// Whether the open editor for a doc holds exactly this text (in "\n" lines, for a CRLF file); true when
+// the doc isn't open
+function editorShows(id: string, text: string) {
+  const view = openEditor(id)
+  if (!view) return true
+  const shown = view.state.doc.toString()
+  return shown === text || shown === text.replace(/\r\n/g, "\n")
+}
+
+async function applyChange(change: DocsChange) {
+  if (change.reload) return load()
+  const { files } = useDocsStore.getState()
+  const byPath = new Map(Object.values(files).map((f) => [f.path, f.id]))
+  const next = { ...files }
+  const intoEditors: [string, string][] = []
+  const conflicts: [string, DocConflict][] = []
+  for (const file of change.changed) {
+    const id = file.id && next[file.id] ? file.id : (byPath.get(file.path) ?? file.id)
+    const mine = next[id]
+    const disk = known.get(id)
+    const content = file.content
+    const changedText = content !== undefined && content !== written.get(id)
+    // The user has typed since the doc was last read or saved: their text stays, and they choose
+    const dirty = mine !== undefined && changedText && !editorShows(id, written.get(id) ?? mine.content ?? "")
+    known.set(id, { path: file.path, modifiedAt: dirty && disk ? disk.modifiedAt : file.modifiedAt })
+    if (dirty) {
+      next[id] = { ...mine, path: file.path }
+      conflicts.push([id, { path: file.path, content: content ?? "", modifiedAt: file.modifiedAt }])
+      continue
+    }
+    if (content !== undefined) written.set(id, content)
+    next[id] = mine ? { ...mine, path: file.path, content, modifiedAt: file.modifiedAt, nameLocked: file.nameLocked ?? mine.nameLocked } : { ...file, id }
+    if (mine && changedText && content !== undefined && openEditor(id)) intoEditors.push([id, content])
+  }
+  const missing = { ...useDocsStore.getState().missing }
+  for (const gone of change.deleted) {
+    const id = gone.id && next[gone.id] ? gone.id : byPath.get(gone.path)
+    if (!id) continue
+    known.delete(id)
+    written.delete(id)
+    // An open doc stays on screen, read-only, until the user leaves it or saves it again
+    if (openEditor(id)) {
+      missing[id] = true
+      deletedWhileOpen(id)
+    } else delete next[id]
+  }
+  const goneFolders = change.folders.deleted
+  const folders = [
+    ...useDocsStore.getState().folders.filter((f) => !goneFolders.some((g) => isWithin(f, g))),
+    ...change.folders.created,
+  ]
+  fromDisk(() => useDocsStore.setState({ files: next, folders: [...new Set(folders)], missing }))
+  for (const [id, content] of intoEditors) replaceInEditor(id, content, "external")
+  for (const [id, disk] of conflicts) conflicted(id, disk)
+}
+
+function deletedWhileOpen(id: string) {
+  const file = useDocsStore.getState().files[id]
+  if (!file) return
+  toast.warning(`${displayName(file.path)} was deleted outside owlit`, {
+    id: `conflict-${id}`,
+    description: "It stays open here until you leave it.",
+    duration: Infinity,
+    action: { label: "Save again", onClick: () => saveAgain(id) },
   })
+}
+
+// Writes a doc that vanished from disk back where it was, from the text owlit has
+export function saveAgain(id: string) {
+  toast.dismiss(`conflict-${id}`)
+  known.delete(id)
+  written.delete(id)
+  const { missing } = useDocsStore.getState()
+  if (missing[id]) {
+    const rest = { ...missing }
+    delete rest[id]
+    useDocsStore.setState({ missing: rest })
+  }
+  saveDoc(id)
+}
+
+// A doc deleted on disk while it was open is let go once the user leaves it
+export function leftMissingDoc(id: string) {
+  const { missing, files } = useDocsStore.getState()
+  if (!missing[id]) return
+  toast.dismiss(`conflict-${id}`)
+  const rest = { ...missing }
+  delete rest[id]
+  const others = { ...files }
+  delete others[id]
+  useDocsStore.setState({ missing: rest, files: others })
 }
 
 const reload = () => enqueue([], load)
@@ -96,8 +216,10 @@ export function saveDoc(id: string) {
   if (!asked) return
   const at = { path: asked.path, followsFirstLine: !asked.nameLocked }
   enqueue([id], async () => {
-    const file = useDocsStore.getState().files[id]
-    if (!file || file.content === undefined || written.get(id) === file.content) return
+    const { files, missing } = useDocsStore.getState()
+    const file = files[id]
+    // A doc deleted on disk comes back only when the user saves it again
+    if (!file || missing[id] || file.content === undefined || written.get(id) === file.content) return
     const content = file.content
     const disk = known.get(id)
     if (!disk) {
@@ -196,14 +318,7 @@ function conflicted(id: string, disk: DocConflict) {
       id: `conflict-${id}`,
       description: "It was moved or deleted outside owlit.",
       duration: Infinity,
-      action: {
-        label: "Save again",
-        onClick: () => {
-          known.delete(id)
-          written.delete(id)
-          saveDoc(id)
-        },
-      },
+      action: { label: "Save again", onClick: () => saveAgain(id) },
     })
     return
   }
@@ -246,9 +361,10 @@ if (onDisk) {
     written.clear()
     pending.clear()
     freshDocIds.clear()
-    useDocsStore.setState({ files: {}, folders: [], notes: {}, loaded: false })
+    useDocsStore.setState({ files: {}, folders: [], notes: {}, missing: {}, loaded: false })
     reload()
   })
+  onNotify("docs.changed", (change) => enqueue([], () => applyChange(change)))
   // Opened before this module was loaded (a reload of the window)
   queueMicrotask(() => {
     if (useWorkspace.getState().current && !useDocsStore.getState().loaded) reload()

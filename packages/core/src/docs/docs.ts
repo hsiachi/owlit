@@ -10,12 +10,13 @@ import {
   RpcErrorCode,
   uniquePath,
   type DocConflict,
+  type DocsChange,
   type DocsListing,
   type DocStat,
   type WorkspaceFile,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
-import { existsSync } from "node:fs"
+import { existsSync, watch, type FSWatcher, type Stats } from "node:fs"
 import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -35,6 +36,22 @@ interface NamesFile {
   followFirstLine: Record<string, number>
 }
 
+// One path as the watcher last saw it. A file changed when any of these differ; a file that turns up
+// elsewhere with the same inode was renamed or moved.
+interface Entry {
+  dir: boolean
+  ino: number
+  mtimeMs: number
+  size: number
+  birthtimeMs: number
+}
+
+// How long the watcher waits for the file system to go quiet, and the longest it waits while it doesn't
+const SETTLE_MS = 100
+const MAX_WAIT_MS = 500
+// More changes than this at once (a branch switch, a sync) and clients list everything again
+const RELOAD_OVER = 200
+
 const notFound = (rel: string) => new RpcFailure(RpcErrorCode.NotFound, `There is no ${rel || "folder"} in the workspace.`, { path: rel })
 
 // The workspace's files as Docs sees them. Every path in and out is workspace-relative and "/"-separated.
@@ -48,6 +65,13 @@ export class Docs {
   private names: NamesFile | undefined
   // Changes run one at a time, so two writers never interleave on the same file
   private queue: Promise<unknown> = Promise.resolve()
+  // Every docs path, files and folders, as last seen. Core's own changes are settled into it as they
+  // happen, so the watcher finds nothing new when it hears about them: no echo.
+  private snapshot = new Map<string, Entry>()
+  private watcher: FSWatcher | null = null
+  private dirty = new Set<string>()
+  private timer: ReturnType<typeof setTimeout> | undefined
+  private firstDirtyAt = 0
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -56,33 +80,50 @@ export class Docs {
   }
 
   async list(): Promise<DocsListing> {
+    const follow = (await this.loadNames()).followFirstLine
+    this.snapshot = await this.scan("")
     const files: WorkspaceFile[] = []
     const folders: string[] = []
-    const follow = (await this.loadNames()).followFirstLine
-    const walk = async (rel: string) => {
-      const entries = await readdir(this.abs(rel), { withFileTypes: true }).catch(() => [])
-      for (const entry of entries) {
-        const child = joinPath(rel, entry.name)
-        if (!isDocsPath(child)) continue
-        // Symlinked folders are not followed, so a link back up can't loop; a symlinked file is read through
-        if (entry.isDirectory()) {
-          folders.push(child)
-          await walk(child)
-          continue
-        }
-        if (!entry.isFile() && !entry.isSymbolicLink()) continue
-        const info = await stat(this.abs(child)).catch(() => null)
-        if (!info?.isFile()) continue
-        const file: WorkspaceFile = { ...this.statOf(child, info.mtimeMs, follow[child] ?? info.birthtimeMs) }
-        if (isMarkdown(child)) file.content = await readFile(this.abs(child), "utf8")
-        files.push(file)
-      }
+    for (const [rel, entry] of this.snapshot) {
+      if (entry.dir) folders.push(rel)
+      else files.push(await this.fileAt(rel, entry, follow))
     }
-    await walk("")
     // Forget ids of files that are gone
-    const seen = new Set(files.map((f) => f.path))
-    for (const p of this.ids.keys()) if (!seen.has(p)) this.ids.delete(p)
+    for (const p of this.ids.keys()) if (!this.snapshot.has(p)) this.ids.delete(p)
     return { files, folders }
+  }
+
+  // Starts hearing about changes made outside core (another editor, Finder, git). Changes come in
+  // settled: a burst of events becomes one DocsChange.
+  async watch(onChange: (change: DocsChange) => void) {
+    if (this.watcher) return
+    if (!this.snapshot.size) this.snapshot = await this.scan("")
+    this.watcher = watch(this.root, { recursive: true }, (_event, filename) => {
+      // No name means the system lost track: look at everything
+      const rel = filename ? filename.split(path.sep).join("/") : ""
+      if (rel && !isDocsPath(rel)) return
+      this.dirty.add(rel)
+      const now = Date.now()
+      if (!this.timer) this.firstDirtyAt = now
+      clearTimeout(this.timer)
+      const wait = Math.max(0, Math.min(SETTLE_MS, this.firstDirtyAt + MAX_WAIT_MS - now))
+      this.timer = setTimeout(() => {
+        this.timer = undefined
+        const paths = [...this.dirty]
+        this.dirty.clear()
+        void this.serial(async () => {
+          const change = await this.reconcile(paths, true)
+          if (change) onChange(change)
+        }).catch((error) => console.error("[core] couldn't read changes in the workspace", error))
+      }, wait)
+    })
+    this.watcher.on("error", (error) => console.error("[core] the workspace watcher stopped", error))
+  }
+
+  dispose() {
+    clearTimeout(this.timer)
+    this.watcher?.close()
+    this.watcher = null
   }
 
   async read(rel: string) {
@@ -106,6 +147,7 @@ export class Docs {
       await writeFile(this.abs(target), content, { flag: "wx" })
       if (options.id) this.ids.set(target, options.id)
       if (options.followsFirstLine) await this.updateNames((f) => ({ ...f, [target]: now }))
+      await this.settle([target])
       return this.statAt(target)
     })
   }
@@ -127,6 +169,7 @@ export class Docs {
         const to = followFirstLine(rel, content, follow[rel], this.taken(rel))
         if (to) at = await this.moveEntry(rel, to)
       }
+      await this.settle([rel, at])
       return this.statAt(at)
     })
   }
@@ -143,6 +186,7 @@ export class Docs {
       const to = wanted.toLowerCase() === rel.toLowerCase() ? wanted : uniquePath(parentPath(rel), stem, ext, this.taken())
       const at = await this.moveEntry(rel, to)
       await this.updateNames((f) => dropUnder(f, at))
+      await this.settle([rel, at])
       return { path: at }
     })
   }
@@ -159,7 +203,9 @@ export class Docs {
       const ext = info.isDirectory() ? "" : extOf(rel)
       const name = baseName(rel)
       const to = uniquePath(folder, ext ? name.slice(0, -ext.length) : name, ext, this.taken())
-      return { path: await this.moveEntry(rel, to) }
+      await this.moveEntry(rel, to)
+      await this.settle([rel, to])
+      return { path: to }
     })
   }
 
@@ -171,6 +217,7 @@ export class Docs {
       else await this.moveToOwlitTrash(rel)
       for (const p of [...this.ids.keys()]) if (isWithin(p, rel)) this.ids.delete(p)
       await this.updateNames((f) => dropUnder(f, rel))
+      await this.settle([rel])
       return null
     })
   }
@@ -180,6 +227,7 @@ export class Docs {
       this.check(rel)
       const at = this.taken()(rel) ? uniquePath(parentPath(rel), baseName(rel), "", this.taken()) : rel
       await mkdir(this.abs(at), { recursive: true })
+      await this.settle([at])
       return { path: at }
     })
   }
@@ -201,6 +249,7 @@ export class Docs {
         this.ids.set(at, file.id)
         restored.push(await this.statAt(at))
       }
+      await this.settle([...made, ...restored.map((f) => f.path)])
       return { files: restored, folders: made }
     })
   }
@@ -213,6 +262,120 @@ export class Docs {
   }
 
   // ---- inside ----
+
+  // Every docs path under rel (rel itself not included), as it is on disk now
+  private async scan(rel: string) {
+    const found = new Map<string, Entry>()
+    const walk = async (dir: string) => {
+      const entries = await readdir(this.abs(dir), { withFileTypes: true }).catch(() => [])
+      for (const entry of entries) {
+        const child = joinPath(dir, entry.name)
+        if (!isDocsPath(child)) continue
+        // Symlinked folders are not followed, so a link back up can't loop; a symlinked file is read through
+        if (entry.isDirectory()) {
+          const info = await lstat(this.abs(child)).catch(() => null)
+          if (info) found.set(child, entryOf(info, true))
+          await walk(child)
+          continue
+        }
+        if (!entry.isFile() && !entry.isSymbolicLink()) continue
+        const info = await stat(this.abs(child)).catch(() => null)
+        if (info?.isFile()) found.set(child, entryOf(info, false))
+      }
+    }
+    await walk(rel)
+    return found
+  }
+
+  // What is at rel now: nothing, a file, or a folder with everything under it
+  private async look(rel: string) {
+    if (!rel) return this.scan("")
+    const found = new Map<string, Entry>()
+    const link = await lstat(this.abs(rel)).catch(() => null)
+    if (!link) return found
+    if (link.isDirectory()) {
+      found.set(rel, entryOf(link, true))
+      for (const [p, e] of await this.scan(rel)) found.set(p, e)
+      return found
+    }
+    const info = link.isSymbolicLink() ? await stat(this.abs(rel)).catch(() => null) : link
+    if (info?.isFile()) found.set(rel, entryOf(info, false))
+    return found
+  }
+
+  // Core changed these paths itself: the snapshot takes them in without telling anyone
+  private async settle(paths: string[]) {
+    if (this.watcher || this.snapshot.size) await this.reconcile(paths, false)
+  }
+
+  // Brings the snapshot up to date for these paths and says what changed. A file gone from one path and
+  // found at another with the same inode was renamed: it keeps its id. Changes made outside core count
+  // as the user's own hand, so a renamed doc stops following its first line.
+  private async reconcile(paths: string[], external: boolean): Promise<DocsChange | null> {
+    const removed = new Map<string, Entry>()
+    const added = new Map<string, Entry>()
+    const modified = new Set<string>()
+    // A path under another one in the list is covered by it
+    const roots = [...new Set(paths)].filter((p, _, all) => !all.some((q) => q !== p && (q === "" || isWithin(p, q))))
+    for (const rel of roots) {
+      const now = await this.look(rel)
+      for (const [p, e] of this.snapshot) {
+        if ((rel === "" || isWithin(p, rel)) && !now.has(p)) {
+          removed.set(p, e)
+          this.snapshot.delete(p)
+        }
+      }
+      for (const [p, e] of now) {
+        const before = this.snapshot.get(p)
+        if (!before) added.set(p, e)
+        else if (before.dir !== e.dir) {
+          removed.set(p, before)
+          added.set(p, e)
+        } else if (!e.dir && (before.ino !== e.ino || before.mtimeMs !== e.mtimeMs || before.size !== e.size)) modified.add(p)
+        this.snapshot.set(p, e)
+      }
+    }
+    // Renames, paired by inode
+    const byIno = new Map([...removed].filter(([, e]) => !e.dir).map(([p, e]) => [e.ino, p]))
+    const renamedFrom = new Set<string>()
+    for (const [p, e] of added) {
+      const from = e.dir ? undefined : byIno.get(e.ino)
+      if (from === undefined) continue
+      renamedFrom.add(from)
+      const id = this.ids.get(from)
+      if (id) {
+        this.ids.delete(from)
+        this.ids.set(p, id)
+      }
+    }
+    if (!external) return null
+    const follow = (await this.loadNames()).followFirstLine
+    if (removed.size) await this.updateNames((f) => Object.fromEntries(Object.entries(f).filter(([p]) => !removed.has(p))))
+    const count = removed.size + added.size + modified.size
+    if (!count) return null
+    if (count > RELOAD_OVER) return { changed: [], deleted: [], folders: { created: [], deleted: [] }, reload: true }
+    const change: DocsChange = { changed: [], deleted: [], folders: { created: [], deleted: [] } }
+    for (const [p, e] of removed) {
+      if (e.dir) change.folders.deleted.push(p)
+      else if (!renamedFrom.has(p)) {
+        change.deleted.push({ id: this.ids.get(p) ?? "", path: p })
+        this.ids.delete(p)
+      }
+    }
+    for (const [p, e] of added) {
+      if (e.dir) change.folders.created.push(p)
+      else change.changed.push(await this.fileAt(p, e, follow))
+    }
+    for (const p of modified) change.changed.push(await this.fileAt(p, this.snapshot.get(p)!, follow))
+    return change
+  }
+
+  // A file in the snapshot as clients see it, with its text when it is Markdown
+  private async fileAt(rel: string, entry: Entry, follow: Record<string, number>): Promise<WorkspaceFile> {
+    const file: WorkspaceFile = this.statOf(rel, entry.mtimeMs, follow[rel] ?? entry.birthtimeMs)
+    if (isMarkdown(rel)) file.content = await readFile(this.abs(rel), "utf8").catch(() => "")
+    return file
+  }
 
   private serial<T>(work: () => Promise<T>): Promise<T> {
     const run = this.queue.then(work)
@@ -309,6 +472,14 @@ export function isDocsPath(rel: string) {
   if (segments.some((s) => !s || s === "." || s === ".." || s.startsWith("."))) return false
   return segments[0] !== "library"
 }
+
+const entryOf = (info: Stats, dir: boolean): Entry => ({
+  dir,
+  ino: info.ino,
+  mtimeMs: info.mtimeMs,
+  size: dir ? 0 : info.size,
+  birthtimeMs: info.birthtimeMs,
+})
 
 const stemOf = (rel: string) => {
   const name = baseName(rel)

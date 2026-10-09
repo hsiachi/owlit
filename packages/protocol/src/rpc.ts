@@ -1,5 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
-import type { DocsListing, DocStat } from "./docs.ts"
+import type { DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -96,6 +96,8 @@ export interface Notifications {
   "workspace.opened": WorkspaceInfo
   // The activity switch changed; renderers stop or start reporting
   "activity.status": { enabled: boolean }
+  // Files in the workspace changed outside core; core's own changes are never echoed here
+  "docs.changed": DocsChange
 }
 
 export type MethodName = keyof Methods
