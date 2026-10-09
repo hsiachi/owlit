@@ -6,6 +6,8 @@ import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react"
 import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { keysFor } from "@/app/shortcuts"
+import { Kbd } from "@/components/ui/kbd"
 import type { ReturnMark } from "./LinkLayer"
 
 // Zoom and find float over the page instead of sitting in a toolbar above it: no band of chrome
@@ -17,11 +19,14 @@ const PILL = "z-30 flex h-8 items-center gap-0.5 rounded-full bg-popover p-1 tex
 const ITEM = "flex h-6 items-center rounded-full transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
 const ICON = cn(ITEM, "w-6 justify-center [&_svg]:size-3.5")
 
-function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+function Tip({ label, keys, children }: { label: string; keys?: string; children: React.ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}
+        {keys && <Kbd>{keys}</Kbd>}
+      </TooltipContent>
     </Tooltip>
   )
 }
@@ -50,7 +55,7 @@ export function ReaderControls({ documentId, back, onBack }: { documentId: strin
           ) : (
             <div className={PILL}>
               <ZoomReadout documentId={documentId} />
-              <Tip label="Find in paper">
+              <Tip label="Find in paper" keys={keysFor("find-in-paper")}>
                 <button type="button" aria-label="Find in paper" onClick={() => setSearching(true)} className={ICON}>
                   <SearchIcon />
                 </button>

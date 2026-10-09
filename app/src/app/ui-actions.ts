@@ -6,6 +6,7 @@
 import { EditorSelection } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { toast } from "sonner"
+import { appLinkTitle, openAppLink } from "@/app/app-links"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
@@ -86,6 +87,9 @@ export function startUiActions(router: typeof appRouter) {
   // Leaving the chat whose agent asked would hide its next question and its answer: the chat carries on
   // in the agent window, beside what it showed
   const show = async (uri: string, chatId?: string) => {
+    // Settings or the shortcut list open over the page
+    const app = appLinkTitle(uri)
+    if (app && openAppLink(uri)) return { kind: "other" as const, title: app }
     const t = target(uri)
     const route = mentionRoute(uri.replace(/#.*$/, ""))
     if (!route || router.state.location.pathname === route) return t

@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu
 import { Kbd } from "@/components/ui/kbd"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NoteDot } from "../components/bits"
+import { KnowledgeEmpty } from "../components/KnowledgeEmpty"
 import { TopicMenuContent } from "../components/TopicMenu"
 import { ago, shortDate, thisWeek } from "../lib/when"
 import { changedSince, renameTopic, useKnowledgeStore, useTopics } from "../store"
@@ -58,7 +59,7 @@ export function KnowledgePage() {
       <RecentRun />
       {(topics.length >= FIND_FROM || query) && <FindField />}
       {topics.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted-foreground">Owlit is reading your material. Topics appear here as your notes, papers and chats start to connect.</p>
+        <KnowledgeEmpty />
       ) : (
         <div className="mt-6 flex flex-col gap-6">
           {groups.map((g) => (

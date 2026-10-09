@@ -10,6 +10,25 @@ export interface WorkspaceInfo {
   name: string
 }
 
+// Whether a workspace is open, or one is still opening (at launch, the last one); the window shows the
+// welcome page only when neither
+export interface WorkspaceState {
+  current: WorkspaceInfo | null
+  opening: boolean
+}
+
+// A recent workspace as the welcome page lists it; missing when the folder is no longer where it was
+export interface RecentWorkspace extends WorkspaceInfo {
+  missing: boolean
+}
+
+// What the welcome page needs: recent workspaces, and where Create a workspace would put a new one (a
+// folder name not taken yet)
+export interface WelcomeInfo {
+  recent: RecentWorkspace[]
+  suggestion: { parent: string; name: string }
+}
+
 // .owlit/workspace.json: settings that belong to the workspace and move with it
 export interface WorkspaceSettings {
   version: 1

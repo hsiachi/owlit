@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/message-scroller"
 import { MessageGroup } from "@/components/ui/message"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { keysFor } from "@/app/shortcuts"
 import { Composer, type ComposerHandle } from "@/features/chat/components/composer/Composer"
 import { AssistantMessage, UserMessage } from "@/features/chat/components/messages/MessageItem"
 import { StatusRing } from "@/features/chat/components/StatusRing"
@@ -123,7 +124,7 @@ export function AgentToggle() {
         </Button>
       </TooltipTrigger>
       <TooltipContent className="flex items-center gap-1.5">
-        Owlit <Kbd>⌘J</Kbd>
+        Owlit <Kbd>{keysFor("owlit")}</Kbd>
       </TooltipContent>
     </Tooltip>
   )
@@ -135,6 +136,7 @@ export function AgentAskBar() {
   const stage = useAgentWindow((s) => s.stage)
   const selection = useAgentWindow((s) => s.selection)
   const focusTick = useAgentWindow((s) => s.focusTick)
+  const hint = useAgentWindow((s) => s.hint)
   const context = useVisibleContext()
   const [text, setText] = useState("")
   const input = useRef<HTMLInputElement>(null)
@@ -171,7 +173,7 @@ export function AgentAskBar() {
           }
           if (e.key === "Escape") useAgentWindow.getState().close()
         }}
-        placeholder={context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…"}
+        placeholder={hint ?? (context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…")}
         className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
         aria-label="Ask Owlit"
       />

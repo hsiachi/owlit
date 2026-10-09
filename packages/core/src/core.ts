@@ -1,4 +1,4 @@
-import { RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo } from "@owlit/protocol"
+import { RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
@@ -11,6 +11,7 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
+import { guide } from "./agents/guide.ts"
 import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
 import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
@@ -19,6 +20,7 @@ import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
+import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
 export const CORE_VERSION = "0.0.0"
@@ -64,6 +66,8 @@ export class Core {
   private workspace: Workspace | null = null
   // Opens and closes run one at a time, in the order asked
   private switching: Promise<unknown> = Promise.resolve()
+  // Opens under way; while any is, the window waits rather than showing the welcome page
+  private opening = 0
   private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
@@ -113,6 +117,7 @@ export class Core {
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
     this.router.register("agents.rules", noParams, () => AGENT_RULES)
+    this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
 
     this.router.register("workspace.current", noParams, () => this.workspace?.info ?? null)
@@ -120,6 +125,18 @@ export class Core {
     this.router.register("workspace.recent", noParams, async () => {
       const { recentWorkspaces } = await this.settings.get()
       return recentWorkspaces.filter((p) => existsSync(p)).map(toInfo)
+    })
+    this.router.register("workspace.state", noParams, () => this.state())
+    this.router.register("workspace.welcome", noParams, async () => {
+      const { recentWorkspaces } = await this.settings.get()
+      return { recent: recentWorkspaces.map((p) => ({ ...toInfo(p), missing: !existsSync(p) })), suggestion: suggestFolder() }
+    })
+    this.router.register("workspace.create", z.object({ parent: z.string().min(1), name: z.string() }), async ({ parent, name }) =>
+      this.openWorkspace(await createFolder(parent, name)),
+    )
+    this.router.register("workspace.forget", z.object({ path: z.string().min(1) }), async ({ path }) => {
+      await this.settings.forgetWorkspace(path)
+      return null
     })
     this.router.register("workspace.clearRecent", noParams, async () => {
       await this.settings.update((s) => ({ ...s, recentWorkspaces: [] }))
@@ -470,7 +487,13 @@ export class Core {
     return lastWorkspace && existsSync(lastWorkspace) ? lastWorkspace : undefined
   }
 
+  private state(): WorkspaceState {
+    return { current: this.workspace?.info ?? null, opening: this.opening > 0 }
+  }
+
   openWorkspace(folder: string): Promise<WorkspaceInfo> {
+    this.opening++
+    this.notifier.notify("workspace.state", this.state())
     const run = this.switching.then(async () => {
       const root = await resolveFolder(folder).catch(async (error) => {
         await this.settings.forgetWorkspace(folder)
@@ -541,6 +564,10 @@ export class Core {
       return next.info
     })
     this.switching = run.catch(() => undefined)
+    void this.switching.then(() => {
+      this.opening--
+      this.notifier.notify("workspace.state", this.state())
+    })
     return run
   }
 

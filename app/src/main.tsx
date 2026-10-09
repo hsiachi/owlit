@@ -2,6 +2,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
+import { startMenu } from "@/app/menu"
 import { startUiActions } from "@/app/ui-actions"
 import { startActivity } from "@/lib/activity"
 import { onNotify } from "@/lib/rpc"
@@ -40,6 +41,7 @@ onNotify("core.hello", ({ version, node }) => console.info(`[owlit] core ${versi
 
 startActivity(router)
 startUiActions(router)
+startMenu(router)
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

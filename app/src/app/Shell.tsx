@@ -3,6 +3,8 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { AppSidebar } from "@/app/AppSidebar"
 import { CommandPalette } from "@/app/CommandPalette"
+import { ShortcutsDialog } from "@/app/ShortcutsDialog"
+import { useShortcutsShortcut } from "@/app/shortcuts"
 import { matchNav } from "@/app/nav"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -14,12 +16,25 @@ import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
 import { useAgentWindow } from "@/features/agent/store"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { useSettingsShortcut } from "@/features/settings/hooks"
+import { WelcomePage } from "@/features/welcome/WelcomePage"
+import { isDesktop } from "@/lib/rpc"
+import { useNeedsWelcome, useWorkspace } from "@/lib/workspace"
 // Serves workspace files to agents (ACP fs/*), so it is in place before any chat runs
 import "@/features/docs/fs"
 // Serves Knowledge to agents the same way
 import "@/features/knowledge/agent"
 
+// Until a workspace is open the window shows the welcome page; while the last one is still opening at
+// launch it shows only the empty frame, so the welcome page never flashes past
 export function Shell() {
+  const welcome = useNeedsWelcome()
+  const waiting = useWorkspace((s) => isDesktop && !s.current && (!s.known || s.opening))
+  if (welcome) return <WelcomePage />
+  if (waiting) return <div className="app-drag h-svh bg-sidebar" />
+  return <AppShell />
+}
+
+function AppShell() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const hasPanel = !!matchNav(pathname)?.panel
@@ -32,6 +47,7 @@ export function Shell() {
   const setListShown = useAgentWindow((s) => s.setListShown)
   useAgentShortcut()
   useSettingsShortcut()
+  useShortcutsShortcut()
   const controlsRoom = useControlsRoom((s) => s.room)
 
   return (
@@ -87,6 +103,7 @@ export function Shell() {
         </SidebarProvider>
         <CommandPalette />
         <SettingsDialog />
+        <ShortcutsDialog />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}
         <Toaster position="bottom-right" offset={docked ? { right: 420, bottom: 24 } : undefined} />
       </div>

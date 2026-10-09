@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import { cn } from "cn"
+import { appLinkTitle, openAppLink } from "@/app/app-links"
 import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
 import { MentionToken } from "../composer/MentionToken"
 
@@ -39,6 +40,7 @@ const mathClass = (className: unknown) => {
 export function Markdown({ text, className }: { text: string; className?: string }) {
   const navigate = useNavigate()
   const open = (href: string) => {
+    if (openAppLink(href)) return
     const to = mentionRoute(href)
     if (to) navigate(to)
   }
@@ -67,7 +69,7 @@ export function Markdown({ text, className }: { text: string; className?: string
           // Workspace references look the same as the user's @-mentions
           a: ({ href, children }) =>
             href?.startsWith("owlit://") ? (
-              <MentionToken label={String(children)} title={mentionTitle(href) ?? String(children)} onClick={() => open(href)} />
+              <MentionToken label={String(children)} title={appLinkTitle(href) ?? mentionTitle(href) ?? String(children)} onClick={() => open(href)} />
             ) : (
               <a href={href} target="_blank" rel="noreferrer">
                 {children}

@@ -13,6 +13,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { Kbd } from "@/components/ui/kbd"
+import { keysFor } from "@/app/shortcuts"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { isHidden } from "@/features/docs/lib/tree"
@@ -174,7 +175,7 @@ export function CommandPalette() {
     <CommandItem key="new-chat" onSelect={() => go("/chat")} value="new chat" className={itemClass}>
       <SquarePenIcon />
       New chat
-      {inChat && <CommandShortcut>⌘N</CommandShortcut>}
+      {inChat && <CommandShortcut>{keysFor("new")}</CommandShortcut>}
     </CommandItem>
   )
   const newDocItem = (
@@ -189,7 +190,7 @@ export function CommandPalette() {
     >
       <FilePlusIcon />
       New doc
-      {inDocs && <CommandShortcut>⌘N</CommandShortcut>}
+      {inDocs && <CommandShortcut>{keysFor("new")}</CommandShortcut>}
     </CommandItem>
   )
   const actions = (

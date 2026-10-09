@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { FileUpIcon } from "lucide-react"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
+import { LibraryEmpty } from "../components/LibraryEmpty"
 import { FilterBar, FindField, LayoutToggle, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
 import { addPdfFiles } from "../lib/add-pdfs"
@@ -95,9 +96,7 @@ export function LibraryPage() {
             <FilterBar />
             <div className="mt-6">
               {empty ? (
-                <p className="py-16 text-center text-sm text-muted-foreground">
-                  Your library is empty. Paste a DOI, arXiv id or link above, or drop a PDF anywhere on this page.
-                </p>
+                <LibraryEmpty onPickFiles={addPdfFiles} />
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">No papers match.</p>
               ) : table ? (

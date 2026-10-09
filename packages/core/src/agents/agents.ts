@@ -207,6 +207,7 @@ export class Agents {
       description: def.description,
       command: def.command,
       installHint: def.installHint,
+      signIn: def.builtIn ? splitCommand(BUILT_IN_SIGN_IN[def.id] ?? def.command)[0] : undefined,
       builtIn: def.builtIn,
       // Checked before: ready unless something since says otherwise
       status: live.status ?? (probed ? "available" : "unknown"),

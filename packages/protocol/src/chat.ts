@@ -175,6 +175,8 @@ export interface Connector {
   // Command the desktop shell will spawn (ACP over stdio)
   command: string
   installHint?: string
+  // What the user runs in a terminal to sign in, for agents that need it
+  signIn?: string
   builtIn: boolean
   status: ConnectorStatus
   version?: string

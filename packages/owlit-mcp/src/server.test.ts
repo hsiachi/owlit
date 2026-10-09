@@ -52,6 +52,12 @@ describe("owlit-mcp", () => {
     expect(mcp.getInstructions()).toMatch(/owlit/)
   })
 
+  it("answers questions about using owlit itself", async () => {
+    const { tool } = await setup()
+    expect((await tool("owlit_help")).text).toMatch(/^How to use owlit\. Ask for one topic:/)
+    expect((await tool("owlit_help", { topic: "pdfs" })).text).toMatch(/^Getting PDFs \(library proxy\)/)
+  })
+
   it("lists and reads the library", async () => {
     const { root, call, tool } = await setup()
     expect((await tool("library_list")).text).toBe("The library is empty.")

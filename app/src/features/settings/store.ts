@@ -67,7 +67,6 @@ export function startSettings() {
     .get()
     .then(receive)
     .catch((error) => console.warn("[owlit] couldn't read settings", error))
-  window.owlit?.onMenu((command) => command === "settings" && openSettings())
 }
 
 export const appearanceOf = (view: SettingsView | null): AppearanceSettings => view?.appearance ?? storedAppearance()
