@@ -521,6 +521,8 @@ export class Library {
             if (ctx.signal.aborted) throw error
             if (error instanceof NeedsUser) needs ??= { reason: error.reason, route: route.name, at: Date.now() }
             tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
+            // With the user, it means they went away: the next route would only wait for them again
+            if (withUser && error instanceof NeedsUser) break
           }
         }
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
@@ -972,7 +974,9 @@ export class Library {
           }
           // Another route (the browser, a drop) may have placed it meanwhile; its record stands
           if (await hasPdfFile(this.root, id)) return
-          await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
+          // A check the publisher wants stays noted until the browser looks again (queued below)
+          const needs = (await readAcquisition(this.root, id))?.needs
+          await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, ...(needs ? { needs } : {}) })
           // The publisher may still give it to a browser: cookies, a challenge, the library's proxy
           if (record.ids.doi) this.queue("paper.pdf.browser", id, ctx.task.priority)
           await this.announce([id])
