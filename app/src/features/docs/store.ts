@@ -1,15 +1,18 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { isDesktop } from "@/lib/rpc"
 import { newId } from "@/lib/id"
-import { cleanName, extOf, nameFromFirstLine, timeName, uniquePath } from "./lib/naming"
+import * as disk from "./disk"
+import { cleanName, extOf, followFirstLine, timeName, uniquePath } from "./lib/naming"
 import { seedFiles, seedFolders, seedNotes } from "./mocks/seed"
-import { baseName, isMarkdown, joinPath, parentPath, type AgentNote, type WorkspaceFile } from "./types"
+import { baseName, isMarkdown, isWithin as within, joinPath, parentPath, type AgentNote, type WorkspaceFile } from "./types"
+
+// In the desktop app the store mirrors the workspace's files: core lists them when a workspace opens,
+// and every action below changes the store at once and then the disk (./disk). In a plain browser
+// (pnpm dev:web) there is no disk: a seeded workspace lives in memory until the page reloads.
 
 // Docs started in this session. One left without a single character is discarded when the user moves
 // on, so a stray ⌘N leaves nothing behind; files that were already on disk are never touched this way.
 export const freshDocIds = new Set<string>()
-
-const within = (path: string, folder: string) => path === folder || path.startsWith(folder + "/")
 
 // Everything a folder deletion removed, so it can be put back
 export interface Removed {
@@ -18,6 +21,8 @@ export interface Removed {
 }
 
 interface DocsState {
+  // Whether the workspace's files have been listed; until then an unknown doc id may still turn up
+  loaded: boolean
   files: Record<string, WorkspaceFile>
   // Folders the user made; folders that hold files exist anyway. Kept so empty folders survive.
   folders: string[]
@@ -64,11 +69,11 @@ function relocate(state: Pick<DocsState, "files" | "folders">, from: string, to:
 }
 
 export const useDocsStore = create<DocsState>()(
-  persist(
     (set, get) => ({
-      files: Object.fromEntries(seedFiles.map((f) => [f.id, f])),
-      folders: seedFolders,
-      notes: seedNotes,
+      loaded: !isDesktop,
+      files: isDesktop ? {} : Object.fromEntries(seedFiles.map((f) => [f.id, f])),
+      folders: isDesktop ? [] : seedFolders,
+      notes: isDesktop ? {} : seedNotes,
 
       createDoc: (folder) => {
         const t = Date.now()
@@ -86,44 +91,39 @@ export const useDocsStore = create<DocsState>()(
         const t = Date.now()
         const file: WorkspaceFile = { id: newId(), path, content, createdAt: t, modifiedAt: t, nameLocked: true }
         set((s) => ({ files: { ...s.files, [file.id]: file } }))
+        if (disk.onDisk) disk.saveDoc(file.id)
         return file
       },
 
-      writeDoc: (id, content, keepTime) =>
-        set((s) => {
-          const f = s.files[id]
-          if (!f || f.content === content) return s
-          let path = f.path
-          if (!f.nameLocked) {
-            const stem = nameFromFirstLine(content) || timeName(f.createdAt)
-            const folder = parentPath(f.path)
-            const taken = pathTaken(s.files, s.folders, id)
-            const current = baseName(f.path).slice(0, -3)
-            // A doc already numbered because its name is taken ("Notes 2") keeps its number
-            const numbered = current.startsWith(stem + " ") && /^\d+$/.test(current.slice(stem.length + 1)) && taken(joinPath(folder, stem + ".md"))
-            if (stem !== current && !numbered) path = uniquePath(folder, stem, ".md", taken)
-          }
-          return { files: { ...s.files, [id]: { ...f, content, path, modifiedAt: keepTime ? f.modifiedAt : Date.now() } } }
-        }),
+      writeDoc: (id, content, keepTime) => {
+        const f = get().files[id]
+        if (!f || f.content === content) return
+        // Core names the file on disk the same way; the store predicts it so the tree doesn't wait
+        const path = f.nameLocked ? f.path : (followFirstLine(f.path, content, f.createdAt, pathTaken(get().files, get().folders, id)) ?? f.path)
+        set((s) => ({ files: { ...s.files, [id]: { ...f, content, path, modifiedAt: keepTime ? f.modifiedAt : Date.now() } } }))
+        if (disk.onDisk) disk.saveDoc(id)
+      },
 
-      renameFile: (id, name) =>
-        set((s) => {
-          const f = s.files[id]
-          const stem = cleanName(name.replace(/\.md$/i, ""))
-          if (!f || !stem) return s
-          const path = uniquePath(parentPath(f.path), stem, extOf(f.path), pathTaken(s.files, s.folders, id))
-          return { files: { ...s.files, [id]: { ...f, path, nameLocked: isMarkdown(f.path) ? true : f.nameLocked } } }
-        }),
+      renameFile: (id, name) => {
+        const s = get()
+        const f = s.files[id]
+        const stem = cleanName(name.replace(/\.md$/i, ""))
+        if (!f || !stem) return
+        const path = uniquePath(parentPath(f.path), stem, extOf(f.path), pathTaken(s.files, s.folders, id))
+        set({ files: { ...s.files, [id]: { ...f, path, nameLocked: isMarkdown(f.path) ? true : f.nameLocked } } })
+        if (disk.onDisk) disk.renameOnDisk(id, baseName(path))
+      },
 
-      moveFile: (id, folder) =>
-        set((s) => {
-          const f = s.files[id]
-          if (!f || parentPath(f.path) === folder) return s
-          const name = baseName(f.path)
-          const ext = extOf(name)
-          const path = uniquePath(folder, ext ? name.slice(0, -ext.length) : name, ext, pathTaken(s.files, s.folders, id))
-          return { files: { ...s.files, [id]: { ...f, path } } }
-        }),
+      moveFile: (id, folder) => {
+        const s = get()
+        const f = s.files[id]
+        if (!f || parentPath(f.path) === folder) return
+        const name = baseName(f.path)
+        const ext = extOf(name)
+        const path = uniquePath(folder, ext ? name.slice(0, -ext.length) : name, ext, pathTaken(s.files, s.folders, id))
+        set({ files: { ...s.files, [id]: { ...f, path } } })
+        if (disk.onDisk) disk.moveOnDisk(id, folder)
+      },
 
       deleteFile: (id) => {
         const f = get().files[id]
@@ -133,6 +133,7 @@ export const useDocsStore = create<DocsState>()(
           delete files[id]
           return { files }
         })
+        if (disk.onDisk) disk.deleteOnDisk(id)
         return { files: [f], folders: [] }
       },
 
@@ -140,6 +141,7 @@ export const useDocsStore = create<DocsState>()(
         const { files, folders } = get()
         const path = uniquePath(parent, "New folder", "", pathTaken(files, folders))
         set((s) => ({ folders: [...s.folders, path] }))
+        if (disk.onDisk) disk.createFolderOnDisk(path)
         return path
       },
 
@@ -150,6 +152,7 @@ export const useDocsStore = create<DocsState>()(
         // A change of case only is the same folder, so it can't collide with itself
         const to = clean.toLowerCase() === baseName(path).toLowerCase() ? joinPath(parentPath(path), clean) : uniquePath(parentPath(path), clean, "", pathTaken(s.files, s.folders))
         set(relocate(s, path, to))
+        if (disk.onDisk) disk.renameFolderOnDisk(path, to)
         return to
       },
 
@@ -159,6 +162,7 @@ export const useDocsStore = create<DocsState>()(
         const s = get()
         const to = uniquePath(parent, baseName(path), "", pathTaken(s.files, s.folders))
         set(relocate(s, path, to))
+        if (disk.onDisk) disk.moveFolderOnDisk(path, to, parent)
         return to
       },
 
@@ -172,6 +176,7 @@ export const useDocsStore = create<DocsState>()(
           files: Object.fromEntries(Object.values(s.files).filter((f) => !within(f.path, path)).map((f) => [f.id, f])),
           folders: s.folders.filter((f) => !within(f, path)),
         })
+        if (disk.onDisk) disk.deleteFolderOnDisk(path)
         return removed
       },
 
@@ -189,25 +194,17 @@ export const useDocsStore = create<DocsState>()(
       reanchorNotes: (fileId, moved) =>
         set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).map((n) => (moved[n.id] ? { ...n, ...moved[n.id] } : n)) } })),
 
-      restore: ({ files, folders }) =>
+      // Undo of a delete. On disk only Markdown comes back (from the text kept here); other files
+      // stay in the system Trash, so they aren't put back in the tree either.
+      restore: ({ files, folders }) => {
+        const back = disk.onDisk ? files.filter((f) => isMarkdown(f.path) && f.content !== undefined) : files
         set((s) => ({
-          files: { ...s.files, ...Object.fromEntries(files.map((f) => [f.id, f])) },
+          files: { ...s.files, ...Object.fromEntries(back.map((f) => [f.id, f])) },
           folders: [...s.folders, ...folders.filter((f) => !s.folders.includes(f))],
-        })),
-    }),
-    {
-      name: "owlit-docs",
-      version: 1,
-      // Stores saved before notes existed get the seed notes for docs they still have
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<DocsState>
-        const notes = p.notes ?? Object.fromEntries(Object.entries(current.notes).filter(([id]) => (p.files ?? current.files)[id]))
-        // Notes are signed by Owlit, whichever local agent ran underneath; older ones named the engine
-        const signed = Object.fromEntries(Object.entries(notes).map(([id, list]) => [id, list.map((n) => ({ ...n, by: "Owlit" }))]))
-        return { ...current, ...p, notes: signed }
+        }))
+        if (disk.onDisk) disk.restoreOnDisk(back, folders)
       },
-    },
-  ),
+    }),
 )
 
 export const folderOf = (file: WorkspaceFile) => parentPath(file.path)

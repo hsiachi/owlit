@@ -3,3 +3,4 @@
 
 export { Core, CORE_VERSION, type CoreOptions } from "./core.ts"
 export { RpcFailure } from "./rpc/index.ts"
+export type { Host } from "./docs/docs.ts"

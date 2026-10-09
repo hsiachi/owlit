@@ -1,22 +1,11 @@
 import { undo } from "@codemirror/commands"
-import type { EditorView } from "@codemirror/view"
 import { toast } from "sonner"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { docUri } from "./lib/mentions"
+import { openEditor, replaceInEditor, spanChange } from "./editors"
 import { useDocsStore } from "./store"
 import { displayName, isMarkdown, type WorkspaceFile } from "./types"
-
-// Docs open in an editor, by file id. An agent's write to an open doc goes through its editor, so it lands
-// as one undoable change and the cursor stays where the user left it.
-const openEditors = new Map<string, EditorView>()
-
-export function registerEditor(id: string, view: EditorView) {
-  openEditors.set(id, view)
-  return () => {
-    if (openEditors.get(id) === view) openEditors.delete(id)
-  }
-}
 
 const fileAt = (path: string) => Object.values(useDocsStore.getState().files).find((f) => f.path === path)
 
@@ -28,25 +17,13 @@ export function wikilinkFile(files: Record<string, WorkspaceFile>, name: string)
   )
 }
 
-// The smallest change that turns `from` into `to`: one replaced span between a shared prefix and suffix
-export function spanChange(from: string, to: string) {
-  let start = 0
-  while (start < from.length && start < to.length && from[start] === to[start]) start++
-  let end = 0
-  while (end < from.length - start && end < to.length - start && from[from.length - 1 - end] === to[to.length - 1 - end]) end++
-  return { from: start, to: from.length - end, insert: to.slice(start, to.length - end) }
-}
-
 // The text of a doc as it is now: the open editor's, else the stored file's
-const currentText = (id: string) => openEditors.get(id)?.state.doc.toString() ?? useDocsStore.getState().files[id]?.content ?? ""
+const currentText = (id: string) => openEditor(id)?.state.doc.toString() ?? useDocsStore.getState().files[id]?.content ?? ""
 
 // Writes a doc without the user having typed it: through its editor when open, else straight to the file,
 // leaving its edit time as it was
 function rewrite(id: string, content: string) {
-  const view = openEditors.get(id)
-  if (!view) return useDocsStore.getState().writeDoc(id, content, true)
-  const change = spanChange(view.state.doc.toString(), content)
-  if (change.from !== change.to || change.insert) view.dispatch({ changes: change })
+  if (!replaceInEditor(id, content)) useDocsStore.getState().writeDoc(id, content, true)
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -94,7 +71,7 @@ setWorkspaceFs({
       if (!created) throw new Error(`Can't write ${path}`)
       return
     }
-    const view = openEditors.get(file.id)
+    const view = openEditor(file.id)
     if (!view) {
       useDocsStore.getState().writeDoc(file.id, content)
       return
@@ -110,7 +87,7 @@ setWorkspaceFs({
         label: "Undo",
         // Once the doc has been closed its editor's history is gone: the text goes back if nothing changed since
         onClick: () => {
-          if (openEditors.get(file.id) === view) undo(view)
+          if (openEditor(file.id) === view) undo(view)
           else if (currentText(file.id) === after) rewrite(file.id, before)
         },
       },

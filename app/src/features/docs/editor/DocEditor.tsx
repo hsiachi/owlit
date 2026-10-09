@@ -8,7 +8,8 @@ import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { reportDocEdited } from "@/lib/activity"
-import { registerEditor, wikilinkFile } from "../fs"
+import { registerEditor } from "../editors"
+import { wikilinkFile } from "../fs"
 import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
 import { type AgentNote, type WorkspaceFile } from "../types"
@@ -60,6 +61,10 @@ function dismissNote(fileId: string, note: AgentNote, next: string | null) {
 
 const SAVE_DELAY = 300
 
+// The editor works in "\n" lines; a file written with "\r\n" throughout gets them back on save. Any other
+// mix keeps its "\r"s as characters in the text, so they are written back exactly where they were.
+const usesCrlf = (text: string) => text.includes("\r\n") && !/(^|[^\r])\n|\r(?!\n)/.test(text)
+
 // Where each doc was left, for this session: a doc reopens with the cursor where it was
 const lastSelection = new Map<string, EditorSelection>()
 
@@ -76,6 +81,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     const id = file.id
     let timer: ReturnType<typeof setTimeout> | undefined
     let pending: string | null = null
+    const content = file.content ?? ""
+    const crlf = usesCrlf(content)
     const flush = () => {
       clearTimeout(timer)
       if (pending !== null) {
@@ -87,7 +94,6 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     // Passages edited while the doc was open are saved as they read now, so their notes find them next time
     let saveNotePlaces = () => {}
 
-    const content = file.content ?? ""
     const saved = lastSelection.get(id)
     const view = new EditorView({
       parent: host.current!,
@@ -95,6 +101,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
         doc: content,
         selection: saved && saved.ranges.every((r) => r.to <= content.length) ? saved : undefined,
         extensions: [
+          crlf ? [] : EditorState.lineSeparator.of("\n"),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           markdown({ base: markdownLanguage, extensions: [Highlight, Wikilinks, MathSyntax] }),
@@ -128,7 +135,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
             if (u.transactions.some(isUserEdit)) reportDocEdited(id)
-            pending = u.state.doc.toString()
+            pending = crlf ? u.state.doc.toString().replace(/\n/g, "\r\n") : u.state.doc.toString()
             clearTimeout(timer)
             timer = setTimeout(flush, SAVE_DELAY)
           }),

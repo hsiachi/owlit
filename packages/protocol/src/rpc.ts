@@ -1,4 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
+import type { DocsListing, DocStat } from "./docs.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -59,6 +60,32 @@ export interface Methods {
   "activity.emit": { params: { event: ActivityEvent }; result: null }
   "activity.status": { params: void; result: { enabled: boolean } }
   "activity.setEnabled": { params: { enabled: boolean }; result: { enabled: boolean } }
+
+  // ---- Docs: the workspace's files. Every path is workspace-relative; library/ and dot-folders are
+  // out of reach. Names a call asks for are made unique ("Name 2"), so results carry the real path.
+  // Every Markdown file with its text, other files without, and every folder
+  "docs.list": { params: void; result: DocsListing }
+  "docs.read": { params: { path: string }; result: { content: string; modifiedAt: number } }
+  // Writes a new file. id carries over one the client already uses; followsFirstLine names the file
+  // after its first line now and on later writes, until it is renamed by hand.
+  "docs.create": { params: { path: string; content: string; id?: string; followsFirstLine?: boolean }; result: DocStat }
+  // Replaces a file's text. Refused with Conflict (data: DocConflict) when the file changed on disk
+  // since expectedModifiedAt, unless force.
+  "docs.write": { params: { path: string; content: string; expectedModifiedAt: number; force?: boolean }; result: DocStat }
+  // A file or folder, renamed in place; a renamed file stops following its first line
+  "docs.rename": { params: { path: string; name: string }; result: { path: string } }
+  // A file or folder, moved into another folder ("" is the root)
+  "docs.move": { params: { path: string; folder: string }; result: { path: string } }
+  // A file or folder, to the system Trash
+  "docs.delete": { params: { path: string }; result: null }
+  "docs.createFolder": { params: { path: string }; result: { path: string } }
+  // Puts back what a delete removed, from the text the client kept (Undo)
+  "docs.restore": {
+    params: { files: { id: string; path: string; content: string }[]; folders: string[] }
+    result: { files: DocStat[]; folders: string[] }
+  }
+  // Opens a file in the system's app for it (files that aren't Markdown)
+  "docs.open": { params: { path: string }; result: null }
 }
 
 // Every notification core sends: topic → payload

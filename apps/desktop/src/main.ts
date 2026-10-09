@@ -3,7 +3,7 @@
 
 import { Core } from "@owlit/core"
 import type { MethodName, ParamsOf, ResultOf, RpcRequest, WorkspaceInfo } from "@owlit/protocol"
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, type MenuItemConstructorOptions } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -165,7 +165,17 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
-    const core = new Core({ userDataDir: app.getPath("userData"), appVersion: app.getVersion() })
+    const core = new Core({
+      userDataDir: app.getPath("userData"),
+      appVersion: app.getVersion(),
+      host: {
+        trash: (file) => shell.trashItem(file),
+        openPath: async (file) => {
+          const failure = await shell.openPath(file)
+          if (failure) throw new Error(failure)
+        },
+      },
+    })
     attachCore(core)
     // Development aid: print every activity event the renderer reports
     if (process.env.OWLIT_LOG_ACTIVITY) core.activity.subscribe((event) => console.log("[activity]", JSON.stringify(event)))

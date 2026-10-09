@@ -1,8 +1,9 @@
-import type { CoreVersion, RpcNotification, RpcRequest, RpcResponse, WorkspaceInfo } from "@owlit/protocol"
+import { RpcErrorCode, type CoreVersion, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { z } from "zod"
 import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
-import { noParams, Notifier, Router } from "./rpc/index.ts"
+import type { Host } from "./docs/docs.ts"
+import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SettingsStore } from "./settings.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
@@ -13,6 +14,8 @@ export interface CoreOptions {
   userDataDir: string
   // Reported by core.version; the host knows it (Electron's app.getVersion())
   appVersion?: string
+  // What the machine offers beyond Node (the system Trash, opening files in their apps)
+  host?: Host
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -58,6 +61,31 @@ export class Core {
       this.notifier.notify("activity.status", activity)
       return activity
     })
+
+    const docs = () => this.requireWorkspace().docs
+    const rel = z.string()
+    this.router.register("docs.list", noParams, () => docs().list())
+    this.router.register("docs.read", z.object({ path: rel }), ({ path }) => docs().read(path))
+    this.router.register(
+      "docs.create",
+      z.object({ path: rel, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }),
+      ({ path, content, ...options }) => docs().create(path, content, options),
+    )
+    this.router.register(
+      "docs.write",
+      z.object({ path: rel, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }),
+      ({ path, content, expectedModifiedAt, force }) => docs().write(path, content, expectedModifiedAt, force),
+    )
+    this.router.register("docs.rename", z.object({ path: rel, name: z.string() }), ({ path, name }) => docs().rename(path, name))
+    this.router.register("docs.move", z.object({ path: rel, folder: z.string() }), ({ path, folder }) => docs().move(path, folder))
+    this.router.register("docs.delete", z.object({ path: rel }), ({ path }) => docs().delete(path))
+    this.router.register("docs.createFolder", z.object({ path: rel }), ({ path }) => docs().createFolder(path))
+    this.router.register(
+      "docs.restore",
+      z.object({ files: z.array(z.object({ id: z.string(), path: rel, content: z.string() })), folders: z.array(rel) }),
+      ({ files, folders }) => docs().restore(files, folders),
+    )
+    this.router.register("docs.open", z.object({ path: rel }), ({ path }) => docs().open(path))
   }
 
   handle(request: RpcRequest): Promise<RpcResponse> {
@@ -87,7 +115,7 @@ export class Core {
         throw error
       })
       // The current workspace stays open until the next one has opened, so a failed switch loses nothing
-      const next = this.workspace?.root === root ? this.workspace : await Workspace.open(root, this.options.userDataDir)
+      const next = this.workspace?.root === root ? this.workspace : await Workspace.open(root, this.options.userDataDir, this.options.host)
       if (this.workspace && this.workspace !== next) await this.workspace.dispose()
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
@@ -104,6 +132,11 @@ export class Core {
     await this.journal.dispose()
     await this.workspace?.dispose()
     this.workspace = null
+  }
+
+  private requireWorkspace() {
+    if (!this.workspace) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
+    return this.workspace
   }
 
   private version(): CoreVersion {

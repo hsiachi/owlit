@@ -8,12 +8,15 @@ import { useNewDoc } from "../use-new-doc"
 // Docs has no landing page of its own: it goes back to the doc you were in, or the latest one
 export function DocsHome() {
   const files = useDocsStore((s) => s.files)
+  const loaded = useDocsStore((s) => s.loaded)
   const lastDocId = useDocsUiStore((s) => s.lastDocId)
   const newDoc = useNewDoc()
 
   const docs = Object.values(files).filter((f) => isMarkdown(f.path))
   const target = (lastDocId && files[lastDocId] && isMarkdown(files[lastDocId].path) ? files[lastDocId] : null) ?? docs.sort((a, b) => b.modifiedAt - a.modifiedAt)[0]
   if (target) return <Navigate to={`/docs/${target.id}`} replace />
+  // The workspace is still being read
+  if (!loaded) return null
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">

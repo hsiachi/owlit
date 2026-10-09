@@ -15,6 +15,7 @@ export function DocPage() {
   const { docId = "" } = useParams()
   const navigate = useNavigate()
   const file = useDocsStore((s) => s.files[docId])
+  const loaded = useDocsStore((s) => s.loaded)
   const folder = file ? parentPath(file.path) : ""
 
   // The panel follows the open doc: its folder opens (and folders opened only for the last doc close), and
@@ -27,6 +28,7 @@ export function DocPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docId, folder])
 
+  if (!file && !loaded) return null
   if (!file || !isMarkdown(file.path)) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">

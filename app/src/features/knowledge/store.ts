@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
+import { isDesktop } from "@/lib/rpc"
 import { useDocsStore } from "@/features/docs/store"
 import type { WorkspaceFile } from "@/features/docs/types"
 import { parseTopic, serializeTopic, slugify, topicPath } from "./format"
@@ -115,10 +116,10 @@ export const useKnowledgeStore = create<KnowledgeState>()(
   ),
 )
 
-// The first time the app runs with Knowledge, Owlit has already read the seeded workspace
-function seed() {
-  const k = useKnowledgeStore.getState()
-  if (k.seeded) return
+// In a plain browser the seeded workspace's topic files join the seeded docs on every load (the Docs store
+// lives in memory there). In the desktop app topics are whatever knowledge/ holds on disk.
+function seedTopicFilesInMemory() {
+  if (isDesktop) return
   const docs = useDocsStore.getState()
   const taken = new Set(Object.values(docs.files).map((f) => f.path))
   const files = { ...docs.files }
@@ -128,6 +129,13 @@ function seed() {
     files[id] = { id, path: f.path, content: f.content, createdAt: f.modifiedAt, modifiedAt: f.modifiedAt, nameLocked: true }
   }
   useDocsStore.setState({ files })
+}
+seedTopicFilesInMemory()
+
+// The first time the app runs with Knowledge, Owlit has already read the seeded workspace
+function seed() {
+  const k = useKnowledgeStore.getState()
+  if (k.seeded) return
   useKnowledgeStore.setState({
     seeded: true,
     topics: { ...seedSidecars, ...k.topics },

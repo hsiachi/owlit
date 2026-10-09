@@ -1,14 +1,9 @@
-// Docs wire types live in @owlit/protocol; the path helpers below are the app's own.
+// Docs wire types and path helpers live in @owlit/protocol, shared with core; display helpers are the app's own.
+
+import { baseName, isMarkdown } from "@owlit/protocol"
 
 export type { WorkspaceFile, AgentNote } from "@owlit/protocol"
-
-export const isMarkdown = (path: string) => /\.md$/i.test(path)
-
-export const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1)
-
-export const parentPath = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "")
-
-export const joinPath = (folder: string, name: string) => (folder ? `${folder}/${name}` : name)
+export { baseName, isMarkdown, isWithin, joinPath, parentPath } from "@owlit/protocol"
 
 // What a file is called in the tree and in the header: its name, without the Markdown extension
 export const displayName = (path: string) => {

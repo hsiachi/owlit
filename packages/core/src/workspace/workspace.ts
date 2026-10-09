@@ -2,6 +2,7 @@ import { RpcErrorCode, type WorkspaceInfo, type WorkspaceSettings } from "@owlit
 import { createHash } from "node:crypto"
 import { mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
+import { Docs, type Host } from "../docs/docs.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { acquireLock, WorkspaceLockedError } from "./lock.ts"
@@ -23,18 +24,20 @@ export class Workspace {
   readonly info: WorkspaceInfo
   readonly root: string
   readonly dataDir: string
+  readonly docs: Docs
   private release: () => Promise<void>
 
-  private constructor(root: string, dataDir: string, release: () => Promise<void>) {
+  private constructor(root: string, dataDir: string, release: () => Promise<void>, host: Host) {
     this.root = root
     this.dataDir = dataDir
     this.info = { path: root, name: path.basename(root) }
     this.release = release
+    this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
   }
 
   // Resolves the folder, takes the lock and makes sure .owlit/workspace.json exists. Creates nothing
   // else inside the folder.
-  static async open(folder: string, userDataDir: string) {
+  static async open(folder: string, userDataDir: string, host: Host = {}) {
     const root = await resolveFolder(folder)
     const dataDir = workspaceDataDir(userDataDir, root)
     await mkdir(dataDir, { recursive: true })
@@ -55,7 +58,7 @@ export class Workspace {
       await release()
       throw error
     }
-    return new Workspace(root, dataDir, release)
+    return new Workspace(root, dataDir, release, host)
   }
 
   // Path of something in .owlit/

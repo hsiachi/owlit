@@ -9,6 +9,7 @@ import { Kbd } from "@/components/ui/kbd"
 import { SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
+import { onDisk, openOnDisk } from "../disk"
 import { useDocsStore, type Removed } from "../store"
 import { useDocsUiStore } from "../ui-store"
 import { useNewDoc } from "../use-new-doc"
@@ -114,6 +115,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
 
   const open = () => {
     if (node.markdown) navigate(`/docs/${node.file.id}`)
+    else if (onDisk) openOnDisk(node.file.path)
     else toast(`${node.name} opens in the system app`)
   }
 

@@ -1,3 +1,4 @@
+import { isHiddenFromDocs } from "@owlit/protocol"
 import { baseName, displayName, isMarkdown, parentPath, type WorkspaceFile } from "../types"
 
 export interface FolderNode {
@@ -18,7 +19,7 @@ export interface FileNode {
 export type TreeNode = FolderNode | FileNode
 
 // The workspace's paper library, Owlit's Knowledge and dot-folders are not docs
-export const isHidden = (path: string) => /^(library|knowledge)(\/|$)/.test(path) || path.split("/").some((p) => p.startsWith("."))
+export const isHidden = isHiddenFromDocs
 
 // Folders first, then files; each by last edit, newest first. A folder's time is its newest file's.
 export function buildTree(files: WorkspaceFile[], folders: string[]): FolderNode {
