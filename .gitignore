@@ -6,3 +6,6 @@ dist/
 # Local Claude Code state: preview config and agent worktrees
 .claude/launch.json
 .claude/worktrees/
+
+# Local agent execution state: plans, tasks, debug scripts
+.agents/tasks/
