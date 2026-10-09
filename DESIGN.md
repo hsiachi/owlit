@@ -405,7 +405,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
   - The collapsed line adds "· N failed" in red only for real failures.
   - A pending permission is the only card: the action, three buttons and a warning-coloured shield. Once answered, the card goes away and the outcome ("Allowed once", "Rejected") sits inline on its tool call row as a lighter detail. It is never a separate line and never red.
   - A plan is a ruled checklist with a "done of total" count.
-  - The answer is markdown body text. Under it, the model name and time sit flush with the answer's left edge. Copy, Save as doc and regenerate appear after them on hover, so they never push the meta line in.
+  - The answer is markdown body text; math is drawn as in docs, inline, and display math as a centred block that scrolls sideways when wide. Under it, the model name and time sit flush with the answer's left edge. Copy, Save as doc and regenerate appear after them on hover, so they never push the meta line in. Under it, the model name and time sit flush with the answer's left edge. Copy, Save as doc and regenerate appear after them on hover, so they never push the meta line in.
   - A message sent with a selected passage carries it as one muted quoted line above the bubble, with a thin rule at its edge.
 - **Tables (in answers).** Ruled, not boxed: a tinted header row with rounded ends, a hairline under each body row, and no outer frame or column lines. Headers are medium weight.
 - **Fields.** Focus darkens the border, with no halo ring. An invalid field gets a red border, also without a ring.
