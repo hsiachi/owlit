@@ -1,7 +1,9 @@
 import { RpcErrorCode, type ChatMessage, type CoreVersion, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo } from "@owlit/protocol"
 import { existsSync } from "node:fs"
+import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
+import { Agents } from "./agents/agents.ts"
 import type { Host } from "./docs/docs.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SettingsStore } from "./settings.ts"
@@ -23,6 +25,7 @@ export interface CoreOptions {
 export class Core {
   readonly settings: SettingsStore
   readonly activity = new ActivityBus()
+  readonly agents: Agents
   private journal: Journal
   private router = new Router()
   private notifier = new Notifier()
@@ -36,6 +39,13 @@ export class Core {
     this.options = options
     this.settings = new SettingsStore(options.userDataDir)
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
+    this.agents = new Agents({
+      settings: this.settings,
+      probeDir: path.join(options.userDataDir, "agents", "probe"),
+      cwd: () => this.workspace?.root ?? null,
+      notify: (connector) => this.notifier.notify("agents.changed", connector),
+      idleMs: Number(process.env.OWLIT_AGENT_IDLE_MS) || undefined,
+    })
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     this.router.register("core.version", noParams, () => this.version())
@@ -134,6 +144,11 @@ export class Core {
       chats().patchMessage(id, message, final),
     )
 
+    this.router.register("agents.list", noParams, () => this.agents.list())
+    this.router.register("agents.check", z.object({ id: z.string() }), ({ id }) => this.agents.check(id))
+    this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), ({ name, command }) => this.agents.add(name, command))
+    this.router.register("agents.remove", z.object({ id: z.string() }), ({ id }) => this.agents.remove(id))
+
     this.router.register("notes.all", noParams, () => docs().notesAll())
     this.router.register("notes.add", z.object({ path: rel, note }), ({ path, note }) => docs().addNote(path, note))
     this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
@@ -183,6 +198,7 @@ export class Core {
 
   async dispose() {
     this.started = false
+    this.agents.dispose()
     await this.switching
     await this.journal.dispose()
     await this.workspace?.dispose()

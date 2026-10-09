@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { isDesktop } from "@/lib/rpc"
+import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import type { AgentClient } from "./agent/client"
 import * as disk from "./disk"
 import { MockAgentClient } from "./agent/mock-client"
@@ -50,7 +50,7 @@ interface ChatState {
   respondPermission: (chatId: string, requestId: string, optionId: string) => void
 
   checkConnector: (id: string) => Promise<void>
-  addCustomConnector: (name: string, command: string) => Connector
+  addCustomConnector: (name: string, command: string) => Promise<Connector>
   removeConnector: (id: string) => void
 }
 
@@ -95,7 +95,8 @@ export const useChatStore = create<ChatState>()(
     (set, get) => ({
       chats: isDesktop ? {} : Object.fromEntries(seedChats.map((c) => [c.id, c])),
       chatsLoaded: !isDesktop,
-      connectors: builtInConnectors,
+      // In the desktop app core says which agents exist (./connectors); until it answers there are none
+      connectors: isDesktop ? [] : builtInConnectors,
       selection: {
         connectorId: builtInConnectors[0].id,
         modelId: builtInConnectors[0].defaultModelId,
@@ -273,11 +274,16 @@ export const useChatStore = create<ChatState>()(
         const c = get().connectors.find((x) => x.id === id)
         if (!c) return
         set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? { ...x, status: "checking", error: undefined } : x)) }))
-        const result = await agentClient.check(c)
+        const result = isDesktop ? await rpc.agents.check({ id }).catch((e: Error) => ({ ...c, status: "error" as const, error: e.message })) : await agentClient.check(c)
         set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
       },
 
-      addCustomConnector(name, command) {
+      async addCustomConnector(name, command) {
+        if (isDesktop) {
+          const c = await rpc.agents.add({ name, command })
+          set((s) => ({ connectors: [...s.connectors, c] }))
+          return c
+        }
         const c: Connector = {
           id: `custom-${crypto.randomUUID().slice(0, 8)}`,
           name: name.trim() || "Custom agent",
@@ -295,6 +301,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       removeConnector(id) {
+        if (isDesktop) void rpc.agents.remove({ id }).catch(() => undefined)
         set((s) => {
           const connectors = s.connectors.filter((c) => c.id !== id)
           const selection =
@@ -309,7 +316,7 @@ export const useChatStore = create<ChatState>()(
       name: "owlit.chat",
       version: 1,
       // In the desktop app chats are the workspace's, not this browser profile's
-      partialize: (s) => (isDesktop ? { connectors: s.connectors, selection: s.selection } : { chats: s.chats, connectors: s.connectors, selection: s.selection }),
+      partialize: (s) => (isDesktop ? { selection: s.selection } : { chats: s.chats, connectors: s.connectors, selection: s.selection }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ChatState>
         // Built-in connectors take their definition (models, modes, efforts) from code and only
@@ -317,7 +324,7 @@ export const useChatStore = create<ChatState>()(
         // connectors are stored whole. Stale "checking"/"connected" flags are reset.
         const stored = p.connectors ?? []
         const custom = stored.filter((c) => !c.builtIn)
-        const connectors = [
+        const connectors = isDesktop ? current.connectors : [
           ...builtInConnectors.map((def) => {
             const saved = stored.find((c) => c.id === def.id)
             return saved ? { ...def, status: saved.status, version: saved.version, authenticated: saved.authenticated, error: saved.error } : def
@@ -335,6 +342,40 @@ export const useChatStore = create<ChatState>()(
     },
   ),
 )
+
+// ---- Local agents, from core ----
+
+// The pickers show what the agent offers; a remembered model, mode or effort it doesn't offer falls back
+// to the agent's own default
+function fitSelection(connectors: Connector[]) {
+  const { selection } = useChatStore.getState()
+  const c = connectors.find((x) => x.id === selection.connectorId) ?? connectors[0]
+  if (!c) return
+  const pick = <T extends { id: string }>(list: T[] | undefined, id: string | undefined, fallback: string | undefined) =>
+    list?.some((x) => x.id === id) ? id : fallback
+  useChatStore.setState({
+    selection: {
+      connectorId: c.id,
+      modelId: pick(c.models, selection.modelId, c.defaultModelId),
+      modeId: pick(c.modes, selection.modeId, c.defaultModeId),
+      effortId: pick(c.efforts, selection.effortId, c.defaultEffortId),
+    },
+  })
+}
+
+if (isDesktop) {
+  // Agents are this machine's, not the workspace's: listed once, then kept current by core
+  void rpc.agents.list().then((connectors) => {
+    useChatStore.setState({ connectors })
+    fitSelection(connectors)
+    // Agents never checked are checked now, so the user never sees an "unknown" state
+    for (const c of connectors) if (c.status === "unknown") void useChatStore.getState().checkConnector(c.id)
+  })
+  onNotify("agents.changed", (connector) => {
+    useChatStore.setState((s) => ({ connectors: s.connectors.map((c) => (c.id === connector.id ? connector : c)) }))
+    fitSelection(useChatStore.getState().connectors)
+  })
+}
 
 // ---- Selectors ----
 

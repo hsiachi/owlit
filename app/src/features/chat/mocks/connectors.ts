@@ -1,13 +1,14 @@
 import type { Connector } from "../types"
 
-// Built-in connectors for the common local coding agents, all speaking ACP over stdio
+// Built-in connectors for the common local coding agents, all speaking ACP over stdio. Only for the
+// browser mock (pnpm dev:web); the desktop app gets the real list from core (agents/agents.ts).
 export const builtInConnectors: Connector[] = [
   {
     id: "claude-code",
     name: "Claude Code",
-    description: "Anthropic's coding agent, via the claude-code-acp adapter",
-    command: "npx @zed-industries/claude-code-acp",
-    installHint: "npm install -g @anthropic-ai/claude-code",
+    description: "Anthropic's coding agent, via its ACP adapter",
+    command: "claude-agent-acp",
+    installHint: "npm install -g @agentclientprotocol/claude-agent-acp",
     builtIn: true,
     status: "unknown",
     models: [
@@ -33,9 +34,9 @@ export const builtInConnectors: Connector[] = [
   {
     id: "codex",
     name: "Codex",
-    description: "OpenAI Codex CLI, via the codex-acp adapter",
-    command: "npx @zed-industries/codex-acp",
-    installHint: "npm install -g @openai/codex",
+    description: "OpenAI Codex CLI, via its ACP adapter",
+    command: "codex-acp",
+    installHint: "npm install -g @agentclientprotocol/codex-acp",
     builtIn: true,
     status: "unknown",
     models: [

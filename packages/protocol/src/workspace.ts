@@ -20,12 +20,29 @@ export interface AppSettings {
   // Most recent first
   recentWorkspaces: string[]
   lastWorkspace?: string
-  // Filled by the agent runtime (T09)
-  connectors: Record<string, unknown>
+  // Local agents: the ones the user added, and what each agent last said about itself
+  connectors: ConnectorSettings
   // Filled by the parsing service (T18)
   parsing: Record<string, unknown>
   // Whether the renderer reports what the user does (the activity stream and journal)
   activity: { enabled: boolean }
+}
+
+export interface ConnectorSettings {
+  custom?: { id: string; name: string; command: string }[]
+  // From the last check: what the agent offers, so the pickers fill without starting it
+  probed?: Record<string, ProbedConnector>
+}
+
+export interface ProbedConnector {
+  checkedAt: number
+  version?: string
+  models: { id: string; name: string; description?: string }[]
+  modes: { id: string; name: string; description?: string }[]
+  efforts: { id: string; name: string; description?: string }[]
+  defaultModelId?: string
+  defaultModeId?: string
+  defaultEffortId?: string
 }
 
 // Top-level names in a workspace that are owlit's or hidden: the Docs tree never shows them
