@@ -24,8 +24,19 @@ export interface AppSettings {
   connectors: ConnectorSettings
   // Filled by the parsing service (T18)
   parsing: Record<string, unknown>
+  // The services the library asks about papers
+  library: LibrarySettings
   // Whether the renderer reports what the user does (the activity stream and journal)
   activity: { enabled: boolean }
+}
+
+export interface LibrarySettings {
+  // Given to OpenAlex (its polite pool) and Unpaywall, which ask for an address they can write to
+  contactEmail?: string
+  // OpenAlex's own key, for more than its free daily allowance
+  openalexApiKey?: string
+  // Semantic Scholar allows far more with a key; without one it often answers "slow down"
+  s2ApiKey?: string
 }
 
 export interface ConnectorSettings {

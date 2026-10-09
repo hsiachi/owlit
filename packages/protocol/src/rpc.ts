@@ -1,6 +1,7 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { ResolvedPaper } from "./library.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
@@ -44,6 +45,8 @@ export const RpcErrorCode = {
   Conflict: -32002,
   // The request needs an open workspace and there is none
   NoWorkspace: -32003,
+  // A service owlit asks (OpenAlex, Semantic Scholar, a publisher) couldn't be reached or refused
+  Unavailable: -32004,
 } as const
 
 // Every request core answers: method name ("<area>.<verb>") → params and result. Clients are typed
@@ -127,6 +130,13 @@ export interface Methods {
   "agents.add": { params: { name: string; command: string }; result: Connector }
   // Removes one the user added
   "agents.remove": { params: { id: string }; result: null }
+
+  // ---- Library: the workspace's papers
+  // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
+  // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
+  "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
+  // For each input, the id of the paper in the library it names, or null; asks no one
+  "library.known": { params: { inputs: string[] }; result: (string | null)[] }
 
   // ---- Tasks: background work in the open workspace. Their state shows beside what they are about.
   // Unfinished tasks, then the ones that finished since the workspace opened, most recent first

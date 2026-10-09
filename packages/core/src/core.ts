@@ -4,8 +4,10 @@ import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
-import type { Host } from "./docs/docs.ts"
+import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { limitMetadataHosts } from "./library/resolve.ts"
+import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -21,6 +23,8 @@ export interface CoreOptions {
   host?: Host
   // A development build: adds what only helps while working on owlit (tasks.debugEnqueue)
   debug?: boolean
+  // Base of the wait between tries of a failed request (default 1s); tests shorten it
+  retryBaseMs?: number
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -39,10 +43,14 @@ export class Core {
   private switching: Promise<unknown> = Promise.resolve()
   private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
   private debugTasks = debugTasks()
+  // One way out to the network for every workspace, so each service's rate holds across them
+  private readonly http: Http
 
   constructor(options: CoreOptions) {
     this.options = options
     this.settings = new SettingsStore(options.userDataDir)
+    this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
+    limitMetadataHosts(this.http)
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
     this.agents = new Agents({
       settings: this.settings,
@@ -154,6 +162,10 @@ export class Core {
     this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), ({ name, command }) => this.agents.add(name, command))
     this.router.register("agents.remove", z.object({ id: z.string() }), ({ id }) => this.agents.remove(id))
 
+    const library = () => this.requireWorkspace().library
+    this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
+    this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), ({ inputs }) => library().known(inputs))
+
     const tasks = () => this.requireWorkspace().tasks
     const taskId = z.string().min(1)
     this.router.register("tasks.list", noParams, () => tasks().list())
@@ -218,9 +230,10 @@ export class Core {
       const next =
         this.workspace?.root === root
           ? this.workspace
-          : await Workspace.open(root, this.options.userDataDir, this.options.host, {
-              definitions: () => this.taskDefinitions(),
-              onChange: (task) => this.taskChanges.push(task),
+          : await Workspace.open(root, this.options.userDataDir, {
+              host: this.options.host,
+              library: { http: this.http, settings: async () => (await this.settings.get()).library },
+              tasks: { definitions: (workspace) => this.taskDefinitions(workspace), onChange: (task) => this.taskChanges.push(task) },
             })
       if (this.workspace && this.workspace !== next) {
         await this.workspace.dispose()
@@ -247,9 +260,9 @@ export class Core {
     this.taskChanges.flush()
   }
 
-  // Every kind of task core knows
-  private taskDefinitions(): TaskDefinition[] {
-    return this.options.debug ? this.debugTasks.definitions : []
+  // Every kind of task core knows, made for one workspace
+  private taskDefinitions(workspace: Workspace): TaskDefinition[] {
+    return [...workspace.library.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

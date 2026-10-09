@@ -10,8 +10,14 @@ export type HighlightColor = "yellow" | "green" | "blue" | "pink"
 export type PaperKind = "article" | "conference" | "preprint" | "book" | "thesis" | "other"
 
 export interface PaperIds {
+  // Lowercase, without a doi.org prefix
   doi?: string
+  // Without a version: 2408.00447, hep-th/9901001
   arxiv?: string
+  // Semantic Scholar's paperId (40 hex)
+  s2?: string
+  // OpenAlex work id: W2741809807
+  openalex?: string
   url?: string
 }
 
@@ -82,6 +88,31 @@ export interface PaperNote {
   updatedAt: number
 }
 
-// What a reference resolves to before it becomes a Paper
+// What a reference resolves to before it becomes a Paper. id is the one it will have in the library.
 export type ResolvedPaper = Pick<Paper, "title" | "authors" | "ids"> &
-  Partial<Pick<Paper, "year" | "venue" | "abstract" | "pdf">>
+  Partial<Pick<Paper, "id" | "year" | "venue" | "abstract" | "pdf" | "kind">>
+
+// library/papers/<id>/paper.json: what the paper is, as the services and the file say. Regenerable;
+// what the user changed by hand lives in .owlit/papers/<id>/state.json (overrides) and wins.
+export interface PaperRecord {
+  version: 1
+  id: string
+  ids: PaperIds
+  title: string
+  authors: string[]
+  year?: number
+  // ISO date of first publication
+  date?: string
+  venue?: string
+  abstract?: string
+  kind?: PaperKind
+  // Semantic Scholar's one-sentence summary
+  tldr?: string
+  citationCount?: number
+  // Open-access PDF links the services know, best first
+  pdfUrls?: string[]
+  // Where each field came from: "openalex" | "s2" | "arxiv" | "pdf" | …
+  fields: Partial<Record<string, string>>
+  // When the services were last asked
+  fetchedAt?: number
+}

@@ -9,6 +9,7 @@ export const defaultSettings = (): AppSettings => ({
   recentWorkspaces: [],
   connectors: {},
   parsing: {},
+  library: {},
   activity: { enabled: true },
 })
 
