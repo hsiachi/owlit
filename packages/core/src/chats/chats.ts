@@ -44,7 +44,11 @@ export class Chats {
     if (cached) return cached
     const summary = (await this.loadIndex()).get(id)
     if (!summary) throw notFound(id)
-    const stored = await readJson<ChatFile>(this.fileOf(id)).catch(() => undefined)
+    // Only a missing file is an empty chat. Anything else (a file that can't be read or parsed right
+    // now) fails the call and isn't cached: the next message would otherwise be written over the chat.
+    const stored = await readJson<ChatFile>(this.fileOf(id)).catch((error) => {
+      throw new RpcFailure(RpcErrorCode.Unavailable, "owlit couldn't read that chat just now.", { id, reason: error instanceof Error ? error.message : String(error) })
+    })
     // A turn that was streaming when owlit last stopped never finished
     const messages = (stored?.messages ?? []).map((m) => (m.status === "streaming" ? cutOff(m) : m))
     const chat: Chat = { ...summary, messages }

@@ -333,6 +333,8 @@ export function toMarkdown(text: PaperText): string {
       if (block.kind === "other") continue
       if (block.kind === "heading") parts.push(`## ${joined}`)
       else if (block.kind === "table") parts.push(tableMarkdown(block.lines.map((l) => l.text)))
+      else if (block.kind === "code") parts.push(["```", ...block.lines.map((l) => l.text), "```"].join("\n"))
+      else if (block.kind === "list") parts.push(block.lines.map((l) => (/^(\d+[.)]|[-*+])\s/.test(l.text) ? l.text : `- ${l.text.replace(/^[•·▪◦]\s*/, "")}`)).join("\n"))
       else if (block.kind === "figure") parts.push(`*${joined}*`)
       else parts.push(joined)
     }
@@ -364,13 +366,15 @@ export async function pageSizes(bytes: Uint8Array, wasmPath?: string): Promise<{
   }
 }
 
-// Rows as "a | b" (MinerU's tables) become a Markdown table under its caption; the first row heads it
+// Rows as "| a | b |" (MinerU's tables, a | in a cell escaped) become a Markdown table under its
+// caption; the first row heads it
 function tableMarkdown(lines: string[]) {
-  const caption = lines.filter((l) => !l.includes(" | "))
-  const rows = lines.filter((l) => l.includes(" | ")).map((l) => l.split(" | "))
+  const isRow = (l: string) => l.length > 1 && l.startsWith("|") && l.endsWith("|")
+  const caption = lines.filter((l) => !isRow(l))
+  const rows = lines.filter(isRow).map((l) => l.slice(1, -1).split(/(?<!\\)\|/).map((cell) => cell.trim()))
   if (!rows.length) return caption.join("\n")
   const width = Math.max(...rows.map((r) => r.length))
-  const row = (cells: string[]) => `| ${Array.from({ length: width }, (_, i) => (cells[i] ?? "").replace(/\|/g, "\\|")).join(" | ")} |`
+  const row = (cells: string[]) => `| ${Array.from({ length: width }, (_, i) => cells[i] ?? "").join(" | ")} |`
   const table = [row(rows[0]), `| ${Array.from({ length: width }, () => "---").join(" | ")} |`, ...rows.slice(1).map(row)].join("\n")
   return caption.length ? `${caption.join(" ")}\n\n${table}` : table
 }

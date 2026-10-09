@@ -44,14 +44,25 @@ export class Background {
   async run(run: BackgroundRun): Promise<BackgroundResult> {
     const connectorId = run.connectorId ?? (await this.pickConnector())
     const proc = await this.agents.process(connectorId)
+    run.signal.throwIfAborted()
     let answer = ""
+    // Text after a tool call is another message: kept apart, so words before the result don't run
+    // into its first line ("I'll read the rest.# Title")
+    let apart = false
     const refused: string[] = []
     const session = await proc.newSession(
       { cwd: run.root, mcpServers: run.mcpServers },
       {
         update: (n) => {
-          if (n.update.sessionUpdate === "agent_message_chunk" && n.update.content.type === "text") answer += n.update.content.text
-          if (n.update.sessionUpdate === "tool_call") log(`tool ${n.update.title}`)
+          if (n.update.sessionUpdate === "agent_message_chunk" && n.update.content.type === "text") {
+            if (apart && answer) answer += "\n\n"
+            apart = false
+            answer += n.update.content.text
+          }
+          if (n.update.sessionUpdate === "tool_call") {
+            apart = true
+            log(`tool ${n.update.title}`)
+          }
           if (n.update.sessionUpdate === "tool_call_update" && n.update.status === "failed") log(`tool failed ${n.update.toolCallId}`)
         },
         requestPermission: async (r) => {
@@ -75,6 +86,12 @@ export class Background {
     const cancel = () => void proc.cancel({ sessionId: session.sessionId }).catch(() => undefined)
     run.signal.addEventListener("abort", cancel, { once: true })
     try {
+      // Cancelled while the session was starting: the listener above came too late to hear it
+      run.signal.throwIfAborted()
+      // The agent's own default mode (acceptEdits, bypassPermissions) would let it edit or run things
+      // without asking, and requestPermission only refuses what is asked: the session asks first.
+      // (Not plan mode: Claude Code then ends by asking to leave it, which nobody can answer here.)
+      await setMode(proc, session, "default")
       const response = await proc.prompt({ sessionId: session.sessionId, prompt: [{ type: "text", text: preamble(run.root) }, { type: "text", text: run.prompt }] })
       run.signal.throwIfAborted()
       log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
@@ -94,5 +111,17 @@ export class Background {
     const chosen = ready.find((c) => c.id === "claude-code") ?? ready[0]
     if (!chosen) throw new RpcFailure(RpcErrorCode.Unavailable, "No agent is set up to work in the background.")
     return chosen.id
+  }
+}
+
+// The mode set on the session if the agent offers it: as a config option (category mode) or, for an
+// agent without those, as a session mode
+async function setMode(proc: Awaited<ReturnType<Agents["process"]>>, session: acp.NewSessionResponse, mode: string) {
+  const option = session.configOptions?.find((o) => o.category === "mode" && o.type === "select")
+  if (option && option.type === "select") {
+    const values = (option.options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
+    if (values.includes(mode) && option.currentValue !== mode) await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: mode })
+  } else if (session.modes?.availableModes.some((m) => m.id === mode) && session.modes.currentModeId !== mode) {
+    await proc.setMode({ sessionId: session.sessionId, modeId: mode })
   }
 }

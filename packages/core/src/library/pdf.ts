@@ -185,6 +185,8 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
   try {
     await pipeline(Readable.fromWeb(response.body as import("node:stream/web").ReadableStream), checked, createWriteStream(part))
     if (head.length < 5) throw new NotAPdf(`${host} sent an empty file.`)
+    // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
+    signal?.throwIfAborted()
     await rename(part, dest)
   } catch (error) {
     await rm(part, { force: true })

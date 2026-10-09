@@ -70,6 +70,8 @@ const RESOLUTION_TTL_MS = 10 * 60_000
 const SETTLE_MS = 300
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
+// The steps that find a paper's PDF or read it: a PDF the user puts in stops them
+const PDF_STEPS = ["paper.pdf", "paper.pdf.browser", "paper.pdf.check", "paper.parse"]
 
 export interface LibraryServices {
   http: Http
@@ -211,7 +213,8 @@ export class Library {
     return this.serial(async () => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
       if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, "owlit can't tell which paper that is.")
-      const existing = await this.index.find(resolved.ids)
+      // A folder already there is that paper even if the index missed it: never written over
+      const existing = (await this.index.find(resolved.ids)) ?? ((await readRecord(this.root, id)) ? id : undefined)
       if (existing) return (await this.get(existing))!
       const resolution = this.recent(id)
       const record: PaperRecord = resolution
@@ -376,6 +379,8 @@ export class Library {
   async writeNoteFor(paperId: string, content: string): Promise<void> {
     await this.serial(async () => {
       if (!(await readRecord(this.root, paperId))) throw notFound(paperId)
+      // Learned before it changes, so the change is told even for a paper no window has listed yet
+      if (!this.knownNotes.has(paperId)) this.knownNotes.set(paperId, (await readNote(this.root, paperId))?.content ?? "")
       await writeNote(this.root, paperId, content)
     })
     await this.noteMayHaveChanged(paperId)
@@ -406,7 +411,8 @@ export class Library {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!this.scheduler?.knows("paper.pdf")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't look for PDFs here.")
     let task = await this.scheduler.run("paper.pdf", id, "waiting")
-    if (!(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
+    // Not after a failure (offline): the browser would only fail too, and its answer would hide why
+    if (task.state !== "failed" && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
     const paper = await this.get(id)
     if (!paper) throw notFound(id)
     if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't look for a PDF.")
@@ -461,7 +467,7 @@ export class Library {
         const language = (await this.services.settings()).digestLanguage ?? "English"
         const { text: answer, connectorId } = await agent(digestPrompt(id, record, text, language), ctx.signal)
         const digest = cleanDigest(answer)
-        if (!/^#/m.test(digest) || digest.length < 200) throw new Error("The agent's note didn't look like a reading note.")
+        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a reading note.")
         await this.serial(async () => {
           if (await stat(path.join(dir, "digest.md")).then(() => true, () => false)) return
           await writeFileAtomic(path.join(dir, "digest.md"), digest)
@@ -510,6 +516,8 @@ export class Library {
               },
             })
             if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
+            // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
+            ctx.signal.throwIfAborted()
             await writeFileAtomic(dest, Buffer.from(bytes))
             const sha256 = await sha256Of(dest)
             this.pdfHashes?.set(sha256, id)
@@ -664,12 +672,13 @@ export class Library {
       if (placed) return { paper: (await this.get(placed))!, existed: true }
       const ids = resolution?.ids ?? (found.ref ? { [found.ref.kind]: found.ref.value } : {})
       // Known under one of its ids: the file joins that paper unless it already has one
-      const existing = await this.index.find(ids)
+      const id = resolution?.id ?? paperIdOf(ids) ?? `local-${sha.slice(0, 12)}`
+      // A folder already there is that paper even if the index missed it: never written over
+      const existing = (await this.index.find(ids)) ?? ((await readRecord(this.root, id)) ? id : undefined)
       if (existing) {
         if (!(await hasPdfFile(this.root, existing))) await this.placePdf(existing, file, sha)
         return { paper: (await this.get(existing))!, existed: true }
       }
-      const id = resolution?.id ?? paperIdOf(ids) ?? `local-${sha.slice(0, 12)}`
       const record: PaperRecord = resolution
         ? recordFrom(id, resolution)
         : clean({
@@ -694,12 +703,19 @@ export class Library {
 
   // The file becomes the paper's PDF, and the steps that read it follow
   private async placePdf(id: string, file: string, sha: string) {
-    // A download still looking must not replace the user's file when it lands
-    const looking = this.scheduler?.list().find((t) => t.kind === "paper.pdf" && t.subject === id && !isTaskFinished(t))
-    if (looking) this.scheduler!.cancel(looking.id)
+    // A download or a publisher's page still looking must not replace the user's file when it lands,
+    // nor a reading of the old file come back over the new one's
+    for (const t of this.scheduler?.list() ?? []) {
+      if (t.subject === id && !isTaskFinished(t) && PDF_STEPS.includes(t.kind)) this.scheduler!.cancel(t.id)
+    }
     const dest = pdfFile(this.root, id)
-    await copyFile(file, `${dest}.part`)
-    await rename(`${dest}.part`, dest)
+    // Its own temporary name: a cancelled download may still be cleaning up its .part
+    const part = `${dest}.${process.pid}-${Date.now()}.part`
+    await copyFile(file, part)
+    await rename(part, dest)
+    // What was read from the file it replaces goes, so the new one is read (and MinerU reads it again)
+    const dir = paperDir(this.root, id)
+    await Promise.all(["text.json", "text.md", "text.pdfium.json", "parse.json"].map((name) => rm(path.join(dir, name), { force: true })))
     const previous = await readAcquisition(this.root, id)
     await writeAcquisition(this.root, id, {
       version: 1,
@@ -839,6 +855,8 @@ export class Library {
               blocks = await awaitCloud(this.services.http, settings, batchId, { signal: ctx.signal, onProgress: (done, total) => ctx.progress(done, total) })
             }
             const text = contentListToText(blocks, await pageSizes(bytes, this.services.pdfiumWasm))
+            // Cancelled meanwhile (the PDF was replaced): this reading is of the old file
+            ctx.signal.throwIfAborted()
             const dir = paperDir(this.root, id)
             const previous = await readText(this.root, id)
             if (previous?.source === "pdfium") await writeJsonAtomic(path.join(dir, "text.pdfium.json"), previous)
@@ -928,8 +946,8 @@ export class Library {
           await writeText(this.root, id, text, { markdown: !legacy })
           this.queue("index.paper", id, "background")
           if ((await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
-          // A scan has no text at all until MinerU reads it
-          this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
+          // A scan has no text at all until MinerU reads it. pitta's text.md is MinerU's already.
+          if (!legacy) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
       }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact
@@ -941,7 +959,7 @@ export class Library {
           const record = await readRecord(this.root, id)
           if (!record) throw new TaskFailure(`${id} is not in the library.`)
           if (await hasPdfFile(this.root, id)) return
-          const { http } = this.services
+          const { http, heard } = watchedHttp(this.services.http)
           const settings = await this.services.settings()
           const tried: Attempt[] = []
           const routes = routesFor(record, {
@@ -969,10 +987,9 @@ export class Library {
           if (record.ids.doi && !settings.contactEmail) {
             tried.push({ route: "unpaywall", url: "", error: "Not tried: Unpaywall needs a contact email in settings.", at: Date.now() })
           }
-          // Nothing answered at all: the machine is offline, which passes
-          if (tried.length && tried.every((t) => t.status === 0 || t.error?.startsWith("Not tried"))) {
-            if (tried.some((t) => t.status === 0)) throw new HttpError(0, tried[0].url, "Couldn't reach any source of PDFs.")
-          }
+          // No server answered at all (doi.org, Unpaywall, the routes): the machine is offline, which
+          // passes. One dead host among ones that answered is just a route that failed.
+          if (heard.asked && !heard.answered) throw new HttpError(0, tried[0]?.url ?? "", "Couldn't reach any source of PDFs.")
           // Another route (the browser, a drop) may have placed it meanwhile; its record stands
           if (await hasPdfFile(this.root, id)) return
           // A check the publisher wants stays noted until the browser looks again (queued below)
@@ -1144,6 +1161,24 @@ function cleanIds(ids: Partial<PaperIds>): PaperIds {
   return out
 }
 
+// An Http that notes whether any server answered at all, even with an error: none did means offline
+function watchedHttp(http: Http) {
+  const heard = { asked: false, answered: false }
+  const watched: Http = Object.create(http)
+  watched.get = async (url, options) => {
+    heard.asked = true
+    try {
+      const response = await http.get(url, options)
+      heard.answered = true
+      return response
+    } catch (error) {
+      if (error instanceof HttpError && error.status > 0) heard.answered = true
+      throw error
+    }
+  }
+  return { http: watched, heard }
+}
+
 // Pages "3", "3-5" or "3,7" of a text.md (split at its <!-- page N --> marks), or the section under the
 // heading that contains `section`, or all of it
 export function pickFromText(markdown: string, where: { pages?: string; section?: string }): { text: string; pages: number } {
@@ -1203,6 +1238,10 @@ export function cleanDigest(answer: string) {
   const fenced = text.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/)
   if (fenced) text = fenced[1].trim()
   const title = text.search(/^# /m)
-  if (title > 0) text = text.slice(title)
+  if (title > 0) {
+    text = text.slice(title)
+    // A note fenced after words before it: the fence's end is left over
+    text = text.replace(/\n```\s*$/, "").trim()
+  }
   return text + "\n"
 }

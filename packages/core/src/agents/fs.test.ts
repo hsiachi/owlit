@@ -1,5 +1,5 @@
 import type { RpcNotification, UiRequest } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -114,6 +114,15 @@ describe("agent fs", () => {
     await expect(core.fs.read("/etc/passwd")).rejects.toThrow("outside the workspace")
     await expect(core.fs.read(path.join(root, "../../../etc/passwd"))).rejects.toThrow("outside the workspace")
     await expect(core.fs.write(path.join(root, ".owlit/workspace.json"), "{}")).rejects.toThrow("inside .owlit")
+    // macOS takes .OWLIT for .owlit
+    await expect(core.fs.write(path.join(root, ".OWLIT/workspace.json"), "{}")).rejects.toThrow("inside .owlit")
+    // A symlink in the folder doesn't lead outside it
+    const outside = mkdtempSync(path.join(tmpdir(), "owlit-outside-"))
+    writeFileSync(path.join(outside, "secret.txt"), "secret")
+    symlinkSync(path.join(outside, "secret.txt"), path.join(root, "notes.md"))
+    symlinkSync(outside, path.join(root, "away"))
+    await expect(core.fs.read(path.join(root, "notes.md"))).rejects.toThrow("leads outside the workspace")
+    await expect(core.fs.write(path.join(root, "away/new.md"), "x")).rejects.toThrow("leads outside the workspace")
   })
 
   it("writes a paper's note through the library, tells windows, and undoes it", async () => {

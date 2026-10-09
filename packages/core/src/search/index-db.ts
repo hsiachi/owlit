@@ -8,7 +8,8 @@ import { DatabaseSync } from "node:sqlite"
 // docs and chats, and the links between them (owlit:// mentions, [[wikilinks]]). Derived: deleting it
 // only means the next sync reads everything again.
 
-const SCHEMA_VERSION = 1
+// 2: Chinese and Japanese text is split into words (cjkWords)
+const SCHEMA_VERSION = 2
 
 export type Source = "paper" | "doc" | "chat"
 
@@ -59,7 +60,7 @@ export class IndexDb {
       this.db.prepare("DELETE FROM papers WHERE id = ?").run(row.id)
       this.db
         .prepare("INSERT INTO papers (id, title, authors, venue, tags, ids, year, abstract, fulltext) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .run(row.id, row.title, row.authors, row.venue, row.tags, row.ids, row.year, row.abstract, row.fulltext)
+        .run(row.id, cjkWords(row.title), row.authors, row.venue, row.tags, row.ids, row.year, cjkWords(row.abstract), cjkWords(row.fulltext))
       this.setLinks("paper", row.id, links)
       this.sign("paper", row.id, signature)
     })
@@ -68,7 +69,7 @@ export class IndexDb {
   putDoc(docPath: string, title: string, text: string, links: Link[], signature: string) {
     this.inTransaction(() => {
       this.db.prepare("DELETE FROM docs WHERE path = ?").run(docPath)
-      this.db.prepare("INSERT INTO docs (path, title, text) VALUES (?, ?, ?)").run(docPath, title, text)
+      this.db.prepare("INSERT INTO docs (path, title, text) VALUES (?, ?, ?)").run(docPath, cjkWords(title), cjkWords(text))
       this.setLinks("doc", docPath, links)
       this.sign("doc", docPath, signature)
     })
@@ -77,7 +78,7 @@ export class IndexDb {
   putChat(id: string, title: string, text: string, links: Link[], signature: string) {
     this.inTransaction(() => {
       this.db.prepare("DELETE FROM chats WHERE id = ?").run(id)
-      this.db.prepare("INSERT INTO chats (id, title, text) VALUES (?, ?, ?)").run(id, title, text)
+      this.db.prepare("INSERT INTO chats (id, title, text) VALUES (?, ?, ?)").run(id, cjkWords(title), cjkWords(text))
       this.setLinks("chat", id, links)
       this.sign("chat", id, signature)
     })
@@ -115,6 +116,7 @@ export class IndexDb {
       .all(match, limit * 4) as unknown as SearchHit[]
     const ranked = (hits: SearchHit[]) =>
       hits
+        .map((h) => ({ ...h, title: unsplit(h.title), snippet: unsplit(h.snippet) }))
         .map((h) => ({ ...h, inTitle: words.every((w) => h.title.toLowerCase().includes(w)) }))
         .sort((a, b) => Number(b.inTitle) - Number(a.inTitle))
         .slice(0, limit)
@@ -130,7 +132,7 @@ export class IndexDb {
   linksTo(uris: string[]): { source: Source; key: string; title: string }[] {
     if (!uris.length) return []
     const marks = uris.map(() => "?").join(", ")
-    return this.db
+    const rows = this.db
       .prepare(
         `SELECT DISTINCT l.from_source AS source, l.from_key AS key,
            COALESCE(d.title, c.title, p.title, l.from_key) AS title
@@ -141,6 +143,7 @@ export class IndexDb {
          WHERE l.to_uri IN (${marks})`,
       )
       .all(...uris) as { source: Source; key: string; title: string }[]
+    return rows.map((row) => ({ ...row, title: unsplit(row.title) }))
   }
 
   close() {
@@ -190,6 +193,23 @@ const wordsOf = (query: string) =>
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
+    .flatMap((word) => (CJK.test(word) ? cjkWords(word).split(SPLIT) : [word]))
+
+// FTS5's unicode61 tokenizer keeps a run of Chinese or Japanese characters as one token, so a word
+// inside a clause (注意力 in 基于注意力机制的模型) can't be found. Such runs are split into words with
+// Intl.Segmenter, the same way when indexing and when searching, by an invisible separator that
+// unicode61 splits on; what comes back out has it taken away again.
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u
+const CJK_RUN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]+/gu
+const SPLIT = "\u200b"
+const segmenter = new Intl.Segmenter("zh", { granularity: "word" })
+
+function cjkWords(text: string) {
+  if (!CJK.test(text)) return text
+  return text.replace(CJK_RUN, (run) => [...segmenter.segment(run)].map((s) => s.segment).join(SPLIT))
+}
+
+const unsplit = (text: string) => text.replaceAll(SPLIT, "")
 
 // "attention transform" → "attention"* AND "transform"*
 export function toMatch(query: string) {
@@ -201,8 +221,17 @@ export function toMatch(query: string) {
 export function linksIn(text: string): Link[] {
   const links: Link[] = []
   for (const m of text.matchAll(/owlit:\/\/(library|docs|knowledge)\/([^\s)"'#\]>]+)/g)) {
-    links.push({ to: `owlit://${m[1]}/${decodeURIComponent(m[2])}`, kind: "mention" })
+    links.push({ to: `owlit://${m[1]}/${decodeOrKeep(m[2])}`, kind: "mention" })
   }
   for (const m of text.matchAll(/\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g)) links.push({ to: `wikilink:${m[1].trim()}`, kind: "wikilink" })
   return links
+}
+
+// A stray % in someone's text ("report-100%") is kept as written rather than failing the index
+function decodeOrKeep(text: string) {
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    return text
+  }
 }

@@ -17,7 +17,7 @@ import {
   type WorkspaceFile,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
-import { existsSync, watch, type FSWatcher, type Stats } from "node:fs"
+import { existsSync, lstatSync, realpathSync, watch, type FSWatcher, type Stats } from "node:fs"
 import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -87,19 +87,38 @@ export class Docs {
     this.notes = new Notes(owlitDir)
   }
 
-  async list(): Promise<DocsListing> {
-    const follow = (await this.loadNames()).followFirstLine
-    this.snapshot = await this.scan("")
-    this.texts.clear()
-    const files: WorkspaceFile[] = []
-    const folders: string[] = []
-    for (const [rel, entry] of this.snapshot) {
-      if (entry.dir) folders.push(rel)
-      else files.push(await this.fileAt(rel, entry, follow))
-    }
-    // Forget ids of files that are gone
-    for (const p of this.ids.keys()) if (!this.snapshot.has(p)) this.ids.delete(p)
-    return { files, folders }
+  // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
+  // so an agent's edit can't slip into the listing without its version being kept
+  list(): Promise<DocsListing> {
+    return this.serial(async () => {
+      if (this.timer) {
+        clearTimeout(this.timer)
+        this.timer = undefined
+        const paths = [...this.dirty]
+        this.dirty.clear()
+        const change = await this.reconcile(paths, true)
+        if (change) this.changed?.(change)
+      }
+      const follow = (await this.loadNames()).followFirstLine
+      this.snapshot = await this.scan("")
+      this.texts.clear()
+      const files: WorkspaceFile[] = []
+      const folders: string[] = []
+      for (const [rel, entry] of this.snapshot) {
+        if (entry.dir) folders.push(rel)
+        else {
+          files.push(await this.fileAt(rel, entry, follow))
+          // Other text files' texts are kept too, for the version an agent's change of them keeps
+          if (keepsText(rel, entry) && !isMarkdown(rel)) {
+            const text = await readFile(this.abs(rel), "utf8").catch(() => null)
+            if (text !== null) this.texts.set(rel, text)
+          }
+        }
+      }
+      // Forget ids of files that are gone
+      for (const p of this.ids.keys()) if (!this.snapshot.has(p)) this.ids.delete(p)
+      return { files, folders }
+    })
   }
 
   // Starts hearing about changes made outside core (another editor, Finder, git). Changes come in
@@ -192,8 +211,9 @@ export class Docs {
       if (!stem) throw invalidParams("That name has nothing in it a file name can use.")
       const wanted = joinPath(parentPath(rel), stem + ext)
       if (wanted === rel) return { path: rel }
-      // A change of case only is the same entry, so it can't collide with itself
-      const to = wanted.toLowerCase() === rel.toLowerCase() ? wanted : uniquePath(parentPath(rel), stem, ext, this.taken())
+      // A change of case or of Unicode form only is the same entry on a disk that ignores them, so it
+      // can't collide with itself; where the disk tells them apart, a file already there is another one
+      const to = (await this.sameEntry(rel, wanted)) ? wanted : uniquePath(parentPath(rel), stem, ext, this.taken())
       const at = await this.moveEntry(rel, to)
       await this.updateNames((f) => dropUnder(f, at))
       await this.settle([rel, at])
@@ -368,6 +388,11 @@ export class Docs {
     const found = new Map<string, Entry>()
     const link = await lstat(this.abs(rel)).catch(() => null)
     if (!link) return found
+    // macOS finds a.md under A.md too: after a rename that changed only the case, the old name is gone
+    // even though lstat still answers for it
+    const names = await readdir(path.dirname(this.abs(rel))).catch(() => [] as string[])
+    const name = path.basename(this.abs(rel)).normalize("NFC")
+    if (!names.some((n) => n.normalize("NFC") === name)) return found
     if (link.isDirectory()) {
       found.set(rel, entryOf(link, true))
       for (const [p, e] of await this.scan(rel)) found.set(p, e)
@@ -425,26 +450,35 @@ export class Docs {
       }
     }
     // Texts follow renames; changed and new Markdown is read again; outside changes are reported
+    // A move made outside core is told as the old path gone and the new one made, so it can be undone
     for (const [p, e] of added) {
       const from = e.dir ? undefined : byIno.get(e.ino)
       const moved = from !== undefined ? this.texts.get(from) : undefined
       if (moved !== undefined) {
         this.texts.delete(from!)
         this.texts.set(p, moved)
+        if (external) {
+          this.textChanged?.(from!, moved, null)
+          this.textChanged?.(p, null, moved)
+        }
       }
     }
     for (const [p, e] of removed) {
-      if (e.dir || renamedFrom.has(p) || !isMarkdown(p)) continue
+      if (e.dir || renamedFrom.has(p) || !keepsText(p, e)) continue
       const before = this.texts.get(p)
       this.texts.delete(p)
-      if (external) this.textChanged?.(p, before ?? null, null)
+      // A file whose text was never read can't be put back, so it isn't offered
+      if (external && before !== undefined) this.textChanged?.(p, before, null)
     }
     for (const p of new Set([...[...added].filter(([, e]) => !e.dir).map(([p]) => p), ...modified])) {
-      if (!isMarkdown(p)) continue
+      if (!keepsText(p, this.snapshot.get(p))) continue
       const before = this.texts.get(p)
       const after = await readFile(this.abs(p), "utf8").catch(() => null)
       if (after === null) continue
       this.texts.set(p, after)
+      // A file that was there but whose text was never read: what it was is unknown, not "nothing"
+      // (taking it for nothing would make Undo delete it)
+      if (before === undefined && modified.has(p)) continue
       if (external && before !== after) this.textChanged?.(p, before ?? null, after)
     }
     if (!external) return null
@@ -500,6 +534,12 @@ export class Docs {
     if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
       throw new RpcFailure(RpcErrorCode.InvalidParams, `${file} is outside the workspace.`, { path: file })
     }
+    // Where it really is, too: a symlink in the folder (notes.md -> ~/.zshrc) doesn't lead outside it
+    const target = realOfDeepest(resolved)
+    const real = target === null ? ".." : path.relative(realpathSync(this.root), target)
+    if (real.startsWith("..") || path.isAbsolute(real)) {
+      throw new RpcFailure(RpcErrorCode.InvalidParams, `${file} leads outside the workspace.`, { path: file })
+    }
     return rel.split(path.sep).join("/")
   }
 
@@ -515,6 +555,11 @@ export class Docs {
   }
 
   // Whether a path is in use on disk; `self` is the file asking, which never collides with itself
+  private async sameEntry(a: string, b: string) {
+    const [x, y] = await Promise.all([lstat(this.abs(a)).catch(() => null), lstat(this.abs(b)).catch(() => null)])
+    return !!x && !!y && x.ino === y.ino && x.dev === y.dev
+  }
+
   private taken(self?: string) {
     return (rel: string) => rel !== self && existsSync(this.abs(rel))
   }
@@ -609,6 +654,25 @@ const conflict = (data: DocConflict) =>
     data.content === null ? `${baseName(data.path)} is no longer on disk.` : `${baseName(data.path)} changed on disk.`,
     data,
   )
+
+// Files whose text is kept, so a change an agent makes to them on its own can be undone: Markdown, and
+// other small text files a researcher keeps (references, LaTeX, data)
+const TEXT_FILE = /\.(bib|ris|tex|txt|csv|tsv|json|ya?ml|toml)$/i
+const keepsText = (rel: string, entry?: Entry) => isMarkdown(rel) || (TEXT_FILE.test(rel) && (entry?.size ?? Infinity) <= 1_000_000)
+
+// The real path of a file, or of its deepest folder that exists followed by the rest; null for a link
+// to nothing (writing would create its target, wherever that is)
+function realOfDeepest(file: string): string | null {
+  try {
+    return realpathSync(file)
+  } catch {
+    if (lstatSync(file, { throwIfNoEntry: false })) return null
+    const parent = path.dirname(file)
+    if (parent === file) return file
+    const real = realOfDeepest(parent)
+    return real === null ? null : path.join(real, path.basename(file))
+  }
+}
 
 // Replaces a file's text through a temp file and a rename, so a crash never leaves half a file. The
 // temp file takes the original's permissions, and a symlink is written through rather than replaced.

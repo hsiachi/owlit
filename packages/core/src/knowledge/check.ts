@@ -130,10 +130,14 @@ export function checkTopic(write: TopicWrite): CheckedTopic {
   for (const q of before?.questions ?? []) retired.delete(q.id)
   // Nor one a line had that this write removes
   const used = new Set([...written, ...retired, ...(before?.lines ?? []).map((l) => l.id), ...(before?.questions ?? []).map((q) => q.id)])
+  // Whether this item's own line wrote its id: a line without one is given s<n> by the parser, which may
+  // be an id another line wrote
+  const raw = write.content.split("\n").map((l) => l.trimEnd())
+  const wroteId = (item: Line | Question) => written.has(item.id) && raw.some((l) => ITEM_START.test(l) && l.endsWith(` ^${item.id}`) && l.includes(item.text))
   const assign = <T extends Line | Question>(items: T[], prefix: string) => {
     const seen = new Set<string>()
     for (const item of items) {
-      if (!written.has(item.id) || seen.has(item.id)) {
+      if (!wroteId(item) || seen.has(item.id)) {
         if (seen.has(item.id)) problems.push(`^${item.id} is on two lines; each line keeps its own id.`)
         item.id = freshId(prefix, used)
       } else if (retired.has(item.id)) problems.push(`^${item.id} belonged to a line that was removed; give the new line a new id (or none, and owlit picks one).`)

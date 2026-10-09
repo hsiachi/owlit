@@ -68,6 +68,9 @@ interface Turn {
 export class Turns {
   private readonly options: TurnsOptions
   private live = new Map<string, Live>()
+  // The turn each chat is running, from the moment it is asked for (starting an agent and loading its
+  // session take a while, and a Stop or a second send can come meanwhile)
+  private turns = new Map<string, Turn>()
   // Files a running (or just finished) turn's tool calls edit, move or delete: path → chat, and until when
   private claims = new Map<string, { chatId: string; until: number }>()
 
@@ -78,8 +81,7 @@ export class Turns {
   async prompt(req: TurnRequest): Promise<StopReason> {
     const ws = this.options.workspace()
     if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
-    const key = `${req.chatId}/${req.connectorId}`
-    if (this.live.get(key)?.turn) throw new RpcFailure(RpcErrorCode.Conflict, "This chat is still answering.")
+    if (this.turns.has(req.chatId)) throw new RpcFailure(RpcErrorCode.Conflict, "This chat is still answering.")
 
     const message: ChatMessage = {
       id: req.assistantMessageId,
@@ -90,9 +92,18 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    await ws.chats.appendMessage(req.chatId, req.userMessage)
-    await ws.chats.appendMessage(req.chatId, message)
     const turn: Turn = { chatId: req.chatId, heard: 0, message, permissions: new Map(), cancelled: false }
+    this.turns.set(req.chatId, turn)
+    try {
+      return await this.run(req, ws, turn)
+    } finally {
+      this.turns.delete(req.chatId)
+    }
+  }
+
+  private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn): Promise<StopReason> {
+    await ws.chats.appendMessage(req.chatId, req.userMessage)
+    await ws.chats.appendMessage(req.chatId, turn.message)
     const emit = (update: SessionUpdate) => {
       turn.heard++
       turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
@@ -114,6 +125,8 @@ export class Turns {
       live.turn = turn
       await this.configure(live, req)
       log("configured")
+      // Stopped while the agent was starting: it isn't asked at all
+      if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
       const prompt = promptBlocks(req.input, ws.root, fresh.history, fresh.created)
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
@@ -138,13 +151,14 @@ export class Turns {
   }
 
   async cancel(chatId: string) {
+    const turn = this.turns.get(chatId)
+    if (!turn) return null
+    turn.cancelled = true
+    // Questions still open are closed as cancelled, as ACP asks of a client that cancels
+    for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
+    // A turn still starting has no session yet: it sees `cancelled` before it asks the agent
     for (const live of this.live.values()) {
-      const turn = live.turn
-      if (turn?.chatId !== chatId) continue
-      turn.cancelled = true
-      // Questions still open are closed as cancelled, as ACP asks of a client that cancels
-      for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
-      await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
+      if (live.turn === turn) await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
     }
     return null
   }
@@ -159,8 +173,10 @@ export class Turns {
     throw new RpcFailure(RpcErrorCode.NotFound, "That question is no longer waiting for an answer.")
   }
 
-  // Forgets the sessions of a workspace that closed
+  // Forgets the sessions of a workspace that closed, stopping its turns first: nothing could answer their
+  // questions or stop them once they are forgotten
   reset() {
+    for (const chatId of [...this.turns.keys()]) void this.cancel(chatId)
     this.live.clear()
     this.claims.clear()
   }

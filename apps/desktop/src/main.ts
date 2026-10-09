@@ -121,6 +121,13 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url)
     return { action: "deny" }
   })
+  // The window only ever shows owlit's own page: anything else would get the preload's bridge to core
+  // (a dropped link, a link an agent wrote). Web links go to the user's browser instead.
+  win.webContents.on("will-navigate", (event, url) => {
+    if (isOwnPage(url)) return
+    event.preventDefault()
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+  })
   followControls(win)
   // The title is the workspace's name, not the page's <title>
   win.on("page-title-updated", (event) => event.preventDefault())
@@ -132,7 +139,10 @@ function createWindow() {
 // Core is transport-agnostic; here its requests ride ipcMain.handle and its notifications go to
 // every window
 function attachCore(core: Core, browser: PublisherBrowser) {
-  ipcMain.handle("rpc", (_event, request: RpcRequest) => core.handle(request))
+  ipcMain.handle("rpc", (event, request: RpcRequest) => {
+    if (!isOwnPage(event.senderFrame?.url ?? "")) throw new Error("Only owlit's own page may call core.")
+    return core.handle(request)
+  })
   // Where the renderer wants the publisher's page during Check now
   ipcMain.on("publisher-view", (event, bounds: Electron.Rectangle | null) => {
     const owner = BrowserWindow.fromWebContents(event.sender)
@@ -145,6 +155,18 @@ function attachCore(core: Core, browser: PublisherBrowser) {
       if (!win.webContents.isDestroyed()) win.webContents.send("notify", notification)
     }
   })
+}
+
+// owlit's renderer: Vite's dev server in development, the app scheme otherwise
+function isOwnPage(url: string) {
+  try {
+    // protocol and host, not origin: a custom scheme's origin is "null"
+    const at = new URL(url)
+    const own = new URL(devUrl ?? `${RENDERER_SCHEME}://owlit/`)
+    return at.protocol === own.protocol && at.host === own.host
+  } catch {
+    return false
+  }
 }
 
 const scaleRect = (r: Electron.Rectangle, k: number) => ({ x: Math.round(r.x * k), y: Math.round(r.y * k), width: Math.round(r.width * k), height: Math.round(r.height * k) })

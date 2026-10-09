@@ -64,7 +64,8 @@ export class AgentFs {
       this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
       return
     }
-    if (rel === ".owlit" || rel.startsWith(".owlit/")) throw new RpcFailure(RpcErrorCode.InvalidParams, "Agents can't write inside .owlit.", { path: rel })
+    // By its first segment, whatever its case: macOS's file system takes .OWLIT for .owlit
+    if (rel.split("/")[0].toLowerCase() === ".owlit") throw new RpcFailure(RpcErrorCode.InvalidParams, "Agents can't write inside .owlit.", { path: rel })
     const holder = this.options.ui.holder(rel)
     const before = (await this.fromEditor(rel)) ?? (await ws.docs.readDisk(rel))
     const version = await ws.versions.saveFile(rel, before, content, { chatId })

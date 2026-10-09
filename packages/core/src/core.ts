@@ -516,8 +516,13 @@ export class Core {
                   this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background }),
               },
               knowledge: {
-                agent: async (prompt, signal) =>
-                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background, allow: KNOWLEDGE_TOOLS }),
+                agent: async (prompt, signal) => {
+                  // Without owlit's tools (the socket isn't served yet when restored tasks start) the
+                  // agent can't change Knowledge, and a run that ended anyway would skip what it was given
+                  const mcpServers = this.mcpServers(root)
+                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
+                  return this.background.run({ prompt, root, mcpServers, signal, connectorId: (await this.settings.get()).connectors.background, allow: KNOWLEDGE_TOOLS })
+                },
                 changed: (change) => this.notifier.notify("knowledge.changed", change),
                 updated: (run) => this.notifier.notify("knowledge.updated", run),
                 timings: this.options.knowledgeTimings,
@@ -531,6 +536,40 @@ export class Core {
                 limits: { parse: (await this.settings.get()).parsing.concurrency ?? 2 },
               },
             })
+      if (this.workspace !== next) {
+        next.docs.textChanged = (rel, before, after) => {
+          const chatId = this.turns.claimant(rel)
+          if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
+        }
+        // Watching starts before the old workspace goes, so a folder that can't be watched leaves it open
+        // (a failed switch loses nothing). Until the switch, clients still show the old one: they load
+        // the new one's state when they hear it opened.
+        const current = () => this.workspace === next
+        try {
+          await next.docs.watch((change) => {
+            if (current()) this.notifier.notify("docs.changed", change)
+            next.search.touch()
+          })
+          await next.library.watch(
+            (change) => {
+              if (current()) this.notifier.notify("library.changed", change)
+              next.search.touch()
+            },
+            (paperId, note, before) => {
+              if (current()) this.notifier.notify("library.noteChanged", { paperId, note })
+              next.search.touch()
+              // An agent that writes the disk itself (Claude Code does) changed the note while one of its tool
+              // calls names the file: kept and journaled as the agent's, so the chat offers Undo, as for a doc
+              const rel = `${OWLIT_DIR}/papers/${paperId}/note.md`
+              const chatId = this.turns.claimant(rel)
+              if (chatId) void this.fs.recordDirect(rel, before || null, note?.content ?? null, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
+            },
+          )
+        } catch (error) {
+          await next.dispose().catch(() => undefined)
+          throw error
+        }
+      }
       if (this.workspace && this.workspace !== next) {
         this.turns.reset()
         this.ui.reset()
@@ -538,35 +577,11 @@ export class Core {
         // The old workspace's last task changes go out before clients hear of the switch
         this.taskChanges.flush()
       }
-      if (this.workspace !== next) {
-        next.docs.textChanged = (rel, before, after) => {
-          const chatId = this.turns.claimant(rel)
-          if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
-        }
-        await next.docs.watch((change) => {
-          this.notifier.notify("docs.changed", change)
-          next.search.touch()
-        })
-        await next.library.watch(
-          (change) => {
-            this.notifier.notify("library.changed", change)
-            next.search.touch()
-          },
-          (paperId, note, before) => {
-            this.notifier.notify("library.noteChanged", { paperId, note })
-            next.search.touch()
-            // An agent that writes the disk itself (Claude Code does) changed the note while one of its tool
-            // calls names the file: kept and journaled as the agent's, so the chat offers Undo, as for a doc
-            const rel = `${OWLIT_DIR}/papers/${paperId}/note.md`
-            const chatId = this.turns.claimant(rel)
-            if (chatId) void this.fs.recordDirect(rel, before || null, note?.content ?? null, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
-          },
-        )
-      }
       if (this.workspace !== next) await this.serveSocket(next.root)
       this.workspace = next
-      await this.settings.rememberWorkspace(next.root)
       this.notifier.notify("workspace.opened", next.info)
+      // Only the recent list: the switch has happened either way
+      await this.settings.rememberWorkspace(next.root).catch((error) => console.error("[core] couldn't remember the workspace", error))
       return next.info
     })
     this.switching = run.catch(() => undefined)

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../../core.ts"
 import type { Workspace } from "../../workspace/workspace.ts"
 import { makePdf, paragraph } from "../text/make-pdf.ts"
+import { toMarkdown } from "../text/extract.ts"
 import { contentListToText, type ContentBlock } from "./convert.ts"
 import { unzip } from "./unzip.ts"
 
@@ -56,7 +57,18 @@ describe("contentListToText", () => {
     expect(text.source).toBe("mineru")
     expect(text.pages[0].blocks.map((b) => b.kind)).toEqual(["heading", "paragraph", "formula", "table", "paragraph", "other"])
     expect(text.pages[0].blocks[0].rect).toEqual({ x: 48.96, y: 22.18, w: 440.64, h: 22.97 })
-    expect(text.pages[0].blocks[3].lines.map((l) => l.text)).toEqual(["Table 1: Results", "A | 1", "B & C | 2"])
+    expect(text.pages[0].blocks[3].lines.map((l) => l.text)).toEqual(["Table 1: Results", "| A | 1 |", "| B & C | 2 |"])
+  })
+
+  it("keeps empty cells, pipes in cells, code lines and list items in text.md", () => {
+    const blocks: ContentBlock[] = [
+      { type: "table", table_body: "<table><tr><th></th><th>BLEU</th></tr><tr><td>P(y | x)</td><td></td></tr></table>", page_idx: 0 },
+      { type: "code", code_caption: ["Listing 1"], code_body: "def f(x):\n    return x", page_idx: 0 },
+      { type: "list", list_items: ["First item", "Second item"], page_idx: 0 },
+    ]
+    expect(toMarkdown(contentListToText(blocks, [{ width: 612, height: 792 }]))).toBe(
+      ["<!-- page 1 -->", "|  | BLEU |\n| --- | --- |\n| P(y \\| x) |  |", "Listing 1", "```\ndef f(x):\n    return x\n```", "- First item\n- Second item"].join("\n\n") + "\n",
+    )
   })
 })
 

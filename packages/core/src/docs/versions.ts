@@ -42,6 +42,9 @@ export const sha1 = (text: string) => createHash("sha1").update(text).digest("he
 export class Versions {
   private readonly dir: string
   private saved = 0
+  // index.jsonl's appends and cleanup's rewrite take turns: a line appended while cleanup rewrites the
+  // file would be lost
+  private indexTurn: Promise<unknown> = Promise.resolve()
 
   constructor(owlitDir: string) {
     this.dir = path.join(owlitDir, "versions")
@@ -88,7 +91,11 @@ export class Versions {
 
   // Drops what the keep rules say is no longer needed: beyond the newest KEEP_PER_PATH of a path, and
   // anything older than KEEP_MS
-  async cleanup(now = Date.now()) {
+  cleanup(now = Date.now()) {
+    return this.inTurn(() => this.dropOld(now))
+  }
+
+  private async dropOld(now: number) {
     const all = await this.index()
     const count = new Map<string, number>()
     const keep: Version[] = []
@@ -105,13 +112,19 @@ export class Versions {
     return drop.length
   }
 
+  private inTurn<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.indexTurn.then(work)
+    this.indexTurn = run.catch(() => undefined)
+    return run
+  }
+
   private async save(fields: Omit<Version, "id" | "at" | "by" | "chatId">, content: string, meta: { chatId?: string; by?: Version["by"] }) {
     const at = Date.now()
     const id = `${at}-${Math.random().toString(36).slice(2, 6)}-${fields.path.replace(/[/\\]/g, "__").slice(-80)}`
     const version: Version = { id, at, by: meta.by ?? "agent", ...(meta.chatId ? { chatId: meta.chatId } : {}), ...fields }
     await mkdir(this.dir, { recursive: true })
     await writeFile(path.join(this.dir, id), content)
-    await appendFile(path.join(this.dir, "index.jsonl"), JSON.stringify(version) + "\n")
+    await this.inTurn(() => appendFile(path.join(this.dir, "index.jsonl"), JSON.stringify(version) + "\n"))
     if (++this.saved % 100 === 0) void this.cleanup().catch(() => undefined)
     return version
   }

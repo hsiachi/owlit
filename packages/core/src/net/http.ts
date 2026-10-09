@@ -113,8 +113,24 @@ export class Http {
     const gate = this.gateFor(host)
     const concurrent = gate.limit.concurrent ?? Infinity
     while (gate.inFlight >= concurrent) {
-      await new Promise<void>((resolve) => gate.waiting.push(resolve))
       signal?.throwIfAborted()
+      // An abort while waiting leaves the queue at once; a wake-up that finds it aborted goes to the next
+      await new Promise<void>((resolve, reject) => {
+        const wake = () => {
+          signal?.removeEventListener("abort", aborted)
+          resolve()
+        }
+        const aborted = () => {
+          gate.waiting.splice(gate.waiting.indexOf(wake), 1)
+          reject(signal?.reason)
+        }
+        gate.waiting.push(wake)
+        signal?.addEventListener("abort", aborted, { once: true })
+      })
+      if (signal?.aborted) {
+        gate.waiting.shift()?.()
+        signal.throwIfAborted()
+      }
     }
     gate.inFlight++
     const now = Date.now()

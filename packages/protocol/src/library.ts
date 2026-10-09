@@ -182,7 +182,8 @@ export interface TextPage {
 }
 
 export interface TextBlock {
-  kind: "paragraph" | "heading" | "table" | "figure" | "formula" | "other"
+  // code and list: lines kept as lines (MinerU's code blocks, keeping their indentation, and list items)
+  kind: "paragraph" | "heading" | "table" | "figure" | "formula" | "code" | "list" | "other"
   rect: Rect
   lines: TextLine[]
 }

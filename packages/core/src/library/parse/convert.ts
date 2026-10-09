@@ -26,10 +26,10 @@ export function contentListToText(blocks: ContentBlock[], pages: { width: number
     const index = block.page_idx ?? 0
     const size = pages[index]
     if (!size) continue
-    const converted = toBlock(block, size)
-    if (!converted) continue
+    const converted = toBlocks(block, size)
+    if (!converted.length) continue
     const list = byPage.get(index) ?? []
-    list.push(converted)
+    list.push(...converted)
     byPage.set(index, list)
   }
   return {
@@ -39,7 +39,12 @@ export function contentListToText(blocks: ContentBlock[], pages: { width: number
   }
 }
 
-function toBlock(block: ContentBlock, size: { width: number; height: number }): TextBlock | undefined {
+function toBlocks(block: ContentBlock, size: { width: number; height: number }): TextBlock[] {
+  const one = toBlock(block, size)
+  return one ? (Array.isArray(one) ? one : [one]) : []
+}
+
+function toBlock(block: ContentBlock, size: { width: number; height: number }): TextBlock | TextBlock[] | undefined {
   const rect = toRect(block.bbox, size)
   const lines = (texts: (string | undefined)[]) =>
     texts
@@ -53,15 +58,24 @@ function toBlock(block: ContentBlock, size: { width: number; height: number }): 
       return { kind: block.text_level ? "heading" : "paragraph", rect, lines: found }
     }
     case "list":
-      return nonEmpty({ kind: "paragraph", rect, lines: lines(block.list_items ?? []) })
+      return nonEmpty({ kind: "list", rect, lines: lines(block.list_items ?? []) })
     // The vlm model gives each reference its own block
     case "ref_text":
       return nonEmpty({ kind: "paragraph", rect, lines: lines([block.text]) })
     case "code":
-    case "algorithm":
-      return nonEmpty({ kind: "paragraph", rect, lines: lines([...(block.code_caption ?? []), ...(block.code_body ?? block.text ?? "").split("\n")]) })
+    case "algorithm": {
+      // The caption reads as a paragraph; the code keeps its line breaks and indentation
+      const code = (block.code_body ?? block.text ?? "")
+        .split("\n")
+        .map((t) => t.replace(/\s+$/, ""))
+        .filter((t) => t.trim())
+        .map((text) => ({ text, rect }))
+      return [nonEmpty({ kind: "paragraph", rect, lines: lines(block.code_caption ?? []) }), nonEmpty({ kind: "code", rect, lines: code })].filter(
+        (b): b is TextBlock => !!b,
+      )
+    }
     case "table":
-      return nonEmpty({ kind: "table", rect, lines: lines([...(block.table_caption ?? []), ...tableRows(block.table_body ?? "")]) })
+      return nonEmpty({ kind: "table", rect, lines: [...lines(block.table_caption ?? []), ...tableRows(block.table_body ?? "").map((text) => ({ text, rect }))] })
     case "equation":
     case "interline_equation":
       return nonEmpty({ kind: "formula", rect, lines: lines([block.text]) })
@@ -85,12 +99,14 @@ function toRect(bbox: ContentBlock["bbox"], size: { width: number; height: numbe
 
 const round = (v: number) => Math.round(v * 100) / 100
 
-// <tr><td>a</td><td>b</td></tr> → "a | b", one string per row
+// <tr><td>a</td><td>b</td></tr> → "| a | b |", one Markdown row per table row: empty cells keep their
+// place and a | inside a cell is escaped, so the columns survive (toMarkdown reads them back)
 function tableRows(html: string) {
-  return [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((row) =>
-    [...row[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
-      .map((cell) => decode(cell[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim())
-      .join(" | "),
+  return [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map(
+    (row) =>
+      `| ${[...row[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+        .map((cell) => decode(cell[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().replace(/\|/g, "\\|"))
+        .join(" | ")} |`,
   )
 }
 

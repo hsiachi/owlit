@@ -4,7 +4,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { linksIn, toMatch } from "./index-db.ts"
+import { IndexDb, linksIn, toMatch } from "./index-db.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -144,5 +144,15 @@ describe("helpers", () => {
       { to: "owlit://docs/a b.md", kind: "mention" },
       { to: "wikilink:Reading notes", kind: "wikilink" },
     ])
+    // A stray % stays as written
+    expect(linksIn("owlit://docs/report-100%")).toEqual([{ to: "owlit://docs/report-100%", kind: "mention" }])
+  })
+
+  it("finds a Chinese word inside a clause", () => {
+    const db = new IndexDb(mkdtempSync(path.join(tmpdir(), "owlit-cjk-")))
+    db.putDoc("a.md", "注意力笔记", "我们提出了一个基于注意力机制的模型。", [], "1")
+    expect(db.palette("注意力").docs).toMatchObject([{ key: "a.md", title: "注意力笔记" }])
+    expect(db.palette("模型").docs).toHaveLength(1)
+    db.close()
   })
 })

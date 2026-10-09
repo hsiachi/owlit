@@ -13,7 +13,7 @@ import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Knowledge, type KnowledgeServices } from "../knowledge/knowledge.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
-import { acquireLock, WorkspaceLockedError } from "./lock.ts"
+import { acquireLock, lockFileFor, WorkspaceLockedError } from "./lock.ts"
 import { OWLIT_DIR } from "./paths.ts"
 
 export { OWLIT_DIR }
@@ -85,7 +85,7 @@ export class Workspace {
     await mkdir(dataDir, { recursive: true })
     let release: () => Promise<void>
     try {
-      release = await acquireLock(dataDir, root)
+      release = await acquireLock(lockFileFor(root), root)
     } catch (error) {
       if (error instanceof WorkspaceLockedError) {
         throw new RpcFailure(RpcErrorCode.Conflict, `${path.basename(root)} is already open in another owlit.`, {

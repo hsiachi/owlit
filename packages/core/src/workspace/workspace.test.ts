@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
-import { acquireLock } from "./lock.ts"
+import { acquireLock, lockFileFor } from "./lock.ts"
 import { workspaceDataDir } from "./workspace.ts"
 
 const cores: Core[] = []
@@ -59,13 +59,13 @@ describe("workspace.open", () => {
     expect(readFileSync(path.join(ws, ".owlit/workspace.json"), "utf8")).toBe('{"version":1,"layout":{"x":1}}')
   })
 
-  it("takes the lock in the app data directory and notifies", async () => {
-    const { call, folder, userDataDir, heard } = setup()
+  it("takes the lock beside the workspace's socket and notifies", async () => {
+    const { call, folder, heard } = setup()
     const ws = folder("locked")
     await call("workspace.open", { path: ws })
-    const lock = path.join(workspaceDataDir(userDataDir, ws), "lock")
+    const lock = lockFileFor(ws)
     expect(JSON.parse(readFileSync(lock, "utf8"))).toMatchObject({ pid: process.pid, workspace: ws })
-    expect(path.basename(path.dirname(lock))).toMatch(/^[0-9a-f]{12}$/)
+    expect(path.basename(lock)).toMatch(/^owlit-[0-9a-f]{12}\.lock$/)
     // Background tasks (the search index) may report too
     expect(heard.map((n) => n.method).filter((m) => m !== "tasks.changed")).toEqual(["workspace.state", "workspace.opened", "workspace.state"])
     expect(heard.find((n) => n.method === "workspace.opened")?.params).toEqual({ path: ws, name: "locked" })
@@ -92,13 +92,13 @@ describe("workspace.open", () => {
   })
 
   it("releases the old workspace's lock on switch", async () => {
-    const { call, folder, userDataDir } = setup()
+    const { call, folder } = setup()
     const a = folder("a")
     const b = folder("b")
     await call("workspace.open", { path: a })
     await call("workspace.open", { path: b })
-    expect(existsSync(path.join(workspaceDataDir(userDataDir, a), "lock"))).toBe(false)
-    expect(existsSync(path.join(workspaceDataDir(userDataDir, b), "lock"))).toBe(true)
+    expect(existsSync(lockFileFor(a))).toBe(false)
+    expect(existsSync(lockFileFor(b))).toBe(true)
   })
 
   it("works with Chinese and spaces in the path", async () => {
@@ -131,17 +131,16 @@ describe("workspace.open", () => {
   })
 
   it("refuses a workspace another live process holds, and takes over a dead one's lock", async () => {
-    const { call, folder, userDataDir } = setup()
+    const { call, folder } = setup()
     const ws = folder("shared")
-    const dataDir = workspaceDataDir(userDataDir, ws)
-    mkdirSync(dataDir, { recursive: true })
+    const lock = lockFileFor(ws)
     // pid 1 (launchd) is always alive and never us
-    writeFileSync(path.join(dataDir, "lock"), JSON.stringify({ pid: 1, workspace: ws, since: 0 }))
+    writeFileSync(lock, JSON.stringify({ pid: 1, workspace: ws, since: Date.now() }))
     await expect(call("workspace.open", { path: ws })).rejects.toMatchObject({
       code: RpcErrorCode.Conflict,
       message: "shared is already open in another owlit.",
     })
-    writeFileSync(path.join(dataDir, "lock"), JSON.stringify({ pid: 2 ** 22 + 7, workspace: ws, since: 0 }))
+    writeFileSync(lock, JSON.stringify({ pid: 2 ** 22 + 7, workspace: ws, since: Date.now() }))
     await expect(call("workspace.open", { path: ws })).resolves.toMatchObject({ name: "shared" })
   })
 })
@@ -149,9 +148,17 @@ describe("workspace.open", () => {
 describe("acquireLock", () => {
   it("releases only its own lock", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "owlit-lock-"))
-    const release = await acquireLock(dir, "/w")
-    expect(existsSync(path.join(dir, "lock"))).toBe(true)
+    const release = await acquireLock(lockFileFor("/w", dir), "/w")
+    expect(existsSync(lockFileFor("/w", dir))).toBe(true)
     await release()
-    expect(existsSync(path.join(dir, "lock"))).toBe(false)
+    expect(existsSync(lockFileFor("/w", dir))).toBe(false)
+  })
+
+  it("takes over a lock from before the machine last started", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "owlit-lock-"))
+    // pid 1 is alive, but the lock is older than this boot
+    writeFileSync(lockFileFor("/w", dir), JSON.stringify({ pid: 1, workspace: "/w", since: 0 }))
+    const release = await acquireLock(lockFileFor("/w", dir), "/w")
+    await release()
   })
 })

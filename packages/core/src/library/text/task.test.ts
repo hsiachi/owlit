@@ -63,10 +63,22 @@ describe("paper.text", () => {
     const { base, root, call, workspace } = await setup()
     await call("library.add", { paper: { id: "doi-10.9999-m", title: "M", authors: [], ids: { doi: "10.9999/m" } } })
     writeFileSync(path.join(base, "m.pdf"), makePdf([paragraph(72, 100, ["pdfium would say this"])]))
-    const mineru = { version: 1, source: "mineru", pages: [] }
-    writeFileSync(path.join(root, "library/papers/doi-10.9999-m/text.json"), JSON.stringify(mineru))
     await call("library.attachPdf", { id: "doi-10.9999-m", path: path.join(base, "m.pdf") })
     await workspace.tasks.run("paper.text", "doi-10.9999-m")
+    // MinerU read this PDF since
+    const mineru = { version: 1, source: "mineru", pages: [] }
+    writeFileSync(path.join(root, "library/papers/doi-10.9999-m/text.json"), JSON.stringify(mineru))
+    await workspace.tasks.run("paper.text", "doi-10.9999-m")
     expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.9999-m/text.json"), "utf8"))).toEqual(mineru)
+  })
+
+  it("reads a PDF that replaces one MinerU read", async () => {
+    const { base, root, call, workspace } = await setup()
+    await call("library.add", { paper: { id: "doi-10.9999-r", title: "R", authors: [], ids: { doi: "10.9999/r" } } })
+    writeFileSync(path.join(root, "library/papers/doi-10.9999-r/text.json"), JSON.stringify({ version: 1, source: "mineru", pages: [] }))
+    writeFileSync(path.join(base, "r.pdf"), makePdf([paragraph(72, 100, ["the right paper"])]))
+    await call("library.attachPdf", { id: "doi-10.9999-r", path: path.join(base, "r.pdf") })
+    await workspace.tasks.run("paper.text", "doi-10.9999-r")
+    expect(readFileSync(path.join(root, "library/papers/doi-10.9999-r/text.md"), "utf8")).toContain("the right paper")
   })
 })

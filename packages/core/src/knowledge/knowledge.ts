@@ -205,13 +205,20 @@ export class Knowledge {
           const version = await this.snapshot("run")
           this.current = new Map()
           let touched: NonNullable<typeof this.current>
+          let failed: unknown
           try {
             await this.services.agent(await this.prompt(delta), ctx.signal)
+          } catch (error) {
+            failed = error
           } finally {
             touched = this.current
             this.current = null
           }
           if (!touched.size) await rm(path.join(this.dir, "versions", version.id), { recursive: true, force: true })
+          // A run that wrote topics before it failed (no closing words, a crash) is recorded like any
+          // other, so it can be reverted and a retry doesn't do the same changes again
+          if (failed !== undefined && !touched.size) throw failed
+          if (failed !== undefined) console.error("[core] the Knowledge update ended badly after writing", failed)
           const at = Date.now()
           const lastRun: KnowledgeRun = { at, items: [...touched].map(([topicId, n]) => ({ topicId, what: describe(n) })), versionId: touched.size ? version.id : undefined }
           await this.saveRun({ cursor: delta.end, lastRun: touched.size ? lastRun : state.lastRun, lastRunAt: at })
