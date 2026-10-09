@@ -1,5 +1,6 @@
-import { useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useRef } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
+import { keysFor } from "@/app/shortcuts"
 import { Button } from "@/components/ui/button"
 import { useChatStore } from "../store"
 import type { PromptInput, SourceKind } from "../types"
@@ -29,6 +30,12 @@ export function ChatEmpty() {
   const createChat = useChatStore((s) => s.createChat)
   const send = useChatStore((s) => s.send)
   const composer = useRef<ComposerHandle>(null)
+  // A starter handed over from elsewhere (the Library's Ask Owlit to find papers)
+  const starter = (useLocation().state as { starter?: string } | null)?.starter
+
+  useEffect(() => {
+    if (starter) composer.current?.setText(starter)
+  }, [starter])
 
   const start = (input: PromptInput) => {
     const chat = createChat()
@@ -60,6 +67,7 @@ export function ChatEmpty() {
           </Button>
         ))}
       </div>
+      <p className="-mt-2 text-[13px] text-muted-foreground">From anywhere, {keysFor("owlit")} asks Owlit about what’s on your screen.</p>
     </div>
   )
 }

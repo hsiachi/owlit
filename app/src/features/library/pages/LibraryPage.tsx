@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { FileUpIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AddCandidate } from "../components/AddCandidate"
@@ -125,17 +126,24 @@ export function LibraryPage() {
 }
 
 // The first papers come from the find field above or a drop; the card says both, drawn like the paper
-// page's missing-PDF card. The whole page takes the drop, not just the card.
+// page's missing-PDF card. The whole page takes the drop, not just the card. Ask Owlit to find papers
+// hands the search to Chat, which is also how people learn that work can be handed off.
 function EmptyLibrary() {
+  const navigate = useNavigate()
   const fileInput = useRef<HTMLInputElement>(null)
   return (
     <div className="mt-12 flex justify-center">
       <div className="flex flex-col items-center gap-2 rounded-2xl border-[1.5px] border-dashed border-foreground/15 px-14 py-10 text-center">
         <p className="text-[15px] font-medium">Add your first papers</p>
         <p className="max-w-72 text-sm text-muted-foreground">Paste a DOI, arXiv id or link in the field above, or drop PDFs here.</p>
-        <Button size="sm" className="mt-3" onClick={() => fileInput.current?.click()}>
-          Choose PDFs
-        </Button>
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" onClick={() => fileInput.current?.click()}>
+            Choose PDFs
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/chat", { state: { starter: "Find recent papers on " } })}>
+            Ask Owlit to find papers
+          </Button>
+        </div>
         <input
           ref={fileInput}
           type="file"

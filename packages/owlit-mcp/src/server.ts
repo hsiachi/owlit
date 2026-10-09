@@ -173,6 +173,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       await owlit.rpc.notes.add({ path: str("path"), note, agent: asker })
       return `Left a note on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
+    case "owlit_help":
+      return owlit.rpc.agents.guide(optStr("topic") ? { topic: str("topic") } : {})
     case "ui_open": {
       const { title } = await owlit.rpc.ui.open({ uri: str("uri"), ...asker })
       return `Showing ${title} in owlit.`

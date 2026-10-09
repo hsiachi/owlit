@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
+import { keysFor } from "@/app/shortcuts"
 import {
   SidebarContent,
   SidebarGroup,
@@ -149,7 +150,7 @@ export function ChatListPanel() {
         >
           <SearchIcon className="size-4" />
           <span className="flex-1 text-left">Search</span>
-          <Kbd className="bg-transparent">⌘K</Kbd>
+          <Kbd className="bg-transparent">{keysFor("palette")}</Kbd>
         </button>
         <SidebarMenu className="pt-1.5">
           <SidebarMenuItem>
@@ -162,7 +163,7 @@ export function ChatListPanel() {
                   </span>
                 </span>
                 <span className="flex-1">New chat</span>
-                <Kbd className="bg-transparent opacity-0 transition-opacity group-hover/menu-button:opacity-100">⌘N</Kbd>
+                <Kbd className="bg-transparent opacity-0 transition-opacity group-hover/menu-button:opacity-100">{keysFor("new")}</Kbd>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>

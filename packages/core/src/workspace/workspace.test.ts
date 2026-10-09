@@ -67,7 +67,7 @@ describe("workspace.open", () => {
     expect(JSON.parse(readFileSync(lock, "utf8"))).toMatchObject({ pid: process.pid, workspace: ws })
     expect(path.basename(path.dirname(lock))).toMatch(/^[0-9a-f]{12}$/)
     // Background tasks (the search index) may report too
-    expect(heard.map((n) => n.method).filter((m) => m !== "tasks.changed")).toEqual(["workspace.opened"])
+    expect(heard.map((n) => n.method).filter((m) => m !== "tasks.changed")).toEqual(["workspace.state", "workspace.opened", "workspace.state"])
     expect(heard.find((n) => n.method === "workspace.opened")?.params).toEqual({ path: ws, name: "locked" })
   })
 

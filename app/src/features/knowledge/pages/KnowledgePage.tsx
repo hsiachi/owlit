@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ChevronRightIcon, EllipsisVerticalIcon, SearchIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useChatStore } from "@/features/chat/store"
-import { openSettings, useSettings } from "@/features/settings/store"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NoteDot } from "../components/bits"
+import { KnowledgeEmpty } from "../components/KnowledgeEmpty"
 import { TopicMenuContent } from "../components/TopicMenu"
 import { ago, shortDate, thisWeek } from "../lib/when"
 import { changedSince, renameTopic, useKnowledgeStore, useTopics } from "../store"
@@ -61,7 +60,7 @@ export function KnowledgePage() {
       {topics.length > 0 && <RecentRun />}
       {(topics.length >= FIND_FROM || query) && <FindField />}
       {topics.length === 0 ? (
-        <EmptyKnowledge />
+        <KnowledgeEmpty />
       ) : (
         <div className="mt-6 flex flex-col gap-6">
           {groups.map((g) => (
@@ -103,33 +102,6 @@ export function KnowledgePage() {
         </div>
       )}
     </KnowledgeShell>
-  )
-}
-
-// Before the first topic: what will grow here, and one plain line on whether Owlit can do it now. The
-// line names a broken agent rather than promising that Owlit is reading.
-function EmptyKnowledge() {
-  const run = useKnowledgeStore((s) => s.lastRun)
-  const background = useSettings((s) => s.view?.backgroundAgent)
-  const agent = useChatStore((s) => s.connectors.find((c) => c.id === background))
-  const broken = agent && (agent.status === "not_installed" || agent.status === "error")
-  return (
-    <div className="mx-auto mt-20 max-w-sm text-center">
-      <p className="text-[15px] font-medium">No topics yet</p>
-      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-        Owlit gathers what you write, highlight and ask about into topics. They appear once a few of your notes, papers and chats touch the same question.
-      </p>
-      {broken ? (
-        <p className="mt-4 text-[13px] text-muted-foreground">
-          Owlit can’t read your material while {agent.name} {agent.status === "not_installed" ? "isn’t installed" : "can’t run"}.{" "}
-          <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("agents")}>
-            Manage agents…
-          </button>
-        </p>
-      ) : (
-        run && <p className="mt-4 text-[13px] text-muted-foreground">Owlit last read your workspace {ago(run.at)}.</p>
-      )}
-    </div>
   )
 }
 

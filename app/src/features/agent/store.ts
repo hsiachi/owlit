@@ -27,12 +27,16 @@ interface AgentWindowState {
   listShown: boolean
   // Bumped to put the cursor in the window's input
   focusTick: number
+  // The ask bar's placeholder when it was opened for something particular (Help › Ask Owlit How To…)
+  hint: string | null
 
   // Opens the window: the ask bar for a new conversation, the panel when one is going
   open: (selection?: QuotedSelection, rects?: { paperId: string; rects: PageRect[] }) => void
   close: () => void
   toggle: () => void
   newChat: () => void
+  // A new conversation about using owlit itself
+  askHowTo: () => void
   showChat: (chatId: string) => void
   hideContext: (uri: string) => void
   clearSelection: () => void
@@ -54,6 +58,7 @@ export const useAgentWindow = create<AgentWindowState>()(
       hiddenContext: null,
       listShown: false,
       focusTick: 0,
+      hint: null,
 
       open: (selection, rects) =>
         set((s) => ({
@@ -63,9 +68,11 @@ export const useAgentWindow = create<AgentWindowState>()(
           fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
           focusTick: s.focusTick + 1,
         })),
-      close: () => set({ stage: "closed", listShown: false, fromNote: null }),
+      close: () => set({ stage: "closed", listShown: false, fromNote: null, hint: null }),
       toggle: () => (get().stage === "closed" ? get().open() : get().close()),
-      newChat: () => set((s) => ({ chatId: null, stage: "bar", selection: null, fromNote: null, hiddenContext: null, focusTick: s.focusTick + 1 })),
+      newChat: () => set((s) => ({ chatId: null, stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
+      askHowTo: () =>
+        set((s) => ({ chatId: null, stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: "How do I… (about owlit)", focusTick: s.focusTick + 1 })),
       showChat: (chatId) => set((s) => ({ chatId, stage: "open", fromNote: chatId === s.chatId ? s.fromNote : null, focusTick: s.focusTick + 1 })),
       hideContext: (uri) => set({ hiddenContext: uri }),
       clearSelection: () => set({ selection: null }),
@@ -75,7 +82,7 @@ export const useAgentWindow = create<AgentWindowState>()(
         const chats = useChatStore.getState()
         const { chatId, selection } = get()
         const chat = chatId && chats.chats[chatId] ? chats.chats[chatId] : chats.createChat()
-        set({ chatId: chat.id, stage: "open", selection: null })
+        set({ chatId: chat.id, stage: "open", selection: null, hint: null })
         void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
       },
     }),

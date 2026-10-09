@@ -2,7 +2,7 @@
 // that is owlit's own logic lives in @owlit/core.
 
 import { Core } from "@owlit/core"
-import type { AppearanceSettings, DocsChange, MethodName, ParamsOf, ResultOf, RpcRequest, SettingsView, WorkspaceInfo } from "@owlit/protocol"
+import type { AppearanceSettings, DocsChange, MenuCommand, MethodName, ParamsOf, ResultOf, RpcRequest, SettingsView, WorkspaceInfo } from "@owlit/protocol"
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
@@ -67,6 +67,14 @@ function followControls(win: BrowserWindow) {
 // first frame. The window's own background is the frame's colour, so nothing flashes while it loads.
 
 let appearance: AppearanceSettings = { theme: "system", tone: "warm" }
+
+// The system folder picker, for the welcome page's Open a folder you have, Choose… and Locate…
+ipcMain.handle("choose-folder", async (event, options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  const dialogOptions: Electron.OpenDialogOptions = { ...options, properties: ["openDirectory", "createDirectory"] }
+  const result = await (win ? dialog.showOpenDialog(win, dialogOptions) : dialog.showOpenDialog(dialogOptions))
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
 
 ipcMain.on("appearance", (event) => {
   event.returnValue = appearance
@@ -216,11 +224,11 @@ async function updateMenu(core: Core) {
     sublabel: info.path,
     click: () => void openWorkspace(core, info.path),
   }))
-  const openSettings = () => {
+  const send = (command: MenuCommand) => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-    win?.webContents.send("menu", "settings")
+    win?.webContents.send("menu", command)
   }
-  const settingsItem: MenuItemConstructorOptions = { label: "Settings…", accelerator: "CmdOrCtrl+,", click: openSettings }
+  const settingsItem: MenuItemConstructorOptions = { label: "Settings…", accelerator: "CmdOrCtrl+,", click: () => send("settings") }
   const template: MenuItemConstructorOptions[] = [
     isMac
       ? {
@@ -271,6 +279,14 @@ async function updateMenu(core: Core) {
     { role: "editMenu" },
     { role: "viewMenu" },
     { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => send("shortcuts") },
+        // Owlit answers questions about owlit itself; it needs a workspace to run in
+        { label: "Ask Owlit How To…", enabled: !!current, click: () => send("how-to") },
+      ],
+    },
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
@@ -349,15 +365,15 @@ if (!app.requestSingleInstanceLock()) {
     applyAppearance((await core.settings.get()).appearance)
     await updateMenu(core)
 
+    // Reopen the last workspace. It starts opening before the window loads, so the window waits for it
+    // instead of showing the welcome page; on a first launch, or when the folder is gone, the window
+    // shows the welcome page.
+    const last = await core.lastWorkspace()
+    if (last) void openWorkspace(core, last)
+
     const win = createWindow()
     // The first window is listening once it has loaded; that is when core says hello
     win.webContents.once("did-finish-load", () => core.start())
-
-    // Reopen the last workspace; on a first launch (or when it is gone) ask for a folder
-    const last = await core.lastWorkspace()
-    if (last) await openWorkspace(core, last)
-    else if (win.isVisible()) void chooseWorkspace(core)
-    else win.once("show", () => void chooseWorkspace(core))
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

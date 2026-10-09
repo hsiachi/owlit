@@ -6,6 +6,7 @@ import { cn } from "cn"
 import { usePaletteStore } from "@/app/palette-store"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
+import { keysFor } from "@/app/shortcuts"
 import { SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
@@ -315,7 +316,7 @@ export function DocsListPanel() {
         >
           <SearchIcon className="size-4" />
           <span className="flex-1 text-left">Search</span>
-          <Kbd className="bg-transparent">⌘K</Kbd>
+          <Kbd className="bg-transparent">{keysFor("palette")}</Kbd>
         </button>
         <div className="group/new relative mt-1.5 flex items-center">
           <button
@@ -330,7 +331,7 @@ export function DocsListPanel() {
               </span>
             </span>
             <span className="flex-1 text-left">New doc</span>
-            <Kbd className="mr-7 bg-transparent opacity-0 transition-opacity group-hover/new:opacity-100">⌘N</Kbd>
+            <Kbd className="mr-7 bg-transparent opacity-0 transition-opacity group-hover/new:opacity-100">{keysFor("new")}</Kbd>
           </button>
           <Tooltip>
             <TooltipTrigger asChild>

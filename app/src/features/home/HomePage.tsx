@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpenIcon, FileTextIcon, FileUpIcon, MessageSquareIcon } from "lucide-react"
+import { keysFor, openShortcuts } from "@/app/shortcuts"
 import { useNewDoc } from "@/features/docs/use-new-doc"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
@@ -124,7 +125,7 @@ function Start() {
   const rows = [
     { icon: BookOpenIcon, title: "Add papers", detail: "Drop PDFs anywhere here, or choose them from your disk", run: () => fileInput.current?.click() },
     { icon: FileTextIcon, title: "New doc", detail: "Notes and drafts are Markdown files in this folder", run: () => newDoc("") },
-    { icon: MessageSquareIcon, title: "Chat with Owlit", detail: "Ask about your papers once they’re in", run: () => navigate("/chat") },
+    { icon: MessageSquareIcon, title: "Chat with Owlit", detail: "Ask, or hand off work like finding papers", run: () => navigate("/chat") },
   ]
   return (
     <>
@@ -146,6 +147,13 @@ function Start() {
           </button>
         ))}
       </div>
+      {/* The few keys worth knowing from the first day; gone with the rest once the workspace has things in it */}
+      <p className="mt-7 px-2.5 text-[13px] text-muted-foreground">
+        {keysFor("palette")} find anything · {keysFor("owlit")} ask Owlit ·{" "}
+        <button type="button" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground" onClick={openShortcuts}>
+          {keysFor("shortcuts")} all shortcuts
+        </button>
+      </p>
       <input
         ref={fileInput}
         type="file"

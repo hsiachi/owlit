@@ -3,6 +3,8 @@ import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-r
 import { OwlitMark } from "@/components/owlit-mark"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { keysFor } from "@/app/shortcuts"
+import { Kbd } from "@/components/ui/kbd"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_VAR } from "../lib/highlights"
 import type { HighlightColor } from "../types"
 
@@ -12,11 +14,14 @@ import type { HighlightColor } from "../types"
 
 const BUTTON = "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4"
 
-function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+function Tip({ label, keys, children }: { label: string; keys?: string; children: React.ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}
+        {keys && <Kbd>{keys}</Kbd>}
+      </TooltipContent>
     </Tooltip>
   )
 }
@@ -116,7 +121,7 @@ export function HighlightToolbar({
           ))}
         </div>
         <span className="mx-1 h-4 w-px bg-border" />
-        <Tip label={copied ? "Copied" : "Copy"}>
+        <Tip label={copied ? "Copied" : "Copy"} keys={copied ? undefined : keysFor("copy")}>
           <button type="button" aria-label="Copy" onClick={copy} className={BUTTON}>
             {copied ? <CheckIcon /> : <CopyIcon />}
           </button>

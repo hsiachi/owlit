@@ -5,7 +5,7 @@ import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText,
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
-import type { AppearanceSettings, UiActions, UiRequest, WorkspaceInfo } from "./workspace.ts"
+import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -59,6 +59,14 @@ export interface Methods {
   "core.version": { params: void; result: CoreVersion }
   // The open workspace, or null before one is chosen
   "workspace.current": { params: void; result: WorkspaceInfo | null }
+  // The open workspace, and whether one is opening right now
+  "workspace.state": { params: void; result: WorkspaceState }
+  // For the welcome page: recent workspaces (missing ones too) and a name for a new one
+  "workspace.welcome": { params: void; result: WelcomeInfo }
+  // Makes a new folder name in parent and opens it; refuses a name that is taken
+  "workspace.create": { params: { parent: string; name: string }; result: WorkspaceInfo }
+  // Takes a workspace off the recent list (one that was moved, once it has been found elsewhere)
+  "workspace.forget": { params: { path: string }; result: null }
   // Open a folder as the workspace, closing the current one; creates .owlit/ if missing
   "workspace.open": { params: { path: string }; result: WorkspaceInfo }
   // Recently opened folders, most recent first; folders that no longer exist are left out
@@ -166,6 +174,8 @@ export interface Methods {
   "agents.list": { params: void; result: Connector[] }
   // What every agent owlit runs is told about owlit (owlit-mcp's instructions, a new session's preamble)
   "agents.rules": { params: void; result: string }
+  // How to use owlit, for an agent asked about owlit itself: the list of topics, or one topic
+  "agents.guide": { params: { topic?: string }; result: string }
   // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
   "agents.check": { params: { id: string }; result: Connector }
   "agents.add": { params: { name: string; command: string }; result: Connector }
@@ -309,6 +319,8 @@ export interface Notifications {
   "core.hello": CoreVersion
   // A workspace was opened (also after a switch); clients reset what they hold for the old one
   "workspace.opened": WorkspaceInfo
+  // A workspace started or stopped opening, or one opened
+  "workspace.state": WorkspaceState
   // The activity switch changed; renderers stop or start reporting
   "activity.status": { enabled: boolean }
   // Any setting changed, from any window or the app menu
@@ -358,6 +370,8 @@ export interface CoreVersion {
   node: string
 }
 
+export type MenuCommand = "settings" | "shortcuts" | "how-to"
+
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {
   platform: string
@@ -373,8 +387,10 @@ export interface OwlitBridge {
   onControlsRoom(listener: (room: number) => void): () => void
   // The theme and paper tone, asked once synchronously so the first frame is already drawn in them
   appearance: AppearanceSettings
-  // A command from the app's own menu (Settings…, ⌘,)
-  onMenu(listener: (command: "settings") => void): () => void
+  // A command from the app's own menu (Settings…, Help › Keyboard Shortcuts, Help › Ask Owlit How To…)
+  onMenu(listener: (command: MenuCommand) => void): () => void
+  // The system's folder picker; the chosen folder, or null when cancelled
+  chooseFolder(options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }): Promise<string | null>
   // Where the publisher's page shows during Check now, in the window's CSS pixels; null takes it away
   setPublisherView(bounds: { x: number; y: number; width: number; height: number } | null): void
 }

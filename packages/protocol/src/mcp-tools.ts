@@ -109,7 +109,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "ui_open",
     description:
-      "Show the user something in their owlit window: a paper (owlit://library/<id>), a doc (owlit://docs/<path>, e.g. owlit://docs/drafts/Related work.md), a chat (owlit://chat/<id>). Use it when the user asks to see something, not on your own.",
+      "Show the user something in their owlit window: a paper (owlit://library/<id>), a doc (owlit://docs/<path>, e.g. owlit://docs/drafts/Related work.md), a chat (owlit://chat/<id>), a Settings section (owlit://settings/<section>) or the shortcut list (owlit://shortcuts). Use it when the user asks to see something, not on your own.",
     inputSchema: { type: "object", properties: { uri: { type: "string", description: "An owlit:// link" } }, required: ["uri"] },
     annotations: { readOnlyHint: true },
   },
@@ -169,6 +169,13 @@ export const OWLIT_TOOLS: ToolSpec[] = [
       required: ["topic", "content", "why"],
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: "owlit_help",
+    description:
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, Knowledge, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
+    inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic from the list, or a word to look for (optional)" } } },
+    annotations: { readOnlyHint: true },
   },
   {
     name: "chats_list",

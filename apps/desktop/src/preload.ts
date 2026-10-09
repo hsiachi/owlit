@@ -1,7 +1,7 @@
 // Preload: the only bridge between the sandboxed renderer and the main process. It exposes a narrow
 // window.owlit (OwlitBridge) and nothing else.
 
-import type { OwlitBridge, RpcNotification, RpcResponse } from "@owlit/protocol"
+import type { MenuCommand, OwlitBridge, RpcNotification, RpcResponse } from "@owlit/protocol"
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron"
 
 let nextId = 1
@@ -21,6 +21,7 @@ const bridge: OwlitBridge = {
   // Asked once, synchronously, so the first frame already leaves the right room
   controlsRoom: ipcRenderer.sendSync("controls-room") as number,
   setPublisherView: (bounds) => ipcRenderer.send("publisher-view", bounds),
+  chooseFolder: (options) => ipcRenderer.invoke("choose-folder", options) as Promise<string | null>,
   onControlsRoom(listener) {
     const forward = (_event: IpcRendererEvent, room: number) => listener(room)
     ipcRenderer.on("controls-room", forward)
@@ -31,7 +32,7 @@ const bridge: OwlitBridge = {
   // Asked once, synchronously, so the first frame is drawn in the chosen theme and tone
   appearance: ipcRenderer.sendSync("appearance"),
   onMenu(listener) {
-    const forward = (_event: IpcRendererEvent, command: "settings") => listener(command)
+    const forward = (_event: IpcRendererEvent, command: MenuCommand) => listener(command)
     ipcRenderer.on("menu", forward)
     return () => {
       ipcRenderer.off("menu", forward)
