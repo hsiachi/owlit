@@ -53,11 +53,11 @@ colors:
   pdf-selection: "oklch(0.86 0.06 255)"
 typography:
   display:
-    fontFamily: Instrument Serif
+    fontFamily: Dosis
     fontSize: 44px
-    fontWeight: 400
+    fontWeight: 500
     lineHeight: 1
-    letterSpacing: -0.025em
+    letterSpacing: 0em
   title:
     fontFamily: Figtree
     fontSize: 22px
@@ -308,7 +308,7 @@ Words the interface uses, and what each one names on screen.
 - **Mark.** A feather drawn as one continuous line with round ends. It has no colour of its own: it is written in the text's ink, `foreground` on paper and the dark theme's `foreground` on dark. It is never filled, outlined, shadowed, tinted or redrawn. Drawn large, its line is 14 units on its 256-unit grid.
 - **Where it appears.** The app icon, the favicon, and the controls whose action is Owlit: the Owlit button in the top bar and Ask Owlit in the PDF text popover. Agents and Settings keep their own icons, because they are about the engine, not Owlit.
 - **As an icon.** Drawn to match the lucide icons beside it: the feather fills 20 of the 24 units of its square, and its line is 2 of 24, heavier than the large drawing, so it has the same weight at 16px. Small sizes keep the whole feather; cut to one or two barbs it reads as a letter. In code it is `OwlitMark`.
-- **Wordmark.** Lowercase "owlit" in Dosis 500 slanted 12° (Dosis has no italic), used only beside the feather as a lockup, never typed in the interface, where the name is plain Figtree text. In the lockup the feather stands 1.35 times the height of the "l", its quill dips below the baseline by a fifth of the type size, it sits a tenth of its own height from the word, and its line is as thick as the letters' strokes (8.5% of the type size).
+- **Wordmark.** Lowercase "owlit" in Dosis 500 slanted 12° (Dosis has no italic), used beside the feather as a lockup. In the interface the name is plain Figtree text; the wordmark's face appears in the interface only as the Chat greeting (see Typography). In the lockup the feather stands 1.35 times the height of the "l", its quill dips below the baseline by a fifth of the type size, it sits a tenth of its own height from the word, and its line is as thick as the letters' strokes (8.5% of the type size).
 - **App icon.** A pale paper tile (lighter at the top) with the ink feather, on the macOS icon grid: an 824-unit tile in a 1024 canvas with a soft shadow, the feather 62% of the tile. The dark appearance is a warm charcoal tile with a paper feather. Sources are `apps/desktop/resources/icon.svg` and `icon-dark.svg`.
 
 ## Colors
@@ -363,7 +363,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 ## Typography
 
 - **Figtree** for the whole interface: round, open and friendly at small sizes.
-- **Instrument Serif** for the Chat greeting only. Never for page titles, paper titles, body text or controls: a long title set in it is tiring to read.
+- **Dosis 500, slanted 12°** (the wordmark's face) for the Chat greeting only, so the one large line of type in the app speaks in the brand's voice. Dosis has no italic, so the slant is a skew, as in the wordmark. Never for page titles, paper titles, body text or controls: it is a narrow display face, tiring in long lines and small sizes.
 - The scale is 22px (page titles), 18px (a paper's title on its own page), 15px (body and messages), 14px (UI), 13px (secondary: pickers, chips, small buttons) and 12px (captions: group labels, status chips, meta lines). Nothing smaller, and no in-between sizes like 0.8rem or 11px.
 - Weight does the work of hierarchy before size or colour does. Medium (500) is the heaviest weight in UI chrome, including table headers. Semibold appears only in rendered markdown headings and bold text.
 - Code is the system monospace at 0.85em, on a `muted` fill.
