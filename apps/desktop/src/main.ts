@@ -6,7 +6,7 @@ import type { AppearanceSettings, DocsChange, MethodName, ParamsOf, ResultOf, Rp
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { createBrowserHost } from "./browser.ts"
+import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
 
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
@@ -123,12 +123,12 @@ function createWindow() {
 
 // Core is transport-agnostic; here its requests ride ipcMain.handle and its notifications go to
 // every window
-function attachCore(core: Core) {
+function attachCore(core: Core, browser: PublisherBrowser) {
   ipcMain.handle("rpc", (_event, request: RpcRequest) => core.handle(request))
   // Where the renderer wants the publisher's page during Check now
   ipcMain.on("publisher-view", (event, bounds: Electron.Rectangle | null) => {
     const owner = BrowserWindow.fromWebContents(event.sender)
-    if (owner) browserHost?.setView(owner, bounds && roundRect(bounds))
+    if (owner) browser.setView(owner, bounds && roundRect(bounds))
   })
   protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
@@ -322,7 +322,7 @@ if (!app.requestSingleInstanceLock()) {
         },
       },
     })
-    attachCore(core)
+    attachCore(core, browser)
     // Development aid: print every activity event the renderer reports
     if (process.env.OWLIT_LOG_ACTIVITY) core.activity.subscribe((event) => console.log("[activity]", JSON.stringify(event)))
     // Development aid: print what the workspace watcher reports (paths only, not text)
