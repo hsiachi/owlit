@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPluginRegistration } from "@embedpdf/core"
-import { EmbedPDF, useDocumentState } from "@embedpdf/core/react"
+import { EmbedPDF, useDocumentState, useRegistry } from "@embedpdf/core/react"
 import { usePdfiumEngine } from "@embedpdf/engines/react"
 import wasmUrl from "@embedpdf/pdfium/pdfium.wasm?url"
 import { DocumentManagerPluginPackage } from "@embedpdf/plugin-document-manager/react"
@@ -8,7 +8,7 @@ import { GlobalPointerProvider, InteractionManagerPluginPackage, PagePointerProv
 import { RenderLayer, RenderPluginPackage } from "@embedpdf/plugin-render/react"
 import { Scroller, ScrollPluginPackage, useScrollCapability } from "@embedpdf/plugin-scroll/react"
 import { SearchLayer, SearchPluginPackage } from "@embedpdf/plugin-search/react"
-import { SelectionLayer, SelectionPluginPackage } from "@embedpdf/plugin-selection/react"
+import { SelectionLayer, SelectionPluginPackage, useSelectionCapability } from "@embedpdf/plugin-selection/react"
 import { TilingLayer, TilingPluginPackage } from "@embedpdf/plugin-tiling/react"
 import { Viewport, ViewportPluginPackage } from "@embedpdf/plugin-viewport/react"
 import { ZoomGestureWrapper, ZoomMode, ZoomPluginPackage } from "@embedpdf/plugin-zoom/react"
@@ -18,6 +18,8 @@ import { Spinner } from "@/components/ui/spinner"
 import type { Paper } from "../types"
 import { HighlightLayer, useHighlightHitTest } from "./HighlightLayer"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
+import { boundsOf, locatePassage, type PassageTarget } from "./passages"
+import { PassageRing } from "./PassageRing"
 import { usePositionMemory } from "./position"
 import { ReaderControls } from "./ReaderControls"
 import { useReaderStore } from "./reader-store"
@@ -82,7 +84,10 @@ function Document({ paper, engine }: { paper: Paper; engine: Engine }) {
 
 function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
   const doc = useDocumentState(documentId)
+  const pdf = doc?.document ?? null
+  const { registry } = useRegistry()
   const { provides: scrollCap } = useScrollCapability()
+  const { provides: selectionCap } = useSelectionCapability()
   // Where following a link left from, most recent last; it belongs to this reading and dies with it
   const [trail, setTrail] = useState<ReturnMark[]>([])
   const setApi = useReaderStore((s) => s.setApi)
@@ -92,7 +97,33 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
   useEffect(() => {
     if (!scrollCap) return
     const scroll = scrollCap.forDocument(documentId)
+    const locate = (p: PassageTarget) => (registry && pdf ? locatePassage(registry.getEngine(), pdf, p) : Promise.resolve(null))
     setApi({
+      showPassage: async (p, mode) => {
+        const at = await locate(p)
+        if (!at || !at.rects.length) return false
+        const box = boundsOf(at.rects)
+        const ring = { passageId: p.id, page: at.page, box }
+        if (mode === "hover") {
+          useReaderStore.getState().setRing({ ...ring, pulse: false })
+          return true
+        }
+        // Like a highlight reached from the list: in the upper part of the pane. The rings start once the
+        // scroll has landed, or they play while the page is still moving.
+        useReaderStore.getState().setRing(null)
+        scroll.scrollToPage({ pageNumber: at.page + 1, pageCoordinates: { x: 0, y: box.y }, alignY: 25, behavior: "smooth" })
+        setTimeout(() => useReaderStore.getState().setRing({ ...ring, pulse: true }), 450)
+        return true
+      },
+      selectPassage: async (p) => {
+        const at = await locate(p)
+        if (!at || !selectionCap) return false
+        const box = boundsOf(at.rects)
+        useReaderStore.getState().setRing(null)
+        scroll.scrollToPage({ pageNumber: at.page + 1, pageCoordinates: { x: 0, y: box.y }, alignY: 25, behavior: "smooth" })
+        await selectionCap.forDocument(documentId).setSelection({ start: { page: at.page, index: at.from }, end: { page: at.page, index: at.to } }).toPromise()
+        return true
+      },
       jumpToHighlight: (h) => {
         const r = h.rects[0]
         useReaderStore.getState().close()
@@ -106,10 +137,30 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
       },
     })
     return () => setApi(null)
-  }, [scrollCap, documentId, setApi])
+  }, [scrollCap, selectionCap, registry, pdf, documentId, setApi])
 
-  // Leaving the paper closes whatever popover was open
-  useEffect(() => () => useReaderStore.getState().close(), [])
+  // Opened from a passage link: go there once the pages are laid out and the saved place restored
+  useEffect(() => {
+    if (!scrollCap) return
+    return scrollCap.onLayoutReady((e) => {
+      if (e.documentId !== documentId || !e.isInitial) return
+      setTimeout(() => {
+        const { pendingPassage, api } = useReaderStore.getState()
+        if (!pendingPassage || !api) return
+        useReaderStore.setState({ pendingPassage: null })
+        void api.showPassage(pendingPassage, "jump")
+      }, 150)
+    })
+  }, [scrollCap, documentId])
+
+  // Leaving the paper closes whatever popover was open and drops any outline
+  useEffect(
+    () => () => {
+      useReaderStore.getState().close()
+      useReaderStore.getState().setRing(null)
+    },
+    [],
+  )
 
   if (doc?.status === "error") {
     return (
@@ -168,6 +219,7 @@ function Page({ documentId, paperId, pageIndex, onFollow }: { documentId: string
       <div className="pointer-events-none absolute inset-0 border border-(--pdf-page-edge)" />
       <SearchLayer documentId={documentId} pageIndex={pageIndex} highlightColor="var(--pdf-search)" activeHighlightColor="var(--pdf-search-active)" />
       <HighlightLayer documentId={documentId} paperId={paperId} pageIndex={pageIndex} />
+      <PassageRing documentId={documentId} pageIndex={pageIndex} />
       <SelectionLayer
         documentId={documentId}
         pageIndex={pageIndex}

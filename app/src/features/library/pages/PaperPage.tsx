@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,10 @@ import { libraryClient, useLibraryStore } from "../store"
 import type { Highlight, Paper } from "../types"
 import { useUiStore } from "../ui-store"
 import { useAgentWindow } from "@/features/agent/store"
+import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
+import { paperClosed } from "@/features/knowledge/runner"
+import { useKnowledgeStore } from "@/features/knowledge/store"
+import { useReaderStore } from "../reader/reader-store"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -74,6 +78,25 @@ export function PaperPage() {
     if (paper.pdf) markOpened(paper.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId])
+
+  // Closing a paper is when Owlit takes in what was found in it
+  useEffect(() => {
+    const id = paperId
+    return () => paperClosed(id)
+  }, [paperId])
+
+  // Opened from a passage link (a topic line's "§2"): go to the passage once the reader is ready
+  const [params, setParams] = useSearchParams()
+  const passageId = params.get("passage")
+  useEffect(() => {
+    if (!passageId) return
+    const passage = useKnowledgeStore.getState().paper(paperId).passages[passageId]
+    setParams({}, { replace: true })
+    if (!passage) return
+    const { api } = useReaderStore.getState()
+    if (api) void api.showPassage(passage, "jump").then((ok) => ok || useReaderStore.setState({ pendingPassage: passage }))
+    else useReaderStore.setState({ pendingPassage: passage })
+  }, [paperId, passageId, setParams])
 
   if (!paper) {
     return (
@@ -216,6 +239,9 @@ function DetailsPanel({ paper }: { paper: Paper }) {
               Highlights
               {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
             </TabsTrigger>
+            <TabsTrigger value="knowledge" className="px-1.5">
+              <KnowledgeTabLabel paper={paper} />
+            </TabsTrigger>
             <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
           </TabsList>
           {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
@@ -225,6 +251,9 @@ function DetailsPanel({ paper }: { paper: Paper }) {
         </TabsContent>
         <TabsContent value="highlights">
           <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
+        </TabsContent>
+        <TabsContent value="knowledge">
+          <KnowledgeTab key={paper.id} paper={paper} />
         </TabsContent>
         <TabsContent value="about">
           <About paper={paper} />

@@ -13,6 +13,8 @@ import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
 import { useAgentWindow } from "@/features/agent/store"
 // Serves workspace files to agents (ACP fs/*), so it is in place before any chat runs
 import "@/features/docs/fs"
+// Serves Knowledge to agents the same way
+import "@/features/knowledge/agent"
 
 export function Shell() {
   const navigate = useNavigate()

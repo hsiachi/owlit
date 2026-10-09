@@ -15,3 +15,6 @@ export const displayName = (path: string) => {
   const name = baseName(path)
   return isMarkdown(name) ? name.slice(0, -3) : name
 }
+
+// How a doc is mentioned and linked: its path under owlit://docs/
+export const docUri = (path: string) => `owlit://docs/${path.split("/").map(encodeURIComponent).join("/")}`

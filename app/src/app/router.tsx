@@ -1,6 +1,10 @@
 import { createBrowserRouter } from "react-router-dom"
 import { Shell } from "@/app/Shell"
 import { Placeholder } from "@/app/Placeholder"
+import { KnowledgeLayout } from "@/features/knowledge/KnowledgeLayout"
+import { KnowledgePage } from "@/features/knowledge/pages/KnowledgePage"
+import { LoosePage } from "@/features/knowledge/pages/LoosePage"
+import { TopicPage } from "@/features/knowledge/pages/TopicPage"
 import { ChatLayout } from "@/features/chat/ChatLayout"
 import { ChatEmpty } from "@/features/chat/components/ChatEmpty"
 import { ChatView } from "@/features/chat/components/ChatView"
@@ -34,7 +38,15 @@ export const router = createBrowserRouter([
           { path: ":docId", element: <DocPage /> },
         ],
       },
-      { path: "knowledge", element: <Placeholder name="Knowledge" /> },
+      {
+        path: "knowledge",
+        element: <KnowledgeLayout />,
+        children: [
+          { index: true, element: <KnowledgePage /> },
+          { path: "loose", element: <LoosePage /> },
+          { path: ":topicId", element: <TopicPage /> },
+        ],
+      },
       {
         path: "library",
         element: <LibraryLayout />,

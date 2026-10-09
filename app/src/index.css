@@ -46,6 +46,13 @@
         25%, 75% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--pdf-flash) 10%, transparent); }
         100% { box-shadow: 0 0 0 3px transparent; }
     }
+    /* A passage reached from the Knowledge tab: its outline rings twice, then goes */
+    --animate-passage-ring: passage-ring 1.6s ease-out forwards;
+    @keyframes passage-ring {
+        0%, 50% { opacity: 1; }
+        25%, 75% { opacity: 0.25; }
+        100% { opacity: 0; }
+    }
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
