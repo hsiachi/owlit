@@ -8,11 +8,12 @@ import {
   type PaperNote,
   type PaperPatch,
   type PaperRecord,
+  type PaperText,
   type ResolvedPaper,
   type TaskPriority,
 } from "@owlit/protocol"
 import { watch, type FSWatcher } from "node:fs"
-import { copyFile, mkdir, open, readdir, rename, rm } from "node:fs/promises"
+import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, type Http } from "../net/http.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -34,6 +35,8 @@ import {
   type Attempt,
 } from "./pdf.ts"
 import { paperIdOf, parseRef, refOfIds } from "./refs.ts"
+import { readText, writeText } from "./text/files.ts"
+import { extractText, UnreadablePdf } from "./text/extract.ts"
 import { NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import {
   applyPatch,
@@ -55,6 +58,8 @@ const SETTLE_MS = 300
 
 export interface LibraryServices {
   http: Http
+  // pdfium's wasm, where the desktop app ships it; tests and the CLI find it in the package
+  pdfiumWasm?: string
   // Read at each use, so a key the user adds applies at once
   settings: () => Promise<LibrarySettings>
 }
@@ -294,6 +299,12 @@ export class Library {
     return paper
   }
 
+  // The paper's full text with where each line sits, or null before it has been read
+  async text(id: string): Promise<PaperText | null> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    return (await readText(this.root, id)) ?? null
+  }
+
   // A PDF the user found, placed as the paper's file; the steps that need it follow
   attachPdf(id: string, file: string): Promise<Paper> {
     return this.serial(async () => {
@@ -325,6 +336,14 @@ export class Library {
     })
   }
 
+  // Steps a paper is owed but never got (a PDF put in by hand or by another program, a run that failed
+  // in an older build): its text, read now, in the background
+  private async catchUp() {
+    for (const id of await this.ids()) {
+      if ((await hasPdfFile(this.root, id)) && !(await readText(this.root, id))) this.queue("paper.text", id, "background")
+    }
+  }
+
   // Papers left without a PDF get another try once a day: open copies appear over time
   private async retryMissingDaily() {
     const file = path.join(this.dataDir, "library.json")
@@ -343,6 +362,7 @@ export class Library {
   async watch(onChange: (change: LibraryChange) => void) {
     this.onChange = onChange
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
+    void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
     // A library that can't be read yet still opens; lookups just find less
     await this.index.load().catch((error) => console.error("[core] couldn't read the library", error))
     if (this.watcher) return
@@ -375,6 +395,35 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
+      // The PDF's text layer as text.json (lines and where they sit) and text.md. MinerU's text, once
+      // there, is better and is left alone. A paper with no PDF has nothing to read.
+      defineTask("paper.text", {
+        lane: "cpu",
+        retries: 1,
+        run: async (ctx) => {
+          const id = ctx.task.subject
+          if (!(await readRecord(this.root, id))) throw new TaskFailure(`${id} is not in the library.`)
+          if (!(await hasPdfFile(this.root, id))) {
+            if ((await readAcquisition(this.root, id))?.result === "no_pdf") return
+            ctx.require("paper.pdf", id)
+          }
+          const existing = await readText(this.root, id, { withTime: true })
+          if (existing && (existing.text.source !== "pdfium" || existing.at >= (await mtimeOf(pdfFile(this.root, id))))) return
+          let text: PaperText
+          try {
+            text = await extractText(await readFile(pdfFile(this.root, id)), {
+              wasmPath: this.services.pdfiumWasm,
+              signal: ctx.signal,
+              onPage: (done, total) => ctx.progress(done, total),
+            })
+          } catch (error) {
+            if (error instanceof UnreadablePdf) throw new TaskFailure(error.message)
+            throw error
+          }
+          await writeText(this.root, id, text)
+          for (const kind of ["index.paper", ...(text.needsOcr ? ["paper.parse"] : [])]) this.queue(kind, id, "background")
+        },
+      }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact
       // (acquisition.json, result no_pdf); only a machine with no network at all tries again later.
       defineTask("paper.pdf", {
@@ -544,3 +593,5 @@ function ignoreMissing(error: NodeJS.ErrnoException) {
 function clean<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
 }
+
+const mtimeOf = (file: string) => stat(file).then((info) => info.mtimeMs, () => 0)

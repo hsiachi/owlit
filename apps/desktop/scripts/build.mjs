@@ -7,7 +7,7 @@ import { createRequire } from "node:module"
 import path from "node:path"
 import * as esbuild from "esbuild"
 import { build, Platform } from "electron-builder"
-import { appDir, desktopDir, distDir, esbuildOptions } from "./shared.mjs"
+import { appDir, copyMainAssets, desktopDir, distDir, esbuildOptions } from "./shared.mjs"
 
 const require = createRequire(import.meta.url)
 
@@ -17,6 +17,7 @@ execFileSync("pnpm", ["run", "build"], { cwd: appDir, stdio: "inherit" })
 cpSync(path.join(appDir, "dist"), path.join(distDir, "renderer"), { recursive: true })
 
 await esbuild.build(esbuildOptions({ production: true }))
+copyMainAssets()
 
 await build({
   projectDir: desktopDir,

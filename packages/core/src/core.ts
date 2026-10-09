@@ -29,6 +29,8 @@ export interface CoreOptions {
   debug?: boolean
   // Base of the wait between tries of a failed request (default 1s); tests shorten it
   retryBaseMs?: number
+  // pdfium's wasm file, where the desktop app ships it beside main
+  pdfiumWasm?: string
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -264,6 +266,7 @@ export class Core {
     this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
       library().removeHighlight(paperId, id),
     )
+    this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
       library().attachPdf(id, path),
@@ -343,7 +346,7 @@ export class Core {
           ? this.workspace
           : await Workspace.open(root, this.options.userDataDir, {
               host: this.options.host,
-              library: { http: this.http, settings: async () => (await this.settings.get()).library },
+              library: { http: this.http, pdfiumWasm: this.options.pdfiumWasm, settings: async () => (await this.settings.get()).library },
               tasks: { definitions: (workspace) => this.taskDefinitions(workspace), onChange: (task) => this.taskChanges.push(task) },
             })
       if (this.workspace && this.workspace !== next) {

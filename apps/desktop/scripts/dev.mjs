@@ -6,7 +6,7 @@ import { createRequire } from "node:module"
 import net from "node:net"
 import path from "node:path"
 import * as esbuild from "esbuild"
-import { appDir, desktopDir, esbuildOptions } from "./shared.mjs"
+import { appDir, copyMainAssets, desktopDir, esbuildOptions } from "./shared.mjs"
 
 const require = createRequire(import.meta.url)
 const electronBin = require("electron")
@@ -51,6 +51,7 @@ async function restartElectron() {
   startElectron()
 }
 
+copyMainAssets()
 const ctx = await esbuild.context({
   ...esbuildOptions({ production: false }),
   plugins: [

@@ -151,3 +151,34 @@ export interface LibraryChange {
   papers: Paper[]
   removed: string[]
 }
+
+// library/papers/<id>/text.json: the paper's full text with where each line sits, so a passage can be
+// found and outlined on the page. Rects are PDF points from the page's top-left corner, as highlights
+// are. pdfium writes it in seconds; MinerU's version replaces it when it comes (better order, tables,
+// formulas), and the pdfium one stays as text.pdfium.json.
+export interface PaperText {
+  version: 1
+  source: "pdfium" | "mineru" | "mineru-legacy"
+  // Almost no text layer: a scan waiting for OCR (MinerU)
+  needsOcr?: boolean
+  pages: TextPage[]
+}
+
+export interface TextPage {
+  // 0-based
+  index: number
+  width: number
+  height: number
+  blocks: TextBlock[]
+}
+
+export interface TextBlock {
+  kind: "paragraph" | "heading" | "table" | "figure" | "formula" | "other"
+  rect: Rect
+  lines: TextLine[]
+}
+
+export interface TextLine {
+  rect: Rect
+  text: string
+}

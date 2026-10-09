@@ -225,6 +225,9 @@ importers:
       '@agentclientprotocol/sdk':
         specifier: 1.7.0
         version: 1.7.0(zod@4.6.5)
+      '@embedpdf/pdfium':
+        specifier: 2.15.1
+        version: 2.15.1
       '@owlit/protocol':
         specifier: workspace:*
         version: link:../protocol

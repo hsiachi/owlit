@@ -1,7 +1,7 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, ResolvedPaper } from "./library.ts"
+import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { UiRequest, WorkspaceInfo } from "./workspace.ts"
 
@@ -180,6 +180,8 @@ export interface Methods {
   // Adds a highlight, or replaces the one with its id
   "library.putHighlight": { params: { highlight: Highlight }; result: null }
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
+  // The paper's full text, line by line with where each sits (text.json), or null before it is read
+  "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with noPdf saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }

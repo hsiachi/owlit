@@ -174,6 +174,8 @@ if (!app.requestSingleInstanceLock()) {
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
       debug: !app.isPackaged,
+      // Copied beside main by scripts/shared.mjs
+      pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),
