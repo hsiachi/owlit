@@ -61,6 +61,7 @@ export class Workspace {
       definitions: tasks.definitions?.(this) ?? [],
       onChange: tasks.onChange,
     })
+    this.library.attach(this.tasks)
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
@@ -119,6 +120,7 @@ export class Workspace {
     await this.tasks.dispose()
     await this.chats.flush()
     this.docs.dispose()
+    this.library.dispose()
     await this.release()
   }
 }

@@ -165,6 +165,63 @@ export class Core {
     const library = () => this.requireWorkspace().library
     this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
     this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), ({ inputs }) => library().known(inputs))
+    this.router.register("library.list", noParams, () => library().list())
+    const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
+    const ids = z.object({ doi: z.string(), arxiv: z.string(), s2: z.string(), openalex: z.string(), url: z.string() }).partial()
+    const kind = z.enum(["article", "conference", "preprint", "book", "thesis", "other"])
+    const resolved = z.object({
+      id: paperId.optional(),
+      title: z.string(),
+      authors: z.array(z.string()),
+      ids,
+      year: z.number().optional(),
+      venue: z.string().optional(),
+      abstract: z.string().optional(),
+      kind: kind.optional(),
+    })
+    this.router.register(
+      "library.add",
+      z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional() }),
+      ({ paper, addedBy }) => library().add(paper, addedBy),
+    )
+    const position = z.object({ page: z.number(), y: z.number() })
+    const patch = z
+      .object({
+        title: z.string(),
+        authors: z.array(z.string()),
+        year: z.number().optional(),
+        venue: z.string().optional(),
+        abstract: z.string().optional(),
+        kind: kind.optional(),
+        ids,
+        starred: z.boolean(),
+        status: z.enum(["unread", "reading", "read"]),
+        tags: z.array(z.string()),
+        position,
+        lastOpenedAt: z.number(),
+      })
+      .partial()
+    this.router.register("library.update", z.object({ id: paperId, patch }), ({ id, patch }) => library().update(id, patch))
+    this.router.register("library.remove", z.object({ ids: z.array(paperId) }), ({ ids }) => library().remove(ids))
+    this.router.register("library.restore", z.object({ ids: z.array(paperId) }), ({ ids }) => library().restore(ids))
+    const rect = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
+    const highlight = z.object({
+      id: z.string().min(1),
+      paperId,
+      page: z.number().int().nonnegative(),
+      rects: z.array(rect.extend({ page: z.number().int().nonnegative() })),
+      text: z.string(),
+      color: z.enum(["yellow", "green", "blue", "pink"]),
+      comment: z.string().optional(),
+      createdAt: z.number(),
+    })
+    this.router.register("library.putHighlight", z.object({ highlight }), ({ highlight }) => library().putHighlight(highlight))
+    this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
+      library().removeHighlight(paperId, id),
+    )
+    this.router.register("library.setNote", z.object({ paperId, content: z.string() }), ({ paperId, content }) =>
+      library().setNote(paperId, content),
+    )
 
     const tasks = () => this.requireWorkspace().tasks
     const taskId = z.string().min(1)
@@ -240,7 +297,10 @@ export class Core {
         // The old workspace's last task changes go out before clients hear of the switch
         this.taskChanges.flush()
       }
-      if (this.workspace !== next) await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
+      if (this.workspace !== next) {
+        await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
+        await next.library.watch((change) => this.notifier.notify("library.changed", change))
+      }
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
       this.notifier.notify("workspace.opened", next.info)

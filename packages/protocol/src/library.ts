@@ -116,3 +116,36 @@ export interface PaperRecord {
   // When the services were last asked
   fetchedAt?: number
 }
+
+// .owlit/papers/<id>/state.json: what the user thinks of a paper and did with it. Kept forever,
+// travels with the workspace. Highlights sit beside it in highlights.jsonl, the note in note.md.
+export interface PaperState {
+  version: 1
+  addedAt: number
+  addedBy: Paper["addedBy"]
+  starred: boolean
+  status: ReadStatus
+  tags: string[]
+  position?: ReadingPosition
+  lastOpenedAt?: number
+  // Fields the user corrected by hand; they win over paper.json and survive a metadata refresh
+  overrides?: PaperOverrides
+}
+
+// null: the user cleared a field the record has
+export type PaperOverrides = Partial<Pick<PaperRecord, "title" | "authors" | "kind">> & {
+  year?: number | null
+  venue?: string | null
+  abstract?: string | null
+  ids?: Partial<PaperIds>
+}
+
+// What library.update may change: the user's judgement and position, or a field they correct
+export type PaperPatch = Partial<Omit<Paper, "id" | "pdf" | "addedAt" | "addedBy">>
+
+// library.changed: papers core changed on its own (a task, another program, an agent); the window
+// takes them as they are. Removed ids are gone from the library.
+export interface LibraryChange {
+  papers: Paper[]
+  removed: string[]
+}

@@ -8,8 +8,12 @@ import type { SourceRecord } from "./sources/types.ts"
 
 // library/papers/<id>/paper.json and sources/: what the services said about a paper
 
-export const readRecord = (root: string, id: string) =>
-  readJson<PaperRecord>(path.join(paperDir(root, id), "paper.json")).catch(() => undefined)
+// undefined when missing or not a paper record (another program's half-written file, an empty {})
+export async function readRecord(root: string, id: string): Promise<PaperRecord | undefined> {
+  const record = await readJson<PaperRecord>(path.join(paperDir(root, id), "paper.json")).catch(() => undefined)
+  if (!record || typeof record !== "object" || typeof record.title !== "string" || typeof record.ids !== "object" || !record.ids) return undefined
+  return { ...record, authors: Array.isArray(record.authors) ? record.authors : [], fields: record.fields ?? {} }
+}
 
 export const writeRecord = (root: string, record: PaperRecord) =>
   writeJsonAtomic(path.join(paperDir(root, record.id), "paper.json"), record)
@@ -60,6 +64,7 @@ export class PaperIndex {
   private byKey = new Map<string, string>()
   private keysOf = new Map<string, string[]>()
   private loaded: Promise<void> | undefined
+  private lastCatchUp = 0
   private readonly root: string
 
   constructor(root: string) {
@@ -71,14 +76,28 @@ export class PaperIndex {
     await this.loaded
   }
 
-  // The paper that has any of these ids
+  // The paper that has any of these ids. On a miss, folders the index hasn't read yet are read (at
+  // most once a second): the watcher can miss a paper written the moment it started.
   async find(ids: PaperIds): Promise<string | undefined> {
     await this.load()
+    const found = this.lookup(ids)
+    if (found || Date.now() - this.lastCatchUp < 1000) return found
+    this.lastCatchUp = Date.now()
+    await this.scan(true)
+    return this.lookup(ids)
+  }
+
+  private lookup(ids: PaperIds) {
     for (const key of keysOf(ids)) {
       const id = this.byKey.get(key)
       if (id) return id
     }
     return undefined
+  }
+
+  // Every paper the index knows
+  ids() {
+    return [...this.keysOf.keys()]
   }
 
   set(id: string, ids: PaperIds) {
@@ -93,7 +112,7 @@ export class PaperIndex {
     this.keysOf.delete(id)
   }
 
-  private async scan() {
+  private async scan(onlyNew = false) {
     let names: string[]
     try {
       names = await readdir(path.join(this.root, PAPERS_DIR))
@@ -101,7 +120,7 @@ export class PaperIndex {
       return
     }
     for (const name of names) {
-      if (!isPaperId(name)) continue
+      if (!isPaperId(name) || (onlyNew && this.keysOf.has(name))) continue
       const record = await readRecord(this.root, name)
       if (record) this.set(name, record.ids)
     }

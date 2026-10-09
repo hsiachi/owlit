@@ -32,7 +32,8 @@ export function useRefLookup(input: string | null) {
       libraryClient.resolve(input).then(
         (resolved) => {
           if (!live) return
-          const existing = findExisting(useLibraryStore.getState().papers, resolved)
+          const { papers } = useLibraryStore.getState()
+          const existing = (resolved.existingId ? papers[resolved.existingId] : undefined) ?? findExisting(papers, resolved)
           setResult({ input, lookup: existing ? { state: "exists", paper: existing } : { state: "found", resolved } })
         },
         (e) => live && setResult({ input, lookup: { state: "error", message: e instanceof Error ? e.message : "Could not look that up." } }),

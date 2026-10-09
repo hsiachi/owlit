@@ -137,6 +137,11 @@ export class Scheduler {
     return [...open, ...finished]
   }
 
+  // Whether this scheduler can run a kind of task
+  knows(kind: string) {
+    return this.definitions.has(kind)
+  }
+
   get(id: string): Task | undefined {
     return this.entries.get(id)?.task
   }
