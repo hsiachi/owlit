@@ -131,8 +131,7 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
       onSubmit={(e) => {
         e.preventDefault()
         if (!command.trim()) return
-        const c = addCustom(name, command)
-        void check(c.id)
+        void addCustom(name, command).then((c) => check(c.id))
         close()
       }}
     >

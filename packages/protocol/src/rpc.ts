@@ -1,5 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
-import type { Chat, ChatMessage, ChatSummary } from "./chat.ts"
+import type { Chat, ChatMessage, ChatSummary, Connector } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
@@ -119,6 +119,15 @@ export interface Methods {
   // final (the end of a turn) writes at once.
   "chats.patchMessage": { params: { id: string; message: ChatMessage; final?: boolean }; result: null }
 
+  // ---- Local agents (ACP over stdio). Built-in ones plus those the user added; each runs as one
+  // process, started when needed and ended after ten idle minutes.
+  "agents.list": { params: void; result: Connector[] }
+  // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
+  "agents.check": { params: { id: string }; result: Connector }
+  "agents.add": { params: { name: string; command: string }; result: Connector }
+  // Removes one the user added
+  "agents.remove": { params: { id: string }; result: null }
+
   // ---- Tasks: background work in the open workspace. Their state shows beside what they are about.
   // Unfinished tasks, then the ones that finished since the workspace opened, most recent first
   "tasks.list": { params: void; result: Task[] }
@@ -144,6 +153,8 @@ export interface Notifications {
   "activity.status": { enabled: boolean }
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
+  // An agent's state changed (it started, ended, crashed, was checked)
+  "agents.changed": Connector
   // A task changed; sent at most every 200ms per task, always with its latest state
   "tasks.changed": { task: Task }
 }
