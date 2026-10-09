@@ -184,6 +184,11 @@ export interface Methods {
   // Adds a highlight, or replaces the one with its id
   "library.putHighlight": { params: { highlight: Highlight }; result: null }
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
+  // The paper's reading notes (digest.md) as Markdown, or null
+  "library.digest": { params: { id: string }; result: string | null }
+  // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
+  // here are skipped. Waits until it is done; progress shows as an import.pitta task.
+  "library.importPitta": { params: { root: string }; result: { added: number; skipped: number; failed: string[] } }
   // The paper's full text, line by line with where each sits (text.json), or null before it is read
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The

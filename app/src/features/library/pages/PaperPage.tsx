@@ -28,6 +28,8 @@ import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useReaderStore } from "../reader/reader-store"
 import { openTasksFor, useTasksStore } from "@/features/tasks/store"
+import { Markdown } from "@/features/chat/components/messages/Markdown"
+import { rpc } from "@/lib/rpc"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -275,6 +277,7 @@ function About({ paper }: { paper: Paper }) {
   return (
     <div>
       {paper.abstract ? <p className="text-sm leading-relaxed">{paper.abstract}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
+      {paper.hasDigest && <Digest paperId={paper.id} />}
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-[13px]">
         <dt className="text-muted-foreground">Tags</dt>
         <dd>
@@ -405,4 +408,27 @@ function triedSentence(routes: string[]) {
   if (!names.length) return "owlit knows of no open copy of this paper."
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
   return `Tried ${list}.`
+}
+
+// Reading notes an agent wrote for the paper (digest.md). Here for now; its place is the interface's
+// to settle.
+function Digest({ paperId }: { paperId: string }) {
+  const [text, setText] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    rpc.library
+      .digest({ id: paperId })
+      .then((t) => live && setText(t))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [paperId])
+  if (!text) return null
+  return (
+    <section className="mt-5">
+      <h3 className="mb-2 text-xs text-muted-foreground">Digest</h3>
+      <Markdown text={text} className="text-sm" />
+    </section>
+  )
 }

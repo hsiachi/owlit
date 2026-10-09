@@ -22,8 +22,8 @@ export async function readText(root: string, id: string, options?: { withTime: t
 }
 
 // text.md first: a reader of text.json then always finds the Markdown that goes with it
-export async function writeText(root: string, id: string, text: PaperText) {
+export async function writeText(root: string, id: string, text: PaperText, options: { markdown?: boolean } = {}) {
   const dir = paperDir(root, id)
-  await writeFileAtomic(path.join(dir, "text.md"), toMarkdown(text))
+  if (options.markdown !== false) await writeFileAtomic(path.join(dir, "text.md"), toMarkdown(text))
   await writeJsonAtomic(path.join(dir, "text.json"), text)
 }

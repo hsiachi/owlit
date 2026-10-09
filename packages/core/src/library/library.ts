@@ -39,6 +39,7 @@ import {
   type Attempt,
 } from "./pdf.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
+import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { readText, writeText } from "./text/files.ts"
 import { extractText, readPdf, UnreadablePdf } from "./text/extract.ts"
 import { identify, type Identified } from "./text/identify.ts"
@@ -88,6 +89,8 @@ export class Library {
   private timer: ReturnType<typeof setTimeout> | undefined
   // Writes, one at a time, so a paper's files never race
   private writing: Promise<unknown> = Promise.resolve()
+  // What each import.pitta run did, by task id
+  private pittaSummaries = new Map<string, { added: number; skipped: number; failed: string[] }>()
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
   private pdfHashes: Map<string, string> | undefined
 
@@ -130,6 +133,7 @@ export class Library {
     const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt ?? Date.now())
     const pdf = await hasPdf(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
+    if (await stat(path.join(paperDir(this.root, id), "digest.md")).then(() => true, () => false)) paper.hasDigest = true
     if (!pdf) {
       const acquisition = await readAcquisition(this.root, id)
       // Routes skipped (Unpaywall without an email) weren't tried, so they aren't named
@@ -347,6 +351,23 @@ export class Library {
     return paper
   }
 
+  // The paper's reading notes (digest.md), or null when it has none
+  async digest(id: string): Promise<string | null> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    return readFile(path.join(paperDir(this.root, id), "digest.md"), "utf8").catch(() => null)
+  }
+
+  // Brings a pitta library (~/.pitta) into the workspace once, as a task with progress; papers the
+  // library already has are left as they are
+  async importPitta(root: string): Promise<{ added: number; skipped: number; failed: string[] }> {
+    if (!this.scheduler?.knows("import.pitta")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't import here.")
+    const subject = path.resolve(root)
+    const task = await this.scheduler.run("import.pitta", subject, "asked")
+    const summary = this.pittaSummaries.get(task.id)
+    if (task.state !== "done" || !summary) throw new RpcFailure(RpcErrorCode.InvalidParams, task.error ?? "The pitta library couldn't be read.")
+    return summary
+  }
+
   // The paper's full text with where each line sits, or null before it has been read
   async text(id: string): Promise<PaperText | null> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
@@ -524,6 +545,49 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
+      defineTask("import.pitta", {
+        lane: "cpu",
+        retries: 0,
+        run: async (ctx) => {
+          let papers: PittaPaper[]
+          try {
+            papers = await pittaPapers(ctx.task.subject)
+          } catch (error) {
+            throw new TaskFailure(error instanceof Error ? error.message : String(error))
+          }
+          const summary = { added: 0, skipped: 0, failed: [] as string[] }
+          const added: string[] = []
+          for (const [i, paper] of papers.entries()) {
+            ctx.signal.throwIfAborted()
+            ctx.progress(i, papers.length, paper.id)
+            try {
+              const placed = await this.serial(async () => {
+                if (await readRecord(this.root, paper.id)) return false
+                const brought = await importPittaPaper(this.root, paper)
+                const record = (await readRecord(this.root, paper.id))!
+                if (await this.index.find(record.ids).then((other) => other && other !== paper.id)) {
+                  // Known under another id: keep the one the library has
+                  await rm(paperDir(this.root, paper.id), { recursive: true, force: true })
+                  return false
+                }
+                await writeState(this.root, paper.id, freshState("user", record.fetchedAt ?? Date.now()))
+                this.index.set(paper.id, record.ids)
+                if (brought.pdf) this.queue("paper.text", paper.id, "background")
+                return true
+              })
+              if (placed) {
+                summary.added++
+                added.push(paper.id)
+              } else summary.skipped++
+            } catch (error) {
+              summary.failed.push(`${paper.id}: ${error instanceof Error ? error.message : String(error)}`)
+            }
+          }
+          ctx.progress(papers.length, papers.length)
+          this.pittaSummaries.set(ctx.task.id, summary)
+          if (added.length) await this.announce(added)
+        },
+      }),
       // The PDF's text layer as text.json (lines and where they sit) and text.md. MinerU's text, once
       // there, is better and is left alone. A paper with no PDF has nothing to read.
       defineTask("paper.text", {
@@ -549,7 +613,9 @@ export class Library {
             if (error instanceof UnreadablePdf) throw new TaskFailure(error.message)
             throw error
           }
-          await writeText(this.root, id, text)
+          // A text.md brought from pitta is MinerU's: better than pdfium's, so only the coordinates are added
+          const legacy = (await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")).startsWith(LEGACY_TEXT_MARK)
+          await writeText(this.root, id, text, { markdown: !legacy })
           for (const kind of ["index.paper", ...(text.needsOcr ? ["paper.parse"] : [])]) this.queue(kind, id, "background")
         },
       }),

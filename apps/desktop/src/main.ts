@@ -140,6 +140,32 @@ async function chooseWorkspace(core: Core) {
   if (!result.canceled && result.filePaths[0]) await openWorkspace(core, result.filePaths[0])
 }
 
+// Brings a pitta library into the open workspace, once; ~/.pitta is where pitta kept it
+async function importPitta(core: Core) {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  const options: Electron.OpenDialogOptions = {
+    title: "Import a pitta Library",
+    message: "Choose the pitta library (the folder that holds papers/). It is only read.",
+    buttonLabel: "Import",
+    defaultPath: path.join(app.getPath("home"), ".pitta"),
+    properties: ["openDirectory", "showHiddenFiles"],
+  }
+  const chosen = await (win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options))
+  if (chosen.canceled || !chosen.filePaths[0]) return
+  let message: string
+  let detail: string | undefined
+  try {
+    const { added, skipped, failed } = await call(core, "library.importPitta", { root: chosen.filePaths[0] })
+    message = `${added} ${added === 1 ? "paper" : "papers"} imported`
+    detail = [skipped && `${skipped} were already in the library.`, failed.length && `${failed.length} couldn't be read:\n${failed.join("\n")}`].filter(Boolean).join("\n\n") || undefined
+  } catch (error) {
+    message = "The pitta library couldn't be imported"
+    detail = error instanceof Error ? error.message : String(error)
+  }
+  const box: Electron.MessageBoxOptions = { message, detail, buttons: ["OK"] }
+  await (win ? dialog.showMessageBox(win, box) : dialog.showMessageBox(box))
+}
+
 async function updateMenu(core: Core) {
   const recent = await call(core, "workspace.recent").catch(() => [])
   const recentItems: MenuItemConstructorOptions[] = recent.map((info) => ({
@@ -169,6 +195,8 @@ async function updateMenu(core: Core) {
             },
           ],
         },
+        { type: "separator" },
+        { label: "Import a pitta Library…", enabled: !!current, click: () => void importPitta(core) },
         { type: "separator" },
         { role: "close" },
       ],

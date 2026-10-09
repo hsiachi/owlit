@@ -36,6 +36,8 @@ export interface Paper {
   abstract?: string
   ids: PaperIds
   pdf?: PaperPdf
+  // Reading notes an agent wrote (library/papers/<id>/digest.md)
+  hasDigest?: boolean
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …)
   noPdf?: { tried: string[]; at: number }
   addedAt: number

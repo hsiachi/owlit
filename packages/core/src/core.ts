@@ -19,7 +19,7 @@ import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 export const CORE_VERSION = "0.0.0"
 
 // Methods that change what the search index covers
-const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf))$/
+const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
 
 export interface CoreOptions {
   // This machine's data directory for owlit (Electron's userData): settings.json, workspaces/<hash>/
@@ -280,6 +280,8 @@ export class Core {
     })
     this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
     this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
+    this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
+    this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
