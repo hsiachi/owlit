@@ -1,6 +1,7 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -117,6 +118,20 @@ export interface Methods {
   // Replaces a message by id. While final is false the disk catches up within half a second;
   // final (the end of a turn) writes at once.
   "chats.patchMessage": { params: { id: string; message: ChatMessage; final?: boolean }; result: null }
+
+  // ---- Tasks: background work in the open workspace. Their state shows beside what they are about.
+  // Unfinished tasks, then the ones that finished since the workspace opened, most recent first
+  "tasks.list": { params: void; result: Task[] }
+  // Stops a task. A batch's tasks that haven't started are cancelled with it; running ones finish.
+  "tasks.cancel": { params: { id: string }; result: Task | null }
+  // The user did what a waiting_for_you task asked (signed in, dropped the PDF, said yes)
+  "tasks.resume": { params: { id: string }; result: Task | null }
+  // Development only, absent from a packaged owlit: queues a task (debug.<lane>) that sleeps for ms in
+  // steps, optionally stopping for tasks.resume after the first one or failing at the end
+  "tasks.debugEnqueue": {
+    params: { subject: string; lane?: TaskLane; priority?: TaskPriority; ms?: number; steps?: number; fail?: boolean; waitForYou?: boolean }
+    result: Task
+  }
 }
 
 // Every notification core sends: topic → payload
@@ -129,6 +144,8 @@ export interface Notifications {
   "activity.status": { enabled: boolean }
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
+  // A task changed; sent at most every 200ms per task, always with its latest state
+  "tasks.changed": { task: Task }
 }
 
 export type MethodName = keyof Methods

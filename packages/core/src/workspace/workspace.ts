@@ -1,4 +1,4 @@
-import { RpcErrorCode, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { RpcErrorCode, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
@@ -6,6 +6,7 @@ import { Chats } from "../chats/chats.ts"
 import { Docs, type Host } from "../docs/docs.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { Scheduler, TaskStore, type TaskDefinition } from "../tasks/index.ts"
 import { acquireLock, WorkspaceLockedError } from "./lock.ts"
 
 // The workspace's own state folder, inside it
@@ -19,6 +20,12 @@ export function workspaceDataDir(userDataDir: string, workspacePath: string) {
   return path.join(userDataDir, "workspaces", hash)
 }
 
+export interface WorkspaceTasks {
+  // The kinds of task this workspace can run, made for it (they close over its paths)
+  definitions?: (workspace: Workspace) => TaskDefinition[]
+  onChange?: (task: Task) => void
+}
+
 // One open workspace. Everything tied to it hangs off this object, so switching workspaces is
 // dispose() and open() again.
 export class Workspace {
@@ -27,20 +34,26 @@ export class Workspace {
   readonly dataDir: string
   readonly docs: Docs
   readonly chats: Chats
+  readonly tasks: Scheduler
   private release: () => Promise<void>
 
-  private constructor(root: string, dataDir: string, release: () => Promise<void>, host: Host) {
+  private constructor(root: string, dataDir: string, release: () => Promise<void>, host: Host, tasks: WorkspaceTasks) {
     this.root = root
     this.dataDir = dataDir
     this.info = { path: root, name: path.basename(root) }
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.chats = new Chats(path.join(root, OWLIT_DIR))
+    this.tasks = new Scheduler({
+      store: new TaskStore(path.join(dataDir, "tasks")),
+      definitions: tasks.definitions?.(this) ?? [],
+      onChange: tasks.onChange,
+    })
   }
 
-  // Resolves the folder, takes the lock and makes sure .owlit/workspace.json exists. Creates nothing
-  // else inside the folder.
-  static async open(folder: string, userDataDir: string, host: Host = {}) {
+  // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
+  // left unfinished. Creates nothing else inside the folder.
+  static async open(folder: string, userDataDir: string, host: Host = {}, tasks: WorkspaceTasks = {}) {
     const root = await resolveFolder(folder)
     const dataDir = workspaceDataDir(userDataDir, root)
     await mkdir(dataDir, { recursive: true })
@@ -57,11 +70,13 @@ export class Workspace {
     }
     try {
       await ensureWorkspaceFile(root)
+      const workspace = new Workspace(root, dataDir, release, host, tasks)
+      await workspace.tasks.start()
+      return workspace
     } catch (error) {
       await release()
       throw error
     }
-    return new Workspace(root, dataDir, release, host)
   }
 
   // Path of something in .owlit/
@@ -89,6 +104,7 @@ export class Workspace {
   }
 
   async dispose() {
+    await this.tasks.dispose()
     await this.chats.flush()
     this.docs.dispose()
     await this.release()

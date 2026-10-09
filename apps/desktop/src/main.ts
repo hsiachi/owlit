@@ -168,6 +168,7 @@ if (!app.requestSingleInstanceLock()) {
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
+      debug: !app.isPackaged,
       host: {
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {
