@@ -321,10 +321,13 @@ export function DocsListPanel() {
           <button
             type="button"
             onClick={() => newDoc()}
-            className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-sm outline-hidden transition-colors hover:bg-sidebar-accent focus-key:bg-sidebar-accent"
+            className="flex h-9 w-full items-center gap-2 rounded-md pr-2.5 pl-1.5 text-sm outline-hidden transition-colors hover:bg-sidebar-accent focus-key:bg-sidebar-accent"
           >
-            <span className="flex size-5 items-center justify-center rounded-full bg-foreground/8">
-              <PlusIcon className="size-3.5" />
+            {/* Drawn exactly like New chat, so switching between Chat and Docs moves nothing */}
+            <span className="grid size-5 place-items-center">
+              <span className="flex size-4.5 items-center justify-center rounded-full bg-foreground/8">
+                <PlusIcon className="size-3" />
+              </span>
             </span>
             <span className="flex-1 text-left">New doc</span>
             <Kbd className="mr-7 bg-transparent opacity-0 transition-opacity group-hover/new:opacity-100">⌘N</Kbd>
