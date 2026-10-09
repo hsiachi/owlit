@@ -21,7 +21,11 @@ import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Spinner } from "@/components/ui/spinner"
 import type { MessagePart, ToolKind, ToolStatus } from "../../types"
+import { useInPlace } from "../../in-place"
 import { Markdown } from "./Markdown"
+
+// A paper's note, kept inside .owlit beside the paper
+const NOTE_PATH = /^\.owlit\/papers\/[^/]+\/note\.md$/
 
 type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 
@@ -163,40 +167,74 @@ export function ToolCallPart({ part, outcome }: { part: Part<"tool_call">; outco
   )
 }
 
-// A plan reads like the steps block: a quiet label and a ruled list, no card
+// A plan reads like the steps block: a quiet label and a ruled list, no card. While it is under way it
+// stays open; once every entry is done it folds into its "done of total" line, as finished steps do, so a
+// finished hand-off leads with its answer.
 export function PlanPart({ part }: { part: Part<"plan"> }) {
   const done = part.entries.filter((e) => e.status === "completed").length
+  const finished = part.entries.length > 0 && done === part.entries.length
+  const [open, setOpen] = useState(!finished)
+  const wasFinished = useRef(finished)
+  useEffect(() => {
+    if (wasFinished.current !== finished) setOpen(!finished)
+    wasFinished.current = finished
+  }, [finished])
   return (
-    <div className="text-sm">
-      <div className="mb-1.5 text-xs font-medium text-muted-foreground">
-        Plan · {done}/{part.entries.length}
-      </div>
-      <ol className="ml-1.5 flex flex-col gap-1 border-l-2 pl-3">
-        {part.entries.map((e, i) => (
-          <li key={i} className="flex items-start gap-2 py-0.5">
-            {e.status === "completed" ? (
-              <CheckIcon className="mt-[3px] size-3.5 shrink-0 text-muted-foreground" />
-            ) : e.status === "in_progress" ? (
-              <CircleDotIcon className="mt-[3px] size-3.5 shrink-0 text-foreground" />
-            ) : (
-              <CircleIcon className="mt-[3px] size-3.5 shrink-0 text-muted-foreground/60" />
-            )}
-            <span className={cn(e.status !== "in_progress" && "text-muted-foreground")}>
-              {e.content}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <Collapsible open={open} onOpenChange={setOpen} className="group/plan text-sm">
+      <CollapsibleTrigger asChild>
+        <button type="button" className="flex max-w-full items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+          <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]/plan:rotate-90" />
+          <span>
+            Plan · {done}/{part.entries.length}
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <ol className="mt-1.5 ml-1.5 flex flex-col gap-1 border-l-2 pl-3">
+          {part.entries.map((e, i) => (
+            <li key={i} className="flex items-start gap-2 py-0.5">
+              {e.status === "completed" ? (
+                <CheckIcon className="mt-[3px] size-3.5 shrink-0 text-muted-foreground" />
+              ) : e.status === "in_progress" ? (
+                <CircleDotIcon className="mt-[3px] size-3.5 shrink-0 text-foreground" />
+              ) : (
+                <CircleIcon className="mt-[3px] size-3.5 shrink-0 text-muted-foreground/60" />
+              )}
+              <span className={cn(e.status !== "in_progress" && "text-muted-foreground")}>
+                {e.content}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
 // Waiting for an answer is the one state that asks for attention: a card with the action and
 // buttons. Once answered, the outcome moves onto its tool call row (see MessageItem); this muted
 // line is only the fallback for a request whose tool call isn't in the message.
-export function PermissionPart({ part, onRespond }: { part: Part<"permission">; onRespond: (optionId: string) => void }) {
+// An edit to a file whose editor is on screen is drawn there with Apply and Discard; the card then
+// shrinks to one line pointing at it, so one decision has one set of buttons. "Answer here" brings the
+// card back, in case the passage changed and the editor can't place the edit.
+export function PermissionPart({ part, editPath, onRespond }: { part: Part<"permission">; editPath?: string; onRespond: (optionId: string) => void }) {
   const Icon = toolIcons[part.kind] ?? WrenchIcon
   const answered = part.outcome
+  const inPlace = useInPlace((s) => !!editPath && !!s.shown[editPath])
+  const [answerHere, setAnswerHere] = useState(false)
+  if (!answered && inPlace && !answerHere) {
+    const where = editPath && NOTE_PATH.test(editPath) ? "your note" : "the doc"
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
+        <span className="min-w-0 truncate">Waiting on you in {where}</span>
+        <span aria-hidden>·</span>
+        <button type="button" onClick={() => setAnswerHere(true)} className="shrink-0 rounded-md px-1 py-0.5 outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+          Answer here
+        </button>
+      </div>
+    )
+  }
   if (answered) {
     const allowed = answered.startsWith("allow")
     return (

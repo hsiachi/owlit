@@ -7,6 +7,7 @@ import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
+import { useShowsEditsInPlace } from "@/features/chat/in-place"
 import { reportDocEdited } from "@/lib/activity"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
@@ -73,6 +74,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   useEffect(() => {
     navigateRef.current = navigate
   }, [navigate])
+  // Owlit's proposed edits to this doc are answered here, so the chat's card points at the doc
+  useShowsEditsInPlace(file.path)
 
   // One editor per doc. Its text is the file's text; every change is written back shortly after typing stops.
   useEffect(() => {

@@ -8,7 +8,7 @@ const dragging = StateField.define<boolean>({
   update: (value, tr) => tr.effects.reduce((v, e) => (e.is(setDragging) ? e.value : v), value),
 })
 
-// A selected passage offers one action above it, "Chat with Owlit", which hands it to the agent window
+// A selected passage offers one action above it, "Ask Owlit", which hands it to the agent window
 export function selectionMenu(chat: (text: string, view: EditorView) => void): Extension {
   const tooltip = (state: EditorState): Tooltip | null => {
     const sel = state.selection.main
@@ -24,7 +24,7 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
         dom.className = "cm-selection-menu"
         const button = document.createElement("button")
         button.type = "button"
-        button.textContent = "Chat with Owlit"
+        button.textContent = "Ask Owlit"
         // Keep the selection and focus in the editor while clicking
         button.onmousedown = (e) => e.preventDefault()
         button.onclick = () => {

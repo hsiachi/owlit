@@ -15,6 +15,8 @@ import { SettingsIcon } from "lucide-react"
 import { matchNav, nav } from "@/app/nav"
 import { openSettings } from "@/features/settings/store"
 import { useLibraryStore } from "@/features/library/store"
+import { useChatStore } from "@/features/chat/store"
+import { chatsNeedYou, useSeenStore } from "@/features/chat/status"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { pathname } = useLocation()
@@ -22,6 +24,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const activeItem = matchNav(pathname)
   // A publisher wants the user for some paper (a check, a sign-in): the Library's one mark
   const libraryNeedsYou = useLibraryStore((s) => Object.values(s.papers).some((p) => p.noPdf?.needs))
+  // A chat waits on a permission or broke: the Chat place's one mark, so work handed off can reach the user
+  // wherever they are reading
+  const dismissed = useSeenStore((s) => s.dismissed)
+  const chatNeedsYou = useChatStore((s) => chatsNeedYou(s.chats, s.streaming, dismissed))
+  const markOf = (to: string) => (to === "/library" && libraryNeedsYou ? "A paper needs you" : to === "/chat" && chatNeedsYou ? "A chat needs you" : undefined)
 
   return (
     <Sidebar
@@ -36,13 +43,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 {nav.map((item) => {
-                  const needsYou = item.to === "/library" && libraryNeedsYou
+                  const needsYou = markOf(item.to)
                   return (
                     <SidebarMenuItem key={item.to}>
                       <SidebarMenuButton
                         asChild
                         tooltip={{
-                          children: needsYou ? `${item.label} · A paper needs you` : item.label,
+                          children: needsYou ? `${item.label} · ${needsYou}` : item.label,
                           hidden: false,
                         }}
                         onClick={() => item.panel && setOpen(true)}

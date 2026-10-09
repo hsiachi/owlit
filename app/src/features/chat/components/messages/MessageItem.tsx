@@ -11,6 +11,7 @@ import { MentionBadge } from "../composer/MentionBadge"
 import { KnowledgeUpdates } from "@/features/knowledge/components/ChatUpdates"
 import { PermissionPart, PlanPart, StepsPart, TextPart, type PermissionOutcomes, type StepPart } from "./parts"
 import { ResultRows } from "./ResultRows"
+import { useInPlace } from "../../in-place"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -41,6 +42,9 @@ function CopyButton({ text }: { text: string }) {
     </Tooltip>
   )
 }
+
+// A small text button in a muted line (Retry, Dismiss), 24px tall so it is easy to hit
+const TEXT_BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-foreground outline-none hover:bg-muted focus-key:bg-muted"
 
 const timeOf = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -116,12 +120,15 @@ export function AssistantMessage({
   modelName,
   onRespondPermission,
   onRegenerate,
+  onDismiss,
   onSaveAsDoc,
 }: {
   message: ChatMessage
   modelName?: string
   onRespondPermission: (requestId: string, optionId: string) => void
   onRegenerate?: () => void
+  // Leaves a broken reply as it is, so the chat stops asking for the user (only while it does)
+  onDismiss?: () => void
   // Keeps the answer's text as a doc
   onSaveAsDoc?: (markdown: string) => void
 }) {
@@ -129,6 +136,13 @@ export function AssistantMessage({
   const last = message.parts[message.parts.length - 1]
   const text = messageText(message)
   const { segments, outcomes } = segment(message.parts)
+  const editPathOf = (toolCallId: string) => {
+    const call = message.parts.find((p) => p.type === "tool_call" && p.toolCallId === toolCallId)
+    return call?.type === "tool_call" ? call.diff?.path : undefined
+  }
+  // A permission whose edit is answered in place already says it waits, in its own line with the shield
+  const waitingPath = streaming && last?.type === "permission" && !last.outcome ? editPathOf(last.toolCallId) : undefined
+  const waitingInPlace = useInPlace((s) => !!waitingPath && !!s.shown[waitingPath])
   return (
     <Message className="text-[15px]">
       <MessageContent className="gap-3">
@@ -142,26 +156,42 @@ export function AssistantMessage({
             case "plan":
               return <PlanPart key={seg.key} part={part} />
             case "permission":
-              return <PermissionPart key={seg.key} part={part} onRespond={(optionId) => onRespondPermission(part.requestId, optionId)} />
+              return (
+                <PermissionPart key={seg.key} part={part} editPath={editPathOf(part.toolCallId)} onRespond={(optionId) => onRespondPermission(part.requestId, optionId)} />
+              )
           }
         })}
-        {streaming && (!last || last.type === "plan" || last.type === "permission") && (
+        {streaming && (!last || last.type === "plan" || last.type === "permission") && !waitingInPlace && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Spinner className="size-3.5" />
-            {last?.type === "permission" && !last.outcome ? "Waiting for permission" : "Working…"}
+            {last?.type === "permission" && !last.outcome ? "Waiting on you" : "Working…"}
           </div>
         )}
         {!streaming && <KnowledgeUpdates parts={message.parts} />}
         <ResultRows messageId={message.id} />
-        {/* The one red line a reply can have: what stopped it, and a way to run it again */}
+        {/* The one red line a reply can have: that Owlit stopped, the agent's own words for why (the agent
+            is named only where it is picked, so its message is a quiet detail), and a way to run it again
+            or to leave it as it is */}
         {message.status === "error" && (
-          <p className="flex items-center gap-1.5 text-[13px] text-destructive">
-            <CircleXIcon className="size-3.5 shrink-0" />
-            <span>{message.error || "Something went wrong"}</span>
+          <p className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[13px] text-muted-foreground">
+            <CircleXIcon className="mr-0.5 size-3.5 shrink-0 text-destructive" />
+            <span className="text-destructive">Owlit stopped</span>
+            {message.error && <span className="min-w-0">· {message.error}</span>}
             {onRegenerate && (
-              <button type="button" onClick={onRegenerate} className="rounded-md px-1 text-foreground outline-none hover:bg-muted focus-key:bg-muted">
-                Retry
-              </button>
+              <>
+                <span aria-hidden>·</span>
+                <button type="button" onClick={onRegenerate} className={TEXT_BUTTON}>
+                  Retry
+                </button>
+              </>
+            )}
+            {onDismiss && (
+              <>
+                <span aria-hidden>·</span>
+                <button type="button" onClick={onDismiss} className={TEXT_BUTTON}>
+                  Dismiss
+                </button>
+              </>
             )}
           </p>
         )}
