@@ -11,6 +11,7 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
+import { Background } from "./agents/background.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
@@ -63,6 +64,7 @@ export class Core {
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
+  private readonly background: Background
   private socket: SocketServer | null = null
 
   constructor(options: CoreOptions) {
@@ -90,19 +92,11 @@ export class Core {
       fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update) => this.notifier.notify("chat.update", { chatId, update }),
-      mcpServers: (root, chatId) => {
-        const mcp = this.options.mcp
-        if (!mcp || !this.socket) return []
-        return [
-          {
-            name: "owlit",
-            command: mcp.command,
-            args: [...mcp.args, "--workspace", root, "--chat", chatId],
-            env: Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })),
-          },
-        ]
-      },
+      mcpServers: (root, chatId) => this.mcpServers(root, chatId),
     })
+    this.background = new Background(this.agents)
+    // Opening a paper's page says the user is about to read it: its reading note comes first
+    this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
@@ -302,6 +296,13 @@ export class Core {
     this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
     this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
     this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
+    this.router.register("library.requestDigest", z.object({ id: paperId }), async ({ id }) => {
+      await library().wantDigest(id, "asked")
+      return null
+    })
+    this.router.register("library.writeDigest", z.object({ id: paperId, text: z.string().min(1), by: z.string().optional() }), ({ id, text, by }) =>
+      library().writeDigest(id, text, by ?? "agent"),
+    )
     this.router.register(
       "library.read",
       z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),
@@ -411,6 +412,8 @@ export class Core {
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
+                agent: async (prompt, signal) =>
+                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background }),
               },
               tasks: {
                 definitions: (workspace) => this.taskDefinitions(workspace),
@@ -459,6 +462,20 @@ export class Core {
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()
+  }
+
+  // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)
+  private mcpServers(root: string, chatId?: string) {
+    const mcp = this.options.mcp
+    if (!mcp || !this.socket) return []
+    return [
+      {
+        name: "owlit",
+        command: mcp.command,
+        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : [])],
+        env: Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })),
+      },
+    ]
   }
 
   // The socket of the workspace now open, in place of the last one's

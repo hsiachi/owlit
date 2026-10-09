@@ -52,6 +52,10 @@ export interface LibrarySettings {
   s2ApiKey?: string
   // The library's proxy, through which publishers see the university's subscription
   proxy?: ProxySettings
+  // Reading notes: the language they are written in (default English), and whether every paper gets
+  // one once its text is in (default: only papers the user opens or stars)
+  digestLanguage?: string
+  digestEveryPaper?: boolean
 }
 
 // login-url: <base><path>?url=<target> (EZproxy's /login, Tsinghua's tlink /go); host-rewrite:
@@ -64,6 +68,8 @@ export interface ProxySettings {
 
 export interface ConnectorSettings {
   custom?: { id: string; name: string; command: string }[]
+  // The agent that writes reading notes and other background work; the first one set up when absent
+  background?: string
   // From the last check: what the agent offers, so the pickers fill without starting it
   probed?: Record<string, ProbedConnector>
 }

@@ -123,7 +123,11 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const { paper, existingId } = await owlit.rpc.library.resolve({ input: str("ref") })
       if (existingId) return `Already in the library as ${existingId}: ${paper.title}`
       const added = await owlit.rpc.library.add({ paper, addedBy: "agent" })
-      return `Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}). Its PDF and text arrive by themselves.`
+      return `Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}). Its PDF and text arrive by themselves; once you have read it, keep a reading note with library_write_digest.`
+    }
+    case "library_write_digest": {
+      const paper = await owlit.rpc.library.writeDigest({ id: str("id"), text: str("digest"), by: options.chatId ? `chat:${options.chatId}` : "agent" })
+      return `Kept the reading note for ${paper.id}.`
     }
     case "docs_list": {
       const { files } = await owlit.rpc.docs.list()

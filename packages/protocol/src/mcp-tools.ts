@@ -71,6 +71,16 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     inputSchema: { type: "object", properties: { ref: { type: "string", description: "DOI, arXiv id, link, or library id" } }, required: ["ref"] },
   },
   {
+    name: "library_write_digest",
+    description:
+      "Keep a reading note for a paper you have read (one you just added, say): Markdown starting with '# <title>', then ## Question, ## Method, ## Findings, ## Limitations and ## Why it matters, one to three sentences each. Refused when the paper already has one.",
+    inputSchema: {
+      type: "object",
+      properties: { id, digest: { type: "string", description: "The note, as Markdown" } },
+      required: ["id", "digest"],
+    },
+  },
+  {
     name: "docs_list",
     description: "The user's docs: every Markdown file in the workspace (outside library/), with its path.",
     inputSchema: { type: "object", properties: {} },

@@ -70,6 +70,8 @@ const SETTLE_MS = 300
 
 export interface LibraryServices {
   http: Http
+  // A background agent session: one prompt, its answer (reading notes)
+  agent?: (prompt: string, signal: AbortSignal) => Promise<{ text: string; connectorId: string }>
   // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
   browser?: BrowserHost
   // MinerU's settings, read at each use
@@ -235,6 +237,8 @@ export class Library {
       const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt)
       if (id.startsWith("local-") && patch.ids && paperIdOf(cleanIds(patch.ids))) return this.relink(id, record, state, patch)
       await writeState(this.root, id, applyPatch(state, record, patch))
+      // Starring a paper says it is worth reading: a note gets written in the background
+      if (patch.starred && !state.starred) void this.wantDigest(id, "background")
       return (await this.get(id))!
     })
   }
@@ -383,6 +387,36 @@ export class Library {
     return head === LEGACY_TEXT_MARK ? "full" : "basic"
   }
 
+  private digestTask(agent: NonNullable<LibraryServices["agent"]>) {
+    return defineTask("paper.digest", {
+      lane: "agent",
+      retries: 1,
+      run: async (ctx) => {
+        const id = ctx.task.subject
+        const record = await readRecord(this.root, id)
+        if (!record) throw new TaskFailure(`${id} is not in the library.`)
+        const dir = paperDir(this.root, id)
+        if (await stat(path.join(dir, "digest.md")).then(() => true, () => false)) return
+        const text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
+        if (text === null) {
+          if (await hasPdfFile(this.root, id)) ctx.require("paper.text", id)
+          return
+        }
+        ctx.progress(0, undefined, "writing")
+        const language = (await this.services.settings()).digestLanguage ?? "English"
+        const { text: answer, connectorId } = await agent(digestPrompt(id, record, text, language), ctx.signal)
+        const digest = cleanDigest(answer)
+        if (!/^#/m.test(digest) || digest.length < 200) throw new Error("The agent's note didn't look like a reading note.")
+        await this.serial(async () => {
+          if (await stat(path.join(dir, "digest.md")).then(() => true, () => false)) return
+          await writeFileAtomic(path.join(dir, "digest.md"), digest)
+          await writeJsonAtomic(path.join(dir, "digest.json"), { version: 1, by: connectorId, at: Date.now() })
+        })
+        await this.announce([id])
+      },
+    })
+  }
+
   private browserTask(browser: BrowserHost) {
     return defineTask("paper.pdf.browser", {
       lane: "browser",
@@ -433,6 +467,32 @@ export class Library {
         await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
         await this.announce([id])
       },
+    })
+  }
+
+  // A reading note is wanted (the paper was opened, starred, asked for): queued when the paper has, or
+  // will have, text to read and has no note yet. A note already there, pitta's included, is never
+  // written again.
+  async wantDigest(id: string, priority: TaskPriority) {
+    if (!this.services.agent || !isPaperId(id) || !(await readRecord(this.root, id))) return
+    const dir = paperDir(this.root, id)
+    if (await stat(path.join(dir, "digest.md")).then(() => true, () => false)) return
+    const hasText = await stat(path.join(dir, "text.md")).then(() => true, () => false)
+    if (!hasText && !(await hasPdfFile(this.root, id))) return
+    this.queue("paper.digest", id, priority)
+  }
+
+  // A reading note an agent wrote itself (one that just added the paper), kept as digest.md
+  writeDigest(id: string, text: string, by: string): Promise<Paper> {
+    return this.serial(async () => {
+      if (!(await readRecord(this.root, id))) throw notFound(id)
+      const dir = paperDir(this.root, id)
+      if (await stat(path.join(dir, "digest.md")).then(() => true, () => false)) {
+        throw new RpcFailure(RpcErrorCode.Conflict, "This paper already has a reading note.", { id })
+      }
+      await writeFileAtomic(path.join(dir, "digest.md"), cleanDigest(text))
+      await writeJsonAtomic(path.join(dir, "digest.json"), { version: 1, by, at: Date.now() })
+      return (await this.get(id))!
     })
   }
 
@@ -669,6 +729,8 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
+      // A reading note by a background agent session, from the paper's full text
+      ...(this.services.agent ? [this.digestTask(this.services.agent)] : []),
       // MinerU's reading of the PDF replaces pdfium's (kept as text.pdfium.json). The job is recorded
       // before the file goes up, so a restart looks it up instead of paying for another. Without a
       // service set up there is nothing to do; failing changes nothing but parse.json.
@@ -792,6 +854,7 @@ export class Library {
           const legacy = (await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")).startsWith(LEGACY_TEXT_MARK)
           await writeText(this.root, id, text, { markdown: !legacy })
           this.queue("index.paper", id, "background")
+          if ((await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
           // A scan has no text at all until MinerU reads it
           this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
@@ -1027,4 +1090,40 @@ export function pickFromText(markdown: string, where: { pages?: string; section?
     return { text: lines.slice(start, end).join("\n"), pages }
   }
   return { text: markdown, pages }
+}
+
+// Most of a long paper fits; what doesn't, the agent reads with library_read
+const DIGEST_TEXT_LIMIT = 120_000
+
+function digestPrompt(id: string, record: PaperRecord, text: string, language: string) {
+  const cut = text.length > DIGEST_TEXT_LIMIT
+  return [
+    `Write a reading note (a digest) for this paper in the user's library: "${record.title}" (${id}).`,
+    "",
+    "Use exactly these sections, each one to three sentences:",
+    "## Question — what the paper asks or sets out to do",
+    "## Method — how it goes about it",
+    "## Findings — what it found or shows",
+    "## Limitations — what it leaves open or gets wrong",
+    "## Why it matters — who would use this and for what; if you look at the user's library or docs with owlit's tools, say how it relates to them",
+    "",
+    `Write in ${language}. Point at pages as (p. N) where the text shows them. Say only what the text supports.`,
+    `Answer with the note alone, as Markdown starting with "# ${record.title}", and nothing before or after it.`,
+    "",
+    cut
+      ? `The paper's full text follows (<!-- page N --> marks each page). It is long: this is its first part; read the rest with library_read (id ${id}) if you need it.`
+      : "The paper's full text follows (<!-- page N --> marks each page).",
+    "",
+    cut ? text.slice(0, DIGEST_TEXT_LIMIT) : text,
+  ].join("\n")
+}
+
+// The note as Markdown: without a code fence around it or words before its title
+export function cleanDigest(answer: string) {
+  let text = answer.trim()
+  const fenced = text.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/)
+  if (fenced) text = fenced[1].trim()
+  const title = text.search(/^# /m)
+  if (title > 0) text = text.slice(title)
+  return text + "\n"
 }

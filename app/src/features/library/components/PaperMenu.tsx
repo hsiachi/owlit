@@ -16,6 +16,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
+import { toast } from "sonner"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { usePaperActions } from "../actions"
 import { STATUS_LABEL, STATUS_ORDER } from "../lib/status"
 import { useLibraryStore } from "../store"
@@ -68,6 +70,14 @@ function useMenuSections(papers: Paper[], afterRemove?: () => void): Section[] {
     { key: "bibtex", label: "Copy BibTeX", onSelect: () => actions.copyBibtex(papers) },
   ]
   if (single) copy.push({ key: "edit", label: "Edit details", onSelect: () => actions.editDetails(single.id) })
+  // A paper with something to read and no reading note yet; core skips it otherwise anyway
+  if (isDesktop && single && !single.hasDigest && (single.pdf || single.text)) {
+    copy.push({
+      key: "digest",
+      label: "Write a reading note",
+      onSelect: () => void rpc.library.requestDigest({ id: single.id }).catch(() => toast.error("Couldn't ask for a reading note.")),
+    })
+  }
   sections.push(copy)
 
   sections.push([

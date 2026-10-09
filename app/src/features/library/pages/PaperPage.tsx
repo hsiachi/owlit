@@ -277,7 +277,7 @@ function About({ paper }: { paper: Paper }) {
   return (
     <div>
       {paper.abstract ? <p className="text-sm leading-relaxed">{paper.abstract}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
-      {paper.hasDigest && <Digest paperId={paper.id} />}
+      <Digest paper={paper} />
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-[13px]">
         <dt className="text-muted-foreground">Tags</dt>
         <dd>
@@ -416,25 +416,36 @@ function triedSentence(routes: string[]) {
   return `Tried ${list}.`
 }
 
-// Reading notes an agent wrote for the paper (digest.md). Here for now; its place is the interface's
-// to settle.
-function Digest({ paperId }: { paperId: string }) {
+// Reading notes an agent wrote for the paper (digest.md), or that one is being written. Here for now;
+// its place is the interface's to settle.
+function Digest({ paper }: { paper: Paper }) {
   const [text, setText] = useState<string | null>(null)
+  const writing = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.digest"))
   useEffect(() => {
+    if (!paper.hasDigest) return
     let live = true
     rpc.library
-      .digest({ id: paperId })
+      .digest({ id: paper.id })
       .then((t) => live && setText(t))
       .catch(() => undefined)
     return () => {
       live = false
     }
-  }, [paperId])
-  if (!text) return null
+  }, [paper.id, paper.hasDigest])
+  // A note fetched for a paper that has since lost it isn't shown
+  const shown = paper.hasDigest ? text : null
+  if (!shown && !writing) return null
   return (
     <section className="mt-5">
       <h3 className="mb-2 text-xs text-muted-foreground">Digest</h3>
-      <Markdown text={text} className="text-sm" />
+      {shown ? (
+        <Markdown text={shown} className="text-sm" />
+      ) : (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          Owlit is writing a reading note…
+        </p>
+      )}
     </section>
   )
 }

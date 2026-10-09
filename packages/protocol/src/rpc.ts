@@ -196,6 +196,11 @@ export interface Methods {
     result: (ResolvedPaper & { inLibrary?: string; citationCount?: number })[]
   }
   "library.highlights": { params: { id: string }; result: Highlight[] }
+  // Queues a reading note by a background agent (the paper menu's Write a reading note); nothing when
+  // the paper has one or nothing to read
+  "library.requestDigest": { params: { id: string }; result: null }
+  // A reading note an agent wrote itself, kept as digest.md; refused when the paper has one
+  "library.writeDigest": { params: { id: string; text: string; by?: string }; result: Paper }
   // The paper's reading notes (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
