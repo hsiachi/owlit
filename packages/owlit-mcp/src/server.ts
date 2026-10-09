@@ -4,7 +4,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
-import { OWLIT_TOOLS, type AgentNote, type Paper, type ToolSpec } from "@owlit/protocol"
+import { OWLIT_TOOLS, type AgentNote, type HighlightColor, type Paper, type ToolSpec } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 
 export interface OwlitMcpOptions {
@@ -56,6 +56,9 @@ export function createServer(options: OwlitMcpOptions) {
 async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions): Promise<string> {
   const str = (key: string) => args[key] as string
   const num = (key: string) => args[key] as number | undefined
+  const optStr = (key: string) => (args[key] as string | undefined) || undefined
+  // The chat this agent is answering in, so the window keeps it in view
+  const asker = options.chatId ? { chatId: options.chatId } : {}
   switch (tool) {
     case "library_list": {
       const { papers } = await owlit.rpc.library.list()
@@ -143,6 +146,20 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const note: AgentNote = { id: randomUUID(), ...anchor, text: str("note"), by: "Owlit", createdAt: Date.now(), ...(options.chatId ? { chatId: options.chatId } : {}) }
       await owlit.rpc.notes.add({ path: str("path"), note })
       return `Left a note on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
+    }
+    case "ui_open": {
+      const { title } = await owlit.rpc.ui.open({ uri: str("uri"), ...asker })
+      return `Showing ${title} in owlit.`
+    }
+    case "ui_jump": {
+      const quote = optStr("quote")
+      const { title, found } = await owlit.rpc.ui.jump({ uri: str("uri"), ...asker, ...(num("page") ? { page: num("page") } : {}), ...(quote ? { quote } : {}) })
+      if (!quote) return `Showing ${title}${num("page") ? ` at page ${num("page")}` : ""}.`
+      return found ? `Showing the passage in ${title}.` : `Opened ${title}, but that passage isn't in it word for word; quote it exactly as library_read or docs_read gives it.`
+    }
+    case "ui_mark": {
+      const { title, page } = await owlit.rpc.ui.mark({ uri: `owlit://library/${str("id")}`, ...asker, quote: str("quote"), ...(optStr("color") ? { color: optStr("color") as HighlightColor } : {}) })
+      return `Highlighted the passage on p. ${page} of ${title}. The user can remove it from the paper's Highlights.`
     }
     case "chats_list": {
       const chats = await owlit.rpc.chats.list()

@@ -1,3 +1,5 @@
+import type { HighlightColor } from "./library.ts"
+
 // A workspace is one folder. What lives inside it (docs, library/, knowledge/, .owlit/) travels with
 // it; what is derived or tied to this machine lives in the app data directory instead.
 
@@ -97,10 +99,24 @@ export function isHiddenFromDocs(relativePath: string) {
   return segments.some((segment) => segment.startsWith("."))
 }
 
-// Core asking the window that has a doc open to read it or change it in its editor (agents/fs.ts). The
-// window answers with ui.respond: fs.read → { content: string | null } (null: not open after all),
-// fs.write → { applied: boolean }.
-export type UiRequest = { requestId: string; clientId: string } & (
-  | { method: "fs.read"; params: { path: string } }
-  | { method: "fs.write"; params: { path: string; content: string; versionId: string } }
-)
+// What core asks a window to do, and what the window answers with ui.respond. fs.* go to the window
+// that has the doc open (agents/fs.ts); the rest go to the window the user is in.
+export interface UiActions {
+  // The doc's text in its editor; null: not open after all
+  "fs.read": { params: { path: string }; result: { content: string | null } }
+  // The agent's write, applied in the doc's editor; false: not open after all
+  "fs.write": { params: { path: string; content: string; versionId: string }; result: { applied: boolean } }
+  // Shows a paper, doc, chat or Knowledge topic (an owlit:// link). chatId (on open, jump and mark) is
+  // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
+  open: { params: { uri: string; chatId?: string }; result: { title: string } }
+  // Shows a paper or doc at a place: a 1-based page of a paper, or a passage quoted from either. The
+  // passage is ringed (paper) or selected (doc); found is false when the quote wasn't there.
+  jump: { params: { uri: string; page?: number; quote?: string; chatId?: string }; result: { title: string; found: boolean } }
+  // Highlights a quoted passage in a paper; page is 1-based
+  mark: { params: { uri: string; quote: string; color?: HighlightColor; chatId?: string }; result: { title: string; highlightId: string; page: number } }
+  // A line for the user from the agent, shown in the window and kept nowhere
+  say: { params: { text: string }; result: null }
+}
+export type UiMethod = keyof UiActions
+
+export type UiRequest = { requestId: string; clientId: string } & { [M in UiMethod]: { method: M; params: UiActions[M]["params"] } }[UiMethod]

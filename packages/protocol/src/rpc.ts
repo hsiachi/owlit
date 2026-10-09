@@ -4,7 +4,7 @@ import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
-import type { UiRequest, WorkspaceInfo } from "./workspace.ts"
+import type { UiActions, UiRequest, WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -159,6 +159,16 @@ export interface Methods {
   "ui.setOpenDocs": { params: { clientId: string; paths: string[] }; result: null }
   // A window's answer to a ui.request
   "ui.respond": { params: { requestId: string; result?: unknown; error?: string }; result: null }
+  // The user is in this window now (it loaded or came to the front); ui.* actions go to it
+  "ui.focus": { params: { clientId: string }; result: null }
+  // The window is closing or reloading; core stops sending it anything
+  "ui.leave": { params: { clientId: string }; result: null }
+  // Things an agent does in the window the user is in (UiActions in workspace.ts). Unavailable when no
+  // window is open; NotFound when what the uri names isn't there.
+  "ui.open": { params: UiActions["open"]["params"]; result: UiActions["open"]["result"] }
+  "ui.jump": { params: UiActions["jump"]["params"]; result: UiActions["jump"]["result"] }
+  "ui.mark": { params: UiActions["mark"]["params"]; result: UiActions["mark"]["result"] }
+  "ui.say": { params: UiActions["say"]["params"]; result: null }
   // Puts a file back as it was before an agent's write (Undo once its editor is gone); refused with
   // Conflict when the file changed since
   "versions.restore": { params: { id: string }; result: { path: string } }
@@ -260,8 +270,11 @@ export interface Notifications {
   "agents.changed": Connector
   // One streamed update of a chat's running turn
   "chat.update": { chatId: string; update: SessionUpdate }
-  // Core needs a window to read or change a doc open in its editor
+  // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest
+  // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it
+  // (its own) ignores it
+  "notes.added": { path: string; note: AgentNote }
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
 

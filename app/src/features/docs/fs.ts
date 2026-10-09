@@ -5,6 +5,7 @@ import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { docUri } from "./lib/mentions"
 import { isDiskChange } from "./disk"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { clientId, registerUiHandler } from "@/lib/ui-actions"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor, spanChange } from "./editors"
 import { useDocsStore } from "./store"
@@ -111,9 +112,6 @@ function restoreVersion(versionId: string) {
 // ---- The desktop app: agents' reads and writes come from core ----
 
 if (isDesktop) {
-  // This window, for as long as it is loaded
-  const clientId = crypto.randomUUID()
-
   // Core routes an agent's reads and writes of a doc to the window that has it open
   let reported = ""
   const report = () => {
@@ -134,14 +132,21 @@ if (isDesktop) {
     report()
   })
 
-  onNotify("ui.request", (request) => {
-    if (request.clientId !== clientId) return
-    const answer = (result: unknown) => void rpc.ui.respond({ requestId: request.requestId, result }).catch(() => undefined)
-    const file = fileAt(request.params.path)
+  registerUiHandler("fs.read", ({ path }) => {
+    const file = fileAt(path)
     const view = file ? openEditor(file.id) : undefined
-    if (request.method === "fs.read") return answer({ content: file && view ? view.state.doc.toString() : null })
-    const { content, versionId } = request.params
-    answer({ applied: !!file && !!view && applyAgentEdit(file, content, versionId) })
+    return { content: view ? view.state.doc.toString() : null }
+  })
+  registerUiHandler("fs.write", ({ path, content, versionId }) => {
+    const file = fileAt(path)
+    return { applied: !!file && applyAgentEdit(file, content, versionId) }
+  })
+
+  // A note an agent left over owlit-mcp; the window's own notes are already here
+  onNotify("notes.added", ({ path, note }) => {
+    const file = fileAt(path)
+    if (!file || useDocsStore.getState().notes[file.id]?.some((n) => n.id === note.id)) return
+    useDocsStore.setState((s) => ({ notes: { ...s.notes, [file.id]: [...(s.notes[file.id] ?? []), note] } }))
   })
 
   // A doc no window had open: core wrote it; the change itself arrives as docs.changed

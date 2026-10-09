@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { Core } from "@owlit/core"
+import type { UiRequest } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -40,7 +41,7 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
     const result = (await mcp.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean }
     return { text: result.content.map((c) => c.text).join(""), isError: !!result.isError }
   }
-  return { root, call, mcp, tool }
+  return { root, core, call, mcp, tool }
 }
 
 describe("owlit-mcp", () => {
@@ -78,15 +79,53 @@ describe("owlit-mcp", () => {
   })
 
   it("leaves a note on a doc without changing the file", async () => {
-    const { root, call, tool } = await setup()
+    const { root, core, call, tool } = await setup()
     const doc = "# Related work\n\nFirst paragraph.\n\nSecond paragraph argues that attention\nis all you need.\n"
     writeFileSync(path.join(root, "Related work.md"), doc)
+    const told: unknown[] = []
+    core.onNotify((n) => n.method === "notes.added" && told.push(n.params))
     const result = await tool("docs_add_note", { path: "Related work.md", quote: "attention is all you need", note: "Cite Vaswani 2017 here." })
     expect(result.isError).toBe(false)
     expect(readFileSync(path.join(root, "Related work.md"), "utf8")).toBe(doc)
     const notes = await call("notes.all")
     expect(notes["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", text: "Cite Vaswani 2017 here.", by: "Owlit", chatId: "chat-1" }])
+    // Windows hear of it, so the note shows up in an open doc
+    expect(told).toMatchObject([{ path: "Related work.md", note: { text: "Cite Vaswani 2017 here." } }])
     expect((await tool("docs_add_note", { path: "Related work.md", quote: "not in the doc", note: "x" })).text).toMatch(/isn't in Related work\.md word for word/)
+  })
+
+  it("shows things in the window the user is in", async () => {
+    const { core, call, tool } = await setup()
+    expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "No owlit window is open.", isError: true })
+
+    // A window: it answers what it can show and refuses what isn't there
+    const asked: UiRequest[] = []
+    core.onNotify((n) => {
+      if (n.method !== "ui.request") return
+      const req = n.params as UiRequest
+      asked.push(req)
+      const answer =
+        req.method === "open" ? { result: { title: "Attention Is All You Need" } }
+        : req.method === "jump" ? { result: { title: "Related work", found: false } }
+        : req.method === "mark" ? { error: "That paper isn't in the library." }
+        : { result: null }
+      void call("ui.respond", { requestId: req.requestId, ...answer })
+    })
+    await call("ui.focus", { clientId: "w1" })
+    await call("ui.focus", { clientId: "w2" })
+    expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "Showing Attention Is All You Need in owlit.", isError: false })
+    // The window the user was in last
+    expect(asked[0]).toMatchObject({ clientId: "w2", method: "open", params: { uri: "owlit://library/arxiv-1706.03762" } })
+    expect((await tool("ui_jump", { uri: "owlit://docs/Related work.md", quote: "Second paragraph" })).text).toMatch(/^Opened Related work, but that passage isn't in it/)
+    expect(asked[1]).toMatchObject({ method: "jump", params: { uri: "owlit://docs/Related work.md", quote: "Second paragraph" } })
+    expect(await tool("ui_mark", { id: "doi-10.1-nope", quote: "x" })).toEqual({ text: "That paper isn't in the library.", isError: true })
+    expect(asked[2]).toMatchObject({ method: "mark", params: { uri: "owlit://library/doi-10.1-nope", quote: "x" } })
+    // The asking chat goes along, so the window can keep it in view
+    expect(asked[2].params).toMatchObject({ chatId: "chat-1" })
+    // Windows that closed are not asked
+    await call("ui.leave", { clientId: "w2" })
+    await call("ui.leave", { clientId: "w1" })
+    expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "No owlit window is open.", isError: true })
   })
 
   it("answers mistakes in a sentence instead of failing", async () => {

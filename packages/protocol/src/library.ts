@@ -85,6 +85,8 @@ export interface Highlight {
   text: string
   color: HighlightColor
   comment?: string
+  // Absent: the user's own
+  addedBy?: "agent"
   createdAt: number
 }
 

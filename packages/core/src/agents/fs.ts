@@ -53,7 +53,7 @@ export class AgentFs {
     this.options.journal.record(record)
     if (holder) {
       const applied = await this.options.ui
-        .request<{ applied: boolean }>(holder, "fs.write", { path: rel, content, versionId: version.id })
+        .request(holder, "fs.write", { path: rel, content, versionId: version.id })
         .then((r) => r.applied)
         .catch(() => false)
       log(applied ? `  through the editor in window ${holder.slice(0, 8)}` : "  the window didn't take it; writing to disk")
@@ -105,7 +105,7 @@ export class AgentFs {
   private async fromEditor(rel: string): Promise<string | null> {
     const holder = this.options.ui.holder(rel)
     if (!holder) return null
-    const answer = await this.options.ui.request<{ content: string | null }>(holder, "fs.read", { path: rel }).catch(() => null)
+    const answer = await this.options.ui.request(holder, "fs.read", { path: rel }).catch(() => null)
     return answer?.content ?? null
   }
 }

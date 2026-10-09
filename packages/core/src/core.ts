@@ -221,6 +221,20 @@ export class Core {
     this.router.register("ui.respond", z.object({ requestId: z.string(), result: z.unknown().optional(), error: z.string().optional() }), ({ requestId, result, error }) =>
       this.ui.respond(requestId, result, error),
     )
+    this.router.register("ui.focus", z.object({ clientId: z.string().min(1) }), ({ clientId }) => this.ui.focus(clientId))
+    this.router.register("ui.leave", z.object({ clientId: z.string().min(1) }), ({ clientId }) => this.ui.leave(clientId))
+    const owlitUri = z.string().regex(/^owlit:\/\/[a-z]+\/.+/, "an owlit:// link")
+    const asker = z.string().min(1).optional()
+    this.router.register("ui.open", z.object({ uri: owlitUri, chatId: asker }), (params) => this.ui.act("open", params))
+    this.router.register("ui.jump", z.object({ uri: owlitUri, page: z.number().int().positive().optional(), quote: z.string().min(1).optional(), chatId: asker }), (params) =>
+      this.ui.act("jump", params),
+    )
+    this.router.register(
+      "ui.mark",
+      z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }),
+      (params) => this.ui.act("mark", params),
+    )
+    this.router.register("ui.say", z.object({ text: z.string().min(1) }), (params) => this.ui.act("say", params))
     this.router.register("versions.restore", z.object({ id: z.string().min(1) }), ({ id }) => this.fs.restore(id))
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
@@ -278,6 +292,7 @@ export class Core {
       text: z.string(),
       color: z.enum(["yellow", "green", "blue", "pink"]),
       comment: z.string().optional(),
+      addedBy: z.literal("agent").optional(),
       createdAt: z.number(),
     })
     this.router.register("library.putHighlight", z.object({ highlight }), ({ highlight }) => library().putHighlight(highlight))
@@ -359,7 +374,11 @@ export class Core {
     }
 
     this.router.register("notes.all", noParams, () => docs().notesAll())
-    this.router.register("notes.add", z.object({ path: rel, note }), ({ path, note }) => docs().addNote(path, note))
+    this.router.register("notes.add", z.object({ path: rel, note }), async ({ path, note }) => {
+      await docs().addNote(path, note)
+      this.notifier.notify("notes.added", { path, note })
+      return null
+    })
     this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
     this.router.register("notes.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
       docs().reanchorNotes(path, moved),

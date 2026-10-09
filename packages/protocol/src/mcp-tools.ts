@@ -9,6 +9,8 @@ export interface ToolSpec {
     properties: Record<string, { type: "string" | "number" | "boolean"; description: string; enum?: string[] }>
     required?: string[]
   }
+  // How the agent may treat a call: one that changes nothing the user keeps is read-only
+  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }
 }
 
 const id = { type: "string" as const, description: "The paper's library id, e.g. doi-10.1145-3626772.3657891 or arxiv-2408.00447" }
@@ -103,6 +105,43 @@ export const OWLIT_TOOLS: ToolSpec[] = [
       },
       required: ["path", "quote", "note"],
     },
+  },
+  {
+    name: "ui_open",
+    description:
+      "Show the user something in their owlit window: a paper (owlit://library/<id>), a doc (owlit://docs/<path>, e.g. owlit://docs/drafts/Related work.md), a chat (owlit://chat/<id>). Use it when the user asks to see something, not on your own.",
+    inputSchema: { type: "object", properties: { uri: { type: "string", description: "An owlit:// link" } }, required: ["uri"] },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "ui_jump",
+    description:
+      "Take the user to a place in a paper or doc in their owlit window: a page of a paper, or a passage, which is ringed in the paper's PDF or selected in the doc. Quote the passage word for word from library_read or docs_read (a sentence or two is enough). Says whether the passage was found.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        uri: { type: "string", description: "owlit://library/<id> or owlit://docs/<path>" },
+        quote: { type: "string", description: "The passage, word for word (optional)" },
+        page: { type: "number", description: "1-based page of a paper; helps find the passage, or is where to go without one (optional)" },
+      },
+      required: ["uri"],
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "ui_mark",
+    description:
+      "Highlight a passage in a paper's PDF for the user, kept with their own highlights and shown as added by Owlit. Only when the user asks for passages to be marked. Quote the passage word for word from library_read. The user is taken to the highlight, so ui_jump isn't needed after it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id,
+        quote: { type: "string", description: "The passage, word for word" },
+        color: { type: "string", description: "Highlight color (default yellow)", enum: ["yellow", "green", "blue", "pink"] },
+      },
+      required: ["id", "quote"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
     name: "chats_list",
