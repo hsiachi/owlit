@@ -14,7 +14,9 @@ pnpm lint         # oxlint everywhere; also enforces core/protocol's import boun
 pnpm typecheck
 ```
 
-`pnpm dev -- --remote-debugging-port=9333` passes flags through to Electron.
+`pnpm dev -- --remote-debugging-port=9333` passes flags through to Electron. `OWLIT_USER_DATA=<dir>`
+points the app data directory (settings, per-workspace data, the single-instance lock) somewhere
+other than `~/Library/Application Support/owlit`, e.g. to try a first launch.
 
 The build tooling is Vite (renderer) plus esbuild (main and preload, bundled with core) driven by
 `apps/desktop/scripts/`; electron-vite does not support Vite 8 yet. Behind an HTTP proxy, Electron's

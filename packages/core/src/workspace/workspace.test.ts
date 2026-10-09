@@ -1,0 +1,156 @@
+import { RpcErrorCode, type RpcNotification } from "@owlit/protocol"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import { afterEach, describe, expect, it } from "vitest"
+import { Core } from "../core.ts"
+import { acquireLock } from "./lock.ts"
+import { workspaceDataDir } from "./workspace.ts"
+
+const cores: Core[] = []
+afterEach(async () => {
+  await Promise.all(cores.splice(0).map((core) => core.dispose()))
+})
+
+function setup() {
+  const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-ws-")))
+  const userDataDir = path.join(base, "userData")
+  const core = new Core({ userDataDir })
+  cores.push(core)
+  const heard: RpcNotification[] = []
+  core.onNotify((n) => heard.push(n))
+  const call = async (method: string, params?: unknown) => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+    if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
+    return response.result
+  }
+  const folder = (name: string) => {
+    const dir = path.join(base, name)
+    mkdirSync(dir, { recursive: true })
+    return dir
+  }
+  return { base, userDataDir, core, heard, call, folder }
+}
+
+// Every file under dir, relative, sorted
+function tree(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => path.relative(dir, path.join(e.parentPath, e.name)))
+    .sort()
+}
+
+describe("workspace.open", () => {
+  it("creates only .owlit/workspace.json in an empty folder", async () => {
+    const { call, folder } = setup()
+    const empty = folder("empty")
+    const info = await call("workspace.open", { path: empty })
+    expect(info).toEqual({ path: empty, name: "empty" })
+    expect(tree(empty)).toEqual([path.join(".owlit", "workspace.json")])
+    expect(JSON.parse(readFileSync(path.join(empty, ".owlit/workspace.json"), "utf8"))).toEqual({ version: 1, layout: {} })
+  })
+
+  it("keeps an existing workspace.json as it is", async () => {
+    const { call, folder } = setup()
+    const ws = folder("kept")
+    mkdirSync(path.join(ws, ".owlit"))
+    writeFileSync(path.join(ws, ".owlit/workspace.json"), '{"version":1,"layout":{"x":1}}')
+    await call("workspace.open", { path: ws })
+    expect(readFileSync(path.join(ws, ".owlit/workspace.json"), "utf8")).toBe('{"version":1,"layout":{"x":1}}')
+  })
+
+  it("takes the lock in the app data directory and notifies", async () => {
+    const { call, folder, userDataDir, heard } = setup()
+    const ws = folder("locked")
+    await call("workspace.open", { path: ws })
+    const lock = path.join(workspaceDataDir(userDataDir, ws), "lock")
+    expect(JSON.parse(readFileSync(lock, "utf8"))).toMatchObject({ pid: process.pid, workspace: ws })
+    expect(path.basename(path.dirname(lock))).toMatch(/^[0-9a-f]{12}$/)
+    expect(heard.map((n) => n.method)).toEqual(["workspace.opened"])
+    expect(heard[0].params).toEqual({ path: ws, name: "locked" })
+  })
+
+  it("remembers recent and last workspaces in settings.json", async () => {
+    const { call, folder, userDataDir } = setup()
+    const a = folder("a")
+    const b = folder("b")
+    await call("workspace.open", { path: a })
+    await call("workspace.open", { path: b })
+    await call("workspace.open", { path: a })
+    expect(await call("workspace.recent")).toEqual([
+      { path: a, name: "a" },
+      { path: b, name: "b" },
+    ])
+    expect(await call("workspace.current")).toEqual({ path: a, name: "a" })
+    const settings = JSON.parse(readFileSync(path.join(userDataDir, "settings.json"), "utf8"))
+    expect(settings).toMatchObject({ version: 1, lastWorkspace: a, recentWorkspaces: [a, b] })
+
+    // A fresh core (the next launch) reopens the last one
+    const next = new Core({ userDataDir })
+    expect(await next.lastWorkspace()).toBe(a)
+  })
+
+  it("releases the old workspace's lock on switch", async () => {
+    const { call, folder, userDataDir } = setup()
+    const a = folder("a")
+    const b = folder("b")
+    await call("workspace.open", { path: a })
+    await call("workspace.open", { path: b })
+    expect(existsSync(path.join(workspaceDataDir(userDataDir, a), "lock"))).toBe(false)
+    expect(existsSync(path.join(workspaceDataDir(userDataDir, b), "lock"))).toBe(true)
+  })
+
+  it("works with Chinese and spaces in the path", async () => {
+    const { call, folder } = setup()
+    const ws = folder("研究 笔记/第 2 章")
+    const info = await call("workspace.open", { path: ws })
+    expect(info).toEqual({ path: ws, name: "第 2 章" })
+    expect(existsSync(path.join(ws, ".owlit/workspace.json"))).toBe(true)
+  })
+
+  it("hashes the same folder to the same data directory in NFC and NFD", () => {
+    const nfc = "/Users/x/研究/Café"
+    expect(workspaceDataDir("/u", nfc)).toBe(workspaceDataDir("/u", nfc.normalize("NFD")))
+  })
+
+  it("explains a missing folder or a file, and forgets a vanished recent", async () => {
+    const { call, folder, base } = setup()
+    const gone = folder("gone")
+    await call("workspace.open", { path: gone })
+    await expect(call("workspace.open", { path: path.join(base, "nope") })).rejects.toMatchObject({
+      code: RpcErrorCode.NotFound,
+      message: `There is no folder at ${path.join(base, "nope")}.`,
+    })
+    writeFileSync(path.join(base, "file.md"), "x")
+    await expect(call("workspace.open", { path: path.join(base, "file.md") })).rejects.toMatchObject({
+      message: "file.md is a file, not a folder.",
+    })
+    // The failed opens left the current workspace open
+    expect(await call("workspace.current")).toEqual({ path: gone, name: "gone" })
+  })
+
+  it("refuses a workspace another live process holds, and takes over a dead one's lock", async () => {
+    const { call, folder, userDataDir } = setup()
+    const ws = folder("shared")
+    const dataDir = workspaceDataDir(userDataDir, ws)
+    mkdirSync(dataDir, { recursive: true })
+    // pid 1 (launchd) is always alive and never us
+    writeFileSync(path.join(dataDir, "lock"), JSON.stringify({ pid: 1, workspace: ws, since: 0 }))
+    await expect(call("workspace.open", { path: ws })).rejects.toMatchObject({
+      code: RpcErrorCode.Conflict,
+      message: "shared is already open in another owlit.",
+    })
+    writeFileSync(path.join(dataDir, "lock"), JSON.stringify({ pid: 2 ** 22 + 7, workspace: ws, since: 0 }))
+    await expect(call("workspace.open", { path: ws })).resolves.toMatchObject({ name: "shared" })
+  })
+})
+
+describe("acquireLock", () => {
+  it("releases only its own lock", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "owlit-lock-"))
+    const release = await acquireLock(dir, "/w")
+    expect(existsSync(path.join(dir, "lock"))).toBe(true)
+    await release()
+    expect(existsSync(path.join(dir, "lock"))).toBe(false)
+  })
+})

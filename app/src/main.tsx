@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
 import { onNotify } from "@/lib/rpc"
+import "@/lib/workspace"
 import "./index.css"
 
 // Follow the system appearance; the dark tokens in index.css hang off the .dark class

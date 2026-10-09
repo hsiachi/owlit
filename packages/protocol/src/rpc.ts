@@ -1,3 +1,5 @@
+import type { WorkspaceInfo } from "./workspace.ts"
+
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
 
@@ -32,6 +34,12 @@ export const RpcErrorCode = {
   MethodNotFound: -32601,
   InvalidParams: -32602,
   InternalError: -32603,
+  // Something the request names is not there (a folder, a file)
+  NotFound: -32001,
+  // Someone else holds it (a workspace open in another owlit)
+  Conflict: -32002,
+  // The request needs an open workspace and there is none
+  NoWorkspace: -32003,
 } as const
 
 // Every request core answers: method name ("<area>.<verb>") → params and result. Clients are typed
@@ -39,12 +47,21 @@ export const RpcErrorCode = {
 export interface Methods {
   "core.ping": { params: void; result: { ok: true } }
   "core.version": { params: void; result: CoreVersion }
+  // The open workspace, or null before one is chosen
+  "workspace.current": { params: void; result: WorkspaceInfo | null }
+  // Open a folder as the workspace, closing the current one; creates .owlit/ if missing
+  "workspace.open": { params: { path: string }; result: WorkspaceInfo }
+  // Recently opened folders, most recent first; folders that no longer exist are left out
+  "workspace.recent": { params: void; result: WorkspaceInfo[] }
+  "workspace.clearRecent": { params: void; result: null }
 }
 
 // Every notification core sends: topic → payload
 export interface Notifications {
   // Sent once core is up
   "core.hello": CoreVersion
+  // A workspace was opened (also after a switch); clients reset what they hold for the old one
+  "workspace.opened": WorkspaceInfo
 }
 
 export type MethodName = keyof Methods
