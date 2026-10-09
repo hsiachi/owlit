@@ -54,7 +54,13 @@ export class AgentFs {
       const before = (await ws.library.read(notePaper, "note")).text
       const version = await ws.versions.saveFile(rel, before || null, content, { chatId })
       this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
-      await ws.library.writeNoteFor(notePaper, content)
+      // Already kept above; the change the library then reports is not a second one
+      this.writing.add(rel)
+      try {
+        await ws.library.writeNoteFor(notePaper, content)
+      } finally {
+        this.writing.delete(rel)
+      }
       this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
       return
     }
@@ -130,7 +136,12 @@ export class AgentFs {
         throw new RpcFailure(RpcErrorCode.Conflict, "The note changed after the agent's edit, so owlit left it as it is.", { path: version.path })
       }
       const redo = await ws.versions.saveFile(version.path, now || null, version.existed ? version.content : null, meta)
-      await ws.library.writeNoteFor(notePaper, version.existed ? version.content : "")
+      this.writing.add(version.path)
+      try {
+        await ws.library.writeNoteFor(notePaper, version.existed ? version.content : "")
+      } finally {
+        this.writing.delete(version.path)
+      }
       return { path: version.path, kind: "file", redoId: redo.id }
     }
 

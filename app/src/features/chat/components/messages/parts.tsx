@@ -22,6 +22,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Spinner } from "@/components/ui/spinner"
 import type { MessagePart, ToolKind, ToolStatus } from "../../types"
 import { Markdown } from "./Markdown"
+import { toolTitle } from "../../lib/tool-title"
 
 type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 
@@ -100,7 +101,7 @@ export function StepsPart({ parts, active, outcomes = {} }: { parts: StepPart[];
   const failed = tools.filter((t) => t.status === "failed" && !isRejection(outcomes[t.toolCallId])).length
   const last = parts[parts.length - 1]
   const label = active
-    ? (running?.title ?? (last?.type === "thought" ? "Thinking…" : "Working…"))
+    ? (running ? toolTitle(running.title) : last?.type === "thought" ? "Thinking…" : "Working…")
     : tools.length === 0
       ? "Thought"
       : `${tools.length} ${tools.length === 1 ? "step" : "steps"}`
@@ -141,7 +142,7 @@ export function ToolCallPart({ part, outcome }: { part: Part<"tool_call">; outco
         <button type="button" className="group/row flex w-full items-center gap-2 py-1 text-left text-muted-foreground hover:text-foreground disabled:cursor-default disabled:hover:text-muted-foreground">
           <Icon className="size-4 shrink-0" />
           <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-            <span className={cn("truncate", part.status === "in_progress" && "shimmer")}>{part.title}</span>
+            <span className={cn("truncate", part.status === "in_progress" && "shimmer")}>{toolTitle(part.title)}</span>
             {outcome && <span className="shrink-0 text-xs text-muted-foreground">{outcomeLabel[outcome]}</span>}
           </span>
           <ToolStatusIcon status={part.status} outcome={outcome} />
@@ -203,7 +204,7 @@ export function PermissionPart({ part, onRespond }: { part: Part<"permission">; 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         {allowed ? <CheckIcon className="size-4 shrink-0" /> : <XIcon className="size-4 shrink-0" />}
         <span className="truncate">
-          {outcomeLabel[answered] ?? answered} · {part.title}
+          {outcomeLabel[answered] ?? answered} · {toolTitle(part.title)}
         </span>
       </div>
     )
@@ -216,7 +217,7 @@ export function PermissionPart({ part, onRespond }: { part: Part<"permission">; 
           <div className="font-medium">Allow this action?</div>
           <div className="mt-0.5 flex items-center gap-1.5 text-muted-foreground">
             <Icon className="size-3.5 shrink-0" />
-            <span className="truncate">{part.title}</span>
+            <span className="truncate">{toolTitle(part.title)}</span>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {part.options.map((o) => (

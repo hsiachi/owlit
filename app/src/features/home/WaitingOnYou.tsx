@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { useChatStore } from "@/features/chat/store"
 import { pendingPermission, useSeenStore } from "@/features/chat/status"
 import { regenerate } from "@/features/chat/lib/regenerate"
+import { toolTitle } from "@/features/chat/lib/tool-title"
 import { useLibraryStore } from "@/features/library/store"
 import { citationLabel } from "@/features/library/lib/format"
 import { openSettings, useSettings } from "@/features/settings/store"
@@ -38,7 +39,7 @@ function useWaiting(): Waiting[] {
     for (const chat of Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt)) {
       const permission = streaming[chat.id] ? pendingPermission(chat) : undefined
       if (permission) {
-        out.push({ key: `perm:${chat.id}`, icon: MessageSquareIcon, what: permission.title, where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
+        out.push({ key: `perm:${chat.id}`, icon: MessageSquareIcon, what: toolTitle(permission.title), where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
       } else if (unseen[chat.id] === "failed") {
         const index = chat.messages.length - 1
         const error = chat.messages[index]?.error || "Something went wrong"
