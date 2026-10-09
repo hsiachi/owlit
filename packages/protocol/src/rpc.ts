@@ -34,11 +34,35 @@ export const RpcErrorCode = {
   InternalError: -32603,
 } as const
 
-// Every request core answers: method name → params and result. Clients are typed from this map.
-export interface Methods {}
+// Every request core answers: method name ("<area>.<verb>") → params and result. Clients are typed
+// from this map; core checks params at runtime against its own schema for each method.
+export interface Methods {
+  "core.ping": { params: void; result: { ok: true } }
+  "core.version": { params: void; result: CoreVersion }
+}
 
 // Every notification core sends: topic → payload
-export interface Notifications {}
+export interface Notifications {
+  // Sent once core is up
+  "core.hello": CoreVersion
+}
 
 export type MethodName = keyof Methods
 export type NotificationName = keyof Notifications
+export type ParamsOf<M extends MethodName> = Methods[M]["params"]
+export type ResultOf<M extends MethodName> = Methods[M]["result"]
+
+export interface CoreVersion {
+  version: string
+  // Node's version inside the host, e.g. Electron's
+  node: string
+}
+
+// What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
+export interface OwlitBridge {
+  platform: string
+  // Sends one request and resolves with core's response envelope; never rejects for an RPC error
+  rpc(method: string, params?: unknown): Promise<RpcResponse>
+  // Every notification core sends; returns an unsubscribe
+  onNotify(listener: (notification: RpcNotification) => void): () => void
+}
