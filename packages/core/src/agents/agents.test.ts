@@ -78,7 +78,7 @@ describe("agents", () => {
     process.env.FAKE_ACP_AUTH = "required"
     const checked = await agents.check(id)
     expect(checked).toMatchObject({ status: "error", authenticated: false })
-    expect(checked.error).toContain("Not signed in")
+    expect(checked.error).toBe("Fake isn't signed in. Run " + process.execPath + " in a terminal to sign in, then try again.")
   })
 
   it("ends the process when idle and starts it again when needed", async () => {

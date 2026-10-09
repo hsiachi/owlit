@@ -41,7 +41,8 @@ export class AcpProcess {
   private handlers = new Map<string, SessionHandler>()
   private busy = 0
   private idleTimer: ReturnType<typeof setTimeout> | undefined
-  private stopping = false
+  // Whether the current child is being ended on purpose; each child has its own
+  private life = { stopping: false }
   private stderr: string[] = []
 
   constructor(options: ProcessOptions) {
@@ -110,7 +111,7 @@ export class AcpProcess {
   stop() {
     clearTimeout(this.idleTimer)
     if (!this.child) return
-    this.stopping = true
+    this.life.stopping = true
     this.child.kill()
     this.reset()
     this.options.onExit?.()
@@ -134,7 +135,8 @@ export class AcpProcess {
   private start() {
     if (this.started) return this.started
     const { file, args, env, cwd } = this.options
-    this.stopping = false
+    const life = { stopping: false }
+    this.life = life
     this.stderr = []
     const child = spawn(file, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] })
     this.child = child
@@ -150,10 +152,8 @@ export class AcpProcess {
 
     const failedToStart = new Promise<never>((_, reject) => child.once("error", reject))
     child.once("exit", (code, signal) => {
-      if (this.child !== child) return
-      const wasStopping = this.stopping
-      this.reset()
-      if (wasStopping) return
+      if (this.child === child) this.reset()
+      if (life.stopping) return
       // A process that exits on its own usually says why last; one killed by a signal says nothing useful
       const last = signal ? undefined : this.stderr.at(-1)
       this.options.onCrash(signal ? `stopped (${signal})` : `exited with code ${code}${last ? `: ${last}` : ""}`)
@@ -170,6 +170,10 @@ export class AcpProcess {
       acp.ndJsonStream(Writable.toWeb(child.stdin!), Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>),
     )
     const connection = this.connection
+    // The connection can close before the process is seen to exit; the next call must not use it
+    connection.signal.addEventListener("abort", () => {
+      if (this.child === child) this.reset()
+    })
     this.started = Promise.race([
       failedToStart,
       connection.initialize({
@@ -179,11 +183,9 @@ export class AcpProcess {
       }),
     ])
     this.started.catch(() => {
-      if (this.child === child) {
-        this.stopping = true
-        child.kill()
-        this.reset()
-      }
+      life.stopping = true
+      child.kill()
+      if (this.child === child) this.reset()
     })
     return this.started
   }

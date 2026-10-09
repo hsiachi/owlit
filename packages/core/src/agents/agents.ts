@@ -49,6 +49,9 @@ export const BUILT_IN: ConnectorDef[] = [
   },
 ]
 
+// What a user runs to sign in, where it isn't the command owlit starts
+const BUILT_IN_SIGN_IN: Record<string, string> = { "claude-code": "claude", codex: "codex" }
+
 export interface AgentsOptions {
   settings: SettingsStore
   // Where agents are checked from (a session needs a folder); not the user's workspace
@@ -126,13 +129,18 @@ export class Agents {
       this.setLive(id, { status: proc.running ? "connected" : "available", error: undefined, authenticated: true })
     } catch (error) {
       const auth = isAuthError(error)
-      this.setLive(id, {
-        status: "error",
-        authenticated: auth ? false : undefined,
-        error: auth ? `Not signed in. Run ${def.name} once in a terminal to sign in.` : messageOf(error),
-      })
+      if (auth) await this.signedOut(id)
+      else this.setLive(id, { status: "error", authenticated: undefined, error: messageOf(error) })
     }
     return this.connectorOf(def)
+  }
+
+  // The agent said it needs a sign-in (when checked, or in the middle of a turn); returns what to tell the user
+  async signedOut(id: string) {
+    const def = await this.def(id)
+    const error = `${def.name} isn't signed in. Run ${splitCommand(BUILT_IN_SIGN_IN[id] ?? def.command)[0]} in a terminal to sign in, then try again.`
+    this.setLive(id, { status: "error", authenticated: false, error })
+    return error
   }
 
   // The running process for an agent, started if needed (T10 opens sessions on it)

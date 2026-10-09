@@ -1,21 +1,23 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { applyUpdate } from "@owlit/protocol"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import type { AgentClient } from "./agent/client"
 import * as disk from "./disk"
 import { MockAgentClient } from "./agent/mock-client"
+import { RpcAgentClient } from "./agent/rpc-client"
 import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
 import type {
   Chat,
   ChatMessage,
   Connector,
-  MessagePart,
   PromptInput,
-  SessionUpdate,
 } from "./types"
 
-export const agentClient: AgentClient = new MockAgentClient()
+export const agentClient: AgentClient = isDesktop ? new RpcAgentClient() : new MockAgentClient()
+// Whether the store saves messages through ./disk (core saves them itself when it runs the turn)
+const savesMessages = () => disk.onDisk && !agentClient.persistsMessages
 
 // Abort controllers for in-flight turns; not part of persisted state
 const inflight = new Map<string, AbortController>()
@@ -58,36 +60,6 @@ interface ChatState {
 const titleFrom = (text: string) => {
   const t = text.replace(/@\[([^\]]+)\]/g, "$1").replace(/\s+/g, " ").trim()
   return t.slice(0, 80) || "New chat"
-}
-
-// Fold one streamed update into the assistant message's parts
-function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart[] {
-  const last = parts[parts.length - 1]
-  switch (u.type) {
-    case "agent_message_chunk":
-      if (last?.type === "text") return [...parts.slice(0, -1), { ...last, text: last.text + u.text }]
-      return [...parts, { type: "text", text: u.text }]
-    case "agent_thought_chunk":
-      if (last?.type === "thought") return [...parts.slice(0, -1), { ...last, text: last.text + u.text }]
-      return [...parts, { type: "thought", text: u.text }]
-    case "tool_call":
-      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff }]
-    case "tool_call_update":
-      return parts.map((p) =>
-        p.type === "tool_call" && p.toolCallId === u.toolCallId
-          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations, diff: u.diff ?? p.diff }
-          : p,
-      )
-    case "plan": {
-      const i = parts.findIndex((p) => p.type === "plan")
-      const entry: MessagePart = { type: "plan", entries: u.entries }
-      return i >= 0 ? parts.map((p, j) => (j === i ? entry : p)) : [...parts, entry]
-    }
-    case "permission_request":
-      return [...parts, { type: "permission", requestId: u.requestId, toolCallId: u.toolCallId, title: u.title, kind: u.kind, options: u.options }]
-    case "permission_resolved":
-      return parts.map((p) => (p.type === "permission" && p.requestId === u.requestId ? { ...p, outcome: u.outcome } : p))
-  }
 }
 
 export const useChatStore = create<ChatState>()(
@@ -221,8 +193,10 @@ export const useChatStore = create<ChatState>()(
         }))
         if (disk.onDisk) {
           if (isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
-          disk.appendMessageOnDisk(chatId, userMsg)
-          disk.appendMessageOnDisk(chatId, assistantMsg)
+          if (savesMessages()) {
+            disk.appendMessageOnDisk(chatId, userMsg)
+            disk.appendMessageOnDisk(chatId, assistantMsg)
+          }
         }
 
         const controller = new AbortController()
@@ -241,12 +215,12 @@ export const useChatStore = create<ChatState>()(
             }
           })
           const now = get().chats[chatId]?.messages.find((m) => m.id === assistantMsg.id)
-          if (now && disk.onDisk) disk.patchMessageOnDisk(chatId, now, final)
+          if (now && savesMessages()) disk.patchMessageOnDisk(chatId, now, final)
         }
 
         try {
           const stop = await agentClient.prompt(
-            { chatId, connectorId, modelId, modeId, effortId, input },
+            { chatId, connectorId, modelId, modeId, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )

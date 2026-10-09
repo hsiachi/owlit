@@ -125,6 +125,9 @@ export interface Chat {
   modelId?: string
   modeId?: string
   effortId?: string
+  // The ACP session this chat has on each agent (connector id → session id), so it continues where it
+  // left off after a restart; kept by core
+  sessions?: Record<string, string>
   messages: ChatMessage[]
 }
 
