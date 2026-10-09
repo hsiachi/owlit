@@ -1,5 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
-import type { Chat, ChatMessage, ChatSummary, Connector } from "./chat.ts"
+import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
@@ -126,6 +126,25 @@ export interface Methods {
   "agents.add": { params: { name: string; command: string }; result: Connector }
   // Removes one the user added
   "agents.remove": { params: { id: string }; result: null }
+  // One turn of a chat on an agent. Core appends both messages to the chat, streams the answer as
+  // chat.update and saves it; resolves when the turn ends.
+  "agents.prompt": {
+    params: {
+      chatId: string
+      connectorId: string
+      modelId?: string
+      modeId?: string
+      effortId?: string
+      input: PromptInput
+      userMessage: ChatMessage
+      assistantMessageId: string
+    }
+    result: { stopReason: StopReason }
+  }
+  // Stops the chat's running turn; questions it was waiting on close as cancelled
+  "agents.cancel": { params: { chatId: string }; result: null }
+  // Answers a permission_request with one of its options
+  "agents.respondPermission": { params: { chatId: string; requestId: string; optionId: string }; result: null }
 }
 
 // Every notification core sends: topic → payload
@@ -140,6 +159,8 @@ export interface Notifications {
   "docs.changed": DocsChange
   // An agent's state changed (it started, ended, crashed, was checked)
   "agents.changed": Connector
+  // One streamed update of a chat's running turn
+  "chat.update": { chatId: string; update: SessionUpdate }
 }
 
 export type MethodName = keyof Methods

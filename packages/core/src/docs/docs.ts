@@ -75,6 +75,8 @@ export class Docs {
   private dirty = new Set<string>()
   private timer: ReturnType<typeof setTimeout> | undefined
   private firstDirtyAt = 0
+  // Who hears about changes (set by watch)
+  private changed: ((change: DocsChange) => void) | undefined
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -101,6 +103,7 @@ export class Docs {
   // settled: a burst of events becomes one DocsChange.
   async watch(onChange: (change: DocsChange) => void) {
     if (this.watcher) return
+    this.changed = onChange
     if (!this.snapshot.size) this.snapshot = await this.scan("")
     this.watcher = watch(this.root, { recursive: true }, (_event, filename) => {
       // No name means the system lost track: look at everything
@@ -257,6 +260,42 @@ export class Docs {
       }
       await this.settle([...made, ...restored.map((f) => f.path)])
       return { files: restored, folders: made }
+    })
+  }
+
+  // ---- What agents read and write (ACP fs/read_text_file, fs/write_text_file). Absolute paths, as ACP
+  // gives them, anywhere inside the workspace; writes not into .owlit/.
+
+  agentRead(file: string, line?: number, limit?: number) {
+    return this.serial(async () => {
+      const rel = this.inside(file)
+      let content: string
+      try {
+        content = await readFile(this.abs(rel), "utf8")
+      } catch {
+        throw notFound(rel)
+      }
+      if (line === undefined && limit === undefined) return { content }
+      // line is 1-based; limit counts lines
+      const lines = content.split("\n")
+      const start = Math.max(0, (line ?? 1) - 1)
+      return { content: lines.slice(start, limit === undefined ? undefined : start + limit).join("\n") }
+    })
+  }
+
+  // A write by an agent reaches clients as a change made outside them (docs.changed)
+  agentWrite(file: string, content: string) {
+    return this.serial(async () => {
+      const rel = this.inside(file)
+      if (rel.split("/")[0] === ".owlit") throw new RpcFailure(RpcErrorCode.InvalidParams, "Agents can't write inside .owlit.", { path: rel })
+      if (existsSync(this.abs(rel))) await writeInPlace(this.abs(rel), content)
+      else {
+        await mkdir(path.dirname(this.abs(rel)), { recursive: true })
+        await writeFile(this.abs(rel), content)
+      }
+      const change = await this.reconcile([rel], true)
+      if (change) this.changed?.(change)
+      return null
     })
   }
 
@@ -420,6 +459,16 @@ export class Docs {
       throw invalidParams(`${rel || "The workspace root"} is outside what Docs can reach.`, { path: rel })
     }
     return rel
+  }
+
+  // A path an agent named: absolute (or relative to the workspace), resolved, and inside the workspace
+  private inside(file: string) {
+    const resolved = path.resolve(this.root, file)
+    const rel = path.relative(this.root, resolved)
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
+      throw new RpcFailure(RpcErrorCode.InvalidParams, `${file} is outside the workspace.`, { path: file })
+    }
+    return rel.split(path.sep).join("/")
   }
 
   private abs(rel: string) {

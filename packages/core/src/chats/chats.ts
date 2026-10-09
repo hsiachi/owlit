@@ -46,7 +46,7 @@ export class Chats {
     if (!summary) throw notFound(id)
     const stored = await readJson<ChatFile>(this.fileOf(id)).catch(() => undefined)
     // A turn that was streaming when owlit last stopped never finished
-    const messages = (stored?.messages ?? []).map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m))
+    const messages = (stored?.messages ?? []).map((m) => (m.status === "streaming" ? cutOff(m) : m))
     const chat: Chat = { ...summary, messages }
     this.bodies.set(id, chat)
     return chat
@@ -182,9 +182,16 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, modeId, effortId } = chat
-  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, modeId, effortId }
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, modeId, effortId, sessions } = chat
+  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, modeId, effortId, ...(sessions ? { sessions } : {}) }
 }
+
+// A turn that never finished: cancelled, and any question it was waiting on closed with it
+const cutOff = (m: ChatMessage): ChatMessage => ({
+  ...m,
+  status: "cancelled",
+  parts: m.parts.map((p) => (p.type === "permission" && !p.outcome ? { ...p, outcome: "cancelled" } : p)),
+})
 
 // Image previews are object URLs that only live in the window that made them
 function clean(message: ChatMessage): ChatMessage {

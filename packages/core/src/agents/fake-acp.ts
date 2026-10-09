@@ -5,7 +5,8 @@
 //   "write <path> <t>" writes t into a file through owlit
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "crash"            exits mid-turn
-//   anything else      answers "echo: <text>" in two chunks
+//   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
+//                      passed the conversation so far
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in.
 
 import * as acp from "@agentclientprotocol/sdk"
@@ -91,7 +92,12 @@ class FakeAgent implements acp.Agent {
   async prompt(params: acp.PromptRequest): Promise<acp.PromptResponse> {
     const session = this.sessions.get(params.sessionId)
     if (!session) throw acp.RequestError.resourceNotFound(params.sessionId)
-    const text = params.prompt.map((b) => (b.type === "text" ? b.text : b.type === "resource_link" ? `[${b.uri}]` : `[${b.type}]`)).join(" ")
+    // The conversation so far, when owlit starts a session over, is context, not the request
+    const history = params.prompt.some((b) => b.type === "text" && b.text.startsWith("The conversation so far"))
+    const text = params.prompt
+      .filter((b) => !(b.type === "text" && b.text.startsWith("The conversation so far")))
+      .map((b) => (b.type === "text" ? b.text : b.type === "resource_link" ? `[${b.uri}]` : `[${b.type}]`))
+      .join(" ")
     session.history.push(text)
     session.turn = new AbortController()
     const signal = session.turn.signal
@@ -141,7 +147,7 @@ class FakeAgent implements acp.Agent {
       }
       await say(`echo: ${text.slice(0, 40)}`)
       await sleep(20, signal)
-      await say(` (${session.config.model}/${session.config.mode}/${session.config.effort})`)
+      await say(` (${session.config.model}/${session.config.mode}/${session.config.effort})${history ? " with history" : ""}`)
       return { stopReason: "end_turn" }
     } catch (error) {
       if (signal.aborted) return { stopReason: "cancelled" }

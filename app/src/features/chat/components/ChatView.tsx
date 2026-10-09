@@ -24,6 +24,7 @@ export function ChatView() {
   const send = useChatStore((s) => s.send)
   const cancel = useChatStore((s) => s.cancel)
   const respondPermission = useChatStore((s) => s.respondPermission)
+  const chatsLoaded = useChatStore((s) => s.chatsLoaded)
   const composer = useRef<ComposerHandle>(null)
   const navigate = useNavigate()
 
@@ -31,7 +32,8 @@ export function ChatView() {
     composer.current?.focus()
   }, [chatId])
 
-  if (!chat) return <Navigate to="/chat" replace />
+  // A chat the workspace hasn't listed yet may still turn up (a reload of this page)
+  if (!chat) return chatsLoaded ? <Navigate to="/chat" replace /> : null
 
   const modelName = (connectorId?: string, modelId?: string) =>
     connectors.find((c) => c.id === connectorId)?.models.find((m) => m.id === modelId)?.name
