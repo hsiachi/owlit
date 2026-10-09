@@ -105,9 +105,13 @@ export function createBrowserHost(): BrowserHost {
   function untilClear(w: BrowserWindow, from: PageState, signal: AbortSignal) {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => finish(new Error(`Gave up waiting for the ${from === "login" ? "sign-in" : "check"} after 5 minutes.`)), USER_TIMEOUT_MS)
+      // Clear on two checks in a row: past a redirect, and not waiting on isLoading(), which some
+      // publishers' pages (Wiley's) never leave
+      let clear = 0
       const poll = setInterval(async () => {
         if (w.isDestroyed()) return finish(new Error("The window went away."))
-        if (!w.webContents.isLoading() && (await pageState(w)) === "ok") finish()
+        clear = (await pageState(w)) === "ok" ? clear + 1 : 0
+        if (clear >= 2) finish()
       }, 1000)
       const closed = () => finish()
       const aborted = () => finish(signal.reason)
