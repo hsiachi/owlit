@@ -178,6 +178,10 @@ export function checkTopic(write: TopicWrite): CheckedTopic {
     if (!l) problems.push(`^${id} is the user's own wording and can't be removed: keep it as “${edit.text}”.`)
     else if (l.text !== edit.text || l.speaker !== "You") problems.push(`^${id} is the user's own wording: keep it word for word, as “You${l.verb ? ` ${l.verb}` : ""}: ${edit.text}”.`)
   }
+  // A You line is the user speaking: their voice, never addressed to them
+  for (const l of parsed.lines)
+    if (l.speaker === "You" && !sidecar.edits[l.id] && /\byours?\b|你的|您的/i.test(l.text))
+      problems.push(`^${l.id} is the user speaking, so it is in their voice, first person ("I", "my draft"), not "your": ${opening(l.text)}.`)
   const removedTexts = new Set(Object.values(sidecar.removed).map((r) => normal(r.text)))
   for (const l of parsed.lines) if (removedTexts.has(normal(l.text))) problems.push(`The user removed ${opening(l.text)}; don't bring it back.`)
 

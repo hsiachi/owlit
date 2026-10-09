@@ -12,6 +12,8 @@ import { Toaster } from "@/components/ui/sonner"
 import { AgentAskBar, AgentPanel, AgentToggle } from "@/features/agent/AgentWindow"
 import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
 import { useAgentWindow } from "@/features/agent/store"
+import { SettingsDialog } from "@/features/settings/SettingsDialog"
+import { useSettingsShortcut } from "@/features/settings/hooks"
 // Serves workspace files to agents (ACP fs/*), so it is in place before any chat runs
 import "@/features/docs/fs"
 // Serves Knowledge to agents the same way
@@ -29,6 +31,7 @@ export function Shell() {
   const listShown = useAgentWindow((s) => s.listShown)
   const setListShown = useAgentWindow((s) => s.setListShown)
   useAgentShortcut()
+  useSettingsShortcut()
   const controlsRoom = useControlsRoom((s) => s.room)
 
   return (
@@ -83,6 +86,7 @@ export function Shell() {
           </div>
         </SidebarProvider>
         <CommandPalette />
+        <SettingsDialog />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}
         <Toaster position="bottom-right" offset={docked ? { right: 420, bottom: 24 } : undefined} />
       </div>

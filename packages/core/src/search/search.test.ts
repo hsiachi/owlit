@@ -54,6 +54,9 @@ describe("search index", () => {
     expect(papers[1].snippet).toMatch(/attention/i)
     // Words are matched as the start of a word
     expect((await call("search.papers", { q: "transf" })).map((p: { key: string }) => p.key).sort()).toEqual(["body", "title"])
+    // Find in the Library asks for the matched words marked, to show where they were
+    const [hit] = await call("search.papers", { q: "encoder", marked: true })
+    expect(hit).toMatchObject({ key: "body", snippet: expect.stringContaining("transformer \uE000encoder\uE001") })
   })
 
   it("finds docs and chats, and keeps up with changes", async () => {

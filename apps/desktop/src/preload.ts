@@ -28,6 +28,15 @@ const bridge: OwlitBridge = {
       ipcRenderer.off("controls-room", forward)
     }
   },
+  // Asked once, synchronously, so the first frame is drawn in the chosen theme and tone
+  appearance: ipcRenderer.sendSync("appearance"),
+  onMenu(listener) {
+    const forward = (_event: IpcRendererEvent, command: "settings") => listener(command)
+    ipcRenderer.on("menu", forward)
+    return () => {
+      ipcRenderer.off("menu", forward)
+    }
+  },
 }
 
 contextBridge.exposeInMainWorld("owlit", bridge)

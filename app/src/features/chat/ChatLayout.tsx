@@ -1,6 +1,5 @@
 import { useEffect } from "react"
 import { Outlet, useNavigate } from "react-router-dom"
-import { ConnectorsDialog } from "./components/ConnectorsDialog"
 import { useChatStore } from "./store"
 
 // Hosts the chat routes plus chat-wide dialogs and shortcuts
@@ -29,7 +28,6 @@ export function ChatLayout() {
   return (
     <>
       <Outlet />
-      <ConnectorsDialog />
     </>
   )
 }

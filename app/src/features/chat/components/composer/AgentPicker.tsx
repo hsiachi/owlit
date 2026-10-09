@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { useChatStore, type Selection } from "../../store"
-import { useUiStore } from "../../ui-store"
+import { openSettings } from "@/features/settings/store"
 import type { Connector, ConnectorStatus } from "../../types"
 
 export const statusLabel: Record<ConnectorStatus, string> = {
@@ -117,7 +117,6 @@ function StatusChip({ c }: { c: Connector }) {
 // selection when chatId is given, the global default otherwise.
 export function AgentPicker({ chatId, className }: { chatId?: string; className?: string }) {
   const { connectors, connector, model, mode, effort, update } = useResolvedSelection(chatId)
-  const openConnectors = useUiStore((s) => s.setConnectorsDialogOpen)
   const unavailable = isUnavailable(connector)
 
   return (
@@ -142,7 +141,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
             />
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => openConnectors(true)}>
+          <DropdownMenuItem onSelect={() => openSettings("agents")}>
             Manage agents…
           </DropdownMenuItem>
         </DropdownMenuContent>

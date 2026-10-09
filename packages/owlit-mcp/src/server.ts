@@ -64,7 +64,7 @@ One or two sentences saying where the user's understanding stands.
 
 - Lewis et al. 2020: RAG-Token can draw a different retrieved document for each token it generates. ^s1
   - [§2.1](owlit://library/arxiv-2005.11401#passage=rag-token) — Only when generating with a top-K retriever.
-- You: Per-token retrieval is what makes multi-document answers possible. ^s2
+- You: I think per-token retrieval is what makes multi-document answers possible. ^s2
   - [Related work](owlit://docs/Related%20work.md)
 - Owlit thinks: … (only Owlit's own inference, said as such) ^s3
 
@@ -77,7 +77,7 @@ One or two sentences saying where the user's understanding stands.
 
 - 2026-10-09 · [Lewis et al. 2020](owlit://library/arxiv-2005.11401) · you highlighted §2.1
 
-A line's one sub-bullet holds its sources, then " — " and a sentence: when the line holds, or where a question stands. New lines may leave out ^id; owlit gives them one.`
+A line's one sub-bullet holds its sources, then " — " and a sentence: when the line holds, or where a question stands. A You line is the user speaking, first person ("I", "my draft"); Owlit's lines and the summary may say "your". New lines may leave out ^id; owlit gives them one.`
 
 async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions): Promise<string> {
   const str = (key: string) => args[key] as string

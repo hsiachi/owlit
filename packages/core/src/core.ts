@@ -17,6 +17,7 @@ import { limitMetadataHosts } from "./library/resolve.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
+import { registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
@@ -72,7 +73,7 @@ export class Core {
 
   constructor(options: CoreOptions) {
     this.options = options
-    this.settings = new SettingsStore(options.userDataDir)
+    this.settings = new SettingsStore(options.userDataDir, options.host?.secrets)
     this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
     limitMetadataHosts(this.http)
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
@@ -136,9 +137,18 @@ export class Core {
     })
     this.router.register("activity.status", noParams, async () => (await this.settings.get()).activity)
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), async ({ enabled }) => {
-      const { activity } = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
-      this.notifier.notify("activity.status", activity)
-      return activity
+      const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
+      this.notifier.notify("activity.status", next.activity)
+      this.notifier.notify("settings.changed", settingsView(next))
+      return next.activity
+    })
+
+    registerSettings({
+      router: this.router,
+      settings: this.settings,
+      http: this.http,
+      browser: options.host?.browser,
+      changed: (view) => this.notifier.notify("settings.changed", view),
     })
 
     const docs = () => this.requireWorkspace().docs
@@ -321,7 +331,7 @@ export class Core {
     const search = () => this.requireWorkspace().search
     const query = z.object({ q: z.string() })
     this.router.register("search.palette", query, ({ q }) => search().palette(q))
-    this.router.register("search.papers", query, ({ q }) => search().papers(q))
+    this.router.register("search.papers", query.extend({ marked: z.boolean().optional() }), ({ q, marked }) => search().papers(q, marked))
     this.router.register("search.status", noParams, () => search().status())
     this.router.register("search.rebuild", noParams, () => {
       search().rebuild()

@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -10,7 +11,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { SettingsIcon } from "lucide-react"
 import { matchNav, nav } from "@/app/nav"
+import { openSettings } from "@/features/settings/store"
 import { useLibraryStore } from "@/features/library/store"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -59,6 +62,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        {/* Settings opens over the page as a dialog, so its button sits apart from the places */}
+        <SidebarFooter className="px-(--frame-gap) pb-0">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SettingsButton />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
       </Sidebar>
 
       {/* Second column: the current place's list; left half of the sheet, lightly tinted and divided from the
@@ -73,5 +84,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </Sidebar>
       )}
     </Sidebar>
+  )
+}
+
+function SettingsButton() {
+  return (
+    <SidebarMenuButton tooltip={{ children: "Settings", hidden: false }} onClick={() => openSettings()} className="px-2.5 md:px-2">
+      <SettingsIcon />
+      <span>Settings</span>
+    </SidebarMenuButton>
   )
 }

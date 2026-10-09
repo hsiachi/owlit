@@ -8,6 +8,7 @@ import { unzip } from "./unzip.ts"
 // order with where they sit.
 
 const CLOUD = "https://mineru.net"
+const SELF_HOSTED = "http://127.0.0.1:8000"
 const POLL_MS = 5000
 
 // MinerU refused for a reason another try won't change (a bad token, a file it can't read)
@@ -30,7 +31,8 @@ export interface CloudState {
   pages?: { done: number; total: number }
 }
 
-const base = (settings: ParsingSettings) => (settings.url ?? CLOUD).replace(/\/+$/, "")
+// The address belongs to the self-hosted service only, so switching to the cloud and back keeps it
+const base = (settings: ParsingSettings) => (settings.service === "self-hosted" ? (settings.url ?? SELF_HOSTED) : CLOUD).replace(/\/+$/, "")
 const auth = (settings: ParsingSettings) => ({ authorization: `Bearer ${settings.token ?? ""}`, "content-type": "application/json" })
 
 interface Envelope<T> {
@@ -140,4 +142,36 @@ export async function parseSelfHosted(http: Http, settings: ParsingSettings, nam
   const list = typeof result?.content_list === "string" ? (JSON.parse(result.content_list) as ContentBlock[]) : result?.content_list
   if (!list) throw new Error("The MinerU server sent no content list.")
   return list
+}
+
+// Settings › PDF reading tries a token by asking about a batch that doesn't exist: the cloud answers
+// a bad token with A02xx (or 401/403) before it looks for the batch, and anything else means the token
+// got through. A used-up quota is not a bad token.
+export async function tryToken(http: Http, settings: ParsingSettings): Promise<"works" | "rejected" | "quota" | "unreachable"> {
+  try {
+    const answer = await http.json<Envelope<unknown>>(`${base(settings)}/api/v4/extract-results/batch/owlit-token-check`, {
+      headers: auth(settings),
+      retries: 0,
+      timeoutMs: 15_000,
+    })
+    const code = String(answer.code)
+    if (/^A02/.test(code)) return "rejected"
+    if (/^-6001[89]$/.test(code)) return "quota"
+    return "works"
+  } catch (error) {
+    if (error instanceof HttpError && (error.status === 401 || error.status === 403)) return "rejected"
+    if (error instanceof HttpError && error.status > 0) return "works"
+    return "unreachable"
+  }
+}
+
+// A self-hosted MinerU is there when anything answers at its address (FastAPI serves /openapi.json)
+export async function tryServer(http: Http, settings: ParsingSettings): Promise<boolean> {
+  try {
+    const response = await http.get(`${base(settings)}/openapi.json`, { retries: 0, timeoutMs: 5_000 })
+    await response.body?.cancel().catch(() => {})
+    return true
+  } catch (error) {
+    return error instanceof HttpError && error.status > 0
+  }
 }
