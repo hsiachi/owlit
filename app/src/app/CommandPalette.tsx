@@ -20,6 +20,7 @@ import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useNewDoc } from "@/features/docs/use-new-doc"
 import { paperMeta } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
+import { useFullText } from "@/features/search/full-text"
 import { usePaletteStore } from "./palette-store"
 
 // Before anything is typed, each group shows its most recent few
@@ -48,6 +49,8 @@ export function CommandPalette() {
   const files = useDocsStore((s) => s.files)
   const newDoc = useNewDoc()
   const [query, setQuery] = useState("")
+  // Papers whose text (not just their details) has every word typed
+  const fullText = useFullText(open ? query : "")
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -71,8 +74,14 @@ export function CommandPalette() {
           meta: paperMeta(p),
           // Everything one might remember a paper by
           value: [p.title, p.authors.join(" "), p.year, p.venue, p.tags.join(" "), p.ids.doi, p.ids.arxiv, p.abstract, p.id].filter(Boolean).join(" "),
-        })),
-    [papers],
+        }))
+        // A paper found by its text carries the words around the match, which the filter reads and the
+        // row shows in place of its details
+        .map((item) => {
+          const snippet = fullText.papers[item.id]
+          return { ...item, details: item.value, value: snippet ? `${item.value} ${snippet}` : item.value, snippet }
+        }),
+    [papers, fullText],
   )
 
   const chatItems = useMemo(
@@ -118,11 +127,13 @@ export function CommandPalette() {
   const paperGroup = (
     <CommandGroup key="papers" heading="Papers" className="p-0">
       {(typing ? paperItems : paperItems.slice(0, RECENT)).map((p) => (
-        <CommandItem key={p.id} value={p.value} keywords={[p.title]} onSelect={() => go(`/library/${p.id}`)} className={itemClass}>
+        // A new key once a text match arrives: cmdk works out its groups when an item comes, not when
+        // an item's value changes
+        <CommandItem key={p.snippet ? `${p.id}:text` : p.id} value={p.value} keywords={[p.title]} onSelect={() => go(`/library/${p.id}`)} className={itemClass}>
           <BookOpenIcon />
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
             <span className="max-w-[70%] shrink-0 truncate">{p.title}</span>
-            <span className="min-w-0 truncate text-sm text-muted-foreground">{p.meta}</span>
+            <span className="min-w-0 truncate text-sm text-muted-foreground">{p.snippet && !inDetails(p.details, query) ? p.snippet : p.meta}</span>
           </span>
         </CommandItem>
       ))}
@@ -211,7 +222,7 @@ export function CommandPalette() {
       >
         <CommandInput placeholder="Search papers, docs and chats…" value={query} onValueChange={setQuery} autoFocus />
         <CommandList className="max-h-[26rem] p-2">
-          <CommandEmpty className="py-10 text-muted-foreground">Nothing found.</CommandEmpty>
+          <CommandEmpty className="py-10 text-muted-foreground">{fullText.indexing ? "Nothing found yet. Still indexing…" : "Nothing found."}</CommandEmpty>
           {inChat
             ? [actions, chatGroup, paperGroup, docGroup]
             : inDocs
@@ -236,3 +247,13 @@ export function CommandPalette() {
 }
 
 const itemClass = "gap-3 rounded-md px-3 py-2 text-[15px] [&_svg]:text-muted-foreground"
+
+// Whether every word typed is in what the row shows besides the text (title, authors, venue, …)
+function inDetails(value: string, query: string) {
+  const details = value.toLowerCase()
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => details.includes(w))
+}

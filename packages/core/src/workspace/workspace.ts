@@ -10,6 +10,7 @@ import { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
+import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Scheduler, TaskStore, type TaskDefinition } from "../tasks/index.ts"
 import { acquireLock, WorkspaceLockedError } from "./lock.ts"
 import { OWLIT_DIR } from "./paths.ts"
@@ -47,6 +48,7 @@ export class Workspace {
   readonly chats: Chats
   readonly library: Library
   readonly tasks: Scheduler
+  readonly search: SearchIndex
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions) {
@@ -59,6 +61,7 @@ export class Workspace {
     this.versions = new Versions(path.join(root, OWLIT_DIR))
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
+    this.search = new SearchIndex(root, dataDir, this.library)
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
       definitions: tasks.definitions?.(this) ?? [],
@@ -88,6 +91,7 @@ export class Workspace {
       await ensureWorkspaceFile(root)
       const workspace = new Workspace(root, dataDir, release, options)
       await workspace.tasks.start()
+      workspace.search.attach(() => workspace.tasks.debounce("index.sync", "workspace", SETTLE_MS))
       return workspace
     } catch (error) {
       await release()
@@ -124,6 +128,7 @@ export class Workspace {
     await this.chats.flush()
     this.docs.dispose()
     this.library.dispose()
+    this.search.dispose()
     await this.release()
   }
 }

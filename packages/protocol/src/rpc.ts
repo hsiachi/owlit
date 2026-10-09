@@ -2,6 +2,7 @@ import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
+import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { UiRequest, WorkspaceInfo } from "./workspace.ts"
 
@@ -192,6 +193,18 @@ export interface Methods {
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md
   "library.setNote": { params: { paperId: string; content: string }; result: PaperNote }
+
+  // ---- Search: the workspace's index (papers with their full text, docs, chats, and what links where)
+  // Every word must appear; title matches first; each group's best few. indexing: still reading the
+  // workspace for the first time, so results are partial.
+  "search.palette": { params: { q: string }; result: PaletteResults & { indexing: boolean } }
+  // Papers with every word in their metadata or full text, best first
+  "search.papers": { params: { q: string }; result: SearchHit[] }
+  "search.status": { params: void; result: SearchStatus }
+  // Deletes the index and reads the workspace again
+  "search.rebuild": { params: void; result: null }
+  // What links to a paper or doc (owlit://library/<id>), under any id the paper has had
+  "links.to": { params: { uri: string }; result: LinkSource[] }
 
   // ---- Tasks: background work in the open workspace. Their state shows beside what they are about.
   // Unfinished tasks, then the ones that finished since the workspace opened, most recent first

@@ -66,8 +66,9 @@ describe("workspace.open", () => {
     const lock = path.join(workspaceDataDir(userDataDir, ws), "lock")
     expect(JSON.parse(readFileSync(lock, "utf8"))).toMatchObject({ pid: process.pid, workspace: ws })
     expect(path.basename(path.dirname(lock))).toMatch(/^[0-9a-f]{12}$/)
-    expect(heard.map((n) => n.method)).toEqual(["workspace.opened"])
-    expect(heard[0].params).toEqual({ path: ws, name: "locked" })
+    // Background tasks (the search index) may report too
+    expect(heard.map((n) => n.method).filter((m) => m !== "tasks.changed")).toEqual(["workspace.opened"])
+    expect(heard.find((n) => n.method === "workspace.opened")?.params).toEqual({ path: ws, name: "locked" })
   })
 
   it("remembers recent and last workspaces in settings.json", async () => {

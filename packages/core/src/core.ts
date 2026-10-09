@@ -18,6 +18,9 @@ import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
 export const CORE_VERSION = "0.0.0"
 
+// Methods that change what the search index covers
+const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf))$/
+
 export interface CoreOptions {
   // This machine's data directory for owlit (Electron's userData): settings.json, workspaces/<hash>/
   userDataDir: string
@@ -266,6 +269,16 @@ export class Core {
     this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
       library().removeHighlight(paperId, id),
     )
+    const search = () => this.requireWorkspace().search
+    const query = z.object({ q: z.string() })
+    this.router.register("search.palette", query, ({ q }) => search().palette(q))
+    this.router.register("search.papers", query, ({ q }) => search().papers(q))
+    this.router.register("search.status", noParams, () => search().status())
+    this.router.register("search.rebuild", noParams, () => {
+      search().rebuild()
+      return null
+    })
+    this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
     this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
@@ -310,8 +323,11 @@ export class Core {
     )
   }
 
-  handle(request: RpcRequest): Promise<RpcResponse> {
-    return this.router.handle(request)
+  async handle(request: RpcRequest): Promise<RpcResponse> {
+    const response = await this.router.handle(request)
+    // What a client changed is searched for soon after (the index waits for things to settle)
+    if (this.workspace && "result" in response && CHANGES.test(request?.method ?? "")) this.workspace.search.touch()
+    return response
   }
 
   // A file of the open workspace for the window (owlit-file://workspace/<path>), byte ranges included
@@ -362,8 +378,14 @@ export class Core {
           const chatId = this.turns.claimant(rel)
           if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
         }
-        await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
-        await next.library.watch((change) => this.notifier.notify("library.changed", change))
+        await next.docs.watch((change) => {
+          this.notifier.notify("docs.changed", change)
+          next.search.touch()
+        })
+        await next.library.watch((change) => {
+          this.notifier.notify("library.changed", change)
+          next.search.touch()
+        })
       }
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
@@ -386,7 +408,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

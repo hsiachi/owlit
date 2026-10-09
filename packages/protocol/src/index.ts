@@ -4,6 +4,7 @@
 export type * from "./chat.ts"
 export type * from "./docs.ts"
 export type * from "./library.ts"
+export type * from "./search.ts"
 export * from "./rpc.ts"
 export * from "./workspace.ts"
 export * from "./activity.ts"

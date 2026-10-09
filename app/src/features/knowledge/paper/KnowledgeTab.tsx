@@ -17,6 +17,7 @@ import { shortDate } from "../lib/when"
 import { dismissConnection, editLine, setConnection, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
 import type { Connection, ConnectionKind, Line, PaperKnowledge, Passage, Topic } from "../types"
 import { findInPaper } from "./find"
+import { useLibraryStore } from "@/features/library/store"
 
 // How this paper relates to what the user already has. Each item pairs something they have (their words,
 // a question, a line in a topic) with a passage of the paper; the group says the relation.
@@ -387,21 +388,26 @@ function UsedIn({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const files = useDocsStore((s) => s.files)
   const chats = useChatStore((s) => s.chats)
-  const uri = `owlit://library/${paper.id}`
+  const aliases = useLibraryStore((s) => s.aliases)
+  // Mentions under ids the paper had before it moved (a local file given its DOI) count too
+  const uris = useMemo(
+    () => [paper.id, ...Object.keys(aliases).filter((old) => aliases[old] === paper.id)].map((id) => `owlit://library/${id}`),
+    [paper.id, aliases],
+  )
   const docs = useMemo(
     () =>
       Object.values(files)
-        .filter((f) => !isHidden(f.path) && f.content && (f.content.includes(`${uri})`) || f.content.includes(`${uri}#`)))
+        .filter((f) => !isHidden(f.path) && f.content && uris.some((uri) => f.content!.includes(`${uri})`) || f.content!.includes(`${uri}#`)))
         .sort((a, b) => b.modifiedAt - a.modifiedAt)
         .map((f) => {
-          const at = f.content!.indexOf(uri)
+          const at = Math.max(0, ...uris.map((uri) => f.content!.indexOf(uri)))
           return { file: f, heading: [...f.content!.slice(0, at).matchAll(/^#{2,}\s+(.+)$/gm)].at(-1)?.[1] }
         }),
-    [files, uri],
+    [files, uris],
   )
   const talked = useMemo(
-    () => Object.values(chats).filter((c) => c.messages.some((m) => m.mentions?.some((x) => x.uri === uri) || m.context?.some((x) => x.uri === uri))),
-    [chats, uri],
+    () => Object.values(chats).filter((c) => c.messages.some((m) => m.mentions?.some((x) => uris.includes(x.uri)) || m.context?.some((x) => uris.includes(x.uri)))),
+    [chats, uris],
   )
   if (!docs.length && !talked.length) return null
   return (
