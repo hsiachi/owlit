@@ -3,7 +3,11 @@ import { BookOpenIcon, FileTextIcon } from "lucide-react"
 import { shortCite } from "@/features/docs/lib/mentions"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName, isMarkdown } from "@/features/docs/types"
+import { useChatStore } from "@/features/chat/store"
 import { useLibraryStore } from "@/features/library/store"
+import { openSettings, useSettings } from "@/features/settings/store"
+import { ago } from "../lib/when"
+import { useKnowledgeStore } from "../store"
 
 const SHOWN = 5
 
@@ -15,6 +19,7 @@ export function KnowledgeEmpty() {
   const highlights = useLibraryStore((s) => s.highlights)
   const notes = useLibraryStore((s) => s.notes)
   const files = useDocsStore((s) => s.files)
+  const status = useStatus()
 
   const marks = new Map<string, number>()
   for (const h of Object.values(highlights)) marks.set(h.paperId, (marks.get(h.paperId) ?? 0) + 1)
@@ -39,7 +44,7 @@ export function KnowledgeEmpty() {
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Owlit keeps its understanding of your research here, as topics. A topic starts once two things you read, highlighted, wrote or said are about the same question.
         </p>
-        <p className="mt-4 text-[13px] text-muted-foreground">There’s nothing to do here; it fills in by itself.</p>
+        {status ?? <p className="mt-4 text-[13px] text-muted-foreground">There’s nothing to do here; it fills in by itself.</p>}
       </div>
     )
   }
@@ -60,6 +65,25 @@ export function KnowledgeEmpty() {
         ))}
         {more > 0 && <p className="px-2.5 pt-1 text-[13px] text-muted-foreground">and {more} more</p>}
       </div>
+      <div className="text-center">{status}</div>
     </div>
   )
+}
+
+// Only what is true now: the agent that can't read the material, or when Owlit last did
+function useStatus() {
+  const run = useKnowledgeStore((s) => s.lastRun)
+  const background = useSettings((s) => s.view?.backgroundAgent)
+  const agent = useChatStore((s) => s.connectors.find((c) => c.id === background))
+  if (agent && (agent.status === "not_installed" || agent.status === "error")) {
+    return (
+      <p className="mt-4 text-[13px] text-muted-foreground">
+        Owlit can’t read your material while {agent.name} {agent.status === "not_installed" ? "isn’t installed" : "can’t run"}.{" "}
+        <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("agents")}>
+          Manage agents…
+        </button>
+      </p>
+    )
+  }
+  return run ? <p className="mt-4 text-[13px] text-muted-foreground">Owlit last read your workspace {ago(run.at)}.</p> : null
 }

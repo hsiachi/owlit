@@ -9,6 +9,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { useShowsEditsInPlace } from "@/features/chat/in-place"
 import { reportDocEdited } from "@/lib/activity"
+import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
@@ -140,7 +141,11 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
-            if (u.transactions.some(isUserEdit)) reportDocEdited(id)
+            if (u.transactions.some(isUserEdit)) {
+              reportDocEdited(id)
+              const path = useDocsStore.getState().files[id]?.path
+              if (path) markDocEdit(path, u.state.selection.main.head)
+            }
             pending = crlf ? u.state.doc.toString().replace(/\n/g, "\r\n") : u.state.doc.toString()
             clearTimeout(timer)
             timer = setTimeout(flush, SAVE_DELAY)

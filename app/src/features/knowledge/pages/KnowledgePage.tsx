@@ -56,7 +56,8 @@ export function KnowledgePage() {
         {/* Questions may join as a second view; until then a lone tab strip would say nothing */}
         <h1 className="text-[22px] leading-tight font-medium tracking-tight">Knowledge</h1>
       </header>
-      <RecentRun />
+      {/* With no topics the empty state says when Owlit last read */}
+      {topics.length > 0 && <RecentRun />}
       {(topics.length >= FIND_FROM || query) && <FindField />}
       {topics.length === 0 ? (
         <KnowledgeEmpty />

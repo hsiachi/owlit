@@ -5,6 +5,7 @@ import { router } from "@/app/router"
 import { startMenu } from "@/app/menu"
 import { startUiActions } from "@/app/ui-actions"
 import { startActivity } from "@/lib/activity"
+import { startTrail } from "@/features/home/trail"
 import { onNotify } from "@/lib/rpc"
 import { startAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
@@ -40,6 +41,7 @@ window.addEventListener(
 onNotify("core.hello", ({ version, node }) => console.info(`[owlit] core ${version} ready (Node ${node})`))
 
 startActivity(router)
+startTrail()
 startUiActions(router)
 startMenu(router)
 
