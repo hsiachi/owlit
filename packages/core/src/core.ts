@@ -8,6 +8,7 @@ import { Turns } from "./agents/turns.ts"
 import type { Host } from "./docs/docs.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SettingsStore } from "./settings.ts"
+import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
 export const CORE_VERSION = "0.0.0"
@@ -19,6 +20,8 @@ export interface CoreOptions {
   appVersion?: string
   // What the machine offers beyond Node (the system Trash, opening files in their apps)
   host?: Host
+  // A development build: adds what only helps while working on owlit (tasks.debugEnqueue)
+  debug?: boolean
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -36,6 +39,8 @@ export class Core {
   private workspace: Workspace | null = null
   // Opens and closes run one at a time, in the order asked
   private switching: Promise<unknown> = Promise.resolve()
+  private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
+  private debugTasks = debugTasks()
 
   constructor(options: CoreOptions) {
     this.options = options
@@ -174,6 +179,32 @@ export class Core {
       this.turns.respondPermission(chatId, requestId, optionId),
     )
 
+    const tasks = () => this.requireWorkspace().tasks
+    const taskId = z.string().min(1)
+    this.router.register("tasks.list", noParams, () => tasks().list())
+    this.router.register("tasks.cancel", z.object({ id: taskId }), ({ id }) => tasks().cancel(id))
+    this.router.register("tasks.resume", z.object({ id: taskId }), ({ id }) => tasks().resume(id))
+    if (options.debug) {
+      const lanes = Object.keys(LANE_LIMITS) as [keyof typeof LANE_LIMITS, ...(keyof typeof LANE_LIMITS)[]]
+      this.router.register(
+        "tasks.debugEnqueue",
+        z.object({
+          subject: z.string().min(1),
+          lane: z.enum(lanes).optional(),
+          priority: z.enum(["waiting", "asked", "background"]).optional(),
+          ms: z.number().nonnegative().optional(),
+          steps: z.number().int().positive().optional(),
+          fail: z.boolean().optional(),
+          waitForYou: z.boolean().optional(),
+        }),
+        ({ subject, lane = "network", priority, ...params }) => {
+          const task = tasks().enqueue(`debug.${lane}`, subject, priority)
+          this.debugTasks.params.set(task.id, params)
+          return task
+        },
+      )
+    }
+
     this.router.register("notes.all", noParams, () => docs().notesAll())
     this.router.register("notes.add", z.object({ path: rel, note }), ({ path, note }) => docs().addNote(path, note))
     this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
@@ -209,10 +240,18 @@ export class Core {
         throw error
       })
       // The current workspace stays open until the next one has opened, so a failed switch loses nothing
-      const next = this.workspace?.root === root ? this.workspace : await Workspace.open(root, this.options.userDataDir, this.options.host)
+      const next =
+        this.workspace?.root === root
+          ? this.workspace
+          : await Workspace.open(root, this.options.userDataDir, this.options.host, {
+              definitions: () => this.taskDefinitions(),
+              onChange: (task) => this.taskChanges.push(task),
+            })
       if (this.workspace && this.workspace !== next) {
         this.turns.reset()
         await this.workspace.dispose()
+        // The old workspace's last task changes go out before clients hear of the switch
+        this.taskChanges.flush()
       }
       if (this.workspace !== next) await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
       this.workspace = next
@@ -231,6 +270,12 @@ export class Core {
     await this.journal.dispose()
     await this.workspace?.dispose()
     this.workspace = null
+    this.taskChanges.flush()
+  }
+
+  // Every kind of task core knows
+  private taskDefinitions(): TaskDefinition[] {
+    return this.options.debug ? this.debugTasks.definitions : []
   }
 
   private requireWorkspace() {
