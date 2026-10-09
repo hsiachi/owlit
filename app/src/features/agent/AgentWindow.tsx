@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { ArrowUpIcon, ChevronDownIcon, Maximize2Icon, PanelRightIcon, SquarePenIcon, XIcon } from "lucide-react"
+import { ArrowUpIcon, ChevronDownIcon, Maximize2Icon, SquarePenIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
+import { OwlitMark } from "@/components/owlit-mark"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
@@ -118,7 +119,7 @@ export function AgentToggle() {
     <Tooltip>
       <TooltipTrigger asChild>
         <Button variant="ghost" size="icon-sm" aria-label="Owlit" aria-pressed={stage !== "closed"} onClick={toggle} className={cn("ml-auto", stage !== "closed" && "bg-accent text-foreground")}>
-          <PanelRightIcon />
+          <OwlitMark />
         </Button>
       </TooltipTrigger>
       <TooltipContent className="flex items-center gap-1.5">

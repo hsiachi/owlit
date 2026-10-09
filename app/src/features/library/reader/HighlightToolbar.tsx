@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-react"
+import { OwlitMark } from "@/components/owlit-mark"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_VAR } from "../lib/highlights"
 import type { HighlightColor } from "../types"
 
 // The one popover for text in the PDF, whether it is a fresh selection or an existing highlight:
-// four colours, copy, comment, for a highlight delete, and Ask Owlit in words. The same look for both, so a
+// four colours, copy, comment, Ask Owlit, and for a highlight, delete. The same look for both, so a
 // highlight is just a selection that was kept.
 
 const BUTTON = "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4"
@@ -125,22 +126,20 @@ export function HighlightToolbar({
             <MessageSquareTextIcon />
           </button>
         </Tip>
+        {onAsk && (
+          // Owlit's own mark, as on every control whose action is Owlit; named "Ask Owlit" as everywhere else
+          <Tip label="Ask Owlit">
+            <button type="button" aria-label="Ask Owlit" onClick={onAsk} className={BUTTON}>
+              <OwlitMark />
+            </button>
+          </Tip>
+        )}
         {onDelete && (
           <Tip label="Delete highlight">
             <button type="button" aria-label="Delete highlight" onClick={onDelete} className={BUTTON}>
               <Trash2Icon />
             </button>
           </Tip>
-        )}
-        {onAsk && (
-          // In words, as everywhere a passage goes to Owlit (the note, Docs, Knowledge): it starts a
-          // conversation rather than acting on the page, so it doesn't hide among the page's tools
-          <>
-            <span className="mx-1 h-4 w-px bg-border" />
-            <button type="button" onClick={onAsk} className="h-7 shrink-0 rounded-md px-2 text-[13px] whitespace-nowrap text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-              Ask Owlit
-            </button>
-          </>
         )}
       </div>
       {commenting && (
