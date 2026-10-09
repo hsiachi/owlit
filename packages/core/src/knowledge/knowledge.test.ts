@@ -61,6 +61,13 @@ describe("checkTopic", () => {
     ])
   })
 
+  it("keeps the user's lines in their own voice", () => {
+    const content = topicFile([ragLine, "- You: Your Related work builds on this model. ^s2", "- Owlit thinks: Your draft and this paper agree. ^s3", "- You: My Related work builds on this model. ^s4"])
+    expect(checkTopic({ before: null, content, sidecar: blank(), remove: [], passages }).problems).toEqual([
+      '^s2 is the user speaking, so it is in their voice, first person ("I", "my draft"), not "your": “Your Related work builds on this…”.',
+    ])
+  })
+
   it("wants a line that goes named in remove, and gives new lines fresh ids", () => {
     const before = topicOf([ragLine, "- Owlit thinks: Retrieval granularity matters. ^s2"])
     const dropped = topicFile([ragLine])

@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useChatStore } from "@/features/chat/store"
 import { shortDate } from "@/features/knowledge/lib/when"
+import { Info } from "@/features/settings/parts"
 import { rpc } from "@/lib/rpc"
 import { undoChange } from "@/lib/versions"
 import { displayName, type WorkspaceFile } from "../types"
+
+const ABOUT = "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
 
 const time = (t: number) => `${shortDate(t)}, ${new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
 
@@ -42,25 +45,29 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      {/* Focus would land on the title's info icon and open its tooltip */}
+      <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>Versions of {name}</DialogTitle>
-          <DialogDescription>The text from before each change Owlit made, kept for 30 days.</DialogDescription>
+          <DialogTitle className="flex items-center gap-1">
+            Versions of {name}
+            <Info text={ABOUT} />
+          </DialogTitle>
+          <DialogDescription className="sr-only">{ABOUT}</DialogDescription>
         </DialogHeader>
         {versions && !versions.length && <p className="py-6 text-center text-sm text-muted-foreground">Owlit hasn't changed this doc.</p>}
         {!!versions?.length && (
-          <ul className="-mx-2 flex max-h-96 flex-col overflow-y-auto">
+          <ul className="flex max-h-96 flex-col divide-y overflow-y-auto rounded-lg border">
             {versions.map((v) => {
               const chat = v.chatId ? chats[v.chatId] : undefined
               return (
-                <li key={v.id} className="group/version flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">{v.by === "undo" ? "Before an undo" : "Before Owlit's edit"}</p>
-                    <p className="truncate text-xs text-muted-foreground">
+                <li key={v.id} className="group/version flex h-11 items-center gap-3 pr-2 pl-3.5">
+                  <p className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <span className="shrink-0 text-sm">{v.by === "undo" ? "Before an undo" : "Before Owlit's edit"}</span>
+                    <span className="truncate text-xs text-muted-foreground">
                       {time(v.at)}
                       {chat ? ` · from “${chat.title || "a chat"}”` : v.chatId ? " · from a chat" : ""}
-                    </p>
-                  </div>
+                    </span>
+                  </p>
                   <Button variant="ghost" size="sm" className="opacity-0 group-hover/version:opacity-100 focus-visible:opacity-100" onClick={() => restore(v)}>
                     Restore
                   </Button>

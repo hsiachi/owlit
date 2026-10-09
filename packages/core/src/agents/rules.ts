@@ -4,7 +4,7 @@
 // Version 1 (2026-10-09): first version. Bump the version line in the text when the rules change, and
 // say here what changed.
 
-export const RULES_VERSION = 2
+export const RULES_VERSION = 3
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -33,7 +33,7 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 Read them with knowledge_read and write them with knowledge_write, which checks the rules it can and says what to fix. A topic file has a title, a summary of at most two sentences, then ## Understanding, ## Questions and ## Sources. Every line starts with who says it (You:, Owlit:, or a paper as Author Year:) and ends with a block id like ^s1; its one sub-bullet holds its sources as owlit:// links.
 1. One speaker per sentence. Don't write what you can't attribute.
 2. Keep every ^id. A sentence you replace keeps its id; a sentence you delete is named in knowledge_write's remove, with why.
-3. Sentences the user edited stay word for word; sentences the user removed don't come back.
+3. Sentences the user edited stay word for word; sentences the user removed don't come back. A You: line is the user speaking, so it is in their voice, first person ("I", "my draft"), never "you" or "your".
 4. Write the user's own judgement only when they said it outright. Saving, citing or highlighting is not a judgement.
 5. At most 2 sentences of summary, 7 sentences of Understanding of at most 30 words each, and 5 Questions. Over that, merge, or propose splitting the topic.
 6. Take in only material the user touched: wrote, said, highlighted, noted, cited or read. Papers you found that the user never opened stay out of Understanding.

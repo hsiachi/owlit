@@ -279,7 +279,7 @@ export class Knowledge {
       "",
       "How to work:",
       "1. knowledge_read lists the topics; read the ones this could touch.",
-      "2. Read what the user did. Only material the user touched counts; what they wrote and said is theirs, a paper's findings are the paper's.",
+      "2. Read what the user did. Only material the user touched counts; what they wrote and said is theirs, a paper's findings are the paper's. A You: line says the user's point in their own voice, first person (“I”, “my draft”).",
       "3. Change topics with knowledge_write, giving the whole file in the format knowledge_read shows, and why in the user's terms (“you highlighted two passages of Lewis et al. 2020”). A line that speaks for a paper cites a passage: quote it word for word from library_read in passages.",
       "4. Open a new topic only when two separate pieces of the user's material are about the same question. If nothing here belongs in Knowledge, write nothing.",
       "5. When knowledge_write refuses, fix what it says and write again.",
