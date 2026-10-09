@@ -20,10 +20,12 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
+import type { BrowserHost } from "../host.ts"
 import { HttpError, type Http } from "../net/http.ts"
+import { browserRoutes } from "./browser-routes.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
-import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { keepSources, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
@@ -67,6 +69,8 @@ const SETTLE_MS = 300
 
 export interface LibraryServices {
   http: Http
+  // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
+  browser?: BrowserHost
   // MinerU's settings, read at each use
   parsing?: () => Promise<ParsingSettings>
   // pdfium's wasm, where the desktop app ships it; tests and the CLI find it in the package
@@ -351,7 +355,8 @@ export class Library {
   async fetchPdf(id: string): Promise<Paper> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!this.scheduler?.knows("paper.pdf")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't look for PDFs here.")
-    const task = await this.scheduler.run("paper.pdf", id, "waiting")
+    let task = await this.scheduler.run("paper.pdf", id, "waiting")
+    if (!(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
     const paper = await this.get(id)
     if (!paper) throw notFound(id)
     if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't look for a PDF.")
@@ -373,6 +378,59 @@ export class Library {
       .catch(() => undefined)
     if (head === undefined) return undefined
     return head === LEGACY_TEXT_MARK ? "full" : "basic"
+  }
+
+  private browserTask(browser: BrowserHost) {
+    return defineTask("paper.pdf.browser", {
+      lane: "browser",
+      retries: 0,
+      run: async (ctx) => {
+        const id = ctx.task.subject
+        const record = await readRecord(this.root, id)
+        if (!record?.ids.doi || (await hasPdfFile(this.root, id))) return
+        const settings = await this.services.settings()
+        const dest = pdfFile(this.root, id)
+        const previous = await readAcquisition(this.root, id)
+        const tried: Attempt[] = [...(previous?.tried ?? [])]
+        for (const route of browserRoutes(record.ids.doi, settings.proxy)) {
+          ctx.progress(0, undefined, route.name)
+          try {
+            const bytes = await browser.fetchPdf({
+              landing: route.landing,
+              pdf: route.pdf,
+              pdfOnPageHost: route.name.endsWith(":proxied"),
+              allowHosts: route.allowHosts,
+              signal: ctx.signal,
+              needUser: async (reason, detail, settled) => {
+                const waiting = ctx.waitForUser(reason, detail)
+                // The page moved on by itself (signed in, challenge passed): the task goes on
+                settled.then(
+                  () => this.scheduler?.resume(ctx.task.id),
+                  () => this.scheduler?.resume(ctx.task.id),
+                )
+                await waiting
+                await settled
+              },
+            })
+            if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
+            await writeFileAtomic(dest, Buffer.from(bytes))
+            const sha256 = await sha256Of(dest)
+            this.pdfHashes?.set(sha256, id)
+            tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
+            await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
+            for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, ctx.task.priority)
+            await this.announce([id])
+            return
+          } catch (error) {
+            if (ctx.signal.aborted) throw error
+            tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
+          }
+        }
+        if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
+        await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
+        await this.announce([id])
+      },
+    })
   }
 
   // The paper's reading notes (digest.md), or null when it has none
@@ -738,9 +796,14 @@ export class Library {
             if (tried.some((t) => t.status === 0)) throw new HttpError(0, tried[0].url, "Couldn't reach any source of PDFs.")
           }
           await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
+          // The publisher may still give it to a browser: cookies, a challenge, the library's proxy
+          if (record.ids.doi) this.queue("paper.pdf.browser", id, ctx.task.priority)
           await this.announce([id])
         },
       }),
+      // The publisher's page in the hidden browser, directly and then through the library's proxy. A
+      // challenge or a sign-in form shows the window and waits for the user (5 minutes at most).
+      ...(this.services.browser ? [this.browserTask(this.services.browser)] : []),
       // Asks the services about a paper already in the library and rewrites its paper.json
       defineTask("paper.metadata", {
         lane: "network",

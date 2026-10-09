@@ -199,6 +199,9 @@ export interface Methods {
   // An empty note removes note.md
   "library.setNote": { params: { paperId: string; content: string }; result: PaperNote }
 
+  // Development only: the hidden browser opens landing and fetches the PDF, with no task around it
+  "library.debugBrowserFetch": { params: { landing: string; pdf?: string; allowHosts: string[] }; result: { bytes: number; head: string } }
+
   // ---- Search: the workspace's index (papers with their full text, docs, chats, and what links where)
   // Every word must appear; title matches first; each group's best few. indexing: still reading the
   // workspace for the first time, so results are partial.

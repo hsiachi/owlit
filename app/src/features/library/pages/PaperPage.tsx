@@ -324,7 +324,7 @@ function NoPdf({ paper }: { paper: Paper }) {
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
-  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf")) || fetching
+  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
 
   const attach = async (files: FileList | null) => {
     const file = files?.[0]
@@ -409,7 +409,7 @@ function NoPdf({ paper }: { paper: Paper }) {
 // "Tried arXiv, Unpaywall and the publisher." from acquisition route names
 function triedSentence(routes: string[]) {
   const nameOf = (r: string) =>
-    r === "arxiv" ? "arXiv" : r.startsWith("publisher") ? "the publisher" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
+    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? "the publisher" : r.endsWith(":proxied") ? "the library proxy" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
   const names = [...new Set(routes.map(nameOf))].filter(Boolean)
   if (!names.length) return "owlit knows of no open copy of this paper."
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`

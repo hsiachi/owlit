@@ -50,6 +50,16 @@ export interface LibrarySettings {
   openalexApiKey?: string
   // Semantic Scholar allows far more with a key; without one it often answers "slow down"
   s2ApiKey?: string
+  // The library's proxy, through which publishers see the university's subscription
+  proxy?: ProxySettings
+}
+
+// login-url: <base><path>?url=<target> (EZproxy's /login, Tsinghua's tlink /go); host-rewrite:
+// dl.acm.org becomes dl-acm-org.<proxy host>
+export interface ProxySettings {
+  base: string
+  scheme: "login-url" | "host-rewrite"
+  path?: string
 }
 
 export interface ConnectorSettings {

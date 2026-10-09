@@ -6,6 +6,7 @@ import type { DocsChange, MethodName, ParamsOf, ResultOf, RpcRequest, WorkspaceI
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { createBrowserHost } from "./browser.ts"
 
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
@@ -110,6 +111,7 @@ async function call<M extends MethodName>(core: Core, method: M, params?: Params
 // Mission Control and the Window menu) ----
 
 let current: WorkspaceInfo | null = null
+let browserHost: ReturnType<typeof createBrowserHost> | null = null
 
 function showWorkspace(win: BrowserWindow, info: WorkspaceInfo) {
   win.setTitle(info.name)
@@ -168,6 +170,8 @@ async function importPitta(core: Core) {
 
 async function updateMenu(core: Core) {
   const recent = await call(core, "workspace.recent").catch(() => [])
+  // The library proxy's front page, where the user signs in once for the hidden browser
+  const proxy = (await core.settings.get()).library.proxy?.base
   const recentItems: MenuItemConstructorOptions[] = recent.map((info) => ({
     label: info.name,
     sublabel: info.path,
@@ -197,6 +201,11 @@ async function updateMenu(core: Core) {
         },
         { type: "separator" },
         { label: "Import a pitta Library…", enabled: !!current, click: () => void importPitta(core) },
+        {
+          label: "Sign in to Library Proxy…",
+          enabled: !!proxy,
+          click: () => proxy && void browserHost?.showLogin(proxy),
+        },
         { type: "separator" },
         { role: "close" },
       ],
@@ -224,6 +233,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
+    const browser = createBrowserHost()
+    browserHost = browser
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
@@ -233,6 +244,8 @@ if (!app.requestSingleInstanceLock()) {
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),
+        // A hidden window for publishers that want a real browser (cookies, checks, the library proxy)
+        browser,
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {
           const failure = await shell.openPath(file)

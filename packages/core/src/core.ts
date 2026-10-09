@@ -296,6 +296,14 @@ export class Core {
     this.router.register("tasks.list", noParams, () => tasks().list())
     this.router.register("tasks.cancel", z.object({ id: taskId }), ({ id }) => tasks().cancel(id))
     this.router.register("tasks.resume", z.object({ id: taskId }), ({ id }) => tasks().resume(id))
+    if (options.debug && options.host?.browser) {
+      const browser = options.host.browser
+      // Development only: the hidden browser on any page, for trying it against a local server
+      this.router.register("library.debugBrowserFetch", z.object({ landing: z.string(), pdf: z.string().optional(), allowHosts: z.array(z.string()) }), async (params) => {
+        const bytes = await browser.fetchPdf({ ...params, signal: new AbortController().signal, needUser: async (_reason, _detail, settled) => settled })
+        return { bytes: bytes.length, head: Buffer.from(bytes.subarray(0, 8)).toString("latin1") }
+      })
+    }
     if (options.debug) {
       const lanes = Object.keys(LANE_LIMITS) as [keyof typeof LANE_LIMITS, ...(keyof typeof LANE_LIMITS)[]]
       this.router.register(
@@ -367,6 +375,7 @@ export class Core {
               host: this.options.host,
               library: {
                 http: this.http,
+                browser: this.options.host?.browser,
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
