@@ -1,3 +1,4 @@
+import { MARK_CLOSE, MARK_OPEN } from "@owlit/protocol"
 import type { PaletteResults, SearchHit } from "@owlit/protocol"
 import { mkdirSync } from "node:fs"
 import path from "node:path"
@@ -94,16 +95,18 @@ export class IndexDb {
 
   // Every word must appear (as a word or the start of one). A paper, doc or chat whose title has every
   // word comes first, then by relevance; each group keeps its best `limit`.
-  palette(query: string, limit = 8): PaletteResults {
+  // marked: the matched words in snippets are wrapped in MARK_OPEN and MARK_CLOSE
+  palette(query: string, limit = 8, marked = false): PaletteResults {
     const match = toMatch(query)
     if (!match) return { papers: [], docs: [], chats: [] }
     const words = wordsOf(query)
+    const [open, close] = marked ? [MARK_OPEN, MARK_CLOSE] : ["", ""]
     const papers = this.db
       .prepare(
-        `SELECT id AS key, title, snippet(papers, -1, '', '', '…', 14) AS snippet
+        `SELECT id AS key, title, snippet(papers, -1, ?, ?, '…', 14) AS snippet
          FROM papers WHERE papers MATCH ? ORDER BY bm25(papers, 0, 10, 3, 1, 2, 1, 0, 2, 1) LIMIT ?`,
       )
-      .all(match, limit * 4) as unknown as SearchHit[]
+      .all(open, close, match, limit * 4) as unknown as SearchHit[]
     const docs = this.db
       .prepare(`SELECT path AS key, title, snippet(docs, 2, '', '', '…', 14) AS snippet FROM docs WHERE docs MATCH ? ORDER BY bm25(docs, 0, 10, 1) LIMIT ?`)
       .all(match, limit * 4) as unknown as SearchHit[]
@@ -119,8 +122,8 @@ export class IndexDb {
   }
 
   // Papers with every word in their metadata or text, best first
-  papers(query: string, limit = 200): SearchHit[] {
-    return this.palette(query, limit).papers
+  papers(query: string, limit = 200, marked = false): SearchHit[] {
+    return this.palette(query, limit, marked).papers
   }
 
   // What links to a uri (owlit://library/<id>): docs, chats and paper notes, with their titles

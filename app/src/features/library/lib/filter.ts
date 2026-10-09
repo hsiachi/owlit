@@ -57,14 +57,18 @@ export interface ListParams {
   sort: Sort
 }
 
-// The rows of All papers: what the search, filter chips, tag filter and sort leave
-export function visiblePapers(papers: Record<string, Paper>, params: ListParams): Paper[] {
+// The rows of All papers: what the search, filter chips, tag filter and sort leave. Papers found only in
+// their text (textHits, from the index, best first) follow the ones whose details match, in the index's order.
+export function visiblePapers(papers: Record<string, Paper>, params: ListParams, textHits: ReadonlyMap<string, string> = new Map()): Paper[] {
   const q = params.query.trim()
-  return Object.values(papers)
-    .filter((p) => matchesFilter(p, params.filter))
-    .filter((p) => params.tags.every((t) => p.tags.includes(t)))
-    .filter((p) => matchesQuery(p, q))
+  const kept = (p: Paper) => matchesFilter(p, params.filter) && params.tags.every((t) => p.tags.includes(t))
+  const byDetails = Object.values(papers)
+    .filter((p) => kept(p) && matchesQuery(p, q))
     .sort((a, b) => compare(a, b, params.sort))
+  if (!q || !textHits.size) return byDetails
+  const listed = new Set(byDetails.map((p) => p.id))
+  const byText = [...textHits.keys()].flatMap((id) => (papers[id] && !listed.has(id) && kept(papers[id]) ? [papers[id]] : []))
+  return [...byDetails, ...byText]
 }
 
 export function countByFilter(papers: Record<string, Paper>): Record<StatusFilter, number> {

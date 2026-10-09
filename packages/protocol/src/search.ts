@@ -1,5 +1,9 @@
 // What core's search index finds (search.*). Keys: a paper id, a doc's workspace path, a chat id.
 
+// What wraps a matched word in a marked snippet: private-use characters no text contains
+export const MARK_OPEN = "\uE000"
+export const MARK_CLOSE = "\uE001"
+
 export interface SearchHit {
   key: string
   title: string

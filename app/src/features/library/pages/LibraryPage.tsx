@@ -5,7 +5,8 @@ import { BulkBar } from "../components/BulkBar"
 import { FilterBar, FindField, LayoutToggle, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
 import { addPdfFiles } from "../lib/add-pdfs"
-import { groupPapers, visiblePapers } from "../lib/filter"
+import { groupPapers, matchesQuery, visiblePapers } from "../lib/filter"
+import { useTextHits } from "../lib/text-hits"
 import { looksLikeRef } from "../lib/ref"
 import { usePaperListKeys } from "../lib/use-list-keys"
 import { useRefLookup } from "../lib/use-ref-lookup"
@@ -45,10 +46,16 @@ export function LibraryPage() {
   const { lookup, add } = useRefLookup(refInput)
   const searchText = refInput ? "" : query
 
+  const textHits = useTextHits(searchText)
   const visible = useMemo(
-    () => visiblePapers(papers, { query: searchText, filter, tags, sort }),
-    [papers, searchText, filter, tags, sort],
+    () => visiblePapers(papers, { query: searchText, filter, tags, sort }, textHits),
+    [papers, searchText, filter, tags, sort, textHits],
   )
+  // A paper found by its text, not its details, shows where the words were
+  const snippets = useMemo(() => {
+    const q = searchText.trim()
+    return new Map(visible.flatMap((p) => (!matchesQuery(p, q) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : [])))
+  }, [visible, textHits, searchText])
   const order = useMemo(() => visible.map((p) => p.id), [visible])
   const groups = useMemo(() => groupPapers(visible, sort, searchText.trim().length > 0), [visible, sort, searchText])
   const { scroller, onKeyDown } = usePaperListKeys(order)
@@ -94,9 +101,9 @@ export function LibraryPage() {
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">No papers match.</p>
               ) : table ? (
-                <PaperTable papers={visible} order={order} />
+                <PaperTable papers={visible} order={order} snippets={snippets} />
               ) : (
-                <PaperList groups={groups} order={order} />
+                <PaperList groups={groups} order={order} snippets={snippets} />
               )}
             </div>
           </>

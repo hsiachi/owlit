@@ -331,7 +331,7 @@ export class Core {
     const search = () => this.requireWorkspace().search
     const query = z.object({ q: z.string() })
     this.router.register("search.palette", query, ({ q }) => search().palette(q))
-    this.router.register("search.papers", query, ({ q }) => search().papers(q))
+    this.router.register("search.papers", query.extend({ marked: z.boolean().optional() }), ({ q, marked }) => search().papers(q, marked))
     this.router.register("search.status", noParams, () => search().status())
     this.router.register("search.rebuild", noParams, () => {
       search().rebuild()

@@ -54,8 +54,8 @@ export class SearchIndex {
     return { ...this.db.palette(query), indexing: this.indexing }
   }
 
-  papers(query: string): SearchHit[] {
-    return this.db.papers(query)
+  papers(query: string, marked = false): SearchHit[] {
+    return this.db.papers(query, 200, marked)
   }
 
   // What mentions a paper or doc (under any id it has had)

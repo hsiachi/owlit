@@ -1,3 +1,4 @@
+import { MARK_CLOSE, MARK_OPEN } from "@owlit/protocol"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import { EllipsisVerticalIcon } from "lucide-react"
@@ -58,7 +59,17 @@ function RowActions({ paper, menuIds, className }: { paper: Paper; menuIds: stri
   )
 }
 
-function ListRow({ paper, order }: { paper: Paper; order: string[] }) {
+// Where Find's words were in a paper's text: the snippet in muted text, the matched words in body text
+function TextSnippet({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(new RegExp(`${MARK_OPEN}|${MARK_CLOSE}`))
+  return (
+    <span className={cn("block truncate text-xs text-muted-foreground", className)}>
+      {parts.map((part, i) => (i % 2 ? <span key={i} className="text-foreground">{part}</span> : part))}
+    </span>
+  )
+}
+
+function ListRow({ paper, order, snippet }: { paper: Paper; order: string[]; snippet?: string }) {
   const { selected, menuIds, handlers } = useRowHandlers(paper, order)
   return (
     <ContextMenu>
@@ -66,18 +77,22 @@ function ListRow({ paper, order }: { paper: Paper; order: string[] }) {
         <div
           {...handlers}
           className={cn(
-            "group/row flex h-9 cursor-default items-center gap-2 rounded-md pr-1 pl-2.5 text-sm select-none hover:bg-muted",
+            "group/row cursor-default rounded-md pr-1 pl-2.5 text-sm select-none hover:bg-muted",
+            snippet ? "py-1.5" : "",
             selected && "bg-accent hover:bg-accent",
           )}
         >
-          {/* Finished papers recede; the star belongs to the title, and the authors take what's left */}
-          <span className={cn("min-w-0 truncate", paper.status === "read" && "text-muted-foreground")}>{paper.title}</span>
-          {paper.starred && <StarMark />}
-          <span className="shrink-0 text-[13px] text-muted-foreground">
-            {[shortAuthors(paper.authors), paper.year].filter(Boolean).join(" · ")}
-          </span>
-          <span className="flex-1" />
-          <RowActions paper={paper} menuIds={menuIds} />
+          <div className={cn("flex items-center gap-2", snippet ? "h-6" : "h-9")}>
+            {/* Finished papers recede; the star belongs to the title, and the authors take what's left */}
+            <span className={cn("min-w-0 truncate", paper.status === "read" && "text-muted-foreground")}>{paper.title}</span>
+            {paper.starred && <StarMark />}
+            <span className="shrink-0 text-[13px] text-muted-foreground">
+              {[shortAuthors(paper.authors), paper.year].filter(Boolean).join(" · ")}
+            </span>
+            <span className="flex-1" />
+            <RowActions paper={paper} menuIds={menuIds} />
+          </div>
+          {snippet && <TextSnippet text={snippet} className="pr-9" />}
         </div>
       </ContextMenuTrigger>
       <PaperContextContent ids={menuIds} />
@@ -85,14 +100,14 @@ function ListRow({ paper, order }: { paper: Paper; order: string[] }) {
   )
 }
 
-export function PaperList({ groups, order }: { groups: PaperGroup[]; order: string[] }) {
+export function PaperList({ groups, order, snippets }: { groups: PaperGroup[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useUiStore((s) => s.peekId)
   return (
     <div className="flex flex-col gap-6">
       {groups.map((g, i) => (
         <section key={g.label ?? i}>
           {g.label && <h2 className="mb-1 px-2.5 text-xs text-muted-foreground">{g.label}</h2>}
-          {g.papers.map((p) => (p.id === peekId ? <PaperPeek key={p.id} paper={p} /> : <ListRow key={p.id} paper={p} order={order} />))}
+          {g.papers.map((p) => (p.id === peekId ? <PaperPeek key={p.id} paper={p} /> : <ListRow key={p.id} paper={p} order={order} snippet={snippets?.get(p.id)} />))}
         </section>
       ))}
     </div>
@@ -142,7 +157,7 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>): Column[] {
   return useMemo(() => COLUMNS.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [hidden])
 }
 
-function TableRow({ paper, order, columns }: { paper: Paper; order: string[]; columns: Set<ColumnKey> }) {
+function TableRow({ paper, order, columns, snippet }: { paper: Paper; order: string[]; columns: Set<ColumnKey>; snippet?: string }) {
   const { selected, menuIds, handlers } = useRowHandlers(paper, order)
   // Square cells with a hairline under each row (none under the last), as in answer tables
   const td = cn("h-9 truncate border-b px-2.5 text-[13px] text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
@@ -158,6 +173,7 @@ function TableRow({ paper, order, columns }: { paper: Paper; order: string[]; co
               <span className="truncate">{paper.title}</span>
               {paper.starred && <StarMark />}
             </span>
+            {snippet && <TextSnippet text={snippet} className="max-w-xl pb-1.5" />}
           </td>
           {columns.has("authors") && <td className={td}>{shortAuthors(paper.authors)}</td>}
           <td className={cn(td, "tabular-nums")}>{paper.year}</td>
@@ -192,7 +208,7 @@ function TableRow({ paper, order, columns }: { paper: Paper; order: string[]; co
 
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
 // Column headers sort; clicking a row peeks in a full-width row beneath it.
-export function PaperTable({ papers, order }: { papers: Paper[]; order: string[] }) {
+export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useUiStore((s) => s.peekId)
   const sort = useUiStore((s) => s.sort)
   const sortBy = useUiStore((s) => s.sortBy)
@@ -248,7 +264,7 @@ export function PaperTable({ papers, order }: { papers: Paper[]; order: string[]
               </td>
             </tr>
           ) : (
-            <TableRow key={p.id} paper={p} order={order} columns={shown} />
+            <TableRow key={p.id} paper={p} order={order} columns={shown} snippet={snippets?.get(p.id)} />
           ),
         )}
       </tbody>

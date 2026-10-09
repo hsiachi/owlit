@@ -275,8 +275,9 @@ export interface Methods {
   // Every word must appear; title matches first; each group's best few. indexing: still reading the
   // workspace for the first time, so results are partial.
   "search.palette": { params: { q: string }; result: PaletteResults & { indexing: boolean } }
-  // Papers with every word in their metadata or full text, best first
-  "search.papers": { params: { q: string }; result: SearchHit[] }
+  // Papers with every word in their metadata or full text, best first. marked: the matched words in
+  // each snippet are wrapped in MARK_OPEN and MARK_CLOSE (search.ts)
+  "search.papers": { params: { q: string; marked?: boolean }; result: SearchHit[] }
   "search.status": { params: void; result: SearchStatus }
   // Deletes the index and reads the workspace again
   "search.rebuild": { params: void; result: null }
