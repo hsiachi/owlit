@@ -1,0 +1,175 @@
+import type { PaperRecord } from "@owlit/protocol"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import { afterEach, describe, expect, it } from "vitest"
+import { Core } from "../core.ts"
+import { serveWorkspaceFile } from "../files/serve.ts"
+import { Http } from "../net/http.ts"
+import { downloadPdf, routesFor } from "./pdf.ts"
+
+const PDF = Buffer.from("%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n")
+
+const record = (ids: PaperRecord["ids"], pdfUrls: string[] = []): PaperRecord => ({ version: 1, id: "x", ids, title: "T", authors: [], fields: {}, pdfUrls })
+
+const collect = async (routes: AsyncIterable<{ name: string; url: string }>) => {
+  const all: string[] = []
+  for await (const r of routes) all.push(`${r.name} ${r.url}`)
+  return all
+}
+
+describe("routesFor", () => {
+  it("tries arXiv, then the open-access links, then the publisher, then Unpaywall, without repeats", async () => {
+    const routes = routesFor(record({ arxiv: "2403.17859", doi: "10.1007/s11192-023-04640-1" }, ["https://arxiv.org/pdf/2403.17859", "https://repo.example.org/a.pdf"]), {
+      landing: async () => undefined,
+      unpaywall: async () => [{ kind: "unpaywall", name: "unpaywall/repository", url: "https://repo.example.org/a.pdf" }, { kind: "unpaywall", name: "unpaywall/publisher", url: "https://u.example.org/b.pdf" }],
+    })
+    expect(await collect(routes)).toEqual([
+      "arxiv https://arxiv.org/pdf/2403.17859",
+      "open-access https://repo.example.org/a.pdf",
+      "publisher:springer https://link.springer.com/content/pdf/10.1007/s11192-023-04640-1.pdf",
+      "unpaywall/publisher https://u.example.org/b.pdf",
+    ])
+  })
+
+  it("asks where doi.org leads only for publishers whose PDF hangs off that page", async () => {
+    let asked = 0
+    const lookups = {
+      landing: async () => {
+        asked++
+        return "https://www.mdpi.com/2076-3417/13/1/1/"
+      },
+      unpaywall: async () => [],
+    }
+    expect(await collect(routesFor(record({ doi: "10.3390/app13010001" }), lookups))).toEqual(["publisher:mdpi https://www.mdpi.com/2076-3417/13/1/1/pdf"])
+    expect(await collect(routesFor(record({ doi: "10.1145/3626772.3657891" }), lookups))).toEqual(["publisher:acm https://dl.acm.org/doi/pdf/10.1145/3626772.3657891"])
+    expect(asked).toBe(1)
+  })
+})
+
+function serving(routes: Record<string, Response | (() => Response)>) {
+  const fetch = (async (url: string) => {
+    const match = Object.entries(routes).find(([pattern]) => url.includes(pattern))
+    if (!match) return new Response("not found", { status: 404 })
+    return typeof match[1] === "function" ? match[1]() : match[1].clone()
+  }) as unknown as typeof globalThis.fetch
+  return fetch
+}
+
+describe("downloadPdf", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "owlit-pdf-"))
+  it("keeps a PDF and refuses a web page", async () => {
+    const http = new Http({ userAgent: "t", retryBaseMs: 1, fetch: serving({ "/ok.pdf": () => new Response(PDF), "/page": () => new Response("<!doctype html><title>Sign in</title>", { headers: { "content-type": "text/html" } }) }) })
+    await downloadPdf(http, "https://pub.example.org/ok.pdf", path.join(dir, "a.pdf"))
+    expect(readFileSync(path.join(dir, "a.pdf")).subarray(0, 5).toString()).toBe("%PDF-")
+    await expect(downloadPdf(http, "https://pub.example.org/page", path.join(dir, "b.pdf"))).rejects.toThrow("pub.example.org served a web page, not a PDF.")
+    expect(existsSync(path.join(dir, "b.pdf"))).toBe(false)
+    expect(existsSync(path.join(dir, "b.pdf.part"))).toBe(false)
+  })
+
+  it("refuses a file larger than 200 MB before reading it", async () => {
+    const http = new Http({ userAgent: "t", fetch: serving({ "/huge.pdf": () => new Response(PDF, { headers: { "content-length": String(300 * 1024 * 1024) } }) }) })
+    await expect(downloadPdf(http, "https://pub.example.org/huge.pdf", path.join(dir, "c.pdf"))).rejects.toThrow("larger than 200 MB")
+  })
+})
+
+const cores: Core[] = []
+afterEach(async () => {
+  await Promise.all(cores.splice(0).map((c) => c.dispose()))
+})
+
+async function setup(fetch: typeof globalThis.fetch, library = {}) {
+  const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-pdf-")))
+  const root = path.join(base, "ws")
+  mkdirSync(root)
+  const userData = path.join(base, "userData")
+  mkdirSync(userData)
+  writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ version: 1, recentWorkspaces: [], library }))
+  const core = new Core({ userDataDir: userData, host: { fetch }, retryBaseMs: 1 })
+  cores.push(core)
+  const call = async (method: string, params?: unknown): Promise<any> => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+    if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
+    return response.result
+  }
+  await call("workspace.open", { path: root })
+  return { base, root, call, core }
+}
+
+describe("paper.pdf", () => {
+  it("gets an arXiv paper's PDF and records the route", async () => {
+    const { root, call } = await setup(serving({ "arxiv.org/pdf/1706.03762": () => new Response(PDF) }))
+    await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } } })
+    const paper = await call("library.fetchPdf", { id: "arxiv-1706.03762" })
+    expect(paper.pdf.url).toBe("owlit-file://workspace/library/papers/arxiv-1706.03762/paper.pdf")
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/arxiv-1706.03762/acquisition.json"), "utf8"))
+    expect(acquisition).toMatchObject({ result: "ok", route: "arxiv", tried: [{ route: "arxiv", status: 200 }] })
+  })
+
+  it("records no_pdf with every route tried when the publisher wants a login", async () => {
+    const fetch = serving({
+      "dl.acm.org/doi/pdf": () => new Response("<html>login</html>", { headers: { "content-type": "text/html" } }),
+      "api.unpaywall.org": () => Response.json({ oa_locations: [] }),
+    })
+    const { root, call } = await setup(fetch, { contactEmail: "me@example.org" })
+    await call("library.add", { paper: { id: "doi-10.1145-1", title: "Paywalled", authors: [], ids: { doi: "10.1145/1" } } })
+    const paper = await call("library.fetchPdf", { id: "doi-10.1145-1" })
+    expect(paper.pdf).toBeUndefined()
+    expect(paper.noPdf.tried).toEqual(["publisher:acm"])
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-1/acquisition.json"), "utf8"))
+    expect(acquisition).toMatchObject({ result: "no_pdf", dropHere: path.join(root, "library/papers/doi-10.1145-1/paper.pdf") })
+    expect(acquisition.tried[0].error).toBe("dl.acm.org served a web page, not a PDF.")
+
+    // The user has the file: it becomes the paper's PDF
+    const file = path.join(root, "..", "found.pdf")
+    writeFileSync(file, PDF)
+    const attached = await call("library.attachPdf", { id: "doi-10.1145-1", path: file })
+    expect(attached.pdf.url).toMatch(/paper\.pdf$/)
+    expect(attached.noPdf).toBeUndefined()
+    writeFileSync(file, "not a pdf")
+    await expect(call("library.attachPdf", { id: "doi-10.1145-1", path: file })).rejects.toThrow("That file isn't a PDF.")
+  })
+
+  it("notes that Unpaywall wasn't asked without a contact email", async () => {
+    const { root, call } = await setup(serving({}))
+    await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
+    await call("library.fetchPdf", { id: "doi-10.9999-x" })
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.9999-x/acquisition.json"), "utf8"))
+    expect(acquisition.tried).toMatchObject([{ route: "unpaywall", error: "Not tried: Unpaywall needs a contact email in settings." }])
+    // Not tried, so not named
+    expect((await call("library.list")).papers[0].noPdf.tried).toEqual([])
+  })
+})
+
+describe("owlit-file", () => {
+  it("serves workspace files with byte ranges and nothing outside the workspace", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-serve-")))
+    const root = path.join(base, "ws")
+    mkdirSync(path.join(root, "library/papers/p"), { recursive: true })
+    writeFileSync(path.join(root, "library/papers/p/paper.pdf"), PDF)
+    writeFileSync(path.join(base, "secret.txt"), "outside")
+    symlinkSync(path.join(base, "secret.txt"), path.join(root, "link.txt"))
+    const get = (url: string, headers: Record<string, string> = {}) => serveWorkspaceFile(root, new Request(url, { headers }))
+
+    const whole = await get("owlit-file://workspace/library/papers/p/paper.pdf")
+    expect(whole.status).toBe(200)
+    expect(whole.headers.get("content-type")).toBe("application/pdf")
+    expect(Buffer.from(await whole.arrayBuffer()).equals(PDF)).toBe(true)
+
+    const part = await get("owlit-file://workspace/library/papers/p/paper.pdf", { range: "bytes=1-4" })
+    expect(part.status).toBe(206)
+    expect(part.headers.get("content-range")).toBe(`bytes 1-4/${PDF.length}`)
+    expect(await part.text()).toBe("PDF-")
+    expect((await get("owlit-file://workspace/library/papers/p/paper.pdf", { range: "bytes=-5" })).headers.get("content-range")).toBe(
+      `bytes ${PDF.length - 5}-${PDF.length - 1}/${PDF.length}`,
+    )
+    expect((await get("owlit-file://workspace/library/papers/p/paper.pdf", { range: "bytes=9999-" })).status).toBe(416)
+
+    expect((await get("owlit-file://workspace/../secret.txt")).status).not.toBe(200)
+    expect((await get("owlit-file://workspace/%2E%2E/secret.txt")).status).not.toBe(200)
+    expect((await get("owlit-file://workspace/link.txt")).status).toBe(403)
+    expect((await get("owlit-file:///etc/passwd")).status).toBe(404)
+    expect((await get("owlit-file://workspace/etc/passwd")).status).toBe(404)
+    expect((await serveWorkspaceFile(undefined, new Request("owlit-file://workspace/library/papers/p/paper.pdf"))).status).toBe(404)
+  })
+})

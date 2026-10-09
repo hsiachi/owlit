@@ -8,6 +8,7 @@ import { Turns } from "./agents/turns.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
+import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
@@ -244,6 +245,10 @@ export class Core {
     this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
       library().removeHighlight(paperId, id),
     )
+    this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
+    this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
+      library().attachPdf(id, path),
+    )
     this.router.register("library.setNote", z.object({ paperId, content: z.string() }), ({ paperId, content }) =>
       library().setNote(paperId, content),
     )
@@ -284,6 +289,11 @@ export class Core {
 
   handle(request: RpcRequest): Promise<RpcResponse> {
     return this.router.handle(request)
+  }
+
+  // A file of the open workspace for the window (owlit-file://workspace/<path>), byte ranges included
+  serveFile(request: Request): Promise<Response> {
+    return serveWorkspaceFile(this.workspace?.root, request)
   }
 
   onNotify(listener: (notification: RpcNotification) => void) {

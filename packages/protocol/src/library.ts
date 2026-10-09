@@ -36,6 +36,8 @@ export interface Paper {
   abstract?: string
   ids: PaperIds
   pdf?: PaperPdf
+  // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …)
+  noPdf?: { tried: string[]; at: number }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"

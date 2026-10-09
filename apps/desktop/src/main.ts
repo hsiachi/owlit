@@ -18,8 +18,12 @@ if (process.env.OWLIT_USER_DATA) app.setPath("userData", path.resolve(process.en
 const RENDERER_SCHEME = "app"
 const rendererDir = path.join(__dirname, "renderer")
 
+// owlit-file://workspace/<path> reads a file of the open workspace (a paper's PDF), served by core
+const FILE_SCHEME = "owlit-file"
+
 protocol.registerSchemesAsPrivileged([
   { scheme: RENDERER_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: FILE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
 ])
 
 function serveRenderer() {
@@ -61,6 +65,7 @@ function createWindow() {
 // every window
 function attachCore(core: Core) {
   ipcMain.handle("rpc", (_event, request: RpcRequest) => core.handle(request))
+  protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.webContents.isDestroyed()) win.webContents.send("notify", notification)

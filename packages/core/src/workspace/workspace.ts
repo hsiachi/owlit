@@ -55,7 +55,7 @@ export class Workspace {
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.chats = new Chats(path.join(root, OWLIT_DIR))
-    this.library = new Library(root, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
+    this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
       definitions: tasks.definitions?.(this) ?? [],

@@ -2,7 +2,7 @@
 // window.owlit (OwlitBridge) and nothing else.
 
 import type { OwlitBridge, RpcNotification, RpcResponse } from "@owlit/protocol"
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron"
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron"
 
 let nextId = 1
 
@@ -17,6 +17,7 @@ const bridge: OwlitBridge = {
       ipcRenderer.off("notify", forward)
     }
   },
+  pathForFile: (file) => webUtils.getPathForFile(file as File),
 }
 
 contextBridge.exposeInMainWorld("owlit", bridge)

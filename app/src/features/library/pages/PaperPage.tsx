@@ -27,6 +27,7 @@ import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/Know
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useReaderStore } from "../reader/reader-store"
+import { openTasksFor, useTasksStore } from "@/features/tasks/store"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -310,12 +311,19 @@ function NoPdf({ paper }: { paper: Paper }) {
   const [fetching, setFetching] = useState(false)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  // A paper.pdf task core is running for this paper (on add, or a daily retry)
+  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf")) || fetching
 
-  const attach = (files: FileList | null) => {
+  const attach = async (files: FileList | null) => {
     const file = files?.[0]
     if (!file) return
-    updatePaper(paper.id, { pdf: { url: URL.createObjectURL(file) } })
-    toast("PDF attached", { description: file.name })
+    try {
+      const pdf = await libraryClient.attachPdf(paper, file)
+      updatePaper(paper.id, { pdf, noPdf: undefined })
+      toast("PDF attached", { description: file.name })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't attach that file.")
+    }
   }
 
   const fetchPdf = async () => {
@@ -331,6 +339,13 @@ function NoPdf({ paper }: { paper: Paper }) {
     }
   }
 
+  const title = looking ? "Looking for a PDF…" : paper.noPdf ? "No PDF found" : "No PDF yet"
+  const body = looking
+    ? "If you already have it, drop it here."
+    : paper.noPdf
+      ? `${triedSentence(paper.noPdf.tried)} Drop a PDF here if you have it.`
+      : "Drop a PDF here, or let owlit look for an open-access copy."
+
   return (
     <div
       className="flex flex-1 items-center justify-center p-6"
@@ -342,7 +357,7 @@ function NoPdf({ paper }: { paper: Paper }) {
       onDrop={(e) => {
         e.preventDefault()
         setDragging(false)
-        attach(e.dataTransfer.files)
+        void attach(e.dataTransfer.files)
       }}
     >
       <div
@@ -351,12 +366,14 @@ function NoPdf({ paper }: { paper: Paper }) {
           dragging && "border-foreground/30 bg-muted",
         )}
       >
-        <p className="text-[15px] font-medium">No PDF yet</p>
-        <p className="max-w-72 text-sm text-muted-foreground">Drop a PDF here, or let owlit look for an open-access copy.</p>
+        <p className="flex items-center gap-2 text-[15px] font-medium">
+          {looking && <Spinner />}
+          {title}
+        </p>
+        <p className="max-w-72 text-sm text-muted-foreground">{body}</p>
         <div className="mt-3 flex gap-2">
-          <Button size="sm" onClick={fetchPdf} disabled={fetching}>
-            {fetching && <Spinner />}
-            Find PDF
+          <Button size="sm" onClick={fetchPdf} disabled={looking}>
+            {paper.noPdf ? "Try again" : "Find PDF"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
             Choose file
@@ -368,7 +385,7 @@ function NoPdf({ paper }: { paper: Paper }) {
           accept="application/pdf"
           className="hidden"
           onChange={(e) => {
-            attach(e.target.files)
+            void attach(e.target.files)
             e.target.value = ""
           }}
         />
@@ -377,3 +394,12 @@ function NoPdf({ paper }: { paper: Paper }) {
   )
 }
 
+// "Tried arXiv, Unpaywall and the publisher." from acquisition route names
+function triedSentence(routes: string[]) {
+  const nameOf = (r: string) =>
+    r === "arxiv" ? "arXiv" : r.startsWith("publisher") ? "the publisher" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
+  const names = [...new Set(routes.map(nameOf))].filter(Boolean)
+  if (!names.length) return "owlit knows of no open copy of this paper."
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
+  return `Tried ${list}.`
+}

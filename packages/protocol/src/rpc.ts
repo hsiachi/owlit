@@ -170,6 +170,11 @@ export interface Methods {
   // Adds a highlight, or replaces the one with its id
   "library.putHighlight": { params: { highlight: Highlight }; result: null }
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
+  // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
+  // paper comes back with pdf, or with noPdf saying what was tried.
+  "library.fetchPdf": { params: { id: string }; result: Paper }
+  // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
+  "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md
   "library.setNote": { params: { paperId: string; content: string }; result: PaperNote }
 
@@ -229,4 +234,6 @@ export interface OwlitBridge {
   rpc(method: string, params?: unknown): Promise<RpcResponse>
   // Every notification core sends; returns an unsubscribe
   onNotify(listener: (notification: RpcNotification) => void): () => void
+  // Where a dropped or chosen file is on disk, so core can read it; "" for a file that isn't one
+  pathForFile(file: { readonly name: string; readonly size: number }): string
 }
