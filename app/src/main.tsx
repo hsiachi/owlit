@@ -6,6 +6,7 @@ import { startActivity } from "@/lib/activity"
 import { onNotify } from "@/lib/rpc"
 import "@/lib/workspace"
 import "@/features/tasks/store"
+import "@/features/library/disk"
 import "./index.css"
 
 // Follow the system appearance; the dark tokens in index.css hang off the .dark class

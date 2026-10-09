@@ -170,6 +170,8 @@ if (!app.requestSingleInstanceLock()) {
       appVersion: app.getVersion(),
       debug: !app.isPackaged,
       host: {
+        // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
+        fetch: (input, init) => net.fetch(input as string, init),
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {
           const failure = await shell.openPath(file)

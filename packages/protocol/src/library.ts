@@ -10,8 +10,14 @@ export type HighlightColor = "yellow" | "green" | "blue" | "pink"
 export type PaperKind = "article" | "conference" | "preprint" | "book" | "thesis" | "other"
 
 export interface PaperIds {
+  // Lowercase, without a doi.org prefix
   doi?: string
+  // Without a version: 2408.00447, hep-th/9901001
   arxiv?: string
+  // Semantic Scholar's paperId (40 hex)
+  s2?: string
+  // OpenAlex work id: W2741809807
+  openalex?: string
   url?: string
 }
 
@@ -82,6 +88,64 @@ export interface PaperNote {
   updatedAt: number
 }
 
-// What a reference resolves to before it becomes a Paper
+// What a reference resolves to before it becomes a Paper. id is the one it will have in the library.
 export type ResolvedPaper = Pick<Paper, "title" | "authors" | "ids"> &
-  Partial<Pick<Paper, "year" | "venue" | "abstract" | "pdf">>
+  Partial<Pick<Paper, "id" | "year" | "venue" | "abstract" | "pdf" | "kind">>
+
+// library/papers/<id>/paper.json: what the paper is, as the services and the file say. Regenerable;
+// what the user changed by hand lives in .owlit/papers/<id>/state.json (overrides) and wins.
+export interface PaperRecord {
+  version: 1
+  id: string
+  ids: PaperIds
+  title: string
+  authors: string[]
+  year?: number
+  // ISO date of first publication
+  date?: string
+  venue?: string
+  abstract?: string
+  kind?: PaperKind
+  // Semantic Scholar's one-sentence summary
+  tldr?: string
+  citationCount?: number
+  // Open-access PDF links the services know, best first
+  pdfUrls?: string[]
+  // Where each field came from: "openalex" | "s2" | "arxiv" | "pdf" | …
+  fields: Partial<Record<string, string>>
+  // When the services were last asked
+  fetchedAt?: number
+}
+
+// .owlit/papers/<id>/state.json: what the user thinks of a paper and did with it. Kept forever,
+// travels with the workspace. Highlights sit beside it in highlights.jsonl, the note in note.md.
+export interface PaperState {
+  version: 1
+  addedAt: number
+  addedBy: Paper["addedBy"]
+  starred: boolean
+  status: ReadStatus
+  tags: string[]
+  position?: ReadingPosition
+  lastOpenedAt?: number
+  // Fields the user corrected by hand; they win over paper.json and survive a metadata refresh
+  overrides?: PaperOverrides
+}
+
+// null: the user cleared a field the record has
+export type PaperOverrides = Partial<Pick<PaperRecord, "title" | "authors" | "kind">> & {
+  year?: number | null
+  venue?: string | null
+  abstract?: string | null
+  ids?: Partial<PaperIds>
+}
+
+// What library.update may change: the user's judgement and position, or a field they correct
+export type PaperPatch = Partial<Omit<Paper, "id" | "pdf" | "addedAt" | "addedBy">>
+
+// library.changed: papers core changed on its own (a task, another program, an agent); the window
+// takes them as they are. Removed ids are gone from the library.
+export interface LibraryChange {
+  papers: Paper[]
+  removed: string[]
+}

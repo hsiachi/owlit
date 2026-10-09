@@ -23,13 +23,10 @@ import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { invalidParams, RpcFailure } from "../rpc/index.ts"
 import { Notes } from "./notes.ts"
+import type { Host } from "../host.ts"
 
 // What core needs from the machine it runs on that plain Node can't do: the desktop app hands in
 // Electron's shell; without one, deleted files go to .owlit/trash/ and nothing opens
-export interface Host {
-  trash?(absolutePath: string): Promise<void>
-  openPath?(absolutePath: string): Promise<void>
-}
 
 // .owlit/docs/names.json: docs whose name still follows their first line, with when each was created
 // (the time names a doc whose first line is empty; the file's own birth time changes with every save)

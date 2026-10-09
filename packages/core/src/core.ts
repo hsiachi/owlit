@@ -7,8 +7,10 @@ import { Agents } from "./agents/agents.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
-import type { Host } from "./docs/docs.ts"
+import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { limitMetadataHosts } from "./library/resolve.ts"
+import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -24,6 +26,8 @@ export interface CoreOptions {
   host?: Host
   // A development build: adds what only helps while working on owlit (tasks.debugEnqueue)
   debug?: boolean
+  // Base of the wait between tries of a failed request (default 1s); tests shorten it
+  retryBaseMs?: number
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -45,10 +49,14 @@ export class Core {
   private switching: Promise<unknown> = Promise.resolve()
   private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
   private debugTasks = debugTasks()
+  // One way out to the network for every workspace, so each service's rate holds across them
+  private readonly http: Http
 
   constructor(options: CoreOptions) {
     this.options = options
     this.settings = new SettingsStore(options.userDataDir)
+    this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
+    limitMetadataHosts(this.http)
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
     this.agents = new Agents({
       settings: this.settings,
@@ -198,6 +206,67 @@ export class Core {
       this.turns.respondPermission(chatId, requestId, optionId),
     )
 
+    const library = () => this.requireWorkspace().library
+    this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
+    this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), ({ inputs }) => library().known(inputs))
+    this.router.register("library.list", noParams, () => library().list())
+    const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
+    const ids = z.object({ doi: z.string(), arxiv: z.string(), s2: z.string(), openalex: z.string(), url: z.string() }).partial()
+    const kind = z.enum(["article", "conference", "preprint", "book", "thesis", "other"])
+    const resolved = z.object({
+      id: paperId.optional(),
+      title: z.string(),
+      authors: z.array(z.string()),
+      ids,
+      year: z.number().optional(),
+      venue: z.string().optional(),
+      abstract: z.string().optional(),
+      kind: kind.optional(),
+    })
+    this.router.register(
+      "library.add",
+      z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional() }),
+      ({ paper, addedBy }) => library().add(paper, addedBy),
+    )
+    const position = z.object({ page: z.number(), y: z.number() })
+    const patch = z
+      .object({
+        title: z.string(),
+        authors: z.array(z.string()),
+        year: z.number().optional(),
+        venue: z.string().optional(),
+        abstract: z.string().optional(),
+        kind: kind.optional(),
+        ids,
+        starred: z.boolean(),
+        status: z.enum(["unread", "reading", "read"]),
+        tags: z.array(z.string()),
+        position,
+        lastOpenedAt: z.number(),
+      })
+      .partial()
+    this.router.register("library.update", z.object({ id: paperId, patch }), ({ id, patch }) => library().update(id, patch))
+    this.router.register("library.remove", z.object({ ids: z.array(paperId) }), ({ ids }) => library().remove(ids))
+    this.router.register("library.restore", z.object({ ids: z.array(paperId) }), ({ ids }) => library().restore(ids))
+    const rect = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
+    const highlight = z.object({
+      id: z.string().min(1),
+      paperId,
+      page: z.number().int().nonnegative(),
+      rects: z.array(rect.extend({ page: z.number().int().nonnegative() })),
+      text: z.string(),
+      color: z.enum(["yellow", "green", "blue", "pink"]),
+      comment: z.string().optional(),
+      createdAt: z.number(),
+    })
+    this.router.register("library.putHighlight", z.object({ highlight }), ({ highlight }) => library().putHighlight(highlight))
+    this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
+      library().removeHighlight(paperId, id),
+    )
+    this.router.register("library.setNote", z.object({ paperId, content: z.string() }), ({ paperId, content }) =>
+      library().setNote(paperId, content),
+    )
+
     const tasks = () => this.requireWorkspace().tasks
     const taskId = z.string().min(1)
     this.router.register("tasks.list", noParams, () => tasks().list())
@@ -262,9 +331,10 @@ export class Core {
       const next =
         this.workspace?.root === root
           ? this.workspace
-          : await Workspace.open(root, this.options.userDataDir, this.options.host, {
-              definitions: () => this.taskDefinitions(),
-              onChange: (task) => this.taskChanges.push(task),
+          : await Workspace.open(root, this.options.userDataDir, {
+              host: this.options.host,
+              library: { http: this.http, settings: async () => (await this.settings.get()).library },
+              tasks: { definitions: (workspace) => this.taskDefinitions(workspace), onChange: (task) => this.taskChanges.push(task) },
             })
       if (this.workspace && this.workspace !== next) {
         this.turns.reset()
@@ -279,6 +349,7 @@ export class Core {
           if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
         }
         await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
+        await next.library.watch((change) => this.notifier.notify("library.changed", change))
       }
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
@@ -299,9 +370,9 @@ export class Core {
     this.taskChanges.flush()
   }
 
-  // Every kind of task core knows
-  private taskDefinitions(): TaskDefinition[] {
-    return this.options.debug ? this.debugTasks.definitions : []
+  // Every kind of task core knows, made for one workspace
+  private taskDefinitions(workspace: Workspace): TaskDefinition[] {
+    return [...workspace.library.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

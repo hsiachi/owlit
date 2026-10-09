@@ -1,6 +1,7 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, ResolvedPaper } from "./library.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { UiRequest, WorkspaceInfo } from "./workspace.ts"
 
@@ -44,6 +45,8 @@ export const RpcErrorCode = {
   Conflict: -32002,
   // The request needs an open workspace and there is none
   NoWorkspace: -32003,
+  // A service owlit asks (OpenAlex, Semantic Scholar, a publisher) couldn't be reached or refused
+  Unavailable: -32004,
 } as const
 
 // Every request core answers: method name ("<area>.<verb>") → params and result. Clients are typed
@@ -157,6 +160,29 @@ export interface Methods {
   // Conflict when the file changed since
   "versions.restore": { params: { id: string }; result: { path: string } }
 
+  // ---- Library: the workspace's papers
+  // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
+  // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
+  "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
+  // For each input, the id of the paper in the library it names, or null; asks no one
+  "library.known": { params: { inputs: string[] }; result: (string | null)[] }
+  // Every paper, with every highlight and note
+  "library.list": { params: void; result: { papers: Paper[]; highlights: Highlight[]; notes: PaperNote[] } }
+  // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
+  // has under any of its ids comes back as it is.
+  "library.add": { params: { paper: ResolvedPaper; addedBy?: Paper["addedBy"] }; result: Paper }
+  // The user's judgement, reading position, or a field they corrected (kept over refreshes)
+  "library.update": { params: { id: string; patch: PaperPatch }; result: Paper }
+  // Moves papers, with their highlights and notes, to .owlit/trash/
+  "library.remove": { params: { ids: string[] }; result: null }
+  // Puts back what library.remove took (Undo)
+  "library.restore": { params: { ids: string[] }; result: Paper[] }
+  // Adds a highlight, or replaces the one with its id
+  "library.putHighlight": { params: { highlight: Highlight }; result: null }
+  "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
+  // An empty note removes note.md
+  "library.setNote": { params: { paperId: string; content: string }; result: PaperNote }
+
   // ---- Tasks: background work in the open workspace. Their state shows beside what they are about.
   // Unfinished tasks, then the ones that finished since the workspace opened, most recent first
   "tasks.list": { params: void; result: Task[] }
@@ -190,6 +216,10 @@ export interface Notifications {
   "ui.request": UiRequest
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
+
+  // Papers changed by core on its own (a task) or by another program; may repeat the window's own
+  // changes, which the window takes as they are
+  "library.changed": LibraryChange
   // A task changed; sent at most every 200ms per task, always with its latest state
   "tasks.changed": { task: Task }
 }

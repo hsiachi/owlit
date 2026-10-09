@@ -3,15 +3,18 @@ import { createHash } from "node:crypto"
 import { mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
-import { Docs, type Host } from "../docs/docs.ts"
+import { Docs } from "../docs/docs.ts"
+import type { Host } from "../host.ts"
+import { Http } from "../net/http.ts"
 import { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { Library, type LibraryServices } from "../library/library.ts"
 import { Scheduler, TaskStore, type TaskDefinition } from "../tasks/index.ts"
 import { acquireLock, WorkspaceLockedError } from "./lock.ts"
+import { OWLIT_DIR } from "./paths.ts"
 
-// The workspace's own state folder, inside it
-export const OWLIT_DIR = ".owlit"
+export { OWLIT_DIR }
 
 // <userData>/workspaces/<first 12 hex of sha1(path)>/: what is derived from this workspace or tied to
 // this machine (index, task log, lock). Paths are hashed in NFC so the same folder gets the same
@@ -19,6 +22,12 @@ export const OWLIT_DIR = ".owlit"
 export function workspaceDataDir(userDataDir: string, workspacePath: string) {
   const hash = createHash("sha1").update(workspacePath.normalize("NFC")).digest("hex").slice(0, 12)
   return path.join(userDataDir, "workspaces", hash)
+}
+
+export interface WorkspaceOptions {
+  host?: Host
+  library?: LibraryServices
+  tasks?: WorkspaceTasks
 }
 
 export interface WorkspaceTasks {
@@ -36,10 +45,12 @@ export class Workspace {
   readonly docs: Docs
   readonly versions: Versions
   readonly chats: Chats
+  readonly library: Library
   readonly tasks: Scheduler
   private release: () => Promise<void>
 
-  private constructor(root: string, dataDir: string, release: () => Promise<void>, host: Host, tasks: WorkspaceTasks) {
+  private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions) {
+    const { host = {}, tasks = {} } = options
     this.root = root
     this.dataDir = dataDir
     this.info = { path: root, name: path.basename(root) }
@@ -47,16 +58,18 @@ export class Workspace {
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.versions = new Versions(path.join(root, OWLIT_DIR))
     this.chats = new Chats(path.join(root, OWLIT_DIR))
+    this.library = new Library(root, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
       definitions: tasks.definitions?.(this) ?? [],
       onChange: tasks.onChange,
     })
+    this.library.attach(this.tasks)
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
   // left unfinished. Creates nothing else inside the folder.
-  static async open(folder: string, userDataDir: string, host: Host = {}, tasks: WorkspaceTasks = {}) {
+  static async open(folder: string, userDataDir: string, options: WorkspaceOptions = {}) {
     const root = await resolveFolder(folder)
     const dataDir = workspaceDataDir(userDataDir, root)
     await mkdir(dataDir, { recursive: true })
@@ -73,7 +86,7 @@ export class Workspace {
     }
     try {
       await ensureWorkspaceFile(root)
-      const workspace = new Workspace(root, dataDir, release, host, tasks)
+      const workspace = new Workspace(root, dataDir, release, options)
       await workspace.tasks.start()
       return workspace
     } catch (error) {
@@ -110,6 +123,7 @@ export class Workspace {
     await this.tasks.dispose()
     await this.chats.flush()
     this.docs.dispose()
+    this.library.dispose()
     await this.release()
   }
 }
