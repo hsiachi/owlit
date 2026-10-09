@@ -86,6 +86,21 @@ export class Core {
       ({ files, folders }) => docs().restore(files, folders),
     )
     this.router.register("docs.open", z.object({ path: rel }), ({ path }) => docs().open(path))
+
+    const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
+    const note = anchor.extend({
+      id: z.string().min(1),
+      text: z.string(),
+      by: z.string(),
+      chatId: z.string().optional(),
+      createdAt: z.number(),
+    })
+    this.router.register("notes.all", noParams, () => docs().notesAll())
+    this.router.register("notes.add", z.object({ path: rel, note }), ({ path, note }) => docs().addNote(path, note))
+    this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
+    this.router.register("notes.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
+      docs().reanchorNotes(path, moved),
+    )
   }
 
   handle(request: RpcRequest): Promise<RpcResponse> {

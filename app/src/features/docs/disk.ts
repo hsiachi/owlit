@@ -1,4 +1,4 @@
-import type { DocConflict, DocsChange, DocStat, WorkspaceFile } from "@owlit/protocol"
+import type { AgentNote, DocConflict, DocsChange, DocStat, NoteAnchor, WorkspaceFile } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
@@ -72,7 +72,7 @@ async function failed(error: unknown) {
 
 // Replaces the store with the workspace as it is on disk. New docs that were never written stay.
 async function load() {
-  const listing = await rpc.docs.list()
+  const [listing, notes] = await Promise.all([rpc.docs.list(), rpc.notes.all()])
   const before = new Map(written)
   known.clear()
   written.clear()
@@ -83,6 +83,8 @@ async function load() {
       return {
         files: Object.fromEntries([...listing.files, ...unsaved].map((f) => [f.id, f])),
         folders: listing.folders,
+        // The store keeps notes by file id, so they stay with a doc through renames
+        notes: Object.fromEntries(listing.files.filter((f) => notes[f.path]).map((f) => [f.id, notes[f.path]])),
         loaded: true,
       }
     }),
@@ -298,6 +300,32 @@ export function restoreOnDisk(files: WorkspaceFile[], folders: string[]) {
       for (const stat of result.files) remember(stat, docs.find((f) => f.id === stat.id)?.content)
     },
   )
+}
+
+// ---- Agents' notes, beside the file they belong to ----
+
+// Where a doc's notes live: by its path on disk, or where it will be written if it isn't yet
+const notesPath = (id: string) => known.get(id)?.path ?? useDocsStore.getState().files[id]?.path
+
+export function addNoteOnDisk(id: string, note: AgentNote) {
+  enqueue([id], async () => {
+    const path = notesPath(id)
+    if (path) await rpc.notes.add({ path, note })
+  })
+}
+
+export function removeNoteOnDisk(id: string, noteId: string) {
+  enqueue([id], async () => {
+    const path = notesPath(id)
+    if (path) await rpc.notes.remove({ path, id: noteId })
+  })
+}
+
+export function reanchorOnDisk(id: string, moved: Record<string, NoteAnchor>) {
+  enqueue([id], async () => {
+    const path = notesPath(id)
+    if (path) await rpc.notes.reanchor({ path, moved })
+  })
 }
 
 export function openOnDisk(path: string) {

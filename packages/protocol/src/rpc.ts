@@ -1,5 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
-import type { DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -86,6 +86,17 @@ export interface Methods {
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
   "docs.open": { params: { path: string }; result: null }
+
+  // ---- Notes agents left on docs, kept beside the files (.owlit/docs/notes/); they follow renames,
+  // moves and deletes made through docs.* or outside owlit
+  // Every doc's notes, by path
+  "notes.all": { params: void; result: Record<string, AgentNote[]> }
+  // Adds a note, or puts a dismissed one back
+  "notes.add": { params: { path: string; note: AgentNote }; result: null }
+  // The note removed, or null if it wasn't there
+  "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
+  // Passages edited while the doc was open, saved as they read now: note id → its new anchor
+  "notes.reanchor": { params: { path: string; moved: Record<string, NoteAnchor> }; result: null }
 }
 
 // Every notification core sends: topic → payload
@@ -104,6 +115,8 @@ export type MethodName = keyof Methods
 export type NotificationName = keyof Notifications
 export type ParamsOf<M extends MethodName> = Methods[M]["params"]
 export type ResultOf<M extends MethodName> = Methods[M]["result"]
+
+export type NoteAnchor = Pick<AgentNote, "quote" | "prefix" | "suffix">
 
 export interface CoreVersion {
   version: string

@@ -12,6 +12,7 @@ import {
   type DocConflict,
   type DocsChange,
   type DocsListing,
+  type AgentNote,
   type DocStat,
   type WorkspaceFile,
 } from "@owlit/protocol"
@@ -21,6 +22,7 @@ import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink,
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { invalidParams, RpcFailure } from "../rpc/index.ts"
+import { Notes } from "./notes.ts"
 
 // What core needs from the machine it runs on that plain Node can't do: the desktop app hands in
 // Electron's shell; without one, deleted files go to .owlit/trash/ and nothing opens
@@ -60,6 +62,7 @@ export class Docs {
   private readonly root: string
   private readonly owlitDir: string
   private readonly host: Host
+  private readonly notes: Notes
   // path → id, for as long as core runs, so a client's handle on a file survives renames core makes
   private ids = new Map<string, string>()
   private names: NamesFile | undefined
@@ -77,6 +80,7 @@ export class Docs {
     this.root = root
     this.owlitDir = owlitDir
     this.host = host
+    this.notes = new Notes(owlitDir)
   }
 
   async list(): Promise<DocsListing> {
@@ -215,6 +219,7 @@ export class Docs {
       const file = this.abs(rel)
       if (this.host.trash) await this.host.trash(file)
       else await this.moveToOwlitTrash(rel)
+      await this.notes.trash(rel)
       for (const p of [...this.ids.keys()]) if (isWithin(p, rel)) this.ids.delete(p)
       await this.updateNames((f) => dropUnder(f, rel))
       await this.settle([rel])
@@ -246,11 +251,36 @@ export class Docs {
         const at = this.taken()(file.path) ? uniquePath(parentPath(file.path), stemOf(file.path), extOf(file.path), this.taken()) : file.path
         await mkdir(path.dirname(this.abs(at)), { recursive: true })
         await writeFile(this.abs(at), file.content, { flag: "wx" })
+        await this.notes.untrash(file.path, at)
         this.ids.set(at, file.id)
         restored.push(await this.statAt(at))
       }
       await this.settle([...made, ...restored.map((f) => f.path)])
       return { files: restored, folders: made }
+    })
+  }
+
+  // ---- Agents' notes on docs (./notes.ts), kept in step with the files they belong to ----
+
+  notesAll() {
+    return this.serial(() => this.notes.all())
+  }
+
+  addNote(rel: string, note: AgentNote) {
+    return this.serial(async () => {
+      await this.notes.add(this.check(rel), note)
+      return null
+    })
+  }
+
+  removeNote(rel: string, id: string) {
+    return this.serial(() => this.notes.remove(this.check(rel), id))
+  }
+
+  reanchorNotes(rel: string, moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">>) {
+    return this.serial(async () => {
+      await this.notes.reanchor(this.check(rel), moved)
+      return null
     })
   }
 
@@ -342,6 +372,7 @@ export class Docs {
       const from = e.dir ? undefined : byIno.get(e.ino)
       if (from === undefined) continue
       renamedFrom.add(from)
+      if (external) await this.notes.move(from, p)
       const id = this.ids.get(from)
       if (id) {
         this.ids.delete(from)
@@ -431,6 +462,7 @@ export class Docs {
   private async moveEntry(from: string, to: string) {
     await mkdir(path.dirname(this.abs(to)), { recursive: true })
     await rename(this.abs(from), this.abs(to))
+    await this.notes.move(from, to)
     const swap = (p: string) => (isWithin(p, from) ? to + p.slice(from.length) : p)
     this.ids = new Map([...this.ids].map(([p, id]) => [swap(p), id]))
     await this.updateNames((f) => Object.fromEntries(Object.entries(f).map(([p, t]) => [swap(p), t])))

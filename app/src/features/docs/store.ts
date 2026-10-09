@@ -183,19 +183,27 @@ export const useDocsStore = create<DocsState>()(
         return removed
       },
 
-      addNote: (fileId, note) => set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []), note] } })),
+      addNote: (fileId, note) => {
+        set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []), note] } }))
+        if (disk.onDisk) disk.addNoteOnDisk(fileId, note)
+      },
 
       removeNote: (fileId, noteId) => {
         const note = get().notes[fileId]?.find((n) => n.id === noteId)
         set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).filter((n) => n.id !== noteId) } }))
+        if (note && disk.onDisk) disk.removeNoteOnDisk(fileId, noteId)
         return note
       },
 
-      restoreNote: (fileId, note) =>
-        set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []).filter((n) => n.id !== note.id), note].sort((a, b) => a.createdAt - b.createdAt) } })),
+      restoreNote: (fileId, note) => {
+        set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []).filter((n) => n.id !== note.id), note].sort((a, b) => a.createdAt - b.createdAt) } }))
+        if (disk.onDisk) disk.addNoteOnDisk(fileId, note)
+      },
 
-      reanchorNotes: (fileId, moved) =>
-        set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).map((n) => (moved[n.id] ? { ...n, ...moved[n.id] } : n)) } })),
+      reanchorNotes: (fileId, moved) => {
+        set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).map((n) => (moved[n.id] ? { ...n, ...moved[n.id] } : n)) } }))
+        if (disk.onDisk) disk.reanchorOnDisk(fileId, moved)
+      },
 
       // Undo of a delete. On disk only Markdown comes back (from the text kept here); other files
       // stay in the system Trash, so they aren't put back in the tree either.
