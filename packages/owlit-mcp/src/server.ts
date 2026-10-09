@@ -53,6 +53,32 @@ export function createServer(options: OwlitMcpOptions) {
   return server
 }
 
+// How a topic file reads; shown with the list so a first topic can be written
+const TOPIC_FORMAT = `A topic file:
+
+# Name of the topic
+
+One or two sentences saying where the user's understanding stands.
+
+## Understanding
+
+- Lewis et al. 2020: RAG-Token can draw a different retrieved document for each token it generates. ^s1
+  - [§2.1](owlit://library/arxiv-2005.11401#passage=rag-token) — Only when generating with a top-K retriever.
+- You: Per-token retrieval is what makes multi-document answers possible. ^s2
+  - [Related work](owlit://docs/Related%20work.md)
+- Owlit thinks: … (only Owlit's own inference, said as such) ^s3
+
+## Questions
+
+- You: When does per-token retrieval beat per-sequence retrieval? ^q1
+  - [Chat](owlit://chat/<id>) — From your chat on Oct 9. Nothing answers it yet.
+
+## Sources
+
+- 2026-10-09 · [Lewis et al. 2020](owlit://library/arxiv-2005.11401) · you highlighted §2.1
+
+A line's one sub-bullet holds its sources, then " — " and a sentence: when the line holds, or where a question stands. New lines may leave out ^id; owlit gives them one.`
+
 async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions): Promise<string> {
   const str = (key: string) => args[key] as string
   const num = (key: string) => args[key] as number | undefined
@@ -160,6 +186,40 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "ui_mark": {
       const { title, page } = await owlit.rpc.ui.mark({ uri: `owlit://library/${str("id")}`, ...asker, quote: str("quote"), ...(optStr("color") ? { color: optStr("color") as HighlightColor } : {}) })
       return `Highlighted the passage on p. ${page} of ${title}. The user can remove it from the paper's Highlights.`
+    }
+    case "knowledge_read": {
+      const topic = optStr("topic")
+      if (!topic) {
+        const topics = await owlit.rpc.knowledge.topics()
+        const list = topics.length
+          ? topics.map((t) => `- ${t.id} · ${t.name} · ${t.lines} line${t.lines === 1 ? "" : "s"}, ${t.questions} question${t.questions === 1 ? "" : "s"} · updated ${new Date(t.updatedAt).toISOString().slice(0, 10)}${t.paused ? " · paused by the user: leave it" : ""}`).join("\n")
+          : "There are no topics yet."
+        return `${list}\n\n${TOPIC_FORMAT}`
+      }
+      const t = await owlit.rpc.knowledge.read({ topic })
+      const notes = [
+        t.paused ? "The user paused updates to this topic: don't write to it." : "",
+        t.edited.length ? `Lines the user rewrote (keep word for word): ${t.edited.map((e) => `^${e.id}`).join(", ")}` : "",
+        t.removed.length ? `Lines the user removed (never bring back):\n${t.removed.map((r) => `- ${r}`).join("\n")}` : "",
+      ].filter(Boolean)
+      return `${t.path} (id ${t.id})\n\n${t.content}${notes.length ? `\n---\n${notes.join("\n\n")}` : ""}`
+    }
+    case "knowledge_write": {
+      let passages: { id: string; paper: string; quote: string; section?: string }[] | undefined
+      if (optStr("passages")) {
+        try {
+          passages = JSON.parse(str("passages"))
+        } catch {
+          return "passages should be a JSON array: [{\"id\": …, \"paper\": …, \"quote\": …}]."
+        }
+        if (!Array.isArray(passages)) return "passages should be a JSON array."
+      }
+      const remove = optStr("remove")
+        ?.split(/[\s,]+/)
+        .map((id) => id.replace(/^\^/, ""))
+        .filter(Boolean)
+      const done = await owlit.rpc.knowledge.write({ topic: str("topic"), content: str("content"), why: str("why"), ...(remove?.length ? { remove } : {}), ...(passages ? { passages } : {}), ...asker })
+      return `Wrote ${done.path}${done.changes.length ? `: ${done.changes.join(", ")}` : " (nothing changed)"}.`
     }
     case "chats_list": {
       const chats = await owlit.rpc.chats.list()

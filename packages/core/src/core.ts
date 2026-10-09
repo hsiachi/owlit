@@ -1,4 +1,4 @@
-import { RpcErrorCode, type ChatMessage, type CoreVersion, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo } from "@owlit/protocol"
+import { RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
@@ -11,7 +11,8 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
-import { Background } from "./agents/background.ts"
+import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
+import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
@@ -41,6 +42,8 @@ export interface CoreOptions {
   socket?: boolean | { dir: string }
   // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
+  // How long Knowledge waits after the user's activity before a run (tests shorten it)
+  knowledgeTimings?: KnowledgeTimings
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -97,6 +100,10 @@ export class Core {
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its reading note comes first
     this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
+    // What the user does feeds Knowledge: a run once things have been quiet for a while
+    this.activity.subscribe(["doc.edited", "chat.sent", "chat.ended", "highlight.added", "note.edited", "paper.closed", "knowledge.edited"], (event) =>
+      this.workspace?.knowledge.heard(event),
+    )
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
@@ -373,6 +380,29 @@ export class Core {
       )
     }
 
+    const knowledge = () => this.requireWorkspace().knowledge
+    const sidecar = z.looseObject({ seenAt: z.number(), history: z.array(z.looseObject({})), edits: z.record(z.string(), z.looseObject({ text: z.string() })), removed: z.record(z.string(), z.looseObject({ text: z.string() })) }) as unknown as z.ZodType<TopicSidecar>
+    const paperKnowledge = z.looseObject({ passages: z.record(z.string(), z.looseObject({})), connections: z.array(z.looseObject({})) }) as unknown as z.ZodType<PaperKnowledge>
+    this.router.register("knowledge.state", noParams, () => knowledge().state())
+    this.router.register("knowledge.putTopic", z.object({ id: z.string().min(1), sidecar }), ({ id, sidecar }) => knowledge().putTopic(id, sidecar))
+    this.router.register("knowledge.putPaper", z.object({ id: z.string().min(1), paper: paperKnowledge }), ({ id, paper }) => knowledge().putPaper(id, paper))
+    this.router.register("knowledge.topics", noParams, () => knowledge().summaries())
+    this.router.register("knowledge.read", z.object({ topic: z.string().min(1) }), ({ topic }) => knowledge().read(topic))
+    this.router.register(
+      "knowledge.write",
+      z.object({
+        topic: z.string().min(1),
+        content: z.string().min(1),
+        why: z.string().min(1),
+        remove: z.array(z.string()).optional(),
+        passages: z.array(z.object({ id: z.string().regex(/^[\w.-]+$/, "letters, digits, - and _"), paper: z.string(), quote: z.string().min(1), section: z.string().optional() })).optional(),
+        chatId: z.string().optional(),
+      }),
+      (params) => knowledge().write(params),
+    )
+    this.router.register("knowledge.update", noParams, () => knowledge().update())
+    this.router.register("knowledge.versions", noParams, () => knowledge().versions())
+    this.router.register("knowledge.revert", z.object({ id: z.string().min(1) }), ({ id }) => knowledge().revert(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())
     this.router.register("notes.add", z.object({ path: rel, note }), async ({ path, note }) => {
       await docs().addNote(path, note)
@@ -433,6 +463,14 @@ export class Core {
                 parsing: async () => (await this.settings.get()).parsing,
                 agent: async (prompt, signal) =>
                   this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background }),
+              },
+              knowledge: {
+                agent: async (prompt, signal) =>
+                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background, allow: KNOWLEDGE_TOOLS }),
+                changed: (change) => this.notifier.notify("knowledge.changed", change),
+                updated: (run) => this.notifier.notify("knowledge.updated", run),
+                timings: this.options.knowledgeTimings,
+                journalFlushed: () => this.journal.flush(),
               },
               tasks: {
                 definitions: (workspace) => this.taskDefinitions(workspace),
@@ -512,7 +550,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.knowledge.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

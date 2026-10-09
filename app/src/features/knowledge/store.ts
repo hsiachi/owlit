@@ -1,7 +1,9 @@
+import type { KnowledgeRun } from "@owlit/protocol"
 import { useMemo } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
+import { reportKnowledgeEdited } from "@/lib/activity"
 import { isDesktop } from "@/lib/rpc"
 import { useDocsStore } from "@/features/docs/store"
 import type { WorkspaceFile } from "@/features/docs/types"
@@ -59,10 +61,7 @@ const blankSidecar = (): TopicSidecar => ({ seenAt: Date.now(), history: [], edi
 export const lineKey = (topicId: string, lineId: string) => `${topicId}/${lineId}`
 
 // The most recent run, for "Updated 3 min ago · 2 topics" on the Knowledge page
-export interface Run {
-  at: number
-  items: { topicId: string; what: string }[]
-}
+export type Run = KnowledgeRun
 
 interface KnowledgeState {
   seeded: boolean
@@ -112,7 +111,8 @@ export const useKnowledgeStore = create<KnowledgeState>()(
           return { papers: { ...s.papers, [paperId]: { ...cur, ...fn(cur) } } }
         }),
     }),
-    { name: "owlit-knowledge", version: 1 },
+    // In the desktop app the workspace holds it (./disk)
+    { name: "owlit-knowledge", version: 1, skipHydration: isDesktop, partialize: (s) => (isDesktop ? {} : s) },
   ),
 )
 
@@ -134,6 +134,7 @@ seedTopicFilesInMemory()
 
 // The first time the app runs with Knowledge, Owlit has already read the seeded workspace
 function seed() {
+  if (isDesktop) return
   const k = useKnowledgeStore.getState()
   if (k.seeded) return
   useKnowledgeStore.setState({
@@ -207,6 +208,7 @@ export function editLine(topicId: string, lineId: string, text: string) {
   const k = useKnowledgeStore.getState()
   k.patchSidecar(topicId, (s) => ({ edits: { ...s.edits, [lineId]: { text: clean, at: Date.now() } } }))
   k.record(topicId, { lineId, what: "You rewrote it", why: "edited on the topic page", by: "you", before: was.text })
+  reportKnowledgeEdited(topicId, lineId)
 }
 
 export function editQuestion(topicId: string, questionId: string, text: string) {
@@ -235,6 +237,7 @@ export function removeLine(topicId: string, lineId: string): (() => void) | null
   const k = useKnowledgeStore.getState()
   k.patchSidecar(topicId, (s) => ({ removed: { ...s.removed, [lineId]: { text: line.text, at: Date.now() } } }))
   k.record(topicId, { lineId, what: "You removed it", why: "it won’t come back on an update", by: "you", before: line.text })
+  reportKnowledgeEdited(topicId, lineId)
   return () => {
     mutate(topicId, (t) => {
       t.lines.splice(Math.min(index, t.lines.length), 0, line)

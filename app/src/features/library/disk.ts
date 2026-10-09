@@ -52,6 +52,7 @@ function afterRest(key: string, ms: number, op: () => Promise<unknown>) {
 
 // True while the store takes what core says, so the watcher below doesn't send it back
 let fromCore = false
+export const isLibraryFromCore = () => fromCore
 function takeFromCore(update: () => void) {
   fromCore = true
   try {

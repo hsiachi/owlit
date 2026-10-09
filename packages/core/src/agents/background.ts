@@ -9,8 +9,13 @@ import { preamble } from "./rules.ts"
 // questions, so the only tools it may use are owlit's own read-only ones; anything else is refused, and
 // it can't write files: core writes what the answer says.
 
+const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[background] ${line}`)
+
 // owlit-mcp tools a background session may use without asking
-const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read))$/
+const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|knowledge_read)$/
+
+// What a Knowledge run may use besides
+export const KNOWLEDGE_TOOLS = /^(mcp__owlit__)?knowledge_write$/
 
 export interface BackgroundRun {
   prompt: string
@@ -20,6 +25,8 @@ export interface BackgroundRun {
   signal: AbortSignal
   // An agent to use; the first one that is set up when not given
   connectorId?: string
+  // Further tools this run may use (a Knowledge run writes topics)
+  allow?: RegExp
 }
 
 export interface BackgroundResult {
@@ -44,10 +51,14 @@ export class Background {
       {
         update: (n) => {
           if (n.update.sessionUpdate === "agent_message_chunk" && n.update.content.type === "text") answer += n.update.content.text
+          if (n.update.sessionUpdate === "tool_call") log(`tool ${n.update.title}`)
+          if (n.update.sessionUpdate === "tool_call_update" && n.update.status === "failed") log(`tool failed ${n.update.toolCallId}`)
         },
         requestPermission: async (r) => {
           const name = r.toolCall.title ?? ""
-          const allow = READ_ONLY.test(name) ? r.options.find((o) => o.kind === "allow_once") : undefined
+          const allowed = READ_ONLY.test(name) || !!run.allow?.test(name)
+          log(`${allowed ? "allowed" : "refused"} ${name}`)
+          const allow = allowed ? r.options.find((o) => o.kind === "allow_once") : undefined
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
           refused.push(name)
           const reject = r.options.find((o) => o.kind === "reject_once")
@@ -66,6 +77,7 @@ export class Background {
     try {
       const response = await proc.prompt({ sessionId: session.sessionId, prompt: [{ type: "text", text: preamble(run.root) }, { type: "text", text: run.prompt }] })
       run.signal.throwIfAborted()
+      log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
       if (response.stopReason === "refusal") throw new Error("The agent declined.")
       if (!answer.trim()) throw new Error(refused.length ? `The agent wanted tools it may not use here (${refused.join(", ")}).` : "The agent said nothing.")
       return { text: answer, connectorId }

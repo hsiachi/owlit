@@ -2,6 +2,7 @@ import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
+import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { UiActions, UiRequest, WorkspaceInfo } from "./workspace.ts"
@@ -108,6 +109,27 @@ export interface Methods {
   "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
   // Passages edited while the doc was open, saved as they read now: note id → its new anchor
   "notes.reanchor": { params: { path: string; moved: Record<string, NoteAnchor> }; result: null }
+
+  // ---- Knowledge: topic files in knowledge/ (read and written as docs), and beside them in .owlit/knowledge/
+  // what the user did to them, which no run may undo
+  // Every topic's sidecar and every paper's passages, and the last run that changed something
+  "knowledge.state": { params: void; result: { topics: Record<string, TopicSidecar>; papers: Record<string, PaperKnowledge>; lastRun: KnowledgeRun | null } }
+  // The window's own changes: an edit or removal of a line, a passage found, a topic seen
+  "knowledge.putTopic": { params: { id: string; sidecar: TopicSidecar }; result: null }
+  "knowledge.putPaper": { params: { id: string; paper: PaperKnowledge }; result: null }
+  "knowledge.topics": { params: void; result: TopicSummary[] }
+  // One topic's file, with the lines the user rewrote (kept word for word) and removed (never back)
+  "knowledge.read": {
+    params: { topic: string }
+    result: { id: string; path: string; name: string; content: string; edited: { id: string; text: string }[]; removed: string[]; paused: boolean }
+  }
+  // An agent's write, checked against the rules; InvalidParams lists every problem
+  "knowledge.write": { params: KnowledgeWrite; result: { id: string; path: string; name: string; changes: string[] } }
+  // Update now: a run as soon as the agent lane is free
+  "knowledge.update": { params: void; result: Task }
+  "knowledge.versions": { params: void; result: KnowledgeVersion[] }
+  // knowledge/ back as a version had it; versionId is the version kept of how it was just before
+  "knowledge.revert": { params: { id: string }; result: { files: string[]; versionId: string } }
 
   // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
   // Most recently updated first, without messages
@@ -281,6 +303,10 @@ export interface Notifications {
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are
   "library.changed": LibraryChange
+  // Core changed a topic's sidecar or a paper's passages (an agent wrote to Knowledge)
+  "knowledge.changed": { topics?: Record<string, TopicSidecar>; papers?: Record<string, PaperKnowledge> }
+  // A Knowledge run ended; items is empty when it changed nothing
+  "knowledge.updated": KnowledgeRun
   // A task changed; sent at most every 200ms per task, always with its latest state
   "tasks.changed": { task: Task }
 }
