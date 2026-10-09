@@ -172,9 +172,12 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
   return (
     <div className="flex flex-col gap-7 pb-6">
       {items.length === 0 && (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Nothing here yet. Owlit connects a paper to your notes, questions and topics once you read, highlight, cite or talk about it.
-        </p>
+        <div className="pt-8 text-center">
+          <p className="text-sm font-medium">Nothing connected yet</p>
+          <p className="mx-auto mt-1 max-w-64 text-[13px] leading-relaxed text-muted-foreground">
+            Owlit links this paper to your notes, questions and topics once you highlight, cite or talk about it.
+          </p>
+        </div>
       )}
       {groups.map((g, n) => (
         <section key={g.id}>
