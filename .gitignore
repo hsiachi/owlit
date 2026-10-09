@@ -9,3 +9,6 @@ dist/
 
 # Local agent execution state: plans, tasks, debug scripts
 .agents/tasks/
+
+# Desktop build output
+apps/desktop/release/

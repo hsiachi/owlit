@@ -1,0 +1,24 @@
+{
+  "name": "@owlit/desktop",
+  "private": true,
+  "version": "0.0.0",
+  "description": "owlit desktop shell",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@owlit/core": "workspace:*",
+    "@owlit/protocol": "workspace:*",
+    "@types/node": "^24.13.3",
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2"
+  }
+}

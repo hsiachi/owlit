@@ -1,0 +1,17 @@
+{
+  "name": "owlit",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.20.0",
+  "scripts": {
+    "dev": "pnpm --filter @owlit/desktop dev",
+    "dev:web": "pnpm --filter owlit-app dev",
+    "build": "pnpm --filter @owlit/desktop build",
+    "test": "vitest run",
+    "lint": "pnpm -r --no-bail lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "vitest": "5.0.2"
+  }
+}

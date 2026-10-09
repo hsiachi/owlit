@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          { "name": "electron", "message": "core and protocol stay transport-agnostic: Electron belongs in apps/desktop" },
+          { "name": "react", "message": "core and protocol never render UI" }
+        ],
+        "patterns": [
+          { "group": ["electron/*", "react/*", "react-dom", "react-dom/*"], "message": "core and protocol never depend on Electron or React" },
+          { "group": ["@/**"], "message": "@/ is the app's alias; core and protocol cannot reach into the app" }
+        ]
+      }
+    ]
+  }
+}
