@@ -6,6 +6,7 @@ import { Chats } from "../chats/chats.ts"
 import { Docs } from "../docs/docs.ts"
 import type { Host } from "../host.ts"
 import { Http } from "../net/http.ts"
+import { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
@@ -42,6 +43,7 @@ export class Workspace {
   readonly root: string
   readonly dataDir: string
   readonly docs: Docs
+  readonly versions: Versions
   readonly chats: Chats
   readonly library: Library
   readonly tasks: Scheduler
@@ -54,6 +56,7 @@ export class Workspace {
     this.info = { path: root, name: path.basename(root) }
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
+    this.versions = new Versions(path.join(root, OWLIT_DIR))
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.tasks = new Scheduler({

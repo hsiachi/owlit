@@ -118,6 +118,21 @@ describe("turns", () => {
     expect(text()).toMatch(/could not read: .*outside the workspace/)
   })
 
+  it("keeps what an agent overwrote when it writes the disk itself", async () => {
+    const { send, root, core, call } = await setup()
+    await call("docs.list")
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
+    await send("direct notes.md rewritten by the agent")
+    for (let i = 0; i < 80 && !wrote.length; i++) await sleep(25)
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("rewritten by the agent")
+    expect(wrote).toHaveLength(1)
+    expect(wrote[0]).toMatchObject({ path: "notes.md", chatId: "c1" })
+    expect(readFileSync(path.join(root, ".owlit/versions", wrote[0].versionId), "utf8")).toBe("twelve chars")
+    await call("versions.restore", { id: wrote[0].versionId })
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+  })
+
   it("writes files for the agent and tells clients", async () => {
     const { send, root, core } = await setup()
     const heard: unknown[] = []

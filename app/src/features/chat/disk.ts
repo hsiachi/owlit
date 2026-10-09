@@ -66,6 +66,9 @@ async function loadMessages(list: ChatSummary[], gen: number) {
   }
 }
 
+// Resolves once every change queued so far has reached core (a turn needs its chat to exist there)
+export const settled = () => chain
+
 export const createChatOnDisk = (chat: ChatSummary) => enqueue(() => rpc.chats.create({ chat }))
 
 export const updateChatOnDisk = (id: string, patch: Partial<Omit<ChatSummary, "id" | "createdAt">>) =>

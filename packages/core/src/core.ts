@@ -4,7 +4,9 @@ import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
+import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
+import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
@@ -36,6 +38,8 @@ export class Core {
   readonly activity = new ActivityBus()
   readonly agents: Agents
   private turns: Turns
+  private ui: UiBridge
+  readonly fs: AgentFs
   private journal: Journal
   private router = new Router()
   private notifier = new Notifier()
@@ -62,8 +66,16 @@ export class Core {
       notify: (connector) => this.notifier.notify("agents.changed", connector),
       idleMs: Number(process.env.OWLIT_AGENT_IDLE_MS) || undefined,
     })
+    this.ui = new UiBridge((request) => this.notifier.notify("ui.request", request))
+    this.fs = new AgentFs({
+      workspace: () => this.workspace,
+      ui: this.ui,
+      journal: this.journal,
+      wrote: (record) => this.notifier.notify("agent.wrote", record),
+    })
     this.turns = new Turns({
       agents: this.agents,
+      fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update) => this.notifier.notify("chat.update", { chatId, update }),
     })
@@ -183,6 +195,13 @@ export class Core {
       }),
       async (req) => ({ stopReason: await this.turns.prompt(req) }),
     )
+    this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), ({ clientId, paths }) =>
+      this.ui.setOpenDocs(clientId, paths),
+    )
+    this.router.register("ui.respond", z.object({ requestId: z.string(), result: z.unknown().optional(), error: z.string().optional() }), ({ requestId, result, error }) =>
+      this.ui.respond(requestId, result, error),
+    )
+    this.router.register("versions.restore", z.object({ id: z.string().min(1) }), ({ id }) => this.fs.restore(id))
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
@@ -329,11 +348,16 @@ export class Core {
             })
       if (this.workspace && this.workspace !== next) {
         this.turns.reset()
+        this.ui.reset()
         await this.workspace.dispose()
         // The old workspace's last task changes go out before clients hear of the switch
         this.taskChanges.flush()
       }
       if (this.workspace !== next) {
+        next.docs.textChanged = (rel, before, after) => {
+          const chatId = this.turns.claimant(rel)
+          if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
+        }
         await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
         await next.library.watch((change) => this.notifier.notify("library.changed", change))
       }
