@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper Knowledge tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+/* Tokens copied from app/src/index.css */
+:root {
+  --background: oklch(0.99 0.002 85);
+  --foreground: oklch(0.21 0.008 60);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.25 0.008 60);
+  --primary-foreground: oklch(0.985 0.003 85);
+  --muted: oklch(0.3 0.02 65 / 5%);
+  --secondary: oklch(0.3 0.02 65 / 5%);
+  --muted-foreground: oklch(0.505 0.012 65);
+  --accent: oklch(0.3 0.02 65 / 6%);
+  --destructive: oklch(0.55 0.16 25);
+  --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.942 0.007 80);
+  --sidebar-panel: oklch(0.976 0.004 85);
+  --mention: oklch(0.48 0.09 255);
+  --note: oklch(0.76 0.15 75);
+  --well: oklch(0.962 0.005 82);
+  --shadow-raise: 0 1px 2px oklch(0.3 0.02 60 / 0.05), 0 4px 14px oklch(0.3 0.02 60 / 0.05);
+  --shadow-float: 0 2px 6px oklch(0.3 0.02 60 / 0.08), 0 12px 32px oklch(0.3 0.02 60 / 0.12);
+  color-scheme: light;
+}
+.dark {
+  --background: oklch(0.215 0.005 60);
+  --foreground: oklch(0.935 0.006 80);
+  --card: oklch(0.245 0.006 60);
+  --popover: oklch(0.255 0.006 60);
+  --primary: oklch(0.92 0.006 80);
+  --primary-foreground: oklch(0.215 0.005 60);
+  --muted: oklch(0.95 0.01 80 / 7%);
+  --secondary: oklch(0.95 0.01 80 / 7%);
+  --muted-foreground: oklch(0.7 0.01 70);
+  --accent: oklch(0.95 0.01 80 / 8%);
+  --destructive: oklch(0.68 0.13 22);
+  --border: oklch(0.935 0.01 80 / 10%);
+  --sidebar: oklch(0.155 0.004 60);
+  --sidebar-panel: oklch(0.19 0.005 60);
+  --mention: oklch(0.78 0.07 255);
+  --note: oklch(0.8 0.13 78);
+  --well: oklch(0.185 0.005 60);
+  --shadow-raise: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 14px oklch(0 0 0 / 0.2);
+  --shadow-float: 0 2px 6px oklch(0 0 0 / 0.35), 0 12px 32px oklch(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+/* PDF marks never flip with the theme */
+:root { --hl-yellow: oklch(0.93 0.11 98); --hl-green: oklch(0.91 0.08 150); --hl-blue: oklch(0.9 0.055 240); --hl-pink: oklch(0.9 0.065 355);
+  --mk-yellow: oklch(0.82 0.15 92); --mk-green: oklch(0.72 0.13 150); --mk-blue: oklch(0.68 0.1 245); --mk-pink: oklch(0.7 0.13 355); --pdf-sel: oklch(0.86 0.06 255); }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; background: var(--sidebar); color: var(--foreground); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
+input { font: inherit; color: inherit; }
+svg.lucide { width: 16px; height: 16px; stroke-width: 2; flex: none; }
+.hide { display: none !important; }
+.spacer { flex: 1; }
+
+/* ---- Frame ---- */
+.frame { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: 40px 1fr; height: 100vh; }
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; padding: 0 6px; color: var(--muted-foreground); min-width: 0; }
+.rail { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+.icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--muted-foreground); flex: none; }
+.icon-btn:hover { background: var(--accent); color: var(--foreground); }
+.rail .icon-btn { width: 32px; height: 32px; }
+.rail .icon-btn.active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.08); }
+.mock { display: flex; align-items: center; gap: 4px; margin-right: 10px; }
+.mock-label { font-size: 11px; color: var(--muted-foreground); opacity: .75; margin-right: 2px; white-space: nowrap; }
+.mock-switch { display: flex; gap: 2px; font-size: 12px; padding: 2px; border-radius: 8px; background: var(--muted); }
+.mock-switch button { padding: 3px 9px; border-radius: 6px; color: var(--muted-foreground); white-space: nowrap; }
+.mock-switch button.on { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.08); }
+.mock-note { position: fixed; left: 48px; bottom: 10px; z-index: 50; max-width: 360px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground); background: var(--popover); border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; box-shadow: var(--shadow-raise); }
+.mock-note b { color: var(--foreground); font-weight: 500; }
+.mock-note .x { float: right; margin: -2px -4px 0 6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; }
+.mock-note .x:hover { background: var(--accent); }
+.mock-note .x svg.lucide { width: 13px; height: 13px; }
+
+.sheet { margin: 0 4px 4px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--background); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.phead { display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 8px 0 16px; font-size: 13px; color: var(--muted-foreground); flex: none; }
+.phead .crumb { padding: 2px 4px; margin-left: -4px; border-radius: 6px; }
+.phead .crumb:hover { background: var(--accent); color: var(--foreground); }
+.pbody { flex: 1; display: flex; min-height: 0; }
+
+/* ---- Reader ---- */
+.well { flex: 1; overflow: auto; background: var(--well); padding: 24px; scroll-behavior: smooth; }
+.page { max-width: 640px; margin: 0 auto 16px; background: #fff; box-shadow: 0 0 0 .5px oklch(0 0 0 / 0.12); padding: 52px 60px 60px; font-family: Georgia, "Times New Roman", serif; font-size: 13.5px; line-height: 1.62; color: #222; }
+.page h3 { font-size: 19px; font-weight: 400; text-align: center; margin-bottom: 6px; line-height: 1.3; }
+.page .au { text-align: center; color: #666; margin-bottom: 26px; }
+.page h4 { font-size: 13.5px; margin: 18px 0 6px; }
+.page p { margin-bottom: 10px; text-align: justify; }
+.page .abs { font-size: 12.5px; color: #333; margin: 0 20px 18px; }
+.page .abs b { font-weight: 700; }
+.psg { border-radius: 2px; transition: box-shadow .15s; }
+.psg.hl-yellow { background: var(--hl-yellow); mix-blend-mode: multiply; }
+.psg.hl-green { background: var(--hl-green); mix-blend-mode: multiply; }
+.psg.hl-blue { background: var(--hl-blue); mix-blend-mode: multiply; }
+.psg.hl-pink { background: var(--hl-pink); mix-blend-mode: multiply; }
+.psg.sel { background: var(--pdf-sel); }
+.psg.peek { box-shadow: 0 0 0 2px oklch(0.48 0.09 255 / 0.45); }
+.psg.ring { animation: ring 1.1s ease 2; }
+@keyframes ring { 0%, 100% { box-shadow: 0 0 0 2px oklch(0.48 0.09 255 / 0); } 40% { box-shadow: 0 0 0 3px oklch(0.48 0.09 255 / 0.6); } }
+.hlpop { position: fixed; z-index: 30; display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.hlpop .dot { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; }
+.hlpop .dot:hover { background: var(--accent); }
+.hlpop .dot i { display: block; width: 14px; height: 14px; border-radius: 50%; }
+.hlpop .sep { width: 1px; height: 18px; background: var(--border); margin: 0 3px; }
+
+/* ---- Details panel ---- */
+.details { width: 380px; flex: none; border-left: .5px solid var(--border); padding: 10px 24px 40px; overflow-y: auto; }
+.details h1 { font-size: 18px; font-weight: 500; line-height: 1.375; text-wrap: balance; }
+.details .meta { margin-top: 8px; font-size: 13px; color: var(--muted-foreground); }
+.ctl { display: flex; align-items: center; gap: 2px; margin: 12px 0 0 -10px; }
+.ctl .status { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 8px; font-size: 13px; color: var(--muted-foreground); }
+.ctl .status:hover { background: var(--accent); color: var(--foreground); }
+.ctl .status svg.lucide { width: 13px; height: 13px; }
+.hint { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 0 -8px; padding: 5px 8px; border-radius: 8px; font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
+.hint:hover { background: var(--accent); color: var(--foreground); }
+.tabs { display: flex; gap: 2px; margin: 20px 0 0 -6px; border-bottom: 1px solid var(--border); }
+.tabs button { padding: 6px 6px 8px; font-size: 14px; color: var(--muted-foreground); display: inline-flex; align-items: center; }
+.tabs button:hover { color: var(--foreground); }
+.tabs button.on { color: var(--foreground); box-shadow: inset 0 -2px 0 var(--foreground); }
+.tabs .n { font-size: 12px; margin-left: 4px; color: var(--muted-foreground); }
+.tbody { margin-top: 16px; }
+.lab { font-size: 12px; color: var(--muted-foreground); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+.grp + .grp { margin-top: 22px; }
+.empty { font-size: 13px; line-height: 1.5; color: var(--muted-foreground); }
+.ndot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--note); margin: 0 6px 1px 0; vertical-align: middle; }
+.info { position: relative; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 6px; color: var(--muted-foreground); }
+.info:hover { background: var(--accent); color: var(--foreground); }
+.info svg.lucide { width: 13px; height: 13px; }
+.info .tip { display: none; position: absolute; right: -8px; top: 22px; width: 290px; z-index: 5; padding: 8px 10px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 13px; line-height: 1.45; color: var(--foreground); text-align: left; }
+.info:hover .tip { display: block; }
+
+/* A connection: what you have, then what this paper says, with the relation as the group */
+.cx { position: relative; margin: 0 -8px 2px; padding: 7px 34px 8px 8px; border-radius: 8px; }
+.cx:hover, .cx.menu-open { background: var(--accent); }
+.cx.fresh { animation: fresh 1.4s ease; }
+@keyframes fresh { from { background: oklch(0.56 0.1 155 / 0.14); } to { background: transparent; } }
+.cx .who { font-size: 12px; color: var(--muted-foreground); line-height: 1.45; }
+.cx .who b { font-weight: 500; color: var(--foreground); }
+.cx .who .cite { color: var(--mention); }
+.cx .yours { font-size: 14px; line-height: 1.5; margin-top: 1px; }
+.cx .yours[contenteditable="true"] { outline: 0; background: var(--card); border: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent); border-radius: 8px; padding: 5px 9px; margin: 2px -10px 0; }
+.cx .rel { margin-top: 3px; font-size: 13px; line-height: 1.5; color: var(--muted-foreground); }
+.cx .rel .sec { color: var(--mention); border-radius: 4px; padding: 0 1px; }
+.cx .rel .sec:hover { background: color-mix(in oklch, var(--mention) 10%, transparent); }
+.cx .fold { display: inline-flex; align-items: center; gap: 2px; height: 22px; margin: 2px 0 0 -4px; padding: 0 4px; border-radius: 6px; font-size: 12px; color: var(--muted-foreground); opacity: 0; }
+.cx:hover .fold, .cx .fold.open { opacity: 1; }
+.cx .fold:hover { background: var(--accent); color: var(--foreground); }
+.cx .fold svg.lucide { width: 13px; height: 13px; transition: transform .12s; }
+.cx .fold.open svg.lucide { transform: rotate(90deg); }
+.cx .theirs { display: flex; gap: 8px; margin-top: 2px; padding-left: 9px; border-left: 2px solid var(--border); font-size: 13px; line-height: 1.5; color: var(--muted-foreground); }
+.cx .theirs .sec { flex: none; color: var(--mention); border-radius: 4px; padding: 0 1px; }
+.cx .theirs .sec:hover { background: color-mix(in oklch, var(--mention) 10%, transparent); }
+.cx .theirs q { quotes: "“" "”"; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cx .theirs.grey { border-left-color: transparent; padding-left: 0; }
+.cx .why { margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground); }
+.cx .why b { font-weight: 500; color: var(--foreground); }
+.cx .acts { display: flex; gap: 2px; margin: 4px 0 0 -6px; }
+.cx .dots { position: absolute; top: 5px; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; color: var(--muted-foreground); opacity: 0; }
+.cx:hover .dots, .cx.menu-open .dots { opacity: 1; }
+.cx .dots:hover { background: var(--accent); color: var(--foreground); }
+.cx .dots svg.lucide { width: 15px; height: 15px; }
+.editacts { display: flex; gap: 4px; justify-content: flex-end; margin-top: 8px; }
+.tbtn { display: inline-flex; height: 24px; padding: 0 6px; align-items: center; border-radius: 6px; font-size: 12px; color: var(--muted-foreground); }
+.tbtn:hover { background: var(--accent); color: var(--foreground); }
+.btn { height: 28px; padding: 0 10px; border-radius: 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn.ghost { color: var(--muted-foreground); }
+.btn.ghost:hover { background: var(--accent); color: var(--foreground); }
+.btn.primary { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
+.used { display: flex; align-items: baseline; gap: 8px; margin: 0 -8px; padding: 5px 8px; border-radius: 8px; font-size: 14px; }
+.used:hover { background: var(--accent); }
+.used .cite { color: var(--mention); }
+.used .d { font-size: 12px; color: var(--muted-foreground); }
+
+/* Highlights tab (as in the app) */
+.hli { display: flex; gap: 10px; margin: 0 -8px 2px; padding: 6px 8px; border-radius: 8px; font-size: 14px; line-height: 1.6; }
+.hli:hover { background: var(--accent); }
+.hli .bar { width: 3px; border-radius: 9999px; flex: none; }
+.hli .cm { margin-top: 4px; }
+
+/* Menu, ask bar, toast */
+.menu { position: fixed; z-index: 40; min-width: 170px; padding: 4px; background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.menu button { display: flex; width: 100%; height: 32px; align-items: center; padding: 0 10px; border-radius: 8px; font-size: 14px; }
+.menu button:hover { background: var(--accent); }
+.askbar { position: fixed; z-index: 45; left: calc(40px + (100vw - 40px - 380px) / 2); bottom: 20px; transform: translateX(-50%); width: min(600px, calc(100vw - 520px)); display: flex; align-items: center; gap: 6px; min-height: 46px; padding: 6px 6px 6px 8px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.askbar .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; max-width: 240px; padding: 0 8px; border-radius: 8px; background: var(--muted); font-size: 12px; color: var(--muted-foreground); }
+.askbar .chip b { font-weight: 400; color: var(--mention); white-space: nowrap; }
+.askbar .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.askbar input { flex: 1; min-width: 160px; border: 0; outline: 0; background: transparent; font-size: 15px; }
+.askbar input::placeholder { color: var(--muted-foreground); }
+.askbar .send { width: 28px; height: 28px; border-radius: 9999px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); flex: none; }
+.askbar .send svg.lucide { width: 15px; height: 15px; }
+.toast { position: fixed; right: 400px; bottom: 20px; z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="topbar">
+    <button class="icon-btn"><i data-lucide="arrow-left"></i></button>
+    <button class="icon-btn"><i data-lucide="arrow-right"></i></button>
+    <div class="spacer"></div>
+    <div class="mock"><span class="mock-label">Paper</span><div class="mock-switch" id="swPaper"></div></div>
+    <div class="mock"><span class="mock-label">Summary above tabs</span><div class="mock-switch" id="swHint"><button data-h="on">On</button><button data-h="off" class="on">Off</button></div></div>
+    <div class="mock"><div class="mock-switch" id="swT"><button data-t="light" class="on">Light</button><button data-t="dark">Dark</button></div></div>
+    <button class="icon-btn" title="Owlit  ⌘J"><i data-lucide="panel-right"></i></button>
+  </div>
+  <nav class="rail">
+    <button class="icon-btn"><i data-lucide="house"></i></button>
+    <button class="icon-btn"><i data-lucide="message-square"></i></button>
+    <button class="icon-btn"><i data-lucide="file-text"></i></button>
+    <button class="icon-btn"><i data-lucide="network"></i></button>
+    <button class="icon-btn active"><i data-lucide="book-open"></i></button>
+  </nav>
+  <div class="sheet">
+    <div class="phead">
+      <button class="crumb">Library</button>
+      <div class="spacer"></div>
+      <span id="nofm"></span>
+      <button class="icon-btn" data-act="prev"><i data-lucide="chevron-up"></i></button>
+      <button class="icon-btn" data-act="next"><i data-lucide="chevron-down"></i></button>
+      <button class="icon-btn"><i data-lucide="panel-right-close"></i></button>
+    </div>
+    <div class="pbody">
+      <div class="well" id="well"></div>
+      <aside class="details" id="details"></aside>
+    </div>
+  </div>
+</div>
+<div class="mock-note" id="note"></div>
+
+<script>
+// ---------- Papers: page text with addressable passages, and the paper's connections to what you have ----------
+// A connection pairs something you already have (your words, your question, a line from another paper, or a line
+// Owlit took from this paper) with a passage of this paper. The relation is the group it sits in.
+const PAPERS = [
+  {
+    id: "chen", short: "Chen 2025", status: "Reading",
+    title: "Deferrable proactive suggestions in conversational agents", authors: "Chen, Okafor", venue: "CHI 2025",
+    page: [
+      ["abs", ["Proactive agents interrupt; users pay the cost. We ask whether letting people defer a suggestion changes how timing matters. In a study with 36 participants, deferral raised acceptance and erased the differences between timing conditions."]],
+      ["h", "4 Results"],
+      ["p", ["Participants accepted proactive suggestions more often when the agent allowed them to ", { id: "c41", text: "defer the suggestion to a later moment rather than act immediately" }, ". ", { id: "c42", text: "Acceptance did not differ significantly between the three timing conditions once deferral was available." }]],
+      ["p", ["We observed this effect in a notification-style task where the agent surfaced short, self-contained prompts. Participants completed the task on a mobile device while walking, and the agent never required a multi-turn response."]],
+      ["p", ["Unprompted rationale mattered less than expected: ", { id: "c43", text: "when deferral was available, participants rarely opened the explanation, whether it came before or after the suggestion." }]],
+      ["h", "5 Discussion"],
+      ["p", ["These findings suggest that conversational agents in general may benefit from offering deferral, and that the choice space afforded to the user may matter more than the precise timing of the interruption."]],
+    ],
+    highlights: [{ psg: "c41", color: "yellow", page: 4, comment: "Is the evidence really enough?" }],
+    connections: [
+      { id: "x1", kind: "challenges", who: "You took from <b>Marin 2024</b>, in <span class=\"cite\" data-topic=\"Intervention timing\">Intervention timing</span>", yours: "Participants wanted a reason only after an unexpected suggestion.", psg: "c43", sec: "§4", rel: "cuts against it: with deferral on offer, the reason went unread whether the suggestion was expected or not." },
+      { id: "x2", kind: "backs", who: "<b>Your question</b>, in <span class=\"cite\" data-topic=\"Control and deferral\">Control and deferral</span>", yours: "Does being able to decline or defer relate to acceptance?", psg: "c42", sec: "§4", rel: "answers part of it: with deferral, timing stopped mattering. Only in notification-style tasks." },
+      { id: "x3", kind: "taken", who: "In <span class=\"cite\" data-topic=\"Control and deferral\">Control and deferral</span>", yours: "With deferral available, acceptance did not differ across the three timing conditions.", psg: "c42", sec: "§4", rel: "is where it comes from.", editable: true },
+      { id: "x4", kind: "used", who: "CHI related work", d: "cited in §3 · Oct 22" },
+      { id: "x5", kind: "used", who: "chat “Task boundaries vs control”", d: "Oct 15" },
+    ],
+  },
+  {
+    id: "marin", short: "Marin 2024", status: "Unread",
+    title: "Explaining why the agent spoke: user preferences for post-hoc vs. upfront rationale", authors: "Marin, Ibarra, Teo", venue: "CSCW 2024",
+    page: [
+      ["abs", [{ id: "m0", text: "Across two studies, users preferred post-hoc rationale over upfront explanation" }, " for proactive suggestions, and rated agents that explained afterwards as less intrusive."]],
+      ["h", "5 Study 2"],
+      ["p", ["Study 2 varied whether the suggestion matched what participants expected to see next. Ratings of intrusiveness rose sharply for unexpected suggestions and barely moved for expected ones."]],
+      ["h", "6 Results"],
+      ["p", ["The preference for post-hoc rationale was not uniform. ", { id: "m6", text: "Participants wanted a reason only after an unexpected suggestion;" }, " for expected suggestions, any explanation was rated as noise, before or after."]],
+      ["p", ["We caution against reading the headline preference as a general rule for proactive systems."]],
+    ],
+    highlights: [],
+    connections: [
+      { id: "x6", kind: "taken", who: "In <span class=\"cite\" data-topic=\"Intervention timing\">Intervention timing</span>", yours: "Users preferred post-hoc rationale over upfront explanation.", psg: "m0", sec: "abstract", abstract: true, find: "m6", editable: true },
+      { id: "x7", kind: "used", who: "chat “Reviewer’s notification management”", d: "you mentioned it · Oct 18" },
+    ],
+  },
+  {
+    id: "sato", short: "Sato 2025", status: "Reading",
+    title: "Control, not timing: a diary study of proactive assistants", authors: "Sato, Lund", venue: "IUI 2025",
+    page: [
+      ["abs", ["Fourteen participants kept a two-week diary of a desktop assistant that made unprompted suggestions. Satisfaction tracked how cheap it was to decline, not when the suggestion arrived."]],
+      ["h", "2 Defining control"],
+      ["p", ["Prior work treats control as a single affordance. ", { id: "s2", text: "We define control as the ability to decline a suggestion and to edit its parameters before it takes effect," }, " and measure each separately."]],
+      ["h", "4 Findings"],
+      ["p", [{ id: "s4", text: "Satisfaction was higher on days when declining a suggestion was cheap," }, " regardless of how often the assistant interrupted."]],
+    ],
+    highlights: [],
+    connections: [
+      { id: "x8", kind: "might", who: "<b>You wrote</b> in <span class=\"cite\">Untitled</span> · Oct 11", yours: "This might not be only about timing. Maybe it’s about whether people feel in control.", psg: "s2", sec: "§2", rel: "may touch it: it defines control as declining and editing, close to what you meant. Noticed when you opened this paper, Oct 14.", isNew: true },
+    ],
+  },
+  {
+    id: "doherty", short: "Doherty 2020", status: "Unread",
+    title: "Objective and subjective event triggers in experience sampling", authors: "Doherty, Balaskas, Doherty", venue: "IMWUT 2020",
+    page: [
+      ["abs", ["Event-contingent experience sampling relies on triggers. We compare objective triggers, computed from sensors, with subjective triggers, reported by participants, across three field studies."]],
+      ["h", "1 Introduction"],
+      ["p", ["Experience sampling asks people about their lives as they live them. When to ask is the method’s central design decision."]],
+    ],
+    highlights: [], connections: [],
+    addedBy: "Owlit, from your search on Oct 20",
+  },
+]
+
+const GROUPS = [
+  ["challenges", "Challenges what you have", "Something you already hold, and a passage of this paper that cuts against it. Owlit put them together; the words are yours and the paper’s."],
+  ["backs", "Backs what you have", "A question or line of yours, and a passage of this paper that supports it or answers part of it."],
+  ["might", "Might connect", "Owlit’s guess: something you wrote that this paper may touch. It stays until you ask about it, say it isn’t related, or it joins a topic."],
+  ["taken", "Taken into your topics", "Lines in your topics whose source is this paper, each beside the passage it came from. Check them against the text here."],
+  ["used", "Used in", "Drafts that cite this paper and chats that talk about it."],
+]
+const COLORS = ["yellow", "green", "blue", "pink"]
+const state = { open: {}, paper: "chen", tab: "knowledge", hint: false, theme: "light", menu: null, ask: null, sel: null, toast: null, noteOff: false, pending: {}, dismissed: {}, seen: {}, editing: null }
+const NOTE = {
+  chen: "<b>Chen 2025</b>, a paper you have read. Each item is three things: what you already have and whose it is; how this paper relates to it, with the section; and the passage itself, folded under Passage as provenance. Hover an item to outline its passage in the PDF, click to jump.",
+  marin: "<b>Marin 2024</b>, never opened, but you mentioned it in chat, so Owlit took a line from its abstract. It stays grey until a passage backs it: click <b>Find it in the paper</b>, pick a colour, then <b>Leave paper</b> to see Owlit rewrite the line from §6.",
+  sato: "<b>Sato 2025</b>, in no topic yet. The only connection is Owlit’s guess that §2 touches a note of yours. The yellow dot means you haven’t seen this guess before; it goes once you have. Ask Owlit, or say it isn’t related.",
+  doherty: "<b>Doherty 2020</b>, added by Owlit from a search and never opened. No connections: a paper connects to what you have only once you read, highlight, cite or talk about it.",
+}
+
+const $ = (s, r = document) => r.querySelector(s)
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+const paper = () => PAPERS.find((p) => p.id === state.paper)
+const live = (p) => p.connections.filter((c) => !state.dismissed[c.id])
+const passageText = (p, id) => { for (const [, v] of p.page) if (Array.isArray(v)) for (const x of v) if (x.id === id) return x.text; return "" }
+const findCx = (id) => { for (const p of PAPERS) for (const c of p.connections) if (c.id === id) return { p, c }; return {} }
+
+// ---------- Render ----------
+function render() {
+  document.documentElement.classList.toggle("dark", state.theme === "dark")
+  $("#swPaper").innerHTML = PAPERS.map((p) => `<button data-p="${p.id}" class="${p.id === state.paper ? "on" : ""}">${p.short}</button>`).join("")
+  document.querySelectorAll("#swHint button").forEach((b) => b.classList.toggle("on", (b.dataset.h === "on") === state.hint))
+  document.querySelectorAll("#swT button").forEach((b) => b.classList.toggle("on", b.dataset.t === state.theme))
+  $("#nofm").textContent = `${PAPERS.indexOf(paper()) + 1} of ${PAPERS.length}`
+  renderPage(); renderDetails(); renderOverlays()
+  $("#note").innerHTML = state.noteOff ? "" : `<button class="x" data-act="noteX"><i data-lucide="x"></i></button>${NOTE[state.paper]}`
+  $("#note").classList.toggle("hide", state.noteOff || !!state.ask)
+  lucide.createIcons()
+  const ed = $('[contenteditable="true"]'); if (ed) { ed.focus(); document.getSelection()?.collapse(ed, ed.childNodes.length) }
+}
+
+function renderPage() {
+  const p = paper()
+  const hl = Object.fromEntries(p.highlights.map((h) => [h.psg, h.color]))
+  const run = (parts) => parts.map((x) => typeof x === "string" ? esc(x) : `<span class="psg ${hl[x.id] ? "hl-" + hl[x.id] : ""} ${state.sel === x.id ? "sel" : ""}" id="psg-${x.id}" data-psg="${x.id}">${esc(x.text)}</span>`).join("")
+  $("#well").innerHTML = `<div class="page"><h3>${esc(p.title)}</h3><div class="au">${esc(p.authors)} · ${esc(p.venue)} · mock text</div>
+    ${p.page.map(([k, v]) => k === "h" ? `<h4>${esc(v)}</h4>` : k === "abs" ? `<p class="abs"><b>Abstract.</b> ${run(v)}</p>` : `<p>${run(v)}</p>`).join("")}</div>`
+}
+
+function theirs(p, c) {
+  const pend = state.pending[c.id]
+  if (c.abstract && !pend) return `<div class="rel">Taken from the <span class="sec" data-jump="${c.psg}">abstract</span>, not checked against the text.</div>
+    <div class="acts"><button class="tbtn" data-find="${c.find}">Find it in the paper</button></div>`
+  if (c.abstract && pend) return `<div class="rel"><span class="ndot"></span>Your highlight on <span class="sec" data-jump="${pend}">§6</span> backs it. Owlit rewrites the line from it when you leave the paper.</div>
+    ${passage(p, c, pend)}`
+  return `<div class="rel"><span class="sec" data-jump="${c.psg}">${c.sec}</span> ${esc(c.rel)}</div>${passage(p, c, c.psg)}`
+}
+// The passage is provenance: folded by default, one click away
+function passage(p, c, psg) {
+  const open = state.open[c.id]
+  return `<button class="fold ${open ? "open" : ""}" data-fold="${c.id}"><i data-lucide="chevron-right"></i>Passage</button>
+    ${open ? `<div class="theirs"><q>${esc(passageText(p, psg))}</q></div>` : ""}`
+}
+
+function connection(p, c) {
+  if (c.kind === "used") return `<div class="used"><span class="cite">${esc(c.who)}</span><span class="d">${esc(c.d)}</span></div>`
+  const editing = state.editing === c.id
+  const isNew = c.isNew && !state.seen[p.id]
+  return `<div class="cx ${c.fresh ? "fresh" : ""} ${state.menu?.id === c.id ? "menu-open" : ""}" data-cx="${c.id}" data-psg-of="${state.pending[c.id] || c.psg}">
+    <div class="who">${isNew ? '<span class="ndot" title="New since you last opened this paper"></span>' : ""}${c.who}</div>
+    <div class="yours" ${editing ? 'contenteditable="true" spellcheck="false" id="edit"' : ""}>${esc(c.yours)}</div>
+    ${editing ? `<div class="editacts"><button class="btn ghost" data-act="editCancel">Cancel</button><button class="btn primary" data-act="editSave" data-id="${c.id}">Save</button></div>` : theirs(p, c)}
+    ${c.kind === "might" && !editing ? `<div class="acts"><button class="tbtn" data-act="connect" data-id="${c.id}">Connect</button><button class="tbtn" data-act="dismiss" data-id="${c.id}">Not related</button><button class="tbtn" data-act="askCx" data-id="${c.id}">Ask Owlit</button></div>` : ""}
+    ${c.kind !== "might" ? `<button class="dots" data-menu="${c.id}"><i data-lucide="ellipsis-vertical"></i></button>` : ""}
+  </div>`
+}
+
+function knowledgeTab() {
+  const p = paper(), cs = live(p)
+  if (!cs.length) return `<p class="empty">Nothing here yet. Owlit connects a paper to your notes, questions and topics once you read, highlight, cite or talk about it.</p>`
+  return GROUPS.map(([k, label, tip]) => {
+    const items = cs.filter((c) => c.kind === k)
+    if (!items.length) return ""
+    return `<div class="grp"><div class="lab">${label}<span class="info"><i data-lucide="info"></i><span class="tip">${tip}</span></span></div>${items.map((c) => connection(p, c)).join("")}</div>`
+  }).join("")
+}
+
+function summary(p) {
+  const cs = live(p), n = (k) => cs.filter((c) => c.kind === k).length
+  const parts = []
+  if (n("challenges")) parts.push(`challenges ${n("challenges")} line${n("challenges") > 1 ? "s" : ""} you have`)
+  if (n("backs")) parts.push(cs.find((c) => c.kind === "backs").who.includes("question") ? "backs your question" : `backs ${n("backs")} line${n("backs") > 1 ? "s" : ""}`)
+  if (n("might")) parts.push("may connect to a note of yours")
+  if (!parts.length && n("taken")) parts.push(cs.find((c) => c.kind === "taken").abstract && !state.pending[cs.find((c) => c.kind === "taken").id] ? "Owlit took a line from its abstract, unchecked" : `${n("taken")} line${n("taken") > 1 ? "s" : ""} in your topics come from it`)
+  if (!parts.length) return ""
+  const t = parts.join(", "); return t[0].toUpperCase() + t.slice(1)
+}
+
+function highlightsTab() {
+  const p = paper()
+  if (!p.highlights.length) return `<p class="empty">Select text in the PDF to highlight it.</p>`
+  return `<div class="lab">Page ${p.highlights[0].page}</div>` + p.highlights.map((h) => `<div class="hli" data-jump-hl="${h.psg}"><span class="bar" style="background:var(--mk-${h.color})"></span><div><div>${esc(passageText(p, h.psg))}</div>${h.comment ? `<div class="cm">${esc(h.comment)}</div>` : ""}</div></div>`).join("")
+}
+
+function renderDetails() {
+  const p = paper(), cs = live(p)
+  const count = cs.filter((c) => c.kind !== "used").length
+  const unseen = cs.some((c) => c.isNew && !state.seen[p.id])
+  const tabs = [["notes", "Notes"], ["highlights", "Highlights"], ["knowledge", "Knowledge"], ["about", "About"]]
+  const sum = summary(p)
+  const body = state.tab === "knowledge" ? knowledgeTab() : state.tab === "highlights" ? highlightsTab()
+    : state.tab === "notes" ? (p.id === "chen" ? `<div style="font-size:15px;line-height:1.6">Timing only matters when deferral isn’t on offer? Check whether §4’s walking condition explains it.</div>` : `<p class="empty">Write anything about this paper.</p>`)
+    : `<div style="font-size:14px;line-height:1.6;color:var(--muted-foreground)">${esc(p.venue)} · ${p.addedBy ? `Added by ${esc(p.addedBy)}` : "Added by you"}</div>`
+  $("#details").innerHTML = `
+    <h1>${esc(p.title)}</h1>
+    <div class="meta">${esc(p.authors)} · ${esc(p.venue)}</div>
+    <div class="ctl"><button class="status">${p.status}<i data-lucide="chevron-down"></i></button><button class="icon-btn"><i data-lucide="star"></i></button><button class="icon-btn"><i data-lucide="ellipsis-vertical"></i></button>
+      ${p.id === "marin" ? `<div class="spacer"></div><button class="tbtn" data-act="leave" title="Mock: leaving the paper runs Owlit’s update">Leave paper</button>` : ""}</div>
+    ${state.hint && sum && state.tab !== "knowledge" ? `<button class="hint" data-act="hint">${unseen ? '<span class="ndot"></span>' : ""}${sum}</button>` : ""}
+    <div class="tabs">${tabs.map(([id, l]) => `<button data-tab="${id}" class="${state.tab === id ? "on" : ""}">${l}${id === "highlights" && p.highlights.length ? `<span class="n">${p.highlights.length}</span>` : ""}${id === "knowledge" && count ? `<span class="n">${unseen ? '<span class="ndot" style="margin-right:4px"></span>' : ""}${count}</span>` : ""}</button>`).join("")}</div>
+    <div class="tbody">${body}</div>`
+}
+
+function renderOverlays() {
+  document.querySelectorAll(".menu, .askbar, .toast, .hlpop").forEach((n) => n.remove())
+  if (state.menu) {
+    const { c } = findCx(state.menu.id)
+    const m = document.createElement("div"); m.className = "menu"
+    m.innerHTML = `<button data-act="openTopic" data-id="${c.id}">Open in topic</button>${c.editable ? `<button data-act="edit" data-id="${c.id}">Edit</button>` : ""}<button data-act="askCx" data-id="${c.id}">Ask Owlit</button>`
+    document.body.appendChild(m); m.style.left = (state.menu.x - m.offsetWidth + 26) + "px"; m.style.top = state.menu.y + "px"
+  }
+  if (state.ask) {
+    const a = document.createElement("div"); a.className = "askbar"
+    a.innerHTML = state.ask.chips.map((c) => `<span class="chip"><b>${esc(c[0])}</b><span>${esc(c[1])}</span></span>`).join("") + `<input id="askIn" placeholder="Ask, or say what’s wrong…"><button class="send" data-act="askSend"><i data-lucide="arrow-up"></i></button>`
+    document.body.appendChild(a); setTimeout(() => $("#askIn")?.focus(), 0)
+  }
+  if (state.sel) {
+    const el = $("#psg-" + state.sel)
+    if (el) {
+      const r = el.getClientRects()[0]
+      const pop = document.createElement("div"); pop.className = "hlpop"
+      pop.innerHTML = COLORS.map((c) => `<button class="dot" data-color="${c}"><i style="background:var(--mk-${c})"></i></button>`).join("") + `<span class="sep"></span><button class="icon-btn"><i data-lucide="copy"></i></button><button class="icon-btn"><i data-lucide="message-square-text"></i></button>`
+      document.body.appendChild(pop); pop.style.left = r.left + "px"; pop.style.top = (r.top - pop.offsetHeight - 8) + "px"
+    }
+  }
+  if (state.toast) { const t = document.createElement("div"); t.className = "toast"; t.textContent = state.toast; if (state.ask) t.style.bottom = "78px"; document.body.appendChild(t) }
+}
+
+function toast(text) { state.toast = text; renderOverlays(); lucide.createIcons(); setTimeout(() => { if (state.toast === text) { state.toast = null; renderOverlays(); lucide.createIcons() } }, 2200) }
+
+function jump(id) {
+  const el = $("#psg-" + id); if (!el) return
+  el.scrollIntoView({ block: "center" })
+  el.classList.remove("ring"); void el.offsetWidth; el.classList.add("ring")
+}
+
+// ---------- Events ----------
+document.addEventListener("mouseover", (e) => {
+  document.querySelectorAll(".psg.peek").forEach((n) => n.classList.remove("peek"))
+  const k = e.target.closest("[data-psg-of]"); if (k && k.dataset.psgOf) $("#psg-" + k.dataset.psgOf)?.classList.add("peek")
+})
+
+document.addEventListener("click", (e) => {
+  const el = (s) => e.target.closest(s)
+  let b
+  if ((b = el("#swPaper button"))) { state.seen[state.paper] = true; state.paper = b.dataset.p; state.menu = state.ask = state.sel = state.editing = null; render(); $("#well").scrollTop = 0; return }
+  if ((b = el("#swHint button"))) { state.hint = b.dataset.h === "on"; return render() }
+  if ((b = el("#swT button"))) { state.theme = b.dataset.t; return render() }
+  if ((b = el("[data-tab]"))) { state.tab = b.dataset.tab; return render() }
+  if ((b = el("[data-color]"))) {
+    const p = paper(); p.highlights.push({ psg: state.sel, color: b.dataset.color, page: 6 })
+    const c = p.connections.find((c) => c.find === state.sel); if (c) state.pending[c.id] = state.sel
+    state.sel = null; return render()
+  }
+  if ((b = el("[data-find]"))) { state.sel = b.dataset.find; render(); jump(b.dataset.find); setTimeout(renderOverlays, 350); return }
+  if ((b = el("[data-jump]"))) { e.stopPropagation(); return jump(b.dataset.jump) }
+  if ((b = el("[data-fold]"))) { state.open[b.dataset.fold] = !state.open[b.dataset.fold]; return render() }
+  if ((b = el("[data-jump-hl]"))) return jump(b.dataset.jumpHl)
+  if ((b = el("[data-topic]"))) { e.stopPropagation(); return toast(`Opens Knowledge › ${b.dataset.topic}`) }
+  if ((b = el("[data-menu]"))) { const r = b.getBoundingClientRect(); state.menu = { id: b.dataset.menu, x: r.left, y: r.bottom + 4 }; state.ask = null; return render() }
+  if ((b = el("[data-act]"))) {
+    const a = b.dataset.act, p = paper()
+    if (a === "noteX") { state.noteOff = true; return render() }
+    if (a === "hint") { state.tab = "knowledge"; return render() }
+    if (a === "prev" || a === "next") { state.seen[p.id] = true; const i = PAPERS.indexOf(p) + (a === "next" ? 1 : -1); state.paper = PAPERS[(i + PAPERS.length) % PAPERS.length].id; state.menu = state.ask = state.sel = state.editing = null; return render() }
+    if (a === "openTopic") { state.menu = null; render(); return toast("Opens the topic at this line") }
+    if (a === "edit") { state.editing = b.dataset.id; state.menu = null; return render() }
+    if (a === "editCancel") { state.editing = null; return render() }
+    if (a === "editSave") { const { c } = findCx(b.dataset.id); const txt = $("#edit").innerText.trim(); if (txt && txt !== c.yours) { c.yours = txt; c.who = c.who.replace(/^In /, "<b>You rewrote</b>, in ") } state.editing = null; render(); return toast("Saved to the topic, in your words") }
+    if (a === "askCx") { const { c } = findCx(b.dataset.id); state.ask = { chips: [[p.short, p.title], [c.kind === "might" ? "Untitled" : "line", c.yours]] }; state.menu = null; return render() }
+    if (a === "connect") { const { c } = findCx(b.dataset.id); c.kind = "backs"; c.who = c.who.replace("<b>You wrote</b>", "<b>You wrote</b>") + " · now in <span class=\"cite\" data-topic=\"Control and deferral\">Control and deferral</span>"; c.rel = "defines control as declining and editing, which is what you meant."; c.isNew = false; c.fresh = true; render(); setTimeout(() => { c.fresh = false }, 1500); return toast("Connected · new topic Control and deferral") }
+    if (a === "dismiss") { state.dismissed[b.dataset.id] = true; render(); return toast("Won’t suggest this pairing again") }
+    if (a === "askSend") { state.ask = null; render(); return toast("Opens the Owlit panel with both attached") }
+    if (a === "leave") {
+      const c = p.connections.find((c) => c.id === "x6")
+      if (state.pending.x6) { c.yours = "Participants wanted a reason only after an unexpected suggestion."; c.abstract = false; c.psg = "m6"; c.sec = "§6"; c.fresh = true; delete state.pending.x6; render(); setTimeout(() => { c.fresh = false }, 1500); return toast("Knowledge updated · Intervention timing") }
+      return toast("Nothing to update: no new highlight on this paper")
+    }
+  }
+  if ((b = el(".cx[data-psg-of]")) && !el(".dots") && !el(".tbtn") && !el(".fold") && !el('[contenteditable="true"]') && !el(".editacts") && b.dataset.psgOf) return jump(b.dataset.psgOf)
+  if (el(".menu, .askbar, .hlpop")) return
+  if (state.menu || state.sel) { state.menu = null; state.sel = null; render() }
+})
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { state.menu = state.ask = state.sel = state.editing = null; render() }
+  if (e.key === "Enter" && e.target.id === "askIn") $('[data-act="askSend"]').click()
+})
+$("#well").addEventListener("scroll", () => { if (state.sel) renderOverlays() })
+
+const h = new URLSearchParams(location.hash.slice(1)); if (h.get("paper")) state.paper = h.get("paper")
+render()
+</script>
+</body>
+</html>

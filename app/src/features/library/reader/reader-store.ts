@@ -1,5 +1,6 @@
 import { create } from "zustand"
-import type { Highlight } from "../types"
+import type { Highlight, Rect } from "../types"
+import type { PassageTarget } from "./passages"
 
 // What the open reader and the details panel say to each other. Lives outside both so the
 // Highlights tab can ask the reader to jump without either knowing how the other is built.
@@ -7,6 +8,18 @@ import type { Highlight } from "../types"
 export interface ReaderApi {
   // Scroll so the highlight sits in the upper part of the pane, then flash it
   jumpToHighlight: (h: Highlight) => void
+  // Outline a passage where it is (hover), or scroll to it and ring it twice (jump). False if not found.
+  showPassage: (p: PassageTarget, mode: "hover" | "jump") => Promise<boolean>
+  // Select a passage, which brings up the highlight popover on it
+  selectPassage: (p: PassageTarget) => Promise<boolean>
+}
+
+// A passage outlined in the PDF: the box around its lines. `pulse` rings it twice and lets it go.
+export interface Ring {
+  passageId: string
+  page: number
+  box: Rect
+  pulse: boolean
 }
 
 interface ReaderState {
@@ -21,14 +34,21 @@ interface ReaderState {
   focusId: string | null
   // Under the pointer, for showing its comment
   hoverId: string | null
+  ring: Ring | null
+  // A passage to jump to once the reader is ready (opening a paper from a passage link)
+  pendingPassage: PassageTarget | null
 
   setApi: (api: ReaderApi | null) => void
   open: (id: string, opts?: { commenting?: boolean }) => void
   close: () => void
   flash: (id: string) => void
+  setRing: (ring: Ring | null) => void
+  // Drops the hover outline, but not a pulse in progress
+  clearHoverRing: (passageId?: string) => void
 }
 
 let flashTimer: ReturnType<typeof setTimeout> | undefined
+let ringTimer: ReturnType<typeof setTimeout> | undefined
 
 export const useReaderStore = create<ReaderState>()((set) => ({
   api: null,
@@ -37,6 +57,8 @@ export const useReaderStore = create<ReaderState>()((set) => ({
   flashId: null,
   focusId: null,
   hoverId: null,
+  ring: null,
+  pendingPassage: null,
 
   setApi: (api) => set({ api }),
   open: (id, opts) => set({ activeId: id, commenting: !!opts?.commenting, focusId: id }),
@@ -46,4 +68,10 @@ export const useReaderStore = create<ReaderState>()((set) => ({
     set({ flashId: id })
     flashTimer = setTimeout(() => set({ flashId: null }), 1200)
   },
+  setRing: (ring) => {
+    clearTimeout(ringTimer)
+    set({ ring })
+    if (ring?.pulse) ringTimer = setTimeout(() => set((s) => (s.ring === ring ? { ring: null } : s)), 1700)
+  },
+  clearHoverRing: (passageId) => set((s) => (s.ring && !s.ring.pulse && (!passageId || s.ring.passageId === passageId) ? { ring: null } : s)),
 }))

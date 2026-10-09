@@ -35,6 +35,31 @@ export const setWorkspaceNotes = (notes: WorkspaceNotes) => {
 }
 export const getWorkspaceNotes = () => workspaceNotes
 
+// Knowledge lines an agent revises from what the user said about them. ACP has no such method either; owlit
+// will offer it as a tool of its own. One call changes one line; null when the line is gone.
+export interface KnowledgeRevision {
+  path: string
+  topic: string
+  // 1-based position of the line in its topic
+  position: number
+  // Its opening words, how the chat names it ("Updated · topic · “Retrieval and tool use may…”")
+  words: string
+  text: string
+  changed: boolean
+  // Whether the line was rewritten in the user's words or kept with what they said as a condition
+  how: "rewrote" | "condition" | "none"
+}
+
+export interface WorkspaceKnowledge {
+  reviseLine(req: { uri: string; said: string; chatId?: string; callId: string }): KnowledgeRevision | null
+}
+
+let workspaceKnowledge: WorkspaceKnowledge | null = null
+export const setWorkspaceKnowledge = (k: WorkspaceKnowledge) => {
+  workspaceKnowledge = k
+}
+export const getWorkspaceKnowledge = () => workspaceKnowledge
+
 // What the UI needs from a local agent. The mock implements it now; the desktop
 // shell will implement it over ACP (JSON-RPC on stdio) later.
 export interface AgentClient {

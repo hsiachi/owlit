@@ -1,7 +1,7 @@
 import { useLibraryStore } from "@/features/library/store"
 import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
-import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
+import { getWorkspaceFs, getWorkspaceKnowledge, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -57,6 +57,9 @@ export class MockAgentClient implements AgentClient {
 
       await sleep(300, signal)
       for (const m of sources) await this.readTool(emit, signal, m)
+
+      // Asked about a line of Knowledge: what the user says corrects that one line
+      if (selection?.source.kind === "knowledge") return await this.reviseKnowledge(emit, signal, selection, text, req.chatId)
 
       // Asked to review a doc: notes in its margin rather than edits
       const doc = selection?.source.kind === "doc" ? selection.source : sources.find((s) => s.kind === "doc")
@@ -213,15 +216,37 @@ export class MockAgentClient implements AgentClient {
     return "end_turn"
   }
 
+  // Restates a Knowledge line from what the user said, changing that line and nothing else
+  private async reviseKnowledge(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection, said: string, chatId: string): Promise<StopReason> {
+    const toolCallId = `tc-${crypto.randomUUID()}`
+    await this.readTool(emit, signal, selection.source)
+    await sleep(400, signal)
+    const r = getWorkspaceKnowledge()?.reviseLine({ uri: selection.source.uri, said, chatId, callId: toolCallId })
+    if (!r) {
+      await this.stream(emit, signal, "That line isn't in the topic any more, so there is nothing to change.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    if (!r.changed) {
+      await this.stream(emit, signal, `I've kept what you asked beside “${r.words}” in ${r.topic}, but left the line as it is: a question doesn't change what it says. Tell me how it should read and I'll rewrite it.`, "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    emit({ type: "tool_call", toolCallId, title: `Updated · ${r.topic} · “${r.words}”`, kind: "edit", status: "completed", locations: [{ path: r.path, line: r.position }], content: r.text })
+    const what = r.how === "rewrote" ? `I've rewritten the line in ${r.topic} in your words. It stays as you put it from now on:` : `I've kept the line in ${r.topic} and noted what you said beside it:`
+    await this.stream(emit, signal, `${what}\n\n> ${r.text}`, "agent_message_chunk", 14)
+    return "end_turn"
+  }
+
   private async readTool(emit: (u: SessionUpdate) => void, signal: AbortSignal, m: Mentionable) {
     const id = `tc-${crypto.randomUUID()}`
-    const verb = m.kind === "paper" ? "Reading paper" : m.kind === "doc" ? "Reading" : "Loading knowledge item"
+    const verb = m.kind === "paper" ? "Reading paper" : "Reading"
+    // A Knowledge item lives in its topic's file; a line or a question names the topic as its source
+    const topic = m.subtitle?.startsWith("Question · ") ? m.subtitle.slice("Question · ".length) : m.title
     const path =
       m.kind === "paper"
         ? `library/papers/${slug(m.title)}/digest.md`
         : m.kind === "doc"
           ? `docs/${m.subtitle ?? ""}${m.title}`
-          : `knowledge/${m.id}.md`
+          : `knowledge/${topic}.md`
     emit({ type: "tool_call", toolCallId: id, title: `${verb} ${m.title}`, kind: "read", status: "in_progress", locations: [{ path }] })
     await sleep(700, signal)
     emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: `Read ${path} (${Math.floor(Math.random() * 60 + 20)} lines)` })
@@ -375,6 +400,7 @@ Ask me to rewrite the passage or find support for it, and I'll do it in place.`
 }
 
 function thoughtFor(text: string, mentions: Mentionable[], selection?: QuotedSelection) {
+  if (selection?.source.kind === "knowledge") return `The user is telling me about a line in the topic "${selection.source.title}": "${text.slice(0, 80)}". I'll read the topic, then change that one line to follow what they said, keeping its sources.`
   if (selection) return `The user selected a passage in "${selection.source.title}" and asked: "${text.slice(0, 80)}". I'll read the doc around it first.`
   const what = mentions.length
     ? `The user referenced ${mentions.length} item${mentions.length > 1 ? "s" : ""} from the workspace, so I should read ${mentions.length > 1 ? "them" : "it"} before answering.`

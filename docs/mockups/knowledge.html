@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+/* Tokens copied from app/src/index.css */
+:root {
+  --background: oklch(0.99 0.002 85);
+  --foreground: oklch(0.21 0.008 60);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.25 0.008 60);
+  --primary-foreground: oklch(0.985 0.003 85);
+  --muted: oklch(0.3 0.02 65 / 5%);
+  --secondary: oklch(0.3 0.02 65 / 5%);
+  --muted-foreground: oklch(0.505 0.012 65);
+  --accent: oklch(0.3 0.02 65 / 6%);
+  --destructive: oklch(0.55 0.16 25);
+  --success: oklch(0.56 0.1 155);
+  --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.942 0.007 80);
+  --sidebar-panel: oklch(0.976 0.004 85);
+  --sidebar-accent: oklch(0.3 0.02 65 / 6.5%);
+  --mention: oklch(0.48 0.09 255);
+  --note: oklch(0.76 0.15 75);
+  --well: oklch(0.962 0.005 82);
+  --shadow-raise: 0 1px 2px oklch(0.3 0.02 60 / 0.05), 0 4px 14px oklch(0.3 0.02 60 / 0.05);
+  --shadow-float: 0 2px 6px oklch(0.3 0.02 60 / 0.08), 0 12px 32px oklch(0.3 0.02 60 / 0.12);
+  color-scheme: light;
+}
+.dark {
+  --background: oklch(0.215 0.005 60);
+  --foreground: oklch(0.935 0.006 80);
+  --card: oklch(0.245 0.006 60);
+  --popover: oklch(0.255 0.006 60);
+  --primary: oklch(0.92 0.006 80);
+  --primary-foreground: oklch(0.215 0.005 60);
+  --muted: oklch(0.95 0.01 80 / 7%);
+  --secondary: oklch(0.95 0.01 80 / 7%);
+  --muted-foreground: oklch(0.7 0.01 70);
+  --accent: oklch(0.95 0.01 80 / 8%);
+  --destructive: oklch(0.68 0.13 22);
+  --success: oklch(0.72 0.09 155);
+  --border: oklch(0.935 0.01 80 / 10%);
+  --sidebar: oklch(0.155 0.004 60);
+  --sidebar-panel: oklch(0.19 0.005 60);
+  --sidebar-accent: oklch(0.95 0.01 80 / 8%);
+  --mention: oklch(0.78 0.07 255);
+  --note: oklch(0.8 0.13 78);
+  --well: oklch(0.185 0.005 60);
+  --shadow-raise: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 14px oklch(0 0 0 / 0.2);
+  --shadow-float: 0 2px 6px oklch(0 0 0 / 0.35), 0 12px 32px oklch(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; background: var(--sidebar); color: var(--foreground); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
+input, textarea { font: inherit; color: inherit; }
+svg.lucide { width: 16px; height: 16px; stroke-width: 2; flex: none; }
+.muted { color: var(--muted-foreground); }
+.hide { display: none !important; }
+.spacer { flex: 1; }
+
+/* ---- Frame ---- */
+.frame { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: 40px 1fr; height: 100vh; }
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; padding: 0 6px; color: var(--muted-foreground); min-width: 0; }
+.rail { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+.icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--muted-foreground); transition: background .12s, color .12s; flex: none; }
+.icon-btn:hover { background: var(--accent); color: var(--foreground); }
+.rail .icon-btn { width: 32px; height: 32px; }
+.rail .icon-btn.active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.08); }
+
+/* Mock-only controls, not part of the design */
+.mock { display: flex; align-items: center; gap: 4px; margin-right: 10px; }
+.mock-label { font-size: 11px; color: var(--muted-foreground); opacity: .75; margin-right: 2px; white-space: nowrap; }
+.mock-switch { display: flex; gap: 2px; font-size: 12px; padding: 2px; border-radius: 8px; background: var(--muted); }
+.mock-switch button { padding: 3px 9px; border-radius: 6px; color: var(--muted-foreground); white-space: nowrap; }
+.mock-switch button.on { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px oklch(0.3 0.02 60 / 0.08); }
+.mock-note { position: fixed; left: 48px; bottom: 10px; z-index: 50; max-width: 340px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground); background: var(--popover); border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; box-shadow: var(--shadow-raise); }
+.mock-note b { color: var(--foreground); font-weight: 500; }
+.mock-note .x { float: right; margin: -2px -4px 0 6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; }
+.mock-note .x:hover { background: var(--accent); }
+.mock-note .x svg.lucide { width: 13px; height: 13px; }
+
+.sheetwrap { display: flex; min-height: 0; margin: 0 4px 4px 0; position: relative; }
+.lpanel { width: 260px; flex: none; background: var(--sidebar-panel); border: 1px solid var(--border); border-right-width: .5px; border-radius: 10px 0 0 10px; overflow: auto; padding: 8px 8px 16px; display: flex; flex-direction: column; }
+.sheet { flex: 1; min-width: 0; border: 1px solid var(--border); border-left: 0; border-radius: 0 10px 10px 0; background: var(--background); overflow: hidden; position: relative; display: flex; }
+.sheetwrap.nolist .lpanel { display: none; }
+.sheetwrap.nolist .sheet { border-left: 1px solid var(--border); border-radius: 10px; }
+.main { flex: 1; overflow-y: auto; min-width: 0; position: relative; }
+
+/* ---- Shared bits ---- */
+.cite { color: var(--mention); border-radius: 4px; padding: 0 1px; }
+.cite:hover { background: color-mix(in oklch, var(--mention) 10%, transparent); }
+.btn { height: 28px; padding: 0 10px; border-radius: 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn.ghost { color: var(--muted-foreground); }
+.btn.ghost:hover { background: var(--accent); color: var(--foreground); }
+.btn.primary { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
+.btn.line { border: 1px solid var(--border); background: var(--card); }
+.btn.line:hover { background: color-mix(in oklch, var(--card) 92%, var(--foreground)); }
+.dots { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; color: var(--muted-foreground); opacity: 0; transition: opacity .1s; }
+.dots svg.lucide { width: 15px; height: 15px; }
+.dots:hover { background: var(--accent); color: var(--foreground); }
+.st:hover .dots, .krow:hover .dots, .crow:hover .dots, .lrow:hover .dots, .hrow:hover .dots, .dots.on { opacity: 1; }
+.lab { font-size: 12px; color: var(--muted-foreground); margin-bottom: 6px; }
+.tag { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+
+/* Menu */
+.menu { position: fixed; z-index: 40; min-width: 160px; padding: 4px; background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.menu button { display: flex; width: 100%; height: 32px; align-items: center; padding: 0 10px; border-radius: 8px; font-size: 14px; }
+.menu button:hover { background: var(--accent); }
+.menu button.danger { color: var(--destructive); }
+.menu button.danger:hover { background: var(--destructive); color: #fff; }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 6px; }
+
+.menu .sub { position: relative; }
+.menu .sub > button { justify-content: space-between; }
+.menu .sub > button svg.lucide { width: 14px; height: 14px; color: var(--muted-foreground); }
+.menu .fly { display: none; position: absolute; left: calc(100% + 2px); top: -4px; min-width: 150px; padding: 4px; background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.menu .sub:hover > .fly { display: block; }
+.menu button svg.lucide { width: 14px; height: 14px; margin-left: auto; }
+
+/* Ask bar: the agent window's first form, with the line attached */
+.askbar { position: fixed; z-index: 45; left: 50%; bottom: 20px; transform: translateX(-50%); width: min(620px, calc(100% - 120px)); display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px 0 8px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.askbar:focus-within { border-color: color-mix(in oklch, var(--foreground) 22%, transparent); }
+.askbar .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; max-width: 260px; padding: 0 8px; border-radius: 8px; background: var(--muted); font-size: 12px; color: var(--muted-foreground); }
+.askbar .chip b { font-weight: 500; color: var(--foreground); white-space: nowrap; }
+.askbar .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.askbar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; }
+.askbar input::placeholder { color: var(--muted-foreground); }
+.askbar .send { width: 28px; height: 28px; border-radius: 9999px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); flex: none; }
+.askbar .send svg.lucide { width: 15px; height: 15px; }
+
+/* Toast */
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 14px; }
+
+/* ---- Knowledge page (A, B) ---- */
+.kpage { max-width: 1152px; margin: 0 auto; padding: 28px 32px 120px; }
+.ptitle { font-size: 22px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.25; }
+.tabline { display: flex; align-items: flex-end; gap: 18px; margin-top: 14px; border-bottom: 1px solid var(--border); }
+.tab { padding: 6px 2px 8px; font-size: 14px; color: var(--muted-foreground); }
+.tab.on { color: var(--foreground); box-shadow: inset 0 -2px 0 var(--foreground); }
+.tabline .right { margin-left: auto; display: flex; gap: 2px; padding-bottom: 4px; }
+.upd { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; margin-left: -8px; border-radius: 8px; font-size: 13px; color: var(--muted-foreground); }
+.upd:hover { background: var(--accent); color: var(--foreground); }
+.upd svg.lucide { width: 13px; height: 13px; }
+.updpop { position: fixed; z-index: 40; width: 440px; padding: 6px; background: var(--popover); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-float); }
+.updpop .r { display: flex; gap: 10px; padding: 7px 10px; border-radius: 8px; font-size: 13px; line-height: 1.45; }
+.updpop .r:hover { background: var(--accent); }
+.updpop .r b { font-weight: 500; white-space: nowrap; }
+.updpop .r span { color: var(--muted-foreground); }
+.find { margin-top: 18px; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 14px; max-width: 520px; }
+.grp { margin-top: 22px; }
+.grp .lab { margin-bottom: 4px; padding-left: 10px; }
+.krow { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 4px 0 10px; border-radius: 8px; margin-bottom: 2px; }
+.krow:hover { background: var(--muted); }
+.krow .name { flex: none; font-size: 14px; white-space: nowrap; }
+.krow .sum { flex: 1; min-width: 0; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.krow .when { flex: none; font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+.krow .hint { flex: none; font-size: 12px; color: var(--muted-foreground); }
+.krow.quiet .name { color: var(--muted-foreground); }
+.foldrow { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; font-size: 13px; color: var(--muted-foreground); }
+.foldrow:hover { background: var(--muted); color: var(--foreground); }
+.foldrow svg.lucide { width: 14px; height: 14px; transition: transform .12s; }
+.foldrow.open svg.lucide { transform: rotate(90deg); }
+.empty { margin-top: 80px; text-align: center; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
+
+/* Loose passages */
+.lrow { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 4px 0 10px; border-radius: 8px; margin-bottom: 2px; }
+.lrow:hover { background: var(--muted); }
+.lrow .q { flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lrow .src { flex: none; font-size: 13px; color: var(--muted-foreground); }
+.lrow .acts { display: none; gap: 2px; }
+.lrow:hover .acts { display: flex; }
+
+/* ---- Topic page ---- */
+.thead { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 10px 0 16px; background: var(--background); font-size: 13px; color: var(--muted-foreground); }
+.thead .crumb b { color: var(--foreground); font-weight: 400; }
+.thead .crumb button { color: inherit; border-radius: 6px; padding: 2px 4px; margin-left: -4px; }
+.thead .crumb button:hover { background: var(--accent); color: var(--foreground); }
+.col { max-width: 768px; margin: 0 auto; padding: 20px 24px 160px; }
+.ttitle { font-size: 22px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.25; }
+.tmeta { margin-top: 6px; font-size: 13px; color: var(--muted-foreground); display: flex; align-items: center; gap: 6px; }
+.tmeta .info { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 6px; position: relative; }
+.tmeta .info:hover { background: var(--accent); color: var(--foreground); }
+.tmeta .info svg.lucide { width: 13px; height: 13px; }
+.tip { position: absolute; left: 0; top: 24px; width: 300px; padding: 8px 10px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 13px; line-height: 1.45; color: var(--foreground); display: none; z-index: 5; }
+.info:hover .tip { display: block; }
+.tsum { margin-top: 16px; padding-left: 14px; border-left: 2px solid var(--border); font-size: 15px; line-height: 1.6; }
+.blk { margin-top: 32px; }
+.blk > .lab { margin-bottom: 8px; }
+.suggest { margin-top: 14px; font-size: 13px; color: var(--muted-foreground); display: flex; align-items: center; gap: 4px; }
+
+/* Statement, memo (A) */
+.st { display: grid; grid-template-columns: 92px 1fr 28px; column-gap: 10px; align-items: start; padding: 6px 4px 6px 8px; margin: 0 -8px; border-radius: 8px; }
+.st:hover { background: var(--muted); }
+.st.new { animation: fadein .6s ease; }
+@keyframes fadein { from { background: color-mix(in oklch, var(--success) 14%, transparent); } to { background: transparent; } }
+.voice { font-size: 13px; font-weight: 500; line-height: 1.55; padding-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice.owlit, .voice.you { color: var(--foreground); }
+.stbody { min-width: 0; }
+.stext { font-size: 15px; line-height: 1.55; }
+.stext[contenteditable="true"] { outline: 0; background: var(--card); border: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent); border-radius: 8px; padding: 6px 10px; margin: -7px -11px; }
+.sub { margin-top: 3px; font-size: 13px; color: var(--muted-foreground); line-height: 1.45; }
+.sub .sep { margin: 0 4px; }
+.editacts { display: flex; gap: 4px; justify-content: flex-end; margin-top: 10px; }
+
+/* Your note card on a statement: same card as an agent note in Docs */
+.ncard { margin: 8px 0 2px; background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--note); border-radius: 10px; padding: 8px 12px; font-size: 14px; line-height: 1.5; }
+.ncard .who { font-size: 12px; color: var(--muted-foreground); margin-bottom: 2px; }
+.ncomp { margin: 8px 0 2px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+.ncomp:focus-within { border-color: color-mix(in oklch, var(--foreground) 22%, transparent); }
+.ncomp textarea { display: block; width: 100%; resize: none; border: 0; outline: 0; background: transparent; font-size: 14px; line-height: 1.5; height: 44px; }
+.ncomp textarea::placeholder { color: var(--muted-foreground); }
+.ncomp .foot { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.starter { height: 26px; padding: 0 10px; border-radius: 9999px; background: var(--secondary); color: var(--muted-foreground); font-size: 13px; }
+.starter:hover { color: var(--foreground); background: var(--accent); }
+.starter.on { color: var(--foreground); background: color-mix(in oklch, var(--foreground) 10%, transparent); }
+
+/* After: readable lines */
+.st.rd { grid-template-columns: 112px 1fr 28px; padding: 7px 4px 8px 8px; }
+.st.rd.open { background: var(--muted); }
+.vv { font-size: 13px; line-height: 1.55; padding-top: 2px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vv b { font-weight: 500; color: var(--foreground); }
+.schip { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; margin-left: 6px; border-radius: 6px; background: var(--muted); font-size: 12px; color: var(--muted-foreground); vertical-align: 1px; }
+.ndot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--note); margin: 0 7px 1px -1px; vertical-align: middle; }
+.schip.now { color: var(--mention); background: color-mix(in oklch, var(--mention) 9%, transparent); }
+.why { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 13px; line-height: 1.45; }
+.wrow { display: flex; gap: 10px; padding: 2px 0; }
+.wrow .when { flex: none; width: 44px; color: var(--muted-foreground); }
+
+/* Questions */
+.qrow { padding: 6px 8px; margin: 0 -8px; border-radius: 8px; }
+.qrow:hover { background: var(--muted); }
+.qrow .q { font-size: 15px; line-height: 1.5; }
+.qrow .sub { margin-top: 2px; }
+
+/* Your note on the topic */
+.ynote { width: 100%; min-height: 60px; resize: none; border: 0; outline: 0; background: transparent; font-size: 15px; line-height: 1.6; }
+.ynote::placeholder { color: var(--muted-foreground); }
+
+/* Sources */
+.srow { display: flex; align-items: baseline; gap: 10px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; font-size: 14px; line-height: 1.45; }
+.srow:hover { background: var(--muted); }
+.srow .when { flex: none; width: 48px; font-size: 12px; color: var(--muted-foreground); }
+.srow .rel { color: var(--muted-foreground); }
+
+/* History */
+.hist { margin-top: 32px; }
+.histtog { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; margin-left: -8px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--muted-foreground); }
+.histtog:hover { background: var(--accent); color: var(--foreground); }
+.histtog svg.lucide { width: 14px; height: 14px; transition: transform .12s; }
+.histtog.open svg.lucide { transform: rotate(90deg); }
+.hrow { display: flex; align-items: baseline; gap: 10px; padding: 6px 8px; margin: 0 -8px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.45; }
+.hrow:last-child { border-bottom: 0; }
+.hrow .when { flex: none; width: 48px; color: var(--muted-foreground); }
+.hrow .what { flex: 1; min-width: 0; }
+.hrow .why { color: var(--muted-foreground); }
+.hrow .rev { display: none; font-size: 12px; color: var(--muted-foreground); border-radius: 6px; padding: 1px 6px; }
+.hrow:hover .rev { display: inline; }
+.hrow .rev:hover { background: var(--accent); color: var(--foreground); }
+
+/* ---- B: prose ---- */
+.prose p { font-size: 15px; line-height: 1.75; margin-bottom: 14px; }
+.sent { border-radius: 3px; padding: 1px 0; transition: background .1s; }
+.sent:hover { background: var(--muted); }
+.sent.on { background: var(--accent); }
+.sent.new { animation: fadein .6s ease; }
+.sent .cite { font-size: 14px; }
+.sent.you { }
+.prose .ncard { margin: 2px 0 14px; }
+.smenu { position: fixed; z-index: 30; display: flex; gap: 2px; padding: 3px; background: var(--popover); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-float); font-size: 13px; }
+.smenu button { height: 28px; padding: 0 10px; border-radius: 7px; white-space: nowrap; }
+.smenu button:hover { background: var(--accent); }
+.smenu .who { display: inline-flex; align-items: center; padding: 0 8px 0 6px; color: var(--muted-foreground); border-right: 1px solid var(--border); margin-right: 2px; }
+.prose .stext[contenteditable="true"] { display: block; margin: 4px 0 8px; }
+
+/* ---- C: list panel + question-first ---- */
+.search { width: 100%; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 14px; }
+.search kbd { margin-left: auto; font: inherit; font-size: 12px; }
+.plist { margin-top: 14px; display: flex; flex-direction: column; }
+.plist .lab { padding-left: 8px; margin: 10px 0 4px; }
+.prow { width: 100%; min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 8px; font-size: 14px; margin-bottom: 2px; }
+.prow:hover { background: var(--sidebar-accent); }
+.prow.on { background: color-mix(in oklch, var(--foreground) 8%, transparent); }
+.prow .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.prow .when { font-size: 12px; color: var(--muted-foreground); }
+.prow.quiet .name { color: var(--muted-foreground); }
+.pfoot { margin-top: auto; padding-top: 14px; }
+.qsec { margin-top: 26px; }
+.qsec .qh { font-size: 15px; font-weight: 500; line-height: 1.5; }
+.qsec .qsub { margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+.crow { display: flex; align-items: flex-start; gap: 10px; padding: 6px 4px 6px 8px; margin: 0 -8px; border-radius: 8px; }
+.crow:hover { background: var(--muted); }
+.crow.new { animation: fadein .6s ease; }
+.vchip { flex: none; margin-top: 3px; height: 20px; padding: 0 7px; border-radius: 6px; background: var(--secondary); font-size: 12px; color: var(--muted-foreground); display: inline-flex; align-items: center; white-space: nowrap; }
+.vchip.you { color: var(--foreground); background: color-mix(in oklch, var(--foreground) 9%, transparent); }
+.crow .stbody .stext { font-size: 14px; }
+.crow .stbody .sub { font-size: 12.5px; }
+.ovr { max-width: 768px; margin: 0 auto; padding: 28px 24px 120px; }
+
+/* ---- Cases ---- */
+.cases { flex: 1; display: flex; min-width: 0; }
+.cpane { width: 420px; flex: none; border-right: .5px solid var(--border); overflow: auto; padding: 16px 20px 40px; background: var(--sidebar-panel); }
+.cright { flex: 1; min-width: 0; display: flex; }
+.cright .dots { display: none; }
+.cpick { display: flex; flex-wrap: wrap; gap: 6px; }
+.steps { margin-top: 16px; display: flex; flex-direction: column; gap: 2px; }
+.srow2 { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 8px; font-size: 13px; color: var(--muted-foreground); }
+.srow2:hover { background: var(--sidebar-accent); }
+.srow2.on { background: color-mix(in oklch, var(--foreground) 8%, transparent); color: var(--foreground); }
+.srow2.done { color: var(--foreground); }
+.srow2 .n { width: 18px; font-size: 12px; text-align: right; flex: none; }
+.srow2 .d { width: 44px; font-size: 12px; flex: none; }
+.srow2 .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cnav { display: flex; gap: 4px; margin-top: 10px; }
+.cblk { margin-top: 20px; }
+.cblk .lab { margin-bottom: 6px; }
+.cblk .you { font-size: 15px; line-height: 1.55; }
+.cblk .owl { font-size: 14px; line-height: 1.5; color: var(--muted-foreground); }
+.surf { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
+.surf .h { font-size: 12px; color: var(--muted-foreground); margin-bottom: 6px; }
+.surf .u { display: inline-block; background: var(--secondary); border-radius: 10px; padding: 4px 10px; margin-bottom: 8px; font-size: 13px; }
+.surf .upd2 { margin-top: 8px; font-size: 12px; color: var(--muted-foreground); }
+.surf .upd2 b { font-weight: 500; color: var(--foreground); }
+.surf .rrow { display: flex; gap: 8px; padding: 3px 0; }
+.surf .rrow .w { color: var(--muted-foreground); }
+.surf .first { font-size: 11px; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
+.surf .none { color: var(--muted-foreground); }
+.surf .krel { margin: 0 -6px; padding: 4px 6px; }
+.st.abs .stext { color: var(--muted-foreground); }
+.hintline { font-size: 13px; color: var(--muted-foreground); margin-top: 6px; }
+
+/* ---- Paper page ---- */
+.paper { flex: 1; display: flex; min-width: 0; }
+.paper .well { flex: 1; overflow: auto; background: var(--well); padding: 24px; }
+.page { max-width: 620px; margin: 0 auto; background: #fff; box-shadow: var(--shadow-raise); border-radius: 2px; padding: 48px 56px; font-family: Georgia, serif; font-size: 13px; line-height: 1.6; color: #222; }
+.page h3 { font-size: 18px; font-weight: 400; text-align: center; margin-bottom: 6px; }
+.page .au { text-align: center; color: #666; margin-bottom: 22px; }
+.page h4 { font-size: 13px; margin: 14px 0 6px; }
+.page p { margin-bottom: 10px; text-align: justify; }
+.page mark { background: oklch(0.93 0.11 98); color: inherit; }
+.details { width: 380px; flex: none; border-left: .5px solid var(--border); padding: 20px 20px; overflow: auto; }
+.details h2 { font-size: 18px; font-weight: 500; line-height: 1.375; }
+.details .meta { font-size: 13px; color: var(--muted-foreground); margin-top: 6px; }
+.details .ctl { display: flex; align-items: center; gap: 4px; margin-top: 12px; font-size: 13px; color: var(--muted-foreground); }
+.details .tabs { display: flex; gap: 14px; margin-top: 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.details .tabs span { padding: 6px 2px; color: var(--muted-foreground); }
+.details .tabs span.on { color: var(--foreground); box-shadow: inset 0 -2px 0 var(--foreground); }
+.details .body { margin-top: 16px; font-size: 14px; line-height: 1.55; }
+.details .lab { margin-top: 18px; }
+.details .lab:first-child { margin-top: 0; }
+.krel { padding: 6px 8px; margin: 0 -8px; border-radius: 8px; }
+.krel:hover { background: var(--muted); }
+.krel .t { font-size: 14px; }
+.krel .t .cite { font-weight: 500; }
+.krel .d { font-size: 13px; color: var(--muted-foreground); margin-top: 1px; }
+.krel .d em { font-style: normal; color: var(--foreground); }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <div class="topbar">
+    <button class="icon-btn"><i data-lucide="arrow-left"></i></button>
+    <button class="icon-btn"><i data-lucide="arrow-right"></i></button>
+    <button class="icon-btn" title="Toggle list panel"><i data-lucide="panel-left"></i></button>
+    <div class="spacer"></div>
+    <div class="mock"><span class="mock-label">Variant</span>
+      <div class="mock-switch" id="swV">
+        <button data-v="a" class="on">A · Memo</button><button data-v="b">B · Prose</button><button data-v="c">C · Panel</button>
+      </div>
+    </div>
+    <div class="mock"><span class="mock-label">Wording</span>
+      <div class="mock-switch" id="swW"><button data-w="before">Before</button><button data-w="after" class="on">After</button></div>
+    </div>
+    <div class="mock"><span class="mock-label">Page</span>
+      <div class="mock-switch" id="swP"><button data-p="topics" class="on">Topics</button><button data-p="topic">Topic</button><button data-p="paper">Paper</button><button data-p="cases">Cases</button></div>
+    </div>
+    <div class="mock"><div class="mock-switch" id="swT"><button data-t="light" class="on">Light</button><button data-t="dark">Dark</button></div></div>
+    <button class="icon-btn" title="Owlit  ⌘J"><i data-lucide="panel-right"></i></button>
+  </div>
+
+  <nav class="rail">
+    <button class="icon-btn"><i data-lucide="house"></i></button>
+    <button class="icon-btn"><i data-lucide="message-square"></i></button>
+    <button class="icon-btn"><i data-lucide="file-text"></i></button>
+    <button class="icon-btn active"><i data-lucide="network"></i></button>
+    <button class="icon-btn"><i data-lucide="book-open"></i></button>
+  </nav>
+
+  <div class="sheetwrap nolist" id="sw">
+    <aside class="lpanel" id="lpanel"></aside>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+<div class="mock-note" id="note"></div>
+
+<script>
+// ---------- Data: one model, three renderings ----------
+const C = (t, k, loc) => ({ t, k, loc })
+let LOOSE_COUNT = 12
+let TOPICS = [
+  {
+    id: "control", name: "Control and deferral", status: "active", updated: "Oct 15", group: "week", seen: "Oct 14",
+    summary: "Whether being able to decline or defer matters more than timing is still open. The two papers define “control” differently.",
+    from: "2 docs, 2 papers and 1 chat",
+    statements: [
+      { id: "s1", voice: "you", text: "Being able to decline or defer may matter more than the timing itself.", cites: [C("Untitled 10/11", "doc"), C("chat 10/15", "chat")], tag: "hunch", q: "q1", since: "changed",
+        prose: "You wrote on 10/11 that {being able to decline or defer may matter more than the timing itself}, and called it a hunch.",
+        notes: [{ by: "You", when: "Oct 15 · from chat", text: "I didn’t say “determines”. I only asked whether declining or deferring is worth studying." }] },
+      { id: "s2", voice: "Chen 2025", text: "With deferral available, acceptance did not differ across the three timing conditions.", cites: [C("§4", "paper")], cond: "notification-style tasks only; the discussion’s generalisation is not what was observed", q: "q1",
+        prose: "Chen 2025 found that {with deferral available, acceptance did not differ across the three timing conditions} (§4); that was in notification-style tasks, and the discussion’s generalisation is not what was observed." },
+      { id: "s3", voice: "owlit", text: "The two papers operationalise “control” differently (deferral vs. decline plus edit), so merging their results would conflate mechanisms.", cites: [C("Comparison table 10/14", "doc")],
+        prose: "I think {the two papers operationalise “control” differently (deferral vs. decline plus edit), so merging their results would conflate mechanisms}; see the comparison table from 10/14." },
+    ],
+    questions: [{ id: "q1", text: "Does being able to decline or defer relate to acceptance?", from: "your note Oct 11", candidate: "Chen 2025 (2)", missing: "evidence from conversational agents" }],
+    sources: [
+      { when: "Oct 15", t: "chat “Task boundaries vs control”", k: "chat", rel: "your correction" },
+      { when: "Oct 14", t: "Sato 2025", k: "paper", loc: "§2", rel: "comparison table, saved as a doc" },
+      { when: "Oct 12", t: "Chen 2025", k: "paper", loc: "§4", rel: "your comment “is the evidence enough?”" },
+      { when: "Oct 11", t: "Untitled", k: "doc", rel: "“maybe it’s about whether people feel in control”" },
+    ],
+    history: [
+      { when: "Oct 15", what: "Statement 1 rewritten: “control determines acceptance” became an open hunch", why: "your correction in chat", by: "owlit" },
+      { when: "Oct 14", what: "Statement 3 added", why: "comparison table", by: "owlit" },
+      { when: "Oct 12", what: "Statement 2 added", why: "you read Chen 2025 and commented", by: "owlit" },
+      { when: "Oct 11", what: "Topic created", why: "your note and Chen 2025 §4", by: "owlit" },
+    ],
+    yourNote: "",
+  },
+  {
+    id: "timing", name: "Intervention timing", status: "active", updated: "Oct 18", group: "week",
+    summary: "Findings on when to interrupt come from notification tasks; whether they carry over to conversational agents is not settled.",
+    from: "3 docs, 14 papers and 2 chats",
+    statements: [
+      { id: "s1", voice: "you", text: "Interrupting at task boundaries works best.", cites: [C("notes 2025-09", "doc")], q: "q2",
+        prose: "In 2025-09 you wrote that {interrupting at task boundaries works best}." },
+      { id: "s2", voice: "you", text: "Interruption costs least when cognitive load is low.", cites: [C("notes 2025-03", "doc")], q: "q2",
+        prose: "Earlier, in 2025-03, you wrote that {interruption costs least when cognitive load is low}." },
+      { id: "s3", voice: "owlit", text: "Those two notes never appear together; they may be two questions: when to interrupt, and whether the user can refuse.", cites: [C("chat Oct 6", "chat")], q: "q2",
+        prose: "I notice {those two notes never appear together; they may be two questions: when to interrupt, and whether the user can refuse} (from our chat on Oct 6)." },
+      { id: "s4", voice: "Iqbal 2008", text: "Deferring notifications to task boundaries reduces disruption.", cites: [C("§5", "paper")], cond: "desktop, notification tasks", q: "q1",
+        prose: "Iqbal 2008 showed that {deferring notifications to task boundaries reduces disruption} (§5), on the desktop and in notification tasks." },
+      { id: "s5", voice: "Nguyen 2023", text: "Boundary effects hold on mobile but shrink when the task is short.", cites: [C("§4", "paper")], q: "q1",
+        prose: "Nguyen 2023 found that {boundary effects hold on mobile but shrink when the task is short} (§4)." },
+      { id: "s6", voice: "Marin 2024", text: "Users preferred post-hoc rationale over upfront explanation.", cites: [C("§6", "paper")], cond: "Chen 2025 §4 points the other way once deferral is available",
+        prose: "Marin 2024 reports that {users preferred post-hoc rationale over upfront explanation} (§6), though Chen 2025 §4 points the other way once deferral is available." },
+    ],
+    questions: [
+      { id: "q1", text: "Do boundary findings from notification tasks carry over to conversational agents?", from: "chat Oct 6", candidate: "", missing: "a study with multi-turn agents" },
+      { id: "q2", text: "Is “when to interrupt” separable from “can the user refuse”?", from: "your draft §3", candidate: "Owlit (3)", missing: "" },
+    ],
+    sources: [
+      { when: "Oct 18", t: "search “deferral studies since 2018”", k: "chat", rel: "3 papers added" },
+      { when: "Oct 8", t: "Chen 2025", k: "paper", loc: "§4", rel: "your comment “is the evidence enough?”" },
+      { when: "Oct 6", t: "chat “Reviewer’s notification management”", k: "chat", rel: "two questions, not one" },
+      { when: "Oct 6", t: "CHI related work", k: "doc", loc: "§3", rel: "the paragraph the reviewer pointed at" },
+      { when: "Sep 2025", t: "notes 2025-09", k: "doc", rel: "imported from Obsidian" },
+    ],
+    history: [
+      { when: "Oct 18", what: "3 papers added to Sources", why: "your search", by: "owlit" },
+      { when: "Oct 8", what: "Statement 6 marked as contested by Chen 2025", why: "you read Chen 2025", by: "owlit" },
+      { when: "Oct 6", what: "Topic created", why: "your draft, two notes and three papers", by: "owlit" },
+    ],
+    yourNote: "",
+  },
+  {
+    id: "explain", name: "Explanation interfaces", status: "active", updated: "Oct 29", group: "earlier",
+    summary: "Whether users want an explanation depends on being able to decline; your advisor questions the premise that the system knows when it is unsure.",
+    from: "2 docs, 5 papers and 1 chat",
+    statements: [
+      { id: "s1", voice: "you", voiceLong: "You (reporting your advisor, 10/29)", text: "LLMs don’t meet the premise that the system knows its own uncertainty.", cites: [C("Advisor meeting 10-29", "doc")], tag: "disputed",
+        prose: "On 10/29 you reported your advisor’s view that {LLMs don’t meet the premise that the system knows its own uncertainty}." },
+      { id: "s2", voice: "you", text: "Not fully convinced, but it needs a reply.", cites: [C("Advisor meeting 10-29", "doc")],
+        prose: "You added that you are {not fully convinced, but it needs a reply}." },
+      { id: "s3", voice: "Marin 2024", text: "Participants wanted a reason only after an unexpected suggestion.", cites: [C("§5", "paper")],
+        prose: "Marin 2024 found that {participants wanted a reason only after an unexpected suggestion} (§5)." },
+      { id: "s4", voice: "owlit", text: "Wanting an explanation and being able to decline may be the same need seen twice.", cites: [C("chat Oct 20", "chat")],
+        prose: "I suspect that {wanting an explanation and being able to decline may be the same need seen twice}." },
+    ],
+    questions: [{ id: "q1", text: "If users don’t want explanations, what can a proactive agent still do?", from: "chat Oct 20 (kept out of Knowledge)", candidate: "", missing: "" }],
+    sources: [
+      { when: "Oct 29", t: "Advisor meeting 10-29", k: "doc", rel: "advisor’s objection, your reaction" },
+      { when: "Oct 12", t: "Marin 2024", k: "paper", loc: "§5", rel: "read" },
+    ],
+    history: [
+      { when: "Oct 29", what: "Understanding rewritten", why: "your note from the advisor meeting", by: "owlit" },
+      { when: "Oct 12", what: "Topic created", why: "two notes and Marin 2024", by: "owlit" },
+    ],
+    yourNote: "",
+  },
+  {
+    id: "notif", name: "Notification management", status: "active", updated: "Oct 6", group: "earlier",
+    summary: "The line the reviewer pointed at. Overlaps Intervention timing; not merged yet.",
+    from: "1 doc and 9 papers", suggest: "timing",
+    statements: [
+      { id: "s1", voice: "Iqbal 2008", text: "Notification management is about when and how to present, not whether.", cites: [C("§1", "paper")],
+        prose: "Iqbal 2008 frames {notification management as being about when and how to present, not whether} (§1)." },
+      { id: "s2", voice: "Horvitz 1999", text: "Mixed-initiative systems should weigh the expected utility of acting against the cost of interrupting.", cites: [C("§2", "paper")],
+        prose: "Horvitz 1999 argues that {mixed-initiative systems should weigh the expected utility of acting against the cost of interrupting} (§2)." },
+      { id: "s3", voice: "owlit", text: "Most of this topic’s papers are also cited under Intervention timing.", cites: [],
+        prose: "I note that {most of this topic’s papers are also cited under Intervention timing}." },
+    ],
+    questions: [],
+    sources: [
+      { when: "Oct 6", t: "CHI related work", k: "doc", loc: "§3", rel: "reviewer’s comment" },
+      { when: "Oct 6", t: "Iqbal 2008", k: "paper", rel: "cited in your draft" },
+    ],
+    history: [{ when: "Oct 6", what: "Topic created", why: "your draft and 9 papers", by: "owlit" }],
+    yourNote: "",
+  },
+  { id: "cost", name: "Interruption cost (earlier framing)", status: "archived", updated: "Sep 20", group: "archived", summary: "Replaced by Intervention timing.", from: "2 docs and 4 papers", statements: [], questions: [], sources: [], history: [], yourNote: "" },
+  { id: "diary", name: "Diary study methods", status: "archived", updated: "Sep 2", group: "archived", summary: "Method notes for the pilot.", from: "1 doc and 3 papers", statements: [], questions: [], sources: [], history: [], yourNote: "" },
+]
+
+const LOOSE = [
+  { q: "“Maybe the agent should ask less and watch more.”", src: "Ideas · Oct 3" },
+  { q: "“Check whether the diary app logs the time of day.”", src: "Experiment plan · Sep 28" },
+  { q: "“Is there a version of this for voice assistants?”", src: "chat Oct 2" },
+  { q: "“Reviewer 2 wants a table, not prose.”", src: "Rebuttal notes · Oct 6" },
+  { q: "“The walking condition in Chen might be doing all the work.”", src: "chat Oct 12" },
+]
+
+const RUN = {
+  statement: { id: "s7", voice: "Sato 2025", text: "Satisfaction was higher on days when declining a suggestion was cheap.", cites: [C("§4", "paper")], cond: "desktop, two-week diary", q: "q1",
+    prose: "Sato 2025 found that {satisfaction was higher on days when declining a suggestion was cheap} (§4), on the desktop over a two-week diary." },
+  history: { when: "Just now", what: "Statement 7 added", why: "you read Sato 2025", by: "owlit" },
+  source: { when: "Just now", t: "Sato 2025", k: "paper", loc: "§4", rel: "read" },
+}
+
+let UPDATES = [
+  { topic: "Intervention timing", what: "3 papers added to Sources, from your search on Oct 18" },
+  { topic: "Control and deferral", what: "Statement 1 rewritten after your correction in chat" },
+]
+let updatedLabel = "Updated 3 min ago · 2 topics"
+
+// ---------- State ----------
+const state = { wording: "after", why: null, ask: null, caseId: "c", step: 0, v: "a", page: "topics", topic: "control", theme: "light", hist: false, loose: false, arch: false, noteOff: false, editing: null, noting: null, noteTag: null, menu: null, smenu: null, toast: null, updpop: false, ptab: "knowledge", removed: null }
+
+const NOTES = {
+  a: "<b>A · Memo.</b> Knowledge is a page like Library; a topic reads like a memo: who said it in a left column, the sentence, then sources and conditions in muted text. A line you corrected says so in muted text; your words stay in the chat and in History, not on the page. Hover a line for Edit · Mark as · Ask Owlit · Remove. Try the ⋯ menu’s Update now.",
+  b: "<b>B · Prose.</b> Same page, but the topic reads as a short piece Owlit wrote you: the voice is carried by the wording (“you wrote”, “Chen found”, “I think”). Each sentence is still one statement: click it for Edit · Note · Remove, and your note opens under the paragraph as in Docs.",
+  cases: "<b>Cases.</b> Three stories from knowledge-cases.md in the redesign folder, one step at a time. The left side is what you did, what Owlit did in the background and where you would notice it; the right side is Knowledge exactly as it stands after that step.",
+  c: "<b>C · Panel.</b> Topics live in a list panel like Chat and Docs, so you hop between them. A topic is organised by your questions first, with the lines that bear on each one beneath it; lines that belong to no question come last. With no topic picked, the page shows what changed.",
+}
+
+const $ = (s, r = document) => r.querySelector(s)
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+const topic = () => TOPICS.find((t) => t.id === state.topic)
+const voiceLabel = (s) => s.voice === "you" ? (s.voiceLong || "You") : s.voice === "owlit" ? "Owlit" : s.voice
+const cites = (s) => s.cites.map((c) => `<span class="cite">${esc(c.t)}</span>`).join('<span class="sep">·</span>')
+
+// ---------- Renderers ----------
+function render() {
+  document.documentElement.classList.toggle("dark", state.theme === "dark")
+  for (const [sel, key, val] of [["#swV", "v", state.v], ["#swP", "p", state.page], ["#swT", "t", state.theme], ["#swW", "w", state.wording]])
+    document.querySelectorAll(`${sel} button`).forEach((b) => b.classList.toggle("on", b.dataset[key] === val))
+  const panel = state.v === "c" && state.page !== "paper" && state.page !== "cases"
+  $("#sw").classList.toggle("nolist", !panel)
+  if (panel) $("#lpanel").innerHTML = renderPanel()
+  const sheet = $("#sheet")
+  if (state.page === "cases") sheet.innerHTML = renderCases()
+  else if (state.page === "paper") sheet.innerHTML = renderPaper()
+  else if (state.page === "topics") sheet.innerHTML = state.v === "c" ? renderOverview() : (state.loose ? renderLoose() : renderList())
+  else sheet.innerHTML = state.v === "a" ? renderTopicMemo() : state.v === "b" ? renderTopicProse() : renderTopicQuestions()
+  $("#note").innerHTML = state.noteOff ? "" : `<button class="x" id="noteX"><i data-lucide="x"></i></button>${state.page === "cases" ? NOTES.cases : NOTES[state.v]}`
+  $("#note").classList.toggle("hide", state.noteOff)
+  renderOverlays()
+  lucide.createIcons()
+  const ed = $('.stext[contenteditable="true"]'); if (ed) { ed.focus(); document.getSelection()?.collapse(ed, ed.childNodes.length) }
+}
+
+function updLine() {
+  return `<button class="upd" data-act="updpop"><i data-lucide="sparkles"></i>${updatedLabel}</button>`
+}
+
+function renderList() {
+  const groups = [["This week", "week"], ["Earlier", "earlier"]]
+  const rows = (g) => TOPICS.filter((t) => t.group === g).map((t) => `
+    <div class="krow ${t.status === "archived" ? "quiet" : ""}" data-open="${t.id}">
+      <span class="name">${esc(t.name)}</span>
+      <span class="sum">${esc(t.summary)}</span>
+      <span class="when">${t.updated}</span>
+      <button class="dots" data-menu="topic" data-id="${t.id}"><i data-lucide="ellipsis-vertical"></i></button>
+    </div>`).join("")
+  const arch = TOPICS.filter((t) => t.group === "archived")
+  return `<div class="main"><div class="kpage">
+    <div class="ptitle">Knowledge</div>
+    <div class="tabline"><span class="tab on">Topics</span><span class="tab" title="Later: your questions across topics">Questions</span>
+      <div class="right"><button class="btn ghost">Recent <i data-lucide="chevron-down" style="width:13px;height:13px"></i></button><button class="icon-btn" data-menu="page"><i data-lucide="ellipsis-vertical"></i></button></div></div>
+    ${updLine()}
+    <div class="find"><i data-lucide="search"></i>Find a topic…</div>
+    ${groups.map(([l, g]) => `<div class="grp"><div class="lab">${l}</div>${rows(g)}</div>`).join("")}
+    <div class="grp">
+      <button class="foldrow ${state.arch ? "open" : ""}" data-act="arch"><i data-lucide="chevron-right"></i>Archived · ${arch.length}</button>
+      ${state.arch ? rows("archived") : ""}
+      <button class="foldrow" data-act="loose"><i data-lucide="chevron-right"></i>Not in a topic yet · ${LOOSE_COUNT} passages</button>
+    </div>
+  </div></div>`
+}
+
+function renderLoose() {
+  return `<div class="main">
+    <div class="thead"><span class="crumb"><button data-act="back">Knowledge</button> › <b>Not in a topic yet</b></span></div>
+    <div class="col">
+      <div class="lab">Passages from your docs and chats that no topic holds yet. Nothing here needs doing.</div>
+      <div style="margin-top:12px">${LOOSE.map((l) => `<div class="lrow"><span class="q">${esc(l.q)}</span><span class="src">${esc(l.src)}</span>
+        <div class="acts"><button class="btn ghost">Add to topic…</button><button class="btn ghost">New topic</button></div></div>`).join("")}
+      <div class="lab" style="margin-top:10px;padding-left:10px">and 7 more</div></div>
+    </div></div>`
+}
+
+function topicHead(t, crumb = true) {
+  return `<div class="thead">
+    <span class="crumb">${crumb ? `<button data-act="back">Knowledge</button> › ` : ""}<b>${esc(t.name)}</b></span>
+    <div class="spacer"></div>
+    <button class="btn ghost" data-act="chat"><i data-lucide="message-square" style="width:14px;height:14px"></i>Chat about this</button>
+    <button class="icon-btn" data-menu="topic" data-id="${t.id}"><i data-lucide="ellipsis-vertical"></i></button>
+  </div>`
+}
+
+function topicIntro(t) {
+  return `<div class="ttitle">${esc(t.name)}</div>
+    <div class="tmeta">Owlit’s reading of ${t.from} · updated ${t.updated}
+      <span class="info"><i data-lucide="info"></i><span class="tip">Owlit wrote this from your material. Edit a line and it stays yours; Owlit keeps the rest up to date. Judgments appear only when you state them.</span></span></div>
+    ${t.cited ? `<div class="hintline">cited in <span class="cite">${esc(t.cited)}</span></div>` : ""}
+    <div class="tsum">${esc(t.summary)}</div>
+    ${t.suggest ? `<div class="suggest">Owlit: most of these sources are also under Intervention timing. <button class="btn ghost" style="margin-left:2px">Merge into Intervention timing</button></div>` : ""}`
+}
+
+// What you told Owlit about a line is kept (sidecar, History, the chat itself); on the page it is one muted trace
+function noteBits() { return "" }
+
+function subLine(s) {
+  const bits = []
+  if (s.cites.length) bits.push(cites(s))
+  if (s.abstract) bits.push("abstract · not read")
+  if (s.cond) bits.push(esc(s.cond))
+  if (s.edited) bits.push("edited by you")
+  if (s.notes?.length) bits.push(`corrected by you · ${esc(s.notes[s.notes.length - 1].when.split(" · ")[0])}`)
+  if (s.flag) bits.push(esc(s.flag))
+  return bits.length ? `<div class="sub">${bits.join('<span class="sep">·</span>')}</div>` : ""
+}
+
+function statementMemo(t, s) {
+  const key = `${t.id}/${s.id}`
+  const editing = state.editing === key
+  return `<div class="st ${s.fresh ? "new" : ""} ${s.abstract ? "abs" : ""}" data-key="${key}">
+    <div class="voice ${s.voice === "you" ? "you" : s.voice === "owlit" ? "owlit" : ""}" title="${esc(voiceLabel(s))}">${esc(voiceLabel(s))}</div>
+    <div class="stbody">
+      <div class="stext" ${editing ? 'contenteditable="true" spellcheck="false"' : ""} id="${editing ? "edit" : ""}">${esc(s.text)}</div>
+      ${editing ? `<div class="editacts"><button class="btn ghost" data-act="editCancel">Cancel</button><button class="btn primary" data-act="editSave" data-key="${key}">Save</button></div>` : subLine(s)}
+      ${noteBits(s, key)}
+    </div>
+    <button class="dots" data-menu="st" data-key="${key}"><i data-lucide="ellipsis-vertical"></i></button>
+  </div>`
+}
+
+function questions(t) {
+  if (!t.questions.length) return ""
+  return `<div class="blk"><div class="lab">Questions</div>${t.questions.map((q) => {
+    const bits = [`from ${esc(q.from)}`]
+    if (q.answered) bits.push(`answered: ${esc(q.answered)}`)
+    else bits.push(q.candidate ? `candidate: ${esc(q.candidate)}` : "no candidate yet")
+    if (q.missing) bits.push(`missing: ${esc(q.missing)}`)
+    return `<div class="qrow"><div class="q">${esc(q.text)}</div><div class="sub">${bits.join('<span class="sep">·</span>')}</div></div>`
+  }).join("")}</div>`
+}
+
+
+function sources(t) {
+  if (!t.sources.length) return ""
+  return `<div class="blk"><div class="lab">Sources</div>${t.sources.map((s) => `<div class="srow"><span class="when">${esc(s.when)}</span><span><span class="cite">${esc(s.t)}</span>${s.loc ? ` ${esc(s.loc)}` : ""} <span class="rel">· ${esc(s.rel)}</span></span></div>`).join("")}</div>`
+}
+
+function history(t) {
+  if (!t.history.length) return ""
+  return `<div class="hist"><button class="histtog ${state.hist ? "open" : ""}" data-act="hist"><i data-lucide="chevron-right"></i>${t.history.length} changes</button>
+    ${state.hist ? `<div style="margin-top:6px">${t.history.map((h) => `<div class="hrow"><span class="when">${esc(h.when)}</span><span class="what">${esc(h.what)} <span class="why">· ${esc(h.why)}</span></span>${h.by === "owlit" ? `<button class="rev">Revert</button>` : ""}</div>`).join("")}</div>` : ""}</div>`
+}
+
+// ---------- After: readable wording ----------
+// The voice column says who and how: "You wrote", "Chen 2025 found", "Owlit thinks".
+// 1: a small yellow dot for what Owlit added or changed since you last looked
+const dot = (s) => s.since ? `<span class="ndot" title="${s.since === "new" ? "New" : "Changed"} since you last looked"></span>` : ""
+function voiceVerb(s) {
+  if (s.voice === "you") {
+    if (s.voiceLong) return `<b>You</b> reported`
+    if (s.edited) return `<b>You</b> rewrote`
+    if (s.cites[0]?.k === "chat") return `<b>You</b> said`
+    return `<b>You</b> wrote`
+  }
+  if (s.voice === "owlit") return `<b>Owlit</b> thinks`
+  return `<b>${esc(s.voice)}</b> ${s.abstract ? "says" : "found"}`
+}
+function chips(s) {
+  const c = []
+  if (s.abstract) c.push(["abstract only"])
+  return c.map(([t, k]) => `<span class="schip ${k || ""}">${t}</span>`).join("")
+}
+function lineHistory(t, s) {
+  const n = s.id.slice(1)
+  const rows = t.history.filter((h) => new RegExp(`[Ss]tatement ${n}\\b`).test(h.what)).slice().reverse()
+  const born = t.history[t.history.length - 1]
+  if (!rows.length || !/added|created/i.test(rows[0].what)) rows.unshift({ when: born.when, what: "In this topic since it began", why: born.why })
+  const said = s.notes?.length ? s.notes[s.notes.length - 1] : null
+  return `<div class="why">${rows.map((h) => `<div class="wrow"><span class="when">${esc(h.when)}</span><span>${esc(h.what.replace(/^Statement \d+ /, "").replace(/^./, (m) => m.toUpperCase()))} <span class="muted">· ${esc(h.why)}</span></span></div>`).join("")}
+    ${said ? `<div class="wrow"><span class="when"></span><span class="muted">You said: “${esc(said.text)}”</span></div>` : ""}</div>`
+}
+function statementReadable(t, s) {
+  const key = `${t.id}/${s.id}`
+  const editing = state.editing === key
+  const sub = [cites(s), s.cond ? esc(s.cond.replace(/^./, (m) => m.toUpperCase())) + "." : ""].filter(Boolean).join('<span class="sep">·</span>')
+  return `<div class="st rd ${s.fresh ? "new" : ""} ${s.abstract ? "abs" : ""} ${state.why === key ? "open" : ""}" data-key="${key}" data-why="${key}">
+    <div class="vv">${dot(s)}${voiceVerb(s)}</div>
+    <div class="stbody">
+      <div class="stext" ${editing ? 'contenteditable="true" spellcheck="false" id="edit"' : ""}>${esc(s.text)}</div>
+      ${editing ? `<div class="editacts"><button class="btn ghost" data-act="editCancel">Cancel</button><button class="btn primary" data-act="editSave" data-key="${key}">Save</button></div>`
+        : `<div class="sub">${sub}${chips(s)}</div>`}
+      ${state.why === key && !editing ? lineHistory(t, s) : ""}
+    </div>
+    <button class="dots" data-menu="st" data-key="${key}"><i data-lucide="ellipsis-vertical"></i></button>
+  </div>`
+}
+function questionsReadable(t) {
+  if (!t.questions.length) return ""
+  return `<div class="blk"><div class="lab">Your questions</div>${t.questions.map((q) => {
+    const parts = [`From ${esc(q.from)}.`]
+    if (q.answered) parts.push(`Answered: ${esc(q.answered)}.`)
+    else if (q.candidate) parts.push(`${esc(q.candidate.replace(/ \(\d+\)$/, ""))} partly answers it.`)
+    else parts.push("Nothing answers it yet.")
+    if (q.missing && !q.answered) parts.push(`Still missing: ${esc(q.missing)}.`)
+    return `<div class="qrow"><div class="q">${esc(q.text)}</div><div class="sub">${parts.join(" ")}</div></div>`
+  }).join("")}</div>`
+}
+function introReadable(t) {
+  const changed = t.statements.filter((s) => s.since).length
+  return `<div class="ttitle">${esc(t.name)}</div>
+    <div class="tmeta">Owlit keeps this from ${t.from} · updated ${t.updated}
+      <span class="info"><i data-lucide="info"></i><span class="tip">Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words.</span></span></div>
+    ${t.cited ? `<div class="hintline">Cited in <span class="cite">${esc(t.cited)}</span></div>` : ""}
+    <div class="tsum">${esc(t.summary)}</div>
+    ${changed && t.seen ? `<div class="hintline"><span class="ndot"></span>${changed} line ${t.statements.find((s) => s.since)?.since} since you last looked on ${esc(t.seen)}</div>` : ""}
+    ${t.suggest ? `<div class="suggest">Owlit: most of these sources are also under Intervention timing. <button class="btn ghost" style="margin-left:2px">Merge into Intervention timing</button></div>` : ""}`
+}
+function renderTopicReadable() {
+  const t = topic()
+  return `<div class="main">${topicHead(t)}<div class="col">${introReadable(t)}
+    ${questionsReadable(t)}
+    <div class="blk"><div class="lab">So far</div>${t.statements.map((s) => statementReadable(t, s)).join("")}</div>
+    ${sources(t)}${history(t)}</div></div>`
+}
+
+function renderTopicMemo() {
+  if (state.wording === "after") return renderTopicReadable()
+  const t = topic()
+  return `<div class="main">${topicHead(t)}<div class="col">${topicIntro(t)}
+    <div class="blk"><div class="lab">Understanding</div>${t.statements.map((s) => statementMemo(t, s)).join("")}</div>
+    ${questions(t)}${sources(t)}${history(t)}</div></div>`
+}
+
+// B: prose. Each statement's `prose` has the statement proper in {braces}; the rest is Owlit's connective wording.
+function sentence(t, s) {
+  const key = `${t.id}/${s.id}`
+  if (state.editing === key) return `<span class="sent on" data-key="${key}"><span class="stext" contenteditable="true" spellcheck="false" id="edit">${esc(s.text)}</span><span class="editacts" style="display:flex"><button class="btn ghost" data-act="editCancel">Cancel</button><button class="btn primary" data-act="editSave" data-key="${key}">Save</button></span></span>`
+  let p = s.edited ? `You put it as: {${s.text}}.` : s.prose
+  p = esc(p).replace(/\{([^}]*)\}/, "<span class=\"core\">$1</span>")
+  const tag = ""
+  return `<span class="sent ${s.fresh ? "new" : ""} ${state.smenu === key ? "on" : ""}" data-sent="${key}">${p}${tag}</span>`
+}
+
+function renderTopicProse() {
+  const t = topic()
+  // Paragraphs: statements bearing on a question first, then the rest
+  const paras = []
+  const used = new Set()
+  for (const q of t.questions) { const ss = t.statements.filter((s) => s.q === q.id); if (ss.length) { paras.push(ss); ss.forEach((s) => used.add(s.id)) } }
+  const rest = t.statements.filter((s) => !used.has(s.id)); if (rest.length) paras.push(rest)
+  const body = paras.map((ss) => `<p>${ss.map((s) => sentence(t, s)).join(" ")}</p>${ss.map((s) => noteBits(s, `${t.id}/${s.id}`)).join("")}`).join("")
+  return `<div class="main">${topicHead(t)}<div class="col">${topicIntro(t)}
+    <div class="blk prose"><div class="lab">Understanding</div>${body || "<p class=\"muted\">Nothing yet.</p>"}</div>
+    ${questions(t)}${sources(t)}${history(t)}</div></div>`
+}
+
+// C: list panel + question-first topic
+function renderPanel() {
+  const row = (t) => `<button class="prow ${t.id === state.topic && state.page === "topic" ? "on" : ""} ${t.status === "archived" ? "quiet" : ""}" data-pick="${t.id}"><span class="name">${esc(t.name)}</span><span class="when">${t.updated}</span></button>`
+  return `<button class="search" data-act="home"><i data-lucide="search"></i>Search<kbd>⌘K</kbd></button>
+    <div class="plist">
+      <div class="lab">This week</div>${TOPICS.filter((t) => t.group === "week").map(row).join("")}
+      <div class="lab">Earlier</div>${TOPICS.filter((t) => t.group === "earlier").map(row).join("")}
+      <button class="foldrow ${state.arch ? "open" : ""}" data-act="arch" style="margin-top:8px"><i data-lucide="chevron-right"></i>Archived · 2</button>
+      ${state.arch ? TOPICS.filter((t) => t.group === "archived").map(row).join("") : ""}
+    </div>
+    <div class="pfoot"><button class="foldrow" data-act="loose"><i data-lucide="chevron-right"></i>Not in a topic yet · 12</button></div>`
+}
+
+function statementCompact(t, s) {
+  const key = `${t.id}/${s.id}`
+  const editing = state.editing === key
+  return `<div class="crow ${s.fresh ? "new" : ""}" data-key="${key}">
+    <span class="vchip ${s.voice === "you" ? "you" : ""}">${esc(voiceLabel(s))}</span>
+    <div class="stbody" style="flex:1;min-width:0">
+      <div class="stext" ${editing ? 'contenteditable="true" spellcheck="false" id="edit"' : ""}>${esc(s.text)}</div>
+      ${editing ? `<div class="editacts"><button class="btn ghost" data-act="editCancel">Cancel</button><button class="btn primary" data-act="editSave" data-key="${key}">Save</button></div>` : subLine(s)}
+      ${noteBits(s, key)}
+    </div>
+    <button class="dots" data-menu="st" data-key="${key}"><i data-lucide="ellipsis-vertical"></i></button>
+  </div>`
+}
+
+function renderTopicQuestions() {
+  const t = topic()
+  const used = new Set()
+  const secs = t.questions.map((q) => {
+    const ss = t.statements.filter((s) => s.q === q.id); ss.forEach((s) => used.add(s.id))
+    const bits = [`from ${esc(q.from)}`]; if (q.missing) bits.push(`missing: ${esc(q.missing)}`); if (!ss.length) bits.push("nothing bears on it yet")
+    return `<div class="qsec"><div class="qh">${esc(q.text)}</div><div class="qsub">${bits.join(" · ")}</div>
+      <div style="margin-top:8px">${ss.map((s) => statementCompact(t, s)).join("")}</div></div>`
+  }).join("")
+  const rest = t.statements.filter((s) => !used.has(s.id))
+  return `<div class="main">${topicHead(t, false)}<div class="col">${topicIntro(t)}
+    <div class="blk"><div class="lab">Questions</div>${secs || `<div class="muted" style="font-size:14px">No question of yours here yet.</div>`}</div>
+    ${rest.length ? `<div class="blk"><div class="lab">Also understood</div>${rest.map((s) => statementCompact(t, s)).join("")}</div>` : ""}
+    ${sources(t)}${history(t)}</div></div>`
+}
+
+function renderOverview() {
+  if (state.loose) return renderLoose()
+  return `<div class="main"><div class="ovr">
+    <div class="ptitle">Knowledge</div>
+    <div class="tmeta">${TOPICS.filter((t) => t.status === "active").length} topics · Owlit keeps them from your docs, papers and chats</div>
+    <div class="blk"><div class="lab">${updatedLabel}</div>
+      ${UPDATES.map((u) => `<div class="srow" data-open="${TOPICS.find((t) => t.name === u.topic)?.id}"><span><span class="cite">${esc(u.topic)}</span> <span class="rel">· ${esc(u.what)}</span></span></div>`).join("")}</div>
+    <div class="blk"><div class="lab">Open questions</div>
+      ${TOPICS.flatMap((t) => t.questions.map((q) => ({ t, q }))).map(({ t, q }) => `<div class="qrow" data-open="${t.id}"><div class="q">${esc(q.text)}</div><div class="sub">${esc(t.name)}${q.missing ? ` · missing: ${esc(q.missing)}` : ""}</div></div>`).join("")}</div>
+  </div></div>`
+}
+
+function renderPaper() {
+  const tabs = [["notes", "Notes"], ["highlights", "Highlights"], ["about", "About"], ["knowledge", "Knowledge"]]
+  const kbody = `
+    <div class="lab">In Knowledge</div>
+    <div class="krel" data-open="control"><div class="t"><span class="cite">Control and deferral</span></div><div class="d">backs <em>“With deferral available, acceptance did not differ across the three timing conditions.”</em></div></div>
+    <div class="krel" data-open="timing"><div class="t"><span class="cite">Intervention timing</span></div><div class="d">contests <em>“Users preferred post-hoc rationale over upfront explanation.”</em> (Marin 2024)</div></div>
+    <div class="lab">Where you mention it</div>
+    <div class="krel"><div class="t"><span class="cite">CHI related work</span> §3</div><div class="d">cited, Oct 6</div></div>
+    <div class="krel"><div class="t"><span class="cite">Untitled</span></div><div class="d">“maybe it’s about whether people feel in control” · Oct 11</div></div>
+    <div class="krel"><div class="t"><span class="cite">chat “Task boundaries vs control”</span></div><div class="d">12 messages · Oct 15</div></div>
+    <div class="lab">Your comment here</div>
+    <div class="krel"><div class="t">“Is the evidence really enough?”</div><div class="d">on §4, Oct 12</div></div>`
+  const other = { notes: `<div class="muted">Your note on this paper.</div>`, highlights: `<div class="muted">3 highlights.</div>`, about: `<div class="muted">Abstract, venue, ids.</div>` }
+  return `<div class="paper">
+    <div class="well"><div class="page">
+      <h3>Deferrable proactive suggestions in conversational agents</h3>
+      <div class="au">Chen, Okafor · CHI 2025</div>
+      <h4>4. Results</h4>
+      <p>Participants accepted proactive suggestions more often when the agent allowed them to <mark>defer the suggestion to a later moment rather than act immediately</mark>. Acceptance did not differ significantly between the three timing conditions once deferral was available.</p>
+      <p>We observed this effect in a notification-style task where the agent surfaced short, self-contained prompts. Participants completed the task on a mobile device while walking, and the agent never required a multi-turn response.</p>
+      <h4>5. Discussion</h4>
+      <p>These findings suggest that conversational agents in general may benefit from offering deferral, and that the choice space afforded to the user may matter more than the precise timing of the interruption.</p>
+    </div></div>
+    <aside class="details">
+      <h2>Deferrable proactive suggestions in conversational agents</h2>
+      <div class="meta">Chen, Okafor · CHI 2025</div>
+      <div class="ctl">Reading <i data-lucide="chevron-down" style="width:13px;height:13px"></i><span style="margin-left:8px"><i data-lucide="star" style="width:14px;height:14px"></i></span></div>
+      <div class="tabs">${tabs.map(([id, l]) => `<span class="${state.ptab === id ? "on" : ""}" data-ptab="${id}">${l}</span>`).join("")}</div>
+      <div class="body">${state.ptab === "knowledge" ? kbody : other[state.ptab]}</div>
+    </aside></div>`
+}
+
+function renderOverlays() {
+  document.querySelectorAll(".menu, .smenu, .updpop, .toast").forEach((n) => n.remove())
+  if (state.menu) {
+    const { kind, x, y, key, id } = state.menu
+    const m = document.createElement("div"); m.className = "menu"
+    if (kind === "st") m.innerHTML = `<button data-act="edit" data-key="${key}">Edit</button><button data-act="ask" data-key="${key}">Ask Owlit</button><hr><button class="danger" data-act="remove" data-key="${key}">Remove</button>`
+    else if (kind === "topic") m.innerHTML = `<button>Rename</button><button>Merge into…</button><button>Split…</button><button data-act="archive" data-id="${id}">Archive</button><hr><button data-act="run">Update now</button><button>Pause updates</button><hr><button class="danger">Delete</button>`
+    else m.innerHTML = `<button data-act="run">Update now</button><button>Pause updates</button><hr><button>Export…</button>`
+    document.body.appendChild(m)
+    const r = m.getBoundingClientRect(); m.style.left = Math.min(x, innerWidth - r.width - 8) + "px"; m.style.top = Math.min(y, innerHeight - r.height - 8) + "px"
+  }
+  if (state.smenu) {
+    const key = state.smenu, el = document.querySelector(`[data-sent="${key}"]`)
+    if (el) {
+      const t = topic(), s = t.statements.find((x) => `${t.id}/${x.id}` === key)
+      const m = document.createElement("div"); m.className = "smenu"
+      m.innerHTML = `<span class="who">${esc(voiceLabel(s))}</span><button data-act="edit" data-key="${key}">Edit</button><button data-act="ask" data-key="${key}">Ask Owlit</button><button data-act="remove" data-key="${key}">Remove</button>`
+      document.body.appendChild(m)
+      const rects = el.getClientRects(); const r = rects[rects.length - 1]
+      m.style.left = Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8) + "px"; m.style.top = (r.bottom + 6) + "px"
+    }
+  }
+  if (state.updpop) {
+    const b = $(".upd"); if (b) {
+      const p = document.createElement("div"); p.className = "updpop"
+      p.innerHTML = UPDATES.map((u) => `<div class="r" data-open="${TOPICS.find((t) => t.name === u.topic)?.id}"><b>${esc(u.topic)}</b><span>${esc(u.what)}</span></div>`).join("")
+      document.body.appendChild(p); const r = b.getBoundingClientRect(); p.style.left = r.left + "px"; p.style.top = (r.bottom + 4) + "px"
+    }
+  }
+  if (state.ask) {
+    const { s } = findStatement(state.ask)
+    const a = document.createElement("div"); a.className = "askbar"
+    a.innerHTML = `<span class="chip"><b>${esc(voiceLabel(s))}</b><span>${esc(s.text)}</span></span><input id="askIn" placeholder="Say what’s wrong, or what you think…"><button class="send" data-act="askSend"><i data-lucide="arrow-up"></i></button>`
+    document.body.appendChild(a); setTimeout(() => $("#askIn")?.focus(), 0)
+  }
+  if (state.toast) {
+    const t = document.createElement("div"); t.className = "toast"
+    t.innerHTML = `${esc(state.toast.text)}${state.toast.undo ? `<button class="btn line" data-act="undo">Undo</button>` : ""}<button class="icon-btn" data-act="toastX"><i data-lucide="x"></i></button>`
+    document.body.appendChild(t)
+  }
+}
+
+// ---------- Cases: Knowledge over time (docs/knowledge-cases.md) ----------
+const clone = (x) => JSON.parse(JSON.stringify(x))
+const seedWithout = (ids) => clone(TOPICS.filter((t) => !ids.includes(t.id)))
+const none = (txt) => `<div class="surf"><div class="none">${txt}</div></div>`
+const ptab = (rows) => `<div class="surf"><div class="h">Paper page · Knowledge tab</div>${rows.map(([t, d]) => `<div class="krel"><div class="t">${t}</div><div class="d">${d}</div></div>`).join("")}</div>`
+const chat = (u, a, upd) => `<div class="surf"><div class="h">Chat</div>${u ? `<div class="u">${u}</div>` : ""}<div>${a}</div>${upd ? `<div class="upd2">${upd}</div>` : ""}</div>`
+
+const CASES = [
+  {
+    id: "c", title: "C · A hunch’s life", topic: "control", seed: () => seedWithout(["control"]),
+    steps: [
+      { when: "Oct 11", t: "Two lines in a blank doc",
+        you: "You open a blank doc and write: “This might not be only about timing. Maybe it’s about whether people feel in control. Leaving it here.” Then you close it.",
+        owl: "One piece of material around one question is not enough for a topic. It goes to Not in a topic yet.",
+        see: none("Nothing. The doc is just a doc. If you opened Knowledge you would find the two lines under “Not in a topic yet”."),
+        apply: (T, ctx) => { ctx.loose.push("“Maybe it’s about whether people feel in control.” · Untitled · Oct 11") } },
+      { when: "Oct 14", t: "Open Sato 2025",
+        you: "You open Sato 2025 in the Library and start reading.",
+        owl: "The paper’s deferral condition relates to the hunch you wrote three days ago. Nothing is written; the relation is shown where you are.",
+        see: ptab([["You wrote a hunch on Oct 11 that may relate", "“maybe it’s about whether people feel in control” · <span class=\"cite\">Untitled</span>"], ["Not in a topic yet", "this paper is in no topic"]]) },
+      { when: "Oct 14", t: "Compare, save the table",
+        you: "You select §2 and ask: “Compare how this and Chen 2025 define control. Don’t conclude for me.” You change one column, then Save as doc.",
+        owl: "Three pieces of material now sit around one question: your two lines, two papers you read, and the table. A topic forms. Its first reading of your hunch is too strong, as you will see.",
+        see: chat("Compare how this and Chen 2025 define control. Don’t conclude for me.", "A table: definition · study conditions · observed result · where in the text · what the material can’t confirm.", "<b>Updated · Control and deferral</b> · new topic · View"),
+        apply: (T, ctx) => {
+          ctx.loose = ctx.loose.filter((l) => !l.includes("Oct 11"))
+          T.unshift({ id: "control", name: "Control and deferral", status: "active", updated: "Oct 14", group: "week",
+            summary: "Your hunch is that feeling in control decides acceptance; the two papers define “control” differently.", from: "2 docs and 2 papers",
+            statements: [
+              { id: "s1", voice: "you", text: "Whether people feel in control decides whether they accept a suggestion.", cites: [C("Untitled 10/11", "doc")], tag: "hunch", q: "q1" },
+              { id: "s2", voice: "Chen 2025", text: "With deferral available, acceptance did not differ across the three timing conditions.", cites: [C("§4", "paper")], cond: "notification-style tasks only", q: "q1" },
+              { id: "s3", voice: "owlit", text: "The two papers operationalise “control” differently (deferral vs. decline plus edit), so merging their results would conflate mechanisms.", cites: [C("Comparison table 10/14", "doc")] },
+            ],
+            questions: [{ id: "q1", text: "Does being able to decline or defer relate to acceptance?", from: "your note Oct 11", candidate: "Chen 2025 (2)", missing: "evidence from conversational agents" }],
+            sources: [
+              { when: "Oct 14", t: "Comparison table", k: "doc", rel: "saved from chat" },
+              { when: "Oct 14", t: "Sato 2025", k: "paper", loc: "§2", rel: "read" },
+              { when: "Oct 12", t: "Chen 2025", k: "paper", loc: "§4", rel: "your comment “is the evidence enough?”" },
+              { when: "Oct 11", t: "Untitled", k: "doc", rel: "“maybe it’s about whether people feel in control”" },
+            ],
+            history: [{ when: "Oct 14", what: "Topic created with 3 statements and 1 question", why: "your note, two papers you read, the comparison table", by: "owlit" }],
+            yourNote: "" })
+        } },
+      { when: "Oct 15", t: "“I didn’t say determines”",
+        you: "In chat Owlit says “your hypothesis is that control determines acceptance”. You reply: “I didn’t say determines. I only asked whether declining or deferring is worth studying.”",
+        owl: "Restates the corrected reading and rewrites statement 1; the line now says corrected by you. Your sentence stays in the chat and in History. Your doc is untouched.",
+        see: chat("I didn’t say “determines”. I only asked whether declining or deferring is worth studying.", "Understood: an open question, not a causal claim. I’ve changed it to “being able to decline or defer may matter more than the timing itself”.", "<b>Updated · Control and deferral · 1</b> · Undo · View"),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "control"), s = t.statements[0]
+          s.text = "Being able to decline or defer may matter more than the timing itself."; s.cites.push(C("chat 10/15", "chat"))
+          s.notes = [{ by: "You", when: "Oct 15 · from chat", text: "I didn’t say “determines”. I only asked whether declining or deferring is worth studying." }]
+          t.summary = "Whether being able to decline or defer matters more than timing is still open. The two papers define “control” differently."
+          t.updated = "Oct 15"; t.from = "2 docs, 2 papers and 1 chat"
+          t.sources.unshift({ when: "Oct 15", t: "chat “Task boundaries vs control”", k: "chat", rel: "your correction" })
+          t.history.unshift({ when: "Oct 15", what: "Statement 1 rewritten: “feeling in control decides acceptance” became an open hunch", why: "your correction in chat", by: "owlit" })
+        } },
+      { when: "Oct 22", t: "Cite Chen in the draft",
+        you: "Writing related work, you cite Chen 2025 with @.",
+        owl: "Writes nothing. But a topic whose paper is cited in a draft is load-bearing, and the topic page now says so. That line is computed, not a field anyone fills.",
+        see: `<div class="surf"><div class="h">Docs · CHI related work §3</div>…Chen et al. hold timing constant and vary deferral <span class="cite">Chen 2025</span>, which is the closest comparison we found…</div>`,
+        apply: (T) => { T.find((x) => x.id === "control").cited = "CHI related work §3" } },
+      { when: "Nov 5", t: "Nguyen 2023 points the other way",
+        you: "You add Nguyen 2023, read it, and highlight a result that cuts against Chen.",
+        owl: "Checks the new paper against the topic. The conditions differ from Chen’s, so it adds a line beside statement 2 instead of calling it a contradiction, and changes nothing you said.",
+        see: ptab([["<span class=\"cite\">Control and deferral</span>", "contests <em>“With deferral available, acceptance did not differ…”</em> (Chen 2025) · conditions differ"]]),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "control")
+          t.statements.splice(2, 0, { id: "s4", voice: "Nguyen 2023", text: "Boundary timing still mattered when the task was short, even with deferral.", cites: [C("§4", "paper")], cond: "short mobile tasks; in Chen deferral was always available", q: "q1" })
+          t.updated = "Nov 5"; t.from = "2 docs, 3 papers and 1 chat"
+          t.sources.unshift({ when: "Nov 5", t: "Nguyen 2023", k: "paper", loc: "§4", rel: "your highlight" })
+          t.history.unshift({ when: "Nov 5", what: "Statement 4 added beside statement 2; conditions differ", why: "you read Nguyen 2023", by: "owlit" })
+        } },
+      { when: "Nov 20", t: "Ask again",
+        you: "You ask: “Where do we stand on declining and acceptance?”",
+        owl: "Reads the topic file. Answers with the corrected line first, the two papers side by side, then its own guess. “Determines” never comes back.",
+        see: chat("Where do we stand on declining and acceptance?", "<b>You</b> said on Oct 15 this is an open question, not a causal claim. <b>Chen 2025</b> (§4) and <b>Nguyen 2023</b> (§4) point different ways under different conditions. <b>I</b> think task length is the variable to isolate.") },
+    ],
+  },
+  {
+    id: "b", title: "B · A light exploration", topic: "esm", seed: () => clone(TOPICS),
+    steps: [
+      { when: "Oct 20", t: "Ask for a few ESM papers",
+        you: "In chat: “Find me a few papers on how ESM prompts are triggered in lifelogging studies. I’m designing an experiment.”",
+        owl: "One search across two sources, 40 results, kept 8. Adds nothing to the Library. Writes nothing to Knowledge: a search is not your understanding.",
+        see: `<div class="surf"><div class="h">Chat</div><div class="u">Find me a few papers on how ESM prompts are triggered…</div>
+          <div class="rrow"><span>van Berkel 2017</span><span class="w">census of 110 studies; the trigger taxonomy</span><span class="first">read first</span></div>
+          <div class="rrow"><span>Doherty 2020</span><span class="w">objective vs subjective event triggers</span><span class="first">read first</span></div>
+          <div class="rrow"><span>Alharbi 2018</span><span class="w">camera deployment, zero capture-time prompts</span><span class="first">read first</span></div>
+          <div class="rrow"><span>Price 2017</span><span class="w">in-situ review, 29% deleted</span></div>
+          <div class="rrow w">and 4 more</div>
+          <div class="upd2">Searched Asta and Undermind · 40 results · nothing added to your Library</div></div>` },
+      { when: "Oct 20", t: "Add the first three",
+        you: "“Add the first three.”",
+        owl: "Adds them to the Library, marked as added by Owlit, each keeping its one-line why. Still nothing in Knowledge.",
+        see: `<div class="surf"><div class="h">Library · Up next</div><div class="rrow"><span>van Berkel 2017</span><span class="w">the trigger taxonomy</span></div><div class="rrow"><span>Doherty 2020</span><span class="w">objective vs subjective triggers</span></div><div class="rrow"><span>Alharbi 2018</span><span class="w">zero capture-time prompts</span></div></div>` },
+      { when: "Oct 20", t: "Read van Berkel, highlight",
+        you: "You open the census and highlight the paragraph on trigger types.",
+        owl: "One piece of material around one question: not a topic yet. The highlight shows up under Not in a topic yet.",
+        see: ptab([["Not in a topic yet", "your highlight on §3 · this paper is in no topic"]]),
+        apply: (T, ctx) => { ctx.loose.push("“Triggers are interval-, signal- or event-contingent; stratified random is the default.” · van Berkel 2017 §3 · your highlight · Oct 20") } },
+      { when: "Oct 21", t: "A question in your notes",
+        you: "In your experiment notes you write: “Event-contingent or random triggers? Doherty says objective triggers get deliberately ignored.”",
+        owl: "Your note and your highlight now sit around the same question. A topic forms, with the question in your words.",
+        see: none("Nothing in the doc. Knowledge has a new row, and the Nov 5 chat about the experiment will open with “you asked on Oct 21…”."),
+        apply: (T, ctx) => {
+          ctx.loose = ctx.loose.filter((l) => !l.includes("van Berkel"))
+          T.unshift({ id: "esm", name: "ESM triggering", status: "active", updated: "Oct 21", group: "week",
+            summary: "Which trigger to use is your open question; the census says stratified random is the default, and you suspect objective triggers get ignored.", from: "1 doc and 1 paper",
+            statements: [
+              { id: "s1", voice: "van Berkel 2017", text: "Triggers are interval-, signal- or event-contingent; stratified random is the working default.", cites: [C("§3", "paper")], q: "q1" },
+              { id: "s2", voice: "you", text: "Objective event triggers get deliberately ignored.", cites: [C("Experiment notes 10/21", "doc")], cond: "reporting Doherty 2020, not read yet", tag: "hunch", q: "q1" },
+            ],
+            questions: [{ id: "q1", text: "Event-contingent or random triggers?", from: "your experiment notes Oct 21", candidate: "van Berkel 2017 (1)", missing: "a lifelogging study that used event triggers" }],
+            sources: [{ when: "Oct 21", t: "Experiment notes", k: "doc", rel: "your question" }, { when: "Oct 20", t: "van Berkel 2017", k: "paper", loc: "§3", rel: "your highlight" }],
+            history: [{ when: "Oct 21", what: "Topic created with 2 statements and 1 question", why: "your note and your highlight", by: "owlit" }], yourNote: "" })
+        } },
+      { when: "Oct 23", t: "You decide",
+        you: "In the same note: “Going with stratified random, six prompts a day.”",
+        owl: "Adds your decision as a line in your voice and marks the question as answered by your note. Nothing is pushed at you.",
+        see: none("Nothing. On the topic page the question now reads “answered: stratified random, your note Oct 23”."),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "esm")
+          t.statements.push({ id: "s3", voice: "you", text: "Going with stratified random, six prompts a day.", cites: [C("Experiment notes 10/23", "doc")], tag: "judgment", q: "q1" })
+          t.questions[0].answered = "stratified random, your note Oct 23"; t.updated = "Oct 23"
+          t.history.unshift({ when: "Oct 23", what: "Question 1 answered; statement 3 added", why: "your note", by: "owlit" })
+        } },
+    ],
+  },
+  {
+    id: "d", title: "D · It got it wrong", topic: "timing", seed: () => { const T = clone(TOPICS); const t = T.find((x) => x.id === "timing"); t.statements = t.statements.filter((s) => s.id !== "s6"); return T },
+    steps: [
+      { when: "Oct 18", t: "You mention a paper you never opened",
+        you: "In chat you say: “Marin 2024 seems to say users prefer post-hoc explanations.” You have never opened the paper.",
+        owl: "You talked about it, so it may enter the topic. But you haven’t read it and Owlit can’t anchor a passage, so the line is grey and says abstract · not read.",
+        see: chat("Marin 2024 seems to say users prefer post-hoc explanations.", "From its abstract, yes: post-hoc rationale was preferred. I haven’t read the study conditions; want me to, or will you?"),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "timing")
+          t.statements.push({ id: "s6", voice: "Marin 2024", text: "Users preferred post-hoc rationale over upfront explanation.", cites: [], abstract: true })
+          t.history.unshift({ when: "Oct 18", what: "Statement 6 added from the abstract", why: "you mentioned Marin 2024 in chat", by: "owlit" })
+        } },
+      { when: "Oct 26", t: "You read §6",
+        you: "You open Marin 2024, read §6, and highlight “only after an unexpected suggestion”.",
+        owl: "Your highlight gives the anchor. Owlit rewrites its own line, now narrower, and drops the abstract mark.",
+        see: ptab([["<span class=\"cite\">Intervention timing</span>", "backs <em>“Participants wanted a reason only after an unexpected suggestion.”</em> · rewritten from your highlight"]]),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "timing"), s = t.statements.find((x) => x.id === "s6")
+          s.text = "Participants wanted a reason only after an unexpected suggestion."; s.cites = [C("§6", "paper")]; s.abstract = false
+          t.history.unshift({ when: "Oct 26", what: "Statement 6 rewritten from §6; it was from the abstract", why: "you read Marin 2024", by: "owlit" })
+        } },
+      { when: "Oct 26", t: "You edit the line",
+        you: "Still not quite right to you. You click Edit and write: “…only after an unexpected suggestion that was cheap to dismiss.”",
+        owl: "The line is yours now. Owlit keeps it word for word on every later update.",
+        see: none("On the topic page itself: the voice column changes to You, and the second line says edited by you."),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "timing"), s = t.statements.find((x) => x.id === "s6")
+          s.text = "Participants wanted a reason only after an unexpected suggestion that was cheap to dismiss."; s.voice = "you"; s.edited = true
+          t.history.unshift({ when: "Oct 26", what: "Statement 6 rewritten by you", why: "edited on this page", by: "you" })
+        } },
+      { when: "Nov 2", t: "You change your mind",
+        you: "Rereading §6 you decide Owlit’s wording was closer. In History you click Revert on your edit.",
+        owl: "Restores its wording. Both the edit and the revert stay in History.",
+        see: none("Nothing new. The line reads as Marin 2024 again; History keeps both moves."),
+        apply: (T) => {
+          const t = T.find((x) => x.id === "timing"), s = t.statements.find((x) => x.id === "s6")
+          s.text = "Participants wanted a reason only after an unexpected suggestion."; s.voice = "Marin 2024"; s.edited = false
+          t.history.unshift({ when: "Nov 2", what: "Your edit of statement 6 reverted", why: "you, from History", by: "you" })
+        } },
+    ],
+  },
+]
+
+function currentCase() { return CASES.find((c) => c.id === state.caseId) }
+
+function renderCases() {
+  const cs = currentCase()
+  const T = cs.seed(), ctx = { loose: [] }
+  cs.steps.slice(0, state.step + 1).forEach((s) => s.apply && s.apply(T, ctx))
+  const st = cs.steps[state.step]
+  const saved = { T: TOPICS, L: LOOSE_COUNT, topic: state.topic, hist: state.hist }
+  TOPICS = T; LOOSE_COUNT = 12 + ctx.loose.length; state.topic = cs.topic; state.hist = state.chist ?? true
+  const has = T.some((t) => t.id === cs.topic)
+  let right = has ? renderTopicMemo() : renderList()
+  if (!has && ctx.loose.length) right = right.replace('<button class="foldrow" data-act="loose">', `<div class="lab" style="margin-top:14px;padding-left:10px">Not in a topic yet, newest</div>${ctx.loose.map((l) => `<div class="lrow"><span class="q">${esc(l)}</span></div>`).join("")}<button class="foldrow" data-act="loose">`)
+  TOPICS = saved.T; LOOSE_COUNT = saved.L; state.topic = saved.topic; state.hist = saved.hist
+  const left = `
+    <div class="cpick">${CASES.map((c) => `<button class="starter ${c.id === cs.id ? "on" : ""}" data-case="${c.id}">${c.title}</button>`).join("")}</div>
+    <div class="steps">${cs.steps.map((s, i) => `<button class="srow2 ${i === state.step ? "on" : i < state.step ? "done" : ""}" data-step="${i}"><span class="n">${i + 1}</span><span class="d">${s.when}</span><span class="t">${esc(s.t)}</span></button>`).join("")}</div>
+    <div class="cnav"><button class="btn line" data-act="casePrev">Back</button><button class="btn primary" data-act="caseNext">Next</button></div>
+    <div class="cblk"><div class="lab">You</div><div class="you">${st.you}</div></div>
+    <div class="cblk"><div class="lab">Owlit, in the background</div><div class="owl">${st.owl}</div></div>
+    <div class="cblk"><div class="lab">Where you notice it</div>${st.see}</div>`
+  return `<div class="cases"><div class="cpane">${left}</div><div class="cright">${right}</div></div>`
+}
+
+// ---------- Actions ----------
+function findStatement(key) { const [tid, sid] = key.split("/"); const t = TOPICS.find((x) => x.id === tid); return { t, s: t.statements.find((x) => x.id === sid) } }
+function closeOverlays() { state.menu = null; state.smenu = null; state.updpop = false }
+
+function runUpdate() {
+  const t = state.page === "topic" ? topic() : TOPICS.find((x) => x.id === "timing")
+  if (!t.statements.some((s) => s.id === RUN.statement.id)) {
+    const s = { ...RUN.statement, fresh: true }
+    const at = t.statements.findIndex((x) => x.q === s.q); t.statements.splice(at < 0 ? t.statements.length : at + 2, 0, s)
+    t.history.unshift({ ...RUN.history }); t.sources.unshift({ ...RUN.source }); t.updated = "Just now"
+    UPDATES = [{ topic: t.name, what: "Statement 7 added after you read Sato 2025" }, ...UPDATES.slice(0, 1)]
+    updatedLabel = "Updated just now · 1 topic"
+    state.toast = { text: `Knowledge updated · ${t.name}` }
+    setTimeout(() => { s.fresh = false }, 1000)
+  } else state.toast = { text: "Nothing new since the last update" }
+  closeOverlays(); render(); setTimeout(() => { if (state.toast && !state.toast.undo) { state.toast = null; renderOverlays(); lucide.createIcons() } }, 2600)
+}
+
+document.addEventListener("click", (e) => {
+  const el = (sel) => e.target.closest(sel)
+  let b
+  if ((b = el("#swV button"))) { state.v = b.dataset.v; closeOverlays(); state.loose = false; return render() }
+  if ((b = el("#swP button"))) { state.page = b.dataset.p; closeOverlays(); state.loose = false; return render() }
+  if ((b = el("#swT button"))) { state.theme = b.dataset.t; return render() }
+  if ((b = el("#swW button"))) { state.wording = b.dataset.w; state.why = null; return render() }
+  if (el("#noteX")) { state.noteOff = true; return render() }
+  if ((b = el("[data-ptab]"))) { state.ptab = b.dataset.ptab; return render() }
+  if ((b = el("[data-case]"))) { state.caseId = b.dataset.case; state.step = 0; return render() }
+  if ((b = el("[data-step]"))) { state.step = +b.dataset.step; return render() }
+  if ((b = el("[data-act]"))) {
+    const a = b.dataset.act
+    if (a === "casePrev") { state.step = Math.max(0, state.step - 1); return render() }
+    if (a === "caseNext") { state.step = Math.min(currentCase().steps.length - 1, state.step + 1); return render() }
+    if (state.page === "cases" && (a === "back" || a === "home")) return
+    if (a === "back" || a === "home") { state.page = "topics"; state.loose = false; closeOverlays(); return render() }
+    if (a === "arch") { state.arch = !state.arch; return render() }
+    if (a === "loose") { state.page = "topics"; state.loose = true; return render() }
+    if (a === "hist") { if (state.page === "cases") state.chist = !(state.chist ?? true); else state.hist = !state.hist; return render() }
+    if (a === "updpop") { state.updpop = !state.updpop; return render() }
+    if (a === "chat") { state.toast = { text: "Opens Owlit with this topic attached" }; render(); setTimeout(() => { state.toast = null; renderOverlays(); lucide.createIcons() }, 2000); return }
+    if (a === "edit") { state.editing = b.dataset.key; state.ask = null; closeOverlays(); return render() }
+    if (a === "editCancel") { state.editing = null; return render() }
+    if (a === "editSave") { const { t, s } = findStatement(b.dataset.key); const txt = $("#edit").innerText.trim(); if (txt && txt !== s.text) { t.history.unshift({ when: "Just now", what: `Statement ${s.id.slice(1)} rewritten by you`, why: "edited on this page", by: "you" }); s.text = txt; s.voice = "you"; s.voiceLong = null; s.edited = true; s.prose = null } state.editing = null; return render() }
+    if (a === "ask") { state.ask = b.dataset.key; state.editing = null; closeOverlays(); return render() }
+    if (a === "askSend") { const txt = $("#askIn").value.trim(); if (!txt) return; const { t, s } = findStatement(state.ask); s.notes = s.notes || []; s.notes.push({ by: "You", when: "Just now · from chat", text: txt }); t.history.unshift({ when: "Just now", what: `Statement ${s.id.slice(1)}: Owlit restated it after what you said`, why: "your message in chat", by: "owlit" }); state.ask = null; state.toast = { text: `Updated · ${t.name} · ${s.id.slice(1)}`, undo: false }; render(); setTimeout(() => { if (state.toast && !state.toast.undo) { state.toast = null; renderOverlays(); lucide.createIcons() } }, 2600); return }
+    if (a === "remove") { const { t, s } = findStatement(b.dataset.key); const i = t.statements.indexOf(s); t.statements.splice(i, 1); state.removed = { t, s, i }; t.history.unshift({ when: "Just now", what: `Statement ${s.id.slice(1)} removed by you`, why: "it won’t come back on an update", by: "you" }); state.toast = { text: "Line removed", undo: true }; closeOverlays(); return render() }
+    if (a === "undo") { if (state.removed) { const { t, s, i } = state.removed; t.statements.splice(i, 0, s); t.history.shift(); state.removed = null } state.toast = null; return render() }
+    if (a === "toastX") { state.toast = null; return render() }
+    if (a === "archive") { const t = TOPICS.find((x) => x.id === b.dataset.id); t.status = "archived"; t.group = "archived"; state.toast = { text: `${t.name} archived` }; closeOverlays(); if (state.page === "topic") state.page = "topics"; render(); setTimeout(() => { state.toast = null; renderOverlays(); lucide.createIcons() }, 2200); return }
+    if (a === "run") return runUpdate()
+  }
+  if ((b = el("[data-menu]"))) { const r = b.getBoundingClientRect(); state.smenu = null; state.menu = { kind: b.dataset.menu, key: b.dataset.key, id: b.dataset.id, x: r.left - 120, y: r.bottom + 4 }; return render() }
+  if ((b = el("[data-sent]"))) { closeOverlays(); state.smenu = state.smenu === b.dataset.sent ? null : b.dataset.sent; return render() }
+  if (state.page === "cases" && el("[data-pick],[data-open]")) return
+  if ((b = el("[data-why]")) && !el(".dots") && !el(".cite") && !el('[contenteditable="true"]') && !el(".editacts")) { state.why = state.why === b.dataset.why ? null : b.dataset.why; return render() }
+  if ((b = el("[data-pick]"))) { state.topic = b.dataset.pick; state.page = "topic"; state.loose = false; state.hist = false; closeOverlays(); return render() }
+  if ((b = el("[data-open]")) && b.dataset.open) { state.topic = b.dataset.open; state.page = "topic"; state.loose = false; state.hist = false; closeOverlays(); return render() }
+  if (el(".menu, .smenu, .updpop, .askbar, .toast")) return
+  if (state.menu || state.smenu || state.updpop) { closeOverlays(); render() }
+})
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { state.editing = null; state.ask = null; closeOverlays(); render() }
+  if (e.key === "Enter" && e.target.id === "askIn") { e.preventDefault(); $('[data-act="askSend"]')?.click() }
+})
+
+const hash = new URLSearchParams(location.hash.slice(1))
+if (hash.get("v")) state.v = hash.get("v")
+if (hash.get("page")) state.page = hash.get("page")
+if (hash.get("t")) state.topic = hash.get("t")
+render()
+</script>
+</body>
+</html>

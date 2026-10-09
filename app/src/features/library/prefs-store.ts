@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
 // How the Library and the paper page are laid out, remembered across papers and sessions
-export type PanelTab = "notes" | "highlights" | "about"
+export type PanelTab = "notes" | "highlights" | "knowledge" | "about"
 export type Layout = "list" | "table"
 
 export const PANEL_DEFAULT = 380

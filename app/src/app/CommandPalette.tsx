@@ -15,6 +15,7 @@ import {
 import { Kbd } from "@/components/ui/kbd"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
+import { isHidden } from "@/features/docs/lib/tree"
 import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useNewDoc } from "@/features/docs/use-new-doc"
 import { paperMeta } from "@/features/library/lib/format"
@@ -95,7 +96,7 @@ export function CommandPalette() {
   const docItems = useMemo(
     () =>
       Object.values(files)
-        .filter((f) => isMarkdown(f.path))
+        .filter((f) => isMarkdown(f.path) && !isHidden(f.path))
         .sort((a, b) => b.modifiedAt - a.modifiedAt)
         .map((f) => {
           const title = displayName(f.path)

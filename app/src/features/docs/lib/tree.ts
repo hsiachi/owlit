@@ -17,8 +17,8 @@ export interface FileNode {
 
 export type TreeNode = FolderNode | FileNode
 
-// The workspace's paper library and dot-folders are not docs
-export const isHidden = (path: string) => path === "library" || path.startsWith("library/") || path.split("/").some((p) => p.startsWith("."))
+// The workspace's paper library, Owlit's Knowledge and dot-folders are not docs
+export const isHidden = (path: string) => /^(library|knowledge)(\/|$)/.test(path) || path.split("/").some((p) => p.startsWith("."))
 
 // Folders first, then files; each by last edit, newest first. A folder's time is its newest file's.
 export function buildTree(files: WorkspaceFile[], folders: string[]): FolderNode {

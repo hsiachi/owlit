@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { MentionBadge } from "../composer/MentionBadge"
+import { KnowledgeUpdates } from "@/features/knowledge/components/ChatUpdates"
 import { PermissionPart, PlanPart, StepsPart, TextPart, type PermissionOutcomes, type StepPart } from "./parts"
 
 function messageText(m: ChatMessage) {
@@ -149,6 +150,7 @@ export function AssistantMessage({
             {last?.type === "permission" && !last.outcome ? "Waiting for permission" : "Working…"}
           </div>
         )}
+        {!streaming && <KnowledgeUpdates parts={message.parts} />}
         {message.status === "cancelled" && <div className="text-xs text-muted-foreground">Stopped.</div>}
         {message.status === "error" && <div className="text-xs text-destructive">Something went wrong: {message.error}</div>}
       </MessageContent>

@@ -22,6 +22,8 @@ import type { Mentionable, QuotedSelection } from "@/features/chat/types"
 import { docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useDocsStore } from "@/features/docs/store"
+import { topicUri } from "@/features/knowledge/format"
+import { useTopics } from "@/features/knowledge/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentAllowed } from "./hooks"
 import { useAgentWindow } from "./store"
@@ -31,16 +33,20 @@ function usePageContext(): Mentionable | null {
   const { pathname } = useLocation()
   const docId = /^\/docs\/([^/]+)$/.exec(pathname)?.[1]
   const paperId = /^\/library\/([^/]+)$/.exec(pathname)?.[1]
+  const topicId = /^\/knowledge\/([^/]+)$/.exec(pathname)?.[1]
   const doc = useDocsStore((s) => (docId ? s.files[docId] : undefined))
   const paper = useLibraryStore((s) => (paperId ? s.papers[paperId] : undefined))
+  const topics = useTopics()
+  const topic = topicId ? topics.find((t) => t.id === decodeURIComponent(topicId)) : undefined
   const docPath = doc?.path
   return useMemo(() => {
     if (doc && docPath) return docMentionable(doc)
     if (paper) return paperMentionable(paper)
+    if (topic) return { id: topic.id, kind: "knowledge", title: topic.name, subtitle: "Topic", uri: topicUri(topic.id) } satisfies Mentionable
     return null
-    // The chip only needs to change when the doc's name or the paper does
+    // The chip only needs to change when the doc's name, the paper or the topic's name does
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc?.id, docPath, paper])
+  }, [doc?.id, docPath, paper, topic?.id, topic?.name])
 }
 
 function useVisibleContext() {
@@ -48,6 +54,8 @@ function useVisibleContext() {
   const hidden = useAgentWindow((s) => s.hiddenContext)
   return page && page.uri !== hidden ? [page] : []
 }
+
+const KIND_NAME = { paper: "this paper", doc: "this doc", knowledge: "this topic" } as const
 
 const shorten = (text: string, n: number) => {
   const t = text.replace(/\s+/g, " ").trim()
@@ -82,7 +90,7 @@ function ContextChips({ context, selection }: { context: Mentionable[]; selectio
       ))}
       {selection && (
         <Chip label="Don't include the selection" onRemove={clearSelection}>
-          Selection · “{shorten(selection.text, 40)}”
+          {selection.source.kind === "knowledge" ? "Line" : "Selection"} · “{shorten(selection.text, 40)}”
         </Chip>
       )}
     </>
@@ -136,7 +144,7 @@ export function AgentAskBar() {
       {selection && (
         <span className="shrink-0">
           <Chip label="Don't include the selection" onRemove={() => useAgentWindow.getState().clearSelection()}>
-            Selection · “{shorten(selection.text, 18)}”
+            {selection.source.kind === "knowledge" ? "Line" : "Selection"} · “{shorten(selection.text, 18)}”
           </Chip>
         </span>
       )}
@@ -151,7 +159,7 @@ export function AgentAskBar() {
           }
           if (e.key === "Escape") useAgentWindow.getState().close()
         }}
-        placeholder={context[0] ? `Ask about ${context[0].kind === "paper" ? "this paper" : "this doc"}…` : "Ask Owlit…"}
+        placeholder={context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…"}
         className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
         aria-label="Ask Owlit"
       />
@@ -250,7 +258,7 @@ export function AgentPanel() {
         </MessageScrollerProvider>
       ) : (
         <div className="flex flex-1 items-end px-4 pb-3 text-[15px] text-muted-foreground">
-          {context[0] ? `Ask about ${context[0].kind === "paper" ? "this paper" : "this doc"}, or anything else.` : "Ask anything."}
+          {context[0] ? `Ask about ${KIND_NAME[context[0].kind]}, or anything else.` : "Ask anything."}
         </div>
       )}
 

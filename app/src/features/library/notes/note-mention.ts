@@ -1,5 +1,5 @@
 import { WorkspaceMention } from "@/features/chat/components/composer/mention-extension"
-import { searchMentionables } from "@/features/chat/mocks/sources"
+import { docMentionItems } from "@/features/docs/lib/mentions"
 import type { Mentionable, SourceKind } from "@/features/chat/types"
 import { paperMeta } from "../lib/format"
 import { useLibraryStore } from "../store"
@@ -16,21 +16,21 @@ function noteMentionables(query: string): Mentionable[] {
     .filter((p) => !q || p.title.toLowerCase().includes(q) || p.authors.some((a) => a.toLowerCase().includes(q)))
     .sort((a, b) => (b.lastOpenedAt ?? b.addedAt) - (a.lastOpenedAt ?? a.addedAt))
     .map((p) => ({ id: p.id, kind: "paper", title: p.title, subtitle: paperMeta(p), uri: paperUri(p.id) }))
-  // Docs and knowledge are still mocks shared with Chat
-  return [...papers, ...searchMentionables(query).filter((m) => m.kind !== "paper")]
+  return [...papers, ...docMentionItems(query).filter((m) => m.kind !== "paper")]
 }
 
 function uriFor(kind: SourceKind, id: string): string {
   if (kind === "paper") return paperUri(id)
-  return searchMentionables("").find((m) => m.id === id)?.uri ?? `owlit://${kind}/${id}`
+  return docMentionItems("").find((m) => m.kind === kind && m.id === id)?.uri ?? `owlit://${kind}/${id}`
 }
 
 function kindFor(uri: string): { kind: SourceKind; id: string } | null {
   const m = /^owlit:\/\/(library|docs|knowledge)\/(.+)$/.exec(uri)
   if (!m) return null
   if (m[1] === "library") return { kind: "paper", id: m[2] }
-  if (m[1] === "knowledge") return { kind: "knowledge", id: m[2] }
-  return { kind: "doc", id: searchMentionables("").find((x) => x.uri === uri)?.id ?? m[2] }
+  const item = docMentionItems("").find((x) => x.uri === uri)
+  if (m[1] === "knowledge") return { kind: "knowledge", id: item?.id ?? m[2] }
+  return { kind: "doc", id: item?.id ?? m[2] }
 }
 
 // [label](owlit://library|docs|knowledge/…). Other owlit:// links, such as a quote's page link
