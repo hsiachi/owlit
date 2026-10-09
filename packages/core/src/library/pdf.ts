@@ -44,6 +44,8 @@ export interface Acquisition {
   dropHere: string
   // Of the PDF in place: the same file dropped again is recognised
   sha256?: string
+  // The publisher's page wanted a person (a check, a sign-in) while nobody was looking: Check now
+  needs?: { reason: "challenge" | "login"; route: string; at: number }
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}

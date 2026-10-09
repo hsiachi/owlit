@@ -14,4 +14,17 @@ export interface LibraryClient {
   fetchPdf(paper: Paper): Promise<Paper["pdf"]>
   // A PDF the user has, as the paper's file
   attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]>
+  // The publisher's page shown to the user (Check now), in the room window.owlit.setPublisherView was
+  // given; resolves with the paper once they're through or have cancelled. Desktop only.
+  checkPublisher?(paper: Paper): Promise<Paper>
+}
+
+// fetchPdf found no PDF because the publisher wants the user first
+export class PublisherNeedsUser extends Error {
+  readonly needs: "check" | "sign-in"
+  constructor(needs: "check" | "sign-in") {
+    super(needs === "sign-in" ? "The publisher wants you to sign in." : "The publisher wants a quick check.")
+    this.name = "PublisherNeedsUser"
+    this.needs = needs
+  }
 }

@@ -91,6 +91,11 @@ function createWindow() {
 // every window
 function attachCore(core: Core) {
   ipcMain.handle("rpc", (_event, request: RpcRequest) => core.handle(request))
+  // Where the renderer wants the publisher's page during Check now
+  ipcMain.on("publisher-view", (event, bounds: Electron.Rectangle | null) => {
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    if (owner) browserHost?.setView(owner, bounds && roundRect(bounds))
+  })
   protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
     for (const win of BrowserWindow.getAllWindows()) {
@@ -98,6 +103,8 @@ function attachCore(core: Core) {
     }
   })
 }
+
+const roundRect = (r: Electron.Rectangle) => ({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) })
 
 // Main is one more client of core: it calls the same methods the renderer does
 let requestId = 0
@@ -248,7 +255,8 @@ if (!app.requestSingleInstanceLock()) {
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),
-        // A hidden window for publishers that want a real browser (cookies, checks, the library proxy)
+        // A browser for publishers that want one (cookies, checks, the library proxy): hidden, or inside
+        // the window when the user asks to see the page
         browser,
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {

@@ -351,6 +351,7 @@ export class Core {
     this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
+    this.router.register("library.checkPublisher", z.object({ id: paperId }), ({ id }) => library().checkPublisher(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
       library().attachPdf(id, path),
     )
@@ -366,7 +367,7 @@ export class Core {
     if (options.debug && options.host?.browser) {
       const browser = options.host.browser
       // Development only: the hidden browser on any page, for trying it against a local server
-      this.router.register("library.debugBrowserFetch", z.object({ landing: z.string(), pdf: z.string().optional(), allowHosts: z.array(z.string()) }), async (params) => {
+      this.router.register("library.debugBrowserFetch", z.object({ landing: z.string(), pdf: z.string().optional(), allowHosts: z.array(z.string()), withUser: z.boolean().optional() }), async (params) => {
         const bytes = await browser.fetchPdf({ ...params, signal: new AbortController().signal, needUser: async (_reason, _detail, settled) => settled })
         return { bytes: bytes.length, head: Buffer.from(bytes.subarray(0, 8)).toString("latin1") }
       })

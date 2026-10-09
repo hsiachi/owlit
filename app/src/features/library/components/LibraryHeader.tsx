@@ -192,6 +192,8 @@ const FILTERS: { id: StatusFilter; label: string }[] = [
   { id: "starred", label: "Starred" },
   { id: "unread", label: "Unread" },
   { id: "read", label: "Read" },
+  // Only while a publisher wants the user for some paper (or the chip is picked)
+  { id: "needs", label: "Needs you" },
 ]
 
 const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
@@ -207,7 +209,7 @@ export function FilterBar() {
 
   return (
     <div className="mt-3.5 flex flex-wrap items-center gap-0.5">
-      {FILTERS.map((f) => (
+      {FILTERS.filter((f) => f.id !== "needs" || counts.needs > 0 || filter === "needs").map((f) => (
         <button
           key={f.id}
           type="button"

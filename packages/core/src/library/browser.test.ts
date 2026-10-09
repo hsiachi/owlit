@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
-import type { BrowserHost, BrowserRequest } from "../host.ts"
+import { NeedsUser, type BrowserHost, type BrowserRequest } from "../host.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { browserRoutes, throughProxy } from "./browser-routes.ts"
 
@@ -99,18 +99,60 @@ describe("paper.pdf.browser", () => {
     expect(acquisition.route).toBe("browser:acm:proxied")
   })
 
-  it("waits for the user while a challenge is up, then goes on by itself", async () => {
-    const { browser } = fakeBrowser(async (request) => {
-      await request.needUser("challenge", "The publisher wants to check this is a person.", new Promise((r) => setTimeout(r, 500)))
+  it("notes a page that wants a person instead of waiting, while nobody is looking", async () => {
+    const { browser, asked } = fakeBrowser(async (request) => {
+      if (!request.withUser) throw new NeedsUser("challenge")
       return new Uint8Array(PDF)
     })
-    const { call, heard } = await setup(browser)
+    const { root, call, heard } = await setup(browser)
     await call("library.add", { paper: acm })
-    expect((await call("library.fetchPdf", { id: acm.id })).pdf).toBeDefined()
+    const paper = await call("library.fetchPdf", { id: acm.id })
+    expect(paper.pdf).toBeUndefined()
+    expect(paper.noPdf).toMatchObject({ needs: "check" })
+    expect(asked.every((r) => !r.withUser)).toBe(true)
+    expect(heard.filter((t) => t.kind === "paper.pdf.browser").map((t) => t.state)).not.toContain("waiting_for_you")
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
+    expect(acquisition.needs).toMatchObject({ reason: "challenge", route: "browser:acm" })
+  })
+
+  it("shows the page to the user on Check now, waits for them, then goes on by itself", async () => {
+    const { browser, asked } = fakeBrowser(async (request) => {
+      if (!request.withUser) throw new NeedsUser("login")
+      await request.needUser("login", "Sign in.", new Promise((r) => setTimeout(r, 500)))
+      return new Uint8Array(PDF)
+    })
+    const { root, call, heard } = await setup(browser)
+    await call("library.add", { paper: acm })
+    expect((await call("library.fetchPdf", { id: acm.id })).noPdf).toMatchObject({ needs: "sign-in" })
+    const paper = await call("library.checkPublisher", { id: acm.id })
+    expect(paper.pdf).toBeDefined()
+    expect(paper.noPdf).toBeUndefined()
+    expect(asked.at(-1)?.withUser).toBe(true)
     await new Promise((r) => setTimeout(r, 300))
-    const states = heard.filter((t) => t.kind === "paper.pdf.browser").map((t) => t.state)
+    const states = heard.filter((t) => t.kind === "paper.pdf.check").map((t) => t.state)
     expect(states).toContain("waiting_for_you")
     expect(states.at(-1)).toBe("done")
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
+    expect(acquisition).toMatchObject({ result: "ok", route: "browser:acm" })
+    expect(acquisition.needs).toBeUndefined()
+  })
+
+  it("keeps the note when the user cancels Check now", async () => {
+    const { browser } = fakeBrowser(async (request) => {
+      if (!request.withUser) throw new NeedsUser("challenge")
+      await request.needUser("challenge", "Check.", new Promise(() => {}))
+      return new Uint8Array(PDF)
+    })
+    const { call, workspace } = await setup(browser)
+    await call("library.add", { paper: acm })
+    await call("library.fetchPdf", { id: acm.id })
+    const checking = call("library.checkPublisher", { id: acm.id })
+    let task
+    for (let i = 0; i < 100 && !(task = workspace.tasks.list().find((t) => t.kind === "paper.pdf.check" && t.state === "waiting_for_you")); i++) await new Promise((r) => setTimeout(r, 20))
+    await call("tasks.cancel", { id: task!.id })
+    const paper = await checking
+    expect(paper.pdf).toBeUndefined()
+    expect(paper.noPdf).toMatchObject({ needs: "check" })
   })
 
   it("ends with no PDF, saying what it tried and that there is no proxy", async () => {

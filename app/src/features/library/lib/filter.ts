@@ -22,6 +22,8 @@ export function matchesFilter(p: Paper, f: StatusFilter): boolean {
       return true
     case "starred":
       return p.starred
+    case "needs":
+      return !!p.noPdf?.needs
     default:
       return p.status === f
   }
@@ -68,10 +70,11 @@ export function visiblePapers(papers: Record<string, Paper>, params: ListParams)
 }
 
 export function countByFilter(papers: Record<string, Paper>): Record<StatusFilter, number> {
-  const c: Record<StatusFilter, number> = { all: 0, starred: 0, unread: 0, reading: 0, read: 0 }
+  const c: Record<StatusFilter, number> = { all: 0, starred: 0, unread: 0, reading: 0, read: 0, needs: 0 }
   for (const p of Object.values(papers)) {
     c.all++
     if (p.starred) c.starred++
+    if (p.noPdf?.needs) c.needs++
     c[p.status]++
   }
   return c

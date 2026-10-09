@@ -20,6 +20,7 @@ const bridge: OwlitBridge = {
   pathForFile: (file) => webUtils.getPathForFile(file as File),
   // Asked once, synchronously, so the first frame already leaves the right room
   controlsRoom: ipcRenderer.sendSync("controls-room") as number,
+  setPublisherView: (bounds) => ipcRenderer.send("publisher-view", bounds),
   onControlsRoom(listener) {
     const forward = (_event: IpcRendererEvent, room: number) => listener(room)
     ipcRenderer.on("controls-room", forward)

@@ -11,11 +11,14 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { matchNav, nav } from "@/app/nav"
+import { useLibraryStore } from "@/features/library/store"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { pathname } = useLocation()
   const { setOpen } = useSidebar()
   const activeItem = matchNav(pathname)
+  // A publisher wants the user for some paper (a check, a sign-in): the Library's one mark
+  const libraryNeedsYou = useLibraryStore((s) => Object.values(s.papers).some((p) => p.noPdf?.needs))
 
   return (
     <Sidebar
@@ -29,25 +32,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroup className="px-(--frame-gap)">
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
-                {nav.map((item) => (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      tooltip={{
-                        children: item.label,
-                        hidden: false,
-                      }}
-                      onClick={() => item.panel && setOpen(true)}
-                      isActive={activeItem?.to === item.to}
-                      className="px-2.5 md:px-2 data-active:bg-card data-active:shadow-xs dark:data-active:bg-card"
-                    >
-                      <NavLink to={item.to}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {nav.map((item) => {
+                  const needsYou = item.to === "/library" && libraryNeedsYou
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{
+                          children: needsYou ? `${item.label} · A paper needs you` : item.label,
+                          hidden: false,
+                        }}
+                        onClick={() => item.panel && setOpen(true)}
+                        isActive={activeItem?.to === item.to}
+                        className="px-2.5 md:px-2 data-active:bg-card data-active:shadow-xs dark:data-active:bg-card"
+                      >
+                        <NavLink to={item.to} className="relative">
+                          <item.icon />
+                          <span>{item.label}</span>
+                          {needsYou && <span aria-hidden className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-warning" />}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

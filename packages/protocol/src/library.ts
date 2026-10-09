@@ -40,8 +40,9 @@ export interface Paper {
   hasDigest?: boolean
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
-  // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …)
-  noPdf?: { tried: string[]; at: number }
+  // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
+  // whether the publisher's page wants the user for it (a check that a person is there, a sign-in)
+  noPdf?: { tried: string[]; at: number; needs?: "check" | "sign-in" }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"

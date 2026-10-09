@@ -3,7 +3,8 @@ import { create } from "zustand"
 // Transient UI state for the Library pages. Not persisted, but it lives outside the page
 // components so filters, selection, the open peek and scroll survive opening a paper and coming back.
 
-export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read"
+// "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF
+export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs"
 export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue"
 
 export interface Sort {

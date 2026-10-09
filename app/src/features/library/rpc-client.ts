@@ -1,4 +1,4 @@
-import type { LibraryClient, Resolved } from "./client"
+import { PublisherNeedsUser, type LibraryClient, type Resolved } from "./client"
 import { MockLibraryClient } from "./mock-client"
 import type { Paper } from "./types"
 import { rpc } from "@/lib/rpc"
@@ -21,7 +21,12 @@ export class RpcLibraryClient implements LibraryClient {
   async fetchPdf(paper: Paper): Promise<Paper["pdf"]> {
     const found = await rpc.library.fetchPdf({ id: paper.id })
     if (found.pdf) return found.pdf
+    if (found.noPdf?.needs) throw new PublisherNeedsUser(found.noPdf.needs)
     throw new Error(found.noPdf ? "No PDF found. Drop one here if you have it." : "owlit couldn't look for a PDF.")
+  }
+
+  checkPublisher(paper: Paper): Promise<Paper> {
+    return rpc.library.checkPublisher({ id: paper.id })
   }
 
   async attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]> {

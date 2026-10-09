@@ -20,7 +20,7 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { appendFile, copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import type { BrowserHost } from "../host.ts"
+import { NeedsUser, type BrowserHost } from "../host.ts"
 import { HttpError, type Http } from "../net/http.ts"
 import { browserRoutes } from "./browser-routes.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -39,6 +39,7 @@ import {
   routesFor,
   unpaywallRoutes,
   writeAcquisition,
+  type Acquisition,
   type Attempt,
 } from "./pdf.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
@@ -152,7 +153,10 @@ export class Library {
       const acquisition = await readAcquisition(this.root, id)
       // Routes skipped (Unpaywall without an email) weren't tried, so they aren't named
       const tried = acquisition?.tried.filter((t) => !t.error?.startsWith("Not tried")).map((t) => t.route)
-      if (acquisition?.result === "no_pdf") paper.noPdf = { tried: [...new Set(tried)], at: acquisition.at }
+      if (acquisition?.result === "no_pdf") {
+        paper.noPdf = { tried: [...new Set(tried)], at: acquisition.at }
+        if (acquisition.needs) paper.noPdf.needs = acquisition.needs.reason === "login" ? "sign-in" : "check"
+      }
     }
     return paper
   }
@@ -370,6 +374,18 @@ export class Library {
     return paper
   }
 
+  // The publisher's page with the user there (Check now); waits for the run, which the user ends by
+  // passing the check, signing in, or cancelling its task
+  async checkPublisher(id: string): Promise<Paper> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    if (!this.scheduler?.knows("paper.pdf.check")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't open publishers' pages here.")
+    const task = await this.scheduler.run("paper.pdf.check", id, "asked")
+    const paper = await this.get(id)
+    if (!paper) throw notFound(id)
+    if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't open the publisher's page.")
+    return paper
+  }
+
   // How well the paper's text was read: full (MinerU, now or from pitta) or basic (pdfium only).
   // Read from which files exist, not from text.json, which can be large.
   private async textQuality(id: string): Promise<Paper["text"]> {
@@ -417,8 +433,11 @@ export class Library {
     })
   }
 
-  private browserTask(browser: BrowserHost) {
-    return defineTask("paper.pdf.browser", {
+  // The publisher's page in a browser, directly and then through the library's proxy. Nobody looking
+  // (paper.pdf.browser), a page that wants a person is noted in acquisition.json for Check now;
+  // with the user there (paper.pdf.check), it waits for them.
+  private browserTask(browser: BrowserHost, kind: string, withUser: boolean) {
+    return defineTask(kind, {
       lane: "browser",
       retries: 0,
       run: async (ctx) => {
@@ -429,6 +448,7 @@ export class Library {
         const dest = pdfFile(this.root, id)
         const previous = await readAcquisition(this.root, id)
         const tried: Attempt[] = [...(previous?.tried ?? [])]
+        let needs: Acquisition["needs"]
         for (const route of browserRoutes(record.ids.doi, settings.proxy)) {
           ctx.progress(0, undefined, route.name)
           try {
@@ -438,9 +458,10 @@ export class Library {
               pdfOnPageHost: route.name.endsWith(":proxied"),
               allowHosts: route.allowHosts,
               signal: ctx.signal,
+              withUser,
               needUser: async (reason, detail, settled) => {
                 const waiting = ctx.waitForUser(reason, detail)
-                // The page moved on by itself (signed in, challenge passed): the task goes on
+                // The page moved on (check passed, signed in): the task goes on
                 settled.then(
                   () => this.scheduler?.resume(ctx.task.id),
                   () => this.scheduler?.resume(ctx.task.id),
@@ -455,17 +476,18 @@ export class Library {
             this.pdfHashes?.set(sha256, id)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
             await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
-            for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, ctx.task.priority)
+            for (const next of ["paper.text", "index.paper"]) this.queue(next, id, ctx.task.priority)
             await this.announce([id])
             return
           } catch (error) {
             if (ctx.signal.aborted) throw error
+            if (error instanceof NeedsUser) needs ??= { reason: error.reason, route: route.name, at: Date.now() }
             tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
           }
         }
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
         if (await hasPdfFile(this.root, id)) return
-        await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
+        await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, ...(needs ? { needs } : {}) })
         await this.announce([id])
       },
     })
@@ -911,7 +933,9 @@ export class Library {
       }),
       // The publisher's page in the hidden browser, directly and then through the library's proxy. A
       // challenge or a sign-in form shows the window and waits for the user (5 minutes at most).
-      ...(this.services.browser ? [this.browserTask(this.services.browser)] : []),
+      ...(this.services.browser
+        ? [this.browserTask(this.services.browser, "paper.pdf.browser", false), this.browserTask(this.services.browser, "paper.pdf.check", true)]
+        : []),
       // Asks the services about a paper already in the library and rewrites its paper.json
       defineTask("paper.metadata", {
         lane: "network",

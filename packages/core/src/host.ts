@@ -15,7 +15,8 @@ export interface Host {
 
 export interface BrowserHost {
   // Opens the landing page (as a reader would), then fetches the PDF with that session's cookies.
-  // Rejects with a sentence when the page gives no PDF.
+  // Rejects with a sentence when the page gives no PDF, and with NeedsUser when, nobody looking, the
+  // page wants a person and didn't move on by itself.
   fetchPdf(request: BrowserRequest): Promise<Uint8Array>
   // Shows the window at a page for the user to sign in on (the library proxy); resolves when they close it
   showLogin(url: string): Promise<void>
@@ -27,10 +28,25 @@ export interface BrowserRequest {
   pdf?: string
   // Through a proxy: fetch the PDF's path on the host the page settled on (the proxy's rewrite of it)
   pdfOnPageHost?: boolean
-  // The hosts the window may visit while nobody is looking (publisher, doi.org, the proxy)
+  // The hosts the page may visit while nobody is looking (publisher, doi.org, the proxy)
   allowHosts: string[]
   signal: AbortSignal
-  // The page needs the user (a challenge, a sign-in form). The window is shown; `settled` resolves when
-  // the page moves on by itself, and needUser resolves once the task may go on.
-  needUser(reason: "login" | "challenge", detail: string, settled: Promise<void>): Promise<void>
+  // The user asked to see the page (Check now): it shows where the app reserved room for it, and a
+  // check or a sign-in waits for them instead of ending the run
+  withUser?: boolean
+  // With the user: the page wants them (a challenge, a sign-in form). `settled` resolves when the page
+  // moves on, and needUser resolves once the task may go on.
+  needUser(reason: PublisherNeed, detail: string, settled: Promise<void>): Promise<void>
+}
+
+export type PublisherNeed = "login" | "challenge"
+
+// The publisher's page wants a person (a check, a sign-in) and nobody was looking
+export class NeedsUser extends Error {
+  readonly reason: PublisherNeed
+  constructor(reason: PublisherNeed) {
+    super(reason === "login" ? "The publisher wants you to sign in." : "The publisher wants to check this is a person.")
+    this.name = "NeedsUser"
+    this.reason = reason
+  }
 }

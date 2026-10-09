@@ -19,6 +19,7 @@ import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../prefs
 import { NoteEditor } from "../notes/NoteEditor"
 import { addHighlightToNote } from "../notes/note-actions"
 import { PdfReader } from "../reader/PdfReader"
+import { PublisherNeedsUser } from "../client"
 import { libraryClient, useLibraryStore } from "../store"
 import type { Highlight, Paper } from "../types"
 import { useUiStore } from "../ui-store"
@@ -27,7 +28,7 @@ import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/Know
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useReaderStore } from "../reader/reader-store"
-import { openTasksFor, useTasksStore } from "@/features/tasks/store"
+import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { rpc } from "@/lib/rpc"
 
@@ -322,9 +323,13 @@ function NoPdf({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [fetching, setFetching] = useState(false)
   const [dragging, setDragging] = useState(false)
+  // Check now: the publisher's page takes the card's place
+  const [checking, setChecking] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
   const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
+  const needs = paper.noPdf?.needs
+  const canCheck = !!libraryClient.checkPublisher
 
   const attach = async (files: FileList | null) => {
     const file = files?.[0]
@@ -345,18 +350,36 @@ function NoPdf({ paper }: { paper: Paper }) {
       updatePaper(paper.id, { pdf })
       toast("PDF found")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not find a PDF.")
+      if (e instanceof PublisherNeedsUser) {
+        // The card now asks for the check; a system notification only if the user went elsewhere
+        updatePaper(paper.id, { noPdf: { ...(paper.noPdf ?? { tried: [], at: Date.now() }), needs: e.needs } })
+        if (document.hidden) notifyNeeds(paper, e.needs)
+      } else toast.error(e instanceof Error ? e.message : "Could not find a PDF.")
     } finally {
       setFetching(false)
     }
   }
 
-  const title = looking ? "Looking for a PDF…" : paper.noPdf ? "No PDF found" : "No PDF yet"
+  if (checking) return <PublisherPage paper={paper} onEnd={() => setChecking(false)} />
+
+  const title = looking
+    ? "Looking for a PDF…"
+    : needs === "sign-in"
+      ? "The publisher wants you to sign in"
+      : needs
+        ? "The publisher wants a quick check"
+        : paper.noPdf
+          ? "No PDF found"
+          : "No PDF yet"
   const body = looking
     ? "If you already have it, drop it here."
-    : paper.noPdf
-      ? `${triedSentence(paper.noPdf.tried)} Drop a PDF here if you have it.`
-      : "Drop a PDF here, or let owlit look for an open-access copy."
+    : needs === "sign-in"
+      ? "Sign in on its page here and owlit fetches the PDF."
+      : needs
+        ? "It wants to see a person before it hands over the PDF. Open its page here to do that."
+        : paper.noPdf
+          ? `${triedSentence(paper.noPdf.tried)} Drop a PDF here if you have it.`
+          : "Drop a PDF here, or let owlit look for an open-access copy."
 
   return (
     <div
@@ -384,9 +407,15 @@ function NoPdf({ paper }: { paper: Paper }) {
         </p>
         <p className="max-w-72 text-sm text-muted-foreground">{body}</p>
         <div className="mt-3 flex gap-2">
-          <Button size="sm" onClick={fetchPdf} disabled={looking}>
-            {paper.noPdf ? "Try again" : "Find PDF"}
-          </Button>
+          {needs && canCheck && !looking ? (
+            <Button size="sm" onClick={() => setChecking(true)}>
+              {needs === "sign-in" ? "Sign in" : "Check now"}
+            </Button>
+          ) : (
+            <Button size="sm" onClick={fetchPdf} disabled={looking}>
+              {paper.noPdf ? "Try again" : "Find PDF"}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
             Choose file
           </Button>
@@ -404,6 +433,84 @@ function NoPdf({ paper }: { paper: Paper }) {
       </div>
     </div>
   )
+}
+
+// Check now: the publisher's page fills the reader's place (the desktop app draws it over the box this
+// reserves) under one line saying what it waits for. Through, the reader takes over; Cancel, or
+// leaving the paper, ends the run and the card comes back.
+function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
+  const updatePaper = useLibraryStore((s) => s.updatePaper)
+  const box = useRef<HTMLDivElement>(null)
+  const task = useTasksStore((s) => openTasksFor(s, paper.id).find((t) => t.kind === "paper.pdf.check"))
+  const taskId = useRef<string | undefined>(undefined)
+  taskId.current = task?.id
+  const end = useRef(onEnd)
+  end.current = onEnd
+
+  // Keep the page over the box as the layout moves
+  useEffect(() => {
+    const el = box.current
+    if (!el || !window.owlit) return
+    const place = () => {
+      const r = el.getBoundingClientRect()
+      window.owlit?.setPublisherView({ x: r.left, y: r.top, width: r.width, height: r.height })
+    }
+    place()
+    const observer = new ResizeObserver(place)
+    observer.observe(el)
+    window.addEventListener("resize", place)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("resize", place)
+      window.owlit?.setPublisherView(null)
+    }
+  }, [])
+
+  // One run per visit; leaving the paper cancels it
+  useEffect(() => {
+    let live = true
+    libraryClient.checkPublisher!(paper)
+      .then((found) => {
+        updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
+        if (found.pdf) toast("PDF found")
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : "owlit couldn't open the publisher's page."))
+      .finally(() => live && end.current())
+    return () => {
+      live = false
+      if (taskId.current) void cancelTask(taskId.current)
+    }
+    // paper.id is the run's subject; the page remounts for another paper
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paper.id])
+
+  const line =
+    task?.state === "waiting_for_you"
+      ? task.waiting?.detail ?? "The publisher wants you on its page."
+      : "Opening the publisher's page…"
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-10 shrink-0 items-center gap-2 px-4 text-sm text-muted-foreground">
+        {task?.state !== "waiting_for_you" && <Spinner />}
+        <span className="min-w-0 flex-1 truncate">{line}</span>
+        <Button variant="ghost" size="sm" onClick={() => task && void cancelTask(task.id)} disabled={!task}>
+          Cancel
+        </Button>
+      </div>
+      {/* The publisher's page is drawn over this box by the desktop app */}
+      <div ref={box} className="min-h-0 flex-1 bg-background" />
+    </div>
+  )
+}
+
+// The user went elsewhere while owlit looked: a system notification, which brings owlit back
+function notifyNeeds(paper: Paper, needs: "check" | "sign-in") {
+  if (typeof Notification === "undefined") return
+  const notification = new Notification(needs === "sign-in" ? "The publisher wants you to sign in" : "The publisher wants a quick check", {
+    body: paper.title,
+  })
+  notification.onclick = () => window.focus()
 }
 
 // "Tried arXiv, Unpaywall and the publisher." from acquisition route names

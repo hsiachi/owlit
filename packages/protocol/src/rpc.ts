@@ -248,6 +248,10 @@ export interface Methods {
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with noPdf saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
+  // The publisher's page with the user there (Check now): shown where the window reserved room for it
+  // (window.owlit.publisherView), waiting for them to pass a check or sign in. Resolves with the paper
+  // once the run ends; cancelling its task (paper.pdf.check) ends it.
+  "library.checkPublisher": { params: { id: string }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md
@@ -347,4 +351,6 @@ export interface OwlitBridge {
   // 0 where there are none to avoid (full screen, a system title bar). The window, not core, knows it.
   controlsRoom: number
   onControlsRoom(listener: (room: number) => void): () => void
+  // Where the publisher's page shows during Check now, in the window's CSS pixels; null takes it away
+  setPublisherView(bounds: { x: number; y: number; width: number; height: number } | null): void
 }
