@@ -11,7 +11,7 @@ import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
-import { Scheduler, TaskStore, type TaskDefinition } from "../tasks/index.ts"
+import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
 import { acquireLock, WorkspaceLockedError } from "./lock.ts"
 import { OWLIT_DIR } from "./paths.ts"
 
@@ -35,6 +35,7 @@ export interface WorkspaceTasks {
   // The kinds of task this workspace can run, made for it (they close over its paths)
   definitions?: (workspace: Workspace) => TaskDefinition[]
   onChange?: (task: Task) => void
+  limits?: SchedulerOptions["limits"]
 }
 
 // One open workspace. Everything tied to it hangs off this object, so switching workspaces is
@@ -66,6 +67,7 @@ export class Workspace {
       store: new TaskStore(path.join(dataDir, "tasks")),
       definitions: tasks.definitions?.(this) ?? [],
       onChange: tasks.onChange,
+      limits: tasks.limits,
     })
     this.library.attach(this.tasks)
   }

@@ -11,6 +11,7 @@ import {
   type PaperRecord,
   type PaperState,
   type PaperText,
+  type ParsingSettings,
   type ResolvedPaper,
   type TaskPriority,
 } from "@owlit/protocol"
@@ -41,7 +42,9 @@ import {
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { readText, writeText } from "./text/files.ts"
-import { extractText, readPdf, UnreadablePdf } from "./text/extract.ts"
+import { extractText, pageSizes, readPdf, UnreadablePdf } from "./text/extract.ts"
+import { contentListToText } from "./parse/convert.ts"
+import { awaitCloud, checkCloud, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { identify, type Identified } from "./text/identify.ts"
 import { NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import {
@@ -64,6 +67,8 @@ const SETTLE_MS = 300
 
 export interface LibraryServices {
   http: Http
+  // MinerU's settings, read at each use
+  parsing?: () => Promise<ParsingSettings>
   // pdfium's wasm, where the desktop app ships it; tests and the CLI find it in the package
   pdfiumWasm?: string
   // Read at each use, so a key the user adds applies at once
@@ -134,6 +139,8 @@ export class Library {
     const pdf = await hasPdf(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
     if (await stat(path.join(paperDir(this.root, id), "digest.md")).then(() => true, () => false)) paper.hasDigest = true
+    const text = await this.textQuality(id)
+    if (text) paper.text = text
     if (!pdf) {
       const acquisition = await readAcquisition(this.root, id)
       // Routes skipped (Unpaywall without an email) weren't tried, so they aren't named
@@ -351,6 +358,23 @@ export class Library {
     return paper
   }
 
+  // How well the paper's text was read: full (MinerU, now or from pitta) or basic (pdfium only).
+  // Read from which files exist, not from text.json, which can be large.
+  private async textQuality(id: string): Promise<Paper["text"]> {
+    const dir = paperDir(this.root, id)
+    if (await stat(path.join(dir, "text.pdfium.json")).then(() => true, () => false)) return "full"
+    const head = await open(path.join(dir, "text.md"), "r")
+      .then(async (handle) => {
+        const buffer = Buffer.alloc(LEGACY_TEXT_MARK.length)
+        await handle.read(buffer, 0, buffer.length, 0)
+        await handle.close()
+        return buffer.toString("utf8")
+      })
+      .catch(() => undefined)
+    if (head === undefined) return undefined
+    return head === LEGACY_TEXT_MARK ? "full" : "basic"
+  }
+
   // The paper's reading notes (digest.md), or null when it has none
   async digest(id: string): Promise<string | null> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
@@ -545,6 +569,57 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
+      // MinerU's reading of the PDF replaces pdfium's (kept as text.pdfium.json). The job is recorded
+      // before the file goes up, so a restart looks it up instead of paying for another. Without a
+      // service set up there is nothing to do; failing changes nothing but parse.json.
+      defineTask("paper.parse", {
+        lane: "parse",
+        run: async (ctx) => {
+          const id = ctx.task.subject
+          const settings = (await this.services.parsing?.()) ?? {}
+          if (!settings.service || (settings.service === "cloud" && !settings.token)) return
+          if (ctx.task.priority === "background" && settings.auto === false) return
+          if (!(await readRecord(this.root, id))) throw new TaskFailure(`${id} is not in the library.`)
+          if (!(await hasPdfFile(this.root, id))) return
+          if ((await readText(this.root, id))?.source === "mineru") return
+          const bytes = await readFile(pdfFile(this.root, id))
+          // The cloud's job, for parse.json
+          let job: string | undefined
+          try {
+            let blocks
+            if (settings.service === "self-hosted") {
+              blocks = await parseSelfHosted(this.services.http, settings, `${id}.pdf`, bytes, ctx.signal)
+            } else {
+              let batchId = ctx.external?.service === "mineru" ? ctx.external.jobId : undefined
+              // A job recorded before a restart: still waiting for its file means the upload never
+              // happened, so it starts over (nothing was spent)
+              if (batchId && (await checkCloud(this.services.http, settings, batchId, ctx.signal)).state === "waiting-file") batchId = undefined
+              if (!batchId) {
+                const job = await submitCloud(this.services.http, settings, `${id}.pdf`, id, ctx.signal)
+                await ctx.externalJob("mineru", job.batchId)
+                await uploadCloud(this.services.http, job, bytes, ctx.signal)
+                batchId = job.batchId
+              }
+              job = batchId
+              blocks = await awaitCloud(this.services.http, settings, batchId, { signal: ctx.signal, onProgress: (done, total) => ctx.progress(done, total) })
+            }
+            const text = contentListToText(blocks, await pageSizes(bytes, this.services.pdfiumWasm))
+            const dir = paperDir(this.root, id)
+            const previous = await readText(this.root, id)
+            if (previous?.source === "pdfium") await writeJsonAtomic(path.join(dir, "text.pdfium.json"), previous)
+            await writeText(this.root, id, text)
+            await writeJsonAtomic(path.join(dir, "parse.json"), { version: 1, status: "done", service: settings.service, at: Date.now(), ...(job ? { job } : {}) })
+            this.queue("index.paper", id, "background")
+            await this.announce([id])
+          } catch (error) {
+            if (ctx.signal.aborted) throw error
+            const message = error instanceof Error ? error.message : String(error)
+            await writeJsonAtomic(path.join(paperDir(this.root, id), "parse.json"), { version: 1, status: "failed", error: message, attempts: ctx.task.attempts, at: Date.now() })
+            if (error instanceof ParseRefused) throw new TaskFailure(message)
+            throw error
+          }
+        },
+      }),
       defineTask("import.pitta", {
         lane: "cpu",
         retries: 0,
@@ -616,7 +691,9 @@ export class Library {
           // A text.md brought from pitta is MinerU's: better than pdfium's, so only the coordinates are added
           const legacy = (await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")).startsWith(LEGACY_TEXT_MARK)
           await writeText(this.root, id, text, { markdown: !legacy })
-          for (const kind of ["index.paper", ...(text.needsOcr ? ["paper.parse"] : [])]) this.queue(kind, id, "background")
+          this.queue("index.paper", id, "background")
+          // A scan has no text at all until MinerU reads it
+          this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
       }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact

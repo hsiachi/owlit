@@ -38,6 +38,8 @@ export interface Paper {
   pdf?: PaperPdf
   // Reading notes an agent wrote (library/papers/<id>/digest.md)
   hasDigest?: boolean
+  // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
+  text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …)
   noPdf?: { tried: string[]; at: number }
   addedAt: number

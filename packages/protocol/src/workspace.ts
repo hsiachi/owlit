@@ -22,12 +22,25 @@ export interface AppSettings {
   lastWorkspace?: string
   // Local agents: the ones the user added, and what each agent last said about itself
   connectors: ConnectorSettings
-  // Filled by the parsing service (T18)
-  parsing: Record<string, unknown>
+  // MinerU, which reads PDFs better than pdfium (reading order, tables, formulas, scans)
+  parsing: ParsingSettings
   // The services the library asks about papers
   library: LibrarySettings
   // Whether the renderer reports what the user does (the activity stream and journal)
   activity: { enabled: boolean }
+}
+
+export interface ParsingSettings {
+  // Where MinerU runs; none set means papers keep pdfium's text
+  service?: "cloud" | "self-hosted"
+  // cloud: https://mineru.net unless set; self-hosted: the address of its API (http://127.0.0.1:8000)
+  url?: string
+  // The cloud's API token
+  token?: string
+  // Papers parsed at once (the parse lane); default 2
+  concurrency?: number
+  // Parse every PDF once it is in place; off means only when asked. Default on.
+  auto?: boolean
 }
 
 export interface LibrarySettings {

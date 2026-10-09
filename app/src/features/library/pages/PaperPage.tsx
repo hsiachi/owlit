@@ -307,6 +307,12 @@ function About({ paper }: { paper: Paper }) {
         </dd>
         <dt className="text-muted-foreground">File</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (paper.pdf.pages ? `PDF, ${paper.pdf.pages} pages` : "PDF") : "No PDF"}</dd>
+        {paper.text && (
+          <>
+            <dt className="text-muted-foreground">Text</dt>
+            <dd className={cn(paper.text === "basic" && "text-muted-foreground")}>{paper.text === "full" ? "Full" : "Basic"}</dd>
+          </>
+        )}
       </dl>
     </div>
   )

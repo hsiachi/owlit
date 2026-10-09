@@ -10,6 +10,9 @@ export interface HostLimit {
 }
 
 export interface RequestOptions {
+  // GET when not given. A POST is tried once unless retries says otherwise: it may start something.
+  method?: "GET" | "POST" | "PUT"
+  body?: string | Uint8Array | FormData
   signal?: AbortSignal
   headers?: Record<string, string>
   // Further tries after a passing failure; default 3
@@ -65,9 +68,10 @@ export class Http {
     return (await this.get(url, options)).text()
   }
 
-  // A successful response, body unread. 4xx other than 429 is final; 404 says "not there".
+  // A successful response, body unread. 4xx other than 429 is final; 404 says "not there". Despite the
+  // name, options.method can make it a POST or PUT.
   async get(url: string, options: RequestOptions = {}): Promise<Response> {
-    const retries = options.retries ?? 3
+    const retries = options.retries ?? (options.method === "POST" ? 0 : 3)
     for (let attempt = 0; ; attempt++) {
       options.signal?.throwIfAborted()
       let wait: number
@@ -92,7 +96,13 @@ export class Http {
     const timeout = AbortSignal.timeout(options.timeoutMs ?? 30_000)
     const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
     try {
-      return await this.fetch(url, { headers: { "user-agent": this.userAgent, ...options.headers }, signal, redirect: "follow" })
+      return await this.fetch(url, {
+        method: options.method ?? "GET",
+        body: options.body as RequestInit["body"],
+        headers: { "user-agent": this.userAgent, ...options.headers },
+        signal,
+        redirect: "follow",
+      })
     } finally {
       release()
     }

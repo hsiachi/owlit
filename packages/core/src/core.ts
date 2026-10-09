@@ -365,8 +365,17 @@ export class Core {
           ? this.workspace
           : await Workspace.open(root, this.options.userDataDir, {
               host: this.options.host,
-              library: { http: this.http, pdfiumWasm: this.options.pdfiumWasm, settings: async () => (await this.settings.get()).library },
-              tasks: { definitions: (workspace) => this.taskDefinitions(workspace), onChange: (task) => this.taskChanges.push(task) },
+              library: {
+                http: this.http,
+                pdfiumWasm: this.options.pdfiumWasm,
+                settings: async () => (await this.settings.get()).library,
+                parsing: async () => (await this.settings.get()).parsing,
+              },
+              tasks: {
+                definitions: (workspace) => this.taskDefinitions(workspace),
+                onChange: (task) => this.taskChanges.push(task),
+                limits: { parse: (await this.settings.get()).parsing.concurrency ?? 2 },
+              },
             })
       if (this.workspace && this.workspace !== next) {
         this.turns.reset()

@@ -329,8 +329,37 @@ export function toMarkdown(text: PaperText): string {
         else joined += " " + line.text
       }
       joined = joined.replace(/\u00ad/g, "")
-      parts.push(block.kind === "heading" ? `## ${joined}` : joined)
+      // Running heads, page numbers and labels in figures are left out of the reading text
+      if (block.kind === "other") continue
+      if (block.kind === "heading") parts.push(`## ${joined}`)
+      else if (block.kind === "table") parts.push(block.lines.map((l) => l.text).join("\n"))
+      else if (block.kind === "figure") parts.push(`*${joined}*`)
+      else parts.push(joined)
     }
   }
   return parts.join("\n\n") + "\n"
+}
+
+// Each page's size in points, as pdfium sees it (what MinerU's thousandths are of)
+export async function pageSizes(bytes: Uint8Array, wasmPath?: string): Promise<{ width: number; height: number }[]> {
+  const m = await loadPdfium(wasmPath)
+  const ptr = m.pdfium.wasmExports.malloc(bytes.length)
+  ;(m.pdfium as unknown as { HEAPU8: Uint8Array }).HEAPU8.set(bytes, ptr)
+  const doc = m.FPDF_LoadMemDocument(ptr, bytes.length, "")
+  if (!doc) {
+    m.pdfium.wasmExports.free(ptr)
+    throw new UnreadablePdf("The PDF can't be read.")
+  }
+  try {
+    const sizes: { width: number; height: number }[] = []
+    for (let i = 0; i < m.FPDF_GetPageCount(doc); i++) {
+      const page = m.FPDF_LoadPage(doc, i)
+      sizes.push(page ? { width: m.FPDF_GetPageWidthF(page), height: m.FPDF_GetPageHeightF(page) } : { width: 612, height: 792 })
+      if (page) m.FPDF_ClosePage(page)
+    }
+    return sizes
+  } finally {
+    m.FPDF_CloseDocument(doc)
+    m.pdfium.wasmExports.free(ptr)
+  }
 }
