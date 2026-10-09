@@ -1,4 +1,4 @@
-import { RpcErrorCode, type CoreVersion, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo } from "@owlit/protocol"
+import { RpcErrorCode, type ChatMessage, type CoreVersion, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { z } from "zod"
 import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
@@ -51,6 +51,11 @@ export class Core {
       return null
     })
 
+    this.router.register("workspace.layout", noParams, () => this.requireWorkspace().layout())
+    this.router.register("workspace.setLayout", z.object({ patch: z.record(z.string(), z.unknown()) }), ({ patch }) =>
+      this.requireWorkspace().setLayout(patch),
+    )
+
     this.router.register("activity.emit", z.object({ event: activityEvent }), async ({ event }) => {
       if (this.workspace && (await this.settings.get()).activity.enabled) this.activity.publish(event)
       return null
@@ -95,6 +100,40 @@ export class Core {
       chatId: z.string().optional(),
       createdAt: z.number(),
     })
+    const chats = () => this.requireWorkspace().chats
+    const chatId = z.string().regex(/^[\w-]+$/)
+    const summary = z.object({
+      id: chatId,
+      title: z.string(),
+      createdAt: z.number(),
+      updatedAt: z.number(),
+      pinned: z.boolean(),
+      connectorId: z.string().optional(),
+      modelId: z.string().optional(),
+      modeId: z.string().optional(),
+      effortId: z.string().optional(),
+    })
+    // Messages are the app's own shape (protocol/chat.ts); core checks only what it relies on
+    const message = z.looseObject({
+      id: z.string().min(1),
+      role: z.enum(["user", "assistant"]),
+      parts: z.array(z.unknown()),
+      createdAt: z.number(),
+    }) as unknown as z.ZodType<ChatMessage>
+    this.router.register("chats.list", noParams, () => chats().list())
+    this.router.register("chats.get", z.object({ id: chatId }), ({ id }) => chats().get(id))
+    this.router.register("chats.create", z.object({ chat: summary }), ({ chat }) => chats().create(chat))
+    this.router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), ({ id, patch }) =>
+      chats().update(id, patch),
+    )
+    this.router.register("chats.delete", z.object({ id: chatId }), ({ id }) => chats().delete(id))
+    this.router.register("chats.appendMessage", z.object({ id: chatId, message }), ({ id, message }) =>
+      chats().appendMessage(id, message),
+    )
+    this.router.register("chats.patchMessage", z.object({ id: chatId, message, final: z.boolean().optional() }), ({ id, message, final }) =>
+      chats().patchMessage(id, message, final),
+    )
+
     this.router.register("notes.all", noParams, () => docs().notesAll())
     this.router.register("notes.add", z.object({ path: rel, note }), ({ path, note }) => docs().addNote(path, note))
     this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))

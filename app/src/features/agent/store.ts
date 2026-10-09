@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { useChatStore } from "@/features/chat/store"
+import { isDesktop, rpc } from "@/lib/rpc"
+import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PromptInput, QuotedSelection } from "@/features/chat/types"
 
 // The app-wide agent window. It is closed, a small ask bar, or a panel docked on the right. Its
@@ -66,7 +68,30 @@ export const useAgentWindow = create<AgentWindowState>()(
         void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
       },
     }),
-    // Only the conversation is kept, so ⌘J after a reload picks it up again; the window starts closed
-    { name: "owlit-agent-window", partialize: (s) => ({ chatId: s.chatId }) },
+    // Only the conversation is kept, so ⌘J after a reload picks it up again; the window starts closed.
+    // In the desktop app it is kept with the workspace instead (workspace.json's layout).
+    { name: "owlit-agent-window", partialize: (s) => (isDesktop ? {} : { chatId: s.chatId }) },
   ),
 )
+
+if (isDesktop) {
+  // Set while the window takes the workspace's saved chat, which needs no saving back
+  let restoring = false
+  const restore = (chatId: string | null) => {
+    restoring = true
+    useAgentWindow.setState({ chatId })
+    restoring = false
+  }
+  onWorkspaceOpened(() => {
+    restore(null)
+    useAgentWindow.setState({ stage: "closed" })
+    rpc.workspace
+      .layout()
+      .then((layout) => restore(typeof layout.agentChatId === "string" ? layout.agentChatId : null))
+      .catch(() => undefined)
+  })
+  useAgentWindow.subscribe((state, prev) => {
+    if (restoring || state.chatId === prev.chatId || !useWorkspace.getState().current) return
+    rpc.workspace.setLayout({ patch: { agentChatId: state.chatId } }).catch(() => undefined)
+  })
+}

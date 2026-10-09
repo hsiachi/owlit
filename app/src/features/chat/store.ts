@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { isDesktop } from "@/lib/rpc"
 import type { AgentClient } from "./agent/client"
+import * as disk from "./disk"
 import { MockAgentClient } from "./agent/mock-client"
 import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
@@ -25,8 +27,12 @@ export interface Selection {
   effortId?: string
 }
 
+// In the desktop app chats live in the workspace (.owlit/chats/, through ./disk); in a plain browser
+// (pnpm dev:web) seeded chats are kept in localStorage as before.
 interface ChatState {
   chats: Record<string, Chat>
+  // Whether the workspace's chat list has been read
+  chatsLoaded: boolean
   connectors: Connector[]
   selection: Selection
   // Chat ids with a running turn
@@ -87,7 +93,8 @@ function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart[] {
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
-      chats: Object.fromEntries(seedChats.map((c) => [c.id, c])),
+      chats: isDesktop ? {} : Object.fromEntries(seedChats.map((c) => [c.id, c])),
+      chatsLoaded: !isDesktop,
       connectors: builtInConnectors,
       selection: {
         connectorId: builtInConnectors[0].id,
@@ -114,6 +121,10 @@ export const useChatStore = create<ChatState>()(
           messages: [],
         }
         set((s) => ({ chats: { ...s.chats, [chat.id]: chat } }))
+        if (disk.onDisk) {
+          const { messages: _none, ...summary } = chat
+          disk.createChatOnDisk(summary)
+        }
         return chat
       },
 
@@ -123,14 +134,22 @@ export const useChatStore = create<ChatState>()(
           const { [id]: _removed, ...rest } = s.chats
           return { chats: rest }
         })
+        if (disk.onDisk) disk.deleteChatOnDisk(id)
       },
 
       renameChat(id, title) {
-        set((s) => (s.chats[id] ? { chats: { ...s.chats, [id]: { ...s.chats[id], title: title.trim() || s.chats[id].title } } } : s))
+        const chat = get().chats[id]
+        if (!chat) return
+        const next = title.trim() || chat.title
+        set((s) => ({ chats: { ...s.chats, [id]: { ...chat, title: next } } }))
+        if (disk.onDisk) disk.updateChatOnDisk(id, { title: next })
       },
 
       togglePin(id) {
-        set((s) => (s.chats[id] ? { chats: { ...s.chats, [id]: { ...s.chats[id], pinned: !s.chats[id].pinned } } } : s))
+        const chat = get().chats[id]
+        if (!chat) return
+        set((s) => ({ chats: { ...s.chats, [id]: { ...chat, pinned: !chat.pinned } } }))
+        if (disk.onDisk) disk.updateChatOnDisk(id, { pinned: !chat.pinned })
       },
 
       setSelection(patch) {
@@ -149,7 +168,10 @@ export const useChatStore = create<ChatState>()(
 
       setChatSelection(chatId, patch) {
         get().setSelection(patch)
-        set((s) => (s.chats[chatId] ? { chats: { ...s.chats, [chatId]: { ...s.chats[chatId], ...get().selection } } } : s))
+        if (!get().chats[chatId]) return
+        const { connectorId, modelId, modeId, effortId } = get().selection
+        set((s) => ({ chats: { ...s.chats, [chatId]: { ...s.chats[chatId], connectorId, modelId, modeId, effortId } } }))
+        if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, modeId, effortId })
       },
 
       async send(chatId, input) {
@@ -196,11 +218,17 @@ export const useChatStore = create<ChatState>()(
           streaming: { ...s.streaming, [chatId]: true },
           connectors: s.connectors.map((c) => (c.id === connectorId && c.status === "available" ? { ...c, status: "connected" } : c)),
         }))
+        if (disk.onDisk) {
+          if (isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
+          disk.appendMessageOnDisk(chatId, userMsg)
+          disk.appendMessageOnDisk(chatId, assistantMsg)
+        }
 
         const controller = new AbortController()
         inflight.set(chatId, controller)
 
-        const patchAssistant = (fn: (m: ChatMessage) => ChatMessage) =>
+        // The answer as it grows; on disk at a measured pace, and whole once the turn is over
+        const patchAssistant = (fn: (m: ChatMessage) => ChatMessage, final = false) => {
           set((s) => {
             const c = s.chats[chatId]
             if (!c) return s
@@ -211,6 +239,9 @@ export const useChatStore = create<ChatState>()(
               },
             }
           })
+          const now = get().chats[chatId]?.messages.find((m) => m.id === assistantMsg.id)
+          if (now && disk.onDisk) disk.patchMessageOnDisk(chatId, now, final)
+        }
 
         try {
           const stop = await agentClient.prompt(
@@ -218,9 +249,9 @@ export const useChatStore = create<ChatState>()(
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )
-          patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done" }))
+          patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done" }), true)
         } catch (e) {
-          patchAssistant((m) => ({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }))
+          patchAssistant((m) => ({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }), true)
         } finally {
           inflight.delete(chatId)
           set((s) => {
@@ -277,7 +308,8 @@ export const useChatStore = create<ChatState>()(
     {
       name: "owlit.chat",
       version: 1,
-      partialize: (s) => ({ chats: s.chats, connectors: s.connectors, selection: s.selection }),
+      // In the desktop app chats are the workspace's, not this browser profile's
+      partialize: (s) => (isDesktop ? { connectors: s.connectors, selection: s.selection } : { chats: s.chats, connectors: s.connectors, selection: s.selection }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ChatState>
         // Built-in connectors take their definition (models, modes, efforts) from code and only
@@ -293,7 +325,7 @@ export const useChatStore = create<ChatState>()(
           ...custom,
         ].map((c) => (c.status === "checking" || c.status === "connected" ? { ...c, status: "available" as const } : c))
         const chats = Object.fromEntries(
-          Object.entries(p.chats ?? current.chats).map(([id, c]) => [
+          Object.entries(isDesktop ? current.chats : (p.chats ?? current.chats)).map(([id, c]) => [
             id,
             { ...c, messages: c.messages.map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m)) },
           ]),

@@ -1,4 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
+import type { Chat, ChatMessage, ChatSummary } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
@@ -56,6 +57,11 @@ export interface Methods {
   // Recently opened folders, most recent first; folders that no longer exist are left out
   "workspace.recent": { params: void; result: WorkspaceInfo[] }
   "workspace.clearRecent": { params: void; result: null }
+  // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
+  // window's chat, …)
+  "workspace.layout": { params: void; result: Record<string, unknown> }
+  // Merges into the layout; a key set to null is removed
+  "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
   // One thing the user did; dropped when activity is turned off or no workspace is open
   "activity.emit": { params: { event: ActivityEvent }; result: null }
   "activity.status": { params: void; result: { enabled: boolean } }
@@ -97,6 +103,20 @@ export interface Methods {
   "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
   // Passages edited while the doc was open, saved as they read now: note id → its new anchor
   "notes.reanchor": { params: { path: string; moved: Record<string, NoteAnchor> }; result: null }
+
+  // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
+  // Most recently updated first, without messages
+  "chats.list": { params: void; result: ChatSummary[] }
+  "chats.get": { params: { id: string }; result: Chat }
+  "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
+  // Title, pin, agent settings, last use
+  "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
+  // Moves the chat to .owlit/trash/
+  "chats.delete": { params: { id: string }; result: null }
+  "chats.appendMessage": { params: { id: string; message: ChatMessage }; result: null }
+  // Replaces a message by id. While final is false the disk catches up within half a second;
+  // final (the end of a turn) writes at once.
+  "chats.patchMessage": { params: { id: string; message: ChatMessage; final?: boolean }; result: null }
 }
 
 // Every notification core sends: topic → payload

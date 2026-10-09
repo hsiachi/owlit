@@ -2,6 +2,7 @@ import { RpcErrorCode, type WorkspaceInfo, type WorkspaceSettings } from "@owlit
 import { createHash } from "node:crypto"
 import { mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
+import { Chats } from "../chats/chats.ts"
 import { Docs, type Host } from "../docs/docs.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -25,6 +26,7 @@ export class Workspace {
   readonly root: string
   readonly dataDir: string
   readonly docs: Docs
+  readonly chats: Chats
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, host: Host) {
@@ -33,6 +35,7 @@ export class Workspace {
     this.info = { path: root, name: path.basename(root) }
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
+    this.chats = new Chats(path.join(root, OWLIT_DIR))
   }
 
   // Resolves the folder, takes the lock and makes sure .owlit/workspace.json exists. Creates nothing
@@ -66,7 +69,27 @@ export class Workspace {
     return path.join(this.root, OWLIT_DIR, ...segments)
   }
 
+  // .owlit/workspace.json's layout. A workspace.json that doesn't parse is left alone and reads as empty.
+  async layout(): Promise<Record<string, unknown>> {
+    const stored = await readJson<WorkspaceSettings>(this.owlitPath("workspace.json")).catch(() => undefined)
+    return stored?.layout ?? {}
+  }
+
+  async setLayout(patch: Record<string, unknown>) {
+    const file = this.owlitPath("workspace.json")
+    const stored = await readJson<WorkspaceSettings>(file).catch(() => null)
+    if (stored === null) throw new RpcFailure(RpcErrorCode.Conflict, "workspace.json in .owlit can't be read, so owlit leaves it alone.")
+    const layout: Record<string, unknown> = { ...stored?.layout }
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null) delete layout[key]
+      else layout[key] = value
+    }
+    await writeJsonAtomic(file, { ...stored, version: 1, layout })
+    return layout
+  }
+
   async dispose() {
+    await this.chats.flush()
     this.docs.dispose()
     await this.release()
   }

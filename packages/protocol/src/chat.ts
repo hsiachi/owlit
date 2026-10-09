@@ -128,6 +128,9 @@ export interface Chat {
   messages: ChatMessage[]
 }
 
+// A chat without its messages, as the chat list shows it
+export type ChatSummary = Omit<Chat, "messages">
+
 // ---- Local agent connectors ----
 
 export type ConnectorStatus =

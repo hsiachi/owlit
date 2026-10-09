@@ -6,6 +6,7 @@
 import type { ActivityEvent } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
+import { isChatsFromDisk } from "@/features/chat/disk"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { useLibraryStore } from "@/features/library/store"
@@ -176,7 +177,8 @@ export function startActivity(router: typeof appRouter) {
   const userMessages = (chats: ReturnType<typeof useChatStore.getState>["chats"], id: string) =>
     chats[id]?.messages.filter((m) => m.role === "user").length ?? 0
   useChatStore.subscribe((state, prev) => {
-    if (state.chats === prev.chats) return
+    // Chats read from the workspace aren't messages being sent
+    if (state.chats === prev.chats || isChatsFromDisk()) return
     for (const id of Object.keys(state.chats)) {
       if (userMessages(state.chats, id) <= userMessages(prev.chats, id)) continue
       wroteIn.add(id)
