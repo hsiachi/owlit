@@ -3,6 +3,7 @@
 //   "permission"       asks to run something, then says what the user chose
 //   "read <path>"      reads a file through owlit and says how long it is
 //   "write <path> <t>" writes t into a file through owlit
+//   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
@@ -11,6 +12,7 @@
 
 import * as acp from "@agentclientprotocol/sdk"
 import { randomUUID } from "node:crypto"
+import { writeFileSync } from "node:fs"
 import { Readable, Writable } from "node:stream"
 
 const sleep = (ms: number, signal?: AbortSignal) =>
@@ -130,6 +132,15 @@ class FakeAgent implements acp.Agent {
         } catch (error) {
           await say(`could not read: ${(error as Error).message}`)
         }
+        return { stopReason: "end_turn" }
+      }
+      const direct = /direct (\S+) (.+)/.exec(text)
+      if (direct) {
+        const file = `${session.cwd}/${direct[1]}`
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", toolCallId: "e1", title: `Edit ${direct[1]}`, kind: "edit", status: "in_progress", locations: [{ path: file }] } })
+        writeFileSync(file, direct[2])
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "e1", status: "completed" } })
+        await say("edited")
         return { stopReason: "end_turn" }
       }
       const write = /write (\S+) (.+)/.exec(text)

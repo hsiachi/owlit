@@ -2,7 +2,7 @@ import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
-import type { WorkspaceInfo } from "./workspace.ts"
+import type { UiRequest, WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -147,6 +147,16 @@ export interface Methods {
   // Answers a permission_request with one of its options
   "agents.respondPermission": { params: { chatId: string; requestId: string; optionId: string }; result: null }
 
+  // ---- Windows. clientId names one window for as long as it is loaded.
+  // The docs this window has open in an editor (workspace-relative); agents' reads and writes of them
+  // go through it
+  "ui.setOpenDocs": { params: { clientId: string; paths: string[] }; result: null }
+  // A window's answer to a ui.request
+  "ui.respond": { params: { requestId: string; result?: unknown; error?: string }; result: null }
+  // Puts a file back as it was before an agent's write (Undo once its editor is gone); refused with
+  // Conflict when the file changed since
+  "versions.restore": { params: { id: string }; result: { path: string } }
+
   // ---- Tasks: background work in the open workspace. Their state shows beside what they are about.
   // Unfinished tasks, then the ones that finished since the workspace opened, most recent first
   "tasks.list": { params: void; result: Task[] }
@@ -176,6 +186,10 @@ export interface Notifications {
   "agents.changed": Connector
   // One streamed update of a chat's running turn
   "chat.update": { chatId: string; update: SessionUpdate }
+  // Core needs a window to read or change a doc open in its editor
+  "ui.request": UiRequest
+  // An agent wrote a file no window had open; versionId undoes it
+  "agent.wrote": { path: string; versionId: string; chatId?: string }
   // A task changed; sent at most every 200ms per task, always with its latest state
   "tasks.changed": { task: Task }
 }

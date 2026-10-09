@@ -77,6 +77,11 @@ export class Docs {
   private firstDirtyAt = 0
   // Who hears about changes (set by watch)
   private changed: ((change: DocsChange) => void) | undefined
+  // Every Markdown file's text as last seen, so a change made outside core still knows what was there
+  private texts = new Map<string, string>()
+  // A Markdown file's text changed outside core (null: there was none / there is none now). Core uses it
+  // to keep what an agent overwrote when the agent writes the disk itself.
+  textChanged: ((rel: string, before: string | null, after: string | null) => void) | undefined
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -88,6 +93,7 @@ export class Docs {
   async list(): Promise<DocsListing> {
     const follow = (await this.loadNames()).followFirstLine
     this.snapshot = await this.scan("")
+    this.texts.clear()
     const files: WorkspaceFile[] = []
     const folders: string[] = []
     for (const [rel, entry] of this.snapshot) {
@@ -263,40 +269,43 @@ export class Docs {
     })
   }
 
-  // ---- What agents read and write (ACP fs/read_text_file, fs/write_text_file). Absolute paths, as ACP
-  // gives them, anywhere inside the workspace; writes not into .owlit/.
+  // ---- Files outside Docs' own calls: what agents read and write (agents/fs.ts) and Undo puts back.
+  // Paths anywhere inside the workspace; changes reach clients as made outside them (docs.changed).
 
-  agentRead(file: string, line?: number, limit?: number) {
-    return this.serial(async () => {
-      const rel = this.inside(file)
-      let content: string
-      try {
-        content = await readFile(this.abs(rel), "utf8")
-      } catch {
-        throw notFound(rel)
-      }
-      if (line === undefined && limit === undefined) return { content }
-      // line is 1-based; limit counts lines
-      const lines = content.split("\n")
-      const start = Math.max(0, (line ?? 1) - 1)
-      return { content: lines.slice(start, limit === undefined ? undefined : start + limit).join("\n") }
-    })
+  // A path an agent named (absolute, or relative to the workspace) as a workspace-relative one; refused
+  // outside the workspace
+  resolve(file: string) {
+    return this.inside(file)
   }
 
-  // A write by an agent reaches clients as a change made outside them (docs.changed)
-  agentWrite(file: string, content: string) {
+  // A file's text on disk, or null when there is none
+  readDisk(rel: string) {
+    return readFile(this.abs(rel), "utf8").catch(() => null)
+  }
+
+  writeTold(rel: string, content: string) {
     return this.serial(async () => {
-      const rel = this.inside(file)
-      if (rel.split("/")[0] === ".owlit") throw new RpcFailure(RpcErrorCode.InvalidParams, "Agents can't write inside .owlit.", { path: rel })
       if (existsSync(this.abs(rel))) await writeInPlace(this.abs(rel), content)
       else {
         await mkdir(path.dirname(this.abs(rel)), { recursive: true })
         await writeFile(this.abs(rel), content)
       }
-      const change = await this.reconcile([rel], true)
-      if (change) this.changed?.(change)
-      return null
+      await this.tell(rel)
     })
+  }
+
+  removeTold(rel: string) {
+    return this.serial(async () => {
+      if (!existsSync(this.abs(rel))) return
+      if (this.host.trash) await this.host.trash(this.abs(rel))
+      else await this.moveToOwlitTrash(rel)
+      await this.tell(rel)
+    })
+  }
+
+  private async tell(rel: string) {
+    const change = await this.reconcile([rel], true)
+    if (change) this.changed?.(change)
   }
 
   // ---- Agents' notes on docs (./notes.ts), kept in step with the files they belong to ----
@@ -418,6 +427,29 @@ export class Docs {
         this.ids.set(p, id)
       }
     }
+    // Texts follow renames; changed and new Markdown is read again; outside changes are reported
+    for (const [p, e] of added) {
+      const from = e.dir ? undefined : byIno.get(e.ino)
+      const moved = from !== undefined ? this.texts.get(from) : undefined
+      if (moved !== undefined) {
+        this.texts.delete(from!)
+        this.texts.set(p, moved)
+      }
+    }
+    for (const [p, e] of removed) {
+      if (e.dir || renamedFrom.has(p) || !isMarkdown(p)) continue
+      const before = this.texts.get(p)
+      this.texts.delete(p)
+      if (external) this.textChanged?.(p, before ?? null, null)
+    }
+    for (const p of new Set([...[...added].filter(([, e]) => !e.dir).map(([p]) => p), ...modified])) {
+      if (!isMarkdown(p)) continue
+      const before = this.texts.get(p)
+      const after = await readFile(this.abs(p), "utf8").catch(() => null)
+      if (after === null) continue
+      this.texts.set(p, after)
+      if (external && before !== after) this.textChanged?.(p, before ?? null, after)
+    }
     if (!external) return null
     const follow = (await this.loadNames()).followFirstLine
     if (removed.size) await this.updateNames((f) => Object.fromEntries(Object.entries(f).filter(([p]) => !removed.has(p))))
@@ -443,7 +475,10 @@ export class Docs {
   // A file in the snapshot as clients see it, with its text when it is Markdown
   private async fileAt(rel: string, entry: Entry, follow: Record<string, number>): Promise<WorkspaceFile> {
     const file: WorkspaceFile = this.statOf(rel, entry.mtimeMs, follow[rel] ?? entry.birthtimeMs)
-    if (isMarkdown(rel)) file.content = await readFile(this.abs(rel), "utf8").catch(() => "")
+    if (isMarkdown(rel)) {
+      file.content = this.texts.get(rel) ?? (await readFile(this.abs(rel), "utf8").catch(() => ""))
+      this.texts.set(rel, file.content)
+    }
     return file
   }
 

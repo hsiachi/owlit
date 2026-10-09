@@ -56,3 +56,11 @@ export function isHiddenFromDocs(relativePath: string) {
   if ((DOCS_HIDDEN_FOLDERS as readonly string[]).includes(segments[0])) return true
   return segments.some((segment) => segment.startsWith("."))
 }
+
+// Core asking the window that has a doc open to read it or change it in its editor (agents/fs.ts). The
+// window answers with ui.respond: fs.read → { content: string | null } (null: not open after all),
+// fs.write → { applied: boolean }.
+export type UiRequest = { requestId: string; clientId: string } & (
+  | { method: "fs.read"; params: { path: string } }
+  | { method: "fs.write"; params: { path: string; content: string; versionId: string } }
+)

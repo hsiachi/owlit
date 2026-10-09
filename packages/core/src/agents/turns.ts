@@ -17,6 +17,7 @@ import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
+import type { AgentFs } from "./fs.ts"
 import type { AcpProcess, SessionHandler } from "./process.ts"
 
 export interface TurnRequest {
@@ -33,6 +34,7 @@ export interface TurnRequest {
 
 interface TurnsOptions {
   agents: Agents
+  fs: AgentFs
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
   notify: (chatId: string, update: SessionUpdate) => void
 }
@@ -63,6 +65,8 @@ interface Turn {
 export class Turns {
   private readonly options: TurnsOptions
   private live = new Map<string, Live>()
+  // Files a running (or just finished) turn's tool calls edit, move or delete: path → chat, and until when
+  private claims = new Map<string, { chatId: string; until: number }>()
 
   constructor(options: TurnsOptions) {
     this.options = options
@@ -125,6 +129,8 @@ export class Turns {
     } finally {
       this.closePermissions(turn, emit)
       if (live) live.turn = null
+      // The watcher hears about the last writes a moment after the turn ends
+      for (const claim of this.claims.values()) if (claim.chatId === req.chatId && claim.until === Infinity) claim.until = Date.now() + CLAIM_AFTER_MS
     }
   }
 
@@ -153,6 +159,13 @@ export class Turns {
   // Forgets the sessions of a workspace that closed
   reset() {
     this.live.clear()
+    this.claims.clear()
+  }
+
+  // The chat whose agent is changing this file, if one is (a change on disk is then the agent's)
+  claimant(rel: string) {
+    const claim = this.claims.get(rel)
+    return claim && claim.until >= Date.now() ? claim.chatId : undefined
   }
 
   // ---- inside ----
@@ -165,7 +178,7 @@ export class Turns {
     const known = this.live.get(key)
     if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId)) return { live: known, history: null }
 
-    const handler = this.handler(key, ws.root, ws.docs, emit)
+    const handler = this.handler(key, req.chatId, ws.root, emit)
     const chat = await ws.chats.get(req.chatId)
     const recorded = chat.sessions?.[req.connectorId]
     const init = await proc.initialized()
@@ -212,7 +225,7 @@ export class Turns {
     }
   }
 
-  private handler(key: string, root: string, docs: Docs, emit: (u: SessionUpdate) => void): SessionHandler {
+  private handler(key: string, chatId: string, root: string, emit: (u: SessionUpdate) => void): SessionHandler {
     return {
       update: (n) => {
         // A loaded session replays its history first; the chat already has it
@@ -222,7 +235,9 @@ export class Turns {
         if (n.update.sessionUpdate === "current_mode_update" && live?.modes) live.modes = { ...live.modes, currentModeId: n.update.currentModeId }
         if (!live?.turn) return
         const update = toUpdate(n.update, root)
-        if (update) emit(update)
+        if (!update) return
+        emit(update)
+        this.claim(live.turn, update)
       },
       requestPermission: (r) => {
         const turn = this.live.get(key)?.turn
@@ -253,11 +268,21 @@ export class Turns {
           })
         })
       },
-      readTextFile: (r) => asAcpError(docs.agentRead(r.path, r.line ?? undefined, r.limit ?? undefined)),
+      readTextFile: (r) => asAcpError(this.options.fs.read(r.path, r.line ?? undefined, r.limit ?? undefined)),
       writeTextFile: async (r) => {
-        await asAcpError(docs.agentWrite(r.path, r.content))
+        await asAcpError(this.options.fs.write(r.path, r.content, chatId))
         return {}
       },
+    }
+  }
+
+  // A tool call that edits, moves or deletes workspace files claims them for this chat while it runs
+  private claim(turn: Turn, update: SessionUpdate) {
+    if (update.type !== "tool_call" && update.type !== "tool_call_update") return
+    const part = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === update.toolCallId)
+    if (part?.type !== "tool_call" || !["edit", "delete", "move"].includes(part.kind)) return
+    for (const p of [...(part.locations ?? []).map((l) => l.path), ...(part.diff ? [part.diff.path] : [])]) {
+      if (!p.startsWith("/")) this.claims.set(p, { chatId: turn.chatId, until: Infinity })
     }
   }
 
@@ -278,6 +303,8 @@ async function quiet(turn: Turn) {
     }
   }
 }
+
+const CLAIM_AFTER_MS = 5000
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()

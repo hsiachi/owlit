@@ -219,6 +219,8 @@ export const useChatStore = create<ChatState>()(
         }
 
         try {
+          // A chat made just now must reach core before core can run a turn in it
+          if (disk.onDisk) await disk.settled()
           const stop = await agentClient.prompt(
             { chatId, connectorId, modelId, modeId, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),

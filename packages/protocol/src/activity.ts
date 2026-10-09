@@ -37,5 +37,8 @@ export const JOURNALED_KINDS = [
   "paper.closed",
 ] as const satisfies readonly ActivityKind[]
 
+// What core records about agents itself; never reported by a window
+export type AgentRecord = { kind: "agent.wrote"; at: number; path: string; versionId: string; chatId?: string }
+
 // A line of .owlit/journal.jsonl: who did what, when
-export type JournalEntry = ActivityEvent & { actor: "user" | "agent" }
+export type JournalEntry = (ActivityEvent & { actor: "user" }) | (AgentRecord & { actor: "agent" })

@@ -4,7 +4,9 @@ import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { docUri } from "./lib/mentions"
 import { isDiskChange } from "./disk"
-import { openEditor, replaceInEditor, spanChange } from "./editors"
+import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor, spanChange } from "./editors"
 import { useDocsStore } from "./store"
 import { displayName, isMarkdown, type WorkspaceFile } from "./types"
 
@@ -73,29 +75,83 @@ setWorkspaceFs({
       if (!created) throw new Error(`Can't write ${path}`)
       return
     }
-    const view = openEditor(file.id)
-    if (!view) {
-      useDocsStore.getState().writeDoc(file.id, content)
-      return
-    }
-    const before = view.state.doc.toString()
-    const change = spanChange(before, content)
-    if (change.from === change.to && !change.insert) return
-    view.dispatch({ changes: change, userEvent: "input.agent" })
-    const after = view.state.doc.toString()
-    toast("Edit applied", {
-      description: displayName(file.path),
-      action: {
-        label: "Undo",
-        // Once the doc has been closed its editor's history is gone: the text goes back if nothing changed since
-        onClick: () => {
-          if (openEditor(file.id) === view) undo(view)
-          else if (currentText(file.id) === after) rewrite(file.id, before)
-        },
-      },
-    })
+    if (!applyAgentEdit(file, content)) useDocsStore.getState().writeDoc(file.id, content)
   },
 })
+
+// An agent's edit to an open doc: one change in its editor (the cursor stays, ⌘Z takes it back) and a
+// toast with Undo. Once the doc has been closed its editor's history is gone, so Undo puts back the
+// version core kept (desktop) or the text from before, if nothing changed since. False when not open.
+function applyAgentEdit(file: WorkspaceFile, content: string, versionId?: string) {
+  const view = openEditor(file.id)
+  if (!view) return false
+  const before = view.state.doc.toString()
+  const change = spanChange(before, content)
+  if (change.from === change.to && !change.insert) return true
+  view.dispatch({ changes: change, userEvent: "input.agent" })
+  const after = view.state.doc.toString()
+  toast("Edit applied", {
+    description: displayName(file.path),
+    action: {
+      label: "Undo",
+      onClick: () => {
+        if (openEditor(file.id) === view) undo(view)
+        else if (versionId) restoreVersion(versionId)
+        else if (currentText(file.id) === after) rewrite(file.id, before)
+      },
+    },
+  })
+  return true
+}
+
+function restoreVersion(versionId: string) {
+  rpc.versions.restore({ id: versionId }).catch((error: Error) => toast.error(error.message))
+}
+
+// ---- The desktop app: agents' reads and writes come from core ----
+
+if (isDesktop) {
+  // This window, for as long as it is loaded
+  const clientId = crypto.randomUUID()
+
+  // Core routes an agent's reads and writes of a doc to the window that has it open
+  let reported = ""
+  const report = () => {
+    const { files } = useDocsStore.getState()
+    const paths = openEditorIds()
+      .map((id) => files[id]?.path)
+      .filter((p): p is string => !!p)
+      .sort()
+    const key = paths.join("\n")
+    if (key === reported || !useWorkspace.getState().current) return
+    reported = key
+    void rpc.ui.setOpenDocs({ clientId, paths }).catch(() => undefined)
+  }
+  onEditorsChanged(report)
+  useDocsStore.subscribe((s, prev) => s.files !== prev.files && report())
+  onWorkspaceOpened(() => {
+    reported = ""
+    report()
+  })
+
+  onNotify("ui.request", (request) => {
+    if (request.clientId !== clientId) return
+    const answer = (result: unknown) => void rpc.ui.respond({ requestId: request.requestId, result }).catch(() => undefined)
+    const file = fileAt(request.params.path)
+    const view = file ? openEditor(file.id) : undefined
+    if (request.method === "fs.read") return answer({ content: file && view ? view.state.doc.toString() : null })
+    const { content, versionId } = request.params
+    answer({ applied: !!file && !!view && applyAgentEdit(file, content, versionId) })
+  })
+
+  // A doc no window had open: core wrote it; the change itself arrives as docs.changed
+  onNotify("agent.wrote", ({ path, versionId }) => {
+    toast("Edit applied", {
+      description: displayName(path),
+      action: { label: "Undo", onClick: () => restoreVersion(versionId) },
+    })
+  })
+}
 
 const CONTEXT = 32
 

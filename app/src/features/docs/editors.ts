@@ -4,11 +4,26 @@ import type { EditorView } from "@codemirror/view"
 // file changing on disk) go through the open editor, so they land as one undoable change and the
 // cursor stays where the user left it.
 const openEditors = new Map<string, EditorView>()
+const listeners = new Set<() => void>()
 
 export function registerEditor(id: string, view: EditorView) {
   openEditors.set(id, view)
+  for (const l of listeners) l()
   return () => {
-    if (openEditors.get(id) === view) openEditors.delete(id)
+    if (openEditors.get(id) !== view) return
+    openEditors.delete(id)
+    for (const l of listeners) l()
+  }
+}
+
+// Doc ids with an editor open now
+export const openEditorIds = () => [...openEditors.keys()]
+
+// Hears editors opening and closing; returns an unsubscribe
+export function onEditorsChanged(listener: () => void) {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
   }
 }
 

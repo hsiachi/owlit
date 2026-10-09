@@ -4,6 +4,7 @@ import { mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
 import { Docs, type Host } from "../docs/docs.ts"
+import { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Scheduler, TaskStore, type TaskDefinition } from "../tasks/index.ts"
@@ -33,6 +34,7 @@ export class Workspace {
   readonly root: string
   readonly dataDir: string
   readonly docs: Docs
+  readonly versions: Versions
   readonly chats: Chats
   readonly tasks: Scheduler
   private release: () => Promise<void>
@@ -43,6 +45,7 @@ export class Workspace {
     this.info = { path: root, name: path.basename(root) }
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
+    this.versions = new Versions(path.join(root, OWLIT_DIR))
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
