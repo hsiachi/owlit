@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/figtree";
-@import "@fontsource/instrument-serif";
+@import "@fontsource/dosis/500.css";
 
 @custom-variant dark (&:is(.dark *));
 /* Focus marks for keyboard navigation only. main.tsx records how the user last moved; after a
@@ -11,10 +11,10 @@
 @custom-variant focus-key (&:focus-visible:where([data-modality="keyboard"] *));
 
 @theme inline {
-    /* Figtree: round, open sans for the whole UI. Instrument Serif: display only (greetings, page titles) */
+    /* Figtree: round, open sans for the whole UI. Dosis 500: the wordmark's face, for the Chat greeting only */
     --font-heading: var(--font-sans);
     --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
+    --font-display: 'Dosis', ui-sans-serif, system-ui, sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
