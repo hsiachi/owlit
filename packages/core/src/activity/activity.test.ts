@@ -1,0 +1,145 @@
+import type { ActivityEvent, RpcNotification } from "@owlit/protocol"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import { afterEach, describe, expect, it } from "vitest"
+import { Core } from "../core.ts"
+import { ActivityBus } from "./bus.ts"
+
+const at = 1_790_000_000_000
+
+describe("ActivityBus", () => {
+  it("delivers to subscribers of a kind and to catch-all subscribers", () => {
+    const bus = new ActivityBus()
+    const pages: number[] = []
+    const all: string[] = []
+    bus.subscribe("paper.page", (e) => pages.push(e.page))
+    bus.subscribe((e) => all.push(e.kind))
+    bus.publish({ kind: "paper.page", at, paperId: "p", page: 3 })
+    bus.publish({ kind: "idle", at, seconds: 30 })
+    expect(pages).toEqual([3])
+    expect(all).toEqual(["paper.page", "idle"])
+  })
+
+  it("filters by a list of kinds", () => {
+    const bus = new ActivityBus()
+    const heard: string[] = []
+    bus.subscribe(["doc.opened", "doc.closed"], (e) => heard.push(`${e.kind} ${e.path}`))
+    bus.publish({ kind: "doc.opened", at, path: "a.md" })
+    bus.publish({ kind: "doc.edited", at, path: "a.md" })
+    bus.publish({ kind: "doc.closed", at, path: "a.md" })
+    expect(heard).toEqual(["doc.opened a.md", "doc.closed a.md"])
+  })
+
+  it("stops delivering after unsubscribe, for every kind subscribed", () => {
+    const bus = new ActivityBus()
+    const heard: string[] = []
+    const off = bus.subscribe(["chat.sent", "chat.ended"], (e) => heard.push(e.kind))
+    const offAll = bus.subscribe((e) => heard.push(`all ${e.kind}`))
+    bus.publish({ kind: "chat.sent", at, chatId: "c" })
+    off()
+    offAll()
+    bus.publish({ kind: "chat.sent", at, chatId: "c" })
+    bus.publish({ kind: "chat.ended", at, chatId: "c" })
+    expect(heard).toEqual(["chat.sent", "all chat.sent"])
+  })
+
+  it("keeps delivering when one listener throws", () => {
+    const bus = new ActivityBus()
+    const heard: string[] = []
+    const error = console.error
+    console.error = () => {}
+    bus.subscribe("idle", () => {
+      throw new Error("boom")
+    })
+    bus.subscribe("idle", (e) => heard.push(String(e.seconds)))
+    bus.publish({ kind: "idle", at, seconds: 5 })
+    console.error = error
+    expect(heard).toEqual(["5"])
+  })
+})
+
+const cores: Core[] = []
+afterEach(async () => {
+  await Promise.all(cores.splice(0).map((core) => core.dispose()))
+})
+
+async function openCore() {
+  const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-activity-")))
+  const ws = path.join(base, "ws")
+  mkdirSync(ws)
+  const core = new Core({ userDataDir: path.join(base, "userData") })
+  cores.push(core)
+  const call = async (method: string, params?: unknown) => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+    if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
+    return response.result
+  }
+  const journal = path.join(ws, ".owlit/journal.jsonl")
+  const lines = () => (existsSync(journal) ? readFileSync(journal, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [])
+  return { core, call, ws, lines }
+}
+
+describe("activity.emit and the journal", () => {
+  it("journals only the coarse events, with the user as actor", async () => {
+    const { core, call, ws, lines } = await openCore()
+    await call("workspace.open", { path: ws })
+    const events: ActivityEvent[] = [
+      { kind: "paper.opened", at, paperId: "arxiv-1" },
+      { kind: "paper.page", at: at + 1, paperId: "arxiv-1", page: 2 },
+      { kind: "paper.page", at: at + 2, paperId: "arxiv-1", page: 3 },
+      { kind: "highlight.added", at: at + 3, paperId: "arxiv-1", highlightId: "h1" },
+      { kind: "idle", at: at + 4, seconds: 30 },
+      { kind: "paper.closed", at: at + 5, paperId: "arxiv-1" },
+    ]
+    for (const event of events) await call("activity.emit", { event })
+    await core["journal"].flush()
+    expect(lines()).toEqual([
+      { kind: "highlight.added", at: at + 3, paperId: "arxiv-1", highlightId: "h1", actor: "user" },
+      { kind: "paper.closed", at: at + 5, paperId: "arxiv-1", actor: "user" },
+    ])
+  })
+
+  it("passes every event to bus listeners", async () => {
+    const { core, call, ws } = await openCore()
+    await call("workspace.open", { path: ws })
+    const heard: string[] = []
+    core.activity.subscribe((e) => heard.push(e.kind))
+    await call("activity.emit", { event: { kind: "paper.page", at, paperId: "p", page: 4 } })
+    expect(heard).toEqual(["paper.page"])
+  })
+
+  it("drops everything while turned off, and says so to clients", async () => {
+    const { core, call, ws, lines } = await openCore()
+    await call("workspace.open", { path: ws })
+    const notes: RpcNotification[] = []
+    core.onNotify((n) => notes.push(n))
+    expect(await call("activity.status")).toEqual({ enabled: true })
+    expect(await call("activity.setEnabled", { enabled: false })).toEqual({ enabled: false })
+    expect(notes.at(-1)).toMatchObject({ method: "activity.status", params: { enabled: false } })
+    const heard: string[] = []
+    core.activity.subscribe((e) => heard.push(e.kind))
+    await call("activity.emit", { event: { kind: "doc.edited", at, path: "a.md" } })
+    await core["journal"].flush()
+    expect(heard).toEqual([])
+    expect(lines()).toEqual([])
+    // The switch is a machine setting: it survives a restart
+    const next = new Core({ userDataDir: core["options"].userDataDir })
+    expect(await next.settings.get()).toMatchObject({ activity: { enabled: false } })
+  })
+
+  it("drops events when no workspace is open", async () => {
+    const { core, call } = await openCore()
+    const heard: string[] = []
+    core.activity.subscribe((e) => heard.push(e.kind))
+    expect(await call("activity.emit", { event: { kind: "doc.edited", at, path: "a.md" } })).toBeNull()
+    expect(heard).toEqual([])
+  })
+
+  it("rejects malformed events", async () => {
+    const { call, ws } = await openCore()
+    await call("workspace.open", { path: ws })
+    await expect(call("activity.emit", { event: { kind: "doc.edited", at } })).rejects.toMatchObject({ code: -32602 })
+    await expect(call("activity.emit", { event: { kind: "doc.typed", at, path: "a" } })).rejects.toMatchObject({ code: -32602 })
+  })
+})

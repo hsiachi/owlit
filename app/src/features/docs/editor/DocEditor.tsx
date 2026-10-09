@@ -2,11 +2,12 @@ import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
-import { EditorSelection, EditorState } from "@codemirror/state"
+import { EditorSelection, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
+import { reportDocEdited } from "@/lib/activity"
 import { registerEditor, wikilinkFile } from "../fs"
 import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
@@ -21,6 +22,13 @@ import { blockPreview } from "./block-preview"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
+
+// A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
+// carry no user event at all; neither is the user's edit.
+const isUserEdit = (tr: Transaction) =>
+  tr.docChanged &&
+  !tr.isUserEvent("input.agent") &&
+  ["input", "delete", "move", "undo", "redo"].some((event) => tr.isUserEvent(event))
 
 // [[Name]] leads to the doc called Name (or at that path), wherever it is in the workspace
 function wikilinkRoute(name: string) {
@@ -119,6 +127,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
+            if (u.transactions.some(isUserEdit)) reportDocEdited(id)
             pending = u.state.doc.toString()
             clearTimeout(timer)
             timer = setTimeout(flush, SAVE_DELAY)

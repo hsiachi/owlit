@@ -24,6 +24,8 @@ export interface AppSettings {
   connectors: Record<string, unknown>
   // Filled by the parsing service (T18)
   parsing: Record<string, unknown>
+  // Whether the renderer reports what the user does (the activity stream and journal)
+  activity: { enabled: boolean }
 }
 
 // Top-level names in a workspace that are owlit's or hidden: the Docs tree never shows them

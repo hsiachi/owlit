@@ -1,3 +1,4 @@
+import type { ActivityEvent } from "./activity.ts"
 import type { WorkspaceInfo } from "./workspace.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -54,6 +55,10 @@ export interface Methods {
   // Recently opened folders, most recent first; folders that no longer exist are left out
   "workspace.recent": { params: void; result: WorkspaceInfo[] }
   "workspace.clearRecent": { params: void; result: null }
+  // One thing the user did; dropped when activity is turned off or no workspace is open
+  "activity.emit": { params: { event: ActivityEvent }; result: null }
+  "activity.status": { params: void; result: { enabled: boolean } }
+  "activity.setEnabled": { params: { enabled: boolean }; result: { enabled: boolean } }
 }
 
 // Every notification core sends: topic → payload
@@ -62,6 +67,8 @@ export interface Notifications {
   "core.hello": CoreVersion
   // A workspace was opened (also after a switch); clients reset what they hold for the old one
   "workspace.opened": WorkspaceInfo
+  // The activity switch changed; renderers stop or start reporting
+  "activity.status": { enabled: boolean }
 }
 
 export type MethodName = keyof Methods

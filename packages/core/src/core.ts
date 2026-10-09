@@ -1,6 +1,7 @@
 import type { CoreVersion, RpcNotification, RpcRequest, RpcResponse, WorkspaceInfo } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { z } from "zod"
+import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
 import { noParams, Notifier, Router } from "./rpc/index.ts"
 import { SettingsStore } from "./settings.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -18,6 +19,8 @@ export interface CoreOptions {
 // notifications. Constructing it touches nothing outside; start() is when it begins to talk.
 export class Core {
   readonly settings: SettingsStore
+  readonly activity = new ActivityBus()
+  private journal: Journal
   private router = new Router()
   private notifier = new Notifier()
   private options: CoreOptions
@@ -29,6 +32,7 @@ export class Core {
   constructor(options: CoreOptions) {
     this.options = options
     this.settings = new SettingsStore(options.userDataDir)
+    this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     this.router.register("core.version", noParams, () => this.version())
@@ -42,6 +46,17 @@ export class Core {
     this.router.register("workspace.clearRecent", noParams, async () => {
       await this.settings.update((s) => ({ ...s, recentWorkspaces: [] }))
       return null
+    })
+
+    this.router.register("activity.emit", z.object({ event: activityEvent }), async ({ event }) => {
+      if (this.workspace && (await this.settings.get()).activity.enabled) this.activity.publish(event)
+      return null
+    })
+    this.router.register("activity.status", noParams, async () => (await this.settings.get()).activity)
+    this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), async ({ enabled }) => {
+      const { activity } = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
+      this.notifier.notify("activity.status", activity)
+      return activity
     })
   }
 
@@ -86,6 +101,7 @@ export class Core {
   async dispose() {
     this.started = false
     await this.switching
+    await this.journal.dispose()
     await this.workspace?.dispose()
     this.workspace = null
   }

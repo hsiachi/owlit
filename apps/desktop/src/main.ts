@@ -167,6 +167,8 @@ if (!app.requestSingleInstanceLock()) {
     if (!devUrl) serveRenderer()
     const core = new Core({ userDataDir: app.getPath("userData"), appVersion: app.getVersion() })
     attachCore(core)
+    // Development aid: print every activity event the renderer reports
+    if (process.env.OWLIT_LOG_ACTIVITY) core.activity.subscribe((event) => console.log("[activity]", JSON.stringify(event)))
     core.onNotify((notification) => {
       if (notification.method !== "workspace.opened") return
       current = notification.params as WorkspaceInfo

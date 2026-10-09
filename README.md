@@ -16,7 +16,8 @@ pnpm typecheck
 
 `pnpm dev -- --remote-debugging-port=9333` passes flags through to Electron. `OWLIT_USER_DATA=<dir>`
 points the app data directory (settings, per-workspace data, the single-instance lock) somewhere
-other than `~/Library/Application Support/owlit`, e.g. to try a first launch.
+other than `~/Library/Application Support/owlit`, e.g. to try a first launch. `OWLIT_LOG_ACTIVITY=1`
+prints every activity event the renderer reports.
 
 The build tooling is Vite (renderer) plus esbuild (main and preload, bundled with core) driven by
 `apps/desktop/scripts/`; electron-vite does not support Vite 8 yet. Behind an HTTP proxy, Electron's

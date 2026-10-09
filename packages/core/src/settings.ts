@@ -9,6 +9,7 @@ export const defaultSettings = (): AppSettings => ({
   recentWorkspaces: [],
   connectors: {},
   parsing: {},
+  activity: { enabled: true },
 })
 
 // <userData>/settings.json. Read once, kept in memory, written whole on every change. Keys this
