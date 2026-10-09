@@ -99,7 +99,7 @@ export class Library {
   private resolutions = new Map<string, { resolution: Resolution; at: number }>()
   private scheduler: Scheduler | undefined
   private onChange: (change: LibraryChange) => void = () => {}
-  private onNote: (paperId: string, note: PaperNote | null) => void = () => {}
+  private onNote: (paperId: string, note: PaperNote | null, before: string) => void = () => {}
   // Each note as owlit last wrote or read it, so a change on disk that isn't its own is told to windows
   private knownNotes = new Map<string, string>()
   private noteTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -394,10 +394,11 @@ export class Library {
     const content = note?.content ?? ""
     if (this.knownNotes.get(paperId) === content) return
     const first = !this.knownNotes.has(paperId)
+    const before = this.knownNotes.get(paperId) ?? ""
     this.knownNotes.set(paperId, content)
     // The first sight of a note only learns it: owlit hasn't told anyone a version it could differ from
     if (first && note) return
-    this.onNote(paperId, note ?? null)
+    this.onNote(paperId, note ?? null, before)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -756,7 +757,7 @@ export class Library {
   // ---- Hearing about changes
 
   // Changes core makes on its own and changes other programs make under library/papers/
-  async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null) => void) {
+  async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null, before: string) => void) {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))

@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useChatStore } from "@/features/chat/store"
 import { brokenReply, pendingPermission, useSeenStore } from "@/features/chat/status"
 import { regenerate } from "@/features/chat/lib/regenerate"
+import { toolTitle } from "@/features/chat/lib/tool-title"
 import { useLibraryStore } from "@/features/library/store"
 import { citationLabel } from "@/features/library/lib/format"
 import { openSettings, useSettings } from "@/features/settings/store"
@@ -29,7 +30,7 @@ interface Waiting {
 
 // A permission reads as what Owlit asks to do, not as a done action: "Owlit asks to edit untitled.md".
 // Paths shorten to their file name; a title that doesn't start with a plain verb is quoted as it is.
-const VERBS = /^(edit|write|create|read|delete|move|rename|run|fetch|open|search|save|update)\b/i
+const VERBS = /^(edit|write|create|read|delete|move|rename|run|fetch|open|search|save|update|add|list|look|leave|highlight|show)\b/i
 function askedAction(title: string) {
   const action = title.replace(/(?:[\w.~-]*\/)+([\w.-]+)/g, "$1")
   if (!VERBS.test(action)) return `Owlit asks for permission: ${action}`
@@ -53,7 +54,8 @@ function useWaiting(): Waiting[] {
       const permission = streaming[chat.id] ? pendingPermission(chat) : undefined
       const broken = streaming[chat.id] ? undefined : brokenReply(chat, dismissed[chat.id])
       if (permission) {
-        out.push({ key: `perm:${chat.id}`, icon: MessageSquareIcon, what: askedAction(permission.title), where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
+        // Owlit's own tools and a paper's note are named in words first ("Search for papers")
+        out.push({ key: `perm:${chat.id}`, icon: MessageSquareIcon, what: askedAction(toolTitle(permission.title)), where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
       } else if (broken) {
         const index = chat.messages.length - 1
         out.push({

@@ -20,6 +20,7 @@ import { SettingsStore } from "./settings.ts"
 import { registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
+import { OWLIT_DIR } from "./workspace/paths.ts"
 
 export const CORE_VERSION = "0.0.0"
 
@@ -528,9 +529,14 @@ export class Core {
             this.notifier.notify("library.changed", change)
             next.search.touch()
           },
-          (paperId, note) => {
+          (paperId, note, before) => {
             this.notifier.notify("library.noteChanged", { paperId, note })
             next.search.touch()
+            // An agent that writes the disk itself (Claude Code does) changed the note while one of its tool
+            // calls names the file: kept and journaled as the agent's, so the chat offers Undo, as for a doc
+            const rel = `${OWLIT_DIR}/papers/${paperId}/note.md`
+            const chatId = this.turns.claimant(rel)
+            if (chatId) void this.fs.recordDirect(rel, before || null, note?.content ?? null, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
           },
         )
       }

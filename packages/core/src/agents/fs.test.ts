@@ -135,4 +135,25 @@ describe("agent fs", () => {
     // Nothing else inside .owlit/papers is writable
     await expect(core.fs.write(path.join(root, `.owlit/papers/${id}/state.json`), "{}")).rejects.toThrow("inside .owlit")
   })
+
+  it("keeps a note an agent wrote on disk itself as the agent's, while its tool call names the file", async () => {
+    const { core, root, call, journal, of } = await setup()
+    const id = "arxiv-1706.03762"
+    const rel = `.owlit/papers/${id}/note.md`
+    await call("library.add", { paper: { id, title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
+    await call("library.setNote", { paperId: id, content: "Mine. Long and repeated." })
+    // Claude Code edits files itself; owlit only sees its tool call claim the path
+    ;(core as any).turns.claims.set(rel, { chatId: "chat-2", until: Infinity })
+    writeFileSync(path.join(root, rel), "Mine.")
+    await new Promise((r) => setTimeout(r, 600))
+    expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ content: "Mine." }) }])
+    const entry = journal().find((e) => e.kind === "agent.wrote")
+    expect(entry).toMatchObject({ path: rel, chatId: "chat-2" })
+    expect(of("agent.wrote")).toEqual([{ path: rel, versionId: entry.versionId, chatId: "chat-2" }])
+    await call("versions.restore", { id: entry.versionId })
+    expect(readFileSync(path.join(root, rel), "utf8")).toBe("Mine. Long and repeated.")
+    // The undo is owlit's own write: not recorded again as the agent's
+    await new Promise((r) => setTimeout(r, 400))
+    expect(of("agent.wrote")).toHaveLength(1)
+  })
 })
