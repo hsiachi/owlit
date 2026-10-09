@@ -16,7 +16,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Kbd } from "@/components/ui/kbd"
 import { docMentionItems } from "@/features/docs/lib/mentions"
-import { useUiStore } from "../../ui-store"
+import { openSettings } from "@/features/settings/store"
 import type { AttachmentFile, Mentionable, PromptInput, SourceKind } from "../../types"
 import { sourceKindLabel } from "../source-icons"
 import { AgentPicker, isUnavailable, useResolvedSelection } from "./AgentPicker"
@@ -102,7 +102,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
   const { connector } = useResolvedSelection(chatId)
-  const openConnectors = useUiStore((s) => s.setConnectorsDialogOpen)
   const blocked = isUnavailable(connector)
 
   const editor = useEditor({
@@ -215,7 +214,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       {connector && blocked && (
         <button
           type="button"
-          onClick={() => openConnectors(true)}
+          onClick={() => openSettings("agents")}
           className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/70"
         >
           <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" />

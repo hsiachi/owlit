@@ -4,7 +4,8 @@ import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
-import type { UiRequest, WorkspaceInfo } from "./workspace.ts"
+import type { AppearanceSettings, UiRequest, WorkspaceInfo } from "./workspace.ts"
+import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -71,6 +72,20 @@ export interface Methods {
   "activity.emit": { params: { event: ActivityEvent }; result: null }
   "activity.status": { params: void; result: { enabled: boolean } }
   "activity.setEnabled": { params: { enabled: boolean }; result: { enabled: boolean } }
+
+  // ---- Settings: this machine's, kept in the app data directory. Keys stay in core (sealed with the
+  // system keychain on disk); the window only sees how each one ends.
+  "settings.get": { params: void; result: SettingsView }
+  "settings.update": { params: { patch: SettingsPatch }; result: SettingsView }
+  // null removes the key
+  "settings.setSecret": { params: { name: SecretName; value: string | null }; result: SettingsView }
+  // Tries a key (or the self-hosted MinerU's address) once with the service it is for
+  "settings.check": { params: { target: SettingsCheckTarget }; result: SettingsCheck }
+  // A known library, a link opened through one (proxyFromLink), or neither to turn the proxy off.
+  // A link no proxy can be read from is refused.
+  "settings.setProxy": { params: { preset?: ProxyPreset; link?: string }; result: SettingsView }
+  // Shows the proxy's sign-in in owlit's browser window; resolves once the user closes it
+  "settings.proxySignIn": { params: void; result: SettingsView }
 
   // ---- Docs: the workspace's files. Every path is workspace-relative; library/ and dot-folders are
   // out of reach. Names a call asks for are made unique ("Name 2"), so results carry the real path.
@@ -254,6 +269,8 @@ export interface Notifications {
   "workspace.opened": WorkspaceInfo
   // The activity switch changed; renderers stop or start reporting
   "activity.status": { enabled: boolean }
+  // Any setting changed, from any window or the app menu
+  "settings.changed": SettingsView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
   // An agent's state changed (it started, ended, crashed, was checked)
@@ -298,4 +315,8 @@ export interface OwlitBridge {
   // 0 where there are none to avoid (full screen, a system title bar). The window, not core, knows it.
   controlsRoom: number
   onControlsRoom(listener: (room: number) => void): () => void
+  // The theme and paper tone, asked once synchronously so the first frame is already drawn in them
+  appearance: AppearanceSettings
+  // A command from the app's own menu (Settings…, ⌘,)
+  onMenu(listener: (command: "settings") => void): () => void
 }

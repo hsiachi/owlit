@@ -28,12 +28,22 @@ export interface AppSettings {
   library: LibrarySettings
   // Whether the renderer reports what the user does (the activity stream and journal)
   activity: { enabled: boolean }
+  appearance: AppearanceSettings
+}
+
+// How owlit looks on this machine. A paper tone swaps the whole neutral family (surfaces, text, lines);
+// marks that carry meaning (star, notes, tags, highlights, warning, red) keep their colours in every tone.
+export type ThemeChoice = "system" | "light" | "dark"
+export type PaperTone = "warm" | "neutral" | "slate" | "sepia"
+export interface AppearanceSettings {
+  theme: ThemeChoice
+  tone: PaperTone
 }
 
 export interface ParsingSettings {
   // Where MinerU runs; none set means papers keep pdfium's text
   service?: "cloud" | "self-hosted"
-  // cloud: https://mineru.net unless set; self-hosted: the address of its API (http://127.0.0.1:8000)
+  // self-hosted: the address of its API (default http://127.0.0.1:8000); the cloud is always mineru.net
   url?: string
   // The cloud's API token
   token?: string
@@ -52,6 +62,8 @@ export interface LibrarySettings {
   s2ApiKey?: string
   // The library's proxy, through which publishers see the university's subscription
   proxy?: ProxySettings
+  // When the user last closed the proxy's sign-in window; nothing tells owlit when the login runs out
+  proxySignedInAt?: number
   // Reading notes: the language they are written in (default English), and whether every paper gets
   // one once its text is in (default: only papers the user opens or stars)
   digestLanguage?: string
@@ -64,6 +76,8 @@ export interface ProxySettings {
   base: string
   scheme: "login-url" | "host-rewrite"
   path?: string
+  // One of PROXY_PRESETS, when it was picked from that list
+  preset?: string
 }
 
 export interface ConnectorSettings {

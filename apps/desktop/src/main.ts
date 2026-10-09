@@ -2,8 +2,8 @@
 // that is owlit's own logic lives in @owlit/core.
 
 import { Core } from "@owlit/core"
-import type { DocsChange, MethodName, ParamsOf, ResultOf, RpcRequest, WorkspaceInfo } from "@owlit/protocol"
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, shell, type MenuItemConstructorOptions } from "electron"
+import type { AppearanceSettings, DocsChange, MethodName, ParamsOf, ResultOf, RpcRequest, SettingsView, WorkspaceInfo } from "@owlit/protocol"
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost } from "./browser.ts"
@@ -62,8 +62,37 @@ function followControls(win: BrowserWindow) {
   win.on("leave-full-screen", tell)
 }
 
+// ---- Appearance. The theme goes to nativeTheme, so the system's own drawing (scrollbars, menus) and
+// prefers-color-scheme both follow it; the renderer reads theme and tone once, synchronously, before its
+// first frame. The window's own background is the frame's colour, so nothing flashes while it loads.
+
+let appearance: AppearanceSettings = { theme: "system", tone: "warm" }
+
+ipcMain.on("appearance", (event) => {
+  event.returnValue = appearance
+})
+
+// The frame colour (the sidebar token) of each tone, light and dark; app/src/index.css has the source
+const FRAME: Record<AppearanceSettings["tone"], [light: string, dark: string]> = {
+  warm: ["#eeebe7", "#0e0c0b"],
+  neutral: ["#ececec", "#0c0c0c"],
+  slate: ["#e6ecf3", "#090c11"],
+  sepia: ["#efe7d8", "#120d09"],
+}
+const frameColor = () => FRAME[appearance.tone]?.[nativeTheme.shouldUseDarkColors ? 1 : 0] ?? FRAME.warm[0]
+
+function applyAppearance(next: AppearanceSettings) {
+  appearance = next
+  nativeTheme.themeSource = next.theme
+  for (const win of BrowserWindow.getAllWindows()) win.setBackgroundColor(frameColor())
+}
+nativeTheme.on("updated", () => {
+  for (const win of BrowserWindow.getAllWindows()) win.setBackgroundColor(frameColor())
+})
+
 function createWindow() {
   const win = new BrowserWindow({
+    backgroundColor: frameColor(),
     width: 1280,
     height: 820,
     minWidth: 720,
@@ -79,6 +108,11 @@ function createWindow() {
     },
   })
   win.once("ready-to-show", () => win.show())
+  // A link meant for a new window (a key's sign-up page, a paper's DOI) opens in the user's browser
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+    return { action: "deny" }
+  })
   followControls(win)
   // The title is the workspace's name, not the page's <title>
   win.on("page-title-updated", (event) => event.preventDefault())
@@ -111,7 +145,6 @@ async function call<M extends MethodName>(core: Core, method: M, params?: Params
 // Mission Control and the Window menu) ----
 
 let current: WorkspaceInfo | null = null
-let browserHost: ReturnType<typeof createBrowserHost> | null = null
 
 function showWorkspace(win: BrowserWindow, info: WorkspaceInfo) {
   win.setTitle(info.name)
@@ -170,15 +203,35 @@ async function importPitta(core: Core) {
 
 async function updateMenu(core: Core) {
   const recent = await call(core, "workspace.recent").catch(() => [])
-  // The library proxy's front page, where the user signs in once for the hidden browser
-  const proxy = (await core.settings.get()).library.proxy?.base
   const recentItems: MenuItemConstructorOptions[] = recent.map((info) => ({
     label: info.name,
     sublabel: info.path,
     click: () => void openWorkspace(core, info.path),
   }))
+  const openSettings = () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    win?.webContents.send("menu", "settings")
+  }
+  const settingsItem: MenuItemConstructorOptions = { label: "Settings…", accelerator: "CmdOrCtrl+,", click: openSettings }
   const template: MenuItemConstructorOptions[] = [
-    { role: "appMenu" },
+    isMac
+      ? {
+          role: "appMenu",
+          submenu: [
+            { role: "about" },
+            { type: "separator" },
+            settingsItem,
+            { type: "separator" },
+            { role: "services" },
+            { type: "separator" },
+            { role: "hide" },
+            { role: "hideOthers" },
+            { role: "unhide" },
+            { type: "separator" },
+            { role: "quit" },
+          ],
+        }
+      : { role: "appMenu" },
     {
       label: "File",
       submenu: [
@@ -201,11 +254,8 @@ async function updateMenu(core: Core) {
         },
         { type: "separator" },
         { label: "Import a pitta Library…", enabled: !!current, click: () => void importPitta(core) },
-        {
-          label: "Sign in to Library Proxy…",
-          enabled: !!proxy,
-          click: () => proxy && void browserHost?.showLogin(proxy),
-        },
+        // Elsewhere the convention is File › Settings
+        ...(isMac ? [] : [{ type: "separator" as const }, settingsItem]),
         { type: "separator" },
         { role: "close" },
       ],
@@ -234,7 +284,6 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
     const browser = createBrowserHost()
-    browserHost = browser
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
@@ -250,6 +299,14 @@ if (!app.requestSingleInstanceLock()) {
         fetch: (input, init) => net.fetch(input as string, init),
         // A hidden window for publishers that want a real browser (cookies, checks, the library proxy)
         browser,
+        // Keys in settings.json are sealed with the system keychain (macOS Keychain, DPAPI, libsecret)
+        secrets: {
+          seal: (plain) => {
+            if (!safeStorage.isEncryptionAvailable()) throw new Error("The system keychain isn't available.")
+            return safeStorage.encryptString(plain).toString("base64")
+          },
+          open: (sealed) => safeStorage.decryptString(Buffer.from(sealed, "base64")),
+        },
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {
           const failure = await shell.openPath(file)
@@ -275,6 +332,10 @@ if (!app.requestSingleInstanceLock()) {
       app.addRecentDocument(current.path)
       void updateMenu(core)
     })
+    core.onNotify((notification) => {
+      if (notification.method === "settings.changed") applyAppearance((notification.params as SettingsView).appearance)
+    })
+    applyAppearance((await core.settings.get()).appearance)
     await updateMenu(core)
 
     const win = createWindow()

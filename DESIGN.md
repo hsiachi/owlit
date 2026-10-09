@@ -292,7 +292,7 @@ owlit should feel like a quiet desk for reading and thinking: warm paper tones, 
 
 ### Vocabulary
 
-- **Owlit**: the name the user sees for the assistant. Whatever it says, edits or notes is signed Owlit ("Chat with Owlit", "Suggested by Owlit", "Owlit · Oct 6"). The agent running underneath is shown only where it's chosen, in the composer's agent picker and the Local agents dialog.
+- **Owlit**: the name the user sees for the assistant. Whatever it says, edits or notes is signed Owlit ("Chat with Owlit", "Suggested by Owlit", "Owlit · Oct 6"). The agent running underneath is shown only where it's chosen, in the composer's agent picker and Settings › Agents.
 - **Agent**: a local coding agent owlit drives over the Agent Client Protocol (Claude Code, Codex, Gemini CLI, or a custom command). It is the engine behind Owlit, not a name the user is asked to talk to.
 - **Connector**: reserved for data sources and MCP servers. Don't use it for agents.
 - **Steps**: the agent's thoughts and tool calls for one answer, shown as one foldable block.
@@ -301,7 +301,7 @@ owlit should feel like a quiet desk for reading and thinking: warm paper tones, 
 
 ## Colors
 
-Neutrals carry a faint warm tint (hue 60 to 85, chroma under 0.012), so greys read as paper rather than steel. Every colour is a semantic token; feature code never uses raw palette colours. The app follows the system light or dark setting.
+Neutrals carry a faint warm tint (hue 60 to 85, chroma under 0.012), so greys read as paper rather than steel. Every colour is a semantic token; feature code never uses raw palette colours. The theme follows the system's light or dark setting unless Settings › Appearance fixes it to Light or Dark.
 
 There are two kinds of colour:
 
@@ -319,6 +319,8 @@ Surfaces, back to front (OKLCH lightness):
 | Floating: menus, dialogs, floating buttons | `popover` | 1.0 | 0.255 |
 
 Text and accents in dark mode: `foreground` 0.935, `muted-foreground` 0.7, `mention` `oklch(0.78 0.07 255)`, `warning` `oklch(0.78 0.11 75)`, `destructive` `oklch(0.68 0.13 22)`, `star` `oklch(0.8 0.12 80)`, `note` `oklch(0.8 0.13 78)`, `text-highlight` `oklch(0.4 0.07 100)`; tag hues lift to lightness 0.7 to 0.8 with slightly lower chroma. State fills become 7 to 8% tints of near-white, and borders become 10% white.
+
+**Paper tones.** The neutrals come in four tones the user picks in Settings › Appearance: **Warm** (the values above, the default), **Neutral** (chroma 0), **Slate** (hue 255, chroma up to 0.02) and **Sepia** (hue 65 to 85, chroma up to 0.05, with a card that is not pure white). A tone swaps the whole neutral family at once: surfaces, text, lines and state fills. Each tone keeps Warm's lightness steps in both themes, so depth and contrast read the same; only hue and chroma move. Marks that carry meaning never change with the tone: `mention`, `warning`, `destructive`, `success`, `star`, `note`, `text-highlight`, the tag hues and every PDF colour. There is no accent colour to pick; primary buttons stay the tone's near-black (near-white in dark mode). The tone blocks in `index.css` also apply to any element with `data-tone`, which is how the tone picker draws each tone with its real tokens.
 
 The composer is the brightest thing in the main sheet, with a soft shadow. It's the place the user acts on most, so it is lifted rather than coloured.
 
@@ -407,7 +409,9 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 - **Fields.** Focus darkens the border, with no halo ring. An invalid field gets a red border, also without a ring.
 - **Forms.** One field per line, a small muted label above each input, an optional one-line hint below, and actions right-aligned at the bottom with the primary button last. A form inside a dialog sits in its own bordered panel with a short title.
 - **Dialogs.** The title carries an info icon instead of a description paragraph. Content is one bordered list with dividers, one line per row. Row actions are icon buttons with tooltips. Secondary forms are folded behind a text button; Esc folds them before it closes the dialog.
-- **Local agents dialog.** A ready agent shows its name and version, quietly. An agent that isn't installed shows a "Not installed" chip, plus a second line with its install command in muted monospace, next to a copy button. A broken agent shows a red "Error" chip and the error on the second line.
+- **Settings.** One dialog (the sidebar-in-a-dialog shape): sections listed on the left on the `sidebar-panel` surface, each with its icon, and one section on the right under its title and info icon. A section's list shows a small `warning` dot only while something in it needs the user. Every section is one or two bordered lists on `card`, one setting per row: the name (with an info icon for any explanation) at the left, the control at the right. Controls are a plain-text picker with up-down chevrons that opens a words-only menu, a switch, a segmented control (the theme), or a 32px field. There is no Save button: a field keeps its value when it loses focus or on Enter, and Esc puts the saved value back. A key shows as dots and its last four characters with Change, and Remove on hover. After a key or address is entered, one muted line under the row says "Checking with …", then "Works" for a moment or the problem; only a refusal is red. A group label (12px muted) sits above a second list in the same section. Paper tones are picked from small pictures of the app (frame, list panel, sheet) drawn in each tone, the chosen one ringed in `foreground`.
+- **Settings › Agents.** A ready agent shows its name and version, quietly; its re-check icon appears on hover. An agent that isn't installed shows a "Not installed" chip, plus a second line with its install command in muted monospace, next to a copy button. A broken agent shows a red "Error" chip and the error on the second line. "Add an agent" is a text button that unfolds a bordered form under the list.
+- **Settings button.** A gear at the bottom of the icon rail, apart from the places, with "Settings" in its tooltip. It opens the dialog and never takes the rail's selected look.
 
 ### Library
 

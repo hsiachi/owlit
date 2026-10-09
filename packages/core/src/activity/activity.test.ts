@@ -116,7 +116,8 @@ describe("activity.emit and the journal", () => {
     core.onNotify((n) => notes.push(n))
     expect(await call("activity.status")).toEqual({ enabled: true })
     expect(await call("activity.setEnabled", { enabled: false })).toEqual({ enabled: false })
-    expect(notes.at(-1)).toMatchObject({ method: "activity.status", params: { enabled: false } })
+    expect(notes.find((n) => n.method === "activity.status")).toMatchObject({ params: { enabled: false } })
+    expect(notes.at(-1)).toMatchObject({ method: "settings.changed", params: { activity: { enabled: false } } })
     const heard: string[] = []
     core.activity.subscribe((e) => heard.push(e.kind))
     await call("activity.emit", { event: { kind: "doc.edited", at, path: "a.md" } })

@@ -4,16 +4,16 @@ import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
 import { startActivity } from "@/lib/activity"
 import { onNotify } from "@/lib/rpc"
+import { startAppearance } from "@/features/settings/appearance"
+import { startSettings } from "@/features/settings/store"
 import "@/lib/workspace"
 import "@/features/tasks/store"
 import "@/features/library/disk"
 import "./index.css"
 
-// Follow the system appearance; the dark tokens in index.css hang off the .dark class
-const darkQuery = window.matchMedia("(prefers-color-scheme: dark)")
-const applyScheme = () => document.documentElement.classList.toggle("dark", darkQuery.matches)
-applyScheme()
-darkQuery.addEventListener("change", applyScheme)
+// The chosen theme and paper tone (Settings › Appearance), before anything is drawn
+startAppearance()
+startSettings()
 
 // Focus rings are for keyboard navigation (index.css, focus-key). A press of the pointer, or typing
 // inside a field, does not count; Tab, arrows, Esc and the like do.

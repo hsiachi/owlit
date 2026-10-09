@@ -22,6 +22,7 @@ import { PdfReader } from "../reader/PdfReader"
 import { libraryClient, useLibraryStore } from "../store"
 import type { Highlight, Paper } from "../types"
 import { useUiStore } from "../ui-store"
+import { openSettings, useSettings } from "@/features/settings/store"
 import { useAgentWindow } from "@/features/agent/store"
 import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
 import { paperClosed } from "@/features/knowledge/runner"
@@ -351,6 +352,7 @@ function NoPdf({ paper }: { paper: Paper }) {
     }
   }
 
+  const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   const title = looking ? "Looking for a PDF…" : paper.noPdf ? "No PDF found" : "No PDF yet"
   const body = looking
     ? "If you already have it, drop it here."
@@ -383,6 +385,15 @@ function NoPdf({ paper }: { paper: Paper }) {
           {title}
         </p>
         <p className="max-w-72 text-sm text-muted-foreground">{body}</p>
+        {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
+        {paper.noPdf && !looking && paper.ids.doi && proxyMissing && (
+          <p className="max-w-72 text-sm text-muted-foreground">
+            Your library may have it.{" "}
+            <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("proxy")}>
+              Set up library proxy
+            </button>
+          </p>
+        )}
         <div className="mt-3 flex gap-2">
           <Button size="sm" onClick={fetchPdf} disabled={looking}>
             {paper.noPdf ? "Try again" : "Find PDF"}

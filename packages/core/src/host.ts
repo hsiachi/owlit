@@ -11,6 +11,15 @@ export interface Host {
   // A real browser session (the desktop app's hidden window) for publishers that want cookies, a
   // passed challenge or a library login before they hand over a PDF
   browser?: BrowserHost
+  // Seals keys before they are written to settings.json (the desktop app: the system keychain). Without
+  // one, keys are written as they are.
+  secrets?: SecretBox
+}
+
+export interface SecretBox {
+  // Both throw when the keychain can't be used; open also when the text was sealed elsewhere
+  seal(plain: string): string
+  open(sealed: string): string
 }
 
 export interface BrowserHost {
