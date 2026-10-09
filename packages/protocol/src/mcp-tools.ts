@@ -9,6 +9,8 @@ export interface ToolSpec {
     properties: Record<string, { type: "string" | "number" | "boolean"; description: string; enum?: string[] }>
     required?: string[]
   }
+  // How the agent may treat a call: one that changes nothing the user keeps is read-only
+  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }
 }
 
 const id = { type: "string" as const, description: "The paper's library id, e.g. doi-10.1145-3626772.3657891 or arxiv-2408.00447" }
@@ -103,6 +105,70 @@ export const OWLIT_TOOLS: ToolSpec[] = [
       },
       required: ["path", "quote", "note"],
     },
+  },
+  {
+    name: "ui_open",
+    description:
+      "Show the user something in their owlit window: a paper (owlit://library/<id>), a doc (owlit://docs/<path>, e.g. owlit://docs/drafts/Related work.md), a chat (owlit://chat/<id>). Use it when the user asks to see something, not on your own.",
+    inputSchema: { type: "object", properties: { uri: { type: "string", description: "An owlit:// link" } }, required: ["uri"] },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "ui_jump",
+    description:
+      "Take the user to a place in a paper or doc in their owlit window: a page of a paper, or a passage, which is ringed in the paper's PDF or selected in the doc. Quote the passage word for word from library_read or docs_read (a sentence or two is enough). Says whether the passage was found.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        uri: { type: "string", description: "owlit://library/<id> or owlit://docs/<path>" },
+        quote: { type: "string", description: "The passage, word for word (optional)" },
+        page: { type: "number", description: "1-based page of a paper; helps find the passage, or is where to go without one (optional)" },
+      },
+      required: ["uri"],
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "ui_mark",
+    description:
+      "Highlight a passage in a paper's PDF for the user, kept with their own highlights and shown as added by Owlit. Only when the user asks for passages to be marked. Quote the passage word for word from library_read. The user is taken to the highlight, so ui_jump isn't needed after it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id,
+        quote: { type: "string", description: "The passage, word for word" },
+        color: { type: "string", description: "Highlight color (default yellow)", enum: ["yellow", "green", "blue", "pink"] },
+      },
+      required: ["id", "quote"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
+    name: "knowledge_read",
+    description:
+      "The user's Knowledge: topic files Owlit keeps of what the user has come to understand, each line said by You, Owlit or a paper. Without a topic, lists the topics and shows the file format; with one, gives its file and the lines the user rewrote (keep them word for word) or removed (never bring them back).",
+    inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic's id or name (optional)" } } },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "knowledge_write",
+    description:
+      "Write a whole topic file, new or changed. owlit checks it and refuses with what to fix: every line starts with its speaker; ids stay; at most 7 Understanding lines of 30 words, 5 questions and a two-sentence summary; the user's rewritten lines stay word for word and removed ones stay out; a line that speaks for a paper cites owlit://library/<id>#passage=<name>, with that passage quoted word for word in passages.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "The topic's id or name; a new name starts a new topic" },
+        content: { type: "string", description: "The whole file, as knowledge_read shows the format" },
+        why: { type: "string", description: "Why, in the user's terms: “you highlighted two passages of Lewis et al. 2020”" },
+        remove: { type: "string", description: "Ids of lines or questions removed on purpose, comma-separated (optional)" },
+        passages: {
+          type: "string",
+          description: 'JSON array of the passages cited: [{"id": "rag-token", "paper": "arxiv-2005.11401", "quote": "In the RAG-Token model we can draw…", "section": "§2.1"}] (optional)',
+        },
+      },
+      required: ["topic", "content", "why"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
     name: "chats_list",

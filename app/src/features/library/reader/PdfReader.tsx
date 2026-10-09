@@ -15,7 +15,9 @@ import { ZoomGestureWrapper, ZoomMode, ZoomPluginPackage } from "@embedpdf/plugi
 import { ExternalLinkIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import type { Paper } from "../types"
+import { cleanPdfText } from "../lib/highlights"
+import { useLibraryStore } from "../store"
+import type { Highlight, Paper } from "../types"
 import { HighlightLayer, useHighlightHitTest } from "./HighlightLayer"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
 import { boundsOf, locatePassage, type PassageTarget } from "./passages"
@@ -98,7 +100,19 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
     if (!scrollCap) return
     const scroll = scrollCap.forDocument(documentId)
     const locate = (p: PassageTarget) => (registry && pdf ? locatePassage(registry.getEngine(), pdf, p) : Promise.resolve(null))
+    const jumpToHighlight = (h: Highlight) => {
+      const r = h.rects[0]
+      useReaderStore.getState().close()
+      scroll.scrollToPage({
+        pageNumber: h.page + 1,
+        pageCoordinates: { x: 0, y: r?.y ?? 0 },
+        alignY: 30,
+        behavior: "smooth",
+      })
+      useReaderStore.getState().flash(h.id)
+    }
     setApi({
+      paperId: paper.id,
       showPassage: async (p, mode) => {
         const at = await locate(p)
         if (!at || !at.rects.length) return false
@@ -124,20 +138,31 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
         await selectionCap.forDocument(documentId).setSelection({ start: { page: at.page, index: at.from }, end: { page: at.page, index: at.to } }).toPromise()
         return true
       },
-      jumpToHighlight: (h) => {
-        const r = h.rects[0]
-        useReaderStore.getState().close()
-        scroll.scrollToPage({
-          pageNumber: h.page + 1,
-          pageCoordinates: { x: 0, y: r?.y ?? 0 },
-          alignY: 30,
-          behavior: "smooth",
+      jumpToHighlight,
+      showPage: (page) => scroll.scrollToPage({ pageNumber: page + 1, behavior: "smooth" }),
+      markPassage: async (p, color) => {
+        const at = await locate(p)
+        if (!at || !at.rects.length || !registry || !pdf) return null
+        // The words as the PDF has them, like a highlight the user made; the quote if PDFium has none
+        const [text] = await registry
+          .getEngine()
+          .getTextSlices(pdf, [{ pageIndex: at.page, charIndex: at.from, charCount: at.to - at.from + 1 }])
+          .toPromise()
+          .catch(() => [""])
+        const h = useLibraryStore.getState().addHighlight({
+          paperId: paper.id,
+          page: at.page,
+          rects: at.rects.map((r) => ({ ...r, page: at.page })),
+          text: cleanPdfText([text ?? ""]) || p.start,
+          color,
+          addedBy: "agent",
         })
-        useReaderStore.getState().flash(h.id)
+        jumpToHighlight(h)
+        return h
       },
     })
     return () => setApi(null)
-  }, [scrollCap, selectionCap, registry, pdf, documentId, setApi])
+  }, [scrollCap, selectionCap, registry, pdf, documentId, setApi, paper.id])
 
   // Opened from a passage link: go there once the pages are laid out and the saved place restored
   useEffect(() => {
@@ -146,12 +171,13 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
       if (e.documentId !== documentId || !e.isInitial) return
       setTimeout(() => {
         const { pendingPassage, api } = useReaderStore.getState()
+        if (api?.paperId === paper.id) useReaderStore.setState({ ready: paper.id })
         if (!pendingPassage || !api) return
         useReaderStore.setState({ pendingPassage: null })
         void api.showPassage(pendingPassage, "jump")
       }, 150)
     })
-  }, [scrollCap, documentId])
+  }, [scrollCap, documentId, paper.id])
 
   // Leaving the paper closes whatever popover was open and drops any outline
   useEffect(

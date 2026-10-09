@@ -10,9 +10,12 @@ const LOAD_TIMEOUT_MS = 60_000
 // How long a challenge or a sign-in may wait for the user
 const USER_TIMEOUT_MS = 5 * 60_000
 
-// Cloudflare and the like put these in the title or the page
+// Cloudflare and the like put these in the title or the page. Only the interstitial's own markers:
+// Cloudflare loads /cdn-cgi/challenge-platform/ scripts on ordinary article pages too.
 const CHALLENGE_TITLE = /just a moment|attention required|security check|checking your browser|请稍候|正在验证|verify you are human/i
-const CHALLENGE_BODY = /cf-browser-verification|challenge-platform|cf-chl-|_cf_chl_opt|captcha/i
+const CHALLENGE_BODY = /cf-browser-verification|cf-chl-|_cf_chl_opt|id="challenge-form"/i
+// A captcha only counts when it is on screen; publishers load reCAPTCHA scripts on ordinary pages
+const VISIBLE_CAPTCHA = `[...document.querySelectorAll('iframe[src*="captcha"], iframe[src*="challenges.cloudflare.com"], .g-recaptcha, .h-captcha, #captcha')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 30 && r.height > 30 })`
 
 type PageState = "ok" | "challenge" | "login"
 
@@ -102,9 +105,13 @@ export function createBrowserHost(): BrowserHost {
   function untilClear(w: BrowserWindow, from: PageState, signal: AbortSignal) {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => finish(new Error(`Gave up waiting for the ${from === "login" ? "sign-in" : "check"} after 5 minutes.`)), USER_TIMEOUT_MS)
+      // Clear on two checks in a row: past a redirect, and not waiting on isLoading(), which some
+      // publishers' pages (Wiley's) never leave
+      let clear = 0
       const poll = setInterval(async () => {
         if (w.isDestroyed()) return finish(new Error("The window went away."))
-        if (!w.webContents.isLoading() && (await pageState(w)) === "ok") finish()
+        clear = (await pageState(w)) === "ok" ? clear + 1 : 0
+        if (clear >= 2) finish()
       }, 1000)
       const closed = () => finish()
       const aborted = () => finish(signal.reason)
@@ -150,11 +157,11 @@ async function pageState(w: BrowserWindow): Promise<PageState> {
   const title = w.webContents.getTitle()
   const probe = await w.webContents
     .executeJavaScript(
-      `({ html: document.documentElement.outerHTML.slice(0, 20000), password: !!document.querySelector('input[type=password]') })`,
+      `({ html: document.documentElement.outerHTML.slice(0, 20000), captcha: ${VISIBLE_CAPTCHA}, password: !!document.querySelector('input[type=password]') })`,
       true,
     )
-    .catch(() => ({ html: "", password: false }))
-  if (CHALLENGE_TITLE.test(title) || CHALLENGE_BODY.test(probe.html)) return "challenge"
+    .catch(() => ({ html: "", captcha: false, password: false }))
+  if (CHALLENGE_TITLE.test(title) || CHALLENGE_BODY.test(probe.html) || probe.captcha) return "challenge"
   if (probe.password) return "login"
   return "ok"
 }

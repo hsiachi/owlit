@@ -9,6 +9,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import { isChatsFromDisk } from "@/features/chat/disk"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
+import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 
@@ -74,6 +75,11 @@ export function reportDocEdited(fileId: string) {
     const path = useDocsStore.getState().files[fileId]?.path
     if (path) emit({ kind: "doc.edited", path })
   })
+}
+
+// The user rewrote or removed a line of a topic by hand; Owlit restates the topic around it at once
+export function reportKnowledgeEdited(topic: string, id: string) {
+  emit({ kind: "knowledge.edited", topic, id })
 }
 
 // ---- What is open: from the route, the agent window and the stores ----
@@ -159,9 +165,12 @@ export function startActivity(router: typeof appRouter) {
       if (page && page !== prev.papers[open.paperId]?.position?.page)
         emit({ kind: "paper.page", paperId: open.paperId, page })
     }
+    // What loading the library (or another program's change) put in the store isn't something the user did
+    if (isLibraryFromCore()) return
+    // A highlight Owlit made when asked is the user's to keep, but not something they marked themselves
     if (state.highlights !== prev.highlights) {
       for (const h of Object.values(state.highlights))
-        if (!prev.highlights[h.id]) emit({ kind: "highlight.added", paperId: h.paperId, highlightId: h.id })
+        if (!prev.highlights[h.id] && h.addedBy !== "agent") emit({ kind: "highlight.added", paperId: h.paperId, highlightId: h.id })
       for (const h of Object.values(prev.highlights))
         if (!state.highlights[h.id]) emit({ kind: "highlight.removed", paperId: h.paperId, highlightId: h.id })
     }

@@ -46,6 +46,7 @@ const contentList: ContentBlock[] = [
   { type: "text", text: "Groups coordinate through what they can see of each other.", bbox: [80, 100, 480, 160], page_idx: 0 },
   { type: "equation", text: "$$a = b + c$$", bbox: [100, 200, 400, 220], page_idx: 0 },
   { type: "table", table_caption: ["Table 1: Results"], table_body: "<table><tr><td>A</td><td>1</td></tr><tr><td>B &amp; C</td><td>2</td></tr></table>", bbox: [80, 300, 900, 400], page_idx: 0 },
+  { type: "ref_text", text: "[1] Dourish, P. and Bellotti, V. 1992. Awareness and coordination.", bbox: [80, 800, 900, 830], page_idx: 0 },
   { type: "page_number", text: "1", bbox: [490, 960, 510, 975], page_idx: 0 },
 ]
 
@@ -53,7 +54,7 @@ describe("contentListToText", () => {
   it("turns MinerU's blocks into pages of blocks in points", () => {
     const text = contentListToText(contentList, [{ width: 612, height: 792 }])
     expect(text.source).toBe("mineru")
-    expect(text.pages[0].blocks.map((b) => b.kind)).toEqual(["heading", "paragraph", "formula", "table", "other"])
+    expect(text.pages[0].blocks.map((b) => b.kind)).toEqual(["heading", "paragraph", "formula", "table", "paragraph", "other"])
     expect(text.pages[0].blocks[0].rect).toEqual({ x: 48.96, y: 22.18, w: 440.64, h: 22.97 })
     expect(text.pages[0].blocks[3].lines.map((l) => l.text)).toEqual(["Table 1: Results", "A | 1", "B & C | 2"])
   })

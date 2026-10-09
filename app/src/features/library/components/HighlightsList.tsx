@@ -95,6 +95,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
           <span className="line-clamp-4 text-sm leading-relaxed">{h.text}</span>
         </span>
         {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
+        {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">Added by Owlit</span>}
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

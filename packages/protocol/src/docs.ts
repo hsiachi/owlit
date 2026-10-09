@@ -58,3 +58,21 @@ export interface AgentNote {
   chatId?: string
   createdAt: number
 }
+
+// A version kept so an agent's change can be taken back (.owlit/versions/): a doc or topic file's text
+// before a write, a note an agent left, a paper an agent added. An undo keeps what it replaced as a
+// version too (by "undo"), so it can be undone in turn.
+export interface VersionInfo {
+  id: string
+  kind: "file" | "note" | "paper"
+  // file: workspace-relative path; note: the doc's path; paper: the paper's id
+  path: string
+  at: number
+  chatId?: string
+  by: "agent" | "undo"
+  // file: the change created or deleted the file
+  existed?: boolean
+  deleted?: true
+  // note and paper
+  op?: "added" | "removed"
+}

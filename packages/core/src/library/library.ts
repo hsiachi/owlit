@@ -464,6 +464,7 @@ export class Library {
           }
         }
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
+        if (await hasPdfFile(this.root, id)) return
         await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
         await this.announce([id])
       },
@@ -900,6 +901,8 @@ export class Library {
           if (tried.length && tried.every((t) => t.status === 0 || t.error?.startsWith("Not tried"))) {
             if (tried.some((t) => t.status === 0)) throw new HttpError(0, tried[0].url, "Couldn't reach any source of PDFs.")
           }
+          // Another route (the browser, a drop) may have placed it meanwhile; its record stands
+          if (await hasPdfFile(this.root, id)) return
           await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest })
           // The publisher may still give it to a browser: cookies, a challenge, the library's proxy
           if (record.ids.doi) this.queue("paper.pdf.browser", id, ctx.task.priority)
