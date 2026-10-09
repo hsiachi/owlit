@@ -149,7 +149,7 @@ describe("paper.parse", () => {
     const dir = path.join(root, "library/papers/doi-10.9-p")
     expect(JSON.parse(readFileSync(path.join(dir, "text.json"), "utf8")).source).toBe("mineru")
     expect(JSON.parse(readFileSync(path.join(dir, "text.pdfium.json"), "utf8")).source).toBe("pdfium")
-    expect(readFileSync(path.join(dir, "text.md"), "utf8")).toMatch(/## Awareness in Shared Workspaces[\s\S]*\$\$a = b \+ c\$\$[\s\S]*A \| 1/)
+    expect(readFileSync(path.join(dir, "text.md"), "utf8")).toMatch(/## Awareness in Shared Workspaces[\s\S]*\$\$a = b \+ c\$\$[\s\S]*Table 1: Results\n\n\| A \| 1 \|\n\| --- \| --- \|\n\| B & C \| 2 \|/)
     expect(JSON.parse(readFileSync(path.join(dir, "parse.json"), "utf8"))).toMatchObject({ status: "done", service: "cloud", job: "batch-1" })
     expect((await call("library.list")).papers[0].text).toBe("full")
     expect(cloud.asked.filter((a) => a.startsWith("POST"))).toHaveLength(1)
