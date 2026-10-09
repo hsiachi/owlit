@@ -11,6 +11,8 @@ import {
 import { MessageGroup } from "@/components/ui/message"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
+import { useLookAt } from "../status"
+import { regenerate } from "../lib/regenerate"
 import type { PromptInput } from "../types"
 import { Composer, type ComposerHandle } from "./composer/Composer"
 import { AssistantMessage, UserMessage } from "./messages/MessageItem"
@@ -27,6 +29,7 @@ export function ChatView() {
   const chatsLoaded = useChatStore((s) => s.chatsLoaded)
   const composer = useRef<ComposerHandle>(null)
   const navigate = useNavigate()
+  useLookAt(chat ? chatId : null)
 
   useEffect(() => {
     composer.current?.focus()
@@ -40,13 +43,6 @@ export function ChatView() {
 
   const submit = (input: PromptInput) => void send(chat.id, input)
 
-  // Re-send the user message that precedes an assistant reply
-  const regenerate = (index: number) => {
-    const prev = [...chat.messages.slice(0, index)].reverse().find((m) => m.role === "user")
-    if (!prev) return
-    const text = prev.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n")
-    void send(chat.id, { text, mentions: prev.mentions ?? [], attachments: prev.attachments ?? [] })
-  }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -66,7 +62,7 @@ export function ChatView() {
                         message={m}
                         modelName={modelName(m.connectorId, m.modelId)}
                         onRespondPermission={(requestId, optionId) => respondPermission(chat.id, requestId, optionId)}
-                        onRegenerate={!streaming ? () => regenerate(i) : undefined}
+                        onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
                         onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
                       />
                     )}

@@ -2,6 +2,7 @@ import { useLibraryStore } from "@/features/library/store"
 import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceKnowledge, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
+import { recordResult, setMockUndo } from "../results"
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -61,6 +62,9 @@ export class MockAgentClient implements AgentClient {
       // Asked about a line of Knowledge: what the user says corrects that one line
       if (selection?.source.kind === "knowledge") return await this.reviseKnowledge(emit, signal, selection, text, req.chatId)
 
+      // Asked from the paper's note: the note is the user's, so a rewrite is proposed in it, not made
+      if (selection?.notePath && WANTS_REWRITE.test(text)) return await this.proposeNoteEdit(emit, signal, selection, mode)
+
       // Asked to review a doc: notes in its margin rather than edits
       const doc = selection?.source.kind === "doc" ? selection.source : sources.find((s) => s.kind === "doc")
       if (doc && WANTS_REVIEW.test(text)) {
@@ -72,6 +76,14 @@ export class MockAgentClient implements AgentClient {
         if (WANTS_REWRITE.test(text)) return await this.proposeEdit(emit, signal, selection, mode)
         if (WANTS_SUPPORT.test(text)) return await this.findSupport(emit, signal, selection)
       }
+      // Handed-off work: search outside, add what fits, and say what changed under the answer
+      if (WANTS_FIND_AND_ADD.test(text)) return await this.findAndAdd(emit, signal, req.chatId)
+      // Lets the browser build show a reply that broke
+      if (/\bfail(s|ed)? on purpose\b/i.test(text)) {
+        await sleep(600, signal)
+        throw new Error("Claude Code stopped before finishing")
+      }
+
       if (selection || context.length) {
         await sleep(300, signal)
         await this.stream(emit, signal, contextAnswer(text, sources, selection), "agent_message_chunk", 14)
@@ -130,6 +142,71 @@ export class MockAgentClient implements AgentClient {
       if (isAbort(e)) return "cancelled"
       throw e
     }
+  }
+
+  // Finds papers outside the library and adds the ones that fit, as a hand-off does
+  private async findAndAdd(emit: (u: SessionUpdate) => void, signal: AbortSignal, chatId: string): Promise<StopReason> {
+    emit({ type: "plan", entries: FIND_PLAN.map((content, i) => ({ content, priority: "medium", status: i === 0 ? "in_progress" : "pending" })) })
+    const step = async (title: string, kind: "search" | "read" | "other", ms: number, content: string, done: number) => {
+      const id = `tc-${crypto.randomUUID()}`
+      emit({ type: "tool_call", toolCallId: id, title, kind, status: "in_progress" })
+      await sleep(ms, signal)
+      emit({ type: "tool_call_update", toolCallId: id, status: "completed", content })
+      emit({ type: "plan", entries: FIND_PLAN.map((c, i) => ({ content: c, priority: "medium", status: i < done ? "completed" : i === done ? "in_progress" : "pending" })) })
+    }
+    await step("Searched Semantic Scholar", "search", 1800, "14 results", 1)
+    await step("Searched OpenAlex", "search", 1500, "9 results, 5 new", 1)
+    await step("Read 6 abstracts", "read", 2500, "Kept 3", 2)
+    const added = FOUND.map((p) => useLibraryStore.getState().addPaper(p, "agent"))
+    for (const paper of added) {
+      const versionId = `mock-${crypto.randomUUID()}`
+      setMockUndo(versionId, () => useLibraryStore.getState().removePapers([paper.id]))
+      recordResult(chatId, { kind: "paper", versionId, path: paper.id, label: paper.title, at: Date.now() })
+    }
+    await step(`Added ${added.length} papers to the Library`, "other", 400, added.map((p) => p.title).join("\n"), 3)
+    await this.stream(emit, signal, FOUND_ANSWER, "agent_message_chunk", 12)
+    return "end_turn"
+  }
+
+  // An edit to the paper's note: shown in the note as a diff, written only once allowed
+  private async proposeNoteEdit(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection, mode: string): Promise<StopReason> {
+    const path = selection.notePath!
+    const paperId = path.split("/")[2]
+    const library = useLibraryStore.getState()
+    const before = library.notes[paperId]?.content ?? ""
+    const rewritten = rewriteOf(selection.text) ?? shorterOf(selection.text)
+    await sleep(300, signal)
+    if (!before.includes(selection.text)) {
+      await this.stream(emit, signal, "I couldn't find that passage in your note word for word (formatting gets in the way), so I left it alone.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    if (!rewritten) {
+      await this.stream(emit, signal, "This already reads tight; I'd leave it as it is.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    await this.stream(emit, signal, rewritten.why + "\n\n", "agent_message_chunk", 14)
+    const title = `your note on ${selection.source.title}`
+    const toolCallId = `tc-${crypto.randomUUID()}`
+    const diff = { path, oldText: before, newText: before.replace(selection.text, rewritten.text) }
+    emit({ type: "tool_call", toolCallId, title: `Edit ${title}`, kind: "edit", status: "pending", locations: [{ path }], diff })
+    let outcome: PermissionKind = "allow_once"
+    if (!AUTO_MODES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
+    if (outcome.startsWith("reject")) {
+      emit({ type: "tool_call_update", toolCallId, status: "failed", content: "Edit rejected by the user." })
+      await this.stream(emit, signal, "Left your note as it was.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    // Read again before writing: the user may have kept typing while the edit waited
+    const now = useLibraryStore.getState().notes[paperId]?.content ?? ""
+    if (!now.includes(selection.text)) {
+      emit({ type: "tool_call_update", toolCallId, status: "failed", content: "The passage changed while the edit waited." })
+      await this.stream(emit, signal, "That passage changed while I waited, so I left the note alone.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    useLibraryStore.getState().setNote(paperId, now.replace(selection.text, rewritten.text))
+    emit({ type: "tool_call_update", toolCallId, status: "completed", content: `Edited ${title}` })
+    await this.stream(emit, signal, "Done. ⌘Z in the note takes it back.", "agent_message_chunk", 14)
+    return "end_turn"
   }
 
   // An edit to the doc the passage came from: shown as a diff, written only once allowed
@@ -365,6 +442,13 @@ function rewriteOf(text: string): { text: string; why: string } | null {
   return tightened !== body ? { text: tightened + trail, why: "I cut the words that weren't carrying meaning." } : null
 }
 
+// Elsewhere in a note, plain shortening: the first sentence, when the rest only says it again
+function shorterOf(text: string): { text: string; why: string } | null {
+  const sentences = text.match(/[^.!?]+[.!?]+/g)
+  if (!sentences || sentences.length < 2) return null
+  return { text: sentences[0].trim(), why: "I kept your first sentence; the rest said it again. Your point stays the same." }
+}
+
 const STOPWORDS = new Set(
   "about above after again against also among because been before being both could does doing down during each from further have having here into itself just more most much must only other over same should since some such than that their them then there these they this those through under until very were what when where which while will with would your already".split(" "),
 )
@@ -435,3 +519,23 @@ print(paper.title, paper.year)
 
 Want me to turn this into a note in Docs?`
 }
+
+// ---- Finding and adding papers (the browser build's hand-off) ----
+
+const WANTS_FIND_AND_ADD = /\bfind\b.*\bpapers?\b|\badd (them|the ones|papers)\b/i
+
+const FIND_PLAN = ["Search two sources", "Read the abstracts, keep the best three", "Add them to the Library"]
+
+const FOUND = [
+  { title: "Explanations After the Task: When Users Read Them", authors: ["Sato, K.", "Park, J."], year: 2025, venue: "CHI", ids: { doi: "10.1145/mock.sato2025" } },
+  { title: "Putting It Off: Deferrable Explanations in Assistants", authors: ["Okafor, A."], year: 2024, venue: "IUI", ids: { doi: "10.1145/mock.okafor2024" } },
+  { title: "Deferral in Code Review Tools", authors: ["Lind, E.", "Berg, S."], year: 2023, venue: "CSCW", ids: { doi: "10.1145/mock.lind2023" } },
+]
+
+const FOUND_ANSWER = `Added three papers that fit. Two others came close but are about interruptions, not explanations, so I listed them without adding them.
+
+1. **Sato 2025**: explanations shown after the task were read twice as often. Closest to your question.
+2. **Okafor 2024**: lets users put an explanation off and measures whether they come back to it.
+3. **Lind 2023**: deferral in code review tools; a smaller study pointing the same way.
+
+Close but not added: Park 2024 (interruption cost, no explanations) and Hsu 2023 (notifications).`

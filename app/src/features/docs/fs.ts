@@ -11,6 +11,7 @@ import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor, spanChange } from "./editors"
 import { useDocsStore } from "./store"
 import { displayName, isMarkdown, type WorkspaceFile } from "./types"
+import { chatOnScreen, labelOf } from "@/features/chat/results"
 
 const fileAt = (path: string) => Object.values(useDocsStore.getState().files).find((f) => f.path === path)
 
@@ -156,9 +157,12 @@ if (isDesktop) {
   })
 
   // A doc no window had open: core wrote it; the change itself arrives as docs.changed
-  onNotify("agent.wrote", ({ path, versionId }) => {
+  onNotify("agent.wrote", ({ path, versionId, chatId }) => {
+    // A chat on screen says it in its own result row, with the same Undo
+    if (chatOnScreen(chatId)) return
     toast("Edit applied", {
-      description: displayName(path),
+      // A paper's note is named by its paper
+      description: path.startsWith(".owlit/") ? `Your note on ${labelOf(path)}` : displayName(path),
       action: { label: "Undo", onClick: () => restoreVersion(versionId, path) },
     })
   })

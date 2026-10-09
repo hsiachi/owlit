@@ -13,12 +13,14 @@ function greeting() {
   return "Good evening"
 }
 
-// Each starter fills a prompt stem and opens the mention popup on the source it needs
-const suggestions: { label: string; prompt: string; kind: SourceKind | "all" }[] = [
-  { label: "Summarize a paper", prompt: "Summarize the key contributions of ", kind: "paper" },
-  { label: "Compare two papers", prompt: "Compare the methods and findings of ", kind: "paper" },
-  { label: "Draft a note in Docs", prompt: "Write a short note into ", kind: "doc" },
-  { label: "Check a claim", prompt: "What evidence in the Library supports ", kind: "knowledge" },
+// The Chat page is where work is handed off (a quick question goes through the agent window, ⌘J), so the
+// starters are jobs that take a few minutes. Each fills a prompt stem; where it needs a paper or doc, the
+// mention popup opens on that kind.
+const suggestions: { label: string; prompt: string; kind?: SourceKind | "all" }[] = [
+  { label: "Find papers and add them", prompt: "Find recent papers on " },
+  { label: "Compare papers", prompt: "Compare the methods and findings of ", kind: "paper" },
+  { label: "Review a draft", prompt: "Review where I overstate a finding or misread a paper in ", kind: "doc" },
+  { label: "Ask about your papers", prompt: "What do my papers say about " },
 ]
 
 // /chat with no conversation selected: greeting, composer, starter prompts
@@ -50,7 +52,7 @@ export function ChatEmpty() {
             className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground"
             onClick={() => {
               composer.current?.setText(s.prompt)
-              composer.current?.openMention(s.kind)
+              if (s.kind) composer.current?.openMention(s.kind)
             }}
           >
             {s.label}

@@ -6,6 +6,8 @@ import { useLibraryStore } from "../store"
 import type { HighlightColor, PageRect } from "../types"
 import { HighlightToolbar } from "./HighlightToolbar"
 import { useReaderStore } from "./reader-store"
+import { useAgentWindow } from "@/features/agent/store"
+import { paperMentionable } from "@/features/docs/lib/mentions"
 
 // Space between the selection and the popover
 const GAP = 8
@@ -49,6 +51,14 @@ export function SelectionMenu({ rect, menuWrapperProps, placement, documentId, p
           onComment={async () => {
             const h = await keep(useLibraryStore.getState().lastColor)
             if (h) useReaderStore.getState().open(h.id, { commenting: true })
+          }}
+          onAsk={async () => {
+            const paper = useLibraryStore.getState().papers[paperId]
+            const text = await selectedText()
+            if (!paper || !text) return
+            const page = Math.min(...(sel?.getFormattedSelection() ?? []).map((p) => p.pageIndex)) + 1
+            sel?.clear()
+            useAgentWindow.getState().open({ text, source: paperMentionable(paper), ...(Number.isFinite(page) ? { page } : {}) })
           }}
           onClose={() => sel?.clear()}
         />

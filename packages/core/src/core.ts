@@ -523,10 +523,16 @@ export class Core {
           this.notifier.notify("docs.changed", change)
           next.search.touch()
         })
-        await next.library.watch((change) => {
-          this.notifier.notify("library.changed", change)
-          next.search.touch()
-        })
+        await next.library.watch(
+          (change) => {
+            this.notifier.notify("library.changed", change)
+            next.search.touch()
+          },
+          (paperId, note) => {
+            this.notifier.notify("library.noteChanged", { paperId, note })
+            next.search.touch()
+          },
+        )
       }
       if (this.workspace !== next) await this.serveSocket(next.root)
       this.workspace = next

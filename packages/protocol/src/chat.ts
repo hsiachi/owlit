@@ -56,6 +56,11 @@ export interface QuotedSelection {
   source: Mentionable
   // Where it starts in a doc, so the passage is found again even when the same words appear twice
   from?: number
+  // The page of a paper it was selected on, counted from 1
+  page?: number
+  // Selected in the paper's note rather than its PDF: the note is the user's, kept at notePath
+  // (.owlit/papers/<id>/note.md), and an edit to it is shown in the note before anything changes
+  notePath?: string
 }
 
 export interface PlanEntry {

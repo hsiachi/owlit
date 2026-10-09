@@ -30,7 +30,9 @@ function UpdateRow({ part }: { part: ToolCall }) {
   const topic = allTopics().find((t) => t.path === path)
   return (
     <p className="flex items-center gap-1 text-[13px] text-muted-foreground">
-      <span>{undone ? "Undone" : part.title}</span>
+      {/* The chat's result row: what changed in body text, then Undo and View (chat/…/ResultRows) */}
+      <span className={undone ? undefined : "text-foreground"}>{undone ? "Undone" : part.title}</span>
+      {!undone && canUndoRevision(part.toolCallId) && <span aria-hidden>·</span>}
       {!undone && canUndoRevision(part.toolCallId) && (
         <button
           type="button"
@@ -40,6 +42,7 @@ function UpdateRow({ part }: { part: ToolCall }) {
           Undo
         </button>
       )}
+      {!undone && topic && <span aria-hidden>·</span>}
       {!undone && topic && (
         <button
           type="button"

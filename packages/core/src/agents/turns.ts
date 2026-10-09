@@ -329,7 +329,11 @@ export function promptBlocks(input: PromptInput, root: string, history: string |
   blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {
     const quoted = input.selection.text.split("\n").map((l) => `> ${l}`).join("\n")
-    blocks.push({ type: "text", text: `The user selected this passage in ${input.selection.source.title}:\n${quoted}` })
+    const { source, page, notePath } = input.selection
+    const where = notePath
+      ? `in their own note on ${source.title} (the file ${notePath}; it is the user's, so change it only when asked, by editing that file)`
+      : `in ${source.title}${page ? `, on page ${page}` : ""}`
+    blocks.push({ type: "text", text: `The user selected this passage ${where}:\n${quoted}` })
   }
   const seen = new Set<string>()
   for (const m of [...input.mentions, ...(input.context ?? []), ...(input.selection ? [input.selection.source] : [])]) {

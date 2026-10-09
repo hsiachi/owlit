@@ -189,6 +189,18 @@ if (onDisk) {
     )
   })
 
+  // A note an agent edited (or another program changed): taken as it is, and the open note editor takes
+  // it in as one undoable change
+  onNotify("library.noteChanged", ({ paperId, note }) => {
+    takeFromCore(() =>
+      useLibraryStore.setState((s) => {
+        if (note) return { notes: { ...s.notes, [paperId]: note } }
+        const { [paperId]: _gone, ...rest } = s.notes
+        return { notes: rest }
+      }),
+    )
+  })
+
   onWorkspaceOpened(() => {
     generation++
     for (const timer of resting.values()) clearTimeout(timer)

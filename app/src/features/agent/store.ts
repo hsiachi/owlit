@@ -14,6 +14,9 @@ interface AgentWindowState {
   chatId: string | null
   // A passage sent with the next message; used once
   selection: QuotedSelection | null
+  // The paper note this conversation started from, if it did: on that paper's page the details panel
+  // (where the note is) stays open beside the window, so an edit Owlit proposes is seen where it lands
+  fromNote: string | null
   // The page chip the user removed, by uri; it comes back on another page
   hiddenContext: string | null
   // The list panel shown again by hand while the panel is docked
@@ -42,6 +45,7 @@ export const useAgentWindow = create<AgentWindowState>()(
       stage: "closed",
       chatId: null,
       selection: null,
+      fromNote: null,
       hiddenContext: null,
       listShown: false,
       focusTick: 0,
@@ -50,12 +54,13 @@ export const useAgentWindow = create<AgentWindowState>()(
         set((s) => ({
           stage: s.stage === "open" || hasMessages(s.chatId) ? "open" : "bar",
           selection: selection ?? s.selection,
+          fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
           focusTick: s.focusTick + 1,
         })),
-      close: () => set({ stage: "closed", listShown: false }),
+      close: () => set({ stage: "closed", listShown: false, fromNote: null }),
       toggle: () => (get().stage === "closed" ? get().open() : get().close()),
-      newChat: () => set((s) => ({ chatId: null, stage: "bar", selection: null, hiddenContext: null, focusTick: s.focusTick + 1 })),
-      showChat: (chatId) => set((s) => ({ chatId, stage: "open", focusTick: s.focusTick + 1 })),
+      newChat: () => set((s) => ({ chatId: null, stage: "bar", selection: null, fromNote: null, hiddenContext: null, focusTick: s.focusTick + 1 })),
+      showChat: (chatId) => set((s) => ({ chatId, stage: "open", fromNote: chatId === s.chatId ? s.fromNote : null, focusTick: s.focusTick + 1 })),
       hideContext: (uri) => set({ hiddenContext: uri }),
       clearSelection: () => set({ selection: null }),
       setListShown: (listShown) => set({ listShown }),

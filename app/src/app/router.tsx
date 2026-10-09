@@ -1,6 +1,5 @@
 import { createBrowserRouter } from "react-router-dom"
 import { Shell } from "@/app/Shell"
-import { Placeholder } from "@/app/Placeholder"
 import { KnowledgeLayout } from "@/features/knowledge/KnowledgeLayout"
 import { KnowledgePage } from "@/features/knowledge/pages/KnowledgePage"
 import { LoosePage } from "@/features/knowledge/pages/LoosePage"
@@ -15,13 +14,14 @@ import { LibraryLayout } from "@/features/library/LibraryLayout"
 import { LibraryPage } from "@/features/library/pages/LibraryPage"
 import { PaperPage } from "@/features/library/pages/PaperPage"
 import { UpNextPage } from "@/features/library/pages/UpNextPage"
+import { HomePage } from "@/features/home/HomePage"
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Shell />,
     children: [
-      { index: true, element: <Placeholder name="Home" /> },
+      { index: true, element: <HomePage /> },
       {
         path: "chat",
         element: <ChatLayout />,

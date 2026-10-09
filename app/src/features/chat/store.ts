@@ -8,6 +8,7 @@ import { MockAgentClient } from "./agent/mock-client"
 import { RpcAgentClient } from "./agent/rpc-client"
 import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
+import { useSeenStore } from "./status"
 import type {
   Chat,
   ChatMessage,
@@ -103,6 +104,7 @@ export const useChatStore = create<ChatState>()(
 
       deleteChat(id) {
         get().cancel(id)
+        useSeenStore.getState().forget(id)
         set((s) => {
           const { [id]: _removed, ...rest } = s.chats
           return { chats: rest }
@@ -218,6 +220,7 @@ export const useChatStore = create<ChatState>()(
           if (now && savesMessages()) disk.patchMessageOnDisk(chatId, now, final)
         }
 
+        let ended: "finished" | "failed" | "cancelled" = "finished"
         try {
           // A chat made just now must reach core before core can run a turn in it
           if (disk.onDisk) await disk.settled()
@@ -226,11 +229,15 @@ export const useChatStore = create<ChatState>()(
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )
+          if (stop === "cancelled") ended = "cancelled"
           patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done" }), true)
         } catch (e) {
+          ended = "failed"
           patchAssistant((m) => ({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }), true)
         } finally {
           inflight.delete(chatId)
+          // Work handed off goes on without anyone watching; how it ended waits on its row until seen
+          if (get().chats[chatId]) useSeenStore.getState().ended(chatId, ended)
           set((s) => {
             const { [chatId]: _done, ...rest } = s.streaming
             return { streaming: rest }
