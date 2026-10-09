@@ -59,7 +59,8 @@ async function undo(messageId: string, row: Row) {
   }
 }
 
-const BUTTON = "rounded-md px-1 outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
+// Muted text buttons, 24px tall: Undo is the one way to take a hand-off back, so it should be easy to hit
+const BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
 
 export function ResultRows({ messageId }: { messageId: string }) {
   const results = useResultsStore((s) => s.byMessage[messageId])

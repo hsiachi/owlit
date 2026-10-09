@@ -21,12 +21,15 @@ export function SelectionMenu({ rect, menuWrapperProps, placement, documentId, p
 
   const selectedText = async () => cleanPdfText((await sel?.getSelectedText().toPromise()) ?? [])
 
+  const selectedRects = (): PageRect[] =>
+    (sel?.getFormattedSelection() ?? []).flatMap((p) =>
+      p.segmentRects.map((r) => ({ page: p.pageIndex, x: r.origin.x, y: r.origin.y, w: r.size.width, h: r.size.height })),
+    )
+
   const keep = async (color: HighlightColor) => {
     if (!sel) return null
     const parts = sel.getFormattedSelection()
-    const rects: PageRect[] = parts.flatMap((p) =>
-      p.segmentRects.map((r) => ({ page: p.pageIndex, x: r.origin.x, y: r.origin.y, w: r.size.width, h: r.size.height })),
-    )
+    const rects = selectedRects()
     if (rects.length === 0) return null
     const text = await selectedText()
     const h = addHighlight({ paperId, page: Math.min(...parts.map((p) => p.pageIndex)), rects, text, color })
@@ -57,8 +60,9 @@ export function SelectionMenu({ rect, menuWrapperProps, placement, documentId, p
             const text = await selectedText()
             if (!paper || !text) return
             const page = Math.min(...(sel?.getFormattedSelection() ?? []).map((p) => p.pageIndex)) + 1
+            const rects = selectedRects()
             sel?.clear()
-            useAgentWindow.getState().open({ text, source: paperMentionable(paper), ...(Number.isFinite(page) ? { page } : {}) })
+            useAgentWindow.getState().open({ text, source: paperMentionable(paper), ...(Number.isFinite(page) ? { page } : {}) }, rects.length ? { paperId, rects } : undefined)
           }}
           onClose={() => sel?.clear()}
         />

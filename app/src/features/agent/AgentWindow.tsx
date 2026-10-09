@@ -20,7 +20,7 @@ import { Composer, type ComposerHandle } from "@/features/chat/components/compos
 import { AssistantMessage, UserMessage } from "@/features/chat/components/messages/MessageItem"
 import { StatusRing } from "@/features/chat/components/StatusRing"
 import { useChatStatus } from "@/features/chat/use-chat-status"
-import { useLookAt } from "@/features/chat/status"
+import { useBrokenReply, useLookAt } from "@/features/chat/status"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useChatStore } from "@/features/chat/store"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
@@ -65,9 +65,13 @@ function useVisibleContext() {
 
 const KIND_NAME = { paper: "this paper", doc: "this doc", knowledge: "this topic" } as const
 
+// Cut at a word boundary, so a chip never ends mid-word ("Scholars need to k…")
 const shorten = (text: string, n: number) => {
   const t = text.replace(/\s+/g, " ").trim()
-  return t.length > n ? `${t.slice(0, n).trimEnd()}…` : t
+  if (t.length <= n) return t
+  const cut = t.slice(0, n + 1)
+  const space = cut.lastIndexOf(" ")
+  return `${(space > n / 2 ? cut.slice(0, space) : t.slice(0, n)).replace(/[\s,.;:]+$/, "")}…`
 }
 
 function Chip({ children, onRemove, label }: { children: React.ReactNode; onRemove: () => void; label: string }) {
@@ -152,7 +156,7 @@ export function AgentAskBar() {
       {selection && (
         <span className="shrink-0">
           <Chip label="Don't include the selection" onRemove={() => useAgentWindow.getState().clearSelection()}>
-            {selectionLabel(selection)} · “{shorten(selection.text, 18)}”
+            {selectionLabel(selection)} · “{shorten(selection.text, 24)}”
           </Chip>
         </span>
       )}
@@ -193,6 +197,7 @@ export function AgentPanel() {
   const recent = useMemo(() => Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8), [chats])
   const composer = useRef<ComposerHandle>(null)
   useLookAt(chat?.id)
+  const broken = useBrokenReply(chat)
 
   useEffect(() => {
     composer.current?.focus()
@@ -257,6 +262,7 @@ export function AgentPanel() {
                           onRespondPermission={(requestId, optionId) => useChatStore.getState().respondPermission(chat.id, requestId, optionId)}
                           onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
                           onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
+                          onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
                         />
                       )}
                     </MessageScrollerItem>

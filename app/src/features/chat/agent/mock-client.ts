@@ -81,7 +81,7 @@ export class MockAgentClient implements AgentClient {
       // Lets the browser build show a reply that broke
       if (/\bfail(s|ed)? on purpose\b/i.test(text)) {
         await sleep(600, signal)
-        throw new Error("Claude Code stopped before finishing")
+        throw new Error("The agent process exited (code 1)")
       }
 
       if (selection || context.length) {

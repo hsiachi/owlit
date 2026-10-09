@@ -44,10 +44,23 @@ export function HighlightLayer({ documentId, paperId, pageIndex }: { documentId:
   // The popover and the comment preview sit on the page where the highlight starts
   const active = highlights.find((h) => h.id === activeId && h.page === pageIndex)
   const hovered = !activeId ? highlights.find((h) => h.id === hoverId && h.page === pageIndex && h.comment) : undefined
+  // A passage sent to Owlit and not asked about yet stays drawn as the selection it was
+  const asking = useAgentWindow((s) =>
+    s.stage !== "closed" && s.selection && s.selectionRects?.paperId === paperId ? s.selectionRects.rects : undefined,
+  )
 
   return (
     <>
       <div className="pointer-events-none absolute inset-0">
+        {asking
+          ?.filter((r) => r.page === pageIndex)
+          .map((r, i) => (
+            <div
+              key={`asking-${i}`}
+              className="absolute"
+              style={{ left: r.x * scale, top: r.y * scale, width: r.w * scale, height: r.h * scale, background: "var(--pdf-selection)", mixBlendMode: "multiply" }}
+            />
+          ))}
         {highlights.flatMap((h) =>
           h.rects
             .filter((r) => r.page === pageIndex)

@@ -127,6 +127,7 @@ export function HighlightToolbar({
           </button>
         </Tip>
         {onAsk && (
+          // Owlit's own mark, as on every control whose action is Owlit; named "Ask Owlit" as everywhere else
           <Tip label="Ask Owlit">
             <button type="button" aria-label="Ask Owlit" onClick={onAsk} className={BUTTON}>
               <OwlitMark />
