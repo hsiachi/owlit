@@ -53,6 +53,12 @@
         25%, 75% { opacity: 0.25; }
         100% { opacity: 0; }
     }
+    /* A chat at work: its status ring breathes slowly, so the list says "alive" without a spinner */
+    --animate-ring-breathe: ring-breathe 1.6s ease-in-out infinite;
+    @keyframes ring-breathe {
+        0%, 100% { opacity: 0.45; }
+        50% { opacity: 1; }
+    }
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -479,6 +485,15 @@
   pointer-events: none;
   color: var(--muted-foreground);
 }
+/* Owlit's proposed edit in the note, as Docs draws one: removal is not an error, so it is struck in the
+   muted tone; new words sit on a faint green; one line under the paragraph answers it */
+.note-suggest-del { color: var(--muted-foreground); text-decoration: line-through; }
+.note-suggest-ins { background: color-mix(in oklch, var(--success) 14%, transparent); border-radius: 3px; margin-left: 0.25em; white-space: pre-wrap; }
+.note-suggest-bar { display: flex; align-items: center; gap: 6px; margin: 2px 0 10px; font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
+.note-suggest-bar span { flex: 1; }
+.note-suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
+.note-suggest-discard:hover { background: var(--accent); color: var(--foreground); }
+.note-suggest-apply { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
 /* A quote's page link back to its highlight: part of the quote, not a call to action */
 .markdown a[href^="owlit://highlight/"] {
   color: inherit;

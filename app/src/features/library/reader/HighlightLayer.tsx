@@ -8,6 +8,8 @@ import { useLibraryStore } from "../store"
 import type { Highlight, PageRect } from "../types"
 import { HighlightToolbar } from "./HighlightToolbar"
 import { useReaderStore } from "./reader-store"
+import { useAgentWindow } from "@/features/agent/store"
+import { paperMentionable } from "@/features/docs/lib/mentions"
 
 // Highlights are drawn with multiply, so they tint the page like a marker and the glyphs under
 // them stay black. The layer has no z-index on purpose: a stacking context of its own would
@@ -128,6 +130,12 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
             const removed = removeHighlight(highlight.id)
             close()
             if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
+          }}
+          onAsk={() => {
+            const paper = useLibraryStore.getState().papers[highlight.paperId]
+            if (!paper) return
+            close()
+            useAgentWindow.getState().open({ text: highlight.text, source: paperMentionable(paper), page: highlight.page + 1 })
           }}
           onClose={close}
         />

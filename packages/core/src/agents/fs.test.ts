@@ -115,4 +115,24 @@ describe("agent fs", () => {
     await expect(core.fs.read(path.join(root, "../../../etc/passwd"))).rejects.toThrow("outside the workspace")
     await expect(core.fs.write(path.join(root, ".owlit/workspace.json"), "{}")).rejects.toThrow("inside .owlit")
   })
+
+  it("writes a paper's note through the library, tells windows, and undoes it", async () => {
+    const { core, root, call, journal, of } = await setup()
+    const id = "arxiv-1706.03762"
+    await call("library.add", { paper: { id, title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
+    await call("library.setNote", { paperId: id, content: "Mine. Long and repeated." })
+    const file = path.join(root, `.owlit/papers/${id}/note.md`)
+    await core.fs.write(file, "Mine.", "chat-1")
+    expect(readFileSync(file, "utf8")).toBe("Mine.")
+    // The window's own save is not news; the agent's edit is
+    expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ paperId: id, content: "Mine." }) }])
+    const entry = journal().find((e) => e.kind === "agent.wrote")
+    expect(entry).toMatchObject({ path: `.owlit/papers/${id}/note.md`, chatId: "chat-1" })
+    expect(of("agent.wrote")).toEqual([{ path: `.owlit/papers/${id}/note.md`, versionId: entry.versionId, chatId: "chat-1" }])
+    await call("versions.restore", { id: entry.versionId })
+    expect(readFileSync(file, "utf8")).toBe("Mine. Long and repeated.")
+    expect(of("library.noteChanged").at(-1)).toEqual({ paperId: id, note: expect.objectContaining({ content: "Mine. Long and repeated." }) })
+    // Nothing else inside .owlit/papers is writable
+    await expect(core.fs.write(path.join(root, `.owlit/papers/${id}/state.json`), "{}")).rejects.toThrow("inside .owlit")
+  })
 })

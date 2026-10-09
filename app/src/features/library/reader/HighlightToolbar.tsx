@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-react"
+import { CheckIcon, CopyIcon, MessageSquareTextIcon, SparklesIcon, Trash2Icon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_VAR } from "../lib/highlights"
 import type { HighlightColor } from "../types"
 
 // The one popover for text in the PDF, whether it is a fresh selection or an existing highlight:
-// four colours, copy, comment, and for a highlight, delete. The same look for both, so a
+// four colours, copy, comment, Ask Owlit, and for a highlight, delete. The same look for both, so a
 // highlight is just a selection that was kept.
 
 const BUTTON = "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4"
@@ -26,6 +26,7 @@ export function HighlightToolbar({
   onCopy,
   onComment,
   onDelete,
+  onAsk,
   comment,
   commenting,
   onCommentChange,
@@ -38,6 +39,8 @@ export function HighlightToolbar({
   onCopy: () => Promise<boolean>
   onComment: () => void
   onDelete?: () => void
+  // Sends the passage, with its page, to the agent window: reading is when people ask most
+  onAsk?: () => void
   comment?: string
   commenting?: boolean
   onCommentChange?: (text: string) => void
@@ -122,6 +125,13 @@ export function HighlightToolbar({
             <MessageSquareTextIcon />
           </button>
         </Tip>
+        {onAsk && (
+          <Tip label="Ask Owlit">
+            <button type="button" aria-label="Ask Owlit" onClick={onAsk} className={BUTTON}>
+              <SparklesIcon />
+            </button>
+          </Tip>
+        )}
         {onDelete && (
           <Tip label="Delete highlight">
             <button type="button" aria-label="Delete highlight" onClick={onDelete} className={BUTTON}>

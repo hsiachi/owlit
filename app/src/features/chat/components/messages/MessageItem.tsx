@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { CheckIcon, CopyIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
+import { CheckIcon, CircleXIcon, CopyIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
@@ -10,6 +10,7 @@ import { AttachmentList } from "../composer/AttachmentList"
 import { MentionBadge } from "../composer/MentionBadge"
 import { KnowledgeUpdates } from "@/features/knowledge/components/ChatUpdates"
 import { PermissionPart, PlanPart, StepsPart, TextPart, type PermissionOutcomes, type StepPart } from "./parts"
+import { ResultRows } from "./ResultRows"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -151,15 +152,27 @@ export function AssistantMessage({
           </div>
         )}
         {!streaming && <KnowledgeUpdates parts={message.parts} />}
-        {message.status === "cancelled" && <div className="text-xs text-muted-foreground">Stopped.</div>}
-        {message.status === "error" && <div className="text-xs text-destructive">Something went wrong: {message.error}</div>}
+        <ResultRows messageId={message.id} />
+        {/* The one red line a reply can have: what stopped it, and a way to run it again */}
+        {message.status === "error" && (
+          <p className="flex items-center gap-1.5 text-[13px] text-destructive">
+            <CircleXIcon className="size-3.5 shrink-0" />
+            <span>{message.error || "Something went wrong"}</span>
+            {onRegenerate && (
+              <button type="button" onClick={onRegenerate} className="rounded-md px-1 text-foreground outline-none hover:bg-muted focus-key:bg-muted">
+                Retry
+              </button>
+            )}
+          </p>
+        )}
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
           {/* Which model answered, and when, stays visible and lines up with the answer's left edge;
               the actions appear after it on hover, so they never push it in */}
           <span className="mr-1 text-xs font-normal text-muted-foreground">
-            {[modelName, timeOf(message.createdAt)].filter(Boolean).join(" · ")}
+            {/* Stopping was the user's choice: said in the same muted tone, never red */}
+            {[modelName, timeOf(message.createdAt), message.status === "cancelled" && "Stopped, partial"].filter(Boolean).join(" · ")}
           </span>
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             {text && <CopyButton text={text} />}

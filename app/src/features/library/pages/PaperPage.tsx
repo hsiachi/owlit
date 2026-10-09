@@ -32,6 +32,7 @@ import { useReaderStore } from "../reader/reader-store"
 import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { rpc } from "@/lib/rpc"
+import { notePathOf } from "../notes/note-actions"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -56,11 +57,13 @@ export function PaperPage() {
   const markOpened = useLibraryStore((s) => s.markOpened)
   const prefersPanel = usePrefsStore((s) => s.panelOpen)
   const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
-  // The right side holds one panel at a time: a docked agent window takes the details panel's place
+  // The right side holds one panel at a time: a docked agent window takes the details panel's place,
+  // except for a conversation that started from this paper's note, whose edits land in the note
   const agentDocked = useAgentWindow((s) => s.stage === "open")
-  const panelOpen = prefersPanel && !agentDocked
+  const besideNote = useAgentWindow((s) => s.fromNote === notePathOf(paperId))
+  const panelOpen = prefersPanel && (!agentDocked || besideNote)
   const togglePanel = () => {
-    if (agentDocked) {
+    if (agentDocked && !besideNote) {
       useAgentWindow.getState().close()
       setPanelOpen(true)
     } else setPanelOpen(!prefersPanel)
@@ -324,13 +327,21 @@ function NoPdf({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [fetching, setFetching] = useState(false)
   const [dragging, setDragging] = useState(false)
+  // Arriving from Home's "Waiting on you" (?check=1) goes straight to the publisher's page
+  const [params, setParams] = useSearchParams()
+  const wantsCheck = params.get("check") === "1"
   // Check now: the publisher's page takes the card's place
-  const [checking, setChecking] = useState(false)
+  const [checking, setChecking] = useState(() => wantsCheck && !!paper.noPdf?.needs && !!libraryClient.checkPublisher)
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
   const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
   const needs = paper.noPdf?.needs
   const canCheck = !!libraryClient.checkPublisher
+
+  // The request is taken once; the link stays clean
+  useEffect(() => {
+    if (wantsCheck) setParams({}, { replace: true })
+  }, [wantsCheck, setParams])
 
   const attach = async (files: FileList | null) => {
     const file = files?.[0]

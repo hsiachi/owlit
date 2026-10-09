@@ -24,6 +24,7 @@ import { blockPreview } from "./block-preview"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
+import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
 
 // A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
 // carry no user event at all; neither is the user's edit.
@@ -40,11 +41,7 @@ function wikilinkRoute(name: string) {
 
 // Apply and Discard answer the agent's permission request with its allow-once or reject-once option
 function respondToEdit(edit: PendingEdit, apply: boolean) {
-  const chat = useChatStore.getState().chats[edit.chatId]
-  const part = chat?.messages.at(-1)?.parts.find((p) => p.type === "permission" && p.requestId === edit.requestId)
-  if (part?.type !== "permission") return
-  const option = part.options.find((o) => o.kind === (apply ? "allow_once" : "reject_once")) ?? part.options.find((o) => o.kind.startsWith(apply ? "allow" : "reject"))
-  if (option) useChatStore.getState().respondPermission(edit.chatId, edit.requestId, option.optionId)
+  answerEdit(edit.chatId, edit.requestId, apply)
 }
 
 // A selected passage goes to the agent window, which waits for the question; `from` says which occurrence

@@ -47,6 +47,17 @@ export class AgentFs {
     log(`write ${file} (${content.length} characters)`)
     const ws = this.workspace()
     const rel = ws.docs.resolve(file)
+    // A paper's note is the user's, like a doc: the agent may change it when asked (the edit is shown in
+    // the note first), and it goes through the library so open windows take it in
+    const notePaper = ws.library.noteOf(rel)
+    if (notePaper) {
+      const before = (await ws.library.read(notePaper, "note")).text
+      const version = await ws.versions.saveFile(rel, before || null, content, { chatId })
+      this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
+      await ws.library.writeNoteFor(notePaper, content)
+      this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
+      return
+    }
     if (rel === ".owlit" || rel.startsWith(".owlit/")) throw new RpcFailure(RpcErrorCode.InvalidParams, "Agents can't write inside .owlit.", { path: rel })
     const holder = this.options.ui.holder(rel)
     const before = (await this.fromEditor(rel)) ?? (await ws.docs.readDisk(rel))
@@ -110,6 +121,17 @@ export class AgentFs {
       else await ws.library.restore([version.path])
       const redo = await ws.versions.savePaper(version.path, version.op === "added" ? "removed" : "added", meta)
       return { path: version.path, kind: "paper", redoId: redo.id }
+    }
+
+    const notePaper = ws.library.noteOf(version.path)
+    if (notePaper) {
+      const now = (await ws.library.read(notePaper, "note")).text
+      if (sha1(now) !== version.after && !force) {
+        throw new RpcFailure(RpcErrorCode.Conflict, "The note changed after the agent's edit, so owlit left it as it is.", { path: version.path })
+      }
+      const redo = await ws.versions.saveFile(version.path, now || null, version.existed ? version.content : null, meta)
+      await ws.library.writeNoteFor(notePaper, version.existed ? version.content : "")
+      return { path: version.path, kind: "file", redoId: redo.id }
     }
 
     const now = (await this.fromEditor(version.path)) ?? (await ws.docs.readDisk(version.path))

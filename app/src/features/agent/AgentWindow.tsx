@@ -17,6 +17,10 @@ import { MessageGroup } from "@/components/ui/message"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Composer, type ComposerHandle } from "@/features/chat/components/composer/Composer"
 import { AssistantMessage, UserMessage } from "@/features/chat/components/messages/MessageItem"
+import { StatusRing } from "@/features/chat/components/StatusRing"
+import { useChatStatus } from "@/features/chat/use-chat-status"
+import { useLookAt } from "@/features/chat/status"
+import { regenerate } from "@/features/chat/lib/regenerate"
 import { useChatStore } from "@/features/chat/store"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
 import { docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
@@ -27,6 +31,9 @@ import { useTopics } from "@/features/knowledge/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentAllowed } from "./hooks"
 import { useAgentWindow } from "./store"
+
+// A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note
+const selectionLabel = (s: QuotedSelection) => (s.source.kind === "knowledge" ? "Line" : s.notePath ? "Note" : s.page ? `p. ${s.page}` : "Selection")
 
 // The doc or paper on screen, which the agent is shown along with the question
 function usePageContext(): Mentionable | null {
@@ -90,7 +97,7 @@ function ContextChips({ context, selection }: { context: Mentionable[]; selectio
       ))}
       {selection && (
         <Chip label="Don't include the selection" onRemove={clearSelection}>
-          {selection.source.kind === "knowledge" ? "Line" : "Selection"} · “{shorten(selection.text, 40)}”
+          {selectionLabel(selection)} · “{shorten(selection.text, 40)}”
         </Chip>
       )}
     </>
@@ -144,7 +151,7 @@ export function AgentAskBar() {
       {selection && (
         <span className="shrink-0">
           <Chip label="Don't include the selection" onRemove={() => useAgentWindow.getState().clearSelection()}>
-            {selection.source.kind === "knowledge" ? "Line" : "Selection"} · “{shorten(selection.text, 18)}”
+            {selectionLabel(selection)} · “{shorten(selection.text, 18)}”
           </Chip>
         </span>
       )}
@@ -184,6 +191,7 @@ export function AgentPanel() {
   const chats = useChatStore((s) => s.chats)
   const recent = useMemo(() => Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8), [chats])
   const composer = useRef<ComposerHandle>(null)
+  useLookAt(chat?.id)
 
   useEffect(() => {
     composer.current?.focus()
@@ -203,7 +211,8 @@ export function AgentPanel() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-64">
             {recent.map((c) => (
-              <DropdownMenuItem key={c.id} onSelect={() => showChat(c.id)}>
+              <DropdownMenuItem key={c.id} onSelect={() => showChat(c.id)} className="gap-1.5 pl-1">
+                <RecentStatus chatId={c.id} />
                 <span className="truncate">{c.title}</span>
               </DropdownMenuItem>
             ))}
@@ -236,7 +245,7 @@ export function AgentPanel() {
             <MessageScrollerViewport className="px-4" aria-label="Messages">
               <MessageScrollerContent className="w-full gap-6 py-2 pb-10">
                 <MessageGroup className="gap-1">
-                  {chat.messages.map((m) => (
+                  {chat.messages.map((m, i) => (
                     <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className="pb-7">
                       {m.role === "user" ? (
                         <UserMessage message={m} />
@@ -246,6 +255,7 @@ export function AgentPanel() {
                           modelName={modelName(m.connectorId, m.modelId)}
                           onRespondPermission={(requestId, optionId) => useChatStore.getState().respondPermission(chat.id, requestId, optionId)}
                           onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
+                          onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
                         />
                       )}
                     </MessageScrollerItem>
@@ -276,6 +286,11 @@ export function AgentPanel() {
       </div>
     </aside>
   )
+}
+
+// The chat list's status ring, so a chat at work reads the same in the switcher
+function RecentStatus({ chatId }: { chatId: string }) {
+  return <StatusRing status={useChatStatus(chatId)} />
 }
 
 function PanelButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {

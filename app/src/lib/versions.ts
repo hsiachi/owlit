@@ -5,6 +5,7 @@
 import type { Notifications } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { chatOnScreen } from "@/features/chat/results"
 
 export function undoChange(versionId: string, what: string, redo = false) {
   rpc.versions
@@ -27,7 +28,9 @@ const TITLES: Record<Notifications["agent.changed"]["kind"], string> = {
 // A note, paper or topic an agent in a chat changed over owlit-mcp. An agent's doc edits have their own
 // toast (docs/fs.ts), from the editor when the doc is open.
 if (isDesktop) {
-  onNotify("agent.changed", ({ kind, versionId, label }) => {
+  onNotify("agent.changed", ({ kind, versionId, label, chatId }) => {
+    // A chat on screen says it in its own result row, with the same Undo
+    if (chatOnScreen(chatId)) return
     toast(TITLES[kind], { description: label, action: { label: "Undo", onClick: () => undoChange(versionId, label) } })
   })
 }

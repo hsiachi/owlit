@@ -25,6 +25,8 @@ import {
 import { groupChats } from "../lib/group-chats"
 import { useChatStore } from "../store"
 import { usePaletteStore } from "@/app/palette-store"
+import { StatusRing } from "./StatusRing"
+import { useChatStatus } from "../use-chat-status"
 import type { Chat } from "../types"
 
 // Rows are a touch taller than the shadcn default so the list breathes
@@ -44,6 +46,7 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
   const deleteChat = useChatStore((s) => s.deleteChat)
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(chat.title)
+  const status = useChatStatus(chat.id)
 
   const commitRename = () => {
     renameChat(chat.id, draft)
@@ -92,9 +95,11 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
             "group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent",
             "group-has-data-[sidebar=menu-action]/menu-item:pr-2.5",
             "group-hover/menu-item:pr-8! group-focus-within/menu-item:pr-8! group-has-[[data-state=open]]/menu-item:pr-8!",
+            "gap-2 pl-1.5",
           )}
         >
           <NavLink to={`/chat/${chat.id}`}>
+            <StatusRing status={status} />
             <span className="truncate">{chat.title}</span>
           </NavLink>
         </SidebarMenuButton>
@@ -148,10 +153,13 @@ export function ChatListPanel() {
         </button>
         <SidebarMenu className="pt-1.5">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={!chatId} className={cn(rowClass, keepRowInIconMode)}>
+            <SidebarMenuButton asChild isActive={!chatId} className={cn(rowClass, keepRowInIconMode, "gap-2 pl-1.5")}>
               <NavLink to="/chat" end>
-                <span className="flex size-5 items-center justify-center rounded-full bg-foreground/8">
-                  <PlusIcon className="size-3.5!" />
+                {/* The plus sits in the status slot every chat row has, so all titles start together */}
+                <span className="grid size-5 place-items-center">
+                  <span className="flex size-4.5 items-center justify-center rounded-full bg-foreground/8">
+                    <PlusIcon className="size-3!" />
+                  </span>
                 </span>
                 <span className="flex-1">New chat</span>
                 <Kbd className="bg-transparent opacity-0 transition-opacity group-hover/menu-button:opacity-100">⌘N</Kbd>

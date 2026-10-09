@@ -68,6 +68,8 @@ import {
 const RESOLUTION_TTL_MS = 10 * 60_000
 // How long changes under library/papers/ settle before they are read
 const SETTLE_MS = 300
+// A note saved in bursts (an editor's autosave) is told once it rests
+const NOTE_SETTLE_MS = 150
 
 export interface LibraryServices {
   http: Http
@@ -97,6 +99,10 @@ export class Library {
   private resolutions = new Map<string, { resolution: Resolution; at: number }>()
   private scheduler: Scheduler | undefined
   private onChange: (change: LibraryChange) => void = () => {}
+  private onNote: (paperId: string, note: PaperNote | null) => void = () => {}
+  // Each note as owlit last wrote or read it, so a change on disk that isn't its own is told to windows
+  private knownNotes = new Map<string, string>()
+  private noteTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private watcher: FSWatcher | null = null
   private dirty = new Set<string>()
   private timer: ReturnType<typeof setTimeout> | undefined
@@ -132,6 +138,7 @@ export class Library {
       papers.push(paper)
       highlights.push(...(await readHighlights(this.root, id)))
       const note = await readNote(this.root, id)
+      this.knownNotes.set(id, note?.content ?? "")
       if (note) notes.push(note)
     }
     return { papers, highlights, notes, aliases: await this.aliases() }
@@ -358,8 +365,39 @@ export class Library {
   setNote(paperId: string, content: string): Promise<PaperNote> {
     return this.serial(async () => {
       if (!(await readRecord(this.root, paperId))) throw notFound(paperId)
+      this.knownNotes.set(paperId, content.trim() ? content : "")
       return writeNote(this.root, paperId, content)
     })
+  }
+
+  // An agent's edit to a paper's note (its file is .owlit/papers/<id>/note.md, which agents may not write
+  // directly): written like the window's own, then told to windows, which take it into the open note as
+  // one undoable change
+  async writeNoteFor(paperId: string, content: string): Promise<void> {
+    await this.serial(async () => {
+      if (!(await readRecord(this.root, paperId))) throw notFound(paperId)
+      await writeNote(this.root, paperId, content)
+    })
+    await this.noteMayHaveChanged(paperId)
+  }
+
+  // The paper a workspace-relative path is the note of, if it is one
+  noteOf(rel: string): string | null {
+    const prefix = `${OWLIT_DIR}/papers/`
+    if (!rel.startsWith(prefix) || !rel.endsWith("/note.md")) return null
+    const id = rel.slice(prefix.length, -"/note.md".length)
+    return isPaperId(id) ? id : null
+  }
+
+  private async noteMayHaveChanged(paperId: string) {
+    const note = await readNote(this.root, paperId)
+    const content = note?.content ?? ""
+    if (this.knownNotes.get(paperId) === content) return
+    const first = !this.knownNotes.has(paperId)
+    this.knownNotes.set(paperId, content)
+    // The first sight of a note only learns it: owlit hasn't told anyone a version it could differ from
+    if (first && note) return
+    this.onNote(paperId, note ?? null)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -716,8 +754,9 @@ export class Library {
   // ---- Hearing about changes
 
   // Changes core makes on its own and changes other programs make under library/papers/
-  async watch(onChange: (change: LibraryChange) => void) {
+  async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null) => void) {
     this.onChange = onChange
+    if (onNote) this.onNote = onNote
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
     // A library that can't be read yet still opens; lookups just find less
@@ -726,6 +765,13 @@ export class Library {
     const prefix = PAPERS_DIR.split(path.sep).join("/") + "/"
     this.watcher = watch(this.root, { recursive: true }, (_event, filename) => {
       const rel = filename ? filename.split(path.sep).join("/") : ""
+      // A paper's note, changed by an agent that writes the disk itself or by another program
+      const noteOf = this.noteOf(rel)
+      if (noteOf) {
+        clearTimeout(this.noteTimers.get(noteOf))
+        this.noteTimers.set(noteOf, setTimeout(() => void this.noteMayHaveChanged(noteOf).catch(() => undefined), NOTE_SETTLE_MS))
+        return
+      }
       // A tree made at once can come as one event for its top folder (library, library/papers): look
       // at every paper then, as when the system names nothing
       if (!rel || prefix.startsWith(rel + "/") || rel + "/" === prefix) {
@@ -744,6 +790,7 @@ export class Library {
 
   dispose() {
     clearTimeout(this.timer)
+    for (const timer of this.noteTimers.values()) clearTimeout(timer)
     this.watcher?.close()
     this.watcher = null
   }

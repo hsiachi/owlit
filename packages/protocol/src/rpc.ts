@@ -335,6 +335,8 @@ export interface Notifications {
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are
   "library.changed": LibraryChange
+  // A paper's note changed outside the window (an agent's edit, another program); null when it was emptied
+  "library.noteChanged": { paperId: string; note: PaperNote | null }
   // Core changed a topic's sidecar or a paper's passages (an agent wrote to Knowledge)
   "knowledge.changed": { topics?: Record<string, TopicSidecar>; papers?: Record<string, PaperKnowledge> }
   // A Knowledge run ended; items is empty when it changed nothing
