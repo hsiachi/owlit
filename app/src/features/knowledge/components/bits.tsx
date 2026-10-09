@@ -10,7 +10,7 @@ import type { Ref } from "../types"
 
 // The 8px `note` dot: something Owlit added or changed since the user last looked
 export function NoteDot({ className, label = "Changed since you last looked" }: { className?: string; label?: string }) {
-  return <span role="img" aria-label={label} title={label} className={cn("inline-block size-2 shrink-0 rounded-full bg-note", className)} />
+  return <span role="img" aria-label={label} title={label} className={cn("note-dot inline-block size-2 shrink-0 rounded-full", className)} />
 }
 
 // A source as a mention: a paper passage opens the paper at it, a doc opens the doc

@@ -6,5 +6,6 @@ export function useChatStatus(chatId: string): ChatStatus {
   const chat = useChatStore((s) => s.chats[chatId])
   const streaming = useChatStore((s) => !!s.streaming[chatId])
   const unseen = useSeenStore((s) => s.unseen[chatId])
-  return chat ? chatStatus(chat, streaming, unseen) : "idle"
+  const dismissed = useSeenStore((s) => s.dismissed[chatId])
+  return chat ? chatStatus(chat, streaming, unseen, dismissed) : "idle"
 }

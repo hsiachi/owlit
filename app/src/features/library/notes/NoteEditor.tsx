@@ -7,7 +7,9 @@ import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
 import { respondToEdit } from "@/features/chat/lib/respond-edit"
 import { useChatStore } from "@/features/chat/store"
+import { useShowsEditsInPlace } from "@/features/chat/in-place"
 import { pendingEdits, type PendingEdit } from "@/features/docs/editor/suggestions"
+import { cn } from "@/lib/utils"
 import { paperMentionable } from "@/features/docs/lib/mentions"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
@@ -18,15 +20,19 @@ import { NoteSuggestions, noteSuggestionsKey } from "./note-suggestions"
 const HIGHLIGHT_LINK = "owlit://highlight/"
 // Clear of the selected line, as the Docs selection menu sits
 const MENU_GAP = 8
+// The menu's one 24px row in its 2px frame and hairline border
+const MENU_HEIGHT = 30
 
 // One note per paper, kept as Markdown. Markdown shortcuts as you type (#, -, >, **), @ to
 // mention a paper, doc or knowledge item. Saved on every change; nothing says "saved".
-// The note is the user's, so Owlit works on it as on a doc: a selection offers "Chat with Owlit",
+// The note is the user's, so Owlit works on it as on a doc: a selection offers "Ask Owlit",
 // and an edit Owlit proposes is shown in the note before anything changes.
 export function NoteEditor({ paperId }: { paperId: string }) {
   const setNote = useLibraryStore((s) => s.setNote)
   const box = useRef<HTMLDivElement>(null)
-  const [menu, setMenu] = useState<{ left: number; top: number } | null>(null)
+  const [menu, setMenu] = useState<{ left: number; top: number; below: boolean } | null>(null)
+  // Owlit's proposed edits to this note are answered here, so the chat's card points at the note
+  useShowsEditsInPlace(notePathOf(paperId))
 
   const editor = useEditor(
     {
@@ -93,7 +99,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     return useChatStore.subscribe(sync)
   }, [editor, paperId])
 
-  // A selected passage offers one action above it, "Chat with Owlit"; not while the mouse is still choosing
+  // A selected passage offers one action above it, "Ask Owlit"; not while the mouse is still choosing
   useEffect(() => {
     if (!editor) return
     let choosing = false
@@ -103,7 +109,11 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       if (choosing || !editor.isFocused || text.length < 3 || !box.current) return setMenu(null)
       const start = editor.view.coordsAtPos(from)
       const outer = box.current.getBoundingClientRect()
-      setMenu({ left: start.left - outer.left, top: start.top - outer.top - MENU_GAP })
+      const above = start.top - outer.top - MENU_GAP
+      // On the note's first lines there is no room above without covering the tabs: it goes under the selection
+      if (above - MENU_HEIGHT >= 0) return setMenu({ left: start.left - outer.left, top: above, below: false })
+      const end = editor.view.coordsAtPos(to)
+      setMenu({ left: start.left - outer.left, top: end.bottom - outer.top + MENU_GAP, below: true })
     }
     const down = () => {
       choosing = true
@@ -154,7 +164,10 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       <EditorContent editor={editor} />
       {menu && (
         // The Docs selection menu: one compact row in a thin frame, covering as little text as it can
-        <div className="absolute z-20 flex -translate-y-full rounded-[8px] border bg-popover p-0.5 text-[13px] shadow-lg" style={{ left: menu.left, top: menu.top }}>
+        <div
+          className={cn("absolute z-20 flex rounded-[8px] border bg-popover p-0.5 text-[13px] shadow-lg", !menu.below && "-translate-y-full")}
+          style={{ left: menu.left, top: menu.top }}
+        >
           <button
             type="button"
             // Keep the selection and focus in the note while clicking
@@ -162,7 +175,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
             onClick={chat}
             className="h-6 rounded-md px-2 hover:bg-accent"
           >
-            Chat with Owlit
+            Ask Owlit
           </button>
         </div>
       )}

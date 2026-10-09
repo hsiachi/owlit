@@ -11,7 +11,7 @@ import {
 import { MessageGroup } from "@/components/ui/message"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
-import { useLookAt } from "../status"
+import { useBrokenReply, useLookAt } from "../status"
 import { regenerate } from "../lib/regenerate"
 import type { PromptInput } from "../types"
 import { Composer, type ComposerHandle } from "./composer/Composer"
@@ -30,6 +30,7 @@ export function ChatView() {
   const composer = useRef<ComposerHandle>(null)
   const navigate = useNavigate()
   useLookAt(chat ? chatId : null)
+  const broken = useBrokenReply(chat)
 
   useEffect(() => {
     composer.current?.focus()
@@ -63,6 +64,7 @@ export function ChatView() {
                         modelName={modelName(m.connectorId, m.modelId)}
                         onRespondPermission={(requestId, optionId) => respondPermission(chat.id, requestId, optionId)}
                         onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
+                        onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
                         onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
                       />
                     )}

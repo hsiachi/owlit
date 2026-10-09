@@ -4,6 +4,7 @@ import { useChatStore } from "@/features/chat/store"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PromptInput, QuotedSelection } from "@/features/chat/types"
+import type { PageRect } from "@/features/library/types"
 
 // The app-wide agent window. It is closed, a small ask bar, or a panel docked on the right. Its
 // conversations are ordinary chats; the window only remembers which one it is showing.
@@ -14,6 +15,9 @@ interface AgentWindowState {
   chatId: string | null
   // A passage sent with the next message; used once
   selection: QuotedSelection | null
+  // Where that passage sits in a paper's PDF, when it came from there: the page keeps drawing it as a
+  // selection while its chip waits, so the user still sees what the question is about
+  selectionRects: { paperId: string; rects: PageRect[] } | null
   // The paper note this conversation started from, if it did: on that paper's page the details panel
   // (where the note is) stays open beside the window, so an edit Owlit proposes is seen where it lands
   fromNote: string | null
@@ -25,7 +29,7 @@ interface AgentWindowState {
   focusTick: number
 
   // Opens the window: the ask bar for a new conversation, the panel when one is going
-  open: (selection?: QuotedSelection) => void
+  open: (selection?: QuotedSelection, rects?: { paperId: string; rects: PageRect[] }) => void
   close: () => void
   toggle: () => void
   newChat: () => void
@@ -45,15 +49,17 @@ export const useAgentWindow = create<AgentWindowState>()(
       stage: "closed",
       chatId: null,
       selection: null,
+      selectionRects: null,
       fromNote: null,
       hiddenContext: null,
       listShown: false,
       focusTick: 0,
 
-      open: (selection) =>
+      open: (selection, rects) =>
         set((s) => ({
           stage: s.stage === "open" || hasMessages(s.chatId) ? "open" : "bar",
           selection: selection ?? s.selection,
+          selectionRects: selection ? (rects ?? null) : s.selectionRects,
           fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
           focusTick: s.focusTick + 1,
         })),
