@@ -2,7 +2,8 @@
 
 A pnpm workspace: `app/` is the renderer (React + Vite), `packages/protocol/` the wire types,
 `packages/core/` the backend (plain Node, never imports Electron or React), `apps/desktop/` the
-Electron shell that wires them together.
+Electron shell that wires them together, `packages/client/` a Node client for a running owlit, and
+`packages/owlit-mcp/` the MCP server that gives agents owlit's library, docs and chats.
 
 ```bash
 pnpm install
@@ -25,3 +26,14 @@ binary download needs `NODE_USE_ENV_PROXY=1 pnpm install`.
 
 Claude Code's preview pane cannot host Electron: its `.claude/launch.json` entries run the renderer
 alone (`pnpm --dir app dev --port <port>`), the same as `pnpm dev:web`.
+
+## owlit's tools in an agent outside owlit
+
+owlit hands owlit-mcp to the agents it runs. Any other MCP client can use it too, while owlit has the
+workspace open (it talks to owlit over the workspace's socket). For Claude Code, in this repo:
+
+```bash
+claude mcp add owlit -- node "$PWD/packages/owlit-mcp/src/main.ts" --workspace ~/Research
+```
+
+`--workspace` is the folder open in owlit. With owlit closed, every tool answers that owlit isn't open.

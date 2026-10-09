@@ -184,6 +184,16 @@ export interface Methods {
   // Adds a highlight, or replaces the one with its id
   "library.putHighlight": { params: { highlight: Highlight }; result: null }
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
+  // Part of a paper as text: the full text (pages "3-5" or the section under a heading), the digest or
+  // the user's note. pages: how many the paper has.
+  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string }; result: { text: string; pages?: number } }
+  // Papers out in the world (OpenAlex) for a query; inLibrary when the library has one already. Each
+  // search is kept in .owlit/searches.jsonl.
+  "library.searchOnline": {
+    params: { q: string; limit?: number; by?: string }
+    result: (ResolvedPaper & { inLibrary?: string; citationCount?: number })[]
+  }
+  "library.highlights": { params: { id: string }; result: Highlight[] }
   // The paper's reading notes (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already

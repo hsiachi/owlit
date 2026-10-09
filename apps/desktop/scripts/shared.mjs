@@ -12,7 +12,7 @@ export const distDir = path.join(desktopDir, "dist")
 export function esbuildOptions({ production }) {
   return {
     absWorkingDir: desktopDir,
-    entryPoints: { main: "src/main.ts", preload: "src/preload.ts" },
+    entryPoints: { main: "src/main.ts", preload: "src/preload.ts", "owlit-mcp": "../../packages/owlit-mcp/src/main.ts" },
     outdir: distDir,
     outExtension: { ".js": ".cjs" },
     bundle: true,

@@ -37,6 +37,8 @@ interface TurnsOptions {
   fs: AgentFs
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
   notify: (chatId: string, update: SessionUpdate) => void
+  // The MCP servers a chat's session gets (owlit-mcp, for that chat)
+  mcpServers?: (root: string, chatId: string) => acp.McpServer[]
 }
 
 // A session of one chat on one agent, as owlit knows it
@@ -170,6 +172,10 @@ export class Turns {
 
   // ---- inside ----
 
+  private mcpServers(root: string, chatId: string) {
+    return this.options.mcpServers?.(root, chatId) ?? []
+  }
+
   // The chat's session on this agent: still open in the running process, loaded again from what the chat
   // recorded, or new. A new session for a chat that already has messages gets the conversation so far.
   private async session(req: TurnRequest, ws: { root: string; chats: Chats; docs: Docs }, emit: (u: SessionUpdate) => void) {
@@ -185,7 +191,7 @@ export class Turns {
     if (recorded && init.agentCapabilities?.loadSession) {
       try {
         loading.add(key)
-        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: [] }, handler)
+        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId) }, handler)
         const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, turn: null }
         this.live.set(key, live)
         return { live, history: null }
@@ -195,7 +201,7 @@ export class Turns {
         loading.delete(key)
       }
     }
-    const created = await proc.newSession({ cwd: ws.root, mcpServers: [] }, handler)
+    const created = await proc.newSession({ cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId) }, handler)
     const live: Live = { sessionId: created.sessionId, proc, options: created.configOptions ?? [], modes: created.modes ?? null, turn: null }
     this.live.set(key, live)
     await ws.chats.update(req.chatId, { sessions: { ...chat.sessions, [req.connectorId]: created.sessionId } })

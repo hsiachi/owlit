@@ -37,6 +37,8 @@ export interface CoreOptions {
   pdfiumWasm?: string
   // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
   socket?: boolean | { dir: string }
+  // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
+  mcp?: { command: string; args: string[]; env?: Record<string, string> }
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -87,6 +89,18 @@ export class Core {
       fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update) => this.notifier.notify("chat.update", { chatId, update }),
+      mcpServers: (root, chatId) => {
+        const mcp = this.options.mcp
+        if (!mcp || !this.socket) return []
+        return [
+          {
+            name: "owlit",
+            command: mcp.command,
+            args: [...mcp.args, "--workspace", root, "--chat", chatId],
+            env: Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })),
+          },
+        ]
+      },
     })
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
@@ -285,6 +299,17 @@ export class Core {
     this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
     this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
     this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
+    this.router.register(
+      "library.read",
+      z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),
+      ({ id, part, pages, section }) => library().read(id, part, { pages, section }),
+    )
+    this.router.register(
+      "library.searchOnline",
+      z.object({ q: z.string().min(1), limit: z.number().int().positive().max(25).optional(), by: z.string().optional() }),
+      ({ q, limit, by }) => library().searchOnline(q, limit, by),
+    )
+    this.router.register("library.highlights", z.object({ id: paperId }), ({ id }) => library().highlights(id))
     this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))

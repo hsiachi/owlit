@@ -18,7 +18,7 @@ import {
 import { watch, type FSWatcher } from "node:fs"
 import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
-import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
+import { appendFile, copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import type { BrowserHost } from "../host.ts"
 import { HttpError, type Http } from "../net/http.ts"
@@ -48,7 +48,8 @@ import { extractText, pageSizes, readPdf, UnreadablePdf } from "./text/extract.t
 import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { identify, type Identified } from "./text/identify.ts"
-import { NotAPaper, resolve, type Resolution } from "./resolve.ts"
+import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
+import { searchOpenAlex } from "./sources/openalex.ts"
 import {
   applyPatch,
   freshState,
@@ -166,9 +167,11 @@ export class Library {
       const record = existingId ? await readRecord(this.root, existingId) : undefined
       if (existingId && record) return { paper: { id: existingId, ...pick(record) }, existingId }
     }
+    // Just found by a search or a lookup: no need to ask the services again
+    const known = ref && ref.kind !== "url" ? this.recent(paperIdOf({ [ref.kind]: ref.value }) ?? "") : undefined
     let resolution: Resolution
     try {
-      resolution = await resolve(this.services.http, ref ?? input, await this.services.settings(), { signal, retries: 1 })
+      resolution = known ?? (await resolve(this.services.http, ref ?? input, await this.services.settings(), { signal, retries: 1 }))
     } catch (error) {
       throw asRpcFailure(error)
     }
@@ -448,6 +451,45 @@ export class Library {
     const summary = this.pittaSummaries.get(task.id)
     if (task.state !== "done" || !summary) throw new RpcFailure(RpcErrorCode.InvalidParams, task.error ?? "The pitta library couldn't be read.")
     return summary
+  }
+
+  // Part of a paper as text for an agent: its full text (all of it, some pages, or one section), its
+  // digest or the user's note
+  async read(id: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number }> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    if (part === "digest") return { text: (await this.digest(id)) ?? "" }
+    if (part === "note") return { text: (await readNote(this.root, id))?.content ?? "" }
+    const markdown = await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => null)
+    if (markdown === null) throw new RpcFailure(RpcErrorCode.NotFound, "The paper's text hasn't been read yet (no PDF, or still reading it).", { id })
+    return pickFromText(markdown, where)
+  }
+
+  // Papers out in the world (OpenAlex) for a query, each marked with the library's id when it is here
+  // already. Every search is kept in .owlit/searches.jsonl: what was asked, by whom, what came back.
+  async searchOnline(query: string, limit = 10, by = "agent"): Promise<(ResolvedPaper & { inLibrary?: string; citationCount?: number })[]> {
+    let records
+    try {
+      records = await searchOpenAlex(this.services.http, query, limit, await this.services.settings(), { retries: 1 })
+    } catch (error) {
+      throw asRpcFailure(error)
+    }
+    const found = await Promise.all(
+      records.map(async (r) => {
+        const resolution = merge({ kind: r.ids.doi ? "doi" : "openalex", value: (r.ids.doi ?? r.ids.openalex)! }, [r])
+        this.remember(resolution)
+        const inLibrary = await this.index.find(resolution.ids)
+        return { id: resolution.id, ...pick(resolution), ...(inLibrary ? { inLibrary } : {}), ...(r.citationCount !== undefined ? { citationCount: r.citationCount } : {}) }
+      }),
+    )
+    const line = { at: Date.now(), query, by, results: found.map((f) => f.id) }
+    await mkdir(path.join(this.root, OWLIT_DIR), { recursive: true })
+    await appendFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), JSON.stringify(line) + "\n")
+    return found
+  }
+
+  async highlights(id: string): Promise<Highlight[]> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    return readHighlights(this.root, id)
   }
 
   // The paper's full text with where each line sits, or null before it has been read
@@ -958,4 +1000,31 @@ function cleanIds(ids: Partial<PaperIds>): PaperIds {
   if (ids.openalex?.trim()) out.openalex = ids.openalex.trim().toUpperCase()
   if (ids.url?.trim()) out.url = ids.url.trim()
   return out
+}
+
+// Pages "3", "3-5" or "3,7" of a text.md (split at its <!-- page N --> marks), or the section under the
+// heading that contains `section`, or all of it
+export function pickFromText(markdown: string, where: { pages?: string; section?: string }): { text: string; pages: number } {
+  const parts = markdown.split(/(?=<!-- page \d+ -->)/)
+  const pages = parts.filter((p) => /^<!-- page \d+ -->/.test(p)).length
+  if (where.pages) {
+    const wanted = new Set<number>()
+    for (const piece of where.pages.split(",")) {
+      const [from, to] = piece.split("-").map((n) => Number(n.trim()))
+      if (!Number.isFinite(from)) continue
+      for (let n = from; n <= (Number.isFinite(to) ? to : from); n++) wanted.add(n)
+    }
+    const text = parts.filter((p) => wanted.has(Number(p.match(/^<!-- page (\d+) -->/)?.[1]))).join("")
+    return { text: text || `(No such pages; the paper has ${pages}.)`, pages }
+  }
+  if (where.section) {
+    const lines = markdown.split("\n")
+    const start = lines.findIndex((l) => /^#{1,6}\s/.test(l) && l.toLowerCase().includes(where.section!.toLowerCase()))
+    if (start < 0) return { text: `(No heading mentions "${where.section}".)`, pages }
+    const level = lines[start].match(/^#+/)![0].length
+    let end = lines.findIndex((l, i) => i > start && new RegExp(`^#{1,${level}}\\s`).test(l))
+    if (end < 0) end = lines.length
+    return { text: lines.slice(start, end).join("\n"), pages }
+  }
+  return { text: markdown, pages }
 }

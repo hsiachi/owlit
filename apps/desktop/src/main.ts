@@ -241,6 +241,8 @@ if (!app.requestSingleInstanceLock()) {
       debug: !app.isPackaged,
       // owlit-mcp and the CLI reach the open workspace here
       socket: true,
+      // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
+      mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       host: {
