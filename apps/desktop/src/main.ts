@@ -239,6 +239,8 @@ if (!app.requestSingleInstanceLock()) {
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
       debug: !app.isPackaged,
+      // owlit-mcp and the CLI reach the open workspace here
+      socket: true,
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       host: {

@@ -9,6 +9,7 @@ import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { SocketServer } from "./rpc/socket.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
@@ -34,6 +35,8 @@ export interface CoreOptions {
   retryBaseMs?: number
   // pdfium's wasm file, where the desktop app ships it beside main
   pdfiumWasm?: string
+  // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
+  socket?: boolean | { dir: string }
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -57,6 +60,7 @@ export class Core {
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
+  private socket: SocketServer | null = null
 
   constructor(options: CoreOptions) {
     this.options = options
@@ -407,6 +411,7 @@ export class Core {
           next.search.touch()
         })
       }
+      if (this.workspace !== next) await this.serveSocket(next.root)
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
       this.notifier.notify("workspace.opened", next.info)
@@ -421,9 +426,24 @@ export class Core {
     this.agents.dispose()
     await this.switching
     await this.journal.dispose()
+    await this.socket?.close().catch(() => undefined)
+    this.socket = null
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()
+  }
+
+  // The socket of the workspace now open, in place of the last one's
+  private async serveSocket(root: string) {
+    if (!this.options.socket) return
+    await this.socket?.close().catch(() => undefined)
+    this.socket = null
+    try {
+      this.socket = await SocketServer.start(root, this, this.options.socket === true ? undefined : this.options.socket.dir)
+    } catch (error) {
+      // owlit works without it; only owlit-mcp and the CLI can't reach the workspace
+      console.error("[core] couldn't open the workspace's socket", error)
+    }
   }
 
   // Every kind of task core knows, made for one workspace
