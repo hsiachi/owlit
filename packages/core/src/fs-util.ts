@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 // Write through a temp file and rename, so a crash never leaves half a file behind
-export async function writeFileAtomic(file: string, data: string) {
+export async function writeFileAtomic(file: string, data: string | Uint8Array) {
   await mkdir(path.dirname(file), { recursive: true })
   const tmp = `${file}.${randomBytes(4).toString("hex")}.tmp`
   await writeFile(tmp, data)

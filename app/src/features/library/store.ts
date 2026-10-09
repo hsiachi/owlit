@@ -15,6 +15,8 @@ export const libraryClient: LibraryClient = isDesktop ? new RpcLibraryClient() :
 
 interface LibraryState {
   papers: Record<string, Paper>
+  // Ids papers had before they moved (a local file given its DOI): old → new
+  aliases: Record<string, string>
   highlights: Record<string, Highlight>
   notes: Record<string, PaperNote>
 
@@ -54,6 +56,7 @@ export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
       papers: isDesktop ? {} : Object.fromEntries(seedPapers.map((p) => [p.id, p])),
+      aliases: {},
       highlights: {},
       notes: {},
 

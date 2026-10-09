@@ -55,7 +55,13 @@ describe("agent fs", () => {
     const { core, root, call, journal } = await setup()
     await core.fs.write(path.join(root, "a.md"), "agent text")
     const { versionId } = journal()[0] ?? (await new Promise((r) => setTimeout(r, 50)), journal()[0])
-    expect(await call("versions.restore", { id: versionId })).toEqual({ path: "a.md" })
+    const undone = await call("versions.restore", { id: versionId })
+    expect(undone).toMatchObject({ path: "a.md", kind: "file" })
+    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
+    // The undo can be undone, and that too
+    const redone = await call("versions.restore", { id: undone.redoId })
+    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("agent text")
+    await call("versions.restore", { id: redone.redoId })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
     await core.fs.write(path.join(root, "a.md"), "second")
     await new Promise((r) => setTimeout(r, 50))
@@ -63,6 +69,14 @@ describe("agent fs", () => {
     writeFileSync(path.join(root, "a.md"), "the user typed more")
     const error = await call("versions.restore", { id: second }).catch((e) => e)
     expect(error.message).toBe("a.md changed after the agent's edit, so owlit left it as it is.")
+    // A restore the user chose from the doc's versions goes ahead, keeping what was there
+    const forced = await call("versions.restore", { id: second, force: true })
+    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
+    await call("versions.restore", { id: forced.redoId, force: true })
+    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("the user typed more")
+    // Every change and every undo is listed, newest first
+    const listed = await call("versions.list", { path: "a.md" })
+    expect(listed.map((v: { by: string }) => v.by)).toEqual(["undo", "undo", "agent", "undo", "undo", "undo", "agent"])
   })
 
   it("undoes a file the agent created by moving it to the Trash", async () => {

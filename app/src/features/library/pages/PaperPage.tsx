@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -27,6 +27,9 @@ import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/Know
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useReaderStore } from "../reader/reader-store"
+import { openTasksFor, useTasksStore } from "@/features/tasks/store"
+import { Markdown } from "@/features/chat/components/messages/Markdown"
+import { rpc } from "@/lib/rpc"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -46,6 +49,8 @@ export function PaperPage() {
   const { paperId = "" } = useParams()
   const navigate = useNavigate()
   const paper = useLibraryStore((s) => s.papers[paperId])
+  // A paper that moved (a local file given its DOI) still opens from its old link
+  const movedTo = useLibraryStore((s) => (s.papers[paperId] ? undefined : s.aliases[paperId]))
   const markOpened = useLibraryStore((s) => s.markOpened)
   const prefersPanel = usePrefsStore((s) => s.panelOpen)
   const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
@@ -98,6 +103,7 @@ export function PaperPage() {
     else useReaderStore.setState({ pendingPassage: passage })
   }, [paperId, passageId, setParams])
 
+  if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
@@ -271,6 +277,7 @@ function About({ paper }: { paper: Paper }) {
   return (
     <div>
       {paper.abstract ? <p className="text-sm leading-relaxed">{paper.abstract}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
+      <Digest paper={paper} />
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-[13px]">
         <dt className="text-muted-foreground">Tags</dt>
         <dd>
@@ -300,6 +307,12 @@ function About({ paper }: { paper: Paper }) {
         </dd>
         <dt className="text-muted-foreground">File</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (paper.pdf.pages ? `PDF, ${paper.pdf.pages} pages` : "PDF") : "No PDF"}</dd>
+        {paper.text && (
+          <>
+            <dt className="text-muted-foreground">Text</dt>
+            <dd className={cn(paper.text === "basic" && "text-muted-foreground")}>{paper.text === "full" ? "Full" : "Basic"}</dd>
+          </>
+        )}
       </dl>
     </div>
   )
@@ -310,12 +323,19 @@ function NoPdf({ paper }: { paper: Paper }) {
   const [fetching, setFetching] = useState(false)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  // A paper.pdf task core is running for this paper (on add, or a daily retry)
+  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
 
-  const attach = (files: FileList | null) => {
+  const attach = async (files: FileList | null) => {
     const file = files?.[0]
     if (!file) return
-    updatePaper(paper.id, { pdf: { url: URL.createObjectURL(file) } })
-    toast("PDF attached", { description: file.name })
+    try {
+      const pdf = await libraryClient.attachPdf(paper, file)
+      updatePaper(paper.id, { pdf, noPdf: undefined })
+      toast("PDF attached", { description: file.name })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't attach that file.")
+    }
   }
 
   const fetchPdf = async () => {
@@ -331,6 +351,13 @@ function NoPdf({ paper }: { paper: Paper }) {
     }
   }
 
+  const title = looking ? "Looking for a PDF…" : paper.noPdf ? "No PDF found" : "No PDF yet"
+  const body = looking
+    ? "If you already have it, drop it here."
+    : paper.noPdf
+      ? `${triedSentence(paper.noPdf.tried)} Drop a PDF here if you have it.`
+      : "Drop a PDF here, or let owlit look for an open-access copy."
+
   return (
     <div
       className="flex flex-1 items-center justify-center p-6"
@@ -342,7 +369,7 @@ function NoPdf({ paper }: { paper: Paper }) {
       onDrop={(e) => {
         e.preventDefault()
         setDragging(false)
-        attach(e.dataTransfer.files)
+        void attach(e.dataTransfer.files)
       }}
     >
       <div
@@ -351,12 +378,14 @@ function NoPdf({ paper }: { paper: Paper }) {
           dragging && "border-foreground/30 bg-muted",
         )}
       >
-        <p className="text-[15px] font-medium">No PDF yet</p>
-        <p className="max-w-72 text-sm text-muted-foreground">Drop a PDF here, or let owlit look for an open-access copy.</p>
+        <p className="flex items-center gap-2 text-[15px] font-medium">
+          {looking && <Spinner />}
+          {title}
+        </p>
+        <p className="max-w-72 text-sm text-muted-foreground">{body}</p>
         <div className="mt-3 flex gap-2">
-          <Button size="sm" onClick={fetchPdf} disabled={fetching}>
-            {fetching && <Spinner />}
-            Find PDF
+          <Button size="sm" onClick={fetchPdf} disabled={looking}>
+            {paper.noPdf ? "Try again" : "Find PDF"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
             Choose file
@@ -368,7 +397,7 @@ function NoPdf({ paper }: { paper: Paper }) {
           accept="application/pdf"
           className="hidden"
           onChange={(e) => {
-            attach(e.target.files)
+            void attach(e.target.files)
             e.target.value = ""
           }}
         />
@@ -377,3 +406,46 @@ function NoPdf({ paper }: { paper: Paper }) {
   )
 }
 
+// "Tried arXiv, Unpaywall and the publisher." from acquisition route names
+function triedSentence(routes: string[]) {
+  const nameOf = (r: string) =>
+    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? "the publisher" : r.endsWith(":proxied") ? "the library proxy" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
+  const names = [...new Set(routes.map(nameOf))].filter(Boolean)
+  if (!names.length) return "owlit knows of no open copy of this paper."
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
+  return `Tried ${list}.`
+}
+
+// Reading notes an agent wrote for the paper (digest.md), or that one is being written. Here for now;
+// its place is the interface's to settle.
+function Digest({ paper }: { paper: Paper }) {
+  const [text, setText] = useState<string | null>(null)
+  const writing = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.digest"))
+  useEffect(() => {
+    if (!paper.hasDigest) return
+    let live = true
+    rpc.library
+      .digest({ id: paper.id })
+      .then((t) => live && setText(t))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [paper.id, paper.hasDigest])
+  // A note fetched for a paper that has since lost it isn't shown
+  const shown = paper.hasDigest ? text : null
+  if (!shown && !writing) return null
+  return (
+    <section className="mt-5">
+      <h3 className="mb-2 text-xs text-muted-foreground">Digest</h3>
+      {shown ? (
+        <Markdown text={shown} className="text-sm" />
+      ) : (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          Owlit is writing a reading note…
+        </p>
+      )}
+    </section>
+  )
+}

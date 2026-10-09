@@ -6,6 +6,7 @@ import type { DocsChange, MethodName, ParamsOf, ResultOf, RpcRequest, WorkspaceI
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { createBrowserHost } from "./browser.ts"
 
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
@@ -18,8 +19,12 @@ if (process.env.OWLIT_USER_DATA) app.setPath("userData", path.resolve(process.en
 const RENDERER_SCHEME = "app"
 const rendererDir = path.join(__dirname, "renderer")
 
+// owlit-file://workspace/<path> reads a file of the open workspace (a paper's PDF), served by core
+const FILE_SCHEME = "owlit-file"
+
 protocol.registerSchemesAsPrivileged([
   { scheme: RENDERER_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: FILE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
 ])
 
 function serveRenderer() {
@@ -34,6 +39,29 @@ function serveRenderer() {
   })
 }
 
+// ---- The window's frame. On macOS there is no title bar: the traffic lights sit in owlit's 40px top
+// bar, centred on its middle line, and the bar leaves them room except in full screen, where they hide.
+
+const isMac = process.platform === "darwin"
+// The traffic lights' top-left corner, and how much of the top bar's left end they need
+const TRAFFIC_LIGHTS = { x: 14, y: 13 }
+const TRAFFIC_LIGHTS_ROOM = 78
+
+const controlsRoom = (win: BrowserWindow) => (isMac && !win.isFullScreen() ? TRAFFIC_LIGHTS_ROOM : 0)
+
+ipcMain.on("controls-room", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  event.returnValue = win ? controlsRoom(win) : 0
+})
+
+function followControls(win: BrowserWindow) {
+  const tell = () => {
+    if (!win.webContents.isDestroyed()) win.webContents.send("controls-room", controlsRoom(win))
+  }
+  win.on("enter-full-screen", tell)
+  win.on("leave-full-screen", tell)
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -42,6 +70,7 @@ function createWindow() {
     minHeight: 480,
     show: false,
     title: "owlit",
+    ...(isMac ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: TRAFFIC_LIGHTS } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -50,6 +79,7 @@ function createWindow() {
     },
   })
   win.once("ready-to-show", () => win.show())
+  followControls(win)
   // The title is the workspace's name, not the page's <title>
   win.on("page-title-updated", (event) => event.preventDefault())
   if (current) showWorkspace(win, current)
@@ -61,6 +91,7 @@ function createWindow() {
 // every window
 function attachCore(core: Core) {
   ipcMain.handle("rpc", (_event, request: RpcRequest) => core.handle(request))
+  protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.webContents.isDestroyed()) win.webContents.send("notify", notification)
@@ -76,9 +107,11 @@ async function call<M extends MethodName>(core: Core, method: M, params?: Params
   return response.result as ResultOf<M>
 }
 
-// ---- Workspace: which folder is open, the File menu, the window title ----
+// ---- Workspace: which folder is open, the File menu, the window's title (not drawn on macOS, but used by
+// Mission Control and the Window menu) ----
 
 let current: WorkspaceInfo | null = null
+let browserHost: ReturnType<typeof createBrowserHost> | null = null
 
 function showWorkspace(win: BrowserWindow, info: WorkspaceInfo) {
   win.setTitle(info.name)
@@ -109,8 +142,36 @@ async function chooseWorkspace(core: Core) {
   if (!result.canceled && result.filePaths[0]) await openWorkspace(core, result.filePaths[0])
 }
 
+// Brings a pitta library into the open workspace, once; ~/.pitta is where pitta kept it
+async function importPitta(core: Core) {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  const options: Electron.OpenDialogOptions = {
+    title: "Import a pitta Library",
+    message: "Choose the pitta library (the folder that holds papers/). It is only read.",
+    buttonLabel: "Import",
+    defaultPath: path.join(app.getPath("home"), ".pitta"),
+    properties: ["openDirectory", "showHiddenFiles"],
+  }
+  const chosen = await (win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options))
+  if (chosen.canceled || !chosen.filePaths[0]) return
+  let message: string
+  let detail: string | undefined
+  try {
+    const { added, skipped, failed } = await call(core, "library.importPitta", { root: chosen.filePaths[0] })
+    message = `${added} ${added === 1 ? "paper" : "papers"} imported`
+    detail = [skipped && `${skipped} were already in the library.`, failed.length && `${failed.length} couldn't be read:\n${failed.join("\n")}`].filter(Boolean).join("\n\n") || undefined
+  } catch (error) {
+    message = "The pitta library couldn't be imported"
+    detail = error instanceof Error ? error.message : String(error)
+  }
+  const box: Electron.MessageBoxOptions = { message, detail, buttons: ["OK"] }
+  await (win ? dialog.showMessageBox(win, box) : dialog.showMessageBox(box))
+}
+
 async function updateMenu(core: Core) {
   const recent = await call(core, "workspace.recent").catch(() => [])
+  // The library proxy's front page, where the user signs in once for the hidden browser
+  const proxy = (await core.settings.get()).library.proxy?.base
   const recentItems: MenuItemConstructorOptions[] = recent.map((info) => ({
     label: info.name,
     sublabel: info.path,
@@ -139,6 +200,13 @@ async function updateMenu(core: Core) {
           ],
         },
         { type: "separator" },
+        { label: "Import a pitta Library…", enabled: !!current, click: () => void importPitta(core) },
+        {
+          label: "Sign in to Library Proxy…",
+          enabled: !!proxy,
+          click: () => proxy && void browserHost?.showLogin(proxy),
+        },
+        { type: "separator" },
         { role: "close" },
       ],
     },
@@ -165,13 +233,23 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
+    const browser = createBrowserHost()
+    browserHost = browser
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
       debug: !app.isPackaged,
+      // owlit-mcp and the CLI reach the open workspace here
+      socket: true,
+      // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
+      mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
+      // Copied beside main by scripts/shared.mjs
+      pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),
+        // A hidden window for publishers that want a real browser (cookies, checks, the library proxy)
+        browser,
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {
           const failure = await shell.openPath(file)

@@ -1,4 +1,4 @@
-import { RpcErrorCode, type ChatMessage, type CoreVersion, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo } from "@owlit/protocol"
+import { RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
@@ -9,13 +9,21 @@ import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { SocketServer } from "./rpc/socket.ts"
+import { AGENT_RULES } from "./agents/rules.ts"
+import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
+import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
+import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
 export const CORE_VERSION = "0.0.0"
+
+// Methods that change what the search index covers
+const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
 
 export interface CoreOptions {
   // This machine's data directory for owlit (Electron's userData): settings.json, workspaces/<hash>/
@@ -28,6 +36,14 @@ export interface CoreOptions {
   debug?: boolean
   // Base of the wait between tries of a failed request (default 1s); tests shorten it
   retryBaseMs?: number
+  // pdfium's wasm file, where the desktop app ships it beside main
+  pdfiumWasm?: string
+  // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
+  socket?: boolean | { dir: string }
+  // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
+  mcp?: { command: string; args: string[]; env?: Record<string, string> }
+  // How long Knowledge waits after the user's activity before a run (tests shorten it)
+  knowledgeTimings?: KnowledgeTimings
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -51,6 +67,8 @@ export class Core {
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
+  private readonly background: Background
+  private socket: SocketServer | null = null
 
   constructor(options: CoreOptions) {
     this.options = options
@@ -71,15 +89,29 @@ export class Core {
       ui: this.ui,
       journal: this.journal,
       wrote: (record) => this.notifier.notify("agent.wrote", record),
+      notesChanged: ({ path, added, removed }) => {
+        if (added) this.notifier.notify("notes.added", { path, note: added })
+        if (removed) this.notifier.notify("notes.removed", { path, id: removed })
+      },
     })
     this.turns = new Turns({
       agents: this.agents,
       fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update) => this.notifier.notify("chat.update", { chatId, update }),
+      mcpServers: (root, chatId) => this.mcpServers(root, chatId),
     })
+    this.background = new Background(this.agents)
+    // Opening a paper's page says the user is about to read it: its reading note comes first
+    this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
+    // What the user does feeds Knowledge: a run once things have been quiet for a while
+    this.activity.subscribe(["doc.edited", "chat.sent", "chat.ended", "highlight.added", "note.edited", "paper.closed", "knowledge.edited"], (event) =>
+      this.workspace?.knowledge.heard(event),
+    )
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
+    // What agents are told about owlit (owlit-mcp's instructions)
+    this.router.register("agents.rules", noParams, () => AGENT_RULES)
     this.router.register("core.version", noParams, () => this.version())
 
     this.router.register("workspace.current", noParams, () => this.workspace?.info ?? null)
@@ -200,7 +232,22 @@ export class Core {
     this.router.register("ui.respond", z.object({ requestId: z.string(), result: z.unknown().optional(), error: z.string().optional() }), ({ requestId, result, error }) =>
       this.ui.respond(requestId, result, error),
     )
-    this.router.register("versions.restore", z.object({ id: z.string().min(1) }), ({ id }) => this.fs.restore(id))
+    this.router.register("ui.focus", z.object({ clientId: z.string().min(1) }), ({ clientId }) => this.ui.focus(clientId))
+    this.router.register("ui.leave", z.object({ clientId: z.string().min(1) }), ({ clientId }) => this.ui.leave(clientId))
+    const owlitUri = z.string().regex(/^owlit:\/\/[a-z]+\/.+/, "an owlit:// link")
+    const asker = z.string().min(1).optional()
+    this.router.register("ui.open", z.object({ uri: owlitUri, chatId: asker }), (params) => this.ui.act("open", params))
+    this.router.register("ui.jump", z.object({ uri: owlitUri, page: z.number().int().positive().optional(), quote: z.string().min(1).optional(), chatId: asker }), (params) =>
+      this.ui.act("jump", params),
+    )
+    this.router.register(
+      "ui.mark",
+      z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }),
+      (params) => this.ui.act("mark", params),
+    )
+    this.router.register("ui.say", z.object({ text: z.string().min(1) }), (params) => this.ui.act("say", params))
+    this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
+    this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
@@ -225,8 +272,15 @@ export class Core {
     })
     this.router.register(
       "library.add",
-      z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional() }),
-      ({ paper, addedBy }) => library().add(paper, addedBy),
+      z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional(), chatId: z.string().optional() }),
+      async ({ paper, addedBy, chatId }) => {
+        const added = await library().add(paper, addedBy)
+        if (addedBy === "agent") {
+          const version = await this.requireWorkspace().versions.savePaper(added.id, "added", { chatId })
+          this.notifier.notify("agent.changed", { kind: "paper", versionId: version.id, path: added.id, label: added.title, ...(chatId ? { chatId } : {}) })
+        }
+        return added
+      },
     )
     const position = z.object({ page: z.number(), y: z.number() })
     const patch = z
@@ -257,11 +311,48 @@ export class Core {
       text: z.string(),
       color: z.enum(["yellow", "green", "blue", "pink"]),
       comment: z.string().optional(),
+      addedBy: z.literal("agent").optional(),
       createdAt: z.number(),
     })
     this.router.register("library.putHighlight", z.object({ highlight }), ({ highlight }) => library().putHighlight(highlight))
     this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), ({ paperId, id }) =>
       library().removeHighlight(paperId, id),
+    )
+    const search = () => this.requireWorkspace().search
+    const query = z.object({ q: z.string() })
+    this.router.register("search.palette", query, ({ q }) => search().palette(q))
+    this.router.register("search.papers", query, ({ q }) => search().papers(q))
+    this.router.register("search.status", noParams, () => search().status())
+    this.router.register("search.rebuild", noParams, () => {
+      search().rebuild()
+      return null
+    })
+    this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
+    this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
+    this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
+    this.router.register("library.requestDigest", z.object({ id: paperId }), async ({ id }) => {
+      await library().wantDigest(id, "asked")
+      return null
+    })
+    this.router.register("library.writeDigest", z.object({ id: paperId, text: z.string().min(1), by: z.string().optional() }), ({ id, text, by }) =>
+      library().writeDigest(id, text, by ?? "agent"),
+    )
+    this.router.register(
+      "library.read",
+      z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),
+      ({ id, part, pages, section }) => library().read(id, part, { pages, section }),
+    )
+    this.router.register(
+      "library.searchOnline",
+      z.object({ q: z.string().min(1), limit: z.number().int().positive().max(25).optional(), by: z.string().optional() }),
+      ({ q, limit, by }) => library().searchOnline(q, limit, by),
+    )
+    this.router.register("library.highlights", z.object({ id: paperId }), ({ id }) => library().highlights(id))
+    this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
+    this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
+    this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
+    this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
+      library().attachPdf(id, path),
     )
     this.router.register("library.setNote", z.object({ paperId, content: z.string() }), ({ paperId, content }) =>
       library().setNote(paperId, content),
@@ -272,6 +363,14 @@ export class Core {
     this.router.register("tasks.list", noParams, () => tasks().list())
     this.router.register("tasks.cancel", z.object({ id: taskId }), ({ id }) => tasks().cancel(id))
     this.router.register("tasks.resume", z.object({ id: taskId }), ({ id }) => tasks().resume(id))
+    if (options.debug && options.host?.browser) {
+      const browser = options.host.browser
+      // Development only: the hidden browser on any page, for trying it against a local server
+      this.router.register("library.debugBrowserFetch", z.object({ landing: z.string(), pdf: z.string().optional(), allowHosts: z.array(z.string()) }), async (params) => {
+        const bytes = await browser.fetchPdf({ ...params, signal: new AbortController().signal, needUser: async (_reason, _detail, settled) => settled })
+        return { bytes: bytes.length, head: Buffer.from(bytes.subarray(0, 8)).toString("latin1") }
+      })
+    }
     if (options.debug) {
       const lanes = Object.keys(LANE_LIMITS) as [keyof typeof LANE_LIMITS, ...(keyof typeof LANE_LIMITS)[]]
       this.router.register(
@@ -293,16 +392,55 @@ export class Core {
       )
     }
 
+    const knowledge = () => this.requireWorkspace().knowledge
+    const sidecar = z.looseObject({ seenAt: z.number(), history: z.array(z.looseObject({})), edits: z.record(z.string(), z.looseObject({ text: z.string() })), removed: z.record(z.string(), z.looseObject({ text: z.string() })) }) as unknown as z.ZodType<TopicSidecar>
+    const paperKnowledge = z.looseObject({ passages: z.record(z.string(), z.looseObject({})), connections: z.array(z.looseObject({})) }) as unknown as z.ZodType<PaperKnowledge>
+    this.router.register("knowledge.state", noParams, () => knowledge().state())
+    this.router.register("knowledge.putTopic", z.object({ id: z.string().min(1), sidecar }), ({ id, sidecar }) => knowledge().putTopic(id, sidecar))
+    this.router.register("knowledge.putPaper", z.object({ id: z.string().min(1), paper: paperKnowledge }), ({ id, paper }) => knowledge().putPaper(id, paper))
+    this.router.register("knowledge.topics", noParams, () => knowledge().summaries())
+    this.router.register("knowledge.read", z.object({ topic: z.string().min(1) }), ({ topic }) => knowledge().read(topic))
+    this.router.register(
+      "knowledge.write",
+      z.object({
+        topic: z.string().min(1),
+        content: z.string().min(1),
+        why: z.string().min(1),
+        remove: z.array(z.string()).optional(),
+        passages: z.array(z.object({ id: z.string().regex(/^[\w.-]+$/, "letters, digits, - and _"), paper: z.string(), quote: z.string().min(1), section: z.string().optional() })).optional(),
+        chatId: z.string().optional(),
+      }),
+      (params) => knowledge().write(params),
+    )
+    this.router.register("knowledge.update", noParams, () => knowledge().update())
+    this.router.register("knowledge.versions", noParams, () => knowledge().versions())
+    this.router.register("knowledge.revert", z.object({ id: z.string().min(1) }), ({ id }) => knowledge().revert(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())
-    this.router.register("notes.add", z.object({ path: rel, note }), ({ path, note }) => docs().addNote(path, note))
+    this.router.register("notes.add", z.object({ path: rel, note, agent: z.object({ chatId: z.string().optional() }).optional() }), async ({ path, note, agent }) => {
+      await docs().addNote(path, note)
+      this.notifier.notify("notes.added", { path, note })
+      if (agent) {
+        const version = await this.requireWorkspace().versions.saveNote(path, note, "added", agent)
+        this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
+      }
+      return null
+    })
     this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
     this.router.register("notes.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
       docs().reanchorNotes(path, moved),
     )
   }
 
-  handle(request: RpcRequest): Promise<RpcResponse> {
-    return this.router.handle(request)
+  async handle(request: RpcRequest): Promise<RpcResponse> {
+    const response = await this.router.handle(request)
+    // What a client changed is searched for soon after (the index waits for things to settle)
+    if (this.workspace && "result" in response && CHANGES.test(request?.method ?? "")) this.workspace.search.touch()
+    return response
+  }
+
+  // A file of the open workspace for the window (owlit-file://workspace/<path>), byte ranges included
+  serveFile(request: Request): Promise<Response> {
+    return serveWorkspaceFile(this.workspace?.root, request)
   }
 
   onNotify(listener: (notification: RpcNotification) => void) {
@@ -333,8 +471,30 @@ export class Core {
           ? this.workspace
           : await Workspace.open(root, this.options.userDataDir, {
               host: this.options.host,
-              library: { http: this.http, settings: async () => (await this.settings.get()).library },
-              tasks: { definitions: (workspace) => this.taskDefinitions(workspace), onChange: (task) => this.taskChanges.push(task) },
+              library: {
+                http: this.http,
+                browser: this.options.host?.browser,
+                pdfiumWasm: this.options.pdfiumWasm,
+                settings: async () => (await this.settings.get()).library,
+                parsing: async () => (await this.settings.get()).parsing,
+                agent: async (prompt, signal) =>
+                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background }),
+              },
+              knowledge: {
+                agent: async (prompt, signal) =>
+                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background, allow: KNOWLEDGE_TOOLS }),
+                changed: (change) => this.notifier.notify("knowledge.changed", change),
+                updated: (run) => this.notifier.notify("knowledge.updated", run),
+                timings: this.options.knowledgeTimings,
+                journalFlushed: () => this.journal.flush(),
+                // A chat's agent changed a topic: the window offers Undo, as for any agent write
+                wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
+              },
+              tasks: {
+                definitions: (workspace) => this.taskDefinitions(workspace),
+                onChange: (task) => this.taskChanges.push(task),
+                limits: { parse: (await this.settings.get()).parsing.concurrency ?? 2 },
+              },
             })
       if (this.workspace && this.workspace !== next) {
         this.turns.reset()
@@ -348,9 +508,16 @@ export class Core {
           const chatId = this.turns.claimant(rel)
           if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
         }
-        await next.docs.watch((change) => this.notifier.notify("docs.changed", change))
-        await next.library.watch((change) => this.notifier.notify("library.changed", change))
+        await next.docs.watch((change) => {
+          this.notifier.notify("docs.changed", change)
+          next.search.touch()
+        })
+        await next.library.watch((change) => {
+          this.notifier.notify("library.changed", change)
+          next.search.touch()
+        })
       }
+      if (this.workspace !== next) await this.serveSocket(next.root)
       this.workspace = next
       await this.settings.rememberWorkspace(next.root)
       this.notifier.notify("workspace.opened", next.info)
@@ -365,14 +532,43 @@ export class Core {
     this.agents.dispose()
     await this.switching
     await this.journal.dispose()
+    await this.socket?.close().catch(() => undefined)
+    this.socket = null
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()
   }
 
+  // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)
+  private mcpServers(root: string, chatId?: string) {
+    const mcp = this.options.mcp
+    if (!mcp || !this.socket) return []
+    return [
+      {
+        name: "owlit",
+        command: mcp.command,
+        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : [])],
+        env: Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })),
+      },
+    ]
+  }
+
+  // The socket of the workspace now open, in place of the last one's
+  private async serveSocket(root: string) {
+    if (!this.options.socket) return
+    await this.socket?.close().catch(() => undefined)
+    this.socket = null
+    try {
+      this.socket = await SocketServer.start(root, this, this.options.socket === true ? undefined : this.options.socket.dir)
+    } catch (error) {
+      // owlit works without it; only owlit-mcp and the CLI can't reach the workspace
+      console.error("[core] couldn't open the workspace's socket", error)
+    }
+  }
+
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.knowledge.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

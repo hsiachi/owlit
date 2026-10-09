@@ -12,6 +12,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { runUpdates } from "../runner"
 import { deleteTopic, getTopic, mergeTopic, setArchived, splitTopic, useKnowledgeStore, useTopics } from "../store"
 import type { Topic } from "../types"
@@ -28,6 +29,14 @@ export function TopicMenuContent({ topic, align = "end", afterDelete }: { topic:
   const set = useKnowledgeUi((s) => s.set)
 
   const update = () => {
+    // A real run reads everything that changed, for every topic; what it did shows as "Updated …"
+    if (isDesktop) {
+      rpc.knowledge
+        .update()
+        .then(() => toast("Owlit is updating Knowledge", { description: "It reads what changed since the last update." }))
+        .catch((error: Error) => toast.error(error.message))
+      return
+    }
     const [item] = runUpdates([topic.id])
     const last = topic.sources[0]?.date
     toast(item ? `Updated · ${topic.name}` : "Nothing new", {

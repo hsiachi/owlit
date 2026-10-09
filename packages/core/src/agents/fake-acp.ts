@@ -96,8 +96,10 @@ class FakeAgent implements acp.Agent {
     if (!session) throw acp.RequestError.resourceNotFound(params.sessionId)
     // The conversation so far, when owlit starts a session over, is context, not the request
     const history = params.prompt.some((b) => b.type === "text" && b.text.startsWith("The conversation so far"))
+    // owlit's rules, before a new session's first prompt
+    const rules = params.prompt.some((b) => b.type === "text" && b.text.startsWith("[owlit]"))
     const text = params.prompt
-      .filter((b) => !(b.type === "text" && b.text.startsWith("The conversation so far")))
+      .filter((b) => !(b.type === "text" && (b.text.startsWith("The conversation so far") || b.text.startsWith("[owlit]"))))
       .map((b) => (b.type === "text" ? b.text : b.type === "resource_link" ? `[${b.uri}]` : `[${b.type}]`))
       .join(" ")
     session.history.push(text)
@@ -105,6 +107,15 @@ class FakeAgent implements acp.Agent {
     const signal = session.turn.signal
     const say = (t: string) => this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: t } } })
     try {
+      if (text.includes("Write a reading note")) {
+        const title = text.match(/starting with "# ([^"]+)"/)?.[1] ?? "Paper"
+        await say("```markdown\n# " + title + "\n\n## Question\nWhat the fake paper asks, in a sentence long enough to count.\n\n## Method\nHow it goes about it.\n\n## Findings\nWhat it found (p. 1).\n\n## Limitations\nWhat it leaves open.\n\n## Why it matters\nWho would use it.\n```")
+        return { stopReason: "end_turn" }
+      }
+      if (text.includes("rules?")) {
+        await say(rules ? "got the rules" : "no rules this time")
+        return { stopReason: "end_turn" }
+      }
       if (text.includes("crash")) {
         await say("about to crash")
         process.exit(3)

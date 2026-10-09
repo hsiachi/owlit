@@ -50,6 +50,10 @@ export class MockLibraryClient implements LibraryClient {
     }
   }
 
+  async attachPdf(_paper: Paper, file: File): Promise<Paper["pdf"]> {
+    return { url: URL.createObjectURL(file) }
+  }
+
   async fetchPdf(paper: Paper): Promise<Paper["pdf"]> {
     await delay(800)
     if (paper.ids.arxiv) return { url: `https://arxiv.org/pdf/${paper.ids.arxiv}` }

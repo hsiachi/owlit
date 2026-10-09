@@ -36,6 +36,12 @@ export interface Paper {
   abstract?: string
   ids: PaperIds
   pdf?: PaperPdf
+  // Reading notes an agent wrote (library/papers/<id>/digest.md)
+  hasDigest?: boolean
+  // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
+  text?: "full" | "basic"
+  // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …)
+  noPdf?: { tried: string[]; at: number }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"
@@ -79,6 +85,8 @@ export interface Highlight {
   text: string
   color: HighlightColor
   comment?: string
+  // Absent: the user's own
+  addedBy?: "agent"
   createdAt: number
 }
 
@@ -148,4 +156,37 @@ export type PaperPatch = Partial<Omit<Paper, "id" | "pdf" | "addedAt" | "addedBy
 export interface LibraryChange {
   papers: Paper[]
   removed: string[]
+  // A paper that moved to another id (a local file given its DOI): old id → new id
+  renamed?: Record<string, string>
+}
+
+// library/papers/<id>/text.json: the paper's full text with where each line sits, so a passage can be
+// found and outlined on the page. Rects are PDF points from the page's top-left corner, as highlights
+// are. pdfium writes it in seconds; MinerU's version replaces it when it comes (better order, tables,
+// formulas), and the pdfium one stays as text.pdfium.json.
+export interface PaperText {
+  version: 1
+  source: "pdfium" | "mineru" | "mineru-legacy"
+  // Almost no text layer: a scan waiting for OCR (MinerU)
+  needsOcr?: boolean
+  pages: TextPage[]
+}
+
+export interface TextPage {
+  // 0-based
+  index: number
+  width: number
+  height: number
+  blocks: TextBlock[]
+}
+
+export interface TextBlock {
+  kind: "paragraph" | "heading" | "table" | "figure" | "formula" | "other"
+  rect: Rect
+  lines: TextLine[]
+}
+
+export interface TextLine {
+  rect: Rect
+  text: string
 }

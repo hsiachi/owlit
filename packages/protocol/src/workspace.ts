@@ -1,3 +1,5 @@
+import type { HighlightColor } from "./library.ts"
+
 // A workspace is one folder. What lives inside it (docs, library/, knowledge/, .owlit/) travels with
 // it; what is derived or tied to this machine lives in the app data directory instead.
 
@@ -22,12 +24,25 @@ export interface AppSettings {
   lastWorkspace?: string
   // Local agents: the ones the user added, and what each agent last said about itself
   connectors: ConnectorSettings
-  // Filled by the parsing service (T18)
-  parsing: Record<string, unknown>
+  // MinerU, which reads PDFs better than pdfium (reading order, tables, formulas, scans)
+  parsing: ParsingSettings
   // The services the library asks about papers
   library: LibrarySettings
   // Whether the renderer reports what the user does (the activity stream and journal)
   activity: { enabled: boolean }
+}
+
+export interface ParsingSettings {
+  // Where MinerU runs; none set means papers keep pdfium's text
+  service?: "cloud" | "self-hosted"
+  // cloud: https://mineru.net unless set; self-hosted: the address of its API (http://127.0.0.1:8000)
+  url?: string
+  // The cloud's API token
+  token?: string
+  // Papers parsed at once (the parse lane); default 2
+  concurrency?: number
+  // Parse every PDF once it is in place; off means only when asked. Default on.
+  auto?: boolean
 }
 
 export interface LibrarySettings {
@@ -37,10 +52,26 @@ export interface LibrarySettings {
   openalexApiKey?: string
   // Semantic Scholar allows far more with a key; without one it often answers "slow down"
   s2ApiKey?: string
+  // The library's proxy, through which publishers see the university's subscription
+  proxy?: ProxySettings
+  // Reading notes: the language they are written in (default English), and whether every paper gets
+  // one once its text is in (default: only papers the user opens or stars)
+  digestLanguage?: string
+  digestEveryPaper?: boolean
+}
+
+// login-url: <base><path>?url=<target> (EZproxy's /login, Tsinghua's tlink /go); host-rewrite:
+// dl.acm.org becomes dl-acm-org.<proxy host>
+export interface ProxySettings {
+  base: string
+  scheme: "login-url" | "host-rewrite"
+  path?: string
 }
 
 export interface ConnectorSettings {
   custom?: { id: string; name: string; command: string }[]
+  // The agent that writes reading notes and other background work; the first one set up when absent
+  background?: string
   // From the last check: what the agent offers, so the pickers fill without starting it
   probed?: Record<string, ProbedConnector>
 }
@@ -68,10 +99,24 @@ export function isHiddenFromDocs(relativePath: string) {
   return segments.some((segment) => segment.startsWith("."))
 }
 
-// Core asking the window that has a doc open to read it or change it in its editor (agents/fs.ts). The
-// window answers with ui.respond: fs.read → { content: string | null } (null: not open after all),
-// fs.write → { applied: boolean }.
-export type UiRequest = { requestId: string; clientId: string } & (
-  | { method: "fs.read"; params: { path: string } }
-  | { method: "fs.write"; params: { path: string; content: string; versionId: string } }
-)
+// What core asks a window to do, and what the window answers with ui.respond. fs.* go to the window
+// that has the doc open (agents/fs.ts); the rest go to the window the user is in.
+export interface UiActions {
+  // The doc's text in its editor; null: not open after all
+  "fs.read": { params: { path: string }; result: { content: string | null } }
+  // The agent's write, applied in the doc's editor; false: not open after all
+  "fs.write": { params: { path: string; content: string; versionId: string }; result: { applied: boolean } }
+  // Shows a paper, doc, chat or Knowledge topic (an owlit:// link). chatId (on open, jump and mark) is
+  // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
+  open: { params: { uri: string; chatId?: string }; result: { title: string } }
+  // Shows a paper or doc at a place: a 1-based page of a paper, or a passage quoted from either. The
+  // passage is ringed (paper) or selected (doc); found is false when the quote wasn't there.
+  jump: { params: { uri: string; page?: number; quote?: string; chatId?: string }; result: { title: string; found: boolean } }
+  // Highlights a quoted passage in a paper; page is 1-based
+  mark: { params: { uri: string; quote: string; color?: HighlightColor; chatId?: string }; result: { title: string; highlightId: string; page: number } }
+  // A line for the user from the agent, shown in the window and kept nowhere
+  say: { params: { text: string }; result: null }
+}
+export type UiMethod = keyof UiActions
+
+export type UiRequest = { requestId: string; clientId: string } & { [M in UiMethod]: { method: M; params: UiActions[M]["params"] } }[UiMethod]

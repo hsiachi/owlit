@@ -1,9 +1,11 @@
-import { Fragment, useEffect } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { isDesktop } from "@/lib/rpc"
+import { VersionsDialog } from "../components/VersionsDialog"
 import { saveAgain } from "../disk"
 import { DocEditor } from "../editor/DocEditor"
 import { anchor } from "../editor/agent-notes"
@@ -18,6 +20,7 @@ export function DocPage() {
   const file = useDocsStore((s) => s.files[docId])
   const loaded = useDocsStore((s) => s.loaded)
   const folder = file ? parentPath(file.path) : ""
+  const [versionsOpen, setVersionsOpen] = useState(false)
 
   // The panel follows the open doc: its folder opens (and folders opened only for the last doc close), and
   // new docs land beside it
@@ -90,6 +93,7 @@ export function DocPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onSelect={() => setTimeout(() => useDocsUiStore.getState().setRenaming(file.id), 0)}>Rename</DropdownMenuItem>
+            {isDesktop && <DropdownMenuItem onSelect={() => setVersionsOpen(true)}>Versions…</DropdownMenuItem>}
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onSelect={remove}>
               Delete
@@ -97,6 +101,7 @@ export function DocPage() {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+      {isDesktop && <VersionsDialog file={file} open={versionsOpen} onOpenChange={setVersionsOpen} />}
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 pt-6">
           <DocEditor key={file.id} file={file} />

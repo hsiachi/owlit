@@ -54,7 +54,7 @@ describe("tasks over RPC", () => {
     expect(mine.at(-1)).toMatchObject({ state: "done", progress: { done: 30, total: 30 } })
     // 30 progress steps over 300ms, sent at most every 200ms
     expect(mine.length).toBeLessThan(6)
-    expect((await call("tasks.list"))[0]).toMatchObject({ id: task.id, state: "done" })
+    expect((await call("tasks.list")).find((t: Task) => t.id === task.id)).toMatchObject({ state: "done" })
   })
 
   it("waits for the user, resumes, and cancels", async () => {
@@ -79,7 +79,7 @@ describe("tasks over RPC", () => {
     await sleep(20)
     await first.core.dispose()
     const second = await open()
-    const [again] = await second.call("tasks.list")
+    const again = (await second.call("tasks.list")).find((t: Task) => t.id === task.id)
     expect(again).toMatchObject({ id: task.id, kind: "debug.index", state: "running", attempts: 2 })
   })
 })

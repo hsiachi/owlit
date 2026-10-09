@@ -59,6 +59,18 @@ describe("turns", () => {
     expect(Object.keys(JSON.parse(readFileSync(path.join(root, ".owlit/chats/c1.json"), "utf8")).sessions)).toHaveLength(1)
   })
 
+  it("tells a new session owlit's rules before its first prompt, and only then", async () => {
+    const { send, updates, call } = await setup()
+    await send("rules?")
+    await send("rules?")
+    const said = updates.filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text)
+    expect(said).toEqual(["got the rules", "no rules this time"])
+    // The preamble is the agent's, not the chat's
+    const saved = await call("chats.get", { id: "c1" })
+    expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 2/)
+  })
+
   it("sets the model, mode and effort the chat asks for", async () => {
     const { send, text } = await setup()
     await send("one", { modelId: "large", modeId: "auto", effortId: "high" })

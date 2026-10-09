@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@owlit/core": "workspace:*",
+    "@owlit/mcp": "workspace:*",
     "@owlit/protocol": "workspace:*",
     "@types/node": "^24.13.3",
     "electron": "44.4.5",

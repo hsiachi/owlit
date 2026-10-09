@@ -19,6 +19,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { AcpProcess, SessionHandler } from "./process.ts"
+import { preamble } from "./rules.ts"
 
 export interface TurnRequest {
   chatId: string
@@ -37,6 +38,8 @@ interface TurnsOptions {
   fs: AgentFs
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
   notify: (chatId: string, update: SessionUpdate) => void
+  // The MCP servers a chat's session gets (owlit-mcp, for that chat)
+  mcpServers?: (root: string, chatId: string) => acp.McpServer[]
 }
 
 // A session of one chat on one agent, as owlit knows it
@@ -111,7 +114,7 @@ export class Turns {
       live.turn = turn
       await this.configure(live, req)
       log("configured")
-      const prompt = promptBlocks(req.input, ws.root, fresh.history)
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, fresh.created)
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
       await quiet(turn)
@@ -170,13 +173,17 @@ export class Turns {
 
   // ---- inside ----
 
+  private mcpServers(root: string, chatId: string) {
+    return this.options.mcpServers?.(root, chatId) ?? []
+  }
+
   // The chat's session on this agent: still open in the running process, loaded again from what the chat
   // recorded, or new. A new session for a chat that already has messages gets the conversation so far.
   private async session(req: TurnRequest, ws: { root: string; chats: Chats; docs: Docs }, emit: (u: SessionUpdate) => void) {
     const key = `${req.chatId}/${req.connectorId}`
     const proc = await this.options.agents.process(req.connectorId)
     const known = this.live.get(key)
-    if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId)) return { live: known, history: null }
+    if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId)) return { live: known, history: null, created: false }
 
     const handler = this.handler(key, req.chatId, ws.root, emit)
     const chat = await ws.chats.get(req.chatId)
@@ -185,23 +192,23 @@ export class Turns {
     if (recorded && init.agentCapabilities?.loadSession) {
       try {
         loading.add(key)
-        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: [] }, handler)
+        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId) }, handler)
         const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, turn: null }
         this.live.set(key, live)
-        return { live, history: null }
+        return { live, history: null, created: false }
       } catch {
         // The agent no longer has it; a new session takes the conversation as context instead
       } finally {
         loading.delete(key)
       }
     }
-    const created = await proc.newSession({ cwd: ws.root, mcpServers: [] }, handler)
+    const created = await proc.newSession({ cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId) }, handler)
     const live: Live = { sessionId: created.sessionId, proc, options: created.configOptions ?? [], modes: created.modes ?? null, turn: null }
     this.live.set(key, live)
     await ws.chats.update(req.chatId, { sessions: { ...chat.sessions, [req.connectorId]: created.sessionId } })
     // The messages before this turn (the user's new one is already appended, so it is left out)
     const earlier = chat.messages.filter((m) => m.id !== req.userMessage.id && m.id !== req.assistantMessageId)
-    return { live, history: earlier.length ? transcript(earlier) : null }
+    return { live, history: earlier.length ? transcript(earlier) : null, created: true }
   }
 
   // Sets the model, mode and effort the chat asks for, where they differ from what the session has
@@ -314,8 +321,10 @@ const loading = new Set<string>()
 // What the user sent, as content blocks: the text (mentions as their names), each mentioned or on-screen
 // doc as a link to its file, papers and Knowledge by their owlit:// address, and a selected passage
 // quoted. A session started over gets the conversation so far first.
-export function promptBlocks(input: PromptInput, root: string, history: string | null): acp.ContentBlock[] {
+export function promptBlocks(input: PromptInput, root: string, history: string | null, fresh = false): acp.ContentBlock[] {
   const blocks: acp.ContentBlock[] = []
+  // A new session hears owlit's rules first; a loaded one heard them when it began
+  if (fresh) blocks.push({ type: "text", text: preamble(root) })
   if (history) blocks.push({ type: "text", text: `The conversation so far, for context:\n\n${history}\n\n---\n` })
   blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {

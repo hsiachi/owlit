@@ -96,3 +96,20 @@ function kindOf(type: string | null | undefined): PaperKind | undefined {
       return "other"
   }
 }
+
+// Works matching words in their title and abstract, most cited first among the relevant; what an agent's
+// library_search finds before it decides what to add
+export async function searchOpenAlex(
+  http: Http,
+  query: string,
+  limit: number,
+  keys: { contactEmail?: string; openalexApiKey?: string },
+  request: RequestOptions = {},
+): Promise<SourceRecord[]> {
+  const params = new URLSearchParams({ search: query, "per-page": String(Math.min(Math.max(limit, 1), 25)) })
+  if (keys.contactEmail) params.set("mailto", keys.contactEmail)
+  if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+  const raw = await http.text(`https://${OPENALEX_HOST}/works?${params}`, request)
+  const { results } = JSON.parse(raw) as { results?: unknown[] }
+  return (results ?? []).map((work) => parseOpenAlex(JSON.stringify(work))).filter((r): r is SourceRecord => !!r)
+}

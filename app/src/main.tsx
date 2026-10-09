@@ -2,11 +2,14 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
+import { startUiActions } from "@/app/ui-actions"
 import { startActivity } from "@/lib/activity"
 import { onNotify } from "@/lib/rpc"
 import "@/lib/workspace"
 import "@/features/tasks/store"
 import "@/features/library/disk"
+import "@/features/knowledge/disk"
+import "@/lib/versions"
 import "./index.css"
 
 // Follow the system appearance; the dark tokens in index.css hang off the .dark class
@@ -36,6 +39,7 @@ window.addEventListener(
 onNotify("core.hello", ({ version, node }) => console.info(`[owlit] core ${version} ready (Node ${node})`))
 
 startActivity(router)
+startUiActions(router)
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

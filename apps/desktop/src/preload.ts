@@ -2,7 +2,7 @@
 // window.owlit (OwlitBridge) and nothing else.
 
 import type { OwlitBridge, RpcNotification, RpcResponse } from "@owlit/protocol"
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron"
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron"
 
 let nextId = 1
 
@@ -15,6 +15,16 @@ const bridge: OwlitBridge = {
     ipcRenderer.on("notify", forward)
     return () => {
       ipcRenderer.off("notify", forward)
+    }
+  },
+  pathForFile: (file) => webUtils.getPathForFile(file as File),
+  // Asked once, synchronously, so the first frame already leaves the right room
+  controlsRoom: ipcRenderer.sendSync("controls-room") as number,
+  onControlsRoom(listener) {
+    const forward = (_event: IpcRendererEvent, room: number) => listener(room)
+    ipcRenderer.on("controls-room", forward)
+    return () => {
+      ipcRenderer.off("controls-room", forward)
     }
   },
 }

@@ -10,7 +10,9 @@ import { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
-import { Scheduler, TaskStore, type TaskDefinition } from "../tasks/index.ts"
+import { SearchIndex, SETTLE_MS } from "../search/search.ts"
+import { Knowledge, type KnowledgeServices } from "../knowledge/knowledge.ts"
+import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
 import { acquireLock, WorkspaceLockedError } from "./lock.ts"
 import { OWLIT_DIR } from "./paths.ts"
 
@@ -27,6 +29,7 @@ export function workspaceDataDir(userDataDir: string, workspacePath: string) {
 export interface WorkspaceOptions {
   host?: Host
   library?: LibraryServices
+  knowledge?: KnowledgeServices
   tasks?: WorkspaceTasks
 }
 
@@ -34,6 +37,7 @@ export interface WorkspaceTasks {
   // The kinds of task this workspace can run, made for it (they close over its paths)
   definitions?: (workspace: Workspace) => TaskDefinition[]
   onChange?: (task: Task) => void
+  limits?: SchedulerOptions["limits"]
 }
 
 // One open workspace. Everything tied to it hangs off this object, so switching workspaces is
@@ -47,6 +51,8 @@ export class Workspace {
   readonly chats: Chats
   readonly library: Library
   readonly tasks: Scheduler
+  readonly search: SearchIndex
+  readonly knowledge: Knowledge
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions) {
@@ -58,13 +64,17 @@ export class Workspace {
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.versions = new Versions(path.join(root, OWLIT_DIR))
     this.chats = new Chats(path.join(root, OWLIT_DIR))
-    this.library = new Library(root, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
+    this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
+    this.search = new SearchIndex(root, dataDir, this.library)
+    this.knowledge = new Knowledge(root, path.join(root, OWLIT_DIR), { docs: this.docs, library: this.library, chats: this.chats, versions: this.versions }, options.knowledge)
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
       definitions: tasks.definitions?.(this) ?? [],
       onChange: tasks.onChange,
+      limits: tasks.limits,
     })
     this.library.attach(this.tasks)
+    this.knowledge.attach(this.tasks)
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
@@ -88,6 +98,9 @@ export class Workspace {
       await ensureWorkspaceFile(root)
       const workspace = new Workspace(root, dataDir, release, options)
       await workspace.tasks.start()
+      // Versions past the keep rules go when the workspace opens
+      void workspace.versions.cleanup().catch((error) => console.error("[core] couldn't clean up versions", error))
+      workspace.search.attach(() => workspace.tasks.debounce("index.sync", "workspace", SETTLE_MS))
       return workspace
     } catch (error) {
       await release()
@@ -124,6 +137,7 @@ export class Workspace {
     await this.chats.flush()
     this.docs.dispose()
     this.library.dispose()
+    this.search.dispose()
     await this.release()
   }
 }
