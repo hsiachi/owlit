@@ -66,7 +66,7 @@ export class Workspace {
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.search = new SearchIndex(root, dataDir, this.library)
-    this.knowledge = new Knowledge(root, path.join(root, OWLIT_DIR), { docs: this.docs, library: this.library, chats: this.chats }, options.knowledge)
+    this.knowledge = new Knowledge(root, path.join(root, OWLIT_DIR), { docs: this.docs, library: this.library, chats: this.chats, versions: this.versions }, options.knowledge)
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
       definitions: tasks.definitions?.(this) ?? [],
@@ -98,6 +98,8 @@ export class Workspace {
       await ensureWorkspaceFile(root)
       const workspace = new Workspace(root, dataDir, release, options)
       await workspace.tasks.start()
+      // Versions past the keep rules go when the workspace opens
+      void workspace.versions.cleanup().catch((error) => console.error("[core] couldn't clean up versions", error))
       workspace.search.attach(() => workspace.tasks.debounce("index.sync", "workspace", SETTLE_MS))
       return workspace
     } catch (error) {

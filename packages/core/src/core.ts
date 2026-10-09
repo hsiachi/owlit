@@ -89,6 +89,10 @@ export class Core {
       ui: this.ui,
       journal: this.journal,
       wrote: (record) => this.notifier.notify("agent.wrote", record),
+      notesChanged: ({ path, added, removed }) => {
+        if (added) this.notifier.notify("notes.added", { path, note: added })
+        if (removed) this.notifier.notify("notes.removed", { path, id: removed })
+      },
     })
     this.turns = new Turns({
       agents: this.agents,
@@ -242,7 +246,8 @@ export class Core {
       (params) => this.ui.act("mark", params),
     )
     this.router.register("ui.say", z.object({ text: z.string().min(1) }), (params) => this.ui.act("say", params))
-    this.router.register("versions.restore", z.object({ id: z.string().min(1) }), ({ id }) => this.fs.restore(id))
+    this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
+    this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
@@ -267,8 +272,15 @@ export class Core {
     })
     this.router.register(
       "library.add",
-      z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional() }),
-      ({ paper, addedBy }) => library().add(paper, addedBy),
+      z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional(), chatId: z.string().optional() }),
+      async ({ paper, addedBy, chatId }) => {
+        const added = await library().add(paper, addedBy)
+        if (addedBy === "agent") {
+          const version = await this.requireWorkspace().versions.savePaper(added.id, "added", { chatId })
+          this.notifier.notify("agent.changed", { kind: "paper", versionId: version.id, path: added.id, label: added.title, ...(chatId ? { chatId } : {}) })
+        }
+        return added
+      },
     )
     const position = z.object({ page: z.number(), y: z.number() })
     const patch = z
@@ -404,9 +416,13 @@ export class Core {
     this.router.register("knowledge.versions", noParams, () => knowledge().versions())
     this.router.register("knowledge.revert", z.object({ id: z.string().min(1) }), ({ id }) => knowledge().revert(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())
-    this.router.register("notes.add", z.object({ path: rel, note }), async ({ path, note }) => {
+    this.router.register("notes.add", z.object({ path: rel, note, agent: z.object({ chatId: z.string().optional() }).optional() }), async ({ path, note, agent }) => {
       await docs().addNote(path, note)
       this.notifier.notify("notes.added", { path, note })
+      if (agent) {
+        const version = await this.requireWorkspace().versions.saveNote(path, note, "added", agent)
+        this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
+      }
       return null
     })
     this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
@@ -471,6 +487,8 @@ export class Core {
                 updated: (run) => this.notifier.notify("knowledge.updated", run),
                 timings: this.options.knowledgeTimings,
                 journalFlushed: () => this.journal.flush(),
+                // A chat's agent changed a topic: the window offers Undo, as for any agent write
+                wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
               },
               tasks: {
                 definitions: (workspace) => this.taskDefinitions(workspace),

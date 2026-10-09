@@ -151,7 +151,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_add": {
       const { paper, existingId } = await owlit.rpc.library.resolve({ input: str("ref") })
       if (existingId) return `Already in the library as ${existingId}: ${paper.title}`
-      const added = await owlit.rpc.library.add({ paper, addedBy: "agent" })
+      const added = await owlit.rpc.library.add({ paper, addedBy: "agent", ...asker })
       return `Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}). Its PDF and text arrive by themselves; once you have read it, keep a reading note with library_write_digest.`
     }
     case "library_write_digest": {
@@ -170,7 +170,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const anchor = anchorOf(content, str("quote"))
       if (!anchor) return `That passage isn't in ${str("path")} word for word; quote it exactly as it appears.`
       const note: AgentNote = { id: randomUUID(), ...anchor, text: str("note"), by: "Owlit", createdAt: Date.now(), ...(options.chatId ? { chatId: options.chatId } : {}) }
-      await owlit.rpc.notes.add({ path: str("path"), note })
+      await owlit.rpc.notes.add({ path: str("path"), note, agent: asker })
       return `Left a note on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "ui_open": {

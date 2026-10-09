@@ -1,6 +1,6 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
-import type { AgentNote, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -104,7 +104,8 @@ export interface Methods {
   // Every doc's notes, by path
   "notes.all": { params: void; result: Record<string, AgentNote[]> }
   // Adds a note, or puts a dismissed one back
-  "notes.add": { params: { path: string; note: AgentNote }; result: null }
+  // agent: the note is an agent's (owlit-mcp), kept as a version so the window can offer Undo
+  "notes.add": { params: { path: string; note: AgentNote; agent?: { chatId?: string } }; result: null }
   // The note removed, or null if it wasn't there
   "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
   // Passages edited while the doc was open, saved as they read now: note id → its new anchor
@@ -191,9 +192,12 @@ export interface Methods {
   "ui.jump": { params: UiActions["jump"]["params"]; result: UiActions["jump"]["result"] }
   "ui.mark": { params: UiActions["mark"]["params"]; result: UiActions["mark"]["result"] }
   "ui.say": { params: UiActions["say"]["params"]; result: null }
-  // Puts a file back as it was before an agent's write (Undo once its editor is gone); refused with
-  // Conflict when the file changed since
-  "versions.restore": { params: { id: string }; result: { path: string } }
+  // Takes back what a version recorded (VersionInfo): Undo of an agent's write, note or paper, or a
+  // restore from a doc's Versions. A file that changed since is refused with Conflict unless forced.
+  // redoId undoes the restore.
+  "versions.restore": { params: { id: string; force?: boolean }; result: { path: string; kind: VersionInfo["kind"]; redoId: string } }
+  // The versions kept, newest first; of one doc or topic, or of everything since a time
+  "versions.list": { params: { path?: string; since?: number }; result: VersionInfo[] }
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
@@ -208,7 +212,8 @@ export interface Methods {
   "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean } }
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
-  "library.add": { params: { paper: ResolvedPaper; addedBy?: Paper["addedBy"] }; result: Paper }
+  // An agent's addition is kept as a version (Undo moves the paper to .owlit/trash/); chatId says whose
+  "library.add": { params: { paper: ResolvedPaper; addedBy?: Paper["addedBy"]; chatId?: string }; result: Paper }
   // The user's judgement, reading position, or a field they corrected (kept over refreshes)
   "library.update": { params: { id: string; patch: PaperPatch }; result: Paper }
   // Moves papers, with their highlights and notes, to .owlit/trash/
@@ -297,8 +302,13 @@ export interface Notifications {
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it
   // (its own) ignores it
   "notes.added": { path: string; note: AgentNote }
+  // An undo took a note away
+  "notes.removed": { path: string; id: string }
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
+  // An agent in a chat left a note, added a paper or changed a Knowledge topic; versionId undoes it.
+  // label names what changed (the doc, the paper's title, the topic).
+  "agent.changed": { kind: "note" | "paper" | "knowledge"; versionId: string; path: string; label: string; chatId?: string }
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

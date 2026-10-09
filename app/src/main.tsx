@@ -9,6 +9,7 @@ import "@/lib/workspace"
 import "@/features/tasks/store"
 import "@/features/library/disk"
 import "@/features/knowledge/disk"
+import "@/lib/versions"
 import "./index.css"
 
 // Follow the system appearance; the dark tokens in index.css hang off the .dark class

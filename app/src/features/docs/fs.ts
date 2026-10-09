@@ -6,6 +6,7 @@ import { docUri } from "./lib/mentions"
 import { isDiskChange } from "./disk"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { clientId, registerUiHandler } from "@/lib/ui-actions"
+import { undoChange } from "@/lib/versions"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor, spanChange } from "./editors"
 import { useDocsStore } from "./store"
@@ -97,7 +98,7 @@ function applyAgentEdit(file: WorkspaceFile, content: string, versionId?: string
       label: "Undo",
       onClick: () => {
         if (openEditor(file.id) === view) undo(view)
-        else if (versionId) restoreVersion(versionId)
+        else if (versionId) restoreVersion(versionId, file.path)
         else if (currentText(file.id) === after) rewrite(file.id, before)
       },
     },
@@ -105,9 +106,7 @@ function applyAgentEdit(file: WorkspaceFile, content: string, versionId?: string
   return true
 }
 
-function restoreVersion(versionId: string) {
-  rpc.versions.restore({ id: versionId }).catch((error: Error) => toast.error(error.message))
-}
+const restoreVersion = (versionId: string, path: string) => undoChange(versionId, displayName(path))
 
 // ---- The desktop app: agents' reads and writes come from core ----
 
@@ -142,6 +141,13 @@ if (isDesktop) {
     return { applied: !!file && applyAgentEdit(file, content, versionId) }
   })
 
+  // An undo took a note an agent left away
+  onNotify("notes.removed", ({ path, id }) => {
+    const file = fileAt(path)
+    if (!file || !useDocsStore.getState().notes[file.id]?.some((n) => n.id === id)) return
+    useDocsStore.setState((s) => ({ notes: { ...s.notes, [file.id]: (s.notes[file.id] ?? []).filter((n) => n.id !== id) } }))
+  })
+
   // A note an agent left over owlit-mcp; the window's own notes are already here
   onNotify("notes.added", ({ path, note }) => {
     const file = fileAt(path)
@@ -153,7 +159,7 @@ if (isDesktop) {
   onNotify("agent.wrote", ({ path, versionId }) => {
     toast("Edit applied", {
       description: displayName(path),
-      action: { label: "Undo", onClick: () => restoreVersion(versionId) },
+      action: { label: "Undo", onClick: () => restoreVersion(versionId, path) },
     })
   })
 }

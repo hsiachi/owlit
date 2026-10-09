@@ -19,6 +19,7 @@ import { appendFile, cp, mkdir, readdir, readFile, rm, stat } from "node:fs/prom
 import path from "node:path"
 import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
+import type { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import type { Library } from "../library/library.ts"
 import { isPaperId, paperDir } from "../library/paths.ts"
@@ -61,6 +62,8 @@ export interface KnowledgeServices {
   timings?: KnowledgeTimings
   // Resolves once the activity heard so far is in journal.jsonl, so a run right after it reads it
   journalFlushed?: () => Promise<void>
+  // An agent in a chat wrote a topic; versionId takes the write back
+  wroteTopic?: (change: { versionId: string; path: string; label: string; chatId?: string }) => void
 }
 
 interface RunState {
@@ -99,6 +102,7 @@ export class Knowledge {
   private readonly docs: Docs
   private readonly library: Library
   private readonly chats: Chats
+  private readonly fileVersions: Versions
   private readonly services: KnowledgeServices
   private readonly timings: KnowledgeTimings
   private scheduler: Scheduler | null = null
@@ -109,12 +113,13 @@ export class Knowledge {
   // The run in progress: what it changed in each topic
   private current: Map<string, { added: number; rewritten: number; removed: number }> | null = null
 
-  constructor(root: string, owlitDir: string, parts: { docs: Docs; library: Library; chats: Chats }, services: KnowledgeServices = {}) {
+  constructor(root: string, owlitDir: string, parts: { docs: Docs; library: Library; chats: Chats; versions: Versions }, services: KnowledgeServices = {}) {
     this.root = root
     this.dir = path.join(owlitDir, "knowledge")
     this.docs = parts.docs
     this.library = parts.library
     this.chats = parts.chats
+    this.fileVersions = parts.versions
     this.services = services
     this.timings = services.timings ?? KNOWLEDGE_TIMINGS
   }
@@ -371,7 +376,10 @@ export class Knowledge {
       const next = checked.topic
       next.id = before?.id ?? uniqueId(slugify(next.name), topics)
       const rel = before?.path ?? uniquePath(topicPath(next.name), topics)
-      await this.docs.writeTold(rel, serializeTopic(next))
+      const text = serializeTopic(next)
+      // Kept like any agent write, so it can be undone on its own (a run's snapshot covers the whole run)
+      const version = await this.fileVersions.saveFile(rel, before ? await this.docs.readDisk(rel) : null, text, { ...(input.chatId ? { chatId: input.chatId } : {}) })
+      await this.docs.writeTold(rel, text)
 
       // The record: what changed in which line, why, and when
       const at = Date.now()
@@ -400,6 +408,7 @@ export class Knowledge {
         }
         this.current.set(next.id, n)
       }
+      if (input.chatId) this.services.wroteTopic?.({ versionId: version.id, path: rel, label: next.name, chatId: input.chatId })
       return { id: next.id, path: rel, name: next.name, changes: changes.map((c) => `${c.what}${c.lineId ? ` ^${c.lineId}` : ""}`) }
     })
   }

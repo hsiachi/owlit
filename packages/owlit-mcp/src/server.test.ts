@@ -150,6 +150,35 @@ describe("owlit-mcp", () => {
     expect((await tool("knowledge_write", { topic: "Retrieval granularity", content, why: "x", passages: "not json" })).text).toMatch(/^passages should be a JSON array/)
   })
 
+  it("lets the user undo an agent's note and paper, and undo the undo", async () => {
+    const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
+    const { root, core, call, tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })
+    const changed: { kind: string; versionId: string; label: string; chatId?: string }[] = []
+    const removed: unknown[] = []
+    core.onNotify((n) => {
+      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "notes.removed") removed.push(n.params)
+    })
+    writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
+    await tool("docs_add_note", { path: "Draft.md", quote: "all you need", note: "Cite it." })
+    await tool("library_add", { ref: "10.1145/3626772.3657891" })
+    expect(changed).toMatchObject([
+      { kind: "note", label: "Draft", chatId: "chat-1" },
+      { kind: "paper", label: expect.stringMatching(/^ChroniclingAmericaQA/), chatId: "chat-1" },
+    ])
+
+    const note = await call("versions.restore", { id: changed[0].versionId })
+    expect((await call("notes.all"))["Draft.md"]).toBeUndefined()
+    expect(removed).toMatchObject([{ path: "Draft.md" }])
+    await call("versions.restore", { id: note.redoId })
+    expect((await call("notes.all"))["Draft.md"]).toMatchObject([{ text: "Cite it." }])
+
+    const paper = await call("versions.restore", { id: changed[1].versionId })
+    expect((await call("library.list")).papers).toEqual([])
+    await call("versions.restore", { id: paper.redoId })
+    expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: "agent" }])
+  })
+
   it("answers mistakes in a sentence instead of failing", async () => {
     const { tool } = await setup()
     expect(await tool("library_get")).toEqual({ text: "library_get needs id.", isError: true })
