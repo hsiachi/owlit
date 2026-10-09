@@ -38,6 +38,29 @@ function serveRenderer() {
   })
 }
 
+// ---- The window's frame. On macOS there is no title bar: the traffic lights sit in owlit's 40px top
+// bar, centred on its middle line, and the bar leaves them room except in full screen, where they hide.
+
+const isMac = process.platform === "darwin"
+// The traffic lights' top-left corner, and how much of the top bar's left end they need
+const TRAFFIC_LIGHTS = { x: 14, y: 13 }
+const TRAFFIC_LIGHTS_ROOM = 78
+
+const controlsRoom = (win: BrowserWindow) => (isMac && !win.isFullScreen() ? TRAFFIC_LIGHTS_ROOM : 0)
+
+ipcMain.on("controls-room", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  event.returnValue = win ? controlsRoom(win) : 0
+})
+
+function followControls(win: BrowserWindow) {
+  const tell = () => {
+    if (!win.webContents.isDestroyed()) win.webContents.send("controls-room", controlsRoom(win))
+  }
+  win.on("enter-full-screen", tell)
+  win.on("leave-full-screen", tell)
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -46,6 +69,7 @@ function createWindow() {
     minHeight: 480,
     show: false,
     title: "owlit",
+    ...(isMac ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: TRAFFIC_LIGHTS } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -54,6 +78,7 @@ function createWindow() {
     },
   })
   win.once("ready-to-show", () => win.show())
+  followControls(win)
   // The title is the workspace's name, not the page's <title>
   win.on("page-title-updated", (event) => event.preventDefault())
   if (current) showWorkspace(win, current)
@@ -81,7 +106,8 @@ async function call<M extends MethodName>(core: Core, method: M, params?: Params
   return response.result as ResultOf<M>
 }
 
-// ---- Workspace: which folder is open, the File menu, the window title ----
+// ---- Workspace: which folder is open, the File menu, the window's title (not drawn on macOS, but used by
+// Mission Control and the Window menu) ----
 
 let current: WorkspaceInfo | null = null
 

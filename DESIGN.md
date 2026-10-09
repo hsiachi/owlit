@@ -357,6 +357,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
 ## Layout
 
 - The frame is a 4px gap (`frame-gap`) around the main sheet. The icon rail is 32px buttons plus one frame gap on each side.
+- **Window (macOS).** There is no system title bar and no title: the traffic lights sit in owlit's 40px top bar, centred on its middle line, and the bar itself drags the window (a double-click zooms or minimises, as the system setting says). Back, Forward and the panel toggle start after the traffic lights; in full screen, where the lights are hidden, the room closes up and they sit over the icon rail again. The window still carries the workspace's name for Mission Control and the Window menu; switching workspaces is File › Open Workspace… (⌘O) and Open Recent.
 - The list panel and main area form one sheet, split by a 0.5px hairline. The list panel has a fixed width, so collapsing clips it rather than squeezing it.
 - Messages and the composer share one centred column, at most 768px wide with a 16px gutter. Messages fade out above the composer instead of running into it.
 - Library pages use one wider column (at most 1152px) for every tab and layout, so switching between Up next and All papers, or list and table, never moves the header. The whole page scrolls, header included.

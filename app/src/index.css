@@ -260,6 +260,15 @@
   color: var(--muted-foreground);
 }
 
+/* The desktop app's top bar moves the window (it has no system title bar on macOS); what can be clicked
+   in it still takes the click */
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-drag :is(button, a, input, [role="button"]) {
+  -webkit-app-region: no-drag;
+}
+
 /* Shimmer used for in-progress labels */
 @keyframes shimmer {
   from { background-position: 200% 0; }

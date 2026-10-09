@@ -253,4 +253,8 @@ export interface OwlitBridge {
   onNotify(listener: (notification: RpcNotification) => void): () => void
   // Where a dropped or chosen file is on disk, so core can read it; "" for a file that isn't one
   pathForFile(file: { readonly name: string; readonly size: number }): string
+  // Pixels the top bar keeps free at its left for the window's own controls (macOS traffic lights);
+  // 0 where there are none to avoid (full screen, a system title bar). The window, not core, knows it.
+  controlsRoom: number
+  onControlsRoom(listener: (room: number) => void): () => void
 }

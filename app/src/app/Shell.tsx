@@ -7,6 +7,7 @@ import { matchNav } from "@/app/nav"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useControlsRoom } from "@/lib/window-frame"
 import { Toaster } from "@/components/ui/sonner"
 import { AgentAskBar, AgentPanel, AgentToggle } from "@/features/agent/AgentWindow"
 import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
@@ -28,6 +29,7 @@ export function Shell() {
   const listShown = useAgentWindow((s) => s.listShown)
   const setListShown = useAgentWindow((s) => s.setListShown)
   useAgentShortcut()
+  const controlsRoom = useControlsRoom((s) => s.room)
 
   return (
     <TooltipProvider>
@@ -49,8 +51,12 @@ export function Shell() {
             } as React.CSSProperties
           }
         >
-          {/* Padding of gap + 2px puts the first 28px button on the same centre line as the rail icons */}
-          <header className="flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground">
+          {/* The bar drags the window. Padding of gap + 2px puts the first 28px button on the same centre
+              line as the rail icons; on macOS it starts after the traffic lights instead, except in full screen */}
+          <header
+            className="app-drag flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground"
+            style={controlsRoom ? { paddingLeft: controlsRoom } : undefined}
+          >
             <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)}>
               <ArrowLeft />
               <span className="sr-only">Back</span>
