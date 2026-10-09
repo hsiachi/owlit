@@ -128,7 +128,8 @@ function attachCore(core: Core, browser: PublisherBrowser) {
   // Where the renderer wants the publisher's page during Check now
   ipcMain.on("publisher-view", (event, bounds: Electron.Rectangle | null) => {
     const owner = BrowserWindow.fromWebContents(event.sender)
-    if (owner) browser.setView(owner, bounds && roundRect(bounds))
+    // The renderer measures in CSS pixels; the view is placed in the window's, which differ when zoomed
+    if (owner) browser.setView(owner, bounds && scaleRect(bounds, event.sender.getZoomFactor()))
   })
   protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
@@ -138,7 +139,7 @@ function attachCore(core: Core, browser: PublisherBrowser) {
   })
 }
 
-const roundRect = (r: Electron.Rectangle) => ({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) })
+const scaleRect = (r: Electron.Rectangle, k: number) => ({ x: Math.round(r.x * k), y: Math.round(r.y * k), width: Math.round(r.width * k), height: Math.round(r.height * k) })
 
 // Main is one more client of core: it calls the same methods the renderer does
 let requestId = 0
@@ -290,6 +291,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
+    // A packaged app gets its icon from the bundle; a dev run is Electron's own binary, so set it here
+    if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon.png"))
     const browser = createBrowserHost()
     const core = new Core({
       userDataDir: app.getPath("userData"),

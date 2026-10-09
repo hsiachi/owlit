@@ -52,6 +52,8 @@ export function createBrowserHost(): PublisherBrowser {
   // Told when the view has been out of sight for AWAY_MS during a run
   const away = new Set<() => void>()
   let awayTimer: ReturnType<typeof setTimeout> | undefined
+  // The view stayed out of sight that long: a check or a sign-in asked for later in the run ends it too
+  let wentAway = false
   // Windows whose page reloads take the view away
   const watched = new WeakSet<BrowserWindow>()
 
@@ -101,11 +103,18 @@ export function createBrowserHost(): PublisherBrowser {
     if (!target) {
       if (shownIn && process.env.OWLIT_LOG_BROWSER) console.log("[publisher-view] removed")
       shownIn = null
-      if (active && !awayTimer) awayTimer = setTimeout(() => away.forEach((tell) => tell()), AWAY_MS)
+      if (active && !awayTimer && !wentAway) {
+        awayTimer = setTimeout(() => {
+          awayTimer = undefined
+          wentAway = true
+          away.forEach((tell) => tell())
+        }, AWAY_MS)
+      }
       return
     }
     clearTimeout(awayTimer)
     awayTimer = undefined
+    wentAway = false
     if (shownIn !== target.owner) target.owner.contentView.addChildView(view)
     view.setBounds(target.bounds)
     shownIn = target.owner
@@ -116,6 +125,7 @@ export function createBrowserHost(): PublisherBrowser {
     let contents: WebContents
     if (request.withUser) {
       active = true
+      wentAway = false
       contents = shownView().webContents
     } else {
       contents = hiddenWindow().webContents
@@ -124,14 +134,14 @@ export function createBrowserHost(): PublisherBrowser {
     const abort = () => contents.stop()
     request.signal.addEventListener("abort", abort, { once: true })
     try {
-      await load(contents, request.landing)
+      await load(contents, request.landing, request.signal)
       await waitUntilClear(contents, request)
       const pdfUrl = await pdfAddress(contents, request)
       if (!pdfUrl) throw new Error("The publisher's page doesn't link a PDF.")
       let bytes = await fetchWithSession(pdfUrl, request.signal)
       // Some publishers check again at the PDF itself: open it in the page and look once more
       if (!isPdf(bytes)) {
-        await load(contents, pdfUrl).catch(() => undefined)
+        await load(contents, pdfUrl, request.signal).catch(() => undefined)
         await waitUntilClear(contents, request)
         bytes = await fetchWithSession(pdfUrl, request.signal)
       }
@@ -144,6 +154,8 @@ export function createBrowserHost(): PublisherBrowser {
         placeView()
         clearTimeout(awayTimer)
         awayTimer = undefined
+        // Out of sight, the publisher's page would keep running its scripts until quit
+        if (!contents.isDestroyed()) void contents.loadURL("about:blank").catch(() => undefined)
       }
     }
   }
@@ -163,6 +175,7 @@ export function createBrowserHost(): PublisherBrowser {
         continue
       }
       // The page out of sight too long ends the run; core keeps the note for the next Check now
+      if (wentAway) throw new NeedsUser(state)
       let left: () => void = () => {}
       const gone = new Promise<never>((_, reject) => (left = () => reject(new NeedsUser(state))))
       away.add(left)
@@ -229,7 +242,7 @@ function untilClear(contents: WebContents, signal: AbortSignal, timeoutMs?: numb
   })
 }
 
-async function load(contents: WebContents, url: string) {
+async function load(contents: WebContents, url: string, signal: AbortSignal) {
   await Promise.race([
     contents.loadURL(url).catch((error: Error) => {
       // A redirect the guard stopped, or a download, still leaves a page to look at
@@ -237,17 +250,18 @@ async function load(contents: WebContents, url: string) {
     }),
     new Promise((_, reject) => setTimeout(() => reject(new Error(`${hostOf(url)} took too long to open.`)), LOAD_TIMEOUT_MS)),
   ])
-  await settle(contents)
+  await settle(contents, signal)
 }
 
 // Some pages send the reader on by script once loaded (Elsevier's linkinghub to ScienceDirect): wait
 // until the page has stayed put for a moment, ten seconds at most
-async function settle(contents: WebContents) {
+// (a cancelled run stops waiting)
+async function settle(contents: WebContents, signal: AbortSignal) {
   const until = Date.now() + 10_000
   let url = contents.getURL()
-  while (Date.now() < until && !contents.isDestroyed()) {
+  while (Date.now() < until && !contents.isDestroyed() && !signal.aborted) {
     await new Promise((r) => setTimeout(r, 1500))
-    if (contents.isDestroyed()) return
+    if (contents.isDestroyed() || signal.aborted) return
     const now = contents.getURL()
     // isLoadingMainFrame, not isLoading: a page's own late requests (Wiley's) never end
     if (now === url && !contents.isLoadingMainFrame()) return

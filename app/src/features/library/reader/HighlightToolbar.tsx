@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import { CheckIcon, CopyIcon, MessageSquareTextIcon, SparklesIcon, Trash2Icon } from "lucide-react"
+import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-react"
+import { OwlitMark } from "@/components/owlit-mark"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_VAR } from "../lib/highlights"
@@ -128,7 +129,7 @@ export function HighlightToolbar({
         {onAsk && (
           <Tip label="Ask Owlit">
             <button type="button" aria-label="Ask Owlit" onClick={onAsk} className={BUTTON}>
-              <SparklesIcon />
+              <OwlitMark />
             </button>
           </Tip>
         )}

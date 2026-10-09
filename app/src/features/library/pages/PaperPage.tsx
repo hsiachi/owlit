@@ -464,9 +464,8 @@ function NoPdf({ paper }: { paper: Paper }) {
 function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const box = useRef<HTMLDivElement>(null)
-  const task = useTasksStore((s) => openTasksFor(s, paper.id).find((t) => t.kind === "paper.pdf.check"))
-  const taskId = useRef<string | undefined>(undefined)
-  taskId.current = task?.id
+  const task = useTasksStore((s) => openCheck(s, paper.id))
+  const mounted = useRef(false)
   const end = useRef(onEnd)
   end.current = onEnd
 
@@ -491,8 +490,9 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
 
   // One run per visit; leaving the paper cancels it
   useEffect(() => {
+    mounted.current = true
     let live = true
-    libraryClient.checkPublisher!(paper)
+    const run = libraryClient.checkPublisher!(paper)
       .then((found) => {
         updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
         if (found.pdf) toast("PDF found")
@@ -501,7 +501,20 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
       .finally(() => live && end.current())
     return () => {
       live = false
-      if (taskId.current) void cancelTask(taskId.current)
+      mounted.current = false
+      // Looked at a moment later: StrictMode mounts the page again at once. The run's task may not have
+      // reached this window yet; then it is cancelled when it does, unless the run ends first.
+      setTimeout(() => {
+        if (mounted.current) return
+        const cancelOpen = (s: Parameters<typeof openCheck>[0]) => {
+          const open = openCheck(s, paper.id)
+          if (open) void cancelTask(open.id)
+          return !!open
+        }
+        if (cancelOpen(useTasksStore.getState())) return
+        const unsubscribe = useTasksStore.subscribe((s) => cancelOpen(s) && unsubscribe())
+        void run.finally(unsubscribe)
+      })
     }
     // paper.id is the run's subject; the page remounts for another paper
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -526,6 +539,9 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
     </div>
   )
 }
+
+const openCheck = (s: Parameters<typeof openTasksFor>[0], paperId: string) =>
+  openTasksFor(s, paperId).find((t) => t.kind === "paper.pdf.check")
 
 // The user went elsewhere while owlit looked: a system notification, which brings owlit back
 function notifyNeeds(paper: Paper, needs: "check" | "sign-in") {
