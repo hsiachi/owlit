@@ -16,6 +16,8 @@ export interface ContentBlock {
   table_caption?: string[]
   image_caption?: string[]
   img_caption?: string[]
+  code_body?: string
+  code_caption?: string[]
 }
 
 export function contentListToText(blocks: ContentBlock[], pages: { width: number; height: number }[]): PaperText {
@@ -52,6 +54,12 @@ function toBlock(block: ContentBlock, size: { width: number; height: number }): 
     }
     case "list":
       return nonEmpty({ kind: "paragraph", rect, lines: lines(block.list_items ?? []) })
+    // The vlm model gives each reference its own block
+    case "ref_text":
+      return nonEmpty({ kind: "paragraph", rect, lines: lines([block.text]) })
+    case "code":
+    case "algorithm":
+      return nonEmpty({ kind: "paragraph", rect, lines: lines([...(block.code_caption ?? []), ...(block.code_body ?? block.text ?? "").split("\n")]) })
     case "table":
       return nonEmpty({ kind: "table", rect, lines: lines([...(block.table_caption ?? []), ...tableRows(block.table_body ?? "")]) })
     case "equation":
