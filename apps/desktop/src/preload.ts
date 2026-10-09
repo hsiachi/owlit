@@ -18,6 +18,15 @@ const bridge: OwlitBridge = {
     }
   },
   pathForFile: (file) => webUtils.getPathForFile(file as File),
+  // Asked once, synchronously, so the first frame already leaves the right room
+  controlsRoom: ipcRenderer.sendSync("controls-room") as number,
+  onControlsRoom(listener) {
+    const forward = (_event: IpcRendererEvent, room: number) => listener(room)
+    ipcRenderer.on("controls-room", forward)
+    return () => {
+      ipcRenderer.off("controls-room", forward)
+    }
+  },
 }
 
 contextBridge.exposeInMainWorld("owlit", bridge)
