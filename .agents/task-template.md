@@ -9,7 +9,7 @@
 
 ## Context
 
-- `~/Documents/研究/owlit/2026-09 重设计/backend-proposal.md` 的哪些节；涉及界面时 `DESIGN.md` 的哪些规则
+- `tasks/README.md` 设计一节的哪些部分；涉及界面时 `DESIGN.md` 的哪些规则
 - 用户在讨论中已确认的方向
 - 不做什么
 
@@ -17,11 +17,11 @@
 
 - [ ] 实现步骤
 - [ ] 测试或可运行的演示
-- [ ] 文档同步（DESIGN.md / 提案，按改动的事实落点）
+- [ ] 同步：改变了设计的事实就改 `tasks/README.md` 的设计一节，改变了界面规则就改 `DESIGN.md`
 
 ## Decisions discovered
 
-实现中发现、但还没写回提案或 DESIGN.md 的长期结论；写回后在这里留链接。
+实现中发现、但还没写回设计一节或 DESIGN.md 的长期结论；写回后在这里留链接。
 
 ## Verification
 
