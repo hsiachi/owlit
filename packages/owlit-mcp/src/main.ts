@@ -24,7 +24,7 @@ async function main(workspace: string) {
   let instructions: string | undefined
   try {
     const owlit = await connect(workspace, { dir: socketDir })
-    instructions = (await owlit.call("agents.rules" as never).catch(() => undefined)) as string | undefined
+    instructions = await owlit.call("agents.rules").catch(() => undefined)
     owlit.close()
   } catch (error) {
     if (error instanceof OwlitNotRunning) console.error(`owlit-mcp: ${error.message}`)

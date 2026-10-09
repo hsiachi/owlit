@@ -10,6 +10,7 @@ import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SocketServer } from "./rpc/socket.ts"
+import { AGENT_RULES } from "./agents/rules.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
@@ -104,6 +105,8 @@ export class Core {
     })
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
+    // What agents are told about owlit (owlit-mcp's instructions)
+    this.router.register("agents.rules", noParams, () => AGENT_RULES)
     this.router.register("core.version", noParams, () => this.version())
 
     this.router.register("workspace.current", noParams, () => this.workspace?.info ?? null)

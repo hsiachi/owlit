@@ -126,6 +126,8 @@ export interface Methods {
   // ---- Local agents (ACP over stdio). Built-in ones plus those the user added; each runs as one
   // process, started when needed and ended after ten idle minutes.
   "agents.list": { params: void; result: Connector[] }
+  // What every agent owlit runs is told about owlit (owlit-mcp's instructions, a new session's preamble)
+  "agents.rules": { params: void; result: string }
   // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
   "agents.check": { params: { id: string }; result: Connector }
   "agents.add": { params: { name: string; command: string }; result: Connector }
