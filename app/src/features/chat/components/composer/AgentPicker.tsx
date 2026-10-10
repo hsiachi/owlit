@@ -1,10 +1,12 @@
-import { CheckIcon, ChevronDownIcon, ShieldIcon, TriangleAlertIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, TriangleAlertIcon } from "lucide-react"
+import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -27,7 +29,7 @@ export const statusLabel: Record<ConnectorStatus, string> = {
 
 export const isUnavailable = (c?: Connector) => !!c && (c.status === "not_installed" || c.status === "error")
 
-// Resolves the agent, model, effort and mode in effect for a chat (or the global default)
+// Resolves the agent, model, effort and role in effect for a chat (or the global default)
 export function useResolvedSelection(chatId?: string) {
   const connectors = useChatStore((s) => s.connectors)
   const globalSelection = useChatStore((s) => s.selection)
@@ -36,18 +38,21 @@ export function useResolvedSelection(chatId?: string) {
   const setChatSelection = useChatStore((s) => s.setChatSelection)
 
   const selection: Selection = chat?.connectorId
-    ? { connectorId: chat.connectorId, modelId: chat.modelId, modeId: chat.modeId, effortId: chat.effortId }
+    ? { connectorId: chat.connectorId, modelId: chat.modelId, role: chat.role ?? globalSelection.role, effortId: chat.effortId }
     : globalSelection
   const update = (patch: Partial<Selection>) => (chatId ? setChatSelection(chatId, patch) : setSelection(patch))
 
   const connector: Connector | undefined = connectors.find((c) => c.id === selection.connectorId) ?? connectors[0]
-  const model = connector?.models.find((m) => m.id === selection.modelId) ?? connector?.models[0]
-  const mode = connector?.modes.find((m) => m.id === selection.modeId) ?? connector?.modes[0]
+  const model =
+    connector?.models.find((m) => m.id === selection.modelId) ??
+    connector?.models.find((m) => m.id === connector.defaultModelId) ??
+    connector?.models[0]
+  const role = ROLES.find((r) => r.id === selection.role) ?? ROLES.find((r) => r.id === DEFAULT_ROLE)!
   const effort =
     connector?.efforts?.find((e) => e.id === selection.effortId) ??
     connector?.efforts?.find((e) => e.id === connector.defaultEffortId) ??
     connector?.efforts?.[0]
-  return { connectors, connector, model, mode, effort, update }
+  return { connectors, connector, model, role, effort, update }
 }
 
 function PickerButton({ children, className, ...props }: React.ComponentProps<typeof Button>) {
@@ -113,10 +118,10 @@ function StatusChip({ c }: { c: Connector }) {
 }
 
 
-// Three triggers: agent · model + effort · permission mode. Edits a chat's own
+// Three triggers: agent · model + effort · Owlit's role. Edits a chat's own
 // selection when chatId is given, the global default otherwise.
 export function AgentPicker({ chatId, className }: { chatId?: string; className?: string }) {
-  const { connectors, connector, model, mode, effort, update } = useResolvedSelection(chatId)
+  const { connectors, connector, model, role, effort, update } = useResolvedSelection(chatId)
   const unavailable = isUnavailable(connector)
 
   return (
@@ -186,21 +191,21 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
         </DropdownMenu>
       )}
 
-      {connector && connector.modes.length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <PickerButton aria-label="Choose permission mode">
-              <ShieldIcon className="size-3.5" />
-              <span className="max-w-32 truncate @max-md:hidden">{mode?.name}</span>
-            </PickerButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
-            {connector.modes.map((m) => (
-              <RadioItem key={m.id} checked={m.id === mode?.id} onSelect={() => update({ modeId: m.id })} title={m.name} description={m.description} />
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      {/* The role is Owlit's own, not the agent's: every agent offers the same three. Named in full even
+          in a narrow composer, since a role reads as its name. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <PickerButton aria-label="Choose how Owlit works">
+            <span className="max-w-32 truncate">{role.name}</span>
+          </PickerButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-72">
+          <DropdownMenuLabel>Owlit works as</DropdownMenuLabel>
+          {ROLES.map((r) => (
+            <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={r.name} description={r.description} />
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

@@ -6,7 +6,7 @@ export interface ToolSpec {
   description: string
   inputSchema: {
     type: "object"
-    properties: Record<string, { type: "string" | "number" | "boolean"; description: string; enum?: string[] }>
+    properties: Record<string, { type: "string" | "number" | "boolean"; description: string; enum?: string[] } | { type: "array"; items: { type: "string" }; description: string }>
     required?: string[]
   }
   // How the agent may treat a call: one that changes nothing the user keeps is read-only
@@ -104,6 +104,30 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         note: { type: "string", description: "What you want to say" },
       },
       required: ["path", "quote", "note"],
+    },
+  },
+  {
+    name: "docs_delete",
+    description:
+      "Delete docs or folders of the user's, when they ask for it. Use this, not shell commands: owlit asks the user first when their settings say so, and keeps each file so they can undo it.",
+    inputSchema: {
+      type: "object",
+      properties: { paths: { type: "array", items: { type: "string" }, description: "Workspace-relative paths of the docs or folders" } },
+      required: ["paths"],
+    },
+    annotations: { destructiveHint: true },
+  },
+  {
+    name: "docs_move",
+    description:
+      "Move or rename a doc or folder of the user's, when they ask for it. Use this, not shell commands: owlit asks the user first when their settings say so, and keeps the change so they can undo it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Workspace-relative path of the doc or folder" },
+        to: { type: "string", description: "Its new workspace-relative path, name included (e.g. drafts/Related work.md)" },
+      },
+      required: ["path", "to"],
     },
   },
   {

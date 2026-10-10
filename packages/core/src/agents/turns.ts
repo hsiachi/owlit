@@ -2,16 +2,20 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { RequestError } from "@agentclientprotocol/sdk"
 import {
   applyUpdate,
+  DEFAULT_ROLE,
   RpcErrorCode,
   type ChatMessage,
+  type ConsentAction,
   type Mentionable,
   type PermissionKind,
   type PromptInput,
+  type Role,
   type SessionUpdate,
   type StopReason,
   type ToolKind,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
+import { realpathSync } from "node:fs"
 import path from "node:path"
 import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
@@ -19,13 +23,14 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { AcpProcess, SessionHandler } from "./process.ts"
+import { answerFor, consentFor, guardFor, roleNote, type Guard } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
 export interface TurnRequest {
   chatId: string
   connectorId: string
   modelId?: string
-  modeId?: string
+  role?: Role
   effortId?: string
   input: PromptInput
   // The two messages the app already shows: what the user sent, and the answer about to stream in
@@ -49,17 +54,25 @@ interface Live {
   // What the agent offers and has set, by config id
   options: acp.SessionConfigOption[]
   modes: acp.SessionModeState | null
+  // The session options the chat's role asked for (Guard.meta, as JSON) and the role the agent was told
+  meta: string
+  told?: Role
+  // Calls the agent announced to owlit's own MCP server: owlit-mcp decides consent for those itself
+  owlitCalls: Set<string>
   // While a turn runs
   turn: Turn | null
 }
 
 interface Turn {
   chatId: string
+  role: Role
   // Updates taken so far; lets the end of a turn wait until no more are in flight
   heard: number
   message: ChatMessage
   permissions: Map<string, { toolCallId: string; resolve: (r: acp.RequestPermissionResponse) => void; options: acp.PermissionOption[] }>
   cancelled: boolean
+  // Shows an update in the chat and saves it in the answer; set once the turn runs
+  emit?: (update: SessionUpdate) => void
 }
 
 // Chat turns on local agents. Each chat has one ACP session per agent, recorded in the chat so it can be
@@ -73,6 +86,8 @@ export class Turns {
   private turns = new Map<string, Turn>()
   // Files a running (or just finished) turn's tool calls edit, move or delete: path → chat, and until when
   private claims = new Map<string, { chatId: string; until: number }>()
+  // Chats whose Co-author turn is running (or just finished): chat → until when
+  private coauthors = new Map<string, number>()
 
   constructor(options: TurnsOptions) {
     this.options = options
@@ -92,7 +107,7 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    const turn: Turn = { chatId: req.chatId, heard: 0, message, permissions: new Map(), cancelled: false }
+    const turn: Turn = { chatId: req.chatId, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), cancelled: false }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -110,6 +125,8 @@ export class Turns {
       this.options.notify(req.chatId, update)
       void ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
     }
+    turn.emit = emit
+    if (turn.role === "coauthor") this.coauthors.set(req.chatId, Infinity)
     const finish = async (status: ChatMessage["status"], error?: string) => {
       turn.message = { ...turn.message, status, ...(error ? { error } : {}) }
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
@@ -119,15 +136,18 @@ export class Turns {
     const t0 = Date.now()
     const log = (what: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[turn ${req.chatId.slice(0, 8)}] ${what} +${Date.now() - t0}ms`)
     try {
-      const fresh = await this.session(req, ws, emit)
+      const fresh = await this.session(req, ws)
       log(`session ${fresh.history === null ? "ready" : "new, with history"}`)
       live = fresh.live
       live.turn = turn
-      await this.configure(live, req)
+      await this.configure(live, req, fresh.guard)
       log("configured")
       // Stopped while the agent was starting: it isn't asked at all
       if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
       const prompt = promptBlocks(req.input, ws.root, fresh.history, fresh.created)
+      // The role goes before the user's words whenever it is new to this session
+      if (live.told !== turn.role) prompt.splice(fresh.created ? 1 : 0, 0, { type: "text", text: roleNote(turn.role) })
+      live.told = turn.role
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
       await quiet(turn)
@@ -147,6 +167,7 @@ export class Turns {
       if (live) live.turn = null
       // The watcher hears about the last writes a moment after the turn ends
       for (const claim of this.claims.values()) if (claim.chatId === req.chatId && claim.until === Infinity) claim.until = Date.now() + CLAIM_AFTER_MS
+      if (this.coauthors.get(req.chatId) === Infinity) this.coauthors.set(req.chatId, Date.now() + CLAIM_AFTER_MS)
     }
   }
 
@@ -179,12 +200,33 @@ export class Turns {
     for (const chatId of [...this.turns.keys()]) void this.cancel(chatId)
     this.live.clear()
     this.claims.clear()
+    this.coauthors.clear()
   }
 
-  // The chat whose agent is changing this file, if one is (a change on disk is then the agent's)
+  // The chat whose agent is changing this file, if one is (a change on disk is then the agent's). Besides
+  // the files its tool calls name, a Co-author's turn owns any change in the workspace while it runs: its
+  // shell commands write files no tool call names, and only a Co-author may (the other roles' agents
+  // can't write the workspace from a shell). With two Co-authors at work nobody can tell whose it is.
   claimant(rel: string) {
     const claim = this.claims.get(rel)
-    return claim && claim.until >= Date.now() ? claim.chatId : undefined
+    if (claim && claim.until >= Date.now()) return claim.chatId
+    const coauthors = [...this.coauthors.entries()].filter(([, until]) => until >= Date.now())
+    return coauthors.length === 1 ? coauthors[0][0] : undefined
+  }
+
+  // Whether the agent of a chat may do this through owlit's own tools, by the role of its running turn;
+  // asked of the user in the chat when the role says so
+  async consent(chatId: string, action: ConsentAction, title: string): Promise<{ allowed: boolean; reason?: string }> {
+    const turn = this.turns.get(chatId)
+    // Between turns (a tool call that outlived its turn) the chat's saved role decides, and nobody is
+    // there to be asked
+    const role = turn ? turn.role : ((await this.options.workspace()?.chats.get(chatId).catch(() => null))?.role ?? DEFAULT_ROLE)
+    const rule = consentFor(role, action)
+    if (rule === "allow") return { allowed: true }
+    if (typeof rule === "object") return { allowed: false, reason: rule.refuse }
+    if (!turn || turn.cancelled) return { allowed: false, reason: "This chat isn't answering any more, so the user couldn't be asked." }
+    const allowed = await this.ask(turn, title, action === "add_paper" ? "other" : action)
+    return allowed ? { allowed } : { allowed, reason: "The user said no." }
   }
 
   // ---- inside ----
@@ -195,43 +237,50 @@ export class Turns {
 
   // The chat's session on this agent: still open in the running process, loaded again from what the chat
   // recorded, or new. A new session for a chat that already has messages gets the conversation so far.
-  private async session(req: TurnRequest, ws: { root: string; chats: Chats; docs: Docs }, emit: (u: SessionUpdate) => void) {
+  // One open with options from another role is loaded again with this role's.
+  private async session(req: TurnRequest, ws: { root: string; chats: Chats; docs: Docs }) {
     const key = `${req.chatId}/${req.connectorId}`
     const proc = await this.options.agents.process(req.connectorId)
+    const guard = guardFor(req.connectorId, req.role ?? DEFAULT_ROLE, roots(ws.root))
+    const meta = JSON.stringify(guard.meta ?? null)
     const known = this.live.get(key)
-    if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId)) return { live: known, history: null, created: false }
+    if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId) && known.meta === meta) return { live: known, history: null, created: false, guard }
 
-    const handler = this.handler(key, req.chatId, ws.root, emit)
+    const handler = this.handler(key, req.chatId, ws.root)
     const chat = await ws.chats.get(req.chatId)
     const recorded = chat.sessions?.[req.connectorId]
     const init = await proc.initialized()
+    const _meta = guard.meta
     if (recorded && init.agentCapabilities?.loadSession) {
       try {
         loading.add(key)
-        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId) }, handler)
-        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, turn: null }
+        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
+        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, owlitCalls: new Set(), turn: null }
         this.live.set(key, live)
-        return { live, history: null, created: false }
+        return { live, history: null, created: false, guard }
       } catch {
         // The agent no longer has it; a new session takes the conversation as context instead
       } finally {
         loading.delete(key)
       }
     }
-    const created = await proc.newSession({ cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId) }, handler)
-    const live: Live = { sessionId: created.sessionId, proc, options: created.configOptions ?? [], modes: created.modes ?? null, turn: null }
+    const created = await proc.newSession({ cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
+    const live: Live = { sessionId: created.sessionId, proc, options: created.configOptions ?? [], modes: created.modes ?? null, meta, owlitCalls: new Set(), turn: null }
     this.live.set(key, live)
     await ws.chats.update(req.chatId, { sessions: { ...chat.sessions, [req.connectorId]: created.sessionId } })
     // The messages before this turn (the user's new one is already appended, so it is left out)
     const earlier = chat.messages.filter((m) => m.id !== req.userMessage.id && m.id !== req.assistantMessageId)
-    return { live, history: earlier.length ? transcript(earlier) : null, created: true }
+    return { live, history: earlier.length ? transcript(earlier) : null, created: true, guard }
   }
 
-  // Sets the model, mode and effort the chat asks for, where they differ from what the session has
-  private async configure(live: Live, req: TurnRequest) {
+  // Sets the model and effort the chat asks for and the mode its role needs, where they differ from what
+  // the session has
+  private async configure(live: Live, req: TurnRequest, guard: Guard) {
+    const offered = live.options.find((o) => o.category === "mode" && o.type === "select")
+    const modeIds = offered && offered.type === "select" ? flatValues(offered.options) : (live.modes?.availableModes.map((m) => m.id) ?? [])
     const want: [string, string | undefined][] = [
       ["model", req.modelId],
-      ["mode", req.modeId],
+      ["mode", guard.modes.find((m) => modeIds.includes(m))],
       ["thought_level", req.effortId],
     ]
     for (const [category, value] of want) {
@@ -248,7 +297,9 @@ export class Turns {
     }
   }
 
-  private handler(key: string, chatId: string, root: string, emit: (u: SessionUpdate) => void): SessionHandler {
+  // The session's handler outlives the turn it was made in: what the agent sends goes to the turn running
+  // now (its emit), never to the one that opened the session
+  private handler(key: string, chatId: string, root: string): SessionHandler {
     return {
       update: (n) => {
         // A loaded session replays its history first; the chat already has it
@@ -257,24 +308,40 @@ export class Turns {
         if (n.update.sessionUpdate === "config_option_update" && live) live.options = n.update.configOptions
         if (n.update.sessionUpdate === "current_mode_update" && live?.modes) live.modes = { ...live.modes, currentModeId: n.update.currentModeId }
         if (!live?.turn) return
+        if (n.update.sessionUpdate === "tool_call" && isOwlitCall(n.update)) live.owlitCalls.add(n.update.toolCallId)
         const update = toUpdate(n.update, root)
         if (!update) return
-        emit(update)
+        live.turn.emit?.(update)
         this.claim(live.turn, update)
       },
       requestPermission: (r) => {
         const turn = this.live.get(key)?.turn
-        if (!turn || turn.cancelled) return Promise.resolve({ outcome: { outcome: "cancelled" } })
+        const emit = turn?.emit
+        if (!turn || !emit || turn.cancelled) return Promise.resolve({ outcome: { outcome: "cancelled" } })
+        // A call to owlit's own tools asks owlit, not the user: owlit-mcp decides consent by the role
+        // itself (Codex asks before every MCP call in its read-only mode)
+        if (this.live.get(key)?.owlitCalls.has(r.toolCall.toolCallId)) {
+          const allow = r.options.find((o) => o.kind === "allow_once")
+          if (allow) return Promise.resolve({ outcome: { outcome: "selected", optionId: allow.optionId } })
+        }
+        // What the role doesn't allow is refused before the user sees it
+        if (answerFor(turn.role, toKind(r.toolCall.kind)) === "reject") {
+          const reject = r.options.find((o) => o.kind === "reject_once") ?? r.options.find((o) => o.kind === "reject_always")
+          return Promise.resolve(reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } })
+        }
         const requestId = randomUUID()
         const toolCallId = r.toolCall.toolCallId
+        // A request may leave out what its tool call already announced (Codex sends only the id)
+        const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === toolCallId)
+        const title = r.toolCall.title ?? (announced?.type === "tool_call" ? announced.title : undefined)
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
-        emit({ type: "tool_call", toolCallId, title: r.toolCall.title ?? "Tool", kind: toKind(r.toolCall.kind), status: "pending", ...toolContent(r.toolCall, root) })
+        emit({ type: "tool_call", toolCallId, title: title ?? "Tool", kind: toKind(r.toolCall.kind), status: "pending", ...toolContent(r.toolCall, root) })
         emit({
           type: "permission_request",
           requestId,
           toolCallId,
-          title: r.toolCall.title ?? "The agent asks to go ahead",
+          title: title ?? "The agent asks to go ahead",
           kind: toKind(r.toolCall.kind),
           options: r.options.map((o) => ({ optionId: o.optionId, name: o.name, kind: o.kind as PermissionKind })),
         })
@@ -309,6 +376,34 @@ export class Turns {
     }
   }
 
+  // A question of owlit's own (not the agent's) in the chat: a tool call with the permission card, Allow
+  // or Don't allow, answered like any other
+  private ask(turn: Turn, title: string, kind: ToolKind): Promise<boolean> {
+    const emit = turn.emit
+    if (!emit) return Promise.resolve(false)
+    const toolCallId = `owlit-${randomUUID()}`
+    const requestId = randomUUID()
+    const options: acp.PermissionOption[] = [
+      { optionId: "allow", name: "Allow", kind: "allow_once" },
+      { optionId: "reject", name: "Don't allow", kind: "reject_once" },
+    ]
+    emit({ type: "tool_call", toolCallId, title, kind, status: "pending" })
+    emit({ type: "permission_request", requestId, toolCallId, title, kind, options: options.map((o) => ({ optionId: o.optionId, name: o.name, kind: o.kind as PermissionKind })) })
+    return new Promise((resolve) => {
+      turn.permissions.set(requestId, {
+        toolCallId,
+        options,
+        resolve: (response) => {
+          turn.permissions.delete(requestId)
+          const allowed = response.outcome.outcome === "selected" && response.outcome.optionId === "allow"
+          emit({ type: "permission_resolved", requestId, outcome: response.outcome.outcome === "selected" ? (allowed ? "allow_once" : "reject_once") : "cancelled" })
+          emit({ type: "tool_call_update", toolCallId, status: allowed ? "completed" : "failed" })
+          resolve(allowed)
+        },
+      })
+    })
+  }
+
   private closePermissions(turn: Turn, _emit: (u: SessionUpdate) => void) {
     for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
   }
@@ -328,6 +423,28 @@ async function quiet(turn: Turn) {
 }
 
 const CLAIM_AFTER_MS = 5000
+
+// The workspace as the agent may see it: as given and as the disk resolves it (/tmp is /private/tmp)
+function roots(root: string) {
+  let real = root
+  try {
+    real = realpathSync(root)
+  } catch {
+    // Gone or unreadable: the path as given still names it
+  }
+  return [...new Set([root, real])]
+}
+
+// A tool call to owlit's own MCP server: Codex says so in rawInput (and titles it mcp.owlit.<tool>),
+// Claude Code titles it mcp__owlit__<tool>
+function isOwlitCall(call: acp.ToolCall) {
+  const input = call.rawInput as { server?: unknown } | undefined
+  return input?.server === "owlit" || /^mcp(\.|__)owlit(\.|__)/.test(call.title ?? "")
+}
+
+// A select option's values, flattening groups
+const flatValues = (options: unknown) =>
+  (options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()

@@ -1,5 +1,6 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
+import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
@@ -190,7 +191,7 @@ export interface Methods {
       chatId: string
       connectorId: string
       modelId?: string
-      modeId?: string
+      role?: Role
       effortId?: string
       input: PromptInput
       userMessage: ChatMessage
@@ -198,6 +199,14 @@ export interface Methods {
     }
     result: { stopReason: StopReason }
   }
+  // Whether the agent of a chat may do something through owlit's own tools, by the chat's role: allowed,
+  // refused (with why, for the agent), or asked of the user in the chat first. owlit-mcp asks before
+  // deleting or moving docs and before adding papers.
+  "agents.consent": { params: { chatId: string; action: ConsentAction; title: string }; result: { allowed: boolean; reason?: string } }
+  // Deletes or moves the user's docs for an agent (owlit-mcp's docs_delete and docs_move, after consent),
+  // keeping each file's text so the chat offers Undo
+  "agents.deleteDocs": { params: { paths: string[]; chatId?: string }; result: { deleted: string[] } }
+  "agents.moveDoc": { params: { path: string; to: string; chatId?: string }; result: { path: string } }
   // Stops the chat's running turn; questions it was waiting on close as cancelled
   "agents.cancel": { params: { chatId: string }; result: null }
   // Answers a permission_request with one of its options

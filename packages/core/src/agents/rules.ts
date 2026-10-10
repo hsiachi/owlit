@@ -4,8 +4,9 @@
 // Version 1 (2026-10-09): first version. Bump the version line in the text when the rules change, and
 // say here what changed.
 // Version 4 (2026-10-10): questions about using owlit itself go to owlit_help.
+// Version 5 (2026-10-10): docs are deleted and moved with docs_delete and docs_move.
 
-export const RULES_VERSION = 4
+export const RULES_VERSION = 5
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -20,6 +21,7 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 ## Docs
 - Docs belong to the user. Change a doc only when the user asks you to, and read it right before you do: they may have changed it since you last looked.
 - For comments, suggestions and questions about a doc, leave a note in its margin with docs_add_note. Don't write comments into the file.
+- Delete, move or rename docs with docs_delete and docs_move, not with shell commands: owlit keeps what they change so the user can undo it.
 
 ## Papers
 - library_list finds papers in the library by their details and their full text. library_read gives a paper's text: ask for pages or a section rather than all of it.
