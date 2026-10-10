@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { cn } from "cn"
 import { Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   MessageScroller,
@@ -8,7 +9,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import { MessageGroup } from "@/components/ui/message"
 import { useAgentWindow } from "@/features/agent/store"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
@@ -53,29 +53,32 @@ export function ChatView() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <MessageScrollerProvider>
+      {/* One scroller per chat, so switching chats opens the next one at its end */}
+      <MessageScrollerProvider key={chat.id}>
         <MessageScroller className="flex-1">
           <MessageScrollerViewport className="px-4" aria-label="Messages">
-            <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-8 py-6 pb-12">
-              {/* Items carry the spacing as bottom padding so the hover footers, which hang below each
-                  message, stay inside the item's paint containment instead of being clipped */}
-              <MessageGroup className="gap-1">
-                {chat.messages.map((m, i) => (
-                  <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className="pb-7">
-                    {m.role === "user" ? (
-                      <UserMessage message={m} onEdit={(text) => composer.current?.setText(text)} />
-                    ) : (
-                      <AssistantMessage
-                        message={m}
-                        modelName={modelName(m.connectorId, m.modelId)}
-                        onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
-                        onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
-                        onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
-                      />
-                    )}
-                  </MessageScrollerItem>
-                ))}
-              </MessageGroup>
+            <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-1 py-6 pb-12">
+              {/* Items sit directly in the content: the scroller only sees its direct children, so a wrapper
+                  hides new messages from it and a sent question never moves to the top.
+                  Items carry the spacing as bottom padding so the hover footers, which hang below each
+                  message, stay inside the item's paint containment instead of being clipped. The latest
+                  exchange always renders: skipped off screen, a just-sent question would be measured at its
+                  placeholder height, and the scroller would anchor it a frame early and then jump */}
+              {chat.messages.map((m, i) => (
+                <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className={cn("pb-7", i >= chat.messages.length - 2 && "[content-visibility:visible]")}>
+                  {m.role === "user" ? (
+                    <UserMessage message={m} onEdit={(text) => composer.current?.setText(text)} />
+                  ) : (
+                    <AssistantMessage
+                      message={m}
+                      modelName={modelName(m.connectorId, m.modelId)}
+                      onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
+                      onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
+                      onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
+                    />
+                  )}
+                </MessageScrollerItem>
+              ))}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           {/* Floats above the text like a menu would: popover surface and a soft shadow */}
