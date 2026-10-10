@@ -186,8 +186,8 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, modeId, effortId, sessions } = chat
-  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, modeId, effortId, ...(sessions ? { sessions } : {}) }
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions } = chat
+  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, ...(role ? { role } : {}), effortId, ...(sessions ? { sessions } : {}) }
 }
 
 // A turn that never finished: cancelled, and any question it was waiting on closed with it

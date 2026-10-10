@@ -1,10 +1,11 @@
+import type { Role } from "@owlit/protocol"
 import type { ChatMessage, Connector, PromptInput, SessionUpdate, StopReason } from "../types"
 
 export interface PromptRequest {
   chatId: string
   connectorId: string
   modelId?: string
-  modeId?: string
+  role?: Role
   effortId?: string
   input: PromptInput
   // The messages the turn adds, for a client that saves them itself

@@ -4,6 +4,7 @@
 //   "read <path>"      reads a file through owlit and says how long it is
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
+//   "silent <path> <t>" writes t into the file itself without any tool call naming it, as a shell command does
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
@@ -143,6 +144,12 @@ class FakeAgent implements acp.Agent {
         } catch (error) {
           await say(`could not read: ${(error as Error).message}`)
         }
+        return { stopReason: "end_turn" }
+      }
+      const silent = /silent (\S+) (.+)/.exec(text)
+      if (silent) {
+        writeFileSync(`${session.cwd}/${silent[1]}`, silent[2])
+        await say("ran a command")
         return { stopReason: "end_turn" }
       }
       const direct = /direct (\S+) (.+)/.exec(text)

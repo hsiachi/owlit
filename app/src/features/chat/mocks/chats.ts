@@ -14,7 +14,7 @@ export const seedChats: Chat[] = [
     pinned: true,
     connectorId: "claude-code",
     modelId: "claude-sonnet-5-5",
-    modeId: "default",
+    role: "assistant",
     messages: [
       {
         id: "m1",
@@ -55,7 +55,7 @@ export const seedChats: Chat[] = [
     pinned: false,
     connectorId: "claude-code",
     modelId: "claude-opus-5-5",
-    modeId: "acceptEdits",
+    role: "coauthor",
     messages: [
       {
         id: "m3",

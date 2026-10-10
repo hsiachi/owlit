@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { applyUpdate } from "@owlit/protocol"
+import { applyUpdate, DEFAULT_ROLE, type Role } from "@owlit/protocol"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import type { AgentClient } from "./agent/client"
 import * as disk from "./disk"
@@ -26,7 +26,8 @@ const inflight = new Map<string, AbortController>()
 export interface Selection {
   connectorId: string
   modelId?: string
-  modeId?: string
+  // Owlit's role, the same whichever agent runs; it stays when the agent changes
+  role: Role
   effortId?: string
 }
 
@@ -41,7 +42,7 @@ interface ChatState {
   // Chat ids with a running turn
   streaming: Record<string, true>
 
-  createChat: (init?: Partial<Pick<Chat, "connectorId" | "modelId" | "modeId" | "effortId">>) => Chat
+  createChat: (init?: Partial<Pick<Chat, "connectorId" | "modelId" | "role" | "effortId">>) => Chat
   deleteChat: (id: string) => void
   renameChat: (id: string, title: string) => void
   togglePin: (id: string) => void
@@ -73,7 +74,7 @@ export const useChatStore = create<ChatState>()(
       selection: {
         connectorId: builtInConnectors[0].id,
         modelId: builtInConnectors[0].defaultModelId,
-        modeId: builtInConnectors[0].defaultModeId,
+        role: DEFAULT_ROLE,
         effortId: builtInConnectors[0].defaultEffortId,
       },
       streaming: {},
@@ -89,7 +90,7 @@ export const useChatStore = create<ChatState>()(
           pinned: false,
           connectorId: selection.connectorId,
           modelId: selection.modelId,
-          modeId: selection.modeId,
+          role: selection.role,
           effortId: selection.effortId,
           ...init,
           messages: [],
@@ -130,11 +131,10 @@ export const useChatStore = create<ChatState>()(
       setSelection(patch) {
         set((s) => {
           const next = { ...s.selection, ...patch }
-          // Changing connector resets model and mode to its defaults
+          // Changing connector resets model and effort to its defaults; the role is Owlit's and stays
           if (patch.connectorId && patch.connectorId !== s.selection.connectorId) {
             const c = s.connectors.find((x) => x.id === patch.connectorId)
             next.modelId = c?.defaultModelId
-            next.modeId = c?.defaultModeId
             next.effortId = c?.defaultEffortId
           }
           return { selection: next }
@@ -144,9 +144,9 @@ export const useChatStore = create<ChatState>()(
       setChatSelection(chatId, patch) {
         get().setSelection(patch)
         if (!get().chats[chatId]) return
-        const { connectorId, modelId, modeId, effortId } = get().selection
-        set((s) => ({ chats: { ...s.chats, [chatId]: { ...s.chats[chatId], connectorId, modelId, modeId, effortId } } }))
-        if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, modeId, effortId })
+        const { connectorId, modelId, role, effortId } = get().selection
+        set((s) => ({ chats: { ...s.chats, [chatId]: { ...s.chats[chatId], connectorId, modelId, role, effortId } } }))
+        if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, role, effortId })
       },
 
       async send(chatId, input) {
@@ -154,8 +154,12 @@ export const useChatStore = create<ChatState>()(
         const chat = state.chats[chatId]
         if (!chat || state.streaming[chatId]) return
         const connectorId = chat.connectorId ?? state.selection.connectorId
-        const modelId = chat.modelId ?? state.selection.modelId
-        const modeId = chat.modeId ?? state.selection.modeId
+        // A model the agent no longer lists (such as Claude Code's "default", which owlit doesn't show)
+        // falls back to the agent's own default, as the picker shows it
+        const connector = state.connectors.find((c) => c.id === connectorId)
+        const wanted = chat.modelId ?? state.selection.modelId
+        const modelId = !connector || connector.models.some((m) => m.id === wanted) ? wanted : connector.defaultModelId
+        const role = chat.role ?? state.selection.role ?? DEFAULT_ROLE
         const effortId = chat.effortId ?? state.selection.effortId
         const now = Date.now()
 
@@ -225,7 +229,7 @@ export const useChatStore = create<ChatState>()(
           // A chat made just now must reach core before core can run a turn in it
           if (disk.onDisk) await disk.settled()
           const stop = await agentClient.prompt(
-            { chatId, connectorId, modelId, modeId, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
+            { chatId, connectorId, modelId, role, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )
@@ -289,7 +293,7 @@ export const useChatStore = create<ChatState>()(
           const connectors = s.connectors.filter((c) => c.id !== id)
           const selection =
             s.selection.connectorId === id
-              ? { connectorId: connectors[0]?.id ?? "", modelId: connectors[0]?.defaultModelId, modeId: connectors[0]?.defaultModeId }
+              ? { connectorId: connectors[0]?.id ?? "", modelId: connectors[0]?.defaultModelId, role: s.selection.role }
               : s.selection
           return { connectors, selection }
         })
@@ -320,7 +324,10 @@ export const useChatStore = create<ChatState>()(
             { ...c, messages: c.messages.map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m)) },
           ]),
         )
-        return { ...current, ...p, connectors, chats }
+        // A selection saved before roles existed has a mode instead; the role starts at its default
+        const { modeId: _mode, ...saved } = (p.selection ?? {}) as Partial<Selection> & { modeId?: string }
+        const selection = { ...current.selection, ...saved, role: saved.role ?? current.selection.role }
+        return { ...current, ...p, selection, connectors, chats }
       },
     },
   ),
@@ -328,8 +335,8 @@ export const useChatStore = create<ChatState>()(
 
 // ---- Local agents, from core ----
 
-// The pickers show what the agent offers; a remembered model, mode or effort it doesn't offer falls back
-// to the agent's own default
+// The pickers show what the agent offers; a remembered model or effort it doesn't offer falls back to the
+// agent's own default
 function fitSelection(connectors: Connector[]) {
   const { selection } = useChatStore.getState()
   const c = connectors.find((x) => x.id === selection.connectorId) ?? connectors[0]
@@ -340,7 +347,7 @@ function fitSelection(connectors: Connector[]) {
     selection: {
       connectorId: c.id,
       modelId: pick(c.models, selection.modelId, c.defaultModelId),
-      modeId: pick(c.modes, selection.modeId, c.defaultModeId),
+      role: selection.role ?? DEFAULT_ROLE,
       effortId: pick(c.efforts, selection.effortId, c.defaultEffortId),
     },
   })

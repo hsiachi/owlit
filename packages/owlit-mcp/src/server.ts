@@ -4,7 +4,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
-import { OWLIT_TOOLS, type AgentNote, type HighlightColor, type Paper, type ToolSpec } from "@owlit/protocol"
+import { OWLIT_TOOLS, type AgentNote, type ConsentAction, type HighlightColor, type Paper, type ToolSpec } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 
 export interface OwlitMcpOptions {
@@ -151,6 +151,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_add": {
       const { paper, existingId } = await owlit.rpc.library.resolve({ input: str("ref") })
       if (existingId) return `Already in the library as ${existingId}: ${paper.title}`
+      const refused = await consent(owlit, options, "add_paper", `Add “${paper.title}” to the Library`)
+      if (refused) return refused
       const added = await owlit.rpc.library.add({ paper, addedBy: "agent", ...asker })
       return `Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}). Its PDF and text arrive by themselves; once you have read it, keep a reading note with library_write_digest.`
     }
@@ -165,6 +167,20 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "docs_read":
       return (await owlit.rpc.docs.read({ path: str("path") })).content
+    case "docs_delete": {
+      const paths = (args.paths as string[]).filter(Boolean)
+      if (!paths.length) return "Name at least one doc or folder to delete."
+      const refused = await consent(owlit, options, "delete", `Delete ${paths.map(nameOf).join(", ")}`)
+      if (refused) return refused
+      const { deleted } = await owlit.rpc.agents.deleteDocs({ paths, ...asker })
+      return `Deleted ${deleted.join(", ")}. They are in the Trash, and the user can undo it from the chat.`
+    }
+    case "docs_move": {
+      const refused = await consent(owlit, options, "move", `Move ${nameOf(str("path"))} to ${str("to")}`)
+      if (refused) return refused
+      const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...asker })
+      return `Moved ${str("path")} to ${moved.path}.`
+    }
     case "docs_add_note": {
       const { content } = await owlit.rpc.docs.read({ path: str("path") })
       const anchor = anchorOf(content, str("quote"))
@@ -238,6 +254,17 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
 }
 
 // The passage as it is in the doc, with a little text either side so it can be found again after edits
+// Asks owlit whether the chat's role lets the agent do this, asking the user in the chat when it says so.
+// Null to go ahead, or what to tell the agent. An agent outside owlit has no chat; its own permission
+// prompt for this tool is the user's say.
+async function consent(owlit: OwlitClient, options: OwlitMcpOptions, action: ConsentAction, title: string) {
+  if (!options.chatId) return null
+  const answer = await owlit.rpc.agents.consent({ chatId: options.chatId, action, title })
+  return answer.allowed ? null : `Not done: ${answer.reason ?? "the user said no."}`
+}
+
+const nameOf = (p: string) => p.split("/").filter(Boolean).pop() ?? p
+
 function anchorOf(content: string, quote: string) {
   let at = content.indexOf(quote)
   let found = quote
@@ -283,6 +310,10 @@ export function checkArgs(spec: ToolSpec, args: Record<string, unknown>): string
     const prop = spec.inputSchema.properties[key]
     if (!prop) return `${spec.name} doesn't take ${key}; it takes ${Object.keys(spec.inputSchema.properties).join(", ") || "nothing"}.`
     if (value === undefined || value === null) continue
+    if (prop.type === "array") {
+      if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) return `${key} should be a list of strings.`
+      continue
+    }
     if (typeof value !== prop.type) return `${key} should be a ${prop.type}.`
     if (prop.enum && !prop.enum.includes(value as string)) return `${key} should be one of ${prop.enum.join(", ")}.`
   }

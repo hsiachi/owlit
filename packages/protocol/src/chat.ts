@@ -1,6 +1,8 @@
 // Chat domain types. Message parts and session updates follow the shape of the
 // Agent Client Protocol (ACP) so a real local-agent connector can feed them later.
 
+import type { Role } from "./roles.ts"
+
 export type SourceKind = "paper" | "doc" | "knowledge"
 
 // Something the user can @-mention from Library (papers), Docs or Knowledge
@@ -128,7 +130,7 @@ export interface Chat {
   pinned: boolean
   connectorId?: string
   modelId?: string
-  modeId?: string
+  role?: Role
   effortId?: string
   // The ACP session this chat has on each agent (connector id → session id), so it continues where it
   // left off after a restart; kept by core

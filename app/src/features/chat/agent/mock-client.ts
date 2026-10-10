@@ -1,3 +1,4 @@
+import { DEFAULT_ROLE } from "@owlit/protocol"
 import { useLibraryStore } from "@/features/library/store"
 import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
@@ -16,8 +17,9 @@ const sleep = (ms: number, signal: AbortSignal) =>
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError"
 
-const READ_ONLY_MODES = new Set(["plan", "read-only"])
-const AUTO_MODES = new Set(["acceptEdits", "bypassPermissions", "auto", "full-access", "auto_edit", "yolo"])
+// A Reviewer never writes; a Co-author writes without asking; an Assistant asks first
+const READ_ONLY_ROLES = new Set<string>(["reviewer"])
+const AUTO_ROLES = new Set<string>(["coauthor"])
 
 // Simulates an ACP agent turn: thinking, tool calls, an optional permission
 // request, and a streamed markdown answer. Enough to exercise every UI state.
@@ -50,7 +52,7 @@ export class MockAgentClient implements AgentClient {
     signal: AbortSignal,
   ): Promise<StopReason> {
     const { text, mentions, attachments, context = [], selection } = req.input
-    const mode = req.modeId ?? ""
+    const mode: string = req.role ?? DEFAULT_ROLE
     // What the agent reads first: everything mentioned, plus what was on screen
     const sources = [...mentions, ...context.filter((c) => !mentions.some((m) => m.uri === c.uri))]
     try {
@@ -104,7 +106,7 @@ export class MockAgentClient implements AgentClient {
         emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: "8 papers matched; shortlisted 3 by relevance." })
       }
 
-      if (READ_ONLY_MODES.has(mode)) {
+      if (READ_ONLY_ROLES.has(mode)) {
         await sleep(400, signal)
         emit({
           type: "plan",
@@ -117,12 +119,12 @@ export class MockAgentClient implements AgentClient {
       }
 
       const wantsWrite = /\b(write|edit|create|save|update|draft|add)\b/i.test(text)
-      if (wantsWrite && !READ_ONLY_MODES.has(mode)) {
+      if (wantsWrite && !READ_ONLY_ROLES.has(mode)) {
         const target = mentions.find((m) => m.kind === "doc")?.title ?? "notes/untitled.md"
         const toolCallId = `tc-${crypto.randomUUID()}`
         emit({ type: "tool_call", toolCallId, title: `Edit ${target}`, kind: "edit", status: "pending", locations: [{ path: `docs/${target}` }] })
         let outcome: PermissionKind = "allow_once"
-        if (!AUTO_MODES.has(mode)) {
+        if (!AUTO_ROLES.has(mode)) {
           outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${target}`)
         }
         if (outcome.startsWith("reject")) {
@@ -190,7 +192,7 @@ export class MockAgentClient implements AgentClient {
     const diff = { path, oldText: before, newText: before.replace(selection.text, rewritten.text) }
     emit({ type: "tool_call", toolCallId, title: `Edit ${title}`, kind: "edit", status: "pending", locations: [{ path }], diff })
     let outcome: PermissionKind = "allow_once"
-    if (!AUTO_MODES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
+    if (!AUTO_ROLES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
     if (outcome.startsWith("reject")) {
       emit({ type: "tool_call_update", toolCallId, status: "failed", content: "Edit rejected by the user." })
       await this.stream(emit, signal, "Left your note as it was.", "agent_message_chunk", 14)
@@ -231,7 +233,7 @@ export class MockAgentClient implements AgentClient {
     const diff = { path, oldText: before, newText: replacePassage(before, selection, rewritten.text) }
     emit({ type: "tool_call", toolCallId, title: `Edit ${title}`, kind: "edit", status: "pending", locations: [{ path }], diff })
     let outcome: PermissionKind = "allow_once"
-    if (!AUTO_MODES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
+    if (!AUTO_ROLES.has(mode)) outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${title}`)
     if (outcome.startsWith("reject")) {
       emit({ type: "tool_call_update", toolCallId, status: "failed", content: "Edit rejected by the user." })
       await this.stream(emit, signal, "Left the doc as it was.", "agent_message_chunk", 14)

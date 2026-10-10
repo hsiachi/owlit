@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { SettingsStore } from "../settings.ts"
-import { Agents } from "./agents.ts"
+import { Agents, tidy } from "./agents.ts"
 import { splitCommand } from "./command.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
@@ -24,7 +24,7 @@ afterEach(() => {
   delete process.env.FAKE_ACP_AUTH
 })
 
-async function setup(idleMs = 60_000) {
+async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH ?? "") {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-agents-")))
   const heard: Connector[] = []
   const agents = new Agents({
@@ -33,7 +33,7 @@ async function setup(idleMs = 60_000) {
     cwd: () => dir,
     notify: (c) => heard.push(c),
     idleMs,
-    searchPath: async () => process.env.PATH ?? "",
+    searchPath,
   })
   made.push(agents)
   const added = await agents.add("Fake", `"${process.execPath}" "${fake}"`)
@@ -44,6 +44,27 @@ describe("splitCommand", () => {
   it("splits on spaces and keeps quoted words whole", () => {
     expect(splitCommand(`gemini --experimental-acp`)).toEqual(["gemini", "--experimental-acp"])
     expect(splitCommand(`"/Applications/My Agent/bin" --x 'a b' ""`)).toEqual(["/Applications/My Agent/bin", "--x", "a b", ""])
+  })
+})
+
+describe("tidy", () => {
+  it("drops the agent's own \"default\" model and effort, and defaults to the model it pointed at", () => {
+    const tidied = tidy({
+      checkedAt: 1,
+      models: [
+        { id: "default", name: "Default (recommended)", description: "Opus" },
+        { id: "opus", name: "Opus 5.5" },
+        { id: "sonnet", name: "Sonnet 5.5 (recommended)" },
+      ],
+      modes: [],
+      efforts: [{ id: "default", name: "Default" }, { id: "medium", name: "Medium" }, { id: "xhigh", name: "Xhigh" }],
+      defaultModelId: "default",
+      defaultEffortId: "medium",
+    })
+    expect(tidied.models).toEqual([{ id: "opus", name: "Opus 5.5" }, { id: "sonnet", name: "Sonnet 5.5" }])
+    expect(tidied.defaultModelId).toBe("opus")
+    expect(tidied.efforts.map((e) => e.name)).toEqual(["Medium", "Extra high"])
+    expect(tidied.defaultEffortId).toBe("medium")
   })
 })
 
@@ -67,9 +88,10 @@ describe("agents", () => {
   })
 
   it("says when an agent isn't installed, with its install command", async () => {
-    const { agents } = await setup()
+    // A PATH with nothing on it, whatever this machine has installed
+    const empty = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-empty-path-")))
+    const { agents } = await setup(60_000, async () => empty)
     const codex = await agents.check("codex").catch((e) => e)
-    // codex-acp is not on this machine's PATH in tests
     expect(codex).toMatchObject({ status: "not_installed", installHint: "npm install -g @agentclientprotocol/codex-acp" })
   })
 

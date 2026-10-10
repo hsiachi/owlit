@@ -1,4 +1,4 @@
-import { RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
@@ -204,6 +204,7 @@ export class Core {
     })
     const chats = () => this.requireWorkspace().chats
     const chatId = z.string().regex(/^[\w-]+$/)
+    const roleSchema = z.enum(ROLES.map((r) => r.id) as [Role, ...Role[]])
     const summary = z.object({
       id: chatId,
       title: z.string(),
@@ -212,7 +213,7 @@ export class Core {
       pinned: z.boolean(),
       connectorId: z.string().optional(),
       modelId: z.string().optional(),
-      modeId: z.string().optional(),
+      role: roleSchema.optional(),
       effortId: z.string().optional(),
     })
     // Messages are the app's own shape (protocol/chat.ts); core checks only what it relies on
@@ -246,7 +247,7 @@ export class Core {
         chatId,
         connectorId: z.string(),
         modelId: z.string().optional(),
-        modeId: z.string().optional(),
+        role: roleSchema.optional(),
         effortId: z.string().optional(),
         input: z.looseObject({ text: z.string(), mentions: z.array(z.looseObject({ uri: z.string(), title: z.string() })), attachments: z.array(z.looseObject({ name: z.string() })) }) as unknown as z.ZodType<PromptInput>,
         userMessage: message,
@@ -254,6 +255,17 @@ export class Core {
       }),
       async (req) => ({ stopReason: await this.turns.prompt(req) }),
     )
+    this.router.register(
+      "agents.consent",
+      z.object({ chatId, action: z.enum(["delete", "move", "add_paper"]), title: z.string().min(1) }),
+      ({ chatId, action, title }) => this.turns.consent(chatId, action, title),
+    )
+    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1), chatId: chatId.optional() }), async ({ paths, chatId }) => ({
+      deleted: await this.fs.remove(paths, chatId),
+    }))
+    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1), chatId: chatId.optional() }), async ({ path: from, to, chatId }) => ({
+      path: await this.fs.move(from, to, chatId),
+    }))
     this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), ({ clientId, paths }) =>
       this.ui.setOpenDocs(clientId, paths),
     )
