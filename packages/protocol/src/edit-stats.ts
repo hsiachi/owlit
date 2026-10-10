@@ -1,7 +1,8 @@
 // How much an edit changed, said the same way by core (a reply's result card) and the app (a step's row).
 // Prose is counted in words, since a paragraph of a doc is one line and "+1 −1" says nothing of how much
 // of it changed: a run of letters or digits is one word, and so is each CJK character, as the doc's own
-// word count reads them. Anything else (code, data) is counted in lines.
+// word count reads them. Anything else (code, data) is counted in lines, and says so wherever it shows:
+// words are the usual unit here, so "+12 −3" next to "+312 −40" must not pass for the same thing.
 
 export interface EditStats {
   unit: "words" | "lines"
@@ -15,7 +16,9 @@ export interface EditStats {
 // with this line between them, which the preview shows as a gap
 export const HUNK_GAP = "⋯"
 
-const PROSE = /\.(md|markdown|txt)$/i
+// Text people write in sentences: notes and docs, and papers in LaTeX, Typst and the like, where a
+// paragraph is one long line too
+const PROSE = /\.(md|markdown|txt|tex|ltx|typ|rst|org|adoc|qmd|rmd)$/i
 
 // A doc counts as rewritten once more than half its words went, if it had enough to say so of
 const REWRITTEN_SHARE = 0.5
@@ -61,6 +64,9 @@ export function editStats(path: string, before: string, after: string): EditStat
   return { unit, added, removed, rewritten: unit === "words" && total >= REWRITTEN_MIN && removed > total * REWRITTEN_SHARE }
 }
 
+// A letter or digit of a script that spaces its words; a CJK character is a word on its own
+const spaced = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}]/u.test(c) && !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(c)
+
 // The span two versions of a paragraph differ in, between what they share at both ends; null when they
 // share too little there to be read as one paragraph touched up. Counting by the ends, not by every
 // word the two have in common, keeps a rewritten paragraph from passing as kept: two sentences on one
@@ -71,6 +77,9 @@ function touchedUp(oldLine: string, newLine: string) {
   let s = 0
   while (s < oldLine.length - p && s < newLine.length - p && oldLine[oldLine.length - 1 - s] === newLine[newLine.length - 1 - s]) s++
   if (p + s < Math.min(oldLine.length, newLine.length) * 0.4) return null
+  // Widened to whole words, so "reminders." to "wearables." is one word changed, not the end of one
+  while (p > 0 && spaced(oldLine[p - 1]) && (spaced(oldLine[p]) || spaced(newLine[p]))) p--
+  while (s > 0 && spaced(oldLine[oldLine.length - s]) && (spaced(oldLine[oldLine.length - s - 1]) || spaced(newLine[newLine.length - s - 1]))) s--
   return { removed: oldLine.slice(p, oldLine.length - s), added: newLine.slice(p, newLine.length - s) }
 }
 

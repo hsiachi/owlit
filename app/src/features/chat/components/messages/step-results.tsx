@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import { editStats, HUNK_GAP } from "@owlit/protocol"
+import { editStats, HUNK_GAP, type EditStats } from "@owlit/protocol"
 import { hunk } from "@/features/docs/editor/suggestions"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import type { MessagePart } from "../../types"
@@ -184,9 +184,12 @@ export function diffLines(oldText: string, newText: string): Chunk[] {
   return out
 }
 
-// "+1,240 −380": what an edit added and took out, in words for prose and lines otherwise
-export const countsText = ({ added, removed }: { added: number; removed: number }) =>
-  [added && `+${added.toLocaleString()}`, removed && `−${removed.toLocaleString()}`].filter(Boolean).join(" ")
+// "+1,240 −380": what an edit added and took out, in words for prose; lines elsewhere carry their unit
+// ("+12 −3 lines"), so the two never read as one measure
+export const countsText = ({ unit, added, removed }: EditStats) => {
+  const counts = [added && `+${added.toLocaleString()}`, removed && `−${removed.toLocaleString()}`].filter(Boolean).join(" ")
+  return counts && unit === "lines" ? `${counts} ${added + removed === 1 ? "line" : "lines"}` : counts
+}
 
 // The muted detail at a row's right end, when the step's result has one worth seeing at a glance
 export function stepMeta(call: ToolCall): string | undefined {

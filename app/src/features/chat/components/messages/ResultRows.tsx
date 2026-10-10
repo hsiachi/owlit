@@ -28,6 +28,8 @@ export interface ResultRow {
   // For the summary line: what kind of change, and how much an edit changed
   kind: "doc" | "paper" | "note" | "knowledge"
   stats?: EditStats
+  // An edited file that is one of the user's Markdown docs
+  markdown?: boolean
 }
 
 const FOLD_AFTER = 3
@@ -57,7 +59,7 @@ function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | 
 }
 
 // "+31 −1": new words in Owlit's suggestion colour, as the doc marks its edits; removals muted, never red.
-// A doc mostly replaced says "Rewritten" instead of two large numbers.
+// A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
 export function EditCounts({ stats }: { stats: EditStats }) {
   if (stats.rewritten) return <span>Rewritten</span>
   const { added, removed } = stats
@@ -66,6 +68,7 @@ export function EditCounts({ stats }: { stats: EditStats }) {
       {added > 0 && <span className="text-suggestion">+{added.toLocaleString()}</span>}
       {added > 0 && removed > 0 && " "}
       {removed > 0 && <span>−{removed.toLocaleString()}</span>}
+      {stats.unit === "lines" && (added > 0 || removed > 0) && ` ${added + removed === 1 ? "line" : "lines"}`}
     </span>
   )
 }
@@ -128,6 +131,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
         name: notePaper ? `Your note on ${name}` : name,
         detail: edit ? <EditCounts stats={edit} /> : undefined,
         stats: edit,
+        markdown: /\.(md|markdown)$/i.test(path),
         ...of(list),
         view: notePaper ? () => navigate(`/library/${notePaper}`) : openDoc(path),
       })
@@ -146,7 +150,8 @@ const count = (n: number, one: string, many: string) => (n === 1 ? one : `${n} $
 function summary(rows: ResultRow[]) {
   const n = (kind: ResultRow["kind"]) => rows.filter((r) => r.kind === kind).length
   const said = [
-    n("doc") && `edited ${count(n("doc"), "a doc", "docs")}`,
+    // A doc is a Markdown file of the user's; a script or a paper's .tex is a file
+    n("doc") && `edited ${rows.filter((r) => r.kind === "doc").every((r) => r.markdown) ? count(n("doc"), "a doc", "docs") : count(n("doc"), "a file", "files")}`,
     n("paper") && `added ${count(n("paper"), "a paper", "papers")}`,
     n("note") && `left notes on ${count(n("note"), "a doc", "docs")}`,
     n("knowledge") && `updated ${count(n("knowledge"), "a topic", "topics")}`,

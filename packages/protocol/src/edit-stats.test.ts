@@ -15,6 +15,10 @@ describe("edit stats", () => {
     expect(editStats("story.md", "提醒的时机由设备判断。", "用户并不总是欢迎这样的打断。")).toEqual({ unit: "words", added: 13, removed: 10, rewritten: false })
   })
 
+  it("counts a LaTeX paper as prose", () => {
+    expect(editStats("paper/intro.tex", "We study reminders.", "We study proactive reminders on wearables.")).toEqual({ unit: "words", added: 3, removed: 0, rewritten: false })
+  })
+
   it("counts other files in lines, and the gap between parts of an edit as nothing", () => {
     expect(editStats("a.ts", `a\nb\n${HUNK_GAP}\nc`, `a\nB\n${HUNK_GAP}\nc\nd`)).toEqual({ unit: "lines", added: 2, removed: 1, rewritten: false })
   })
