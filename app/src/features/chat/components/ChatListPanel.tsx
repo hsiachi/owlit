@@ -25,13 +25,16 @@ import { StatusRing } from "./StatusRing"
 import { useChatStatus } from "../use-chat-status"
 import type { Chat } from "../types"
 
-// Rows are a touch taller than the shadcn default so the list breathes
-const rowClass = "h-9 rounded-md px-2.5"
+// Rows are a touch taller than the shadcn default so the list breathes; the left edge is tighter, for the
+// status slot every row starts with
+const rowClass = "h-9 rounded-md pr-2.5 pl-1.5"
 
 // The panel sits inside the icon-collapsible sidebar, so the shadcn primitives pick up its icon-mode styles
 // when collapsed (rows shrink to 32px squares, labels slide up and fade). Those are meant for the rail only;
-// cancel them here so the panel keeps its layout and is simply clipped while the sidebar collapses.
-const keepRowInIconMode = "group-data-[collapsible=icon]:h-9! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:px-2.5!"
+// cancel them here so the panel keeps its layout and is simply clipped while the sidebar collapses. The
+// padding must match rowClass exactly: the primitive animates padding, so any difference plays as a
+// small slide of every row each time the sidebar opens.
+const keepRowInIconMode = "group-data-[collapsible=icon]:h-9! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:pr-2.5! group-data-[collapsible=icon]:pl-1.5!"
 const keepLabelInIconMode = "group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:opacity-100"
 const keepActionInIconMode = "group-data-[collapsible=icon]:flex"
 
@@ -102,7 +105,7 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
               "group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent group-data-[state=open]/menu-item:bg-sidebar-accent",
               "group-has-data-[sidebar=menu-action]/menu-item:pr-2.5",
               "group-hover/menu-item:pr-8! group-focus-within/menu-item:pr-8! group-has-[[data-state=open]]/menu-item:pr-8!",
-              "gap-2 pl-1.5",
+              "gap-2",
             )}
           >
             <NavLink to={`/chat/${chat.id}`}>
@@ -155,7 +158,7 @@ export function ChatListPanel() {
         <SidebarMenu className="pt-1.5">
           <SidebarMenuItem>
             {/* Never lit as the open page: New doc can't be, and a fill coming and going reads as the row jumping */}
-            <SidebarMenuButton asChild className={cn(rowClass, keepRowInIconMode, "gap-2 pl-1.5")}>
+            <SidebarMenuButton asChild className={cn(rowClass, keepRowInIconMode, "gap-2")}>
               <NavLink to="/chat" end>
                 {/* The plus sits in the status slot every chat row has, so all titles start together */}
                 <span className="grid size-5 place-items-center">

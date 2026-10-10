@@ -32,7 +32,7 @@ import { topicUri } from "@/features/knowledge/format"
 import { useTopics } from "@/features/knowledge/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentAllowed } from "./hooks"
-import { useAgentWindow } from "./store"
+import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
 // A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note
 const selectionLabel = (s: QuotedSelection) => (s.source.kind === "knowledge" ? "Line" : s.notePath ? "Note" : s.page ? `p. ${s.page}` : "Selection")
@@ -207,6 +207,7 @@ export function AgentPanel() {
   const chatId = useAgentWindow((s) => s.chatId)
   const selection = useAgentWindow((s) => s.selection)
   const focusTick = useAgentWindow((s) => s.focusTick)
+  const panelWidth = useAgentWindow((s) => s.panelWidth)
   const { close, newChat, showChat, send } = useAgentWindow.getState()
   const context = useVisibleContext()
   const chat = useChatStore((s) => (chatId ? s.chats[chatId] : undefined))
@@ -225,7 +226,14 @@ export function AgentPanel() {
   const modelName = (connectorId?: string, modelId?: string) => connectors.find((c) => c.id === connectorId)?.models.find((m) => m.id === modelId)?.name
 
   return (
-    <aside className="flex w-[400px] shrink-0 flex-col border-l-[0.5px] bg-sidebar-panel" aria-label="Owlit" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}>
+    <aside
+      className="relative flex shrink-0 flex-col border-l-[0.5px] bg-sidebar-panel"
+      // A narrower window narrows the panel before the page, down to the panel's least width
+      style={{ width: `clamp(320px, ${panelWidth}px, max(320px, calc(100vw - ${PAGE_MIN}px)))` }}
+      aria-label="Owlit"
+      onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}
+    >
+      <ResizeEdge />
       <header className="flex h-11 shrink-0 items-center gap-0.5 pr-2 pl-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -311,6 +319,60 @@ export function AgentPanel() {
         />
       </div>
     </aside>
+  )
+}
+
+// The panel's left edge: drag it (or use the arrow keys) to resize, double-click to go back to the default.
+// It looks like the list panel's edge: nothing until hovered, then a 2px line.
+function ResizeEdge() {
+  const width = useAgentWindow((s) => s.panelWidth)
+  const setWidth = useAgentWindow((s) => s.setPanelWidth)
+  const [dragging, setDragging] = useState(false)
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    const edge = e.currentTarget
+    const startX = e.clientX
+    // Starts from the width on screen, which a narrow window may have cut below the stored one
+    const startWidth = edge.parentElement!.getBoundingClientRect().width
+    edge.setPointerCapture(e.pointerId)
+    setDragging(true)
+    // The resize cursor and no text selection over the whole window while dragging, not just the edge
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    const move = (ev: PointerEvent) => setWidth(startWidth + startX - ev.clientX)
+    const end = () => {
+      edge.removeEventListener("pointermove", move)
+      edge.removeEventListener("pointerup", end)
+      edge.removeEventListener("pointercancel", end)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      setDragging(false)
+    }
+    edge.addEventListener("pointermove", move)
+    edge.addEventListener("pointerup", end)
+    edge.addEventListener("pointercancel", end)
+  }
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize Owlit"
+      aria-valuenow={width}
+      tabIndex={0}
+      data-dragging={dragging || undefined}
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => setWidth(PANEL_WIDTH)}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault()
+          setWidth(width + (e.key === "ArrowLeft" ? 16 : -16))
+        }
+      }}
+      className="absolute inset-y-0 left-0 z-20 w-3 -translate-x-1/2 cursor-col-resize outline-hidden after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 hover:after:bg-sidebar-border focus-visible:after:bg-ring data-dragging:after:bg-sidebar-border"
+    />
   )
 }
 

@@ -12,6 +12,12 @@ import type { PageRect } from "@/features/library/types"
 // conversation at two sizes, so a chat started in Chat can sit beside the doc it is about.
 export type AgentStage = "closed" | "bar" | "open"
 
+export const PANEL_WIDTH = 400
+const PANEL_MIN = 320
+// The page beside the panel keeps at least this much of the window
+export const PAGE_MIN = 560
+export const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
+
 interface AgentWindowState {
   stage: AgentStage
   // The current chat, shown when the panel is open
@@ -32,6 +38,8 @@ interface AgentWindowState {
   focusTick: number
   // The ask bar's placeholder when it was opened for something particular (Help › Ask Owlit How To…)
   hint: string | null
+  // The docked panel's width, dragged from its left edge
+  panelWidth: number
 
   // Ask Owlit (⌘J, or on a selection): into the panel when it is open, else the ask bar for a new chat
   open: (selection?: QuotedSelection, rects?: { paperId: string; rects: PageRect[] }) => void
@@ -49,6 +57,7 @@ interface AgentWindowState {
   hideContext: (uri: string) => void
   clearSelection: () => void
   setListShown: (shown: boolean) => void
+  setPanelWidth: (width: number) => void
   // Sends from the window: the ask bar starts a chat, the panel adds to the current one (or starts one
   // when there is none); either way the panel shows it
   send: (input: PromptInput, context: Mentionable[]) => void
@@ -66,6 +75,7 @@ export const useAgentWindow = create<AgentWindowState>()(
       listShown: false,
       focusTick: 0,
       hint: null,
+      panelWidth: PANEL_WIDTH,
 
       open: (selection, rects) =>
         set((s) => ({
@@ -88,6 +98,7 @@ export const useAgentWindow = create<AgentWindowState>()(
       hideContext: (uri) => set({ hiddenContext: uri }),
       clearSelection: () => set({ selection: null }),
       setListShown: (listShown) => set({ listShown }),
+      setPanelWidth: (width) => set({ panelWidth: clampPanelWidth(width) }),
 
       send: (input, context) => {
         const chats = useChatStore.getState()
@@ -97,9 +108,10 @@ export const useAgentWindow = create<AgentWindowState>()(
         void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
       },
     }),
-    // Only the current chat is kept, so ⇧⌘J after a reload picks it up again; the window starts closed.
-    // In the desktop app it is kept with the workspace instead (workspace.json's layout).
-    { name: "owlit-agent-window", partialize: (s) => (isDesktop ? {} : { chatId: s.chatId }) },
+    // Only the current chat and the panel's width are kept, so ⇧⌘J after a reload picks the chat up again;
+    // the window starts closed. In the desktop app the chat is kept with the workspace instead
+    // (workspace.json's layout), while the width is the user's, whichever workspace is open.
+    { name: "owlit-agent-window", partialize: (s) => (isDesktop ? { panelWidth: s.panelWidth } : { chatId: s.chatId, panelWidth: s.panelWidth }) },
   ),
 )
 

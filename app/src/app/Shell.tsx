@@ -44,6 +44,7 @@ function AppShell() {
   const agentAllowed = useAgentAllowed()
   const docked = useAgentWindow((s) => s.stage === "open") && agentAllowed
   const listShown = useAgentWindow((s) => s.listShown)
+  const panelWidth = useAgentWindow((s) => s.panelWidth)
   const setListShown = useAgentWindow((s) => s.setListShown)
   useAgentShortcut()
   useSettingsShortcut()
@@ -106,7 +107,7 @@ function AppShell() {
         <SettingsDialog />
         <ShortcutsDialog />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}
-        <Toaster position="bottom-right" offset={docked ? { right: 420, bottom: 24 } : undefined} />
+        <Toaster position="bottom-right" offset={docked ? { right: panelWidth + 20, bottom: 24 } : undefined} />
       </div>
     </TooltipProvider>
   )
