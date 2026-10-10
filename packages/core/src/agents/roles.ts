@@ -12,6 +12,8 @@ import { sessionMeta } from "./isolation.ts"
 // - Codex's read-only mode already asks, with the patch, before any edit, and its sandbox makes a shell
 //   command that writes ask first; its auto-review mode lets it work and has its own reviewer judge what
 //   is risky.
+// - The Owlit engine is told the role and holds to it itself: a Reviewer gets no edit tools, an Assistant
+//   asks with the diff through ACP, and every write comes through ACP's fs, so owlit keeps a version.
 // - Any other agent keeps the mode it starts in; owlit still refuses what a Reviewer may not do.
 export interface Guard {
   // The agent's own modes to set, in order of preference; the first it offers wins
@@ -40,6 +42,8 @@ export function guardFor(connectorId: string, role: Role, roots: string[]): Guar
     return { modes, meta: sessionMeta(connectorId, { settings: { permissions }, sandbox }) }
   }
   if (connectorId === "codex") return { modes: role === "coauthor" ? ["agent", "workspace-write"] : ["read-only"] }
+  // The Owlit engine (packages/owlit-agent) takes the role itself and holds its file tools to it
+  if (connectorId === "owlit-engine") return { modes: [], meta: { owlit: { role } } }
   return { modes: [] }
 }
 

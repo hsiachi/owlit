@@ -31,10 +31,12 @@ async function setup(env: Record<string, string> = { OWLIT_ENGINE_FAUX: "1" }) {
       engine: { command: process.execPath, args: [ENGINE], env },
     })
   const updates: SessionUpdate[] = []
+  const heard: RpcNotification[] = []
   const start = async () => {
     const core = make()
     cores.push(core)
     core.onNotify((n: RpcNotification) => {
+      heard.push(n)
       if (n.method === "chat.update") updates.push((n.params as { update: SessionUpdate }).update)
     })
     const call = async (method: string, params?: unknown): Promise<any> => {
@@ -59,7 +61,8 @@ async function setup(env: Record<string, string> = { OWLIT_ENGINE_FAUX: "1" }) {
     })
   }
   const said = () => updates.splice(0).filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text).join("")
-  return { start, send, updates, said, root, base }
+  const of = (method: string) => heard.filter((n) => n.method === method).map((n) => n.params as any)
+  return { start, send, updates, said, root, base, of }
 }
 
 describe("Owlit engine", () => {
@@ -151,4 +154,63 @@ describe("Owlit engine", () => {
     expect(await call("agents.signOut", { id: ENGINE_ID })).toMatchObject({ authenticated: false, signIns: [] })
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({})
   }, 30_000)
+
+  describe("edits, by Owlit's role", () => {
+    const edit = (path: string, from: string, to: string) => `tool edit_file ${JSON.stringify({ path, old_text: from, new_text: to })}`
+    const waitFor = async (updates: SessionUpdate[], type: string) => {
+      while (!updates.some((u) => u.type === type)) await new Promise((r) => setTimeout(r, 20))
+      return updates.find((u) => u.type === type) as any
+    }
+
+    it("as Assistant, asks with the diff; Apply writes through owlit, Discard leaves the file", async () => {
+      const { start, send, said, updates, root, of } = await setup()
+      const { call } = await start()
+      await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+
+      const applying = send(call, edit("notes.md", "twelve", "twenty"), { role: "assistant" })
+      const ask = await waitFor(updates, "permission_request")
+      expect(ask).toMatchObject({ title: "Edit notes.md", kind: "edit", options: [{ name: "Apply", kind: "allow_once" }, { name: "Discard", kind: "reject_once" }] })
+      // The diff is drawn in place from the tool call the question describes
+      const call1 = updates.filter((u) => u.type === "tool_call").at(-1) as any
+      expect(call1).toMatchObject({ kind: "edit", diff: { path: "notes.md", oldText: "twelve chars", newText: "twenty chars" } })
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+      await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "apply" })
+      await applying
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twenty chars")
+      expect(said()).toBe("tool said: Changed notes.md.")
+      // Written through owlit: a version to undo, and the write is the chat's
+      expect(of("agent.wrote")).toEqual([expect.objectContaining({ path: "notes.md", chatId: "c1" })])
+
+      updates.length = 0
+      const discarding = send(call, edit("notes.md", "twenty", "ninety"), { role: "assistant" })
+      const again = await waitFor(updates, "permission_request")
+      await call("agents.respondPermission", { chatId: "c1", requestId: again.requestId, optionId: "discard" })
+      await discarding
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twenty chars")
+      expect(said()).toMatch(/^tool failed: The user didn't apply this change to notes\.md/)
+      expect(of("agent.wrote")).toHaveLength(1)
+    }, 30_000)
+
+    it("as Co-author, writes without asking, still through owlit", async () => {
+      const { start, send, said, updates, root, of } = await setup()
+      const { call } = await start()
+      await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+      await send(call, `tool write_file ${JSON.stringify({ path: "plan.md", content: "# Plan\n" })}`, { role: "coauthor" })
+      expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+      expect(readFileSync(path.join(root, "plan.md"), "utf8")).toBe("# Plan\n")
+      expect(said()).toBe("tool said: Wrote plan.md.")
+      expect(of("agent.wrote")).toEqual([expect.objectContaining({ path: "plan.md", chatId: "c1" })])
+    }, 30_000)
+
+    it("as Reviewer, reads but has no edit tools", async () => {
+      const { start, send, said, root } = await setup()
+      const { call } = await start()
+      await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+      await send(call, `tool read_file ${JSON.stringify({ path: "notes.md" })}`)
+      expect(said()).toBe("tool said:     1\ttwelve chars")
+      await send(call, edit("notes.md", "twelve", "twenty"))
+      expect(said()).toBe("tool failed: Tool edit_file not found")
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+    }, 30_000)
+  })
 })

@@ -5,9 +5,12 @@ import type { SessionUpdate, ToolKind } from "@agentclientprotocol/sdk"
 import type { AgentEvent } from "@earendil-works/pi-agent-core"
 
 export interface ToolInfo {
-  // On screen: mcp__<server>__<tool>, as Claude Code names MCP tools, which owlit already puts in words
-  title: string
+  // On screen: mcp__<server>__<tool>, as Claude Code names MCP tools, which owlit already puts in words;
+  // a file tool names its file ("Edit notes.md")
+  title: string | ((args: Record<string, unknown> | undefined) => string)
   kind: ToolKind
+  // The files it touches, so owlit can tell which chat changed them
+  locations?: (args: Record<string, unknown> | undefined) => string[]
 }
 
 export function updatesFor(event: AgentEvent, tools: (name: string) => ToolInfo | undefined): SessionUpdate[] {
@@ -20,7 +23,9 @@ export function updatesFor(event: AgentEvent, tools: (name: string) => ToolInfo 
     }
     case "tool_execution_start": {
       const tool = tools(event.toolName)
-      return [{ sessionUpdate: "tool_call", toolCallId: event.toolCallId, title: tool?.title ?? event.toolName, kind: tool?.kind ?? "other", status: "in_progress", rawInput: event.args }]
+      const title = typeof tool?.title === "function" ? tool.title(event.args) : (tool?.title ?? event.toolName)
+      const locations = tool?.locations?.(event.args).map((path) => ({ path }))
+      return [{ sessionUpdate: "tool_call", toolCallId: event.toolCallId, title, kind: tool?.kind ?? "other", status: "in_progress", rawInput: event.args, ...(locations?.length ? { locations } : {}) }]
     }
     case "tool_execution_end": {
       const text = resultText(event.result)

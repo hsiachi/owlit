@@ -6,7 +6,8 @@ import type { CredentialStore, Models } from "@earendil-works/pi-ai"
 import { randomUUID } from "node:crypto"
 import { authMethods, availableModels, providerOf, signIn, signIns } from "./models.ts"
 import { EngineSession } from "./session.ts"
-import { connectTools } from "./tools.ts"
+import { DEFAULT_ROLE, fileTools, type Role } from "./files.ts"
+import { connectTools, type Toolbox } from "./tools.ts"
 
 export const VERSION = "0.1.0-beta"
 
@@ -17,6 +18,8 @@ export class Engine implements acp.Agent {
   private readonly home: string
   private readonly log: (line: string) => void
   private sessions = new Map<string, EngineSession>()
+  // Whether owlit serves file reads and writes; the file tools need both
+  private files = false
   private turns = new Map<string, Promise<unknown>>()
 
   constructor(conn: acp.AgentSideConnection, models: Models, credentials: CredentialStore, home: string, log: (line: string) => void) {
@@ -27,7 +30,8 @@ export class Engine implements acp.Agent {
     this.log = log
   }
 
-  async initialize(): Promise<acp.InitializeResponse> {
+  async initialize(params: acp.InitializeRequest): Promise<acp.InitializeResponse> {
+    this.files = !!params.clientCapabilities?.fs?.readTextFile && !!params.clientCapabilities?.fs?.writeTextFile
     return {
       protocolVersion: acp.PROTOCOL_VERSION,
       agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } },
@@ -61,7 +65,7 @@ export class Engine implements acp.Agent {
   }
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
-    const session = await this.open(randomUUID(), params.cwd, params.mcpServers).catch((error) => {
+    const session = await this.open(randomUUID(), params.cwd, params.mcpServers, roleOf(params._meta)).catch((error) => {
       throw asAcpError(error)
     })
     return { sessionId: session.id, configOptions: session.configOptions() }
@@ -72,7 +76,7 @@ export class Engine implements acp.Agent {
     await this.sessions.get(params.sessionId)?.close()
     const saved = await EngineSession.read(params.cwd, params.sessionId)
     if (!saved) throw acp.RequestError.resourceNotFound(params.sessionId)
-    const session = await this.open(params.sessionId, params.cwd, params.mcpServers, saved)
+    const session = await this.open(params.sessionId, params.cwd, params.mcpServers, roleOf(params._meta), saved)
     return { configOptions: session.configOptions() }
   }
 
@@ -114,10 +118,14 @@ export class Engine implements acp.Agent {
   }
 
   // Without any sign-in there is no model to talk to: owlit shows that as "not signed in"
-  private async open(id: string, cwd: string, servers: acp.McpServer[], saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}) {
+  // owlit's role for the chat decides which file tools the session has and whether they ask; a new role
+  // comes as a new session (owlit loads it again with the role's _meta)
+  private async open(id: string, cwd: string, servers: acp.McpServer[], role: Role, saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}) {
     const available = await availableModels(this.models, this.credentials)
     if (!available.length) throw acp.RequestError.authRequired()
-    const toolbox = await connectTools(servers, cwd, this.log)
+    const mcp = await connectTools(servers, cwd, this.log)
+    const files = this.files ? fileTools({ conn: this.conn, sessionId: id, cwd, role }) : { tools: [], infos: new Map() }
+    const toolbox: Toolbox = { tools: [...files.tools, ...mcp.tools], info: (name) => files.infos.get(name) ?? mcp.info(name), close: mcp.close }
     const session = new EngineSession({
       id,
       cwd,
@@ -130,6 +138,11 @@ export class Engine implements acp.Agent {
     this.sessions.set(id, session)
     return session
   }
+}
+
+const roleOf = (meta: Record<string, unknown> | null | undefined): Role => {
+  const role = (meta as { owlit?: { role?: string } } | null | undefined)?.owlit?.role
+  return role === "reviewer" || role === "assistant" || role === "coauthor" ? role : DEFAULT_ROLE
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
