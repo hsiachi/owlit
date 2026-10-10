@@ -1,9 +1,14 @@
 // The pieces every Settings section is made of: one bordered list with dividers, one setting per row,
 // the control at the right, and a second line only for a problem or a form that is open.
+//
+// Every control ends on the same right edge. Text and icon buttons that come last are pulled out by
+// their own padding, so their text lines up with a switch or a field and only their hover fill reaches
+// into the row's padding. Controls shown only on hover sit to the left of what always shows, so nothing
+// moves or leaves a gap when they appear.
 
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, InfoIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, InfoIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -38,7 +43,7 @@ export function Row({
   className?: string
 }) {
   return (
-    <div className={cn("group/row flex min-h-12 flex-col justify-center py-2.5 pr-2.5 pl-3.5", className)}>
+    <div className={cn("group/row flex min-h-12 flex-col justify-center px-3.5 py-2.5", className)}>
       <div className="flex min-h-7 items-center gap-3">
         <span className="flex shrink-0 items-center gap-1">
           {name}
@@ -75,6 +80,24 @@ export function Note({ tone = "muted", children }: { tone?: "muted" | "bad"; chi
   return <div className={cn("mt-1 text-[13px] leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
 }
 
+// An action in a row: a small icon button whose label lives in a tooltip. All are one width, so the
+// status text before them lines up from row to row.
+export function IconAction({ label, onClick, disabled, className, children }: { label: string; onClick: () => void; disabled?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground last:-mr-1.5 hover:text-foreground", className)} onClick={onClick} disabled={disabled} aria-label={label}>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+// For controls shown only on hover or focus; they go before the ones that always show
+export const onHover = "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+
 // A plain-text trigger that opens a words-only menu; the chosen item carries the check on the right
 export function Picker<T extends string>({
   value,
@@ -91,7 +114,7 @@ export function Picker<T extends string>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={label} className="h-7 gap-1 px-2 font-normal data-open:bg-muted">
+        <Button variant="ghost" size="sm" aria-label={label} className="h-7 gap-1 px-2 font-normal last:-mr-2 data-open:bg-muted">
           {current.label}
           <ChevronsUpDownIcon className="text-muted-foreground" />
         </Button>
@@ -179,8 +202,9 @@ export function CheckLine({ checking, result, service }: { checking: boolean; re
   return <Note tone={result.result === "rejected" ? "bad" : "muted"}>{result.message}</Note>
 }
 
-// A key: "Not set · Add", or its last four characters with Change and Remove. Adding or changing opens
-// a field in the row; Enter keeps it, and owlit tries it once.
+// A key: "Not set" with Add, or its last four characters with Change and Remove. The actions are icons
+// of one width, so the status before them lines up from row to row. Adding or changing opens a field in
+// the row; Enter keeps it, and owlit tries it once.
 export function SecretRow({ name, label, info, getFrom, service }: { name: SecretName; label: string; info: string; getFrom?: { label: string; href: string }; service: string }) {
   const last4 = useSettings((s) => s.view?.secrets[name])
   const [editing, setEditing] = useState(false)
@@ -217,38 +241,39 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
           }}
           className="h-8 w-56 font-mono text-[13px]"
         />
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={fold}>
-          Cancel
-        </Button>
+        <IconAction label="Cancel" onClick={fold}>
+          <XIcon />
+        </IconAction>
       </>
     )
   } else if (last4) {
     control = (
       <>
-        <span className="mr-1 font-mono text-[13px] text-muted-foreground">••••••••{last4}</span>
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => setEditing(true)}>
-          Change
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="font-normal text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+        <IconAction
+          label="Remove key"
+          className={onHover}
           onClick={() => {
             check.reset()
             void setSecret(name, null)
           }}
         >
-          Remove
-        </Button>
+          <Trash2Icon />
+        </IconAction>
+        <span className="font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
+          ••••{last4}
+        </span>
+        <IconAction label="Change key" onClick={() => setEditing(true)}>
+          <PencilIcon />
+        </IconAction>
       </>
     )
   } else {
     control = (
       <>
-        <span className="mr-1 text-[13px] text-muted-foreground">Not set</span>
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => setEditing(true)}>
-          Add
-        </Button>
+        <span className="text-[13px] text-muted-foreground">Not set</span>
+        <IconAction label="Add key" onClick={() => setEditing(true)}>
+          <PlusIcon />
+        </IconAction>
       </>
     )
   }

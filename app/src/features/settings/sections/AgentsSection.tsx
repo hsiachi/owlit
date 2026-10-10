@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
-import { CommitInput, GroupLabel, List, Picker, Row } from "../parts"
+import { CommitInput, GroupLabel, IconAction, List, Note, onHover, Picker, Row } from "../parts"
 import { updateSettings, useSettings } from "../store"
 
 const isReady = (c: Connector) => c.status === "available" || c.status === "connected"
@@ -31,20 +30,6 @@ export function AgentsSection() {
       <GroupLabel>Background work</GroupLabel>
       <BackgroundWork />
     </>
-  )
-}
-
-// An icon button whose label lives in a tooltip
-function IconAction({ label, onClick, disabled, className, children }: { label: string; onClick: () => void; disabled?: boolean; className?: string; children: React.ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground hover:text-foreground", className)} onClick={onClick} disabled={disabled} aria-label={label}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   )
 }
 
@@ -74,46 +59,44 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
     toast("Install command copied", { description: c.installHint })
   }
 
+  // A ready agent needs nothing, so its check shows on hover, before the version
+  const checkAction = (
+    <IconAction label={c.status === "unknown" ? "Check" : "Check again"} onClick={() => check(c.id)} disabled={busy} className={cn(isReady(c) && !busy && onHover)}>
+      {busy ? <Spinner /> : <RefreshCwIcon />}
+    </IconAction>
+  )
+
   return (
-    <div className="group/row flex min-h-12 items-center gap-3 py-1.5 pr-1.5 pl-3.5">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={cn("truncate", !isReady(c) && c.status !== "checking" && c.status !== "unknown" && "text-muted-foreground")}>{c.name}</span>
-          <span className="flex-1" />
+    <Row
+      name={<span className={cn(!isReady(c) && c.status !== "checking" && c.status !== "unknown" && "text-muted-foreground")}>{c.name}</span>}
+      control={
+        <>
+          {!c.builtIn && (
+            <IconAction label={`Remove ${c.name}`} onClick={() => remove(c.id)} className={onHover}>
+              <Trash2Icon />
+            </IconAction>
+          )}
+          {isReady(c) && checkAction}
           <Status c={c} />
+          {c.status === "not_installed" && c.installHint && (
+            <IconAction label="Copy install command" onClick={copyInstall}>
+              <CopyIcon />
+            </IconAction>
+          )}
+          {!isReady(c) && checkAction}
+        </>
+      }
+    >
+      {/* Only problems and user-entered commands earn a second line. A missing agent shows the
+          command that fixes it, since that's the one thing the user needs here. */}
+      {c.status === "error" && c.error && <Note tone="bad">{c.error}</Note>}
+      {c.status === "not_installed" && c.installHint && (
+        <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={c.installHint}>
+          {c.installHint}
         </div>
-        {/* Only problems and user-entered commands earn a second line. A missing agent shows the
-            command that fixes it, since that's the one thing the user needs here. */}
-        {c.status === "error" && c.error && <div className="mt-0.5 text-[13px] text-destructive">{c.error}</div>}
-        {c.status === "not_installed" && c.installHint && (
-          <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={c.installHint}>
-            {c.installHint}
-          </div>
-        )}
-        {!c.builtIn && <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{c.command}</div>}
-      </div>
-      <div className="flex shrink-0 items-center">
-        {c.status === "not_installed" && c.installHint && (
-          <IconAction label="Copy install command" onClick={copyInstall}>
-            <CopyIcon />
-          </IconAction>
-        )}
-        <IconAction
-          label={c.status === "unknown" ? "Check" : "Check again"}
-          onClick={() => check(c.id)}
-          disabled={busy}
-          // A ready agent needs nothing; its check shows on hover
-          className={cn(isReady(c) && "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100")}
-        >
-          {busy ? <Spinner /> : <RefreshCwIcon />}
-        </IconAction>
-        {!c.builtIn && (
-          <IconAction label={`Remove ${c.name}`} onClick={() => remove(c.id)} className="opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100">
-            <Trash2Icon />
-          </IconAction>
-        )}
-      </div>
-    </div>
+      )}
+      {!c.builtIn && <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{c.command}</div>}
+    </Row>
   )
 }
 
@@ -193,7 +176,16 @@ function BackgroundWork() {
       <Row
         name="Reading notes in"
         info="The language Owlit writes reading notes in. Papers keep their own language."
-        control={<CommitInput aria-label="Reading notes language" placeholder="English" value={view?.library.digestLanguage ?? ""} onCommit={(language) => void updateSettings({ library: { digestLanguage: language || null } })} className="w-40" />}
+        // Unset is English (core's default), shown as the value rather than a placeholder that looks like one
+        control={
+          <CommitInput
+            aria-label="Reading notes language"
+            placeholder="English"
+            value={view?.library.digestLanguage ?? "English"}
+            onCommit={(language) => void updateSettings({ library: { digestLanguage: language && language !== "English" ? language : null } })}
+            className="w-40"
+          />
+        }
       />
       <Row
         name="Reading notes for every paper"

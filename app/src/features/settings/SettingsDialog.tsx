@@ -6,7 +6,7 @@
 import { BotIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon, ScanTextIcon, type LucideIcon } from "lucide-react"
 import { cn } from "cn"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
 import { useChatStore } from "@/features/chat/store"
 import { useTasksStore } from "@/features/tasks/store"
 import { useFold } from "./form-state"
@@ -98,13 +98,15 @@ export function SettingsDialog() {
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">This computer's settings for owlit.</DialogDescription>
-        <SidebarProvider className="min-h-0 items-start">
+        {/* Six short names need about 200px; the rest goes to the section */}
+        <SidebarProvider className="min-h-0 items-start" style={{ "--sidebar-width": "12.5rem" } as React.CSSProperties}>
           <Sidebar collapsible="none" className="hidden h-[560px] border-r bg-sidebar-panel md:flex">
             <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupLabel>Settings</SidebarGroupLabel>
+              {/* The first name sits on the section title's middle line */}
+              <SidebarGroup className="pt-3">
                 <SidebarGroupContent>
-                  <SidebarMenu>
+                  {/* A list you pick from, not a menu: rows sit 2px apart so the chosen row and a hovered one never merge */}
+                  <SidebarMenu className="gap-0.5">
                     {SECTIONS.map((s) => (
                       <SidebarMenuItem key={s.id}>
                         <SidebarMenuButton isActive={s.id === section.id} onClick={() => showSection(s.id)}>
