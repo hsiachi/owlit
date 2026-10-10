@@ -8,7 +8,9 @@ import { MockAgentClient } from "./agent/mock-client"
 import { RpcAgentClient } from "./agent/rpc-client"
 import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
-import { useSeenStore } from "./status"
+import { pendingAsk, useSeenStore } from "./status"
+import { useAskDraft } from "./ask-draft"
+import type { QuestionAnswer } from "@owlit/protocol"
 import type {
   Chat,
   ChatMessage,
@@ -20,8 +22,9 @@ export const agentClient: AgentClient = isDesktop ? new RpcAgentClient() : new M
 // Whether the store saves messages through ./disk (core saves them itself when it runs the turn)
 const savesMessages = () => disk.onDisk && !agentClient.persistsMessages
 
-// Abort controllers for in-flight turns; not part of persisted state
+// Abort controllers for in-flight turns, and when each turn is over; not part of persisted state
 const inflight = new Map<string, AbortController>()
+const over = new Map<string, Promise<void>>()
 
 export interface Selection {
   connectorId: string
@@ -52,6 +55,7 @@ interface ChatState {
   send: (chatId: string, input: PromptInput) => Promise<void>
   cancel: (chatId: string) => void
   respondPermission: (chatId: string, requestId: string, optionId: string) => void
+  answerQuestion: (chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) => void
 
   checkConnector: (id: string) => Promise<void>
   // The agent's own sign-in (the Owlit engine); throws what went wrong, for the form to show
@@ -155,7 +159,20 @@ export const useChatStore = create<ChatState>()(
       async send(chatId, input) {
         const state = get()
         const chat = state.chats[chatId]
-        if (!chat || state.streaming[chatId]) return
+        if (!chat) return
+        if (state.streaming[chatId]) {
+          // While Owlit waits on the user, what they type answers it. To a question it is their own
+          // answer; to a permission it means "no, do this instead": the request is refused, the turn
+          // stopped, and the message sent once it has.
+          const ask = pendingAsk(chat)
+          if (ask?.type === "question") return useAskDraft.getState().type(chatId, ask, input.text)
+          if (ask?.type !== "permission") return
+          const reject = ask.options.find((o) => o.kind === "reject_once") ?? ask.options.find((o) => o.kind.startsWith("reject"))
+          if (reject) get().respondPermission(chatId, ask.requestId, reject.optionId)
+          get().cancel(chatId)
+          await over.get(chatId)
+          return get().send(chatId, input)
+        }
         const connectorId = chat.connectorId ?? state.selection.connectorId
         // A model the agent no longer lists (such as Claude Code's "default", which owlit doesn't show)
         // falls back to the agent's own default, as the picker shows it
@@ -210,6 +227,8 @@ export const useChatStore = create<ChatState>()(
 
         const controller = new AbortController()
         inflight.set(chatId, controller)
+        let endTurn = () => {}
+        over.set(chatId, new Promise<void>((resolve) => (endTurn = resolve)))
 
         // The answer as it grows; on disk at a measured pace, and whole once the turn is over
         const patchAssistant = (fn: (m: ChatMessage) => ChatMessage, final = false) => {
@@ -243,12 +262,14 @@ export const useChatStore = create<ChatState>()(
           patchAssistant((m) => ({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }), true)
         } finally {
           inflight.delete(chatId)
+          over.delete(chatId)
           // Work handed off goes on without anyone watching; how it ended waits on its row until seen
           if (get().chats[chatId]) useSeenStore.getState().ended(chatId, ended)
           set((s) => {
             const { [chatId]: _done, ...rest } = s.streaming
             return { streaming: rest }
           })
+          endTurn()
         }
       },
 
@@ -258,6 +279,10 @@ export const useChatStore = create<ChatState>()(
 
       respondPermission(chatId, requestId, optionId) {
         agentClient.respondPermission(chatId, requestId, optionId)
+      },
+
+      answerQuestion(chatId, requestId, answers) {
+        agentClient.answerQuestion(chatId, requestId, answers)
       },
 
       async checkConnector(id) {

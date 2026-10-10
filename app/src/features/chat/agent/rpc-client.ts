@@ -1,4 +1,5 @@
 import { onNotify, rpc } from "@/lib/rpc"
+import type { QuestionAnswer } from "@owlit/protocol"
 import type { Connector, SessionUpdate, StopReason } from "../types"
 import type { AgentClient, PromptRequest } from "./client"
 
@@ -42,5 +43,9 @@ export class RpcAgentClient implements AgentClient {
 
   respondPermission(chatId: string, requestId: string, optionId: string) {
     void rpc.agents.respondPermission({ chatId, requestId, optionId }).catch(() => undefined)
+  }
+
+  answerQuestion(chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) {
+    void rpc.agents.answerQuestion({ chatId, requestId, answers }).catch(() => undefined)
   }
 }

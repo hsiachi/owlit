@@ -9,6 +9,8 @@ export interface SessionHandler {
   requestPermission(request: acp.RequestPermissionRequest): Promise<acp.RequestPermissionResponse>
   readTextFile(request: acp.ReadTextFileRequest): Promise<acp.ReadTextFileResponse>
   writeTextFile(request: acp.WriteTextFileRequest): Promise<acp.WriteTextFileResponse>
+  // A form the agent asks the user to fill in (Claude Code's AskUserQuestion)
+  createElicitation(request: acp.CreateElicitationRequest): Promise<acp.CreateElicitationResponse>
 }
 
 export interface ProcessOptions {
@@ -180,6 +182,11 @@ export class AcpProcess {
         requestPermission: (r) => this.handlerFor(r.sessionId).requestPermission(r),
         readTextFile: (r) => this.handlerFor(r.sessionId).readTextFile(r),
         writeTextFile: (r) => this.handlerFor(r.sessionId).writeTextFile(r),
+        // A form not tied to a session (an MCP server's own) has nobody to show it to
+        createElicitation: async (r) => {
+          const sessionId = (r as { sessionId?: unknown }).sessionId
+          return typeof sessionId === "string" ? this.handlerFor(sessionId).createElicitation(r) : { action: "decline" }
+        },
       }),
       acp.ndJsonStream(Writable.toWeb(child.stdin!), Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>),
     )
@@ -192,7 +199,9 @@ export class AcpProcess {
       failedToStart,
       connection.initialize({
         protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true } },
+        // Forms: without them Claude Code turns its AskUserQuestion into a permission request, which
+        // can only be allowed or rejected, never answered
+        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, elicitation: { form: {} } },
         clientInfo: { name: "owlit", version: "0.0.0" },
       }),
     ])

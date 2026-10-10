@@ -12,10 +12,11 @@ import { MessageGroup } from "@/components/ui/message"
 import { useAgentWindow } from "@/features/agent/store"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
-import { useBrokenReply, useLookAt } from "../status"
+import { pendingAsk, useBrokenReply, useLookAt } from "../status"
 import { regenerate } from "../lib/regenerate"
 import type { PromptInput } from "../types"
 import { Composer, type ComposerHandle } from "./composer/Composer"
+import { WaitingDock } from "./WaitingDock"
 import { AssistantMessage, UserMessage } from "./messages/MessageItem"
 
 // /chat/:chatId — message history with the composer docked at the bottom
@@ -26,7 +27,6 @@ export function ChatView() {
   const connectors = useChatStore((s) => s.connectors)
   const send = useChatStore((s) => s.send)
   const cancel = useChatStore((s) => s.cancel)
-  const respondPermission = useChatStore((s) => s.respondPermission)
   const chatsLoaded = useChatStore((s) => s.chatsLoaded)
   const composer = useRef<ComposerHandle>(null)
   const navigate = useNavigate()
@@ -68,7 +68,6 @@ export function ChatView() {
                       <AssistantMessage
                         message={m}
                         modelName={modelName(m.connectorId, m.modelId)}
-                        onRespondPermission={(requestId, optionId) => respondPermission(chat.id, requestId, optionId)}
                         onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
                         onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
                         onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
@@ -86,7 +85,8 @@ export function ChatView() {
       {/* Messages fade out above the composer instead of running into it */}
       <div className="relative mx-auto w-full max-w-3xl px-4 pb-4">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-t from-background to-transparent" />
-        <Composer ref={composer} chatId={chat.id} onSubmit={submit} streaming={streaming} onCancel={() => cancel(chat.id)} />
+        <WaitingDock chat={chat} />
+        <Composer ref={composer} chatId={chat.id} onSubmit={submit} streaming={streaming} waiting={streaming ? pendingAsk(chat)?.type : undefined} onCancel={() => cancel(chat.id)} />
       </div>
     </div>
   )

@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { needsSignIn } from "@/features/chat/lib/sign-in"
 import { useChatStore } from "@/features/chat/store"
-import { brokenReply, pendingPermission, useSeenStore } from "@/features/chat/status"
+import { brokenReply, pendingAsk, useSeenStore } from "@/features/chat/status"
+import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
 import { regenerate } from "@/features/chat/lib/regenerate"
-import { toolTitle } from "@/features/chat/lib/tool-title"
 import { useLibraryStore } from "@/features/library/store"
 import { citationLabel } from "@/features/library/lib/format"
 import { openSettings, useSettings } from "@/features/settings/store"
@@ -29,15 +29,6 @@ interface Waiting {
   dismiss?: () => void
 }
 
-// A permission reads as what Owlit asks to do, not as a done action: "Owlit asks to edit untitled.md".
-// Paths shorten to their file name; a title that doesn't start with a plain verb is quoted as it is.
-const VERBS = /^(edit|write|create|read|delete|move|rename|run|fetch|open|search|save|update|add|list|look|leave|highlight|show)\b/i
-function askedAction(title: string) {
-  const action = title.replace(/(?:[\w.~-]*\/)+([\w.-]+)/g, "$1")
-  if (!VERBS.test(action)) return `Owlit asks for permission: ${action}`
-  return `Owlit asks to ${action.charAt(0).toLowerCase()}${action.slice(1)}`
-}
-
 function useWaiting(): Waiting[] {
   const navigate = useNavigate()
   const chats = useChatStore((s) => s.chats)
@@ -52,11 +43,13 @@ function useWaiting(): Waiting[] {
   return useMemo(() => {
     const out: Waiting[] = []
     for (const chat of Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt)) {
-      const permission = streaming[chat.id] ? pendingPermission(chat) : undefined
+      const ask = streaming[chat.id] ? pendingAsk(chat) : undefined
       const broken = streaming[chat.id] ? undefined : brokenReply(chat, dismissed[chat.id])
-      if (permission) {
-        // Owlit's own tools and a paper's note are named in words first ("Search for papers")
-        out.push({ key: `perm:${chat.id}`, icon: MessageSquareIcon, what: askedAction(toolTitle(permission.title)), where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
+      if (ask) {
+        // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
+        const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
+        const what = ask.type === "permission" ? askSentence(ask.title, call) : "Owlit has a question"
+        out.push({ key: `ask:${chat.id}`, icon: MessageSquareIcon, what, where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
       } else if (broken) {
         const index = chat.messages.length - 1
         out.push({

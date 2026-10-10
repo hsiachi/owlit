@@ -9,9 +9,8 @@ import type { ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { MentionBadge } from "../composer/MentionBadge"
 import { KnowledgeUpdates } from "@/features/knowledge/components/ChatUpdates"
-import { PermissionPart, PlanPart, StepsPart, TextPart, type PermissionOutcomes, type StepPart } from "./parts"
+import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultRows } from "./ResultRows"
-import { useInPlace } from "../../in-place"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -49,15 +48,18 @@ const TEXT_BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-foregro
 const timeOf = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
 // Fold consecutive thoughts and tool calls into one steps block; everything else stays a part.
-// An answered permission folds into its tool call's row, so the steps on either side of it merge.
+// A permission or question belongs to its tool call's row (waiting, then its outcome), so the steps on
+// either side of it merge; its buttons are above the composer.
 type Segment = { type: "steps"; key: string; parts: StepPart[] } | { type: "part"; key: string; part: Exclude<MessagePart, StepPart> }
-function segment(parts: MessagePart[]): { segments: Segment[]; outcomes: PermissionOutcomes } {
+function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[]; asks: StepAsks } {
   const toolCallIds = new Set(parts.flatMap((p) => (p.type === "tool_call" ? [p.toolCallId] : [])))
-  const outcomes: PermissionOutcomes = {}
+  const asks: StepAsks = { outcomes: {}, questions: {} }
   const out: Segment[] = []
   parts.forEach((p, i) => {
-    if (p.type === "permission" && p.outcome && toolCallIds.has(p.toolCallId)) {
-      outcomes[p.toolCallId] = p.outcome
+    if ((p.type === "permission" || p.type === "question") && p.toolCallId && toolCallIds.has(p.toolCallId)) {
+      if (p.type === "permission" && p.outcome) asks.outcomes[p.toolCallId] = p.outcome
+      if (p.type === "question") asks.questions[p.toolCallId] = p
+      if (!p.outcome && streaming) asks.waiting = p.toolCallId
       return
     }
     if (p.type === "thought" || p.type === "tool_call") {
@@ -65,10 +67,10 @@ function segment(parts: MessagePart[]): { segments: Segment[]; outcomes: Permiss
       if (last?.type === "steps") last.parts.push(p)
       else out.push({ type: "steps", key: `steps-${i}`, parts: [p] })
     } else {
-      out.push({ type: "part", key: p.type === "permission" ? p.requestId : `${p.type}-${i}`, part: p })
+      out.push({ type: "part", key: p.type === "permission" || p.type === "question" ? p.requestId : `${p.type}-${i}`, part: p })
     }
   })
-  return { segments: out, outcomes }
+  return { segments: out, asks }
 }
 
 // Split "@[label]" markers out of the text so they can render as chips
@@ -118,14 +120,12 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
 export function AssistantMessage({
   message,
   modelName,
-  onRespondPermission,
   onRegenerate,
   onDismiss,
   onSaveAsDoc,
 }: {
   message: ChatMessage
   modelName?: string
-  onRespondPermission: (requestId: string, optionId: string) => void
   onRegenerate?: () => void
   // Leaves a broken reply as it is, so the chat stops asking for the user (only while it does)
   onDismiss?: () => void
@@ -135,20 +135,14 @@ export function AssistantMessage({
   const streaming = message.status === "streaming"
   const last = message.parts[message.parts.length - 1]
   const text = messageText(message)
-  const { segments, outcomes } = segment(message.parts)
-  const editPathOf = (toolCallId: string) => {
-    const call = message.parts.find((p) => p.type === "tool_call" && p.toolCallId === toolCallId)
-    return call?.type === "tool_call" ? call.diff?.path : undefined
-  }
-  // A permission whose edit is answered in place already says it waits, in its own line with the shield
-  const waitingPath = streaming && last?.type === "permission" && !last.outcome ? editPathOf(last.toolCallId) : undefined
-  const waitingInPlace = useInPlace((s) => !!waitingPath && !!s.shown[waitingPath])
+  const { segments, asks } = segment(message.parts, streaming)
+  const waiting = streaming && message.parts.some((p) => (p.type === "permission" || p.type === "question") && !p.outcome)
   return (
     <Message className="text-[15px]">
       <MessageContent className="gap-3">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1
-          if (seg.type === "steps") return <StepsPart key={seg.key} parts={seg.parts} active={streaming && isLast} outcomes={outcomes} />
+          if (seg.type === "steps") return <StepsPart key={seg.key} parts={seg.parts} active={streaming && isLast && !waiting} streaming={streaming} asks={asks} />
           const { part } = seg
           switch (part.type) {
             case "text":
@@ -156,15 +150,14 @@ export function AssistantMessage({
             case "plan":
               return <PlanPart key={seg.key} part={part} />
             case "permission":
-              return (
-                <PermissionPart key={seg.key} part={part} editPath={editPathOf(part.toolCallId)} onRespond={(optionId) => onRespondPermission(part.requestId, optionId)} />
-              )
+            case "question":
+              return <LooseAskPart key={seg.key} part={part} waiting={streaming && !part.outcome} />
           }
         })}
-        {streaming && (!last || last.type === "plan" || last.type === "permission") && !waitingInPlace && (
+        {streaming && !waiting && (!last || last.type === "plan" || last.type === "permission" || last.type === "question") && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Spinner className="size-3.5" />
-            {last?.type === "permission" && !last.outcome ? "Waiting on you" : "Working…"}
+            Working…
           </div>
         )}
         {!streaming && <KnowledgeUpdates parts={message.parts} />}

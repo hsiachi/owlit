@@ -34,6 +34,8 @@ interface ComposerProps {
   chatId?: string
   onSubmit: (input: PromptInput) => void
   streaming?: boolean
+  // What the running turn waits on the user for: what they type then answers it (see the store's send)
+  waiting?: "permission" | "question"
   onCancel?: () => void
   autoFocus?: boolean
   placeholder?: string
@@ -94,7 +96,7 @@ function toAttachment(file: File): AttachmentFile {
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { chatId, onSubmit, streaming = false, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className, header },
+  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className, header },
   ref,
 ) {
   const [files, setFiles] = useState<AttachmentFile[]>([])
@@ -103,6 +105,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const submitRef = useRef<() => void>(() => {})
   const { connector } = useResolvedSelection(chatId)
   const blocked = isUnavailable(connector)
+  // The hint says what typing does while Owlit waits; read through a ref, since the editor is made once
+  const hint = waiting === "permission" ? "Or tell Owlit what to do instead…" : waiting === "question" ? "Or type your own answer…" : placeholder
+  const hintRef = useRef(hint)
 
   const editor = useEditor({
     extensions: [
@@ -125,7 +130,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         dropcursor: false,
         gapcursor: false,
       }),
-      Placeholder.configure({ placeholder }),
+      Placeholder.configure({ placeholder: () => hintRef.current }),
       WorkspaceMention,
       SubmitKeymap.configure({ onSubmit: () => submitRef.current() }),
     ],
@@ -151,7 +156,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     }
   }, [editor])
 
-  const canSend = !streaming && !blocked && (!isEmpty || files.length > 0)
+  // The placeholder is drawn by a decoration, redrawn on the next transaction
+  useEffect(() => {
+    hintRef.current = hint
+    if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr)
+  }, [editor, hint])
+
+  const typed = !isEmpty || files.length > 0
+  const canSend = (!streaming || !!waiting) && !blocked && typed
 
   const submit = useCallback(() => {
     if (!editor || !canSend) return
@@ -279,7 +291,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
         <div className="ml-auto flex items-center gap-1">
           <AgentPicker chatId={chatId} />
-          {streaming ? (
+          {streaming && !(waiting && typed) ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label="Stop generating">

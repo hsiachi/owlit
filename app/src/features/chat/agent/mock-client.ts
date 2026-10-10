@@ -1,4 +1,4 @@
-import { DEFAULT_ROLE } from "@owlit/protocol"
+import { DEFAULT_ROLE, type AgentQuestion, type QuestionAnswer, type ToolInfo, type ToolKind } from "@owlit/protocol"
 import { useLibraryStore } from "@/features/library/store"
 import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
@@ -25,6 +25,7 @@ const AUTO_ROLES = new Set<string>(["coauthor"])
 // request, and a streamed markdown answer. Enough to exercise every UI state.
 export class MockAgentClient implements AgentClient {
   private pendingPermissions = new Map<string, (optionId: string) => void>()
+  private pendingQuestions = new Map<string, (answers: Record<string, QuestionAnswer> | null) => void>()
 
   async listConnectors() {
     return builtInConnectors
@@ -44,6 +45,11 @@ export class MockAgentClient implements AgentClient {
   respondPermission(_chatId: string, requestId: string, optionId: string) {
     this.pendingPermissions.get(requestId)?.(optionId)
     this.pendingPermissions.delete(requestId)
+  }
+
+  answerQuestion(_chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) {
+    this.pendingQuestions.get(requestId)?.(answers)
+    this.pendingQuestions.delete(requestId)
   }
 
   async prompt(
@@ -80,6 +86,9 @@ export class MockAgentClient implements AgentClient {
       }
       // Handed-off work: search outside, add what fits, and say what changed under the answer
       if (WANTS_FIND_AND_ADD.test(text)) return await this.findAndAdd(emit, signal, req.chatId)
+      // Commands, web searches and pages, as Claude Code runs them, and a question for the user
+      if (/\bweb\b/i.test(text)) return await this.webResearch(emit, signal)
+      if (/\b(ask me|questions?)\b/i.test(text)) return await this.askQuestions(emit, signal)
       // Lets the browser build show a reply that broke
       if (/\bfail(s|ed)? on purpose\b/i.test(text)) {
         await sleep(600, signal)
@@ -101,7 +110,7 @@ export class MockAgentClient implements AgentClient {
 
       if (mentions.length === 0 && /\b(paper|library|literature)\b/i.test(text)) {
         const id = `tc-${crypto.randomUUID()}`
-        emit({ type: "tool_call", toolCallId: id, title: "Searching the Library", kind: "search", status: "in_progress" })
+        emit({ type: "tool_call", toolCallId: id, title: "mcp__owlit__library_search", kind: "search", status: "in_progress", tool: { name: "mcp__owlit__library_search" } })
         await sleep(900, signal)
         emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: "8 papers matched; shortlisted 3 by relevance." })
       }
@@ -122,7 +131,9 @@ export class MockAgentClient implements AgentClient {
       if (wantsWrite && !READ_ONLY_ROLES.has(mode)) {
         const target = mentions.find((m) => m.kind === "doc")?.title ?? "notes/untitled.md"
         const toolCallId = `tc-${crypto.randomUUID()}`
-        emit({ type: "tool_call", toolCallId, title: `Edit ${target}`, kind: "edit", status: "pending", locations: [{ path: `docs/${target}` }] })
+        const oldText = "# Notes\n\nA first line.\n"
+        const newText = `# Notes\n\nA first line, now with the point it makes.\n\n## Related work\n\nThree papers frame the question differently; each is summarised below with what it found.\n`
+        emit({ type: "tool_call", toolCallId, title: `Edit ${target}`, kind: "edit", status: "pending", locations: [{ path: `docs/${target}` }], diff: { path: target, oldText, newText }, tool: { name: "Edit", path: target } })
         let outcome: PermissionKind = "allow_once"
         if (!AUTO_ROLES.has(mode)) {
           outcome = await this.askPermission(emit, signal, toolCallId, `Edit ${target}`)
@@ -326,9 +337,65 @@ export class MockAgentClient implements AgentClient {
         : m.kind === "doc"
           ? `docs/${m.subtitle ?? ""}${m.title}`
           : `knowledge/${topic}.md`
-    emit({ type: "tool_call", toolCallId: id, title: `${verb} ${m.title}`, kind: "read", status: "in_progress", locations: [{ path }] })
+    emit({ type: "tool_call", toolCallId: id, title: `${verb} ${m.title}`, kind: "read", status: "in_progress", locations: [{ path }], tool: { name: "Read", path } })
     await sleep(700, signal)
     emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: `Read ${path} (${Math.floor(Math.random() * 60 + 20)} lines)` })
+  }
+
+  // Reads around with commands, searches the web and opens pages, the way Claude Code works through a
+  // question, so the browser build shows long step lists, folded rows and a failure
+  private async webResearch(emit: (u: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
+    const step = async (title: string, kind: ToolKind, tool: ToolInfo, content: string, ms = 600, status: "completed" | "failed" = "completed") => {
+      const id = `tc-${crypto.randomUUID()}`
+      emit({ type: "tool_call", toolCallId: id, title, kind, status: "in_progress", tool })
+      await sleep(ms, signal)
+      emit({ type: "tool_call_update", toolCallId: id, status, content })
+    }
+    const dir = "~/Documents/research/2026-10 kickoff"
+    await step(`cat "Proactive Support/story.md"; ls -la "Proactive Support/"`, "execute", { name: "Bash", command: `cat "Proactive Support/story.md"; ls -la "Proactive Support/"`, description: "Read story.md and list its folder" }, "```console\n# Story\n\n## Background\nAgents can remind people proactively…\n```")
+    await step(`cd ${dir}; cat proposal-v0.5.md lit-check.md`, "execute", { name: "Bash", command: `cd ${dir}; cat proposal-v0.5.md lit-check.md`, description: "Read proposal v0.5 and the lit check" }, "```\nExit code 1\n# Proposal v0.5\ncat: lit-check.md: No such file or directory\n```", 600, "failed")
+    await step(`cd ${dir}; cat feasibility.md`, "execute", { name: "Bash", command: `cd ${dir}; cat feasibility.md`, description: "Read the feasibility comparison" }, "```console\n# Feasibility\n\n1. Current judgement…\n```")
+    await step("ToolSearch", "other", { name: "ToolSearch" }, "Tool: WebSearch\nTool: WebFetch", 200)
+    await step(`Search "prospective memory definition"`, "fetch", { name: "WebSearch", query: "prospective memory definition Einstein McDaniel" }, "Prospective memory (https://en.wikipedia.org/wiki/Prospective_memory)\nMark A. McDaniel (https://en.wikipedia.org/wiki/Mark_A._McDaniel)\nProspective Memory · Encyclopedia (https://link.springer.com/referenceworkentry/10.1007/978-0-387-79948-3_1144)")
+    await step(`Search "proactive agent definition"`, "fetch", { name: "WebSearch", query: "proactive agent definition ContextAgent wearable" }, "ContextAgent: Context-Aware Proactive LLM Agents (https://arxiv.org/abs/2505.14668)\nProactive Agent: Shifting LLM Agents from Reactive Responses to Active Assistance (https://arxiv.org/abs/2410.12361)")
+    for (const [url, title] of [
+      ["https://arxiv.org/abs/2403.01365", "AI-Powered Reminders for Collaborative Tasks: Experiences and Futures"],
+      ["https://arxiv.org/abs/2507.21378", "ProMemAssist: Exploring Timely Proactive Assistance Through Working Memory Modeling"],
+      ["https://arxiv.org/abs/2605.23085", "Remind Me To Check The Stove Before I Leave The House"],
+    ])
+      await step(`Fetch ${url}`, "fetch", { name: "WebFetch", url }, `**Title:** ${title}\n\n**Year:** 2024\n\nA short summary of what the page says.`, 700)
+    await sleep(300, signal)
+    await this.stream(emit, signal, "I read the story and the kickoff notes, then checked the papers the background leans on. Two files had moved, so I read them by their new names.", "agent_message_chunk", 14)
+    return "end_turn"
+  }
+
+  // Asks two questions, as Claude Code's AskUserQuestion does, and says what it heard
+  private async askQuestions(emit: (u: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
+    const toolCallId = `tc-${crypto.randomUUID()}`
+    emit({ type: "tool_call", toolCallId, title: "Asking for your input", kind: "other", status: "pending", tool: { name: "AskUserQuestion" } })
+    const requestId = `q-${crypto.randomUUID()}`
+    const questions: AgentQuestion[] = [
+      { id: "question_0", header: "Perception", question: "By “Perception dimensions”, which do you mean?", allowsText: true, options: [{ label: "Reason categories", description: "Drawn from people's own reasons" }, { label: "Rating scales", description: "Rated on given dimensions at the follow-up" }, { label: "Not decided", description: "Write it as v0.5 does" }] },
+      { id: "question_1", header: "Venue", question: "Still submitting to IMWUT on 11/1?", allowsText: true, options: [{ label: "Yes", description: "Keep the v0.5 timeline" }, { label: "Later", description: "Decide after the pilot" }] },
+    ]
+    emit({ type: "question_request", requestId, toolCallId, questions })
+    const answers = await new Promise<Record<string, QuestionAnswer> | null>((resolve, reject) => {
+      const onAbort = () => {
+        this.pendingQuestions.delete(requestId)
+        emit({ type: "question_resolved", requestId, outcome: "cancelled" })
+        reject(new DOMException("Aborted", "AbortError"))
+      }
+      signal.addEventListener("abort", onAbort, { once: true })
+      this.pendingQuestions.set(requestId, (a) => {
+        signal.removeEventListener("abort", onAbort)
+        emit({ type: "question_resolved", requestId, outcome: a ? "answered" : "skipped", ...(a ? { answers: a } : {}) })
+        resolve(a)
+      })
+    })
+    emit({ type: "tool_call_update", toolCallId, status: "completed" })
+    const said = answers ? questions.map((q) => [...(answers[q.id]?.picks ?? []), answers[q.id]?.text].filter(Boolean).join(", ") || "no answer").join("; ") : "nothing yet"
+    await this.stream(emit, signal, `Thanks. I heard: ${said}. I'll write the background with that in mind.`, "agent_message_chunk", 14)
+    return "end_turn"
   }
 
   private askPermission(

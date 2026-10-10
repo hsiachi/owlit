@@ -83,6 +83,8 @@ export class Background {
         writeTextFile: async () => {
           throw new Error("A background session doesn't write files; its answer is the result.")
         },
+        // Nobody is there to answer a question
+        createElicitation: async () => ({ action: "decline" }),
       },
     )
     const cancel = () => void proc.cancel({ sessionId: session.sessionId }).catch(() => undefined)

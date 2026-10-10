@@ -3,7 +3,7 @@
 
 import { Core } from "@owlit/core"
 import type { AppearanceSettings, DocsChange, MenuCommand, MethodName, ParamsOf, ResultOf, RpcRequest, SettingsView, WorkspaceInfo } from "@owlit/protocol"
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notification, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
@@ -79,6 +79,27 @@ ipcMain.handle("choose-folder", async (event, options: { title: string; message?
 
 ipcMain.on("appearance", (event) => {
   event.returnValue = appearance
+})
+
+// A chat that waits on the user or broke, said by the system while no owlit window is in front (the app
+// often runs in another Space). Clicking it brings the window back and opens the chat.
+const shown = new Set<Notification>()
+ipcMain.on("notify", (event, n: { title: string; body: string; chatId: string }) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (!win || BrowserWindow.getFocusedWindow() || !Notification.isSupported()) return
+  const notification = new Notification({ title: n.title, body: n.body })
+  // Kept until it is clicked or closed, or the click would find nothing listening
+  shown.add(notification)
+  notification.on("click", () => {
+    shown.delete(notification)
+    if (win.isDestroyed()) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+    win.webContents.send("notification-click", n.chatId)
+  })
+  notification.on("close", () => shown.delete(notification))
+  notification.show()
 })
 
 // The frame colour (the sidebar token) of each tone, light and dark; app/src/index.css has the source

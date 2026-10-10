@@ -4,7 +4,7 @@ import { useLibraryStore } from "@/features/library/store"
 // What a tool call is called on screen. Agents name owlit's own tools by their MCP name
 // (mcp__owlit__library_search from Claude Code, mcp.owlit.library_search from Codex) and a paper's note by its file (.owlit/papers/<id>/note.md); people
 // shouldn't have to read either, in a chat's steps, its permission card or Home's "Waiting on you".
-const OWLIT_TOOLS: Record<string, string> = {
+export const OWLIT_TOOLS: Record<string, string> = {
   library_list: "List your Library",
   library_get: "Look up a paper",
   library_read: "Read a paper",

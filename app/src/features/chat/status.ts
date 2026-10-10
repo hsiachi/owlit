@@ -91,6 +91,14 @@ export function pendingPermission(chat: Chat): Extract<MessagePart, { type: "per
   return last.parts.find((p): p is Extract<MessagePart, { type: "permission" }> => p.type === "permission" && !p.outcome)
 }
 
+// What the last reply waits on the user for: a permission, or a question of the agent's
+export type PendingAsk = Extract<MessagePart, { type: "permission" }> | Extract<MessagePart, { type: "question" }>
+export function pendingAsk(chat: Chat): PendingAsk | undefined {
+  const last = chat.messages[chat.messages.length - 1]
+  if (last?.role !== "assistant" || last.status !== "streaming") return undefined
+  return last.parts.find((p): p is PendingAsk => (p.type === "permission" || p.type === "question") && !p.outcome)
+}
+
 // The chat's last reply, if it broke and the user hasn't dismissed it
 export function brokenReply(chat: Chat, dismissed: string | undefined): ChatMessage | undefined {
   const last = chat.messages[chat.messages.length - 1]
@@ -106,14 +114,14 @@ export function useBrokenReply(chat: Chat | undefined) {
 }
 
 export function chatStatus(chat: Chat, streaming: boolean, unseen: Unseen | undefined, dismissed: string | undefined): ChatStatus {
-  if (streaming) return pendingPermission(chat) ? "waiting" : "working"
+  if (streaming) return pendingAsk(chat) ? "waiting" : "working"
   if (brokenReply(chat, dismissed)) return "failed"
   return unseen ?? "idle"
 }
 
 // Whether any chat needs the user (a permission, or a broken reply left as it is): the Chat place's rail mark
 export function chatsNeedYou(chats: Record<string, Chat>, streaming: Record<string, unknown>, dismissed: Record<string, string>) {
-  return Object.values(chats).some((c) => (streaming[c.id] && pendingPermission(c)) || brokenReply(c, dismissed[c.id]))
+  return Object.values(chats).some((c) => (streaming[c.id] && pendingAsk(c)) || brokenReply(c, dismissed[c.id]))
 }
 
 export const STATUS_LABEL: Record<ChatStatus, string> = {

@@ -8,12 +8,11 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, InfoIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useFoldWhile, useCheck } from "./form-state"
 import { setSecret, useSettings } from "./store"
@@ -186,19 +185,41 @@ function ErrorLine({ error }: { error: string | null }) {
   return <div className="mt-1 w-64 text-[13px] leading-5 text-destructive">{error}</div>
 }
 
-export function CheckLine({ checking, result, service }: { checking: boolean; result?: SettingsCheck; service: string }) {
+type Check = { checking: boolean; result?: SettingsCheck }
+
+// The check, beside the value it is about: a spinner while owlit asks, then a check mark if the service
+// took it. It sits in the control's slot, so the row never changes height for it. accepted is what the
+// mark says, for a value that isn't a key.
+export function CheckMark({ checking, result, service, accepted = `${service} accepted it` }: Check & { service: string; accepted?: string }) {
+  let mark: React.ReactNode = null
+  let label = ""
   if (checking) {
-    return (
-      <Note>
-        <span className="inline-flex items-center gap-1.5">
-          <Spinner className="size-3" />
-          Checking with {service}…
-        </span>
-      </Note>
-    )
+    mark = <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
+    label = `Checking with ${service}…`
+  } else if (result?.result === "works") {
+    mark = <CheckIcon className="size-3.5 text-success animate-in fade-in zoom-in-75" />
+    label = accepted
   }
-  if (!result) return null
-  if (result.result === "works" && !result.message) return <Note>Works</Note>
+  return (
+    <>
+      {mark && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-grid size-6 shrink-0 place-items-center">{mark}</span>
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
+      )}
+      <span role="status" className="sr-only">
+        {label}
+      </span>
+    </>
+  )
+}
+
+// What the service had to say, under the row: red for a refusal, muted for anything else
+export function CheckNote({ checking, result }: Check) {
+  if (checking || !result?.message) return null
   return <Note tone={result.result === "rejected" ? "bad" : "muted"}>{result.message}</Note>
 }
 
@@ -220,6 +241,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
     const value = draft.trim()
     if (!value) return
     fold()
+    check.reset()
     await setSecret(name, value)
     void check.run(name)
   }
@@ -259,6 +281,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
         >
           <Trash2Icon />
         </IconAction>
+        <CheckMark {...check} service={service} />
         <span className="font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
           ••••{last4}
         </span>
@@ -289,7 +312,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
           . Press Enter to keep it.
         </Note>
       )}
-      {!editing && <CheckLine checking={check.checking} result={check.result} service={service} />}
+      {!editing && <CheckNote {...check} />}
     </Row>
   )
 }
