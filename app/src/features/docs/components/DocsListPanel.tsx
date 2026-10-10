@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react"
+import { Fragment, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ChevronRightIcon, EllipsisVerticalIcon, FolderPlusIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { usePaletteStore } from "@/app/palette-store"
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
 import { keysFor } from "@/app/shortcuts"
@@ -19,9 +20,10 @@ const DRAG_TYPE = "application/x-owlit-docs"
 type DragItem = { kind: "file"; id: string } | { kind: "folder"; path: string }
 
 // Same row look as the Chat list, a little tighter because a tree runs longer. Focus lands on the button
-// inside, so the row lights up when it holds keyboard focus.
+// inside, so the row lights up when it holds keyboard focus. It stays lit while its ⋯ menu or its
+// right-click menu is open.
 const rowClass =
-  "group/row relative flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md pr-2 text-left text-sm outline-hidden transition-colors hover:bg-sidebar-accent has-focus-key:bg-sidebar-accent has-[[data-state=open]]:bg-sidebar-accent"
+  "group/row relative flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md pr-2 text-left text-sm outline-hidden transition-colors hover:bg-sidebar-accent has-focus-key:bg-sidebar-accent has-[[data-state=open]]:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
 const indent = (depth: number) => ({ paddingLeft: 8 + depth * 14 })
 // Every row keeps a chevron-wide slot, so names at the same depth line up whether they are folders or files
 const Slot = ({ children }: { children?: React.ReactNode }) => <span className="flex size-3.5 shrink-0 items-center justify-center">{children}</span>
@@ -39,7 +41,50 @@ function undoToast(title: string, name: string, removed: Removed) {
   })
 }
 
-function RowMenu({ children, label }: { children: React.ReactNode; label: string }) {
+// A row's actions are one list, reached from its ⋯ or by right-clicking it. The two Radix menus share
+// markup shape but not components, so the list is drawn with the kit of the menu it opens in.
+interface Action {
+  label: string
+  onSelect: () => void
+  destructive?: boolean
+  // Starts a new group, under a separator
+  apart?: boolean
+}
+
+interface Kit {
+  Item: typeof DropdownMenuItem
+  Separator: typeof DropdownMenuSeparator
+}
+
+const dropdownKit: Kit = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator }
+const contextKit: Kit = {
+  Item: ContextMenuItem as unknown as typeof DropdownMenuItem,
+  Separator: ContextMenuSeparator as unknown as typeof DropdownMenuSeparator,
+}
+
+function renderActions(actions: Action[], k: Kit) {
+  return actions.map((a) => (
+    <Fragment key={a.label}>
+      {a.apart && <k.Separator />}
+      <k.Item variant={a.destructive ? "destructive" : "default"} onSelect={a.onSelect}>
+        {a.label}
+      </k.Item>
+    </Fragment>
+  ))
+}
+
+function ActionsOnRightClick({ actions, children }: { actions: Action[]; children: React.ReactNode }) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
+        {renderActions(actions, contextKit)}
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+function RowMenu({ actions, label }: { actions: Action[]; label: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -54,7 +99,7 @@ function RowMenu({ children, label }: { children: React.ReactNode; label: string
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="start" className="w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
-        {children}
+        {renderActions(actions, dropdownKit)}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -120,39 +165,42 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
     else toast(`${node.name} opens in the system app`)
   }
 
+  const actions: Action[] = [
+    { label: "Rename", onSelect: () => setTimeout(() => setRenaming(node.file.id), 0) },
+    {
+      label: "Delete",
+      destructive: true,
+      apart: true,
+      onSelect: () => {
+        const removed = deleteFile(node.file.id)
+        if (active) navigate("/docs", { replace: true })
+        undoToast("Doc deleted", node.name, removed)
+      },
+    },
+  ]
+
   return (
-    <div className={cn(rowClass, active && "bg-sidebar-accent font-medium")} style={indent(depth)}>
-      <button
-        type="button"
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "file", id: node.file.id } satisfies DragItem))
-          e.dataTransfer.effectAllowed = "move"
-        }}
-        onClick={open}
-        onMouseEnter={fullNameOnHover(node.name)}
-        className={cn("flex min-w-0 flex-1 items-center gap-1 py-1.5 pr-1 text-left outline-hidden group-hover/row:pr-6", !node.markdown && "text-muted-foreground")}
-      >
-        <Slot />
-        <span data-name className="truncate">
-          {node.name}
-        </span>
-      </button>
-      <RowMenu label="Doc actions">
-        <DropdownMenuItem onSelect={() => setTimeout(() => setRenaming(node.file.id), 0)}>Rename</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          onSelect={() => {
-            const removed = deleteFile(node.file.id)
-            if (active) navigate("/docs", { replace: true })
-            undoToast("Doc deleted", node.name, removed)
+    <ActionsOnRightClick actions={actions}>
+      <div className={cn(rowClass, active && "bg-sidebar-accent font-medium")} style={indent(depth)}>
+        <button
+          type="button"
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "file", id: node.file.id } satisfies DragItem))
+            e.dataTransfer.effectAllowed = "move"
           }}
+          onClick={open}
+          onMouseEnter={fullNameOnHover(node.name)}
+          className={cn("flex min-w-0 flex-1 items-center gap-1 py-1.5 pr-1 text-left outline-hidden group-hover/row:pr-6", !node.markdown && "text-muted-foreground")}
         >
-          Delete
-        </DropdownMenuItem>
-      </RowMenu>
-    </div>
+          <Slot />
+          <span data-name className="truncate">
+            {node.name}
+          </span>
+        </button>
+        <RowMenu label="Doc actions" actions={actions} />
+      </div>
+    </ActionsOnRightClick>
   )
 }
 
@@ -165,6 +213,37 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
   const renaming = useDocsUiStore((s) => s.renaming === `folder:${node.path}`)
   const { setExpanded, expandTo, selectFolder, setRenaming } = useDocsUiStore.getState()
   const activeInside = useDocsStore((s) => (p.activeId ? s.files[p.activeId]?.path.startsWith(node.path + "/") : false))
+
+  const actions: Action[] = [
+    {
+      label: "New doc",
+      onSelect: () => {
+        expandTo(node.path)
+        newDoc(node.path)
+      },
+    },
+    {
+      label: "New folder",
+      onSelect: () => {
+        const path = createFolder(node.path)
+        expandTo(node.path)
+        setTimeout(() => setRenaming(`folder:${path}`), 0)
+      },
+    },
+    { label: "Rename", onSelect: () => setTimeout(() => setRenaming(`folder:${node.path}`), 0) },
+    {
+      label: "Delete",
+      destructive: true,
+      apart: true,
+      onSelect: () => {
+        const removed = deleteFolder(node.path)
+        if (activeInside) navigate("/docs", { replace: true })
+        if (selected) selectFolder(null)
+        const n = removed.files.length
+        undoToast("Folder deleted", n ? `${node.name} and ${n} ${n === 1 ? "file" : "files"}` : node.name, removed)
+      },
+    },
+  ]
 
   return (
     <>
@@ -182,77 +261,47 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
           }}
         />
       ) : (
-        <div
-          className={cn(rowClass, selected && "bg-sidebar-accent", p.dragOver === node.path && "bg-foreground/8")}
-          style={indent(depth)}
-          onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
-            e.preventDefault()
-            e.stopPropagation()
-            p.setDragOver(node.path)
-          }}
-          onDragLeave={() => p.setDragOver(null)}
-          onDrop={(e) => {
-            e.stopPropagation()
-            p.onDropInto(node.path, e)
-          }}
-        >
-          <button
-            type="button"
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "folder", path: node.path } satisfies DragItem))
-              e.dataTransfer.effectAllowed = "move"
+        <ActionsOnRightClick actions={actions}>
+          <div
+            className={cn(rowClass, selected && "bg-sidebar-accent", p.dragOver === node.path && "bg-foreground/8")}
+            style={indent(depth)}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
+              e.preventDefault()
+              e.stopPropagation()
+              p.setDragOver(node.path)
             }}
-            onClick={() => {
-              setExpanded(node.path, !open)
-              selectFolder(node.path)
+            onDragLeave={() => p.setDragOver(null)}
+            onDrop={(e) => {
+              e.stopPropagation()
+              p.onDropInto(node.path, e)
             }}
-            aria-expanded={open}
-            onMouseEnter={fullNameOnHover(node.name)}
-            className="flex min-w-0 flex-1 items-center gap-1 py-1.5 text-left outline-hidden group-hover/row:pr-6"
           >
-            <Slot>
-              <ChevronRightIcon className={cn("size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} />
-            </Slot>
-            <span data-name className={cn("truncate", !open && activeInside && "font-medium")}>
-              {node.name}
-            </span>
-          </button>
-          <RowMenu label="Folder actions">
-            <DropdownMenuItem
-              onSelect={() => {
-                expandTo(node.path)
-                newDoc(node.path)
+            <button
+              type="button"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "folder", path: node.path } satisfies DragItem))
+                e.dataTransfer.effectAllowed = "move"
               }}
-            >
-              New doc
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                const path = createFolder(node.path)
-                expandTo(node.path)
-                setTimeout(() => setRenaming(`folder:${path}`), 0)
+              onClick={() => {
+                setExpanded(node.path, !open)
+                selectFolder(node.path)
               }}
+              aria-expanded={open}
+              onMouseEnter={fullNameOnHover(node.name)}
+              className="flex min-w-0 flex-1 items-center gap-1 py-1.5 text-left outline-hidden group-hover/row:pr-6"
             >
-              New folder
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setTimeout(() => setRenaming(`folder:${node.path}`), 0)}>Rename</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => {
-                const removed = deleteFolder(node.path)
-                if (activeInside) navigate("/docs", { replace: true })
-                if (selected) selectFolder(null)
-                const n = removed.files.length
-                undoToast("Folder deleted", n ? `${node.name} and ${n} ${n === 1 ? "file" : "files"}` : node.name, removed)
-              }}
-            >
-              Delete
-            </DropdownMenuItem>
-          </RowMenu>
-        </div>
+              <Slot>
+                <ChevronRightIcon className={cn("size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} />
+              </Slot>
+              <span data-name className={cn("truncate", !open && activeInside && "font-medium")}>
+                {node.name}
+              </span>
+            </button>
+            <RowMenu label="Folder actions" actions={actions} />
+          </div>
+        </ActionsOnRightClick>
       )}
       {open && <TreeLevel nodes={node.children} depth={depth + 1} {...p} />}
     </>
@@ -348,24 +397,33 @@ export function DocsListPanel() {
           </Tooltip>
         </div>
       </SidebarHeader>
-      <SidebarContent
-        // 2px between rows, so two filled rows side by side (open doc, clicked folder, hover) stay apart
-        className={cn("gap-0.5 px-2.5 pt-3 pb-4", dragOver === "" && "bg-foreground/[0.03]")}
-        // Clicking empty space puts new docs back at the workspace root
-        onClick={(e) => e.target === e.currentTarget && selectFolder("")}
-        onDragOver={(e) => {
-          if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
-          e.preventDefault()
-          setDragOver("")
-        }}
-        onDragLeave={(e) => e.target === e.currentTarget && setDragOver(null)}
-        onDrop={(e) => onDropInto("", e)}
+      {/* Right-clicking the space around the rows makes something at the workspace root; a row's own menu
+          takes the right-clicks on it */}
+      <ActionsOnRightClick
+        actions={[
+          { label: "New doc", onSelect: () => newDoc("") },
+          { label: "New folder", onSelect: newFolder },
+        ]}
       >
-        {tree.children.length === 0 && (
-          <div className="px-2.5 py-2 text-sm text-muted-foreground">No docs yet.</div>
-        )}
-        <TreeLevel nodes={tree.children} depth={0} {...props} />
-      </SidebarContent>
+        <SidebarContent
+          // 2px between rows, so two filled rows side by side (open doc, clicked folder, hover) stay apart
+          className={cn("gap-0.5 px-2.5 pt-3 pb-4", dragOver === "" && "bg-foreground/[0.03]")}
+          // Clicking empty space puts new docs back at the workspace root
+          onClick={(e) => e.target === e.currentTarget && selectFolder("")}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
+            e.preventDefault()
+            setDragOver("")
+          }}
+          onDragLeave={(e) => e.target === e.currentTarget && setDragOver(null)}
+          onDrop={(e) => onDropInto("", e)}
+        >
+          {tree.children.length === 0 && (
+            <div className="px-2.5 py-2 text-sm text-muted-foreground">No docs yet.</div>
+          )}
+          <TreeLevel nodes={tree.children} depth={0} {...props} />
+        </SidebarContent>
+      </ActionsOnRightClick>
     </>
   )
 }
