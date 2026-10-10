@@ -2,20 +2,24 @@ import { Navigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { keysFor } from "@/app/shortcuts"
+import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
-import { isMarkdown } from "../types"
+import { isMarkdown, type WorkspaceFile } from "../types"
 import { useDocsUiStore } from "../ui-store"
 import { useNewDoc } from "../use-new-doc"
 
-// Docs has no landing page of its own: it goes back to the doc you were in, or the latest one
+// Docs has no landing page of its own: it goes back to the doc you were in, or the latest one. Only docs the
+// tree shows count; Knowledge topics are Markdown too and Owlit edits them often, so they would win otherwise.
+const isDoc = (f: WorkspaceFile | undefined): f is WorkspaceFile => !!f && isMarkdown(f.path) && !isHidden(f.path)
+
 export function DocsHome() {
   const files = useDocsStore((s) => s.files)
   const loaded = useDocsStore((s) => s.loaded)
   const lastDocId = useDocsUiStore((s) => s.lastDocId)
   const newDoc = useNewDoc()
 
-  const docs = Object.values(files).filter((f) => isMarkdown(f.path))
-  const target = (lastDocId && files[lastDocId] && isMarkdown(files[lastDocId].path) ? files[lastDocId] : null) ?? docs.sort((a, b) => b.modifiedAt - a.modifiedAt)[0]
+  const last = lastDocId ? files[lastDocId] : undefined
+  const target = isDoc(last) ? last : Object.values(files).filter(isDoc).sort((a, b) => b.modifiedAt - a.modifiedAt)[0]
   if (target) return <Navigate to={`/docs/${target.id}`} replace />
   // The workspace is still being read
   if (!loaded) return null

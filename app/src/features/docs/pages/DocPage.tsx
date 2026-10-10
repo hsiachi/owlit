@@ -8,6 +8,7 @@ import { useDocActions } from "../actions"
 import { saveAgain } from "../disk"
 import { DocEditor } from "../editor/DocEditor"
 import { anchor } from "../editor/agent-notes"
+import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
@@ -22,9 +23,9 @@ export function DocPage() {
   const { fileGroups } = useDocActions()
 
   // The panel follows the open doc: its folder opens (and folders opened only for the last doc close), and
-  // new docs land beside it
+  // new docs land beside it. A file the tree hides (a Knowledge topic opened from a link) leaves both alone.
   useEffect(() => {
-    if (!file) return
+    if (!file || isHidden(file.path)) return
     const ui = useDocsUiStore.getState()
     ui.openedDoc(file.id, folder)
     ui.revealDoc(folder)
