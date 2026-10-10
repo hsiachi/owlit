@@ -25,13 +25,14 @@ export function useFoldWhile(open: boolean, fold: () => void) {
   }, [open])
 }
 
-// The result of trying a value with its service: "Checking…", then "Works" for a moment, or the problem
+// The result of trying a value with its service. It stays while the section is open: a check beside the
+// value when it works, a sentence under the row when there is something to say.
 export function useCheck() {
   const [state, setState] = useState<{ checking: boolean; result?: SettingsCheck }>({ checking: false })
-  const timer = useRef<number | undefined>(undefined)
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  // Only the latest try counts, so a slow answer can't overwrite a newer one or a reset
+  const latest = useRef(0)
   const run = async (target: Parameters<typeof checkSetting>[0]) => {
-    window.clearTimeout(timer.current)
+    const id = ++latest.current
     setState({ checking: true })
     let result: SettingsCheck
     try {
@@ -39,10 +40,11 @@ export function useCheck() {
     } catch {
       result = { result: "unknown", message: "Couldn't check it just now." }
     }
-    setState({ checking: false, result })
-    // "Works" is news once; a problem stays until it changes
-    if (result.result === "works" && !result.message) timer.current = window.setTimeout(() => setState({ checking: false }), 2500)
+    if (id === latest.current) setState({ checking: false, result })
   }
-  const reset = () => setState({ checking: false })
+  const reset = () => {
+    latest.current++
+    setState({ checking: false })
+  }
   return { ...state, run, reset }
 }

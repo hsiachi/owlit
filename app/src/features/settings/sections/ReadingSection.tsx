@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { Switch } from "@/components/ui/switch"
 import { useCheck } from "../form-state"
-import { CheckLine, CommitInput, List, Picker, Row, SecretRow } from "../parts"
+import { CheckMark, CheckNote, CommitInput, List, Picker, Row, SecretRow } from "../parts"
 import { updateSettings, useSettings } from "../store"
 
 type Reader = "builtin" | "cloud" | "self-hosted"
@@ -54,21 +54,24 @@ function ServerRow({ url }: { url: string }) {
     <Row
       name="Address"
       control={
-        <CommitInput
-          aria-label="MinerU address"
-          spellCheck={false}
-          placeholder="http://127.0.0.1:8000"
-          value={url}
-          className="font-mono"
-          validate={(text) => (/^https?:\/\/\S+$/.test(text) ? null : "An address starts with http:// or https://.")}
-          onCommit={async (next) => {
-            await updateSettings({ parsing: { url: next || null } })
-            void check.run("mineruServer")
-          }}
-        />
+        <>
+          <CheckMark {...check} service="MinerU" accepted="MinerU answered" />
+          <CommitInput
+            aria-label="MinerU address"
+            spellCheck={false}
+            placeholder="http://127.0.0.1:8000"
+            value={url}
+            className="font-mono"
+            validate={(text) => (/^https?:\/\/\S+$/.test(text) ? null : "An address starts with http:// or https://.")}
+            onCommit={async (next) => {
+              await updateSettings({ parsing: { url: next || null } })
+              void check.run("mineruServer")
+            }}
+          />
+        </>
       }
     >
-      <CheckLine checking={check.checking} result={check.result} service="MinerU" />
+      <CheckNote {...check} />
     </Row>
   )
 }
