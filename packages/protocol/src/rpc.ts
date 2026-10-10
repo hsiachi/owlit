@@ -1,5 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
-import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, SessionUpdate, StopReason } from "./chat.ts"
+import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
@@ -211,6 +211,8 @@ export interface Methods {
   "agents.cancel": { params: { chatId: string }; result: null }
   // Answers a permission_request with one of its options
   "agents.respondPermission": { params: { chatId: string; requestId: string; optionId: string }; result: null }
+  // Answers a question_request by question id; null skips it (the agent goes on without an answer)
+  "agents.answerQuestion": { params: { chatId: string; requestId: string; answers: Record<string, QuestionAnswer> | null }; result: null }
 
   // ---- Windows. clientId names one window for as long as it is loaded.
   // The docs this window has open in an editor (workspace-relative); agents' reads and writes of them
@@ -409,4 +411,8 @@ export interface OwlitBridge {
   textMenuAsk(ask: boolean): void
   // "Ask Owlit" was chosen in that menu
   onTextMenuAsk(listener: () => void): () => void
+  // A system notification, shown only while no owlit window is in front; clicking it brings the window
+  // forward and calls onNotificationClick with its chatId
+  notify(notification: { title: string; body: string; chatId: string }): void
+  onNotificationClick(listener: (chatId: string) => void): () => void
 }

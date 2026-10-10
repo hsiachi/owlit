@@ -121,8 +121,32 @@ class FakeAgent implements acp.Agent {
         await say("about to crash")
         process.exit(3)
       }
+      if (text.includes("question")) {
+        // As claude-agent-acp sends AskUserQuestion: the tool call, then one form field per question with
+        // a free-text companion
+        const input = { questions: [{ question: "Which one?", header: "Pick", options: [{ label: "A", description: "the first" }, { label: "B" }] }] }
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", toolCallId: "q1", title: "Which one?", kind: "other", status: "pending", rawInput: input, _meta: { claudeCode: { toolName: "AskUserQuestion" } } } })
+        const answer = await this.conn.createElicitation({
+          mode: "form",
+          sessionId: params.sessionId,
+          toolCallId: "q1",
+          message: "Which one?",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              question_0: { type: "string", title: "Pick", oneOf: [{ const: "A", title: "A", description: "the first" }, { const: "B", title: "B" }] },
+              question_0_custom: { type: "string", title: "Other", description: "Type your own answer" },
+            },
+          },
+        })
+        await say(`answer ${JSON.stringify(answer)}`)
+        return { stopReason: answer.action === "cancel" ? "cancelled" : "end_turn" }
+      }
       if (text.includes("permission")) {
-        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", toolCallId: "t1", title: "Run ls", kind: "execute", status: "pending" } })
+        await this.conn.sessionUpdate({
+          sessionId: params.sessionId,
+          update: { sessionUpdate: "tool_call", toolCallId: "t1", title: "Run ls", kind: "execute", status: "pending", rawInput: { command: "ls", description: "List the folder" }, _meta: { claudeCode: { toolName: "Bash" } } },
+        })
         const answer = await this.conn.requestPermission({
           sessionId: params.sessionId,
           toolCall: { toolCallId: "t1", title: "Run ls", kind: "execute" },

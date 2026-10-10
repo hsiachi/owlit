@@ -16,11 +16,11 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
     case "tool_call":
       // A tool call announced again (an agent may, and owlit does before asking permission for it) is merged
       if (parts.some((p) => p.type === "tool_call" && p.toolCallId === u.toolCallId)) return applyUpdate(parts, { ...u, type: "tool_call_update" })
-      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff }]
+      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff, tool: u.tool }]
     case "tool_call_update":
       return parts.map((p) =>
         p.type === "tool_call" && p.toolCallId === u.toolCallId
-          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations, diff: u.diff ?? p.diff }
+          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations, diff: u.diff ?? p.diff, tool: u.tool ?? p.tool }
           : p,
       )
     case "plan": {
@@ -32,5 +32,9 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
       return [...parts, { type: "permission", requestId: u.requestId, toolCallId: u.toolCallId, title: u.title, kind: u.kind, options: u.options }]
     case "permission_resolved":
       return parts.map((p) => (p.type === "permission" && p.requestId === u.requestId ? { ...p, outcome: u.outcome } : p))
+    case "question_request":
+      return [...parts, { type: "question", requestId: u.requestId, toolCallId: u.toolCallId, questions: u.questions }]
+    case "question_resolved":
+      return parts.map((p) => (p.type === "question" && p.requestId === u.requestId ? { ...p, outcome: u.outcome, answers: u.answers } : p))
   }
 }

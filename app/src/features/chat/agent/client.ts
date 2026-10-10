@@ -1,4 +1,4 @@
-import type { Role } from "@owlit/protocol"
+import type { QuestionAnswer, Role } from "@owlit/protocol"
 import type { ChatMessage, Connector, PromptInput, SessionUpdate, StopReason } from "../types"
 
 export interface PromptRequest {
@@ -78,4 +78,6 @@ export interface AgentClient {
     signal: AbortSignal,
   ): Promise<StopReason>
   respondPermission(chatId: string, requestId: string, optionId: string): void
+  // Answers a question by question id; null skips it
+  answerQuestion(chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null): void
 }
