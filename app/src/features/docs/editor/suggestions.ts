@@ -27,12 +27,20 @@ export function pendingEdits(chats: Record<string, Chat>, path: string): Pending
   return out
 }
 
-// The one span an edit changes, between the text it shares with the old file at both ends
-function hunk(oldText: string, newText: string) {
+// A letter or digit of a script that spaces its words. Han and kana run on without spaces, so widening to
+// the whole run there would take in the sentence.
+const isWord = (c: string | undefined) =>
+  c !== undefined && /[\p{L}\p{N}_]/u.test(c) && !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(c)
+
+// The one span an edit changes, between the text it shares with the old file at both ends. Its ends are
+// widened to whole words, so "mostly" to "mainly" reads as one word swapped, not "m(ost)(ain)ly".
+export function hunk(oldText: string, newText: string) {
   let p = 0
   while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++
   let s = 0
   while (s < oldText.length - p && s < newText.length - p && oldText[oldText.length - 1 - s] === newText[newText.length - 1 - s]) s++
+  while (p > 0 && isWord(oldText[p - 1]) && (isWord(oldText[p]) || isWord(newText[p]))) p--
+  while (s > 0 && isWord(oldText[oldText.length - s]) && (isWord(oldText[oldText.length - s - 1]) || isWord(newText[newText.length - s - 1]))) s--
   return { at: p, removed: oldText.slice(p, oldText.length - s), added: newText.slice(p, newText.length - s) }
 }
 
@@ -55,20 +63,26 @@ function locate(state: EditorState, edit: PendingEdit) {
   return { from: i, to: i + h.removed.length, added: h.added }
 }
 
-// New words, with any [label](owlit://…) drawn as the mention it will become
+// New words, with any [label](owlit://…) drawn as the mention it will become. Spaces at either end stay
+// outside the underline. After struck words they keep a small gap, so the old and new don't run together.
 class AddedWidget extends WidgetType {
   readonly text: string
-  constructor(text: string) {
+  readonly replaces: boolean
+  constructor(text: string, replaces: boolean) {
     super()
     this.text = text
+    this.replaces = replaces
   }
   eq(other: AddedWidget) {
-    return other.text === this.text
+    return other.text === this.text && other.replaces === this.replaces
   }
   toDOM() {
+    const [, lead, words, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(this.text)!
+    const outer = document.createElement("span")
     const span = document.createElement("span")
-    span.className = "cm-suggest-ins"
-    for (const piece of this.text.split(/(\[[^\]]*\]\(owlit:\/\/[^)]+\))/g)) {
+    span.className = this.replaces ? "cm-suggest-ins cm-suggest-ins-after" : "cm-suggest-ins"
+    outer.append(lead, span, trail)
+    for (const piece of words.split(/(\[[^\]]*\]\(owlit:\/\/[^)]+\))/g)) {
       const m = /^\[([^\]]*)\]\(owlit:\/\/[^)]+\)$/.exec(piece)
       if (!m) {
         span.append(piece)
@@ -79,7 +93,7 @@ class AddedWidget extends WidgetType {
       mention.textContent = m[1]
       span.append(mention)
     }
-    return span
+    return outer
   }
 }
 
@@ -125,7 +139,10 @@ function build(state: EditorState, edits: PendingEdit[], respond: (edit: Pending
     const at = locate(state, edit)
     if (!at) continue
     if (at.to > at.from) decos.push(Decoration.mark({ class: "cm-suggest-del" }).range(at.from, at.to))
-    if (at.added) decos.push(Decoration.widget({ widget: new AddedWidget(at.added), side: 1 }).range(at.to))
+    // Every line the edit touches carries the rule that joins it to the bar
+    for (let n = state.doc.lineAt(at.from).number; n <= state.doc.lineAt(at.to).number; n++)
+      decos.push(Decoration.line({ class: "cm-suggest-line" }).range(state.doc.line(n).from))
+    if (at.added) decos.push(Decoration.widget({ widget: new AddedWidget(at.added, at.to > at.from), side: 1 }).range(at.to))
     decos.push(Decoration.widget({ widget: new BarWidget(edit, respond), block: true, side: 1 }).range(state.doc.lineAt(at.to).to))
   }
   return Decoration.set(decos, true)
