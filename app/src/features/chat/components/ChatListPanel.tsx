@@ -154,7 +154,8 @@ export function ChatListPanel() {
         </button>
         <SidebarMenu className="pt-1.5">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={!chatId} className={cn(rowClass, keepRowInIconMode, "gap-2 pl-1.5")}>
+            {/* Never lit as the open page: New doc can't be, and a fill coming and going reads as the row jumping */}
+            <SidebarMenuButton asChild className={cn(rowClass, keepRowInIconMode, "gap-2 pl-1.5")}>
               <NavLink to="/chat" end>
                 {/* The plus sits in the status slot every chat row has, so all titles start together */}
                 <span className="grid size-5 place-items-center">
@@ -170,7 +171,8 @@ export function ChatListPanel() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="gap-0 pb-4">
-        {groups.length === 0 && <div className="px-4 py-3 text-sm text-muted-foreground">No chats yet.</div>}
+        {/* Placed exactly like Docs' "No docs yet.", so switching places doesn't move the gap under New */}
+        {groups.length === 0 && <div className="mx-2.5 mt-3 px-2.5 py-2 text-sm text-muted-foreground">No chats yet.</div>}
         {groups.map((g) => (
           // Spacing ladder: label to its rows (tight) < row to row < group to group (wide)
           <SidebarGroup key={g.label} className="px-2.5 pt-5 pb-0 first:pt-2">
