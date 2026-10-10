@@ -2,7 +2,7 @@ import type { RpcNotification, UiRequest } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 
 const cores: Core[] = []
@@ -153,10 +153,22 @@ describe("agent fs", () => {
     await call("library.setNote", { paperId: id, content: "Mine. Long and repeated." })
     // Claude Code edits files itself; owlit only sees its tool call claim the path
     ;(core as any).turns.claims.set(rel, { chatId: "chat-2", until: Infinity })
-    writeFileSync(path.join(root, rel), "Mine.")
-    await new Promise((r) => setTimeout(r, 600))
+    // A watcher only just started can miss a write (FSEvents on macOS, on a busy machine): the agent
+    // writes again until core hears it. The same content is news only once.
+    await vi.waitFor(
+      () => {
+        if (!of("library.noteChanged").length) writeFileSync(path.join(root, rel), "Mine.")
+        expect(of("library.noteChanged")).not.toHaveLength(0)
+      },
+      { timeout: 4000, interval: 500 },
+    )
     expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ content: "Mine." }) }])
-    const entry = journal().find((e) => e.kind === "agent.wrote")
+    // Journaled just after windows hear of it
+    const entry = await vi.waitFor(() => {
+      const found = journal().find((e) => e.kind === "agent.wrote")
+      expect(found).toBeDefined()
+      return found
+    })
     expect(entry).toMatchObject({ path: rel, chatId: "chat-2" })
     expect(of("agent.wrote")).toEqual([{ path: rel, versionId: entry.versionId, chatId: "chat-2" }])
     await call("versions.restore", { id: entry.versionId })

@@ -421,7 +421,9 @@ export class Library {
     let task = await this.scheduler.run("paper.pdf", id, "waiting")
     // Not after a failure (offline): the browser would only fail too, and its answer would hide why
     if (task.state !== "failed" && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
-    const paper = await this.get(id)
+    // Under the library's lock: a run that placed the PDF while this one looked may still be
+    // writing what it did (acquisition.json)
+    const paper = await this.serial(() => this.get(id))
     if (!paper) throw notFound(id)
     if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't look for a PDF.")
     return paper
@@ -433,7 +435,8 @@ export class Library {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!this.scheduler?.knows("paper.pdf.check")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't open publishers' pages here.")
     const task = await this.scheduler.run("paper.pdf.check", id, "asked")
-    const paper = await this.get(id)
+    // Under the library's lock, as in fetchPdf
+    const paper = await this.serial(() => this.get(id))
     if (!paper) throw notFound(id)
     if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't open the publisher's page.")
     return paper
@@ -524,13 +527,16 @@ export class Library {
               },
             })
             if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
-            // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
-            ctx.signal.throwIfAborted()
-            await writeFileAtomic(dest, Buffer.from(bytes))
-            const sha256 = await sha256Of(dest)
-            this.pdfHashes?.set(sha256, id)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
-            await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
+            // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
+            await this.serial(async () => {
+              // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
+              ctx.signal.throwIfAborted()
+              await writeFileAtomic(dest, Buffer.from(bytes))
+              const sha256 = await sha256Of(dest)
+              this.pdfHashes?.set(sha256, id)
+              await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
+            })
             for (const next of ["paper.text", "index.paper"]) this.queue(next, id, ctx.task.priority)
             await this.announce([id])
             return
@@ -543,9 +549,8 @@ export class Library {
           }
         }
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
-        if (await hasPdfFile(this.root, id)) return
-        await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, ...(needs ? { needs } : {}) })
-        await this.announce([id])
+        const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, ...(needs ? { needs } : {}) }))
+        if (noted) await this.announce([id])
       },
     })
   }
@@ -1068,9 +1073,12 @@ export class Library {
               continue
             }
             tried.push({ route: route.name, url: route.url, status: 200, at: Date.now() })
-            const sha256 = await sha256Of(dest)
-            this.pdfHashes?.set(sha256, id)
-            await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
+            // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
+            await this.serial(async () => {
+              const sha256 = await sha256Of(dest)
+              this.pdfHashes?.set(sha256, id)
+              await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
+            })
             for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, ctx.task.priority)
             await this.announce([id])
             return
@@ -1081,11 +1089,16 @@ export class Library {
           // No server answered at all (doi.org, Unpaywall, the routes): the machine is offline, which
           // passes. One dead host among ones that answered is just a route that failed.
           if (heard.asked && !heard.answered) throw new HttpError(0, tried[0]?.url ?? "", "Couldn't reach any source of PDFs.")
-          // Another route (the browser, a drop) may have placed it meanwhile; its record stands
-          if (await hasPdfFile(this.root, id)) return
-          // A check the publisher wants stays noted until the browser looks again (queued below)
-          const needs = (await readAcquisition(this.root, id))?.needs
-          await writeAcquisition(this.root, id, { version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, ...(needs ? { needs } : {}) })
+          const noted = await this.noPdf(id, (previous) => ({
+            version: 1,
+            result: "no_pdf",
+            tried,
+            at: Date.now(),
+            dropHere: dest,
+            // A check the publisher wants stays noted until the browser looks again (queued below)
+            ...(previous?.needs ? { needs: previous.needs } : {}),
+          }))
+          if (!noted) return
           // The publisher may still give it to a browser: cookies, a challenge, the library's proxy
           if (record.ids.doi) this.queue("paper.pdf.browser", id, ctx.task.priority)
           await this.announce([id])
@@ -1129,6 +1142,19 @@ export class Library {
   }
 
   // ---- inside
+
+  // Notes that a run found no PDF, unless another route (the browser, a drop) placed one meanwhile:
+  // its record stands. paper.pdf and paper.pdf.browser can run at once for a paper (the user asks
+  // just after the automatic run), so the look and the write share the library's lock with the
+  // writers of an ok record; otherwise a no_pdf could land last over a PDF that is there. Whether
+  // it was noted.
+  private noPdf(id: string, acquisition: (previous: Acquisition | undefined) => Acquisition): Promise<boolean> {
+    return this.serial(async () => {
+      if (await hasPdfFile(this.root, id)) return false
+      await writeAcquisition(this.root, id, acquisition(await readAcquisition(this.root, id)))
+      return true
+    })
+  }
 
   // Queues a step for a paper when this build knows it (paper.pdf comes with T15, and so on)
   private queue(kind: string, id: string, priority: TaskPriority) {

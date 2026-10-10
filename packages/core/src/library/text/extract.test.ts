@@ -76,7 +76,9 @@ describe("extractText", () => {
   it("reads a 300-page book without holding core up, reporting each page", async () => {
     const lines = Array.from({ length: 50 }, (_, i) => `Line ${i + 1} of a long book, set in ten point type with some words.`)
     const book = makePdf(Array.from({ length: 300 }, () => paragraph(72, 72, lines)))
-    let reported = 0
+    // Work queued at one page gets its turn before the next page is read: checked by order, which
+    // a busy machine (the whole suite running) can't change
+    const turns: number[] = []
     let longestStall = 0
     let last = performance.now()
     const ticker = setInterval(() => {
@@ -85,13 +87,20 @@ describe("extractText", () => {
       last = now
     }, 1)
     const started = performance.now()
-    const text = await extractText(book, { onPage: () => reported++ })
+    const text = await extractText(book, {
+      onPage: (done) => {
+        expect(turns).toHaveLength(done - 1)
+        setImmediate(() => turns.push(done))
+      },
+    })
+    const took = performance.now() - started
     clearInterval(ticker)
     expect(text.pages).toHaveLength(300)
-    expect(reported).toBe(300)
-    // Core gives way after every page; no single stretch should come near a second
-    expect(longestStall).toBeLessThan(200)
-    console.log(`300 pages in ${Math.round(performance.now() - started)}ms, longest stall ${Math.round(longestStall)}ms`)
+    expect(turns).toHaveLength(300)
+    // No stretch takes a large share of the read (the book in one go would take all of it). Not a
+    // fixed limit: a busy machine stretches a page's few milliseconds past 200ms, and the read with it.
+    expect(longestStall).toBeLessThan(took / 4)
+    console.log(`300 pages in ${Math.round(took)}ms, longest stall ${Math.round(longestStall)}ms`)
   }, 60_000)
 
   it("stops when cancelled", async () => {
