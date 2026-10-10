@@ -1,7 +1,19 @@
-import type { MessagePart, SessionUpdate } from "./chat.ts"
+import type { ChatMessage, MessagePart, SessionUpdate } from "./chat.ts"
 
 // How a message is built from an agent's stream; core (which saves it) and the app (which shows it) fold
 // the same updates the same way.
+
+// An agent whose turn fails often says why as the last text of its answer ("Failed to authenticate. API
+// Error: 403 Request not allowed"). That isn't an answer: it is taken out of the parts and kept as the
+// reply's errorDetail, for the line that says the reply broke.
+const AGENT_ERROR = /^(?:[\w ]+\.\s+)?API Error\b|^Failed to authenticate\b|^(?:Error|Request failed):\s/
+export function withoutAgentError(message: ChatMessage): ChatMessage {
+  const last = message.parts.at(-1)
+  if (message.status !== "error" || last?.type !== "text") return message
+  const said = last.text.trim()
+  if (!said || said.length > 600 || !AGENT_ERROR.test(said)) return message
+  return { ...message, parts: message.parts.slice(0, -1), errorDetail: message.errorDetail ?? said }
+}
 
 // Fold one streamed update into the assistant message's parts
 export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart[] {

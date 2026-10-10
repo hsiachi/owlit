@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { withoutAgentError } from "@owlit/protocol"
 import { CheckIcon, CircleXIcon, CopyIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
@@ -44,6 +45,42 @@ function CopyButton({ text }: { text: string }) {
 
 // A small text button in a muted line (Retry, Dismiss), 24px tall so it is easy to hit
 const TEXT_BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-foreground outline-none hover:bg-muted focus-key:bg-muted"
+
+// The one red mark a reply can have, as a small block rather than a line that wraps: "Owlit stopped"
+// with Retry and Dismiss on its right, then why in owlit's words as a muted sentence. The agent's own
+// words (an API error) are a detail folded under Details, since they mean little on their own and the
+// agent is named only where it is picked.
+function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; onRetry?: () => void; onDismiss?: () => void }) {
+  const [details, setDetails] = useState(false)
+  const detail = message.errorDetail && message.errorDetail !== message.error ? message.errorDetail : undefined
+  return (
+    <div className="text-[13px] text-muted-foreground" role="status">
+      <div className="flex items-center gap-1.5">
+        <CircleXIcon className="size-3.5 shrink-0 text-destructive" />
+        <span className="text-destructive">Owlit stopped</span>
+        <span className="ml-auto flex shrink-0 items-center gap-0.5">
+          {detail && (
+            <button type="button" aria-expanded={details} onClick={() => setDetails((d) => !d)} className={TEXT_BUTTON}>
+              Details
+            </button>
+          )}
+          {onDismiss && (
+            <button type="button" onClick={onDismiss} className={TEXT_BUTTON}>
+              Dismiss
+            </button>
+          )}
+          {onRetry && (
+            <button type="button" onClick={onRetry} className={TEXT_BUTTON}>
+              Retry
+            </button>
+          )}
+        </span>
+      </div>
+      {message.error && <p className="mt-0.5 pl-5 leading-relaxed">{message.error}</p>}
+      {details && detail && <p className="mt-1.5 ml-5 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">{detail}</p>}
+    </div>
+  )
+}
 
 const timeOf = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -118,7 +155,7 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
 }
 
 export function AssistantMessage({
-  message,
+  message: saved,
   modelName,
   onRegenerate,
   onDismiss,
@@ -132,6 +169,8 @@ export function AssistantMessage({
   // Keeps the answer's text as a doc
   onSaveAsDoc?: (markdown: string) => void
 }) {
+  // A reply saved before the agent's error text was kept apart still has it as its last text
+  const message = withoutAgentError(saved)
   const streaming = message.status === "streaming"
   const last = message.parts[message.parts.length - 1]
   const text = messageText(message)
@@ -162,32 +201,7 @@ export function AssistantMessage({
         )}
         {!streaming && <KnowledgeUpdates parts={message.parts} />}
         <ResultRows messageId={message.id} />
-        {/* The one red line a reply can have: that Owlit stopped, the agent's own words for why (the agent
-            is named only where it is picked, so its message is a quiet detail), and a way to run it again
-            or to leave it as it is */}
-        {message.status === "error" && (
-          <p className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[13px] text-muted-foreground">
-            <CircleXIcon className="mr-0.5 size-3.5 shrink-0 text-destructive" />
-            <span className="text-destructive">Owlit stopped</span>
-            {message.error && <span className="min-w-0">· {message.error}</span>}
-            {onRegenerate && (
-              <>
-                <span aria-hidden>·</span>
-                <button type="button" onClick={onRegenerate} className={TEXT_BUTTON}>
-                  Retry
-                </button>
-              </>
-            )}
-            {onDismiss && (
-              <>
-                <span aria-hidden>·</span>
-                <button type="button" onClick={onDismiss} className={TEXT_BUTTON}>
-                  Dismiss
-                </button>
-              </>
-            )}
-          </p>
-        )}
+        {message.status === "error" && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
