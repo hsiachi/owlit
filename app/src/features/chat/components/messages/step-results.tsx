@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
+import { hunk } from "@/features/docs/editor/suggestions"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import type { MessagePart } from "../../types"
 import { hostOf, type ToolCall } from "../../lib/step-words"
@@ -82,6 +83,15 @@ const Pre = ({ children, className }: { children: string; className?: string }) 
   <pre className={cn("font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground", className)}>{children}</pre>
 )
 
+// An edit's marks, as the doc draws them before it is applied: new words in Owlit's colour, underlined;
+// removed words muted with a strike in it
+const Added = ({ children, className }: { children: string; className?: string }) => (
+  <ins className={cn("text-suggestion underline decoration-suggestion decoration-1 underline-offset-3", className)}>{children}</ins>
+)
+const Removed = ({ children }: { children: string }) => (
+  <del className="text-muted-foreground line-through decoration-suggestion decoration-[1.5px]">{children}</del>
+)
+
 // The part of a file an edit changes, read as prose: what it adds and what it takes out, with a line of
 // the text around each change
 export function DiffPreview({ oldText, newText, className }: { oldText: string; newText: string; className?: string }) {
@@ -100,13 +110,13 @@ export function DiffPreview({ oldText, newText, className }: { oldText: string; 
         ) : c.type === "change" ? (
           <p key={i} className="whitespace-pre-wrap">
             {c.before}
-            {c.removed && <del className="rounded-xs bg-destructive/10 text-muted-foreground decoration-destructive/70">{c.removed}</del>}
-            {c.added && <ins className="rounded-xs bg-success/15 no-underline">{c.added}</ins>}
+            {c.removed && <Removed>{c.removed}</Removed>}
+            {c.added && <Added className={c.removed ? "ml-[0.25em]" : undefined}>{c.added}</Added>}
             {c.after}
           </p>
         ) : (
           <p key={i} className="whitespace-pre-wrap">
-            {c.type === "added" ? <ins className="rounded-xs bg-success/15 no-underline">{c.text}</ins> : <del className="rounded-xs bg-destructive/10 text-muted-foreground decoration-destructive/70">{c.text}</del>}
+            {c.type === "added" ? <Added>{c.text}</Added> : <Removed>{c.text}</Removed>}
           </p>
         ),
       )}
@@ -154,12 +164,10 @@ export function diffLines(oldText: string, newText: string): Chunk[] {
     // at their ends to be read as one line rewritten
     const next = ops[k + 1]
     if (op.type === "removed" && next?.type === "added") {
-      let p = 0
-      while (p < op.text.length && p < next.text.length && op.text[p] === next.text[p]) p++
-      let s = 0
-      while (s < op.text.length - p && s < next.text.length - p && op.text[op.text.length - 1 - s] === next.text[next.text.length - 1 - s]) s++
-      if (p + s >= Math.min(op.text.length, next.text.length) * 0.4) {
-        out.push({ type: "change", before: op.text.slice(0, p), removed: op.text.slice(p, op.text.length - s), added: next.text.slice(p, next.text.length - s), after: op.text.slice(op.text.length - s) })
+      const h = hunk(op.text, next.text)
+      const after = op.text.slice(h.at + h.removed.length)
+      if (h.at + after.length >= Math.min(op.text.length, next.text.length) * 0.4) {
+        out.push({ type: "change", before: op.text.slice(0, h.at), removed: h.removed, added: h.added, after })
         k++
         continue
       }
