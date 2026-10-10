@@ -234,6 +234,7 @@ const ignoreSession = {
   requestPermission: async () => ({ outcome: { outcome: "cancelled" as const } }),
   readTextFile: async () => ({ content: "" }),
   writeTextFile: async () => ({}),
+  createElicitation: async () => ({ action: "decline" as const }),
 }
 
 type SelectOption = { value: string; name: string; description?: string | null }

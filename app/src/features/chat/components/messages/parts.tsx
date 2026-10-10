@@ -1,168 +1,310 @@
 import { useEffect, useRef, useState } from "react"
-import {
-  BrainIcon,
-  CheckIcon,
-  ChevronRightIcon,
-  CircleDashedIcon,
-  CircleDotIcon,
-  CircleIcon,
-  FileSearchIcon,
-  GlobeIcon,
-  PencilIcon,
-  SearchIcon,
-  ShieldAlertIcon,
-  TerminalIcon,
-  TrashIcon,
-  WrenchIcon,
-  XIcon,
-} from "lucide-react"
+import { CheckIcon, ChevronRightIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, ShieldAlertIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
-import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Spinner } from "@/components/ui/spinner"
-import type { MessagePart, ToolKind, ToolStatus } from "../../types"
-import { useInPlace } from "../../in-place"
+import type { MessagePart } from "../../types"
 import { Markdown } from "./Markdown"
 import { toolTitle } from "../../lib/tool-title"
-
-// A paper's note, kept inside .owlit beside the paper
-const NOTE_PATH = /^\.owlit\/papers\/[^/]+\/note\.md$/
+import { blockSentence, foldable, groupPhrase, liveSentence, stepWords, type StepWords, type ToolCall } from "../../lib/step-words"
+import { hasResult, StepResult, stepMeta } from "./step-results"
 
 type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
-
-const toolIcons: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
-  read: FileSearchIcon,
-  edit: PencilIcon,
-  delete: TrashIcon,
-  move: PencilIcon,
-  search: SearchIcon,
-  execute: TerminalIcon,
-  think: BrainIcon,
-  fetch: GlobeIcon,
-  switch_mode: WrenchIcon,
-  other: WrenchIcon,
-}
 
 // The outcome of a permission request, keyed by the tool call it was asked for
 export type PermissionOutcome = NonNullable<Part<"permission">["outcome"]>
 export type PermissionOutcomes = Record<string, PermissionOutcome>
 
+// What a step was asked about, by its tool call: the permission's outcome, the question it asked, and the
+// one call waiting on the user right now
+export interface StepAsks {
+  outcomes: PermissionOutcomes
+  questions: Record<string, Part<"question">>
+  waiting?: string
+}
+
+// Owlit's words for each answer, the same whichever agent asked
 const outcomeLabel: Record<PermissionOutcome, string> = {
-  allow_once: "Allowed once",
+  allow_once: "Allowed",
   allow_always: "Always allowed",
-  reject_once: "Rejected",
-  reject_always: "Always rejected",
-  cancelled: "Cancelled",
+  reject_once: "Not allowed",
+  reject_always: "Never allowed",
+  cancelled: "Not answered",
 }
 
 const isRejection = (o?: PermissionOutcome) => !!o && !o.startsWith("allow")
 
-// Done rows say nothing: completion shows as the row going quiet. Only waiting, running and real
-// failures get a mark. A call the user declined isn't a failure, so it gets no red.
-function ToolStatusIcon({ status, outcome }: { status: ToolStatus; outcome?: PermissionOutcome }) {
-  if (status === "pending") return <CircleDashedIcon className="size-3.5 shrink-0 text-muted-foreground" />
-  if (status === "in_progress") return <Spinner className="size-3.5 shrink-0" />
-  if (status === "failed" && !isRejection(outcome)) return <XIcon className="size-3.5 shrink-0 text-destructive" />
-  return null
-}
-
-// Chevrons only show where the pointer or focus is, or while the row is open
-const quietChevron = "size-3.5 shrink-0 opacity-0 transition group-hover/row:opacity-100 group-focus-visible/row:opacity-100"
-
 export type StepPart = Part<"thought"> | Part<"tool_call">
 
-export function ThoughtPart({ part, streaming }: { part: Part<"thought">; streaming: boolean }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/thought text-sm">
-      <CollapsibleTrigger asChild>
-        <button type="button" className="group/row flex w-full items-center gap-2 py-1 text-left text-muted-foreground hover:text-foreground">
-          <BrainIcon className="size-4 shrink-0" />
-          <span className={cn("min-w-0 flex-1 truncate", streaming && "shimmer")}>{streaming ? "Thinking…" : "Thought"}</span>
-          <ChevronRightIcon className={cn(quietChevron, "group-data-[state=open]/thought:rotate-90 group-data-[state=open]/thought:opacity-100")} />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mb-1.5 pl-6 text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{part.text}</div>
-      </CollapsibleContent>
-    </Collapsible>
+// ---- One row ----
+
+// Each row is one plain sentence. A row that got something opens to it; its chevron stays faintly in
+// view so that is easy to find. Only a step at work, one waiting on the user and a real failure carry a
+// mark; a finished step goes quiet. A step the user declined isn't a failure, so it gets no red.
+const ROW = "flex min-h-9 w-full items-center gap-1.5 px-3 py-2 text-left text-sm text-muted-foreground"
+const OPENABLE = "outline-none hover:bg-foreground/[0.025] hover:text-foreground focus-key:bg-foreground/[0.04]"
+const CHEVRON = "size-3.5 shrink-0 opacity-55 transition-transform"
+
+function StepLine({
+  words,
+  live,
+  open,
+  onToggle,
+  after,
+  right,
+  className,
+}: {
+  words: string
+  live?: boolean
+  open: boolean
+  onToggle?: () => void
+  after?: React.ReactNode
+  right?: React.ReactNode
+  className?: string
+}) {
+  const content = (
+    <>
+      <span className={cn("min-w-0", open ? "break-words" : "truncate", live && "shimmer")}>{words}</span>
+      {after}
+      {onToggle && <ChevronRightIcon className={cn(CHEVRON, open && "rotate-90 opacity-100")} />}
+      {right && <span className="ml-auto flex shrink-0 items-center gap-1.5 pl-3 text-xs text-muted-foreground">{right}</span>}
+    </>
+  )
+  return onToggle ? (
+    <button type="button" aria-expanded={open} onClick={onToggle} className={cn(ROW, OPENABLE, className)}>
+      {content}
+    </button>
+  ) : (
+    <div className={cn(ROW, className)}>{content}</div>
   )
 }
 
-// Consecutive thoughts and tool calls shown as one "process" block ahead of the
-// answer. Open while this block is the live one, collapsed once the answer starts.
-export function StepsPart({ parts, active, outcomes = {} }: { parts: StepPart[]; active: boolean; outcomes?: PermissionOutcomes }) {
-  const [open, setOpen] = useState(active)
-  const wasActive = useRef(active)
+const ResultBox = ({ children }: { children: React.ReactNode }) => (
+  <div className="px-3 pb-3">
+    <div className="max-h-60 overflow-auto rounded-md bg-muted px-2.5 py-2 text-[13px]">{children}</div>
+  </div>
+)
+
+function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: StepWords; asks: StepAsks; streaming: boolean }) {
+  const [open, setOpen] = useState(false)
+  const outcome = asks.outcomes[call.toolCallId]
+  const question = asks.questions[call.toolCallId]
+  const waiting = asks.waiting === call.toolCallId
+  // A step still going when its answer stopped won't go on: it says so instead of spinning
+  const unfinished = call.status === "pending" || call.status === "in_progress"
+  const running = unfinished && streaming && !waiting
+  const failed = call.status === "failed" && !isRejection(outcome) && question?.outcome !== "skipped"
+  const text = (call.status === "completed" || question?.outcome === "answered") && !isRejection(outcome) ? words.done : words.now
+  const canOpen = !running && !waiting && hasResult(call, question)
+  const answered = question?.outcome === "skipped" ? "Skipped" : question?.outcome === "cancelled" ? "Not answered" : undefined
+  let right: React.ReactNode = stepMeta(call)
+  if (waiting)
+    right = (
+      <>
+        <ShieldAlertIcon className="size-3.5 text-warning" />
+        Waiting on you
+      </>
+    )
+  else if (running) right = call.status === "in_progress" ? <Spinner className="size-3.5" /> : undefined
+  else if (unfinished && !streaming) right = "Stopped"
+  return (
+    <div className="border-t first:border-t-0">
+      <StepLine
+        words={text}
+        live={running && call.status === "in_progress"}
+        open={open}
+        onToggle={canOpen ? () => setOpen((o) => !o) : undefined}
+        after={
+          failed ? (
+            <span className="shrink-0 text-[13px] text-destructive">Failed</span>
+          ) : outcome || answered ? (
+            <span className="shrink-0 text-[13px] text-muted-foreground">{answered ?? outcomeLabel[outcome!]}</span>
+          ) : undefined
+        }
+        right={right}
+      />
+      {open && (
+        <ResultBox>
+          <StepResult call={call} question={question} />
+        </ResultBox>
+      )}
+    </div>
+  )
+}
+
+// Neighbouring steps of one kind, as one row ("Read 3 files") that opens to each of them
+function FoldRow({ calls, group, asks, streaming }: { calls: { call: ToolCall; words: StepWords }[]; group: string; asks: StepAsks; streaming: boolean }) {
+  const [open, setOpen] = useState(false)
+  const hosts = [...new Set(calls.map(({ call }) => stepMeta(call)).filter(Boolean))]
+  const words = groupPhrase(group, calls.length)
+  return (
+    <div className="border-t first:border-t-0">
+      <StepLine
+        words={words.charAt(0).toUpperCase() + words.slice(1)}
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        right={group === "fetch" && hosts.length === 1 ? hosts[0] : undefined}
+      />
+      {open && (
+        <div className="mb-2 ml-3 border-l">
+          {calls.map(({ call, words }) => (
+            <ToolRow key={call.toolCallId} call={call} words={words} asks={asks} streaming={streaming} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ThoughtRow({ part, live }: { part: Part<"thought">; live: boolean }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border-t first:border-t-0">
+      <StepLine words={live ? "Thinking" : "Thought"} live={live} open={open} onToggle={!live && part.text.trim() ? () => setOpen((o) => !o) : undefined} />
+      {open && (
+        <ResultBox>
+          <div className="leading-relaxed whitespace-pre-wrap text-muted-foreground">{part.text}</div>
+        </ResultBox>
+      )}
+    </div>
+  )
+}
+
+// ---- The block ----
+
+type Row =
+  | { type: "thought"; key: string; part: Part<"thought">; live: boolean }
+  | { type: "step"; key: string; call: ToolCall; words: StepWords }
+  | { type: "fold"; key: string; group: string; calls: { call: ToolCall; words: StepWords }[] }
+
+function rowsOf(parts: StepPart[], active: boolean, asks: StepAsks): Row[] {
+  const rows: Row[] = []
+  parts.forEach((p, i) => {
+    if (p.type === "thought") {
+      if (p.text.trim()) rows.push({ type: "thought", key: `t${i}`, part: p, live: active && i === parts.length - 1 })
+      return
+    }
+    const words = stepWords(p, asks.questions[p.toolCallId]?.questions.length)
+    if (words.hidden) return
+    // Done steps of a foldable kind join the row before them when it is of the same kind
+    const settled = p.status === "completed" && !asks.outcomes[p.toolCallId] && !asks.questions[p.toolCallId]
+    const last = rows.at(-1)
+    if (settled && foldable(words.group) && last && last.type !== "thought") {
+      const lastGroup = last.type === "fold" ? last.group : last.words.group
+      const lastSettled = last.type === "fold" || (last.call.status === "completed" && !asks.outcomes[last.call.toolCallId] && !asks.questions[last.call.toolCallId])
+      if (lastGroup === words.group && lastSettled) {
+        const calls = last.type === "fold" ? [...last.calls, { call: p, words }] : [{ call: last.call, words: last.words }, { call: p, words }]
+        rows[rows.length - 1] = { type: "fold", key: last.key, group: words.group, calls }
+        return
+      }
+    }
+    rows.push({ type: "step", key: p.toolCallId, call: p, words })
+  })
+  return rows
+}
+
+// An edit to the user's files that failed and that no later step saved: the one failure the folded line
+// warns about, so an answer saying it is done can't hide it
+function unsaved(calls: ToolCall[], outcomes: PermissionOutcomes) {
+  const pathOf = (c: ToolCall) => c.tool?.path ?? c.diff?.path ?? c.locations?.[0]?.path
+  const writes = calls.filter((c) => ["edit", "delete", "move"].includes(c.kind))
+  for (const [i, c] of writes.entries()) {
+    if (c.status !== "failed" || isRejection(outcomes[c.toolCallId])) continue
+    const path = pathOf(c)
+    if (!path) continue
+    if (writes.slice(i + 1).some((later) => later.status === "completed" && pathOf(later) === path)) continue
+    return path.split("/").pop() ?? path
+  }
+  return undefined
+}
+
+// While it runs only the last few steps show, the rest folded into one line above them
+const LIVE_ROWS = 3
+
+// Consecutive thoughts and tool calls of one answer, as one block: a sentence saying what was done (open
+// while the block is the live one, closed once the answer starts), and under it a list of plain-sentence
+// steps, each opening to what it got.
+export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[]; active: boolean; streaming: boolean; asks: StepAsks }) {
+  const waitingHere = !!asks.waiting && parts.some((p) => p.type === "tool_call" && p.toolCallId === asks.waiting)
+  const live = active || waitingHere
+  const [open, setOpen] = useState(live)
+  const [earlier, setEarlier] = useState(false)
+  const wasLive = useRef(live)
   // Also reopens when work resumes, e.g. after a permission is answered and its tool call runs
   useEffect(() => {
-    if (wasActive.current !== active) setOpen(active)
-    wasActive.current = active
-  }, [active])
+    if (wasLive.current !== live) setOpen(live)
+    wasLive.current = live
+  }, [live])
 
-  const tools = parts.filter((p): p is Part<"tool_call"> => p.type === "tool_call")
-  const running = tools.find((t) => t.status === "in_progress")
-  const failed = tools.filter((t) => t.status === "failed" && !isRejection(outcomes[t.toolCallId])).length
-  const last = parts[parts.length - 1]
-  const label = active
-    ? (running ? toolTitle(running.title) : last?.type === "thought" ? "Thinking…" : "Working…")
-    : tools.length === 0
-      ? "Thought"
-      : `${tools.length} ${tools.length === 1 ? "step" : "steps"}`
+  const calls = parts.filter((p): p is ToolCall => p.type === "tool_call")
+  const rows = rowsOf(parts, active, asks)
+  const failed = calls.filter((c) => c.status === "failed" && !isRejection(asks.outcomes[c.toolCallId]) && asks.questions[c.toolCallId]?.outcome !== "skipped").length
+  const refused = calls.filter((c) => isRejection(asks.outcomes[c.toolCallId]) && asks.outcomes[c.toolCallId] !== "cancelled").length
+  const lost = !live ? unsaved(calls, asks.outcomes) : undefined
+  const shown = calls.filter((c) => !stepWords(c).hidden).length
 
+  let head: React.ReactNode
+  if (waitingHere) {
+    head = (
+      <>
+        <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
+        <span className="truncate">Waiting on you</span>
+      </>
+    )
+  } else if (active) {
+    const thinking = parts.at(-1)?.type === "thought"
+    head = (
+      <>
+        <span className="truncate shimmer">{thinking ? "Thinking" : liveSentence(calls)}</span>
+        {shown > 1 && <span className="shrink-0 text-muted-foreground">· {shown} so far</span>}
+      </>
+    )
+  } else if (lost) {
+    head = (
+      <>
+        <CircleAlertIcon className="size-4 shrink-0 text-warning" />
+        <span className="truncate text-foreground">Couldn't save {lost}</span>
+      </>
+    )
+  } else {
+    head = (
+      <>
+        <span className="truncate">{blockSentence(calls, (c) => asks.questions[c.toolCallId]?.questions.length ?? 1)}</span>
+        {(failed > 0 || refused > 0) && (
+          <span className="shrink-0 text-muted-foreground">({[failed && `${failed} failed`, refused && `${refused} not allowed`].filter(Boolean).join(", ")})</span>
+        )}
+      </>
+    )
+  }
+
+  const hidden = live && !earlier && rows.length > LIVE_ROWS + 1 ? rows.length - LIVE_ROWS : 0
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="group/steps">
       <CollapsibleTrigger asChild>
-        <button type="button" className="flex max-w-full items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-          <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]/steps:rotate-90" />
-          <span className={cn("truncate", active && "shimmer")}>{label}</span>
-          {!active && failed > 0 && <span className="shrink-0 text-destructive">· {failed} failed</span>}
+        <button type="button" className="flex max-w-full items-center gap-1.5 text-sm text-foreground/80 outline-none hover:text-foreground focus-key:text-foreground">
+          {head}
+          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/steps:rotate-90" />
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="mt-1.5 ml-1.5 flex flex-col border-l-2 pl-3">
-          {parts.map((p, i) =>
-            p.type === "thought" ? (
-              <ThoughtPart key={i} part={p} streaming={active && i === parts.length - 1} />
-            ) : (
-              <ToolCallPart key={p.toolCallId} part={p} outcome={outcomes[p.toolCallId]} />
-            ),
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  )
-}
-
-// An answered permission belongs to its tool call: the outcome sits inline as a lighter detail
-// instead of repeating the call's title on a line of its own.
-export function ToolCallPart({ part, outcome }: { part: Part<"tool_call">; outcome?: PermissionOutcome }) {
-  const [open, setOpen] = useState(false)
-  const Icon = toolIcons[part.kind] ?? WrenchIcon
-  const hasDetails = !!part.content || (part.locations?.length ?? 0) > 0
-  return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/tool text-sm">
-      <CollapsibleTrigger asChild disabled={!hasDetails}>
-        <button type="button" className="group/row flex w-full items-center gap-2 py-1 text-left text-muted-foreground hover:text-foreground disabled:cursor-default disabled:hover:text-muted-foreground">
-          <Icon className="size-4 shrink-0" />
-          <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-            <span className={cn("truncate", part.status === "in_progress" && "shimmer")}>{toolTitle(part.title)}</span>
-            {outcome && <span className="shrink-0 text-xs text-muted-foreground">{outcomeLabel[outcome]}</span>}
-          </span>
-          <ToolStatusIcon status={part.status} outcome={outcome} />
-          {hasDetails && <ChevronRightIcon className={cn(quietChevron, "group-data-[state=open]/tool:rotate-90 group-data-[state=open]/tool:opacity-100")} />}
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mb-1.5 flex flex-col gap-1 pl-6 text-xs text-muted-foreground">
-          {part.locations?.map((l) => (
-            <code key={l.path} className="truncate font-mono">
-              {l.path}
-              {l.line != null && `:${l.line}`}
-            </code>
-          ))}
-          {part.content && <pre className="whitespace-pre-wrap font-mono">{part.content}</pre>}
-        </div>
+        {rows.length > 0 && (
+          <div className="mt-2 overflow-hidden rounded-lg border">
+            {hidden > 0 && (
+              <div className="border-t first:border-t-0">
+                <StepLine words={`${hidden} earlier ${hidden === 1 ? "step" : "steps"}`} open={false} onToggle={() => setEarlier(true)} className="text-[13px]" />
+              </div>
+            )}
+            {rows.slice(hidden).map((r) =>
+              r.type === "thought" ? (
+                <ThoughtRow key={r.key} part={r.part} live={r.live} />
+              ) : r.type === "fold" ? (
+                <FoldRow key={r.key} calls={r.calls} group={r.group} asks={asks} streaming={streaming} />
+              ) : (
+                <ToolRow key={r.key} call={r.call} words={r.words} asks={asks} streaming={streaming} />
+              ),
+            )}
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
   )
@@ -183,11 +325,11 @@ export function PlanPart({ part }: { part: Part<"plan"> }) {
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="group/plan text-sm">
       <CollapsibleTrigger asChild>
-        <button type="button" className="flex max-w-full items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-          <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]/plan:rotate-90" />
+        <button type="button" className="flex max-w-full items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground">
           <span>
             Plan · {done}/{part.entries.length}
           </span>
+          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/plan:rotate-90" />
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -201,9 +343,7 @@ export function PlanPart({ part }: { part: Part<"plan"> }) {
               ) : (
                 <CircleIcon className="mt-[3px] size-3.5 shrink-0 text-muted-foreground/60" />
               )}
-              <span className={cn(e.status !== "in_progress" && "text-muted-foreground")}>
-                {e.content}
-              </span>
+              <span className={cn(e.status !== "in_progress" && "text-muted-foreground")}>{e.content}</span>
             </li>
           ))}
         </ol>
@@ -212,65 +352,29 @@ export function PlanPart({ part }: { part: Part<"plan"> }) {
   )
 }
 
-// Waiting for an answer is the one state that asks for attention: a card with the action and
-// buttons. Once answered, the outcome moves onto its tool call row (see MessageItem); this muted
-// line is only the fallback for a request whose tool call isn't in the message.
-// An edit to a file whose editor is on screen is drawn there with Apply and Discard; the card then
-// shrinks to one line pointing at it, so one decision has one set of buttons. "Answer here" brings the
-// card back, in case the passage changed and the editor can't place the edit.
-export function PermissionPart({ part, editPath, onRespond }: { part: Part<"permission">; editPath?: string; onRespond: (optionId: string) => void }) {
-  const Icon = toolIcons[part.kind] ?? WrenchIcon
-  const answered = part.outcome
-  const inPlace = useInPlace((s) => !!editPath && !!s.shown[editPath])
-  const [answerHere, setAnswerHere] = useState(false)
-  if (!answered && inPlace && !answerHere) {
-    const where = editPath && NOTE_PATH.test(editPath) ? "your note" : "the doc"
+// A permission or question whose step isn't in the message (an agent may ask without announcing one):
+// one muted line, since its buttons are above the composer
+export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Part<"question">; waiting: boolean }) {
+  if (waiting)
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
-        <span className="min-w-0 truncate">Waiting on you in {where}</span>
-        <span aria-hidden>·</span>
-        <button type="button" onClick={() => setAnswerHere(true)} className="shrink-0 rounded-md px-1 py-0.5 outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
-          Answer here
-        </button>
+        <span className="truncate">Waiting on you</span>
       </div>
     )
-  }
-  if (answered) {
-    const allowed = answered.startsWith("allow")
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {allowed ? <CheckIcon className="size-4 shrink-0" /> : <XIcon className="size-4 shrink-0" />}
-        <span className="truncate">
-          {outcomeLabel[answered] ?? answered} · {toolTitle(part.title)}
-        </span>
-      </div>
-    )
-  }
+  const said =
+    part.type === "permission"
+      ? `${outcomeLabel[part.outcome ?? "cancelled"]} · ${toolTitle(part.title)}`
+      : part.outcome === "answered"
+        ? `Answered ${part.questions.length === 1 ? "a question" : `${part.questions.length} questions`}`
+        : part.outcome === "skipped"
+          ? "Skipped a question"
+          : "A question went unanswered"
+  const allowed = part.type === "permission" ? !isRejection(part.outcome) : part.outcome === "answered"
   return (
-    <div className="rounded-lg border bg-card px-3.5 py-3 text-sm shadow-xs">
-      <div className="flex items-start gap-2.5">
-        <ShieldAlertIcon className="mt-px size-4 shrink-0 text-warning" />
-        <div className="min-w-0 flex-1">
-          <div className="font-medium">Allow this action?</div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-muted-foreground">
-            <Icon className="size-3.5 shrink-0" />
-            <span className="truncate">{toolTitle(part.title)}</span>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {part.options.map((o) => (
-              <Button
-                key={o.optionId}
-                size="sm"
-                variant={o.kind === "allow_once" ? "default" : o.kind.startsWith("allow") ? "outline" : "ghost"}
-                onClick={() => onRespond(o.optionId)}
-              >
-                {o.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      {allowed ? <CheckIcon className="size-4 shrink-0" /> : <XIcon className="size-4 shrink-0" />}
+      <span className="truncate">{said}</span>
     </div>
   )
 }
@@ -278,3 +382,4 @@ export function PermissionPart({ part, editPath, onRespond }: { part: Part<"perm
 export function TextPart({ part }: { part: Part<"text"> }) {
   return <Markdown text={part.text} />
 }
+

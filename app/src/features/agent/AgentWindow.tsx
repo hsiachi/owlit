@@ -21,7 +21,8 @@ import { Composer, type ComposerHandle } from "@/features/chat/components/compos
 import { AssistantMessage, UserMessage } from "@/features/chat/components/messages/MessageItem"
 import { StatusRing } from "@/features/chat/components/StatusRing"
 import { useChatStatus } from "@/features/chat/use-chat-status"
-import { useBrokenReply, useLookAt } from "@/features/chat/status"
+import { pendingAsk, useBrokenReply, useLookAt } from "@/features/chat/status"
+import { WaitingDock } from "@/features/chat/components/WaitingDock"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useChatStore } from "@/features/chat/store"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
@@ -286,7 +287,6 @@ export function AgentPanel() {
                         <AssistantMessage
                           message={m}
                           modelName={modelName(m.connectorId, m.modelId)}
-                          onRespondPermission={(requestId, optionId) => useChatStore.getState().respondPermission(chat.id, requestId, optionId)}
                           onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
                           onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
                           onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
@@ -308,10 +308,12 @@ export function AgentPanel() {
 
       <div className="relative shrink-0 px-3 pb-3">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-sidebar-panel to-transparent" />
+        {chat && <WaitingDock chat={chat} compact={panelWidth < 440} />}
         <Composer
           ref={composer}
           chatId={chat?.id}
           streaming={streaming}
+          waiting={chat && streaming ? pendingAsk(chat)?.type : undefined}
           onCancel={() => chat && useChatStore.getState().cancel(chat.id)}
           onSubmit={(input) => send(input, context)}
           placeholder={chat?.messages.length ? "Ask a follow-up…" : "Ask Owlit…"}

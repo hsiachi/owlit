@@ -71,6 +71,45 @@ export interface PlanEntry {
   status: "pending" | "in_progress" | "completed"
 }
 
+// What the agent called, when it says (Claude Code does): its own name for the tool and the few inputs
+// that say what the step is for, so the app can name the step in words. Never a file's contents.
+export interface ToolInfo {
+  // The agent's tool: "Bash", "Read", "WebSearch", "mcp__owlit__library_search", …
+  name: string
+  // The agent's own one-line account of the step (Claude Code writes one for each command)
+  description?: string
+  command?: string
+  query?: string
+  url?: string
+  // What a file search looks for
+  pattern?: string
+  path?: string
+}
+
+// A question the agent asks the user (Claude Code's AskUserQuestion, sent as an ACP form)
+export interface QuestionOption {
+  label: string
+  description?: string
+}
+
+export interface AgentQuestion {
+  id: string
+  // A short label the agent gives the question, if any
+  header?: string
+  question: string
+  // None for a question answered in words only
+  options: QuestionOption[]
+  multiSelect?: boolean
+  // Whether words of the user's own are taken besides (or instead of) the options
+  allowsText: boolean
+}
+
+// What the user gave for one question: options picked, words typed, or both
+export interface QuestionAnswer {
+  picks?: string[]
+  text?: string
+}
+
 export type PermissionKind = "allow_once" | "allow_always" | "reject_once" | "reject_always"
 
 export interface PermissionOption {
@@ -91,8 +130,19 @@ export type MessagePart =
       content?: string
       locations?: ToolLocation[]
       diff?: FileDiff
+      tool?: ToolInfo
     }
   | { type: "plan"; entries: PlanEntry[] }
+  | {
+      type: "question"
+      requestId: string
+      // The step that asks, when the agent names one
+      toolCallId?: string
+      questions: AgentQuestion[]
+      // Set once answered (by question id), skipped or closed
+      answers?: Record<string, QuestionAnswer>
+      outcome?: "answered" | "skipped" | "cancelled"
+    }
   | {
       type: "permission"
       requestId: string
@@ -206,6 +256,7 @@ export type SessionUpdate =
       content?: string
       locations?: ToolLocation[]
       diff?: FileDiff
+      tool?: ToolInfo
     }
   | {
       type: "tool_call_update"
@@ -215,6 +266,7 @@ export type SessionUpdate =
       content?: string
       locations?: ToolLocation[]
       diff?: FileDiff
+      tool?: ToolInfo
     }
   | { type: "plan"; entries: PlanEntry[] }
   | {
@@ -226,6 +278,8 @@ export type SessionUpdate =
       options: PermissionOption[]
     }
   | { type: "permission_resolved"; requestId: string; outcome: PermissionKind | "cancelled" }
+  | { type: "question_request"; requestId: string; toolCallId?: string; questions: AgentQuestion[] }
+  | { type: "question_resolved"; requestId: string; outcome: "answered" | "skipped" | "cancelled"; answers?: Record<string, QuestionAnswer> }
 
 export type StopReason = "end_turn" | "cancelled" | "refusal" | "error"
 

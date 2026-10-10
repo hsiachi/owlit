@@ -125,6 +125,39 @@ describe("turns", () => {
     const saved = (await call("chats.get", { id: "c1" })).messages[1]
     expect(saved.parts.map((p: any) => p.type)).toEqual(["tool_call", "permission", "text"])
     expect(saved.parts[0].status).toBe("failed")
+    // The agent's tool name and the inputs that name the step stay with it
+    expect(saved.parts[0].tool).toEqual({ name: "Bash", command: "ls", description: "List the folder" })
+  })
+
+  it("shows the agent's questions and passes on the answer, or a skip", async () => {
+    const { send, updates, call, text } = await setup()
+    let turn = send("a question for you")
+    while (!updates.some((u) => u.type === "question_request")) await sleep(20)
+    const ask = updates.find((u) => u.type === "question_request") as Extract<SessionUpdate, { type: "question_request" }>
+    expect(ask).toMatchObject({ toolCallId: "q1", questions: [{ id: "question_0", header: "Pick", question: "Which one?", options: [{ label: "A", description: "the first" }, { label: "B" }], allowsText: true }] })
+    await call("agents.answerQuestion", { chatId: "c1", requestId: ask.requestId, answers: { question_0: { picks: ["B"], text: "but quickly" } } })
+    await turn
+    expect(text()).toBe(`answer {"action":"accept","content":{"question_0":"B","question_0_custom":"but quickly"}}`)
+    expect(updates).toContainEqual({ type: "question_resolved", requestId: ask.requestId, outcome: "answered", answers: { question_0: { picks: ["B"], text: "but quickly" } } })
+
+    updates.length = 0
+    turn = send("another question")
+    while (!updates.some((u) => u.type === "question_request")) await sleep(20)
+    const again = updates.find((u) => u.type === "question_request") as Extract<SessionUpdate, { type: "question_request" }>
+    await call("agents.answerQuestion", { chatId: "c1", requestId: again.requestId, answers: null })
+    await turn
+    expect(text()).toBe(`answer {"action":"decline"}`)
+    const saved = (await call("chats.get", { id: "c1" })).messages[3]
+    expect(saved.parts.find((p: any) => p.type === "question")).toMatchObject({ outcome: "skipped" })
+  })
+
+  it("closes a waiting question when the turn is stopped", async () => {
+    const { send, updates, call } = await setup()
+    const turn = send("question, then stop")
+    while (!updates.some((u) => u.type === "question_request")) await sleep(20)
+    await call("agents.cancel", { chatId: "c1" })
+    expect(await turn).toEqual({ stopReason: "cancelled" })
+    expect(updates.some((u) => u.type === "question_resolved" && u.outcome === "cancelled")).toBe(true)
   })
 
   it("cancels a turn quickly, closing it as cancelled", async () => {

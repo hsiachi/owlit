@@ -9,6 +9,7 @@ import {
   type Mentionable,
   type PermissionKind,
   type PromptInput,
+  type QuestionAnswer,
   type Role,
   type SessionUpdate,
   type StopReason,
@@ -23,6 +24,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { AcpProcess, SessionHandler } from "./process.ts"
+import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, guardFor, roleNote, type Guard } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
@@ -72,6 +74,8 @@ interface Turn {
   heard: number
   message: ChatMessage
   permissions: Map<string, { toolCallId: string; resolve: (r: acp.RequestPermissionResponse) => void; options: acp.PermissionOption[] }>
+  // Questions waiting for the user: answers by question id, null to skip, "cancel" when the turn stops
+  questions: Map<string, (answers: Record<string, QuestionAnswer> | null | "cancel") => void>
   cancelled: boolean
   // Shows an update in the chat and saves it in the answer; set once the turn runs
   emit?: (update: SessionUpdate) => void
@@ -109,7 +113,7 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    const turn: Turn = { chatId: req.chatId, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), cancelled: false }
+    const turn: Turn = { chatId: req.chatId, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -180,6 +184,7 @@ export class Turns {
     turn.cancelled = true
     // Questions still open are closed as cancelled, as ACP asks of a client that cancels
     for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
+    for (const [, answer] of turn.questions) answer("cancel")
     // A turn still starting has no session yet: it sees `cancelled` before it asks the agent
     for (const live of this.live.values()) {
       if (live.turn === turn) await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
@@ -195,6 +200,13 @@ export class Turns {
       return null
     }
     throw new RpcFailure(RpcErrorCode.NotFound, "That question is no longer waiting for an answer.")
+  }
+
+  answerQuestion(chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) {
+    const answer = this.turns.get(chatId)?.questions.get(requestId)
+    if (!answer) throw new RpcFailure(RpcErrorCode.NotFound, "That question is no longer waiting for an answer.")
+    answer(answers)
+    return null
   }
 
   // Forgets the sessions of a workspace that closed, stopping its turns first: nothing could answer their
@@ -361,6 +373,33 @@ export class Turns {
           })
         })
       },
+      // The agent's questions, shown in the chat until the user answers or skips them
+      createElicitation: async (r) => {
+        const turn = this.live.get(key)?.turn
+        const emit = turn?.emit
+        if (!turn || !emit || turn.cancelled) return { action: "cancel" }
+        if (!isSessionForm(r)) return { action: "decline" }
+        const questions = questionsFrom(r)
+        if (!questions.length) return { action: "decline" }
+        const requestId = randomUUID()
+        const toolCallId = (r as { toolCallId?: string | null }).toolCallId ?? undefined
+        emit({ type: "question_request", requestId, ...(toolCallId ? { toolCallId } : {}), questions })
+        return new Promise<acp.CreateElicitationResponse>((resolve) => {
+          turn.questions.set(requestId, (answers) => {
+            turn.questions.delete(requestId)
+            if (answers === "cancel") {
+              emit({ type: "question_resolved", requestId, outcome: "cancelled" })
+              return resolve({ action: "cancel" })
+            }
+            if (answers === null) {
+              emit({ type: "question_resolved", requestId, outcome: "skipped" })
+              return resolve({ action: "decline" })
+            }
+            emit({ type: "question_resolved", requestId, outcome: "answered", answers })
+            resolve({ action: "accept", content: contentFrom(r, questions, answers) })
+          })
+        })
+      },
       readTextFile: (r) => asAcpError(this.options.fs.read(r.path, r.line ?? undefined, r.limit ?? undefined)),
       writeTextFile: async (r) => {
         await asAcpError(this.options.fs.write(r.path, r.content, chatId))
@@ -409,6 +448,7 @@ export class Turns {
 
   private closePermissions(turn: Turn, _emit: (u: SessionUpdate) => void) {
     for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
+    for (const [, answer] of turn.questions) answer("cancel")
   }
 }
 
@@ -534,10 +574,15 @@ export function toUpdate(u: acp.SessionUpdate, root: string): SessionUpdate | nu
       return u.content.type === "text" ? { type: "agent_message_chunk", text: u.content.text } : null
     case "agent_thought_chunk":
       return u.content.type === "text" ? { type: "agent_thought_chunk", text: u.content.text } : null
-    case "tool_call":
-      return { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: toKind(u.kind), status: u.status ?? "pending", ...toolContent(u, root) }
-    case "tool_call_update":
-      return { type: "tool_call_update", toolCallId: u.toolCallId, ...(u.status ? { status: u.status } : {}), ...(u.title ? { title: u.title } : {}), ...toolContent(u, root) }
+    case "tool_call": {
+      const tool = toolInfoOf(u)
+      return { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: toKind(u.kind), status: u.status ?? "pending", ...toolContent(u, root), ...(tool ? { tool } : {}) }
+    }
+    case "tool_call_update": {
+      // Claude Code sends the input again once it is complete; an update without it keeps what came first
+      const tool = u.rawInput !== undefined ? toolInfoOf(u) : undefined
+      return { type: "tool_call_update", toolCallId: u.toolCallId, ...(u.status ? { status: u.status } : {}), ...(u.title ? { title: u.title } : {}), ...toolContent(u, root), ...(tool ? { tool } : {}) }
+    }
     case "plan":
       return { type: "plan", entries: u.entries.map((e) => ({ content: e.content, priority: e.priority, status: e.status })) }
     default:

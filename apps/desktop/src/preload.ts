@@ -39,6 +39,14 @@ const bridge: OwlitBridge = {
       ipcRenderer.off("text-menu-ask", forward)
     }
   },
+  notify: (notification) => ipcRenderer.send("notify", notification),
+  onNotificationClick(listener) {
+    const forward = (_event: IpcRendererEvent, chatId: string) => listener(chatId)
+    ipcRenderer.on("notification-click", forward)
+    return () => {
+      ipcRenderer.off("notification-click", forward)
+    }
+  },
   onMenu(listener) {
     const forward = (_event: IpcRendererEvent, command: MenuCommand) => listener(command)
     ipcRenderer.on("menu", forward)

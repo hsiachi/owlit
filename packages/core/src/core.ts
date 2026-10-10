@@ -294,6 +294,10 @@ export class Core {
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
     )
+    const answer = z.object({ picks: z.array(z.string()).optional(), text: z.string().optional() })
+    this.router.register("agents.answerQuestion", z.object({ chatId, requestId: z.string(), answers: z.record(z.string(), answer).nullable() }), ({ chatId, requestId, answers }) =>
+      this.turns.answerQuestion(chatId, requestId, answers),
+    )
 
     const library = () => this.requireWorkspace().library
     this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
