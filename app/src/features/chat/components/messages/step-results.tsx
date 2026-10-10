@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
+import { editStats, HUNK_GAP } from "@owlit/protocol"
 import { hunk } from "@/features/docs/editor/suggestions"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import type { MessagePart } from "../../types"
@@ -156,6 +157,11 @@ export function diffLines(oldText: string, newText: string): Chunk[] {
     const op = ops[k]
     if (op.type === "same") {
       if (!op.text.trim()) continue
+      // Between two parts of an edit the agent reported apart
+      if (op.text === HUNK_GAP) {
+        if (out.length && out.at(-1)?.type !== "gap") out.push({ type: "gap" })
+        continue
+      }
       if (near(k)) out.push({ type: "same", text: op.text })
       else if (out.at(-1)?.type !== "gap" && out.length) out.push({ type: "gap" })
       continue
@@ -178,20 +184,9 @@ export function diffLines(oldText: string, newText: string): Chunk[] {
   return out
 }
 
-// Lines an edit adds and takes out, for a short summary
-export function diffCounts(oldText: string, newText: string) {
-  let added = 0
-  let removed = 0
-  for (const c of diffLines(oldText, newText)) {
-    if (c.type === "added") added++
-    else if (c.type === "removed") removed++
-    else if (c.type === "change") {
-      if (c.added) added++
-      if (c.removed) removed++
-    }
-  }
-  return { added, removed }
-}
+// "+1,240 −380": what an edit added and took out, in words for prose and lines otherwise
+export const countsText = ({ added, removed }: { added: number; removed: number }) =>
+  [added && `+${added.toLocaleString()}`, removed && `−${removed.toLocaleString()}`].filter(Boolean).join(" ")
 
 // The muted detail at a row's right end, when the step's result has one worth seeing at a glance
 export function stepMeta(call: ToolCall): string | undefined {
@@ -203,8 +198,8 @@ export function stepMeta(call: ToolCall): string | undefined {
   }
   if (name === "WebFetch" || (!name && /^Fetch /.test(call.title))) return hostOf(call.tool?.url ?? call.title.replace(/^Fetch /, "").split(" ")[0])
   if (call.diff) {
-    const { added, removed } = diffCounts(call.diff.oldText, call.diff.newText)
-    return [added && `+${added}`, removed && `−${removed}`].filter(Boolean).join(" ") || undefined
+    // Only the parts the agent reported, so never "Rewritten": that is said of the whole file, in the result card
+    return countsText(editStats(call.diff.path, call.diff.oldText, call.diff.newText)) || undefined
   }
   return undefined
 }

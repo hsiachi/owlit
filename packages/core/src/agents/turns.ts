@@ -3,6 +3,7 @@ import { RequestError } from "@agentclientprotocol/sdk"
 import {
   applyUpdate,
   DEFAULT_ROLE,
+  HUNK_GAP,
   RpcErrorCode,
   type ChatMessage,
   type ConsentAction,
@@ -591,8 +592,16 @@ function toolContent(call: { content?: acp.ToolCallContent[] | null; locations?:
     .filter(Boolean)
     .join("\n")
   if (text) out.content = text
-  const diff = (call.content ?? []).find((c) => c.type === "diff")
-  if (diff && diff.type === "diff") out.diff = { path: relative(diff.path, root), oldText: diff.oldText ?? "", newText: diff.newText }
+  // Claude Code reports a finished edit as one diff per changed part of the file; they are kept together,
+  // a gap line between parts, so the step shows and counts the whole edit rather than its first part
+  const diffs = (call.content ?? []).flatMap((c) => (c.type === "diff" ? [c] : []))
+  const parts = diffs.filter((d) => d.path === diffs[0]?.path)
+  if (parts.length)
+    out.diff = {
+      path: relative(parts[0].path, root),
+      oldText: parts.map((d) => d.oldText ?? "").join(`\n${HUNK_GAP}\n`),
+      newText: parts.map((d) => d.newText).join(`\n${HUNK_GAP}\n`),
+    }
   if (call.locations?.length) out.locations = call.locations.map((l) => ({ path: relative(l.path, root), ...(l.line != null ? { line: l.line } : {}) }))
   return out
 }

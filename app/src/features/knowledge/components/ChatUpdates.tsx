@@ -23,7 +23,7 @@ export function useKnowledgeRows(parts: MessagePart[]): ResultRow[] {
       key: `knowledge:${part.toolCallId}`,
       kind: "knowledge",
       icon: NetworkIcon,
-      name: topic?.title ?? part.title,
+      name: topic?.name ?? part.title,
       detail: "Updated",
       undone: !!undone[part.toolCallId],
       undo: canUndoRevision(part.toolCallId) ? () => setUndone((u) => ({ ...u, [part.toolCallId]: undoRevision(part.toolCallId) })) : undefined,

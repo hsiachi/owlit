@@ -51,6 +51,17 @@ describe("agent fs", () => {
     expect(of("docs.changed")).toHaveLength(1)
   })
 
+  it("says how much a reply's writes to a file changed it, from before the first to after the last", async () => {
+    const { core, root, call, of } = await setup()
+    await core.fs.write(path.join(root, "a.md"), "on disk and more", "chat-1")
+    await core.fs.write(path.join(root, "a.md"), "on paper and more words", "chat-1")
+    const [first, second] = of("agent.wrote").map((w) => w.versionId)
+    // "on disk" → "on paper and more words": the net change, not the two writes added up
+    expect(await call("versions.stats", { from: first, to: second })).toEqual({ unit: "words", added: 4, removed: 1, rewritten: false })
+    // The first write alone ends where the second began
+    expect(await call("versions.stats", { from: first, to: first })).toEqual({ unit: "words", added: 2, removed: 0, rewritten: false })
+  })
+
   it("restores the version, unless the file changed since", async () => {
     const { core, root, call, journal } = await setup()
     await core.fs.write(path.join(root, "a.md"), "agent text")

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { MessageCircleQuestionIcon, ShieldAlertIcon } from "lucide-react"
+import { editStats } from "@owlit/protocol"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import type { Chat, MessagePart, PermissionKind } from "../types"
@@ -8,7 +9,7 @@ import { useInPlace } from "../in-place"
 import { askSentence, shortUrl, type ToolCall } from "../lib/step-words"
 import { pendingAsk } from "../status"
 import { useChatStore } from "../store"
-import { DiffPreview, diffCounts } from "./messages/step-results"
+import { DiffPreview } from "./messages/step-results"
 
 type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 
@@ -71,9 +72,15 @@ function PermissionCard({ chatId, ask, call, compact }: { chatId: string; ask: P
   const folder = diff?.path.includes("/") ? diff.path.split("/").slice(0, -1).join("/") : undefined
   let summary: string | undefined
   if (diff) {
-    const { added, removed } = diffCounts(diff.oldText, diff.newText)
-    const lines = (n: number) => `${n} ${n === 1 ? "line" : "lines"}`
-    summary = [!diff.oldText ? "A new file" : added && `Adds ${lines(added)}`, diff.oldText && removed && `removes ${lines(removed)}`, folder && `in ${folder}`].filter(Boolean).join(" · ")
+    const stats = editStats(diff.path, diff.oldText, diff.newText)
+    const of = (n: number) => `${n.toLocaleString()} ${stats.unit === "words" ? (n === 1 ? "word" : "words") : n === 1 ? "line" : "lines"}`
+    // A Write carries the whole file, so only it can tell that most of the doc would go
+    const said = !diff.oldText
+      ? ["A new file"]
+      : call?.tool?.name === "Write" && stats.rewritten
+        ? ["Rewrites the doc"]
+        : [stats.added && `Adds ${of(stats.added)}`, stats.removed && `removes ${of(stats.removed)}`]
+    summary = [...said, folder && `in ${folder}`].filter(Boolean).join(" · ")
   } else if (call?.tool?.description) summary = call.tool.description
 
   const options = [...ask.options].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind))
