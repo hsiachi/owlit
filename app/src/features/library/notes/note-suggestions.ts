@@ -2,11 +2,11 @@ import { Extension } from "@tiptap/core"
 import type { Node as PmNode } from "@tiptap/pm/model"
 import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state"
 import { Decoration, DecorationSet } from "@tiptap/pm/view"
-import type { PendingEdit } from "@/features/docs/editor/suggestions"
+import { hunk, type PendingEdit } from "@/features/docs/editor/suggestions"
 
 // An edit Owlit proposed to the paper's note, drawn in the note before anything changes, as Docs draws
-// one: the words it removes struck through in the muted tone, the new words on a faint green, and one
-// "Suggested by Owlit" line with Discard and Apply under the paragraph. The proposal is a diff of the
+// one: the words it removes struck through, the new words in Owlit's colour, a rule beside the paragraphs
+// it touches, and one "Suggested by Owlit" line with Discard and Apply under them. The proposal is a diff of the
 // note's Markdown; the note is shown rich, so the changed span is found by its text.
 
 export const noteSuggestionsKey = new PluginKey<DecorationSet>("note-suggestions")
@@ -18,15 +18,6 @@ function plain(md: string) {
     .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+|\d+\.\s+)/gm, "")
     .replace(/(\*\*|__|\*|_|`)/g, "")
     .replace(/\n{2,}/g, "\n")
-}
-
-// The one span an edit changes, between what it shares with the old text at both ends
-function hunk(oldText: string, newText: string) {
-  let p = 0
-  while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++
-  let s = 0
-  while (s < oldText.length - p && s < newText.length - p && oldText[oldText.length - 1 - s] === newText[newText.length - 1 - s]) s++
-  return { before: oldText.slice(0, p), removed: oldText.slice(p, oldText.length - s), added: newText.slice(p, newText.length - s) }
 }
 
 // The note's text block by block, joined with "\n", and the document position of each character
@@ -68,7 +59,7 @@ function locate(doc: PmNode, edit: PendingEdit): Spot | null {
     return { from: at[i], to: at[end] + 1, added }
   }
   // Only new words: they go after the text that comes before them
-  const lead = plain(h.before).trimEnd().slice(-40)
+  const lead = plain(edit.oldText.slice(0, h.at)).trimEnd().slice(-40)
   const i = lead ? text.lastIndexOf(lead) : -1
   if (i < 0) return null
   const pos = at[i + lead.length - 1] + 1
@@ -116,6 +107,15 @@ function build(state: EditorState, edits: PendingEdit[], respond: (edit: Pending
       continue
     }
     if (spot.to > spot.from) decos.push(Decoration.inline(spot.from, spot.to, { class: "note-suggest-del" }))
+    const $from = state.doc.resolve(spot.from)
+    if (spot.to > spot.from)
+      state.doc.nodesBetween(spot.from, spot.to, (node, pos) => {
+        if (!node.isTextblock) return true
+        decos.push(Decoration.node(pos, pos + node.nodeSize, { class: "note-suggest-block" }))
+        return false
+      })
+    else if ($from.parent.isTextblock && $from.depth > 0)
+      decos.push(Decoration.node($from.before(), $from.after(), { class: "note-suggest-block" }))
     if (spot.added) decos.push(Decoration.widget(spot.to, () => addedWidget(spot.added), { side: 1, key: `ins:${edit.requestId}:${spot.added}` }))
     // Under the paragraph the change ends in
     const $end = state.doc.resolve(spot.to)

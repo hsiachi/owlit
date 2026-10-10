@@ -120,9 +120,29 @@ export const docTheme = EditorView.theme({
   ".cm-selection-menu button": { height: "24px", padding: "0 8px", borderRadius: "6px", color: "var(--foreground)", cursor: "default" },
   ".cm-selection-menu button:hover": { backgroundColor: "var(--accent)" },
 
-  // An agent's proposed edit: removal is not an error, so it is struck through in the muted tone, not red
-  ".cm-suggest-del": { color: "var(--muted-foreground)", textDecoration: "line-through" },
-  ".cm-suggest-ins": { backgroundColor: "color-mix(in oklch, var(--success) 14%, transparent)", borderRadius: "3px", marginLeft: "0.25em" },
+  // An agent's proposed edit, marked as one more editor would in its own colour. Removed words keep the
+  // muted tone with a strike in that colour (removal is not an error, so never red); new words take the
+  // colour, with an underline so the two differ in shape too. A rule at the left runs down the lines it
+  // touches and the bar under them, so each edit reads as one piece with its answer.
+  ".cm-suggest-del": { color: "var(--muted-foreground)", textDecoration: "line-through 1.5px var(--suggestion)" },
+  ".cm-suggest-ins": {
+    color: "var(--suggestion)",
+    textDecoration: "underline 1px var(--suggestion)",
+    textUnderlineOffset: "3px",
+  },
+  ".cm-suggest-ins-after": { marginLeft: "0.25em" },
+  ".cm-suggest-line, .cm-suggest-bar": { position: "relative" },
+  ".cm-suggest-line::before, .cm-suggest-bar::before": {
+    content: '""',
+    position: "absolute",
+    left: "-16px",
+    top: "0",
+    bottom: "0",
+    width: "2px",
+    backgroundColor: "var(--suggestion)",
+  },
+  // The bar's top margin is bridged so the rule doesn't break above it
+  ".cm-suggest-bar::before": { top: "-2px" },
   ".cm-suggest-bar": {
     display: "flex",
     alignItems: "center",

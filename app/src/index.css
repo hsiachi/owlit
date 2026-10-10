@@ -69,6 +69,7 @@
     --color-border: var(--border);
     --color-destructive: var(--destructive);
     --color-success: var(--success);
+    --color-suggestion: var(--suggestion);
     --color-warning: var(--warning);
     --color-note: var(--note);
     --color-text-highlight: var(--text-highlight);
@@ -117,6 +118,8 @@
     --accent-foreground: oklch(0.25 0.008 60);
     --destructive: oklch(0.55 0.16 25);
     --success: oklch(0.56 0.1 155);
+    /* Owlit's proposed edits: the new words are drawn in it, so it is deep enough to read as text */
+    --suggestion: oklch(0.5 0.11 155);
     --warning: oklch(0.66 0.12 70);
     /* An agent's note on a passage: a warm amber underline, and a wash of it while the note is open */
     --note: oklch(0.76 0.15 75);
@@ -193,6 +196,7 @@
     --accent-foreground: oklch(0.935 0.006 80);
     --destructive: oklch(0.68 0.13 22);
     --success: oklch(0.72 0.1 155);
+    --suggestion: oklch(0.8 0.11 155);
     --warning: oklch(0.78 0.11 75);
     --note: oklch(0.8 0.13 78);
     --note-rim: oklch(0.8 0.13 78);
@@ -488,13 +492,19 @@
   pointer-events: none;
   color: var(--muted-foreground);
 }
-/* Owlit's proposed edit in the note, as Docs draws one: removal is not an error, so it is struck in the
-   muted tone; new words sit on a faint green; one line under the paragraph answers it */
 /* The 8px note dot (something Owlit did since the user last looked), wherever it appears: the amber
    with a deeper rim, so the mark holds 3:1 on the light panels and on a hovered row */
 .note-dot { background: var(--note); box-shadow: inset 0 0 0 1px var(--note-rim); }
-.note-suggest-del { color: var(--muted-foreground); text-decoration: line-through; }
-.note-suggest-ins { background: color-mix(in oklch, var(--success) 14%, transparent); border-radius: 3px; margin-left: 0.25em; white-space: pre-wrap; }
+/* Owlit's proposed edit in the note, as Docs draws one: Owlit marks like one more editor, in its own
+   colour. Removed words keep the muted tone with a strike in that colour (removal is not an error, so
+   never red), new words take the colour with an underline, and a rule at the left joins the paragraphs
+   it touches to the one line under them that answers it */
+.note-suggest-del { color: var(--muted-foreground); text-decoration: line-through 1.5px var(--suggestion); }
+.note-suggest-ins { color: var(--suggestion); text-decoration: underline 1px var(--suggestion); text-underline-offset: 3px; margin-left: 0.25em; white-space: pre-wrap; }
+.note-suggest-block, .note-suggest-bar { position: relative; }
+/* A block's rule reaches down over the 0.5rem gap after it, to the next block or the line */
+.note-suggest-block::before, .note-suggest-bar::before { content: ""; position: absolute; left: -12px; top: 0; bottom: -0.5rem; width: 2px; background: var(--suggestion); }
+.note-suggest-bar::before { bottom: 0; }
 .note-suggest-bar { display: flex; align-items: center; gap: 6px; margin: 2px 0 10px; font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
 .note-suggest-bar span { flex: 1; }
 .note-suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
