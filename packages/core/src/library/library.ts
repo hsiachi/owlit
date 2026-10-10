@@ -190,16 +190,21 @@ export class Library {
       const record = existingId ? await readRecord(this.root, existingId) : undefined
       if (existingId && record) return { paper: { id: existingId, ...pick(record) }, existingId }
     }
-    // Just found by a search or a lookup: no need to ask the services again. A partial search result
-    // previews as it is; adding it asks the services in the background (paper.metadata).
+    // Just found by a search or a lookup: no need to ask the services again. A partial search result is
+    // looked up properly by its ids (so the agent cites the published year, not the preprint's), and
+    // stands in only when the services can't be reached; adding it then leaves paper.metadata to ask.
     const known = ref && ref.kind !== "url" ? this.kept(paperIdOf({ [ref.kind]: ref.value }) ?? "") : undefined
     let resolution: Resolution
-    try {
-      resolution = known?.resolution ?? (await resolve(this.services.http, ref ?? input, await this.services.settings(), { signal, retries: 1 }))
-    } catch (error) {
-      throw asRpcFailure(error)
+    if (known && !known.partial) resolution = known.resolution
+    else {
+      try {
+        resolution = await resolve(this.services.http, known ? refOfIds(known.resolution.ids)! : (ref ?? input), await this.services.settings(), { signal, retries: 1 })
+        this.remember(resolution)
+      } catch (error) {
+        if (!known || signal?.aborted) throw asRpcFailure(error)
+        resolution = known.resolution
+      }
     }
-    if (!known) this.remember(resolution)
     const existingId = await this.index.find(resolution.ids)
     return { paper: { id: resolution.id, ...pick(resolution) }, existingId }
   }

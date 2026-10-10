@@ -98,16 +98,32 @@ describe("library over RPC", () => {
   it("adds a paper an arXiv search found as published work, once the services are asked", async () => {
     // arXiv knows the preprint (2023) and its published DOI; OpenAlex knows the published paper (2024)
     const feed = `<feed><opensearch:totalResults>1</opensearch:totalResults><entry><id>http://arxiv.org/abs/2403.17859v1</id><published>2023-03-26T00:00:00Z</published><title>ChroniclingAmericaQA (preprint)</title><summary>Preprint abstract.</summary><author><name>Bhawna Piryani</name></author><arxiv:doi>10.1145/3626772.3657891</arxiv:doi></entry></feed>`
-    const { root, core, call } = await setup({ ...published, "export.arxiv.org/api/query?search_query": feed })
+    const { root, call } = await setup({ ...published, "export.arxiv.org/api/query?search_query": feed })
     const found = await call("library.searchOnline", { q: "newspaper question answering", source: "arxiv" })
     expect(found.papers[0]).toMatchObject({ id: "doi-10.1145-3626772.3657891", year: 2023 })
-    // The search result previews, but isn't what the library keeps
+    // Adding it asks the services, so the agent learns (and cites) the published year
     const { paper } = await call("library.resolve", { input: "doi-10.1145-3626772.3657891" })
+    expect(paper).toMatchObject({ year: 2024, kind: "conference" })
     await call("library.add", { paper, addedBy: "agent" })
+    const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
+    expect(record).toMatchObject({ year: 2024, kind: "conference", fields: { year: "openalex", title: "openalex" } })
+  })
+
+  it("adds a partial search result as it is when the services can't be reached, and asks them later", async () => {
+    const feed = `<feed><entry><id>http://arxiv.org/abs/2403.17859v1</id><published>2023-03-26T00:00:00Z</published><title>ChroniclingAmericaQA (preprint)</title><author><name>Bhawna Piryani</name></author><arxiv:doi>10.1145/3626772.3657891</arxiv:doi></entry></feed>`
+    const routes: Record<string, string | number> = { "export.arxiv.org/api/query?search_query": feed, "api.openalex.org": 503, "api.semanticscholar.org": 503 }
+    const { root, core, call } = await setup(routes)
+    await call("library.searchOnline", { q: "newspaper question answering", source: "arxiv" })
+    const { paper } = await call("library.resolve", { input: "doi-10.1145-3626772.3657891" })
+    expect(paper).toMatchObject({ year: 2023 })
+    await call("library.add", { paper, addedBy: "agent" })
+    // The services are back
+    for (const key of ["api.openalex.org", "api.semanticscholar.org"]) delete routes[key]
+    Object.assign(routes, published)
     const workspace = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
     expect((await workspace.tasks.run("paper.metadata", "doi-10.1145-3626772.3657891")).state).toBe("done")
     const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
-    expect(record).toMatchObject({ year: 2024, kind: "conference", fields: { year: "openalex", title: "openalex" } })
+    expect(record).toMatchObject({ year: 2024, fields: { year: "openalex" } })
   })
 
   it("paper.metadata leaves a paper nobody can be asked about alone", async () => {
