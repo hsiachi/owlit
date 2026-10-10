@@ -1,11 +1,11 @@
 import katex from "katex"
 import "katex/dist/katex.min.css"
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown"
-import { useNavigate } from "react-router-dom"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import { cn } from "cn"
 import { appLinkTitle, openAppLink } from "@/app/app-links"
+import { useOpenFromChat } from "@/features/agent/hooks"
 import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
 import { MentionToken } from "../composer/MentionToken"
 
@@ -38,11 +38,11 @@ const mathClass = (className: unknown) => {
 
 // Markdown renderer for assistant text; styles live under `.markdown` in index.css
 export function Markdown({ text, className }: { text: string; className?: string }) {
-  const navigate = useNavigate()
+  const openPage = useOpenFromChat()
   const open = (href: string) => {
     if (openAppLink(href)) return
     const to = mentionRoute(href)
-    if (to) navigate(to)
+    if (to) openPage(to)
   }
   return (
     <div className={cn("markdown leading-relaxed", className)}>

@@ -8,7 +8,8 @@ import { Kbd } from "@/components/ui/kbd"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NoteDot } from "../components/bits"
 import { KnowledgeEmpty } from "../components/KnowledgeEmpty"
-import { TopicMenuContent } from "../components/TopicMenu"
+import { ActionsDropdownContent, ActionsOnRightClick } from "@/components/action-menu"
+import { useTopicMenu } from "../components/topic-menu"
 import { ago, shortDate, thisWeek } from "../lib/when"
 import { changedSince, renameTopic, useKnowledgeStore, useTopics } from "../store"
 import type { Topic } from "../types"
@@ -223,6 +224,7 @@ function TopicRow({ topic }: { topic: Topic }) {
   const set = useKnowledgeUi((s) => s.set)
   const side = useKnowledgeStore((s) => s.topics[topic.id])
   const fresh = !!side && changedSince(topic, side).length > 0
+  const menu = useTopicMenu(topic)
 
   if (renaming) {
     return (
@@ -233,33 +235,36 @@ function TopicRow({ topic }: { topic: Topic }) {
   }
 
   return (
-    <div
-      role="link"
-      tabIndex={0}
-      onClick={(e) => !(e.target as HTMLElement).closest("button") && navigate(`/knowledge/${topic.id}`)}
-      onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && navigate(`/knowledge/${topic.id}`)}
-      className="group/row flex h-9 cursor-default items-center gap-2 rounded-md pr-1 pl-2.5 text-sm outline-none select-none hover:bg-muted focus-key:bg-muted has-data-[state=open]:bg-muted"
-    >
-      {fresh && <NoteDot className="-ml-0.5" label="Changed since you last looked" />}
-      <span className={cn("shrink-0 truncate", topic.archived && "text-muted-foreground")}>{topic.name}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{topic.summary}</span>
-      <span className="shrink-0 pr-1.5 text-[13px] text-muted-foreground group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">
-        {shortDate(topic.updatedAt)}
-      </span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Topic actions"
-            className="hidden text-muted-foreground group-hover/row:flex group-focus-within/row:flex hover:bg-foreground/8 data-[state=open]:flex data-[state=open]:bg-foreground/8"
-          >
-            <EllipsisVerticalIcon />
-          </Button>
-        </DropdownMenuTrigger>
-        <TopicMenuContent topic={topic} />
-      </DropdownMenu>
-    </div>
+    // The same menu as the row's ⋯, on a right-click
+    <ActionsOnRightClick groups={menu} className="w-48">
+      <div
+        role="link"
+        tabIndex={0}
+        onClick={(e) => !(e.target as HTMLElement).closest("button") && navigate(`/knowledge/${topic.id}`)}
+        onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && navigate(`/knowledge/${topic.id}`)}
+        className="group/row flex h-9 cursor-default items-center gap-2 rounded-md pr-1 pl-2.5 text-sm outline-none select-none hover:bg-muted focus-key:bg-muted has-data-[state=open]:bg-muted data-[state=open]:bg-muted"
+      >
+        {fresh && <NoteDot className="-ml-0.5" label="Changed since you last looked" />}
+        <span className={cn("shrink-0 truncate", topic.archived && "text-muted-foreground")}>{topic.name}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{topic.summary}</span>
+        <span className="shrink-0 pr-1.5 text-[13px] text-muted-foreground group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">
+          {shortDate(topic.updatedAt)}
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Topic actions"
+              className="hidden text-muted-foreground group-hover/row:flex group-focus-within/row:flex hover:bg-foreground/8 data-[state=open]:flex data-[state=open]:bg-foreground/8"
+            >
+              <EllipsisVerticalIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <ActionsDropdownContent groups={menu} align="end" className="w-48" />
+        </DropdownMenu>
+      </div>
+    </ActionsOnRightClick>
   )
 }
 

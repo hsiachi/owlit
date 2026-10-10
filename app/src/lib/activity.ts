@@ -102,7 +102,7 @@ function openFromRoute(pathname: string): Open {
   const agent = useAgentWindow.getState()
   const chats = new Set<string>()
   if (routeChat) chats.add(decodeURIComponent(routeChat))
-  if (agent.stage !== "closed" && agent.chatId) chats.add(agent.chatId)
+  if (agent.stage === "open" && agent.chatId) chats.add(agent.chatId)
   return {
     paperId: paper && paper !== "up-next" ? decodeURIComponent(paper) : undefined,
     doc: docId && docPath ? { id: docId, path: docPath } : undefined,

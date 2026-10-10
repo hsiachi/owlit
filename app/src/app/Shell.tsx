@@ -55,8 +55,9 @@ function AppShell() {
       {/* The top bar and icon rail form the frame. One gap sets the sheet's distance from the window's
           right and bottom edges and the space around each 32px rail button, so the rail is 32px + 2 gaps. */}
       <div className="[--frame-gap:4px] [--header-height:2.5rem] [--rail-width:calc(2rem+2*var(--frame-gap))]">
+        {/* The list panel shows and hides at once: no slide, so the page never moves under the reader */}
         <SidebarProvider
-          className="h-svh flex-col bg-sidebar"
+          className="h-svh flex-col bg-sidebar [&_[data-slot=sidebar-container]]:transition-none [&_[data-slot=sidebar-gap]]:transition-none"
           open={hasPanel && panelOpen && (!docked || listShown)}
           onOpenChange={(open) => {
             if (!hasPanel) return

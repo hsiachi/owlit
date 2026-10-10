@@ -110,21 +110,21 @@ function ContextChips({ context, selection }: { context: Mentionable[]; selectio
   )
 }
 
-// At the right end of the top bar
+// At the right end of the top bar: the panel with the current chat, as ⇧⌘J
 export function AgentToggle() {
   const allowed = useAgentAllowed()
-  const stage = useAgentWindow((s) => s.stage)
-  const toggle = useAgentWindow((s) => s.toggle)
+  const docked = useAgentWindow((s) => s.stage === "open")
+  const togglePanel = useAgentWindow((s) => s.togglePanel)
   if (!allowed) return null
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Owlit" aria-pressed={stage !== "closed"} onClick={toggle} className={cn("ml-auto", stage !== "closed" && "bg-accent text-foreground")}>
+        <Button variant="ghost" size="icon-sm" aria-label="Owlit" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
           <OwlitMark />
         </Button>
       </TooltipTrigger>
       <TooltipContent className="flex items-center gap-1.5">
-        Owlit <Kbd>{keysFor("owlit")}</Kbd>
+        Owlit <Kbd>{keysFor("owlit-panel")}</Kbd>
       </TooltipContent>
     </Tooltip>
   )
@@ -137,6 +137,12 @@ export function AgentAskBar() {
   const selection = useAgentWindow((s) => s.selection)
   const focusTick = useAgentWindow((s) => s.focusTick)
   const hint = useAgentWindow((s) => s.hint)
+  // The chat ⇧⌘J would bring back, named while the bar is empty so the way back is never a guess
+  const chatId = useAgentWindow((s) => s.chatId)
+  const current = useChatStore((s) => {
+    const chat = chatId ? s.chats[chatId] : undefined
+    return chat?.messages.length ? chat.title : null
+  })
   const context = useVisibleContext()
   const [text, setText] = useState("")
   const input = useRef<HTMLInputElement>(null)
@@ -177,6 +183,17 @@ export function AgentAskBar() {
         className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
         aria-label="Ask Owlit"
       />
+      {current && !text && !selection && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => useAgentWindow.getState().togglePanel()}
+          className="flex h-7 min-w-0 shrink items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Kbd>{keysFor("owlit-panel")}</Kbd>
+          <span className="max-w-[200px] truncate">{current}</span>
+        </button>
+      )}
       <Button size="icon-sm" className="rounded-full" disabled={!text.trim()} onClick={send} aria-label="Send">
         <ArrowUpIcon />
       </Button>

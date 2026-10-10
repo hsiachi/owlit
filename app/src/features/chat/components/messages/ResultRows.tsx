@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
+import { useOpenFromChat } from "@/features/agent/hooks"
 import { useDocsStore } from "@/features/docs/store"
 import { undoResult, useResultsStore, type AgentResult } from "../../results"
 
@@ -16,7 +16,7 @@ interface Row {
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : `${n} ${many}`)
 
 function useRows(results: AgentResult[]): Row[] {
-  const navigate = useNavigate()
+  const navigate = useOpenFromChat()
   const openDoc = (path: string) => {
     const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
     return file ? () => navigate(`/docs/${file.id}`) : undefined

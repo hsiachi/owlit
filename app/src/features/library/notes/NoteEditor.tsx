@@ -5,6 +5,7 @@ import { Placeholder } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
 import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
+import { askOwlitOnRightClick } from "@/app/text-menu"
 import { respondToEdit } from "@/features/chat/lib/respond-edit"
 import { useChatStore } from "@/features/chat/store"
 import { useShowsEditsInPlace } from "@/features/chat/in-place"
@@ -148,6 +149,16 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     setMenu(null)
     useAgentWindow.getState().open({ text, source: paperMentionable(paper), notePath: notePathOf(paperId) })
   }
+
+  // A right-click on a selected passage starts the system's text menu with "Ask Owlit" too
+  useEffect(() => {
+    if (!editor) return
+    return askOwlitOnRightClick(editor.view.dom, () => {
+      const { from, to, empty } = editor.state.selection
+      return empty || editor.state.doc.textBetween(from, to, "\n").trim().length < 3 ? null : chat
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, paperId])
 
   // The note has no box: the panel is its page. The empty space below the text is still the
   // note, so a click anywhere there puts the cursor at the end.

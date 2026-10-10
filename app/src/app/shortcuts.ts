@@ -19,6 +19,7 @@ export const SHORTCUT_GROUPS: { title: string; shortcuts: Shortcut[] }[] = [
     shortcuts: [
       { id: "palette", label: "Find anything", keys: ["⌘", "K"] },
       { id: "owlit", label: "Ask Owlit", where: "outside Chat", keys: ["⌘", "J"] },
+      { id: "owlit-panel", label: "Show or hide the current chat", where: "outside Chat", keys: ["⇧", "⌘", "J"] },
       { id: "settings", label: "Settings", keys: ["⌘", ","] },
       { id: "open-workspace", label: "Open workspace", keys: ["⌘", "O"] },
       { id: "shortcuts", label: "Keyboard shortcuts", keys: ["⌘", "/"] },
