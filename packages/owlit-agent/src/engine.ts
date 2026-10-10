@@ -14,14 +14,16 @@ export class Engine implements acp.Agent {
   private readonly conn: acp.AgentSideConnection
   private readonly models: Models
   private readonly credentials: CredentialStore
+  private readonly home: string
   private readonly log: (line: string) => void
   private sessions = new Map<string, EngineSession>()
   private turns = new Map<string, Promise<unknown>>()
 
-  constructor(conn: acp.AgentSideConnection, models: Models, credentials: CredentialStore, log: (line: string) => void) {
+  constructor(conn: acp.AgentSideConnection, models: Models, credentials: CredentialStore, home: string, log: (line: string) => void) {
     this.conn = conn
     this.models = models
     this.credentials = credentials
+    this.home = home
     this.log = log
   }
 
@@ -35,7 +37,12 @@ export class Engine implements acp.Agent {
   }
 
   async authenticate(params: acp.AuthenticateRequest): Promise<acp.AuthenticateResponse> {
-    await signIn(this.models, this.credentials, params.methodId, params._meta, AbortSignal.timeout(5 * 60_000))
+    try {
+      await signIn(this.models, this.credentials, this.home, params.methodId, params._meta, AbortSignal.timeout(5 * 60_000))
+    } catch (error) {
+      this.log(`sign-in failed: ${messageOf(error)}`)
+      throw asAcpError(error)
+    }
     return {}
   }
 
@@ -54,7 +61,9 @@ export class Engine implements acp.Agent {
   }
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
-    const session = await this.open(randomUUID(), params.cwd, params.mcpServers)
+    const session = await this.open(randomUUID(), params.cwd, params.mcpServers).catch((error) => {
+      throw asAcpError(error)
+    })
     return { sessionId: session.id, configOptions: session.configOptions() }
   }
 
@@ -86,9 +95,9 @@ export class Engine implements acp.Agent {
     try {
       return { stopReason: await turn }
     } catch (error) {
-      this.log(`turn failed: ${(error as Error).message}`)
+      this.log(`turn failed: ${messageOf(error)}`)
       if (isAuthFailure(error)) throw acp.RequestError.authRequired()
-      throw error
+      throw asAcpError(error)
     } finally {
       this.turns.delete(params.sessionId)
     }
@@ -122,6 +131,11 @@ export class Engine implements acp.Agent {
     return session
   }
 }
+
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+// The ACP SDK sends an error it doesn't know as a bare "Internal error"; owlit should show what happened
+const asAcpError = (error: unknown) => (error instanceof acp.RequestError ? error : new acp.RequestError(-32603, messageOf(error)))
 
 // A provider refusing the sign-in it was given (expired, revoked, wrong key)
 function isAuthFailure(error: unknown) {

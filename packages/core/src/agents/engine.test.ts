@@ -125,6 +125,9 @@ describe("Owlit engine", () => {
     expect(out).toMatchObject({ status: "error", authenticated: false, error: "Owlit engine (Beta) isn't signed in. Sign in under Settings › Agents, then try again." })
     expect(out.signInMethods.map((m: any) => m.id)).toEqual(["chatgpt", "api-key:openai", "api-key:anthropic", "api-key:openrouter", "api-key:deepseek", "api-key:qwen-token-plan-cn", "api-key:moonshotai-cn"])
 
+    // A failed sign-in says why, not just that something went wrong
+    await expect(call("agents.signIn", { id: ENGINE_ID, methodId: "api-key:deepseek", apiKey: "  " })).rejects.toThrow("The API key is empty.")
+
     const signedIn = await call("agents.signIn", { id: ENGINE_ID, methodId: "api-key:deepseek", apiKey: " sk-test " })
     expect(signedIn).toMatchObject({ status: "connected", authenticated: true })
     expect(signedIn.models.length).toBeGreaterThan(0)

@@ -174,7 +174,9 @@ export class Agents {
   // One of the agent's own sign-ins. A browser sign-in waits for the user to finish there.
   async signIn(id: string, methodId: string, apiKey?: string): Promise<Connector> {
     const proc = await this.process(id)
-    await proc.authenticate({ methodId, ...(apiKey ? { _meta: { apiKey } } : {}) })
+    await proc.authenticate({ methodId, ...(apiKey ? { _meta: { apiKey } } : {}) }).catch((error) => {
+      throw new RpcFailure(RpcErrorCode.Unavailable, messageOf(error))
+    })
     return this.check(id)
   }
 

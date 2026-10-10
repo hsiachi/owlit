@@ -11,6 +11,7 @@ import { openaiProvider } from "@earendil-works/pi-ai/providers/openai"
 import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter"
 import { qwenTokenPlanCnProvider } from "@earendil-works/pi-ai/providers/qwen-token-plan-cn"
 import { spawn } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 
@@ -131,8 +132,25 @@ export async function signIns(models: Models, credentials: CredentialStore) {
   return out
 }
 
-export async function signIn(models: Models, credentials: CredentialStore, methodId: string, meta: Record<string, unknown> | null | undefined, signal: AbortSignal) {
+// This installation's ID, made on first use and kept: OpenAI's sign-in sends it as the agent host ID and
+// expects the same one every time
+export async function deviceId(home: string) {
+  const file = path.join(home, "device-id")
+  try {
+    const id = (await readFile(file, "utf8")).trim()
+    if (id) return id
+  } catch {
+    // made below
+  }
+  const id = randomUUID()
+  await mkdir(home, { recursive: true })
+  await writeFile(file, id)
+  return id
+}
+
+export async function signIn(models: Models, credentials: CredentialStore, home: string, methodId: string, meta: Record<string, unknown> | null | undefined, signal: AbortSignal) {
   if (methodId === CHATGPT) {
+    const device = await deviceId(home)
     await models.login("openai", "oauth", {
       signal,
       // The flow also offers to paste the code by hand; the browser's callback answers it instead
@@ -140,7 +158,7 @@ export async function signIn(models: Models, credentials: CredentialStore, metho
       notify: (event) => {
         if (event.type === "auth_url") openInBrowser(event.url)
       },
-    })
+    }, { getDeviceId: () => device, agentName: "Owlit" })
     return
   }
   if (methodId.startsWith(API_KEY)) {

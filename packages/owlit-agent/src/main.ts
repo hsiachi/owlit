@@ -19,4 +19,4 @@ const credentials = new FileCredentials(path.join(home, "auth.json"))
 const models = process.env.OWLIT_ENGINE_FAUX ? fauxModels(credentials) : createEngineModels(credentials)
 
 const stream = acp.ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin) as ReadableStream<Uint8Array>)
-new acp.AgentSideConnection((conn) => new Engine(conn, models, credentials, log), stream)
+new acp.AgentSideConnection((conn) => new Engine(conn, models, credentials, home, log), stream)
