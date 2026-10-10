@@ -56,21 +56,68 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "library_search",
     description:
-      "Search for papers outside the library (OpenAlex): title, authors, year, venue, abstract, ids and citation count, and inLibrary when the user has it already. Adds nothing; use library_add for the ones worth keeping. Every search is recorded.",
+      "Search for papers outside the library: id, title, authors, year, venue, citation count, whether a free PDF is known, a one-line summary or the abstract, and whether the user has it already. One source per search, each with its own strengths: openalex (default; everything, all filters), s2 (Semantic Scholar: better ranking and one-line summaries; filters year, min_citations, type, venue, open_access; slow without an API key) and arxiv (preprints; filters year, author, sort newest; a query with ':' is arXiv's own syntax, e.g. 'cat:cs.CL AND au:Manning'). A filter the source can't apply is refused, not ignored. Adds nothing; use library_add for the ones worth keeping. Every search is recorded.",
     inputSchema: {
       type: "object",
       properties: {
         query: { type: "string", description: "What to look for" },
-        limit: { type: "number", description: "How many (default 10, at most 25)" },
+        source: { type: "string", enum: ["openalex", "s2", "arxiv"], description: "Where to look (default openalex)" },
+        year: { type: "string", description: "Publication year: 2023, 2019-2023, 2023- or -2023 (optional)" },
+        sort: { type: "string", enum: ["relevance", "citations", "newest"], description: "Order (default relevance)" },
+        min_citations: { type: "number", description: "Only papers cited at least this often (optional)" },
+        type: { type: "string", enum: ["article", "review", "preprint", "book"], description: "Only this kind; article is a journal or conference paper (optional)" },
+        author: { type: "string", description: "An author's name (optional)" },
+        venue: { type: "string", description: "A journal or conference by name, e.g. CHI (optional)" },
+        open_access: { type: "boolean", description: "Only papers with a free full text (optional)" },
+        limit: { type: "number", description: "How many (default 10, at most 50)" },
       },
       required: ["query"],
     },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "library_related",
+    description:
+      "A paper's neighbours, to follow a topic through citations: references (what it cites), cited_by (what cites it; sort newest for recent follow-ups, citations for the influential ones) or similar (Semantic Scholar's recommendations, computer science). The paper can be in the library or not: a library id, an id from library_search, a DOI or an arXiv id. Same lines as library_search. Adds nothing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The paper: library id, an id from library_search, a DOI or an arXiv id" },
+        kind: { type: "string", enum: ["references", "cited_by", "similar"], description: "Which neighbours" },
+        year: { type: "string", description: "Publication year: 2023, 2019-2023, 2023- or -2023 (optional)" },
+        sort: { type: "string", enum: ["relevance", "citations", "newest"], description: "Order (default: as the source gives them; not for similar)" },
+        limit: { type: "number", description: "How many (default 20, at most 100)" },
+      },
+      required: ["id", "kind"],
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "library_journal",
+    description:
+      "Every research article a journal published in a year or a few years, from Crossref's full list, in issue order: for going through a journal rather than searching it. A year counts by the date the publisher registered, for most the issue's: an article online in late 2024 but in a January 2025 issue is in 2025. Journals only: a conference's proceedings (CHI, CSCW, …) can't be listed yet; for those use library_search with venue. With a query, only articles whose title or abstract has every word; a word matches inside longer ones ('recommend' finds recommender and recommendation). Some publishers (Elsevier) give no abstracts, so for them only titles match. Long lists come a page at a time (offset). Adds nothing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        journal: { type: "string", description: "The journal's name or ISSN, e.g. 'Information Processing & Management' or 0306-4573" },
+        year: { type: "string", description: "2024, or a range of at most five years: 2022-2024" },
+        query: { type: "string", description: "Words that must all be in the title or abstract (optional)" },
+        offset: { type: "number", description: "Skip this many, for the next page (default 0)" },
+        limit: { type: "number", description: "How many (default 50, at most 200)" },
+      },
+      required: ["journal", "year"],
+    },
+    annotations: { readOnlyHint: true },
   },
   {
     name: "library_add",
     description:
-      "Add a paper to the user's library, as added by you: a DOI, an arXiv id, a link to the paper, or an id from library_search. Its metadata, PDF and text follow by themselves. Returns its library id.",
-    inputSchema: { type: "object", properties: { ref: { type: "string", description: "DOI, arXiv id, link, or library id" } }, required: ["ref"] },
+      "Add papers to the user's library, as added by you: DOIs, arXiv ids, links to papers, or ids from library_search, library_related or library_journal; several in one call. Their metadata, PDFs and text follow by themselves. Says the library id of each.",
+    inputSchema: {
+      type: "object",
+      properties: { refs: { type: "array", items: { type: "string" }, description: "DOIs, arXiv ids, links, or ids from a search" } },
+      required: ["refs"],
+    },
   },
   {
     name: "library_write_digest",

@@ -39,7 +39,7 @@ Change things carefully
 - Put comments, questions and suggestions in the doc's margin with docs_add_note, one note per passage, not in the text.
 
 Papers from outside
-- Search with library_search. When you add a paper, pass its arXiv id when it has one, otherwise its DOI; use another id only when it has neither. A paper with an arXiv id comes with its PDF.
+- Search with library_search, follow a paper's references and citations with library_related, and go through a journal's issues with library_journal. Add with library_add, several in one call. When you add a paper, pass its arXiv id when it has one, otherwise its DOI; use another id only when it has neither. A paper with an arXiv id comes with its PDF.
 - When the user didn't name the paper, prefer ones with a free PDF and say in a line why you picked each. Don't add what is already in the library (inLibrary).
 
 Answer well

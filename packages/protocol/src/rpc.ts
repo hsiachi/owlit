@@ -2,7 +2,7 @@ import type { ActivityEvent } from "./activity.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { Highlight, LibraryChange, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -271,12 +271,20 @@ export interface Methods {
   // Part of a paper as text: the full text (pages "3-5" or the section under a heading), the digest or
   // the user's note. pages: how many the paper has.
   "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string }; result: { text: string; pages?: number } }
-  // Papers out in the world (OpenAlex) for a query; inLibrary when the library has one already. Each
-  // search is kept in .owlit/searches.jsonl.
-  "library.searchOnline": {
-    params: { q: string; limit?: number; by?: string }
-    result: (ResolvedPaper & { inLibrary?: string; citationCount?: number })[]
+  // Papers out in the world for a query, from one source (OpenAlex unless asked); inLibrary when the
+  // library has one already. A filter the source can't apply is refused. Each search, and each of the
+  // two below, is kept in .owlit/searches.jsonl.
+  "library.searchOnline": { params: { q: string; limit?: number; by?: string; source?: OnlineSource } & OnlineFilters; result: FoundPapers }
+  // A paper's neighbours: what it cites, what cites it, or what resembles it. ref is a library id, an id
+  // a search just returned, a DOI or an arXiv id.
+  "library.related": {
+    params: { ref: string; kind: "references" | "cited_by" | "similar"; limit?: number; by?: string } & Pick<OnlineFilters, "year" | "sort">
+    result: FoundPapers
   }
+  // Every research article a journal published in a year or years (Crossref), optionally only those
+  // whose title or abstract has every word of query. journal is a name or an ISSN; a conference is
+  // refused, since its proceedings can't be listed yet.
+  "library.journal": { params: { journal: string; year: string; query?: string; offset?: number; limit?: number; by?: string }; result: FoundPapers }
   "library.highlights": { params: { id: string }; result: Highlight[] }
   // Queues a reading note by a background agent (the paper menu's Write a reading note); nothing when
   // the paper has one or nothing to read

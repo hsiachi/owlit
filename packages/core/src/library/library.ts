@@ -1,8 +1,12 @@
 import {
   isTaskFinished,
   RpcErrorCode,
+  type FoundPaper,
+  type FoundPapers,
   type Highlight,
   type LibraryChange,
+  type OnlineFilters,
+  type OnlineSource,
   type LibrarySettings,
   type Paper,
   type PaperNote,
@@ -50,7 +54,9 @@ import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { identify, type Identified } from "./text/identify.ts"
 import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
-import { searchOpenAlex } from "./sources/openalex.ts"
+import { findJournal, listJournal, parseYears, relatedOf, searchSource, type RelatedKind } from "./discover.ts"
+import type { JournalArticle } from "./sources/crossref.ts"
+import type { SourceRecord } from "./sources/types.ts"
 import {
   applyPatch,
   freshState,
@@ -99,6 +105,8 @@ export class Library {
   readonly index: PaperIndex
   private readonly services: LibraryServices
   private resolutions = new Map<string, { resolution: Resolution; at: number }>()
+  // Journal lists fetched a moment ago, by ISSN and years, for the next page
+  private journals = new Map<string, { articles: JournalArticle[]; issn: string; at: number }>()
   private scheduler: Scheduler | undefined
   private onChange: (change: LibraryChange) => void = () => {}
   private onNote: (paperId: string, note: PaperNote | null, before: string) => void = () => {}
@@ -596,27 +604,110 @@ export class Library {
     return pickFromText(markdown, where)
   }
 
-  // Papers out in the world (OpenAlex) for a query, each marked with the library's id when it is here
-  // already. Every search is kept in .owlit/searches.jsonl: what was asked, by whom, what came back.
-  async searchOnline(query: string, limit = 10, by = "agent"): Promise<(ResolvedPaper & { inLibrary?: string; citationCount?: number })[]> {
-    let records
+  // Papers out in the world for a query, from one source, each marked with the library's id when it is
+  // here already. Every search (and every related or journal list) is kept in .owlit/searches.jsonl:
+  // what was asked, by whom, what came back.
+  async searchOnline(query: string, options: { limit?: number; source?: OnlineSource } & OnlineFilters = {}, by = "agent"): Promise<FoundPapers> {
+    const { limit = 10, source = "openalex", ...filters } = options
+    const found = await searchSource(this.services.http, query, limit, source, filters, await this.services.settings(), { retries: 1 }).catch((error) => {
+      throw asRpcFailure(error)
+    })
+    const papers = await this.mark(found.records)
+    await this.recordSearch({ query, source, ...(Object.keys(filters).length ? { filters } : {}) }, by, papers)
+    return { papers, source, ...(found.total !== undefined ? { total: found.total } : {}), ...(found.matched ? { matched: found.matched } : {}) }
+  }
+
+  // A paper's references, the papers citing it, or ones like it. ref is a library id, an id a search
+  // just returned, a DOI or an arXiv id.
+  async related(ref: string, kind: RelatedKind, options: { limit?: number } & Pick<OnlineFilters, "year" | "sort"> = {}, by = "agent"): Promise<FoundPapers> {
+    const { limit = 20, ...filters } = options
+    const record = isPaperId(ref) ? await readRecord(this.root, ref) : undefined
+    const parsed = parseRef(ref)
+    const ids = this.recent(ref)?.ids ?? record?.ids ?? (parsed && parsed.kind !== "url" ? { [parsed.kind]: parsed.value } : undefined)
+    if (!ids) throw new RpcFailure(RpcErrorCode.NotFound, "That isn't a paper owlit knows: give a library id, an id from a search, a DOI or an arXiv id.", { ref })
+    const title = this.recent(ref)?.title ?? record?.title
+    const found = await relatedOf(this.services.http, ids, kind, limit, filters, await this.services.settings(), { retries: 1 }).catch((error) => {
+      throw asRpcFailure(error)
+    })
+    const papers = await this.mark(found.records)
+    await this.recordSearch({ query: `${kind} of ${ref}`, source: found.source, ...(Object.keys(filters).length ? { filters } : {}) }, by, papers)
+    return { papers, source: found.source, ...(found.total !== undefined ? { total: found.total } : {}), ...(title ? { matched: title } : {}), ...(found.note ? { note: found.note } : {}) }
+  }
+
+  // A journal's research articles in a year or years, from Crossref's full list, a page at a time; with
+  // a query only those whose title or abstract has every word. The list is kept a while, so the next
+  // page doesn't fetch it again.
+  async journal(journal: string, year: string, options: { query?: string; offset?: number; limit?: number } = {}, by = "agent"): Promise<FoundPapers> {
+    const { query, offset = 0, limit = 50 } = options
+    const years = parseYears(year)
+    if (years?.from === undefined || years.to === undefined) throw new RpcFailure(RpcErrorCode.InvalidParams, "A journal list needs a year, or a range like 2022-2024.")
+    const span = { from: years.from, to: years.to }
+    const settings = await this.services.settings()
+    const http = this.services.http
+    let found
     try {
-      records = await searchOpenAlex(this.services.http, query, limit, await this.services.settings(), { retries: 1 })
+      const { name, issns } = await findJournal(http, journal, settings, { retries: 1 })
+      const key = `${issns[0]}:${span.from}-${span.to}`
+      const kept = this.journals.get(key)
+      const { articles, issn } = kept && Date.now() - kept.at < RESOLUTION_TTL_MS ? kept : await listJournal(http, issns, span, settings, { retries: 1 })
+      this.journals.set(key, { articles, issn, at: Date.now() })
+      found = { name: name.startsWith("ISSN") && articles[0]?.journal ? `${articles[0].journal} (${name})` : `${name} (ISSN ${issn})`, articles }
     } catch (error) {
       throw asRpcFailure(error)
     }
-    const found = await Promise.all(
-      records.map(async (r) => {
-        const resolution = merge({ kind: r.ids.doi ? "doi" : "openalex", value: (r.ids.doi ?? r.ids.openalex)! }, [r])
-        this.remember(resolution)
-        const inLibrary = await this.index.find(resolution.ids)
-        return { id: resolution.id, ...pick(resolution), ...(inLibrary ? { inLibrary } : {}), ...(r.citationCount !== undefined ? { citationCount: r.citationCount } : {}) }
+    const words = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean)
+    const matching = words.length ? found.articles.filter((a) => words.every((w) => `${a.title} ${a.abstract ?? ""}`.toLowerCase().includes(w))) : found.articles
+    const papers = await Promise.all(
+      matching.slice(offset, offset + limit).map(async (a): Promise<FoundPaper> => {
+        const ids = { doi: a.doi }
+        const inLibrary = await this.index.find(ids)
+        return clean({
+          id: paperIdOf(ids)!,
+          title: a.title,
+          authors: a.authors,
+          ids,
+          year: a.year,
+          venue: a.journal,
+          abstract: a.abstract,
+          kind: "article" as const,
+          citationCount: a.citationCount,
+          volume: a.volume,
+          issue: a.issue,
+          inLibrary,
+          ...(inLibrary ? { hasPdf: await hasPdfFile(this.root, inLibrary) } : {}),
+        })
       }),
     )
-    const line = { at: Date.now(), query, by, results: found.map((f) => f.id) }
+    const asked = `${found.name} ${year}${query ? `: ${query}` : ""}`
+    await this.recordSearch({ query: asked, source: "crossref" }, by, papers)
+    return { papers, source: "crossref", total: matching.length, matched: found.name }
+  }
+
+  // Found records as the agent sees them, with the library's id and whether it has the PDF when the paper
+  // is here already. Each is kept a while, so adding one doesn't ask the services again.
+  private async mark(records: SourceRecord[]): Promise<FoundPaper[]> {
+    return Promise.all(
+      records.map(async (r) => {
+        const resolution = merge(refOfIds(r.ids)!, [r])
+        this.remember(resolution)
+        const inLibrary = await this.index.find(resolution.ids)
+        return clean({
+          id: resolution.id,
+          ...pick(resolution),
+          citationCount: resolution.citationCount,
+          tldr: resolution.tldr,
+          openPdf: resolution.pdfUrls.length > 0 || undefined,
+          inLibrary,
+          ...(inLibrary ? { hasPdf: await hasPdfFile(this.root, inLibrary) } : {}),
+        })
+      }),
+    )
+  }
+
+  private async recordSearch(asked: { query: string; source: string; filters?: object }, by: string, papers: FoundPaper[]) {
+    const line = { at: Date.now(), ...asked, by, results: papers.map((f) => f.id) }
     await mkdir(path.join(this.root, OWLIT_DIR), { recursive: true })
     await appendFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), JSON.stringify(line) + "\n")
-    return found
   }
 
   async highlights(id: string): Promise<Highlight[]> {

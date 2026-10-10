@@ -405,10 +405,41 @@ export class Core {
       z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),
       ({ id, part, pages, section }) => library().read(id, part, { pages, section }),
     )
+    const year = z.string().max(20).optional()
+    const sort = z.enum(["relevance", "citations", "newest"]).optional()
     this.router.register(
       "library.searchOnline",
-      z.object({ q: z.string().min(1), limit: z.number().int().positive().max(25).optional(), by: z.string().optional() }),
-      ({ q, limit, by }) => library().searchOnline(q, limit, by),
+      z.object({
+        q: z.string().min(1),
+        limit: z.number().int().positive().max(50).optional(),
+        by: z.string().optional(),
+        source: z.enum(["openalex", "s2", "arxiv"]).optional(),
+        year,
+        sort,
+        minCitations: z.number().int().nonnegative().optional(),
+        type: z.enum(["article", "review", "preprint", "book"]).optional(),
+        author: z.string().min(1).optional(),
+        venue: z.string().min(1).optional(),
+        openAccess: z.boolean().optional(),
+      }),
+      ({ q, by, ...options }) => library().searchOnline(q, options, by),
+    )
+    this.router.register(
+      "library.related",
+      z.object({ ref: z.string().min(1), kind: z.enum(["references", "cited_by", "similar"]), limit: z.number().int().positive().max(100).optional(), year, sort, by: z.string().optional() }),
+      ({ ref, kind, by, ...options }) => library().related(ref, kind, options, by),
+    )
+    this.router.register(
+      "library.journal",
+      z.object({
+        journal: z.string().min(1),
+        year: z.string().min(4).max(20),
+        query: z.string().optional(),
+        offset: z.number().int().nonnegative().optional(),
+        limit: z.number().int().positive().max(200).optional(),
+        by: z.string().optional(),
+      }),
+      ({ journal, year, by, ...options }) => library().journal(journal, year, options, by),
     )
     this.router.register("library.highlights", z.object({ id: paperId }), ({ id }) => library().highlights(id))
     this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
