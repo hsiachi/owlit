@@ -170,6 +170,8 @@ export interface Methods {
   "chats.appendMessage": { params: { id: string; message: ChatMessage }; result: null }
   // Replaces a message by id. While final is false the disk catches up within half a second;
   // final (the end of a turn) writes at once.
+  // Takes messages out of a chat (a broken reply and its question, when Retry asks again)
+  "chats.removeMessages": { params: { id: string; messageIds: string[] }; result: null }
   "chats.patchMessage": { params: { id: string; message: ChatMessage; final?: boolean }; result: null }
 
   // ---- Local agents (ACP over stdio). Built-in ones plus those the user added; each runs as one

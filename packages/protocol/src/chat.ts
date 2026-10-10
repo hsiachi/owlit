@@ -169,7 +169,10 @@ export interface ChatMessage {
   // Connector and model that produced an assistant message
   connectorId?: string
   modelId?: string
+  // Why a reply broke, in owlit's words, and the agent's own words for it when it gave some ("API Error:
+  // 403 Request not allowed"), kept apart from the answer
   error?: string
+  errorDetail?: string
 }
 
 export interface Chat {

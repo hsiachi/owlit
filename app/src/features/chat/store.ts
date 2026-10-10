@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { applyUpdate, DEFAULT_ROLE, type Role } from "@owlit/protocol"
+import { applyUpdate, DEFAULT_ROLE, withoutAgentError, type Role } from "@owlit/protocol"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import type { AgentClient } from "./agent/client"
 import * as disk from "./disk"
@@ -55,6 +55,8 @@ interface ChatState {
   send: (chatId: string, input: PromptInput) => Promise<void>
   cancel: (chatId: string) => void
   respondPermission: (chatId: string, requestId: string, optionId: string) => void
+  // Takes messages out of a chat, here and on disk
+  removeMessages: (chatId: string, messageIds: string[]) => void
   answerQuestion: (chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) => void
 
   checkConnector: (id: string) => Promise<void>
@@ -259,7 +261,7 @@ export const useChatStore = create<ChatState>()(
           patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done" }), true)
         } catch (e) {
           ended = "failed"
-          patchAssistant((m) => ({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }), true)
+          patchAssistant((m) => withoutAgentError({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }), true)
         } finally {
           inflight.delete(chatId)
           over.delete(chatId)
@@ -275,6 +277,15 @@ export const useChatStore = create<ChatState>()(
 
       cancel(chatId) {
         inflight.get(chatId)?.abort()
+      },
+
+      removeMessages(chatId, messageIds) {
+        const gone = new Set(messageIds)
+        set((s) => {
+          const c = s.chats[chatId]
+          return c ? { chats: { ...s.chats, [chatId]: { ...c, messages: c.messages.filter((m) => !gone.has(m.id)) } } } : s
+        })
+        if (disk.onDisk) disk.removeMessagesOnDisk(chatId, messageIds)
       },
 
       respondPermission(chatId, requestId, optionId) {

@@ -171,6 +171,17 @@ export class Agents {
     return error
   }
 
+  // The agent's service refused a request it was signed in for (a 403: the network, a proxy, the region or
+  // the account), which signing in again doesn't fix; the agent isn't marked signed out
+  async refused(id: string) {
+    const def = await this.def(id)
+    return `${def.name}'s service refused the request (403). If ${def.name} is signed in, this is usually the network or a proxy; try again in a moment.`
+  }
+
+  async nameOf(id: string) {
+    return (await this.def(id).catch(() => null))?.name ?? "The agent"
+  }
+
   // One of the agent's own sign-ins. A browser sign-in waits for the user to finish there.
   async signIn(id: string, methodId: string, apiKey?: string): Promise<Connector> {
     const proc = await this.process(id)

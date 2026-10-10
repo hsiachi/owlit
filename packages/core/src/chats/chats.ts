@@ -100,6 +100,15 @@ export class Chats {
     return null
   }
 
+  // Takes messages out of a chat: a reply that broke and the question it answered, when Retry asks again
+  async removeMessages(id: string, messageIds: string[]) {
+    const chat = await this.get(id)
+    const gone = new Set(messageIds)
+    this.bodies.set(id, { ...chat, messages: chat.messages.filter((m) => !gone.has(m.id)) })
+    await this.write(id, true)
+    return null
+  }
+
   // Replaces a message by id (a streamed answer as it grows); final writes it out at once
   async patchMessage(id: string, message: ChatMessage, final = false) {
     const chat = await this.get(id)
