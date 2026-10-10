@@ -32,6 +32,25 @@ export interface ProcessOptions {
 
 const STDERR_KEPT = 20
 
+// A call cut off because the agent's process ended under it: owlit stopped it (the app quitting, a sign-out)
+// or it quit on its own, in which case `detail` says how ("exited with code 1: <its last line on stderr>")
+export class AgentEnded extends Error {
+  readonly stopped: boolean
+  readonly detail?: string
+
+  constructor(stopped: boolean, detail?: string) {
+    super(stopped ? "The agent was stopped." : `The agent ${detail ?? "quit"}.`)
+    this.stopped = stopped
+    this.detail = detail
+  }
+}
+
+// One child's life: whether it is being ended on purpose, and how it ended once it has
+interface Life {
+  stopping: boolean
+  ended: Promise<string>
+}
+
 // One running local agent speaking ACP over stdio. Started by the first call that needs it, ended after
 // idleMs without anything to do, started again by the next call after a crash. Many sessions (one per
 // chat) share it.
@@ -43,8 +62,8 @@ export class AcpProcess {
   private handlers = new Map<string, SessionHandler>()
   private busy = 0
   private idleTimer: ReturnType<typeof setTimeout> | undefined
-  // Whether the current child is being ended on purpose; each child has its own
-  private life = { stopping: false }
+  // Each child has its own
+  private life: Life = { stopping: false, ended: new Promise(() => {}) }
   private stderr: string[] = []
 
   constructor(options: ProcessOptions) {
@@ -141,7 +160,17 @@ export class AcpProcess {
     clearTimeout(this.idleTimer)
     try {
       await this.start()
-      return await work(this.connection!)
+      const connection = this.connection!
+      const life = this.life
+      try {
+        return await work(connection)
+      } catch (error) {
+        if (!connection.signal.aborted) throw error
+        if (life.stopping) throw new AgentEnded(true)
+        // The stream closes a moment before the process is seen to exit, and says nothing of why
+        const detail = await Promise.race([life.ended, new Promise<undefined>((r) => setTimeout(() => r(undefined), 2000).unref())])
+        throw new AgentEnded(life.stopping, detail)
+      }
     } finally {
       this.busy--
       this.scheduleIdle()
@@ -151,7 +180,8 @@ export class AcpProcess {
   private start() {
     if (this.started) return this.started
     const { file, args, env, cwd } = this.options
-    const life = { stopping: false }
+    let ended!: (detail: string) => void
+    const life: Life = { stopping: false, ended: new Promise((resolve) => (ended = resolve)) }
     this.life = life
     this.stderr = []
     const child = spawn(file, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] })
@@ -169,10 +199,12 @@ export class AcpProcess {
     const failedToStart = new Promise<never>((_, reject) => child.once("error", reject))
     child.once("exit", (code, signal) => {
       if (this.child === child) this.reset()
-      if (life.stopping) return
       // A process that exits on its own usually says why last; one killed by a signal says nothing useful
       const last = signal ? undefined : this.stderr.at(-1)
-      this.options.onCrash(signal ? `stopped (${signal})` : `exited with code ${code}${last ? `: ${last}` : ""}`)
+      const detail = signal ? `stopped (${signal})` : `exited with code ${code}${last ? `: ${last}` : ""}`
+      ended(detail)
+      if (life.stopping) return
+      this.options.onCrash(detail)
       this.options.onExit?.()
     })
 

@@ -165,6 +165,8 @@ export interface ChatMessage {
   context?: Mentionable[]
   selection?: QuotedSelection
   createdAt: number
+  // When a reply ended: finished, stopped or broke
+  finishedAt?: number
   status?: MessageStatus
   // Connector and model that produced an assistant message
   connectorId?: string

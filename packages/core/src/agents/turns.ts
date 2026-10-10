@@ -24,7 +24,7 @@ import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import type { AcpProcess, SessionHandler } from "./process.ts"
+import { AgentEnded, type AcpProcess, type SessionHandler } from "./process.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, guardFor, roleNote, takesRules, withUserName, type Guard } from "./roles.ts"
 import { preamble, USER_FOLLOWS } from "./rules.ts"
@@ -134,8 +134,8 @@ export class Turns {
     }
     turn.emit = emit
     if (turn.role === "coauthor") this.coauthors.set(req.chatId, Infinity)
-    const finish = async (status: ChatMessage["status"], error?: string) => {
-      turn.message = withoutAgentError({ ...turn.message, status, ...(error ? { error } : {}) })
+    const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string) => {
+      turn.message = withoutAgentError({ ...turn.message, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}) })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
     }
 
@@ -172,6 +172,14 @@ export class Turns {
       // What the agent said as it failed decides between a sign-in and a refusal it can't fix by signing in
       const said = withoutAgentError({ ...turn.message, status: "error" }).errorDetail ?? ""
       const agents = this.options.agents
+      if (error instanceof AgentEnded) {
+        // The agent's process went away mid-turn; the library only says its connection closed
+        const name = await agents.nameOf(req.connectorId)
+        const text = error.stopped ? "Owlit was closed before it could finish." : `${name} quit unexpectedly. It starts again with the next message.`
+        const detail = error.detail ? `${name} ${error.detail}` : undefined
+        await finish("error", text, detail)
+        throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
+      }
       const text = isAuthError(error)
         ? /\b403\b/.test(said)
           ? await agents.refused(req.connectorId)

@@ -10,6 +10,7 @@ import type { ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { MentionBadge } from "../composer/MentionBadge"
 import { KnowledgeUpdates } from "@/features/knowledge/components/ChatUpdates"
+import { unansweredSentence } from "../../lib/step-words"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultRows } from "./ResultRows"
 
@@ -47,12 +48,14 @@ function CopyButton({ text }: { text: string }) {
 const TEXT_BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-foreground outline-none hover:bg-muted focus-key:bg-muted"
 
 // The one red mark a reply can have, as a small block rather than a line that wraps: "Owlit stopped"
-// with Retry and Dismiss on its right, then why in owlit's words as a muted sentence. The agent's own
-// words (an API error) are a detail folded under Details, since they mean little on their own and the
-// agent is named only where it is picked.
+// with Retry and Dismiss on its right, then why in owlit's words as a muted sentence, and what it was still
+// asking to do, since that never happened and the steps line alone reads as done. The agent's own words (an
+// API error) are a detail folded under Details, since they mean little on their own and the agent is named
+// only where it is picked.
 function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; onRetry?: () => void; onDismiss?: () => void }) {
   const [details, setDetails] = useState(false)
   const detail = message.errorDetail && message.errorDetail !== message.error ? message.errorDetail : undefined
+  const why = [message.error, unansweredSentence(message.parts)].filter(Boolean).join(" ")
   return (
     <div className="text-[13px] text-muted-foreground" role="status">
       <div className="flex items-center gap-1.5">
@@ -76,7 +79,7 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
           )}
         </span>
       </div>
-      {message.error && <p className="mt-0.5 pl-5 leading-relaxed">{message.error}</p>}
+      {why && <p className="mt-0.5 pl-5 leading-relaxed">{why}</p>}
       {details && detail && <p className="mt-1.5 ml-5 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">{detail}</p>}
     </div>
   )
@@ -205,13 +208,16 @@ export function AssistantMessage({
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
-          {/* Which model answered, and when, stays visible and lines up with the answer's left edge;
-              the actions appear after it on hover, so they never push it in */}
-          <span className="mr-1 text-xs font-normal text-muted-foreground">
-            {/* Stopping was the user's choice: said in the same muted tone, never red */}
-            {[modelName, timeOf(message.createdAt), message.status === "cancelled" && "Stopped, partial"].filter(Boolean).join(" · ")}
-          </span>
+          {/* A partial answer says so at all times, in the same muted tone (stopping was the user's
+              choice, never red), since it may read as whole */}
+          {message.status === "cancelled" && <span className="mr-0.5 text-xs font-normal text-muted-foreground">Stopped, partial</span>}
+          {/* Which model answered and when it ended show with the actions on hover, so a long chat
+              reads as the answers alone; they line up with the answer's left edge */}
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
+            <span className="mr-1 text-xs font-normal text-muted-foreground">
+              {message.status === "cancelled" && "· "}
+              {[modelName, timeOf(message.finishedAt ?? message.createdAt)].filter(Boolean).join(" · ")}
+            </span>
             {text && <CopyButton text={text} />}
             {text && onSaveAsDoc && (
               <Tooltip>
