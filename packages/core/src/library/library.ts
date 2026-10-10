@@ -104,7 +104,7 @@ export class Library {
   readonly dataDir: string
   readonly index: PaperIndex
   private readonly services: LibraryServices
-  private resolutions = new Map<string, { resolution: Resolution; at: number }>()
+  private resolutions = new Map<string, { resolution: Resolution; at: number; partial: boolean }>()
   // Journal lists fetched a moment ago, by ISSN and years, for the next page
   private journals = new Map<string, { articles: JournalArticle[]; issn: string; at: number }>()
   private scheduler: Scheduler | undefined
@@ -190,15 +190,16 @@ export class Library {
       const record = existingId ? await readRecord(this.root, existingId) : undefined
       if (existingId && record) return { paper: { id: existingId, ...pick(record) }, existingId }
     }
-    // Just found by a search or a lookup: no need to ask the services again
-    const known = ref && ref.kind !== "url" ? this.recent(paperIdOf({ [ref.kind]: ref.value }) ?? "") : undefined
+    // Just found by a search or a lookup: no need to ask the services again. A partial search result
+    // previews as it is; adding it asks the services in the background (paper.metadata).
+    const known = ref && ref.kind !== "url" ? this.kept(paperIdOf({ [ref.kind]: ref.value }) ?? "") : undefined
     let resolution: Resolution
     try {
-      resolution = known ?? (await resolve(this.services.http, ref ?? input, await this.services.settings(), { signal, retries: 1 }))
+      resolution = known?.resolution ?? (await resolve(this.services.http, ref ?? input, await this.services.settings(), { signal, retries: 1 }))
     } catch (error) {
       throw asRpcFailure(error)
     }
-    this.remember(resolution)
+    if (!known) this.remember(resolution)
     const existingId = await this.index.find(resolution.ids)
     return { paper: { id: resolution.id, ...pick(resolution) }, existingId }
   }
@@ -628,9 +629,10 @@ export class Library {
     const { limit = 20, ...filters } = options
     const record = isPaperId(ref) ? await readRecord(this.root, ref) : undefined
     const parsed = parseRef(ref)
-    const ids = this.recent(ref)?.ids ?? record?.ids ?? (parsed && parsed.kind !== "url" ? { [parsed.kind]: parsed.value } : undefined)
+    const seen = this.kept(ref)?.resolution
+    const ids = seen?.ids ?? record?.ids ?? (parsed && parsed.kind !== "url" ? { [parsed.kind]: parsed.value } : undefined)
     if (!ids) throw new RpcFailure(RpcErrorCode.NotFound, "That isn't a paper owlit knows: give a library id, an id from a search, a DOI or an arXiv id.", { ref })
-    const title = this.recent(ref)?.title ?? record?.title
+    const title = seen?.title ?? record?.title
     const found = await relatedOf(this.services.http, ids, kind, limit, filters, await this.services.settings(), { retries: 1 }).catch((error) => {
       throw asRpcFailure(error)
     })
@@ -694,7 +696,7 @@ export class Library {
     return Promise.all(
       records.map(async (r) => {
         const resolution = merge(refOfIds(r.ids)!, [r])
-        this.remember(resolution)
+        this.remember(resolution, !fromAuthority(resolution))
         const inLibrary = await this.index.find(resolution.ids)
         return clean({
           id: resolution.id,
@@ -1210,16 +1212,23 @@ export class Library {
     return run
   }
 
-  // A resolution looked up a moment ago, so add() and paper.metadata can use it whole
+  // A resolution looked up a moment ago, so add() and paper.metadata can use it whole. A partial one (a
+  // search result from a source that isn't the paper's authority) only previews: what it says is kept
+  // only after the services are asked.
   private recent(id: string): Resolution | undefined {
-    const kept = this.resolutions.get(id)
-    return kept && Date.now() - kept.at < RESOLUTION_TTL_MS ? kept.resolution : undefined
+    const kept = this.kept(id)
+    return kept && !kept.partial ? kept.resolution : undefined
   }
 
-  private remember(resolution: Resolution) {
+  private kept(id: string) {
+    const kept = this.resolutions.get(id)
+    return kept && Date.now() - kept.at < RESOLUTION_TTL_MS ? kept : undefined
+  }
+
+  private remember(resolution: Resolution, partial = false) {
     const now = Date.now()
     for (const [id, kept] of this.resolutions) if (now - kept.at >= RESOLUTION_TTL_MS) this.resolutions.delete(id)
-    this.resolutions.set(resolution.id, { resolution, at: now })
+    this.resolutions.set(resolution.id, { resolution, at: now, partial })
   }
 }
 
@@ -1233,6 +1242,15 @@ function pick(from: Resolution | PaperRecord): Omit<ResolvedPaper, "id"> {
     abstract: from.abstract,
     kind: from.kind,
   })
+}
+
+// Whether a resolution holds the answer of the service merge() trusts first for this paper: OpenAlex for
+// published work, arXiv for a preprint. A search in another source (an arXiv search finding a paper
+// that has since been published, an S2 search) gives only part of the picture: Selenite (CHI 2024), added
+// from an arXiv search on 2026-10-10, was kept with its preprint's year.
+function fromAuthority(resolution: Resolution) {
+  const authority = resolution.ids.doi ? "openalex" : "arxiv"
+  return resolution.records.some((r) => r.source === authority)
 }
 
 function asRpcFailure(error: unknown) {
