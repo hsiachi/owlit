@@ -2,7 +2,7 @@ import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 
 // What a tool call is called on screen. Agents name owlit's own tools by their MCP name
-// (mcp__owlit__library_search) and a paper's note by its file (.owlit/papers/<id>/note.md); people
+// (mcp__owlit__library_search from Claude Code, mcp.owlit.library_search from Codex) and a paper's note by its file (.owlit/papers/<id>/note.md); people
 // shouldn't have to read either, in a chat's steps, its permission card or Home's "Waiting on you".
 const OWLIT_TOOLS: Record<string, string> = {
   library_list: "List your Library",
@@ -15,6 +15,8 @@ const OWLIT_TOOLS: Record<string, string> = {
   docs_list: "List your docs",
   docs_read: "Read a doc",
   docs_add_note: "Leave a note on a doc",
+  docs_delete: "Delete docs",
+  docs_move: "Move a doc",
   chats_list: "List your chats",
   chats_read: "Read a chat",
   knowledge_read: "Read Knowledge",
@@ -27,7 +29,7 @@ const OWLIT_TOOLS: Record<string, string> = {
 const NOTE_PATH = /\.owlit\/papers\/([^/\s]+)\/note\.md/
 
 export function toolTitle(title: string): string {
-  const tool = /^mcp__owlit__(\w+)/.exec(title)
+  const tool = /^mcp(?:__|\.)owlit(?:__|\.)(\w+)/.exec(title)
   if (tool) return OWLIT_TOOLS[tool[1]] ?? tool[1].replace(/_/g, " ")
   const note = NOTE_PATH.exec(title)
   if (note) {

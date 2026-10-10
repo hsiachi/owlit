@@ -19,6 +19,7 @@ export type {
   ConnectorStatus,
   AgentModel,
   AgentMode,
+  Role,
   AgentEffort,
   Connector,
   SessionUpdate,

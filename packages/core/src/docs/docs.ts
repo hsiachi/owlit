@@ -295,6 +295,18 @@ export class Docs {
     return this.inside(file)
   }
 
+  // The files at or under a path whose text is kept, with their text: what an agent's delete or move keeps
+  // so it can be undone
+  async textsUnder(rel: string) {
+    const out: { path: string; content: string }[] = []
+    for (const [p, e] of this.snapshot) {
+      if (e.dir || !(p === rel || isWithin(p, rel)) || !keepsText(p, e)) continue
+      const content = await this.readDisk(p)
+      if (content !== null) out.push({ path: p, content })
+    }
+    return out
+  }
+
   // A file's text on disk, or null when there is none
   readDisk(rel: string) {
     return readFile(this.abs(rel), "utf8").catch(() => null)

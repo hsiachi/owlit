@@ -88,6 +88,56 @@ export class AgentFs {
     this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
   }
 
+  // Deletes docs for an agent (owlit-mcp's docs_delete, once the chat's role allows it). Each file's text is
+  // kept first, so the chat offers Undo for it; the files themselves go to the Trash.
+  async remove(paths: string[], chatId?: string) {
+    const ws = this.workspace()
+    const done: string[] = []
+    for (const file of paths) {
+      const rel = this.docPath(file)
+      const texts = await ws.docs.textsUnder(rel)
+      await ws.docs.delete(rel)
+      for (const t of texts) await this.keep(t.path, t.content, null, chatId)
+      done.push(rel)
+    }
+    return done
+  }
+
+  // Moves or renames a doc or folder for an agent (owlit-mcp's docs_move). Kept as each file leaving its
+  // old place and arriving at the new one, so Undo puts it back.
+  async move(file: string, to: string, chatId?: string) {
+    const ws = this.workspace()
+    const rel = this.docPath(file)
+    const target = this.docPath(to)
+    const texts = await ws.docs.textsUnder(rel)
+    const folder = target.includes("/") ? target.slice(0, target.lastIndexOf("/")) : ""
+    const name = target.slice(folder ? folder.length + 1 : 0)
+    if (folder) await ws.docs.createFolder(folder).catch(() => undefined)
+    let at = rel
+    const parent = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "")
+    if (parent(at) !== folder) at = (await ws.docs.move(at, folder)).path
+    if (at.slice(at.lastIndexOf("/") + 1) !== name) at = (await ws.docs.rename(at, name)).path
+    for (const t of texts) {
+      await this.keep(t.path, t.content, null, chatId)
+      await this.keep(at + t.path.slice(rel.length), null, t.content, chatId)
+    }
+    return at
+  }
+
+  // A workspace path an agent may delete or move: a doc or folder of the user's, not owlit's own
+  private docPath(file: string) {
+    const rel = this.workspace().docs.resolve(file)
+    const top = rel.split("/")[0].toLowerCase()
+    if (top === ".owlit" || top === "library" || top === "knowledge") throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't delete or move it.`, { path: rel })
+    return rel
+  }
+
+  private async keep(rel: string, before: string | null, after: string | null, chatId?: string) {
+    const version = await this.workspace().versions.saveFile(rel, before, after, { chatId })
+    this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
+    this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
+  }
+
   // An agent that writes the disk itself (Claude Code does, not through ACP's fs): its change, seen by the
   // watcher while one of its tool calls names the file, is kept and journaled the same way
   async recordDirect(rel: string, before: string | null, after: string | null, chatId: string) {

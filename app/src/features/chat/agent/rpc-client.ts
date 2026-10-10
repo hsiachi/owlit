@@ -27,7 +27,7 @@ export class RpcAgentClient implements AgentClient {
         chatId: req.chatId,
         connectorId: req.connectorId,
         modelId: req.modelId,
-        modeId: req.modeId,
+        role: req.role,
         effortId: req.effortId,
         input: { ...req.input, attachments: req.input.attachments.map(({ previewUrl: _url, ...a }) => a) },
         userMessage: req.userMessage,

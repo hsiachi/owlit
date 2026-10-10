@@ -68,13 +68,41 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 4/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 5/)
   })
 
-  it("sets the model, mode and effort the chat asks for", async () => {
+  it("sets the model and effort the chat asks for, and leaves the mode of an agent owlit has no guard for", async () => {
     const { send, text } = await setup()
-    await send("one", { modelId: "large", modeId: "auto", effortId: "high" })
-    expect(text()).toContain("(large/auto/high)")
+    await send("one", { modelId: "large", role: "coauthor", effortId: "high" })
+    expect(text()).toContain("(large/ask/high)")
+  })
+
+  it("refuses a Reviewer's request to run something before the user sees it", async () => {
+    const { send, updates, text } = await setup()
+    await send("needs permission", { role: "reviewer" })
+    expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+    expect(text()).toBe("you chose no")
+  })
+
+  it("decides consent for owlit's own tools by the chat's role, asking the user when the role says so", async () => {
+    const { send, updates, call } = await setup()
+    // Between turns the saved role decides, and nobody can be asked
+    await call("chats.update", { id: "c1", patch: { role: "reviewer" } })
+    expect(await call("agents.consent", { chatId: "c1", action: "add_paper", title: "Add a paper" })).toMatchObject({ allowed: false })
+    await call("chats.update", { id: "c1", patch: { role: "assistant" } })
+    expect(await call("agents.consent", { chatId: "c1", action: "add_paper", title: "Add a paper" })).toEqual({ allowed: true })
+    expect(await call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })).toMatchObject({ allowed: false })
+    // During an Assistant's turn a delete is asked in the chat, as a tool call with the card
+    const turn = send("slow please", { role: "assistant" })
+    await sleep(300)
+    const asked = call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })
+    while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+    const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
+    expect(ask).toMatchObject({ title: "Delete old", kind: "delete" })
+    await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "allow" })
+    expect(await asked).toEqual({ allowed: true })
+    await call("agents.cancel", { chatId: "c1" })
+    await turn
   })
 
   it("asks permission and passes on the answer; Reject reaches the agent", async () => {
@@ -143,6 +171,34 @@ describe("turns", () => {
     expect(readFileSync(path.join(root, ".owlit/versions", wrote[0].versionId), "utf8")).toBe("twelve chars")
     await call("versions.restore", { id: wrote[0].versionId })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+  })
+
+  it("saves each turn in its own answer and keeps its edits, while the session stays open", async () => {
+    const { send, core, call } = await setup()
+    await call("docs.list")
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
+    await send("direct notes.md first")
+    for (let i = 0; i < 80 && wrote.length < 1; i++) await sleep(25)
+    await send("direct notes.md second")
+    for (let i = 0; i < 80 && wrote.length < 2; i++) await sleep(25)
+    const [, first, , second] = (await call("chats.get", { id: "c1" })).messages
+    expect(first.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
+    expect(second.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
+    expect(wrote).toHaveLength(2)
+  })
+
+  it("keeps a Co-author's change that no tool call names, and nobody else's", async () => {
+    const { send, core, call } = await setup()
+    await call("docs.list")
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
+    await send("silent notes.md by an assistant's shell", { role: "assistant" })
+    await sleep(800)
+    expect(wrote).toHaveLength(0)
+    await send("silent notes.md by a co-author's shell", { role: "coauthor" })
+    for (let i = 0; i < 80 && !wrote.length; i++) await sleep(25)
+    expect(wrote).toMatchObject([{ path: "notes.md", chatId: "c1" }])
   })
 
   it("writes files for the agent and tells clients", async () => {

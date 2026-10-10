@@ -198,7 +198,9 @@ export class Agents {
 
   private async connectorOf(def: ConnectorDef): Promise<Connector> {
     const { connectors } = await this.options.settings.get()
-    const probed = connectors.probed?.[def.id]
+    const stored = connectors.probed?.[def.id]
+    // Probes saved before the tidying are tidied as they are read
+    const probed = stored ? tidy(stored) : undefined
     const live = this.live.get(def.id) ?? {}
     const fallback = [{ id: "default", name: "Default" }]
     return {
@@ -253,7 +255,7 @@ export function probe(init: acp.InitializeResponse, session: acp.NewSessionRespo
   const model = select("model")
   const effort = select("thought_level")
   const mode = select("mode") ?? (session.modes ? { items: session.modes.availableModes.map((m) => ({ id: m.id, name: m.name, ...(m.description ? { description: m.description } : {}) })), current: session.modes.currentModeId } : null)
-  return {
+  return tidy({
     checkedAt: Date.now(),
     version: init.agentInfo?.version,
     models: model?.items ?? [],
@@ -262,8 +264,33 @@ export function probe(init: acp.InitializeResponse, session: acp.NewSessionRespo
     defaultModelId: model?.current,
     defaultModeId: mode?.current,
     defaultEffortId: effort?.current,
-  }
+  })
 }
+
+type Item = ProbedConnector["models"][number]
+
+// The pickers list real choices only. An entry with the id "default" stands for whatever the agent picks
+// itself (Claude Code sends "Default (recommended)", described as "Opus", besides Opus 5.5 itself), so it
+// would show the same model twice: it is dropped, and the default becomes the model it points at. Names
+// lose a "(recommended)" tag, and an effort spelled "Xhigh" reads "Extra high".
+export function tidy(probed: ProbedConnector): ProbedConnector {
+  const pointer = probed.models.find((m) => m.id === "default")
+  const models = probed.models.filter((m) => m.id !== "default").map(clean)
+  const target = (key?: string) => {
+    if (!key) return undefined
+    const k = key.trim().toLowerCase()
+    return models.find((m) => m.id.toLowerCase() === k) ?? models.find((m) => m.name.toLowerCase().startsWith(k))
+  }
+  const defaultModelId =
+    probed.defaultModelId && probed.defaultModelId !== "default" && models.some((m) => m.id === probed.defaultModelId)
+      ? probed.defaultModelId
+      : (target(pointer?.description) ?? models[0])?.id
+  const efforts = probed.efforts.filter((e) => e.id !== "default").map(clean)
+  const defaultEffortId = efforts.some((e) => e.id === probed.defaultEffortId) ? probed.defaultEffortId : efforts.find((e) => e.id === "medium")?.id ?? efforts[0]?.id
+  return { ...probed, models, efforts, defaultModelId, defaultEffortId }
+}
+
+const clean = (item: Item): Item => ({ ...item, name: item.id === "xhigh" ? "Extra high" : item.name.replace(/\s*\(recommended\)\s*$/i, "") })
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : String(error))
 
