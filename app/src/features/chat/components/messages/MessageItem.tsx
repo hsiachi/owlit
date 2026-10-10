@@ -9,10 +9,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { MentionBadge } from "../composer/MentionBadge"
-import { KnowledgeUpdates } from "@/features/knowledge/components/ChatUpdates"
 import { unansweredSentence } from "../../lib/step-words"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
-import { ResultRows } from "./ResultRows"
+import { ResultCard } from "./ResultRows"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -47,7 +46,8 @@ function CopyButton({ text }: { text: string }) {
 // A small text button in a muted line (Retry, Dismiss), 24px tall so it is easy to hit
 const TEXT_BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-foreground outline-none hover:bg-muted focus-key:bg-muted"
 
-// The one red mark a reply can have, as a small block rather than a line that wraps: "Owlit stopped"
+// The one red mark a reply can have, as a small bordered block (the result card's frame) so it reads as
+// one thing apart from the answer and its results, rather than a line that wraps: "Owlit stopped"
 // with Retry and Dismiss on its right, then why in owlit's words as a muted sentence, and what it was still
 // asking to do, since that never happened and the steps line alone reads as done. The agent's own words (an
 // API error) are a detail folded under Details, since they mean little on their own and the agent is named
@@ -57,7 +57,7 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
   const detail = message.errorDetail && message.errorDetail !== message.error ? message.errorDetail : undefined
   const why = [message.error, unansweredSentence(message.parts)].filter(Boolean).join(" ")
   return (
-    <div className="text-[13px] text-muted-foreground" role="status">
+    <div className="rounded-lg border py-2 pr-2 pl-3 text-[13px] text-muted-foreground" role="status">
       <div className="flex items-center gap-1.5">
         <CircleXIcon className="size-3.5 shrink-0 text-destructive" />
         <span className="text-destructive">Owlit stopped</span>
@@ -202,8 +202,7 @@ export function AssistantMessage({
             Working…
           </div>
         )}
-        {!streaming && <KnowledgeUpdates parts={message.parts} />}
-        <ResultRows messageId={message.id} />
+        {!streaming && <ResultCard message={message} />}
         {message.status === "error" && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
       </MessageContent>
       {!streaming && (
