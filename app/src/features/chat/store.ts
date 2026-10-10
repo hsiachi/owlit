@@ -275,6 +275,12 @@ export const useChatStore = create<ChatState>()(
             true,
           )
         } finally {
+          // What core saved is the answer: a streamed update can go missing on its way here (a reply once
+          // showed only its first letter), and this side never hears it again
+          if (agentClient.persistsMessages && isDesktop) {
+            const saved = (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === assistantMsg.id)
+            if (saved && saved.status !== "streaming") patchAssistant(() => saved)
+          }
           inflight.delete(chatId)
           over.delete(chatId)
           // Work handed off goes on without anyone watching; how it ended waits on its row until seen
