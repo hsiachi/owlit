@@ -80,6 +80,7 @@ export function deleteChatOnDisk(id: string) {
 }
 
 export const appendMessageOnDisk = (id: string, message: ChatMessage) => enqueue(() => rpc.chats.appendMessage({ id, message }))
+export const removeMessagesOnDisk = (id: string, messageIds: string[]) => enqueue(() => rpc.chats.removeMessages({ id, messageIds }))
 
 // A streamed answer, as it grows: the latest version waits here until it is sent
 const pending = new Map<string, { chatId: string; message: ChatMessage; timer: ReturnType<typeof setTimeout> }>()

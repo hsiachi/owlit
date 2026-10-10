@@ -247,6 +247,9 @@ export class Core {
     this.router.register("chats.appendMessage", z.object({ id: chatId, message }), ({ id, message }) =>
       chats().appendMessage(id, message),
     )
+    this.router.register("chats.removeMessages", z.object({ id: chatId, messageIds: z.array(z.string()) }), ({ id, messageIds }) =>
+      chats().removeMessages(id, messageIds),
+    )
     this.router.register("chats.patchMessage", z.object({ id: chatId, message, final: z.boolean().optional() }), ({ id, message, final }) =>
       chats().patchMessage(id, message, final),
     )

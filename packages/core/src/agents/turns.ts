@@ -14,6 +14,7 @@ import {
   type SessionUpdate,
   type StopReason,
   type ToolKind,
+  withoutAgentError,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { realpathSync } from "node:fs"
@@ -134,7 +135,7 @@ export class Turns {
     turn.emit = emit
     if (turn.role === "coauthor") this.coauthors.set(req.chatId, Infinity)
     const finish = async (status: ChatMessage["status"], error?: string) => {
-      turn.message = { ...turn.message, status, ...(error ? { error } : {}) }
+      turn.message = withoutAgentError({ ...turn.message, status, ...(error ? { error } : {}) })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
     }
 
@@ -166,7 +167,16 @@ export class Turns {
         await finish("cancelled")
         return "cancelled"
       }
-      const text = isAuthError(error) ? await this.options.agents.signedOut(req.connectorId) : messageOf(error)
+      // What the agent said as it failed decides between a sign-in and a refusal it can't fix by signing in
+      const said = withoutAgentError({ ...turn.message, status: "error" }).errorDetail ?? ""
+      const agents = this.options.agents
+      const text = isAuthError(error)
+        ? /\b403\b/.test(said)
+          ? await agents.refused(req.connectorId)
+          : await agents.signedOut(req.connectorId)
+        : GENERIC.test(messageOf(error)) && said
+          ? `${await agents.nameOf(req.connectorId)} ran into a problem.`
+          : messageOf(error)
       await finish("error", text)
       throw new RpcFailure(RpcErrorCode.InternalError, text)
     } finally {
@@ -599,6 +609,9 @@ async function asAcpError<T>(work: Promise<T>): Promise<T> {
     throw error
   }
 }
+
+// An error that says nothing beyond that there was one: the agent's own words then explain it
+const GENERIC = /^(internal error|error|unknown error)\.?$/i
 
 // ACP's "auth_required"
 const isAuthError = (error: unknown) => typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === -32000

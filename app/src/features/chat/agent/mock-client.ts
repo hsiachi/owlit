@@ -90,6 +90,12 @@ export class MockAgentClient implements AgentClient {
       if (/\bweb\b/i.test(text)) return await this.webResearch(emit, signal)
       if (/\b(ask me|questions?)\b/i.test(text)) return await this.askQuestions(emit, signal)
       // Lets the browser build show a reply that broke
+      // A request the agent's service refused, said first as the answer's text, as Claude Code does
+      if (/\brefuse\b/i.test(text)) {
+        await sleep(400, signal)
+        emit({ type: "agent_message_chunk", text: "Failed to authenticate. API Error: 403 Request not allowed" })
+        throw new Error("Claude Code's service refused the request (403). If Claude Code is signed in, this is usually the network or a proxy; try again in a moment.")
+      }
       if (/\bfail(s|ed)? on purpose\b/i.test(text)) {
         await sleep(600, signal)
         throw new Error("The agent process exited (code 1)")

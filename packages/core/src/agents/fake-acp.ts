@@ -117,6 +117,11 @@ class FakeAgent implements acp.Agent {
         await say(rules ? "got the rules" : "no rules this time")
         return { stopReason: "end_turn" }
       }
+      // As Claude Code fails a turn the API refused: its error as answer text, then auth_required
+      if (text.includes("refuse me")) {
+        await say("Failed to authenticate. API Error: 403 Request not allowed")
+        throw acp.RequestError.authRequired()
+      }
       if (text.includes("crash")) {
         await say("about to crash")
         process.exit(3)

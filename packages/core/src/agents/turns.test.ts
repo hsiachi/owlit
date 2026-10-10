@@ -160,6 +160,16 @@ describe("turns", () => {
     expect(updates.some((u) => u.type === "question_resolved" && u.outcome === "cancelled")).toBe(true)
   })
 
+  it("keeps a refused request's error out of the answer, and doesn't call it a sign-in", async () => {
+    const { send, call, agent } = await setup()
+    await expect(send("refuse me please")).rejects.toThrow(/refused the request \(403\)/)
+    const saved = (await call("chats.get", { id: "c1" })).messages[1]
+    expect(saved).toMatchObject({ status: "error", errorDetail: "Failed to authenticate. API Error: 403 Request not allowed" })
+    expect(saved.parts.filter((p: any) => p.type === "text")).toEqual([])
+    const connectors = await call("agents.list")
+    expect(connectors.find((c: any) => c.id === agent.id).authenticated).not.toBe(false)
+  })
+
   it("cancels a turn quickly, closing it as cancelled", async () => {
     const { send, call } = await setup()
     const turn = send("slow please")
