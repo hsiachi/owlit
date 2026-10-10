@@ -20,6 +20,23 @@ function httpServing(routes: Record<string, string | number>) {
 }
 
 describe("resolve", () => {
+  it("files a preprint added by its OpenAlex id under its arXiv id, found among OpenAlex's locations", async () => {
+    const work = {
+      id: "https://openalex.org/W4384648639",
+      ids: { openalex: "https://openalex.org/W4384648639" },
+      title: "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning",
+      publication_year: 2023,
+      type: "preprint",
+      authorships: [{ author: { display_name: "Tri Dao" } }],
+      locations: [{ landing_page_url: "https://arxiv.org/abs/2307.08691", pdf_url: "https://arxiv.org/pdf/2307.08691v1" }],
+    }
+    const { http, asked } = httpServing({ W4384648639: JSON.stringify(work) })
+    const paper = await resolve(http, "W4384648639")
+    expect(paper).toMatchObject({ id: "arxiv-2307.08691", ids: { openalex: "W4384648639", arxiv: "2307.08691" } })
+    // arXiv, the authority for a preprint, was asked too
+    expect(asked.some((u) => u.includes("id_list=2307.08691"))).toBe(true)
+  })
+
   it("trusts arXiv for a preprint and keeps its PDF link", async () => {
     const { http, asked } = httpServing({ "export.arxiv.org/api/query?id_list=1706.03762": fixture("arxiv-1706.03762.xml") })
     const paper = await resolve(http, "https://arxiv.org/abs/1706.03762v7")

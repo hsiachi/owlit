@@ -27,7 +27,7 @@ import type { AgentFs } from "./fs.ts"
 import type { AcpProcess, SessionHandler } from "./process.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, guardFor, roleNote, takesRules, withUserName, type Guard } from "./roles.ts"
-import { preamble } from "./rules.ts"
+import { preamble, USER_FOLLOWS } from "./rules.ts"
 
 export interface TurnRequest {
   chatId: string
@@ -154,9 +154,9 @@ export class Turns {
       // owlit's rules and the role: in a new session's first prompt, unless the agent takes them itself
       const preamble = fresh.created && !fresh.rulesInSystemPrompt
       const userName = preamble ? await this.options.userName?.() : undefined
-      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName)
       // The role goes before the user's words whenever it is new to this session
-      if (live.told !== turn.role && !fresh.rulesInSystemPrompt) prompt.splice(preamble ? 1 : 0, 0, { type: "text", text: roleNote(turn.role) })
+      const role = live.told !== turn.role && !fresh.rulesInSystemPrompt ? roleNote(turn.role) : undefined
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role)
       live.told = turn.role
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
@@ -513,11 +513,16 @@ const loading = new Set<string>()
 // What the user sent, as content blocks: the text (mentions as their names), each mentioned or on-screen
 // doc as a link to its file, papers and Knowledge by their owlit:// address, and a selected passage
 // quoted. A session started over gets the conversation so far first.
-export function promptBlocks(input: PromptInput, root: string, history: string | null, fresh = false, userName?: string): acp.ContentBlock[] {
+// What the agent is told for one turn, in this order: owlit's rules (a new session), the role (when it is
+// new to the session), the conversation so far (a session started over), then the user's own words after
+// a line marking where they begin
+export function promptBlocks(input: PromptInput, root: string, history: string | null, fresh = false, userName?: string, role?: string): acp.ContentBlock[] {
   const blocks: acp.ContentBlock[] = []
   // A new session hears owlit's rules first; a loaded one heard them when it began
   if (fresh) blocks.push({ type: "text", text: preamble(root, userName) })
+  if (role) blocks.push({ type: "text", text: role })
   if (history) blocks.push({ type: "text", text: `The conversation so far, for context:\n\n${history}\n\n---\n` })
+  if (blocks.length) blocks.push({ type: "text", text: USER_FOLLOWS })
   blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {
     const quoted = input.selection.text.split("\n").map((l) => `> ${l}`).join("\n")

@@ -1,6 +1,7 @@
 import type { PaperKind } from "@owlit/protocol"
 import type { Http, RequestOptions } from "../../net/http.ts"
 import type { SourceRecord } from "./types.ts"
+import { parseRef } from "../refs.ts"
 
 // OpenAlex: the main source for published work (venue, year, type, open-access links). Asked only by
 // DOI or OpenAlex id: its arXiv matching can land on a copy from another server.
@@ -36,7 +37,7 @@ interface Work {
   authorships?: { author: { display_name: string } }[]
   primary_location?: { source?: { display_name?: string } | null } | null
   best_oa_location?: { pdf_url?: string | null } | null
-  locations?: { pdf_url?: string | null }[]
+  locations?: { pdf_url?: string | null; landing_page_url?: string | null }[]
   abstract_inverted_index?: Record<string, number[]> | null
   cited_by_count?: number
 }
@@ -48,9 +49,12 @@ export function parseOpenAlex(raw: string): SourceRecord | undefined {
   const pdfUrls = [work.best_oa_location?.pdf_url, ...(work.locations ?? []).map((l) => l.pdf_url)].filter(
     (url, i, all): url is string => !!url && all.indexOf(url) === i,
   )
+  // OpenAlex has no arXiv id field, but lists the arXiv copy among the paper's locations. Knowing it files
+  // a preprint as arxiv-… (the id an agent or the user would add it by) rather than openalex-…
+  const arxiv = (work.locations ?? []).flatMap((l) => [l.landing_page_url, l.pdf_url]).map((url) => (url ? parseRef(url) : undefined)).find((ref) => ref?.kind === "arxiv")?.value
   return {
     source: "openalex",
-    ids: { openalex: work.id.replace(/^https?:\/\/openalex\.org\//, ""), ...(doi ? { doi } : {}) },
+    ids: { openalex: work.id.replace(/^https?:\/\/openalex\.org\//, ""), ...(doi ? { doi } : {}), ...(arxiv ? { arxiv } : {}) },
     title: work.title ?? undefined,
     authors: work.authorships?.map((a) => a.author.display_name),
     year: work.publication_year ?? undefined,

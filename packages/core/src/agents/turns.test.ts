@@ -72,6 +72,20 @@ describe("turns", () => {
     expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 5/)
   })
 
+  it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {
+    const texts = (blocks: ReturnType<typeof promptBlocks>) => blocks.map((b) => (b as { text: string }).text.split("\n")[0])
+    const input = { text: "hi", mentions: [], attachments: [] }
+    expect(texts(promptBlocks(input, "/ws", "earlier", true, undefined, "[owlit] In this chat Owlit works as Reviewer"))).toEqual([
+      "[owlit] This session runs inside owlit. The user's workspace is /ws.",
+      "[owlit] In this chat Owlit works as Reviewer",
+      "The conversation so far, for context:",
+      "[owlit] The user's message follows.",
+      "hi",
+    ])
+    // Nothing of owlit's to say: just the message
+    expect(texts(promptBlocks(input, "/ws", null))).toEqual(["hi"])
+  })
+
   it("tells a new session the user's name when they gave one", () => {
     const first = (name?: string) => (promptBlocks({ text: "hi", mentions: [], attachments: [] }, "/ws", null, true, name)[0] as { text: string }).text
     expect(first("Xia")).toContain("The user's name is Xia")

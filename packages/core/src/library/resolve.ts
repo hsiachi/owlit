@@ -92,6 +92,11 @@ export async function resolve(http: Http, input: string | Ref, keys: MetadataKey
   } else {
     const openalex = await ask(() => fetchOpenAlex(http, { openalex: ref.value }, keys, request))
     if (openalex?.ids.doi) await ask(() => fetchS2(http, { doi: openalex.ids.doi! }, s2Key, request))
+    // A preprint (OpenAlex found its arXiv copy, and no published DOI): arXiv is its authority
+    else if (openalex?.ids.arxiv) {
+      const arxivId = openalex.ids.arxiv
+      await Promise.all([ask(() => fetchArxiv(http, arxivId, request)), ask(() => fetchS2(http, { arxiv: arxivId }, s2Key, request))])
+    }
   }
 
   if (!records.length) {

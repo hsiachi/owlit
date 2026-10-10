@@ -49,10 +49,13 @@ Read them with knowledge_read and write them with knowledge_write, which checks 
 10. When conditions differ, set the findings side by side; don't call them a contradiction.
 11. If you don't know, don't write it.`
 
+// Marks where owlit's own words (rules, role, the conversation so far) end and the user's begin
+export const USER_FOLLOWS = "[owlit] The user's message follows."
+
 // Said before the first prompt of every new session, never shown or kept in the chat. The user's name,
 // when they gave one in Settings, is said here rather than in the rules, which owlit-mcp also serves
 // and which stay the same for everyone.
 export function preamble(root: string, userName?: string) {
   const name = userName ? ` The user's name is ${userName}; call them that when you address them.` : ""
-  return `[owlit] This session runs inside owlit. The user's workspace is ${root}.${name}\n\n${AGENT_RULES}\n\n[owlit] The user's message follows.`
+  return `[owlit] This session runs inside owlit. The user's workspace is ${root}.${name}\n\n${AGENT_RULES}`
 }
