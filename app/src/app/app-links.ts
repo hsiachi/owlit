@@ -6,6 +6,7 @@ import { openSettings, SECTIONS, type SettingsSection } from "@/features/setting
 import { openShortcuts } from "./shortcuts"
 
 const SECTION_NAMES: Record<SettingsSection, string> = {
+  profile: "Profile",
   appearance: "Appearance",
   agents: "Agents",
   sources: "Paper sources",

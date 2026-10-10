@@ -45,6 +45,8 @@ interface TurnsOptions {
   notify: (chatId: string, update: SessionUpdate) => void
   // The MCP servers a chat's session gets (owlit-mcp, for that chat)
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
+  // What the user asked Owlit to call them, read when a session starts
+  userName?: () => Promise<string | undefined>
 }
 
 // A session of one chat on one agent, as owlit knows it
@@ -144,7 +146,8 @@ export class Turns {
       log("configured")
       // Stopped while the agent was starting: it isn't asked at all
       if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
-      const prompt = promptBlocks(req.input, ws.root, fresh.history, fresh.created)
+      const userName = fresh.created ? await this.options.userName?.() : undefined
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, fresh.created, userName)
       // The role goes before the user's words whenever it is new to this session
       if (live.told !== turn.role) prompt.splice(fresh.created ? 1 : 0, 0, { type: "text", text: roleNote(turn.role) })
       live.told = turn.role
@@ -454,10 +457,10 @@ const loading = new Set<string>()
 // What the user sent, as content blocks: the text (mentions as their names), each mentioned or on-screen
 // doc as a link to its file, papers and Knowledge by their owlit:// address, and a selected passage
 // quoted. A session started over gets the conversation so far first.
-export function promptBlocks(input: PromptInput, root: string, history: string | null, fresh = false): acp.ContentBlock[] {
+export function promptBlocks(input: PromptInput, root: string, history: string | null, fresh = false, userName?: string): acp.ContentBlock[] {
   const blocks: acp.ContentBlock[] = []
   // A new session hears owlit's rules first; a loaded one heard them when it began
-  if (fresh) blocks.push({ type: "text", text: preamble(root) })
+  if (fresh) blocks.push({ type: "text", text: preamble(root, userName) })
   if (history) blocks.push({ type: "text", text: `The conversation so far, for context:\n\n${history}\n\n---\n` })
   blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {

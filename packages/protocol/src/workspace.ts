@@ -50,6 +50,13 @@ export interface AppSettings {
   // Whether the renderer reports what the user does (the activity stream and journal)
   activity: { enabled: boolean }
   appearance: AppearanceSettings
+  profile: ProfileSettings
+}
+
+// Who the user is, as far as owlit needs to know
+export interface ProfileSettings {
+  // What Owlit calls the user: in the Chat greeting, and in what agents are told
+  name?: string
 }
 
 // How owlit looks on this machine. A paper tone swaps the whole neutral family (surfaces, text, lines);

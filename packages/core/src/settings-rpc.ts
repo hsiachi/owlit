@@ -35,6 +35,7 @@ export function settingsView(s: AppSettings): SettingsView {
   const { library, parsing } = s
   return {
     appearance: s.appearance,
+    profile: s.profile,
     library: defined({
       contactEmail: library.contactEmail,
       proxy: library.proxy,
@@ -71,6 +72,7 @@ export function applyPatch(s: AppSettings, patch: SettingsPatch): AppSettings {
   return {
     ...s,
     appearance: { ...s.appearance, ...patch.appearance },
+    profile: merge(s.profile, patch.profile),
     library: merge(s.library, patch.library),
     parsing: merge(s.parsing, patch.parsing),
     connectors,
@@ -80,6 +82,7 @@ export function applyPatch(s: AppSettings, patch: SettingsPatch): AppSettings {
 const nullable = <T extends z.ZodType>(type: T) => type.nullable().optional()
 const patchSchema = z.object({
   appearance: z.object({ theme: z.enum(["system", "light", "dark"]).optional(), tone: z.enum(["warm", "neutral", "slate", "sepia"]).optional() }).optional(),
+  profile: z.object({ name: nullable(z.string().trim().max(60)) }).optional(),
   library: z
     .object({
       contactEmail: nullable(z.string().trim().max(320)),

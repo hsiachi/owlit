@@ -64,7 +64,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has six sections: Appearance (theme and paper tone), Agents, Paper sources (contact email, Semantic Scholar and OpenAlex keys), Library proxy, PDF reading (built-in, or MinerU for better text) and Privacy. Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has seven sections: Profile (the name Owlit calls the user), Appearance (theme and paper tone), Agents, Paper sources (contact email, Semantic Scholar and OpenAlex keys), Library proxy, PDF reading (built-in, or MinerU for better text) and Privacy. Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",
@@ -73,7 +73,7 @@ const TOPICS: GuideTopic[] = [
   },
 ]
 
-const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (appearance, agents, sources, proxy, reading, privacy), for example [Settings › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
+const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (profile, appearance, agents, sources, proxy, reading, privacy), for example [Settings › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
 
 export function guide(topic?: string) {
   const list = TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")

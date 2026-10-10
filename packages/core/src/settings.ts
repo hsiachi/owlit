@@ -13,6 +13,7 @@ export const defaultSettings = (): AppSettings => ({
   library: {},
   activity: { enabled: true },
   appearance: { theme: "system", tone: "warm" },
+  profile: {},
 })
 
 // The keys in settings.json. On disk each is { sealed: <base64> } when the host can seal (the desktop
