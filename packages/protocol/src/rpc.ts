@@ -122,6 +122,8 @@ export interface Methods {
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
   "docs.open": { params: { path: string }; result: null }
+  // Shows a file or folder in Finder, selected
+  "docs.reveal": { params: { path: string }; result: null }
 
   // ---- Notes agents left on docs, kept beside the files (.owlit/docs/notes/); they follow renames,
   // moves and deletes made through docs.* or outside owlit

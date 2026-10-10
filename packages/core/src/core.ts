@@ -193,6 +193,7 @@ export class Core {
       ({ files, folders }) => docs().restore(files, folders),
     )
     this.router.register("docs.open", z.object({ path: rel }), ({ path }) => docs().open(path))
+    this.router.register("docs.reveal", z.object({ path: rel }), ({ path }) => docs().reveal(path))
 
     const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
     const note = anchor.extend({
