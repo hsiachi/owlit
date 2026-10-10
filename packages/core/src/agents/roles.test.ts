@@ -9,7 +9,8 @@ describe("roles", () => {
     expect(guardFor("claude-code", "reviewer", ["/w"]).meta).toMatchObject({ claudeCode: { options: { settings: { permissions: { deny: ["Edit", "Write"] } } } } })
     // A Co-author's options differ from the others', so changing role rebuilds the session
     const coauthor = guardFor("claude-code", "coauthor", ["/w"])
-    expect(coauthor.meta).toEqual({ claudeCode: { options: {} } })
+    expect(coauthor.meta).toMatchObject({ claudeCode: { options: { settingSources: [] } } })
+    expect(coauthor.meta).not.toEqual(assistant.meta)
   })
 
   it("runs Codex read-only unless Owlit is a Co-author", () => {

@@ -2,6 +2,7 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
+import { sessionMeta } from "./isolation.ts"
 import { preamble } from "./rules.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
@@ -50,8 +51,9 @@ export class Background {
     // into its first line ("I'll read the rest.# Title")
     let apart = false
     const refused: string[] = []
+    const _meta = sessionMeta(connectorId)
     const session = await proc.newSession(
-      { cwd: run.root, mcpServers: run.mcpServers },
+      { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {
         update: (n) => {
           if (n.update.sessionUpdate === "agent_message_chunk" && n.update.content.type === "text") {

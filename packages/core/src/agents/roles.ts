@@ -1,4 +1,5 @@
 import type { ConsentAction, Role, ToolKind } from "@owlit/protocol"
+import { sessionMeta } from "./isolation.ts"
 
 // What a role means on each agent. owlit relies on one thing: an agent asks, with the diff, before it
 // changes the user's files. Each agent is held to that with its own controls, since none of them sends
@@ -26,7 +27,7 @@ export function guardFor(connectorId: string, role: Role, roots: string[]): Guar
     // Without auto mode (a plan or model that lacks it) the default mode asks for everything, which only
     // makes a Co-author ask more
     const modes = ["auto", "default"]
-    if (role === "coauthor") return { modes, meta: { claudeCode: { options: {} } } }
+    if (role === "coauthor") return { modes, meta: sessionMeta(connectorId) }
     const permissions = role === "reviewer" ? { deny: CLAUDE_EDIT_TOOLS } : { ask: CLAUDE_EDIT_TOOLS }
     const sandbox = {
       enabled: true,
@@ -36,7 +37,7 @@ export function guardFor(connectorId: string, role: Role, roots: string[]): Guar
       allowUnsandboxedCommands: false,
       filesystem: { denyWrite: roots },
     }
-    return { modes, meta: { claudeCode: { options: { settings: { permissions }, sandbox } } } }
+    return { modes, meta: sessionMeta(connectorId, { settings: { permissions }, sandbox }) }
   }
   if (connectorId === "codex") return { modes: role === "coauthor" ? ["agent", "workspace-write"] : ["read-only"] }
   return { modes: [] }
