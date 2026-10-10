@@ -208,9 +208,23 @@ describe("turns", () => {
   it("fails a turn whose agent crashes, and the next turn works", async () => {
     const { send, call } = await setup()
     const error = await send("crash now").catch((e) => e)
-    expect(error.message).toBeTruthy()
-    expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({ status: "error" })
+    // Said in owlit's words, not the library's "ACP connection closed"; how it ended is the detail
+    expect(error.message).toBe("Fake quit unexpectedly. It starts again with the next message.")
+    expect(error.data).toEqual({ detail: "Fake exited with code 3" })
+    const reply = (await call("chats.get", { id: "c1" })).messages[1]
+    expect(reply).toMatchObject({ status: "error", error: error.message, errorDetail: "Fake exited with code 3" })
+    expect(reply.finishedAt).toBeGreaterThanOrEqual(reply.createdAt)
     expect(await send("again")).toEqual({ stopReason: "end_turn" })
+  })
+
+  it("says a turn cut off by owlit closing was closed, not that the agent broke", async () => {
+    const { send, call, core } = await setup()
+    const turn = send("slow please").catch((e) => e)
+    await sleep(400)
+    core.agents.dispose()
+    const error = await turn
+    expect(error.message).toBe("Owlit was closed before it could finish.")
+    expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({ status: "error", error: error.message })
   })
 
   it("serves file reads inside the workspace and refuses the rest", async () => {

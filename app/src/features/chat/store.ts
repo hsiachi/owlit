@@ -258,10 +258,22 @@ export const useChatStore = create<ChatState>()(
             controller.signal,
           )
           if (stop === "cancelled") ended = "cancelled"
-          patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done" }), true)
+          patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done", finishedAt: Date.now() }), true)
         } catch (e) {
           ended = "failed"
-          patchAssistant((m) => withoutAgentError({ ...m, status: "error", error: e instanceof Error ? e.message : String(e) }), true)
+          // Core may say more than its sentence: how the agent's process ended, for Details
+          const detail = (e as { data?: { detail?: unknown } }).data?.detail
+          patchAssistant(
+            (m) =>
+              withoutAgentError({
+                ...m,
+                status: "error",
+                finishedAt: Date.now(),
+                error: e instanceof Error ? e.message : String(e),
+                ...(typeof detail === "string" ? { errorDetail: detail } : {}),
+              }),
+            true,
+          )
         } finally {
           inflight.delete(chatId)
           over.delete(chatId)

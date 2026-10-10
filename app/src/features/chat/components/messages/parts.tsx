@@ -240,6 +240,8 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
   const rows = rowsOf(parts, active, asks)
   const failed = calls.filter((c) => c.status === "failed" && !isRejection(asks.outcomes[c.toolCallId]) && asks.questions[c.toolCallId]?.outcome !== "skipped").length
   const refused = calls.filter((c) => isRejection(asks.outcomes[c.toolCallId]) && asks.outcomes[c.toolCallId] !== "cancelled").length
+  // Steps the answer stopped in the middle of; their rows say "Stopped"
+  const stopped = streaming ? 0 : calls.filter((c) => (c.status === "pending" || c.status === "in_progress") && !isRejection(asks.outcomes[c.toolCallId]) && !stepWords(c).hidden).length
   const lost = !live ? unsaved(calls, asks.outcomes) : undefined
   const shown = calls.filter((c) => !stepWords(c).hidden).length
 
@@ -270,8 +272,10 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
     head = (
       <>
         <span className="truncate">{blockSentence(calls, (c) => asks.questions[c.toolCallId]?.questions.length ?? 1)}</span>
-        {(failed > 0 || refused > 0) && (
-          <span className="shrink-0 text-muted-foreground">({[failed && `${failed} failed`, refused && `${refused} not allowed`].filter(Boolean).join(", ")})</span>
+        {(failed > 0 || refused > 0 || stopped > 0) && (
+          <span className="shrink-0 text-muted-foreground">
+            ({[failed && `${failed} failed`, refused && `${refused} not allowed`, stopped && `${stopped} stopped`].filter(Boolean).join(", ")})
+          </span>
         )}
       </>
     )

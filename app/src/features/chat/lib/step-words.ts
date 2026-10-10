@@ -263,6 +263,10 @@ export function blockSentence(calls: ToolCall[], questionsOf: (call: ToolCall) =
     else groups.set(w.group, { n: 1, one: w.done })
   }
   if (groups.size > 3) return `Took ${shown.length} steps`
+  // Single steps on one file name it once ("Read and edited story.md")
+  const singles = [...groups.values()].map(({ n, one }) => (n === 1 ? /^(\S+) (.+)$/.exec(one) : null))
+  const object = singles[0]?.[2]
+  if (object && object !== "a file" && singles.every((m) => m?.[2] === object)) return `${capital(joinAnd(singles.map((m) => lower(m![1]))))} ${object}`
   return capital(joinAnd([...groups].map(([group, { n, one }]) => groupPhrase(group, n, one))))
 }
 
@@ -291,4 +295,15 @@ export function askSentence(title: string, call?: ToolCall) {
   }
   const action = toolTitle(title).replace(/(?:[\w.~-]*\/)+([\w.-]+)/g, "$1")
   return `Owlit wants to ${lower(action)}`
+}
+
+// What Owlit was still waiting on the user to allow when its reply broke; those steps never ran ("It was
+// asking to edit 研究故事.md when it stopped, so that wasn't done.")
+export function unansweredSentence(parts: MessagePart[]) {
+  const calls = new Map(parts.flatMap((p) => (p.type === "tool_call" ? [[p.toolCallId, p] as const] : [])))
+  const asks = new Set(
+    parts.flatMap((p) => (p.type === "permission" && !p.outcome ? [askSentence(p.title, calls.get(p.toolCallId)).replace(/^Owlit wants to /, "")] : [])),
+  )
+  if (asks.size === 0) return undefined
+  return `It was asking to ${joinAnd([...asks])} when it stopped, so ${asks.size === 1 ? "that wasn't" : "those weren't"} done.`
 }
