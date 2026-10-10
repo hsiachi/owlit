@@ -19,11 +19,13 @@ async function setup(files: Record<string, string> = {}) {
   }
   mkdirSync(root, { recursive: true })
   const trashed: string[] = []
+  const revealed: string[] = []
   const core = new Core({ userDataDir: path.join(base, "userData"), host: {
     trash: async (p) => {
       trashed.push(p)
       renameSync(p, path.join(base, `trashed-${trashed.length}`))
     },
+    revealPath: (p) => void revealed.push(p),
   } })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
@@ -34,7 +36,7 @@ async function setup(files: Record<string, string> = {}) {
   await call("workspace.open", { path: root })
   const disk = (rel: string) => readFileSync(path.join(root, rel), "utf8")
   const exists = (rel: string) => existsSync(path.join(root, rel))
-  return { root, call, disk, exists, trashed }
+  return { root, call, disk, exists, trashed, revealed }
 }
 
 describe("docs.list", () => {
@@ -183,5 +185,17 @@ describe("folders, moves and deletes", () => {
     cores.push(core)
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method: "docs.list" })
     expect("error" in response && response.error.code).toBe(RpcErrorCode.NoWorkspace)
+  })
+})
+
+describe("docs.reveal", () => {
+  it("shows a file or folder that exists, and refuses one that doesn't or lies outside", async () => {
+    const { call, revealed, root } = await setup({ "a/x.md": "x" })
+    await call("docs.reveal", { path: "a/x.md" })
+    await call("docs.reveal", { path: "a" })
+    expect(revealed).toEqual([path.join(root, "a/x.md"), path.join(root, "a")])
+    await expect(call("docs.reveal", { path: "a/gone.md" })).rejects.toThrow()
+    await expect(call("docs.reveal", { path: "../outside" })).rejects.toThrow()
+    expect(revealed).toHaveLength(2)
   })
 })

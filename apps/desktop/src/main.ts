@@ -361,6 +361,7 @@ if (!app.requestSingleInstanceLock()) {
           const failure = await shell.openPath(file)
           if (failure) throw new Error(failure)
         },
+        revealPath: (file) => shell.showItemInFolder(file),
       },
     })
     attachCore(core, browser)

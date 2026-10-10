@@ -1,23 +1,32 @@
-import { Fragment, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ChevronRightIcon, EllipsisVerticalIcon, FolderPlusIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { usePaletteStore } from "@/app/palette-store"
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
 import { keysFor } from "@/app/shortcuts"
 import { SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
 import { onDisk, openOnDisk } from "../disk"
-import { useDocsStore, type Removed } from "../store"
-import { useDocsUiStore } from "../ui-store"
+import { useDocsStore } from "../store"
+import { isWithin, parentPath } from "../types"
+import { folderOfKey, rowKey, useDocsUiStore } from "../ui-store"
 import { useNewDoc } from "../use-new-doc"
 
 const DRAG_TYPE = "application/x-owlit-docs"
-type DragItem = { kind: "file"; id: string } | { kind: "folder"; path: string }
+// What a drag carries: the row it started on, or every picked row when it started on one of them
+interface DragItems {
+  files: string[]
+  folders: string[]
+}
+
+// How long a closed folder waits under a drag before it opens, so a drop can reach inside it
+const SPRING_MS = 600
 
 // Same row look as the Chat list, a little tighter because a tree runs longer. Focus lands on the button
 // inside, so the row lights up when it holds keyboard focus. It stays lit while its ⋯ menu or its
@@ -34,59 +43,66 @@ const fullNameOnHover = (name: string) => (e: React.MouseEvent<HTMLElement>) => 
   e.currentTarget.title = text && text.scrollWidth > text.clientWidth ? name : ""
 }
 
-function undoToast(title: string, name: string, removed: Removed) {
-  toast(title, {
-    description: name,
-    action: { label: "Undo", onClick: () => useDocsStore.getState().restore(removed) },
-  })
+// The rows as they show now, top to bottom; which folders are open decides that, so it's read from the page
+const visibleRows = (inside: Element | null) => Array.from(inside?.closest("[data-tree]")?.querySelectorAll<HTMLElement>("[data-row-key]") ?? [])
+
+// Puts keyboard focus on a row once it has been drawn (after a rename or a delete)
+const focusRow = (key: string) =>
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-tree] [data-row-key="${CSS.escape(key)}"]`)?.focus())
+
+// The row that stands for the user's choice before any ⌘- or ⇧-click: the folder last clicked, else the
+// open doc. A first ⌘-click adds to it, as it is already lit.
+function currentRow(activeId: string | undefined) {
+  const { selectedFolder } = useDocsUiStore.getState()
+  if (selectedFolder) return rowKey.folder(selectedFolder)
+  return activeId ? rowKey.file(activeId) : null
 }
 
-// A row's actions are one list, reached from its ⋯ or by right-clicking it. The two Radix menus share
-// markup shape but not components, so the list is drawn with the kit of the menu it opens in.
-interface Action {
-  label: string
-  onSelect: () => void
-  destructive?: boolean
-  // Starts a new group, under a separator
-  apart?: boolean
+// ⌘-click adds or drops a row, ⇧-click takes the rows between the anchor and this one, a plain click
+// drops the picks and does the row's own thing. Returns whether the click was a pick.
+function pickOnClick(e: React.MouseEvent<HTMLElement>, key: string, activeId: string | undefined) {
+  const ui = useDocsUiStore.getState()
+  const current = currentRow(activeId)
+  if (e.metaKey || e.ctrlKey) {
+    const base = ui.picked.length ? ui.picked : current ? [current] : []
+    ui.setPicked(base.includes(key) ? base.filter((k) => k !== key) : [...base, key], key)
+    return true
+  }
+  if (e.shiftKey) {
+    const anchor = (ui.picked.length ? ui.pickAnchor : current) ?? key
+    ui.setPicked(rangeOf(visibleRows(e.currentTarget), anchor, key), anchor)
+    return true
+  }
+  if (ui.picked.length) ui.setPicked([], null)
+  return false
 }
 
-interface Kit {
-  Item: typeof DropdownMenuItem
-  Separator: typeof DropdownMenuSeparator
+function rangeOf(rows: HTMLElement[], from: string, to: string) {
+  const keys = rows.map((r) => r.dataset.rowKey!)
+  const a = keys.indexOf(from)
+  const b = keys.indexOf(to)
+  if (a < 0 || b < 0) return [to]
+  return keys.slice(Math.min(a, b), Math.max(a, b) + 1)
 }
 
-const dropdownKit: Kit = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator }
-const contextKit: Kit = {
-  Item: ContextMenuItem as unknown as typeof DropdownMenuItem,
-  Separator: ContextMenuSeparator as unknown as typeof DropdownMenuSeparator,
+// A row's menu acts on all picked rows when it is one of several picked, else on the row alone (and
+// opening it on a row outside the picks drops them)
+function usePickedMenu(key: string, own: () => MenuGroups) {
+  const { pickedGroups } = useDocActions()
+  // How many rows are picked along with this one, so a "Delete 3 items" label stays true
+  const together = useDocsUiStore((s) => (s.picked.includes(key) ? s.picked.length : 0))
+  return {
+    picked: together > 0,
+    groups: together > 1 ? pickedGroups(useDocsUiStore.getState().picked) : own(),
+    onOpen: () => {
+      if (!together) useDocsUiStore.getState().setPicked([], null)
+    },
+  }
 }
 
-function renderActions(actions: Action[], k: Kit) {
-  return actions.map((a) => (
-    <Fragment key={a.label}>
-      {a.apart && <k.Separator />}
-      <k.Item variant={a.destructive ? "destructive" : "default"} onSelect={a.onSelect}>
-        {a.label}
-      </k.Item>
-    </Fragment>
-  ))
-}
-
-function ActionsOnRightClick({ actions, children }: { actions: Action[]; children: React.ReactNode }) {
+function RowMenu({ groups, label, onOpen }: { groups: MenuGroups; label: string; onOpen: () => void }) {
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
-        {renderActions(actions, contextKit)}
-      </ContextMenuContent>
-    </ContextMenu>
-  )
-}
-
-function RowMenu({ actions, label }: { actions: Action[]; label: string }) {
-  return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => open && onOpen()}>
       <DropdownMenuTrigger asChild>
         {/* A small square that shows on hover and darkens on its own hover, as in the Chat list */}
         <button
@@ -98,21 +114,20 @@ function RowMenu({ actions, label }: { actions: Action[]; label: string }) {
           <EllipsisVerticalIcon className="size-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="start" className="w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
-        {renderActions(actions, dropdownKit)}
-      </DropdownMenuContent>
+      <ActionsDropdownContent groups={groups} side="right" align="start" />
     </DropdownMenu>
   )
 }
 
-function RenameInput({ initial, depth, onDone }: { initial: string; depth: number; onDone: (name: string | null) => void }) {
+// `byKey`: ended with Enter or Esc, so focus goes back to the row; a blur means the user went elsewhere
+function RenameInput({ initial, depth, onDone }: { initial: string; depth: number; onDone: (name: string | null, byKey: boolean) => void }) {
   const [draft, setDraft] = useState(initial)
   // Enter or Esc ends it; the blur that follows as the input goes away must not end it again
   const done = useRef(false)
-  const finish = (name: string | null) => {
+  const finish = (name: string | null, byKey: boolean) => {
     if (done.current) return
     done.current = true
-    onDone(name)
+    onDone(name, byKey)
   }
   return (
     <input
@@ -120,10 +135,10 @@ function RenameInput({ initial, depth, onDone }: { initial: string; depth: numbe
       value={draft}
       onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => finish(draft)}
+      onBlur={() => finish(draft, false)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") finish(draft)
-        if (e.key === "Escape") finish(null)
+        if (e.key === "Enter") finish(draft, true)
+        if (e.key === "Escape") finish(null, true)
       }}
       // The text stays where the name was: past the chevron slot, less the border
       style={{ paddingLeft: indent(depth).paddingLeft + 17 }}
@@ -140,21 +155,39 @@ interface TreeProps {
   onDropInto: (folder: string, e: React.DragEvent) => void
 }
 
+// Starts a drag of this row, or of every picked row when it is one of them
+function dragStart(e: React.DragEvent, key: string) {
+  const { picked } = useDocsUiStore.getState()
+  const keys = picked.length > 1 && picked.includes(key) ? picked : [key]
+  const items: DragItems = { files: [], folders: [] }
+  for (const k of keys) {
+    const folder = folderOfKey(k)
+    if (folder === null) items.files.push(k)
+    else items.folders.push(folder)
+  }
+  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(items))
+  e.dataTransfer.effectAllowed = "move"
+}
+
 function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & TreeProps) {
   const navigate = useNavigate()
-  const { renameFile, deleteFile } = useDocsStore.getState()
-  const renaming = useDocsUiStore((s) => s.renaming === node.file.id)
-  const setRenaming = useDocsUiStore((s) => s.setRenaming)
+  const { fileGroups } = useDocActions()
+  const key = rowKey.file(node.file.id)
+  const renaming = useDocsUiStore((s) => s.renaming === key)
   const active = node.file.id === p.activeId
+  const menu = usePickedMenu(key, () => fileGroups(node.file))
+  // While rows are picked only they are filled, so the open doc doesn't pass for one of them
+  const picking = useDocsUiStore((s) => s.picked.length > 0)
 
   if (renaming)
     return (
       <RenameInput
         initial={node.name}
         depth={depth}
-        onDone={(name) => {
-          if (name !== null) renameFile(node.file.id, name)
-          setRenaming(null)
+        onDone={(name, byKey) => {
+          if (name !== null) useDocsStore.getState().renameFile(node.file.id, name)
+          useDocsUiStore.getState().setRenaming(null)
+          if (byKey) focusRow(key)
         }}
       />
     )
@@ -165,31 +198,33 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
     else toast(`${node.name} opens in the system app`)
   }
 
-  const actions: Action[] = [
-    { label: "Rename", onSelect: () => setTimeout(() => setRenaming(node.file.id), 0) },
-    {
-      label: "Delete",
-      destructive: true,
-      apart: true,
-      onSelect: () => {
-        const removed = deleteFile(node.file.id)
-        if (active) navigate("/docs", { replace: true })
-        undoToast("Doc deleted", node.name, removed)
-      },
-    },
-  ]
+  // A drop on a doc lands in the doc's folder, which lights up to say so
+  const folder = parentPath(node.file.path)
 
   return (
-    <ActionsOnRightClick actions={actions}>
-      <div className={cn(rowClass, active && "bg-sidebar-accent font-medium")} style={indent(depth)}>
+    <ActionsOnRightClick groups={menu.groups} onOpen={menu.onOpen}>
+      <div
+        className={cn(rowClass, ((active && !picking) || menu.picked) && "bg-sidebar-accent", active && "font-medium")}
+        style={indent(depth)}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
+          e.preventDefault()
+          e.stopPropagation()
+          p.setDragOver(folder)
+        }}
+        onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && p.setDragOver(null)}
+        onDrop={(e) => {
+          e.stopPropagation()
+          p.onDropInto(folder, e)
+        }}
+      >
         <button
           type="button"
           draggable
-          onDragStart={(e) => {
-            e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "file", id: node.file.id } satisfies DragItem))
-            e.dataTransfer.effectAllowed = "move"
-          }}
-          onClick={open}
+          data-row-key={key}
+          data-path={node.file.path}
+          onDragStart={(e) => dragStart(e, key)}
+          onClick={(e) => pickOnClick(e, key, p.activeId) || open()}
           onMouseEnter={fullNameOnHover(node.name)}
           className={cn("flex min-w-0 flex-1 items-center gap-1 py-1.5 pr-1 text-left outline-hidden group-hover/row:pr-6", !node.markdown && "text-muted-foreground")}
         >
@@ -198,52 +233,30 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
             {node.name}
           </span>
         </button>
-        <RowMenu label="Doc actions" actions={actions} />
+        <RowMenu label="Doc actions" groups={menu.groups} onOpen={menu.onOpen} />
       </div>
     </ActionsOnRightClick>
   )
 }
 
 function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & TreeProps) {
-  const navigate = useNavigate()
-  const newDoc = useNewDoc()
-  const { createFolder, renameFolder, deleteFolder } = useDocsStore.getState()
+  const { folderGroups } = useDocActions()
+  const key = rowKey.folder(node.path)
   const open = useDocsUiStore((s) => !!s.expanded[node.path])
   const selected = useDocsUiStore((s) => s.selectedFolder === node.path)
-  const renaming = useDocsUiStore((s) => s.renaming === `folder:${node.path}`)
-  const { setExpanded, expandTo, selectFolder, setRenaming } = useDocsUiStore.getState()
+  const renaming = useDocsUiStore((s) => s.renaming === key)
+  const { setExpanded, selectFolder, setRenaming } = useDocsUiStore.getState()
   const activeInside = useDocsStore((s) => (p.activeId ? s.files[p.activeId]?.path.startsWith(node.path + "/") : false))
+  const menu = usePickedMenu(key, () => folderGroups(node.path))
+  const picking = useDocsUiStore((s) => s.picked.length > 0)
 
-  const actions: Action[] = [
-    {
-      label: "New doc",
-      onSelect: () => {
-        expandTo(node.path)
-        newDoc(node.path)
-      },
-    },
-    {
-      label: "New folder",
-      onSelect: () => {
-        const path = createFolder(node.path)
-        expandTo(node.path)
-        setTimeout(() => setRenaming(`folder:${path}`), 0)
-      },
-    },
-    { label: "Rename", onSelect: () => setTimeout(() => setRenaming(`folder:${node.path}`), 0) },
-    {
-      label: "Delete",
-      destructive: true,
-      apart: true,
-      onSelect: () => {
-        const removed = deleteFolder(node.path)
-        if (activeInside) navigate("/docs", { replace: true })
-        if (selected) selectFolder(null)
-        const n = removed.files.length
-        undoToast("Folder deleted", n ? `${node.name} and ${n} ${n === 1 ? "file" : "files"}` : node.name, removed)
-      },
-    },
-  ]
+  // A closed folder held under a drag opens, so the drop can go inside it
+  const spring = useRef<number | undefined>(undefined)
+  const cancelSpring = () => {
+    window.clearTimeout(spring.current)
+    spring.current = undefined
+  }
+  useEffect(() => cancelSpring, [])
 
   return (
     <>
@@ -251,40 +264,53 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
         <RenameInput
           initial={node.name}
           depth={depth}
-          onDone={(name) => {
+          onDone={(name, byKey) => {
+            let to = node.path
             if (name !== null) {
-              const to = renameFolder(node.path, name)
+              to = useDocsStore.getState().renameFolder(node.path, name)
               if (open) setExpanded(to, true)
               if (selected) selectFolder(to)
             }
             setRenaming(null)
+            if (byKey) focusRow(rowKey.folder(to))
           }}
         />
       ) : (
-        <ActionsOnRightClick actions={actions}>
+        <ActionsOnRightClick groups={menu.groups} onOpen={menu.onOpen}>
           <div
-            className={cn(rowClass, selected && "bg-sidebar-accent", p.dragOver === node.path && "bg-foreground/8")}
+            className={cn(rowClass, ((selected && !picking) || menu.picked) && "bg-sidebar-accent", p.dragOver === node.path && "bg-foreground/8")}
             style={indent(depth)}
             onDragOver={(e) => {
               if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
               e.preventDefault()
               e.stopPropagation()
               p.setDragOver(node.path)
+              if (!open && spring.current === undefined)
+                spring.current = window.setTimeout(() => {
+                  spring.current = undefined
+                  setExpanded(node.path, true)
+                }, SPRING_MS)
             }}
-            onDragLeave={() => p.setDragOver(null)}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+              p.setDragOver(null)
+              cancelSpring()
+            }}
             onDrop={(e) => {
               e.stopPropagation()
+              cancelSpring()
               p.onDropInto(node.path, e)
             }}
           >
             <button
               type="button"
               draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "folder", path: node.path } satisfies DragItem))
-                e.dataTransfer.effectAllowed = "move"
-              }}
-              onClick={() => {
+              data-row-key={key}
+              data-path={node.path}
+              data-folder=""
+              onDragStart={(e) => dragStart(e, key)}
+              onClick={(e) => {
+                if (pickOnClick(e, key, p.activeId)) return
                 setExpanded(node.path, !open)
                 selectFolder(node.path)
               }}
@@ -299,7 +325,7 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
                 {node.name}
               </span>
             </button>
-            <RowMenu label="Folder actions" actions={actions} />
+            <RowMenu label="Folder actions" groups={menu.groups} onOpen={menu.onOpen} />
           </div>
         </ActionsOnRightClick>
       )}
@@ -318,39 +344,109 @@ function TreeLevel({ nodes, depth, ...p }: { nodes: TreeNode[]; depth: number } 
   )
 }
 
+// The tree from the keyboard: ↑ ↓ move, → opens a folder or steps into it, ← closes it or steps out,
+// ⇧↑ ⇧↓ pick as they move, F2 renames, ⌘⌫ deletes (with Undo), Esc drops the picks. ↵ and space are the
+// row button's own.
+function useTreeKeys() {
+  const { deleteKeys, startRenaming } = useDocActions()
+  return (e: React.KeyboardEvent<HTMLElement>) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>("[data-row-key]")
+    if (!row) return
+    const key = row.dataset.rowKey!
+    const rows = visibleRows(row)
+    const i = rows.indexOf(row)
+    const ui = useDocsUiStore.getState()
+    const folder = row.dataset.folder !== undefined ? row.dataset.path! : null
+
+    const move = (to: HTMLElement | undefined) => {
+      if (!to) return
+      e.preventDefault()
+      to.focus()
+      if (e.shiftKey) {
+        const anchor = (ui.picked.length ? ui.pickAnchor : key) ?? key
+        ui.setPicked(rangeOf(rows, anchor, to.dataset.rowKey!), anchor)
+      } else if (ui.picked.length) ui.setPicked([], null)
+    }
+
+    if (e.key === "ArrowDown") return move(rows[i + 1])
+    if (e.key === "ArrowUp") return move(rows[i - 1])
+    if (e.key === "Home") return move(rows[0])
+    if (e.key === "End") return move(rows[rows.length - 1])
+    if (e.key === "ArrowRight" && folder !== null) {
+      e.preventDefault()
+      if (!ui.expanded[folder]) ui.setExpanded(folder, true)
+      else if (rows[i + 1] && parentPath(rows[i + 1].dataset.path!) === folder) rows[i + 1].focus()
+      return
+    }
+    if (e.key === "ArrowLeft") {
+      e.preventDefault()
+      if (folder !== null && ui.expanded[folder]) return ui.setExpanded(folder, false)
+      const parent = parentPath(row.dataset.path!)
+      if (parent) rows.find((r) => r.dataset.rowKey === rowKey.folder(parent))?.focus()
+      return
+    }
+    if (e.key === "F2") {
+      e.preventDefault()
+      return startRenaming(key)
+    }
+    if (e.key === "Backspace" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      const keys = ui.picked.length > 1 && ui.picked.includes(key) ? ui.picked : [key]
+      // Focus goes to the nearest row that stays: below first, else above
+      const gone = keys.map((k) => folderOfKey(k) ?? useDocsStore.getState().files[k]?.path).filter((p): p is string => !!p)
+      const stays = (r: HTMLElement) => !gone.some((g) => isWithin(r.dataset.path!, g))
+      const next = rows.slice(i + 1).find(stays) ?? rows.slice(0, i).reverse().find(stays)
+      deleteKeys(keys)
+      if (next) focusRow(next.dataset.rowKey!)
+      return
+    }
+    if (e.key === "Escape" && ui.picked.length) {
+      e.preventDefault()
+      ui.setPicked([], null)
+    }
+  }
+}
+
 // Second-column content for Docs: search, new doc, and the workspace folder as a tree
 export function DocsListPanel() {
   const { docId } = useParams()
   const files = useDocsStore((s) => s.files)
   const folders = useDocsStore((s) => s.folders)
-  const { expandTo, selectFolder, setRenaming } = useDocsUiStore.getState()
+  const { expandTo, selectFolder } = useDocsUiStore.getState()
   const openPalette = usePaletteStore((s) => s.setOpen)
   const newDoc = useNewDoc()
+  const { startRenaming } = useDocActions()
+  const onKeyDown = useTreeKeys()
   const [dragOver, setDragOver] = useState<string | null>(null)
 
   const tree = useMemo(() => buildTree(Object.values(files), folders), [files, folders])
 
+  // Moves what was dragged into a folder ("" is the workspace root). What sits inside a dragged folder
+  // goes with it, and a folder never goes inside itself.
   const onDropInto = (folder: string, e: React.DragEvent) => {
     setDragOver(null)
     const raw = e.dataTransfer.getData(DRAG_TYPE)
     if (!raw) return
     e.preventDefault()
-    const item = JSON.parse(raw) as DragItem
+    const items = JSON.parse(raw) as DragItems
     const store = useDocsStore.getState()
-    if (item.kind === "file") store.moveFile(item.id, folder)
-    else {
-      const ui = useDocsUiStore.getState()
-      const wasOpen = ui.expanded[item.path]
-      const to = store.moveFolder(item.path, folder)
+    const ui = useDocsUiStore.getState()
+    const top = items.folders.filter((f) => !items.folders.some((o) => o !== f && isWithin(f, o)))
+    for (const path of top) {
+      if (isWithin(folder, path)) continue
+      const wasOpen = ui.expanded[path]
+      const to = store.moveFolder(path, folder)
       if (wasOpen) ui.setExpanded(to, true)
     }
+    for (const id of items.files) {
+      const file = useDocsStore.getState().files[id]
+      if (file && !top.some((f) => isWithin(file.path, f))) store.moveFile(id, folder)
+    }
+    if (items.files.length + items.folders.length > 1) ui.setPicked([], null)
     if (folder) expandTo(folder)
   }
 
-  const newFolder = () => {
-    const path = useDocsStore.getState().createFolder("")
-    setTimeout(() => setRenaming(`folder:${path}`), 0)
-  }
+  const newFolder = () => startRenaming(rowKey.folder(useDocsStore.getState().createFolder("")))
 
   const props: TreeProps = { activeId: docId, dragOver, setDragOver, onDropInto }
 
@@ -400,16 +496,24 @@ export function DocsListPanel() {
       {/* Right-clicking the space around the rows makes something at the workspace root; a row's own menu
           takes the right-clicks on it */}
       <ActionsOnRightClick
-        actions={[
-          { label: "New doc", onSelect: () => newDoc("") },
-          { label: "New folder", onSelect: newFolder },
+        groups={[
+          [
+            { label: "New doc", onSelect: () => newDoc("") },
+            { label: "New folder", onSelect: newFolder },
+          ],
         ]}
       >
         <SidebarContent
+          data-tree
           // 2px between rows, so two filled rows side by side (open doc, clicked folder, hover) stay apart
           className={cn("gap-0.5 px-2.5 pt-3 pb-4", dragOver === "" && "bg-foreground/[0.03]")}
-          // Clicking empty space puts new docs back at the workspace root
-          onClick={(e) => e.target === e.currentTarget && selectFolder("")}
+          // Clicking empty space puts new docs back at the workspace root and drops the picks
+          onClick={(e) => {
+            if (e.target !== e.currentTarget) return
+            selectFolder("")
+            useDocsUiStore.getState().setPicked([], null)
+          }}
+          onKeyDown={onKeyDown}
           onDragOver={(e) => {
             if (!e.dataTransfer.types.includes(DRAG_TYPE)) return
             e.preventDefault()
@@ -418,9 +522,7 @@ export function DocsListPanel() {
           onDragLeave={(e) => e.target === e.currentTarget && setDragOver(null)}
           onDrop={(e) => onDropInto("", e)}
         >
-          {tree.children.length === 0 && (
-            <div className="px-2.5 py-2 text-sm text-muted-foreground">No docs yet.</div>
-          )}
+          {tree.children.length === 0 && <div className="px-2.5 py-2 text-sm text-muted-foreground">No docs yet.</div>}
           <TreeLevel nodes={tree.children} depth={0} {...props} />
         </SidebarContent>
       </ActionsOnRightClick>
