@@ -395,4 +395,9 @@ export interface OwlitBridge {
   chooseFolder(options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }): Promise<string | null>
   // Where the publisher's page shows during Check now, in the window's CSS pixels; null takes it away
   setPublisherView(bounds: { x: number; y: number; width: number; height: number } | null): void
+  // A right-click the page leaves to the system's text menu: whether what is selected can be handed to
+  // Owlit, so the menu starts with "Ask Owlit". Told synchronously, so the app knows before it draws the menu.
+  textMenuAsk(ask: boolean): void
+  // "Ask Owlit" was chosen in that menu
+  onTextMenuAsk(listener: () => void): () => void
 }

@@ -7,6 +7,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, 
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
+import { attachTextMenu } from "./text-menu.ts"
 
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
@@ -116,6 +117,7 @@ function createWindow() {
     },
   })
   win.once("ready-to-show", () => win.show())
+  attachTextMenu(win)
   // A link meant for a new window (a key's sign-up page, a paper's DOI) opens in the user's browser
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url)

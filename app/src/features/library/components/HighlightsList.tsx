@@ -1,18 +1,10 @@
 import { useEffect, useMemo, useRef } from "react"
-import { CheckIcon, EllipsisVerticalIcon } from "lucide-react"
+import { EllipsisVerticalIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown, paperHighlights } from "../lib/highlights"
 import { copyText } from "../lib/clipboard"
 import { useReaderStore } from "../reader/reader-store"
@@ -87,62 +79,66 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
 
   const jump = () => useReaderStore.getState().api?.jumpToHighlight(h)
 
+  // The same menu from the ⋯ and from a right-click on the highlight
+  const menu: MenuGroups = [
+    [
+      {
+        label: "Color",
+        childrenClassName: "w-36",
+        children: HIGHLIGHT_COLORS.map((c) => ({
+          label: HIGHLIGHT_LABEL[c],
+          mark: <span aria-hidden className="size-3 rounded-full" style={{ background: HIGHLIGHT_MARK[c] }} />,
+          checked: h.color === c,
+          onSelect: () => updateHighlight(h.id, { color: c }),
+        })),
+      },
+      {
+        label: h.comment ? "Edit comment" : "Add comment",
+        onSelect: () => {
+          jump()
+          useReaderStore.getState().open(h.id, { commenting: true })
+        },
+      },
+      { label: "Copy", onSelect: () => copy(h.text, "Highlight copied") },
+      { label: "Add to note", onSelect: onAddToNote },
+    ],
+    [
+      {
+        label: "Delete",
+        destructive: true,
+        onSelect: () => {
+          const removed = removeHighlight(h.id)
+          if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
+        },
+      },
+    ],
+  ]
+
   return (
-    <li ref={ref} className={cn("group/hl relative rounded-md hover:bg-accent has-[[data-state=open]]:bg-accent", active && "bg-accent")}>
-      <button type="button" onClick={jump} className="block w-full rounded-md px-2 py-1.5 pr-9 text-left outline-none focus-key:bg-accent">
-        <span className="flex gap-2.5">
-          <span aria-hidden className="w-[3px] shrink-0 rounded-full" style={{ background: HIGHLIGHT_MARK[h.color] }} />
-          <span className="line-clamp-4 text-sm leading-relaxed">{h.text}</span>
-        </span>
-        {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
-        {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">Added by Owlit</span>}
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Highlight actions"
-            className="absolute top-1 right-1 text-muted-foreground opacity-0 group-hover/hl:opacity-100 focus-key:opacity-100 data-[state=open]:opacity-100"
-          >
-            <EllipsisVerticalIcon />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Color</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-36">
-              {HIGHLIGHT_COLORS.map((c) => (
-                <DropdownMenuItem key={c} onSelect={() => updateHighlight(h.id, { color: c })}>
-                  <span aria-hidden className="size-3 rounded-full" style={{ background: HIGHLIGHT_MARK[c] }} />
-                  {HIGHLIGHT_LABEL[c]}
-                  {h.color === c && <CheckIcon className="ml-auto text-muted-foreground" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuItem
-            onSelect={() => {
-              jump()
-              useReaderStore.getState().open(h.id, { commenting: true })
-            }}
-          >
-            {h.comment ? "Edit comment" : "Add comment"}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => copy(h.text, "Highlight copied")}>Copy</DropdownMenuItem>
-          <DropdownMenuItem onSelect={onAddToNote}>Add to note</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={() => {
-              const removed = removeHighlight(h.id)
-              if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
-            }}
-          >
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </li>
+    <ActionsOnRightClick groups={menu}>
+      <li ref={ref} className={cn("group/hl relative rounded-md hover:bg-accent has-[[data-state=open]]:bg-accent data-[state=open]:bg-accent", active && "bg-accent")}>
+        <button type="button" onClick={jump} className="block w-full rounded-md px-2 py-1.5 pr-9 text-left outline-none focus-key:bg-accent">
+          <span className="flex gap-2.5">
+            <span aria-hidden className="w-[3px] shrink-0 rounded-full" style={{ background: HIGHLIGHT_MARK[h.color] }} />
+            <span className="line-clamp-4 text-sm leading-relaxed">{h.text}</span>
+          </span>
+          {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
+          {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">Added by Owlit</span>}
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Highlight actions"
+              className="absolute top-1 right-1 text-muted-foreground opacity-0 group-hover/hl:opacity-100 focus-key:opacity-100 data-[state=open]:opacity-100"
+            >
+              <EllipsisVerticalIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <ActionsDropdownContent groups={menu} align="end" />
+        </DropdownMenu>
+      </li>
+    </ActionsOnRightClick>
   )
 }

@@ -21,6 +21,7 @@ import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { agentNotes, noteSpots, setNotes, setOpenNote } from "./agent-notes"
 import { selectionMenu } from "./selection-menu"
+import { askOwlitOnRightClick } from "@/app/text-menu"
 import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
 import { blockPreview } from "./block-preview"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
@@ -213,9 +214,18 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 160 }) })
     })
 
+    // A right-click on a selected passage starts the system's text menu with "Ask Owlit", as the floating
+    // menu offers it
+    const unregisterAsk = askOwlitOnRightClick(view.dom, () => {
+      const { from, to } = view.state.selection.main
+      const text = view.state.sliceDoc(from, to)
+      return text.trim().length < 3 ? null : () => chatAbout(id, text, from)
+    })
+
     window.addEventListener("beforeunload", flush)
     return () => {
       window.removeEventListener("beforeunload", flush)
+      unregisterAsk()
       flush()
       unsubscribe()
       unsubscribeNotes()
