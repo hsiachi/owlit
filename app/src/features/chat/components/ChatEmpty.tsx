@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { keysFor } from "@/app/shortcuts"
 import { Button } from "@/components/ui/button"
+import { useSettings } from "@/features/settings/store"
 import { useChatStore } from "../store"
 import type { PromptInput, SourceKind } from "../types"
 import { Composer, type ComposerHandle } from "./composer/Composer"
@@ -30,6 +31,8 @@ export function ChatEmpty() {
   const createChat = useChatStore((s) => s.createChat)
   const send = useChatStore((s) => s.send)
   const composer = useRef<ComposerHandle>(null)
+  // Settings › Profile; without a name the greeting stands alone
+  const name = useSettings((s) => s.view?.profile.name)
   // A starter handed over from elsewhere (the Library's Ask Owlit to find papers)
   const starter = (useLocation().state as { starter?: string } | null)?.starter
 
@@ -46,7 +49,9 @@ export function ChatEmpty() {
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
       {/* Set like the wordmark: Dosis has no italic, so the 12° slant is drawn with a skew */}
-      <h1 className="font-display -skew-x-12 text-[2.75rem] leading-none font-medium text-foreground/90">{greeting()}</h1>
+      <h1 className="font-display max-w-3xl -skew-x-12 text-center text-[2.75rem] leading-none font-medium text-balance text-foreground/90">
+        {name ? `${greeting()}, ${name}` : greeting()}
+      </h1>
       <div className="w-full max-w-3xl">
         <Composer ref={composer} onSubmit={start} autoFocus />
       </div>

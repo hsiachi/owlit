@@ -31,6 +31,14 @@ const bridge: OwlitBridge = {
   },
   // Asked once, synchronously, so the first frame is drawn in the chosen theme and tone
   appearance: ipcRenderer.sendSync("appearance"),
+  textMenuAsk: (ask) => ipcRenderer.sendSync("text-menu-ask", ask),
+  onTextMenuAsk(listener) {
+    const forward = () => listener()
+    ipcRenderer.on("text-menu-ask", forward)
+    return () => {
+      ipcRenderer.off("text-menu-ask", forward)
+    }
+  },
   onMenu(listener) {
     const forward = (_event: IpcRendererEvent, command: MenuCommand) => listener(command)
     ipcRenderer.on("menu", forward)

@@ -134,6 +134,8 @@ function RenameInput({ initial, depth, onDone }: { initial: string; depth: numbe
       autoFocus
       value={draft}
       onFocus={(e) => e.currentTarget.select()}
+      // The field keeps the system's text menu (Cut, Copy, Paste) rather than the list's New doc / New folder
+      onContextMenu={(e) => e.stopPropagation()}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => finish(draft, false)}
       onKeyDown={(e) => {

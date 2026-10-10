@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
 import { startMenu } from "@/app/menu"
+import { startTextMenu } from "@/app/text-menu"
 import { startUiActions } from "@/app/ui-actions"
 import { startActivity } from "@/lib/activity"
 import { startTrail } from "@/features/home/trail"
@@ -44,6 +45,7 @@ startActivity(router)
 startTrail()
 startUiActions(router)
 startMenu(router)
+startTextMenu()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

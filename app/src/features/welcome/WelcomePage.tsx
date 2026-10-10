@@ -9,13 +9,16 @@ import { Toaster } from "@/components/ui/sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { useSettingsShortcut } from "@/features/settings/hooks"
+import { CommitInput } from "@/features/settings/parts"
+import { updateSettings, useSettings } from "@/features/settings/store"
 import { rpc } from "@/lib/rpc"
 import { useControlsRoom } from "@/lib/window-frame"
 import { AgentCheck } from "./AgentCheck"
 
 // The page the window shows while no workspace is open: on a first launch, or when the last workspace is
-// no longer where it was. It asks one thing, where to work. Either choice opens Home at once; there are
-// no further steps. The window has no rail here, since none of the places exist yet.
+// no longer where it was. It asks where to work, and, until the user has given one, what Owlit should
+// call them (optional; Settings › Profile keeps it). Either workspace choice opens Home at once; there
+// are no further steps. The window has no rail here, since none of the places exist yet.
 
 // "~/Documents" rather than the whole home path
 const tilde = (p: string) => p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~")
@@ -89,6 +92,8 @@ export function WelcomePage() {
             <p className="mt-4.5 text-[15px] leading-normal text-muted-foreground">
               Read, write and think through papers with Owlit. Everything lives in a folder on your Mac.
             </p>
+
+            <NameField />
 
             <div className="mt-7 divide-y overflow-hidden rounded-[10px] border bg-card">
               {editing ? (
@@ -181,6 +186,35 @@ export function WelcomePage() {
       <SettingsDialog />
       <Toaster position="bottom-right" />
     </TooltipProvider>
+  )
+}
+
+// What Owlit should call the user. Asked only while no name is set: the page also shows when a workspace
+// has moved, and someone who already answered isn't asked again. Once shown it stays for the visit, so
+// it doesn't vanish under the cursor when the name is kept.
+function NameField() {
+  const view = useSettings((s) => s.view)
+  const [asking, setAsking] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (view && asking === null) setAsking(!view.profile.name)
+  }, [view, asking])
+  if (!asking) return null
+  return (
+    <div className="mt-7 flex items-center gap-3 rounded-[10px] border bg-card py-2.5 pr-2.5 pl-3.5">
+      <label htmlFor="welcome-name" className="flex-1 text-sm font-medium">
+        What should Owlit call you?
+      </label>
+      <CommitInput
+        id="welcome-name"
+        value={view?.profile.name ?? ""}
+        onCommit={(name) => void updateSettings({ profile: { name: name || null } }).catch(failed)}
+        placeholder="Your name"
+        spellCheck={false}
+        autoComplete="off"
+        maxLength={60}
+        className="w-44"
+      />
+    </div>
   )
 }
 

@@ -7,7 +7,7 @@ import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
 
-export const SECTIONS = ["appearance", "agents", "sources", "proxy", "reading", "privacy"] as const
+export const SECTIONS = ["profile", "appearance", "agents", "sources", "proxy", "reading", "privacy"] as const
 export type SettingsSection = (typeof SECTIONS)[number]
 
 interface SettingsState {
@@ -16,7 +16,7 @@ interface SettingsState {
   section: SettingsSection
 }
 
-export const useSettings = create<SettingsState>(() => ({ view: null, open: false, section: "appearance" }))
+export const useSettings = create<SettingsState>(() => ({ view: null, open: false, section: "profile" }))
 
 // Opens the dialog at a section when the caller knows what needs setting up, otherwise where it was
 // last left
@@ -33,9 +33,11 @@ function receive(view: SettingsView) {
 
 export async function updateSettings(patch: SettingsPatch) {
   if (!isDesktop) {
-    // Only appearance means anything without core
-    const appearance = { ...(useSettings.getState().view?.appearance ?? storedAppearance()), ...patch.appearance }
-    receive({ ...webView(), appearance })
+    // Only appearance and the name mean anything without core; the name lasts until reload
+    const view = useSettings.getState().view
+    const appearance = { ...(view?.appearance ?? storedAppearance()), ...patch.appearance }
+    const name = patch.profile?.name === undefined ? view?.profile.name : patch.profile.name || undefined
+    receive({ ...webView(), appearance, profile: name ? { name } : {} })
     return
   }
   receive(await rpc.settings.update({ patch }))
@@ -51,6 +53,7 @@ export async function setActivity(enabled: boolean) {
 
 const webView = (): SettingsView => ({
   appearance: storedAppearance(),
+  profile: {},
   library: {},
   parsing: { auto: true },
   secrets: {},
