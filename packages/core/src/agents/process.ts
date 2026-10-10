@@ -70,6 +70,15 @@ export class AcpProcess {
     })
   }
 
+  // A sign-in the agent offers itself (the Owlit engine's ChatGPT and API keys); it may open a browser
+  authenticate(params: acp.AuthenticateRequest) {
+    return this.call((c) => c.authenticate(params))
+  }
+
+  logout(params: acp.LogoutRequest) {
+    return this.call((c) => c.logout(params))
+  }
+
   loadSession(params: acp.LoadSessionRequest, handler: SessionHandler) {
     return this.call(async (c) => {
       // Updates replaying the history arrive while the request runs, so the handler goes in first

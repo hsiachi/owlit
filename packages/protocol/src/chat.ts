@@ -170,6 +170,13 @@ export interface AgentEffort {
   description?: string
 }
 
+export interface SignInMethod {
+  id: string
+  name: string
+  description?: string
+  apiKey?: boolean
+}
+
 export interface Connector {
   id: string
   name: string
@@ -179,6 +186,9 @@ export interface Connector {
   installHint?: string
   // What the user runs in a terminal to sign in, for agents that need it
   signIn?: string
+  // Sign-ins the agent runs itself, offered in owlit (the Owlit engine): a browser sign-in, or an API key
+  // for one provider when apiKey is set
+  signInMethods?: SignInMethod[]
   builtIn: boolean
   status: ConnectorStatus
   version?: string

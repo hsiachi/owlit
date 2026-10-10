@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { BookOpenIcon, BotIcon, LibraryIcon, MessageSquareIcon, ShieldAlertIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { needsSignIn } from "@/features/chat/components/composer/AgentPicker"
 import { useChatStore } from "@/features/chat/store"
 import { brokenReply, pendingPermission, useSeenStore } from "@/features/chat/status"
 import { regenerate } from "@/features/chat/lib/regenerate"
@@ -94,8 +95,8 @@ function useWaiting(): Waiting[] {
       out.push({
         key: `agent:${c.id}`,
         icon: BotIcon,
-        what: c.status === "not_installed" ? `${c.name} isn’t installed` : `${c.name} can’t run`,
-        where: c.status === "error" && c.error ? `· ${c.error}` : `· ${role}`,
+        what: c.status === "not_installed" ? `${c.name} isn’t installed` : needsSignIn(c) ? `${c.name} isn’t signed in` : `${c.name} can’t run`,
+        where: c.status === "error" && c.error && !needsSignIn(c) ? `· ${c.error}` : `· ${role}`,
         fix: { label: "Manage agents…", run: () => openSettings("agents"), quiet: true },
       })
     }

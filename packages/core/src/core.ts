@@ -46,6 +46,8 @@ export interface CoreOptions {
   socket?: boolean | { dir: string }
   // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
+  // How to start the Owlit engine (packages/owlit-agent); without it the engine isn't offered
+  engine?: { command: string; args: string[]; env?: Record<string, string> }
   // How long Knowledge waits after the user's activity before a run (tests shorten it)
   knowledgeTimings?: KnowledgeTimings
 }
@@ -88,6 +90,16 @@ export class Core {
       cwd: () => this.workspace?.root ?? null,
       notify: (connector) => this.notifier.notify("agents.changed", connector),
       idleMs: Number(process.env.OWLIT_AGENT_IDLE_MS) || undefined,
+      engine: options.engine && {
+        ...options.engine,
+        env: {
+          ...options.engine.env,
+          // Its sign-ins, in owlit's own folder
+          OWLIT_ENGINE_HOME: path.join(options.userDataDir, "agents", "owlit-engine"),
+          // Model requests go through the proxy in HTTPS_PROXY, which Node's fetch otherwise ignores
+          NODE_USE_ENV_PROXY: "1",
+        },
+      },
     })
     this.ui = new UiBridge((request) => this.notifier.notify("ui.request", request))
     this.fs = new AgentFs({
@@ -243,6 +255,8 @@ export class Core {
     this.router.register("agents.check", z.object({ id: z.string() }), ({ id }) => this.agents.check(id))
     this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), ({ name, command }) => this.agents.add(name, command))
     this.router.register("agents.remove", z.object({ id: z.string() }), ({ id }) => this.agents.remove(id))
+    this.router.register("agents.signIn", z.object({ id: z.string(), methodId: z.string(), apiKey: z.string().optional() }), ({ id, methodId, apiKey }) => this.agents.signIn(id, methodId, apiKey))
+    this.router.register("agents.signOut", z.object({ id: z.string() }), ({ id }) => this.agents.signOut(id))
     this.router.register(
       "agents.prompt",
       z.object({

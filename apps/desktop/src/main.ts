@@ -3,7 +3,7 @@
 
 import { Core } from "@owlit/core"
 import type { AppearanceSettings, DocsChange, MenuCommand, MethodName, ParamsOf, ResultOf, RpcRequest, SettingsView, WorkspaceInfo } from "@owlit/protocol"
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, shell, type MenuItemConstructorOptions } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
@@ -317,6 +317,15 @@ async function updateMenu(core: Core) {
 
 // ---- Start ----
 
+// The system proxy as HTTPS_PROXY, for the engine's model requests: an app started from Finder has no
+// proxy in its environment, and Node's fetch only uses one from there. Read once at launch.
+async function systemProxy(): Promise<Record<string, string>> {
+  if (process.env.HTTPS_PROXY || process.env.https_proxy) return {}
+  const rule = (await session.defaultSession.resolveProxy("https://api.openai.com")).split(";")[0].trim()
+  const proxy = /^(PROXY|HTTPS) (\S+)$/.exec(rule)
+  return proxy ? { HTTPS_PROXY: `${proxy[1] === "HTTPS" ? "https" : "http"}://${proxy[2]}` } : {}
+}
+
 // One owlit at a time: a second launch hands over to the first, which comes to the front
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -342,6 +351,8 @@ if (!app.requestSingleInstanceLock()) {
       socket: true,
       // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
+      // The Owlit engine (Beta), owlit's own agent, run the same way
+      engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       host: {

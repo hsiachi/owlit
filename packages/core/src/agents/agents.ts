@@ -1,5 +1,5 @@
 import type * as acp from "@agentclientprotocol/sdk"
-import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector } from "@owlit/protocol"
+import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignInMethod } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { mkdir } from "node:fs/promises"
 import { homedir } from "node:os"
@@ -18,7 +18,17 @@ interface ConnectorDef {
   command: string
   installHint?: string
   builtIn: boolean
+  // Started as given instead of looked up on PATH (the Owlit engine, which ships inside owlit)
+  launch?: Launch
 }
+
+export interface Launch {
+  command: string
+  args: string[]
+  env?: Record<string, string>
+}
+
+export const ENGINE_ID = "owlit-engine"
 
 // The agents most people have, each through its ACP adapter. Their models, modes and efforts come from
 // the agent itself when it is checked; nothing about them is hard-coded here.
@@ -49,6 +59,17 @@ export const BUILT_IN: ConnectorDef[] = [
   },
 ]
 
+// owlit's own agent (packages/owlit-agent), when the shell says how to start it. It signs in inside owlit,
+// so it carries its sign-ins rather than a command to run in a terminal.
+const engineDef = (launch: Launch): ConnectorDef => ({
+  id: ENGINE_ID,
+  name: "Owlit engine (Beta)",
+  description: "owlit's own agent, built on Pi. Signs in with ChatGPT or an API key.",
+  command: "owlit-agent",
+  builtIn: true,
+  launch,
+})
+
 // What a user runs to sign in, where it isn't the command owlit starts
 const BUILT_IN_SIGN_IN: Record<string, string> = { "claude-code": "claude", codex: "codex" }
 
@@ -62,6 +83,8 @@ export interface AgentsOptions {
   idleMs?: number
   // PATH to look agents up on; by default the login shell's
   searchPath?: () => Promise<string>
+  // How to start the Owlit engine; without it the engine isn't offered
+  engine?: Launch
 }
 
 // Live state on top of what settings remember
@@ -69,6 +92,7 @@ interface Live {
   status?: ConnectorStatus
   error?: string
   authenticated?: boolean
+  signInMethods?: SignInMethod[]
 }
 
 // The local agents: which exist, whether they work, and the one running process for each
@@ -121,6 +145,7 @@ export class Agents {
     }
     try {
       const init = await proc.initialized()
+      if (def.launch) this.setLive(id, { signInMethods: signInMethodsOf(init) })
       await mkdir(this.options.probeDir, { recursive: true })
       const session = await proc.newSession({ cwd: this.options.probeDir, mcpServers: [] }, ignoreSession)
       await proc.closeSession(session.sessionId)
@@ -138,9 +163,27 @@ export class Agents {
   // The agent said it needs a sign-in (when checked, or in the middle of a turn); returns what to tell the user
   async signedOut(id: string) {
     const def = await this.def(id)
-    const error = `${def.name} isn't signed in. Run ${splitCommand(BUILT_IN_SIGN_IN[id] ?? def.command)[0]} in a terminal to sign in, then try again.`
+    const error = def.launch
+      ? `${def.name} isn't signed in. Sign in under Settings › Agents, then try again.`
+      : `${def.name} isn't signed in. Run ${splitCommand(BUILT_IN_SIGN_IN[id] ?? def.command)[0]} in a terminal to sign in, then try again.`
     this.setLive(id, { status: "error", authenticated: false, error })
     return error
+  }
+
+  // One of the agent's own sign-ins. A browser sign-in waits for the user to finish there.
+  async signIn(id: string, methodId: string, apiKey?: string): Promise<Connector> {
+    const proc = await this.process(id)
+    await proc.authenticate({ methodId, ...(apiKey ? { _meta: { apiKey } } : {}) })
+    return this.check(id)
+  }
+
+  async signOut(id: string): Promise<Connector> {
+    const proc = await this.process(id)
+    await proc.logout({})
+    // Its open sessions were made with the old sign-in
+    proc.stop()
+    this.processes.delete(id)
+    return this.check(id)
   }
 
   // The running process for an agent, started if needed (T10 opens sessions on it)
@@ -148,14 +191,14 @@ export class Agents {
     const running = this.processes.get(id)
     if (running) return running
     const def = await this.def(id)
-    const [name, ...args] = splitCommand(def.command)
+    const [name, ...args] = def.launch ? [def.launch.command, ...def.launch.args] : splitCommand(def.command)
     const searchPath = await (this.options.searchPath ?? userPath)()
-    const file = name ? await resolveExecutable(name, searchPath) : null
+    const file = def.launch ? def.launch.command : name ? await resolveExecutable(name, searchPath) : null
     if (!file) throw new NotInstalled(def.name)
     const proc = new AcpProcess({
       file,
       args,
-      env: { ...process.env, PATH: searchPath },
+      env: { ...process.env, PATH: searchPath, ...def.launch?.env },
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
       onCrash: (detail) => {
@@ -180,7 +223,8 @@ export class Agents {
 
   private async defs(): Promise<ConnectorDef[]> {
     const { connectors } = await this.options.settings.get()
-    return [...BUILT_IN, ...(connectors.custom ?? []).map((c) => ({ ...c, description: "Custom ACP agent", builtIn: false }))]
+    const engine = this.options.engine ? [engineDef(this.options.engine)] : []
+    return [...BUILT_IN, ...engine, ...(connectors.custom ?? []).map((c) => ({ ...c, description: "Custom ACP agent", builtIn: false }))]
   }
 
   private async def(id: string) {
@@ -209,7 +253,8 @@ export class Agents {
       description: def.description,
       command: def.command,
       installHint: def.installHint,
-      signIn: def.builtIn ? splitCommand(BUILT_IN_SIGN_IN[def.id] ?? def.command)[0] : undefined,
+      signIn: def.builtIn && !def.launch ? splitCommand(BUILT_IN_SIGN_IN[def.id] ?? def.command)[0] : undefined,
+      signInMethods: live.signInMethods,
       builtIn: def.builtIn,
       // Checked before: ready unless something since says otherwise
       status: live.status ?? (probed ? "available" : "unknown"),
@@ -227,6 +272,15 @@ export class Agents {
 }
 
 class NotInstalled extends Error {}
+
+// The sign-ins an agent runs itself; ones it would run in a terminal aren't offered
+function signInMethodsOf(init: acp.InitializeResponse): SignInMethod[] {
+  return (init.authMethods ?? []).flatMap((m) => {
+    if ("type" in m && m.type === "terminal") return []
+    const owlit = (m._meta as { owlit?: { apiKey?: boolean } } | null | undefined)?.owlit
+    return [{ id: m.id, name: m.name, ...(m.description ? { description: m.description } : {}), ...(owlit?.apiKey ? { apiKey: true } : {}) }]
+  })
+}
 
 // A session opened only to look at the agent; nothing it sends matters
 const ignoreSession = {

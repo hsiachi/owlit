@@ -7,6 +7,7 @@ import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon,
 import { cn } from "cn"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
+import { needsSignIn } from "@/features/chat/components/composer/AgentPicker"
 import { useChatStore } from "@/features/chat/store"
 import { useTasksStore } from "@/features/tasks/store"
 import { useFold } from "./form-state"
@@ -74,7 +75,8 @@ const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; about: s
 
 // A section shows a small dot in the list only while something in it needs the user
 function useNeedsYou(): Partial<Record<SettingsSection, boolean>> {
-  const agentBroken = useChatStore((s) => s.connectors.some((c) => c.status === "error"))
+  // An agent nobody has signed in to yet (the Owlit engine in Beta) isn't broken
+  const agentBroken = useChatStore((s) => s.connectors.some((c) => c.status === "error" && !needsSignIn(c)))
   const loginWaiting = useTasksStore((s) => Object.values(s.byId).some((t) => t.state === "waiting_for_you" && t.waiting?.reason === "login"))
   return { agents: agentBroken, proxy: loginWaiting }
 }

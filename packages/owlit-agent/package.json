@@ -1,0 +1,27 @@
+{
+  "name": "@owlit/agent",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "owlit-agent": "./src/main.ts"
+  },
+  "scripts": {
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.7.0",
+    "@earendil-works/pi-agent-core": "1.1.0",
+    "@earendil-works/pi-ai": "1.1.0",
+    "@earendil-works/pi-mcp": "1.1.0",
+    "typebox": "1.3.27",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vitest": "5.0.2"
+  }
+}

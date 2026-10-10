@@ -54,6 +54,9 @@ interface ChatState {
   respondPermission: (chatId: string, requestId: string, optionId: string) => void
 
   checkConnector: (id: string) => Promise<void>
+  // The agent's own sign-in (the Owlit engine); throws what went wrong, for the form to show
+  signInConnector: (id: string, methodId: string, apiKey?: string) => Promise<void>
+  signOutConnector: (id: string) => Promise<void>
   addCustomConnector: (name: string, command: string) => Promise<Connector>
   removeConnector: (id: string) => void
 }
@@ -262,6 +265,16 @@ export const useChatStore = create<ChatState>()(
         if (!c) return
         set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? { ...x, status: "checking", error: undefined } : x)) }))
         const result = isDesktop ? await rpc.agents.check({ id }).catch((e: Error) => ({ ...c, status: "error" as const, error: e.message })) : await agentClient.check(c)
+        set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
+      },
+
+      async signInConnector(id, methodId, apiKey) {
+        const result = await rpc.agents.signIn({ id, methodId, ...(apiKey ? { apiKey } : {}) })
+        set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
+      },
+
+      async signOutConnector(id) {
+        const result = await rpc.agents.signOut({ id })
         set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
       },
 

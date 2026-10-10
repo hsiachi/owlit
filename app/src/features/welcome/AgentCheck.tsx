@@ -37,8 +37,10 @@ export function AgentCheck() {
   // Built-in agents come first, Claude Code first of all, as background work picks them
   const ready = connectors.find(isReady)
   const checking = !connectors.length || connectors.some(isChecking)
-  const signedOut = connectors.find((c) => c.status === "error" && c.authenticated === false)
-  const broken = connectors.find((c) => c.status === "error")
+  // The Owlit engine (Beta) signs in under Settings, not in Terminal, and isn't what a first run is about
+  const installed = connectors.filter((c) => !c.signInMethods?.length && c.id !== "owlit-engine")
+  const signedOut = installed.find((c) => c.status === "error" && c.authenticated === false)
+  const broken = installed.find((c) => c.status === "error")
   const first = connectors.find((c) => c.builtIn && c.installHint)
 
   const copy = (text: string) => {

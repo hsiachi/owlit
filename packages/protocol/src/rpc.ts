@@ -184,6 +184,10 @@ export interface Methods {
   "agents.add": { params: { name: string; command: string }; result: Connector }
   // Removes one the user added
   "agents.remove": { params: { id: string }; result: null }
+  // Signs in with one of the agent's own sign-ins (Connector.signInMethods), then checks it again. A
+  // browser sign-in resolves once the user has finished in the browser.
+  "agents.signIn": { params: { id: string; methodId: string; apiKey?: string }; result: Connector }
+  "agents.signOut": { params: { id: string }; result: Connector }
   // One turn of a chat on an agent. Core appends both messages to the chat, streams the answer as
   // chat.update and saves it; resolves when the turn ends.
   "agents.prompt": {

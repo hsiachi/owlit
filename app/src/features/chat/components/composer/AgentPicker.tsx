@@ -30,6 +30,9 @@ export const statusLabel: Record<ConnectorStatus, string> = {
 }
 
 export const isUnavailable = (c?: Connector) => !!c && (c.status === "not_installed" || c.status === "error")
+// An agent that signs in inside owlit (the Owlit engine) and isn't signed in yet: it needs the user, but
+// isn't broken
+export const needsSignIn = (c: Connector) => !!c.signInMethods?.length && c.authenticated === false
 
 // Resolves the agent, model, effort and role in effect for a chat (or the global default)
 export function useResolvedSelection(chatId?: string) {
@@ -111,6 +114,7 @@ function RadioItem({
 // Only states that need attention get a chip; a working agent stays quiet
 function StatusChip({ c }: { c: Connector }) {
   if (c.status === "checking") return <Spinner className="size-3.5 shrink-0 text-muted-foreground" />
+  if (needsSignIn(c)) return <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs leading-4 text-muted-foreground">Not signed in</span>
   if (c.status === "not_installed" || c.status === "error") {
     return (
       <span
