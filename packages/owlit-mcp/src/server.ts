@@ -4,7 +4,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
-import { OWLIT_TOOLS, type AgentNote, type ConsentAction, type HighlightColor, type Paper, type ToolSpec } from "@owlit/protocol"
+import { OWLIT_TOOLS, type AgentNote, type ConsentAction, type FoundPaper, type FoundPapers, type HighlightColor, type Paper, type ToolSpec } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 
 export interface OwlitMcpOptions {
@@ -133,28 +133,64 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         .join("\n")
     }
     case "library_search": {
-      const found = await owlit.rpc.library.searchOnline({ q: str("query"), limit: num("limit") ?? 10, by: options.chatId ? `chat:${options.chatId}` : "agent" })
-      if (!found.length) return "Nothing found."
-      return found
-        .map((p) =>
-          [
-            `- ${p.id} · ${p.title}`,
-            [shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", "),
-            p.citationCount !== undefined ? `${p.citationCount} citations` : "",
-            p.inLibrary ? `already in the library as ${p.inLibrary}` : "",
-          ]
-            .filter(Boolean)
-            .join(" · ") + (p.abstract ? `\n  ${p.abstract.slice(0, 300)}${p.abstract.length > 300 ? "…" : ""}` : ""),
-        )
-        .join("\n")
+      const found = await owlit.rpc.library.searchOnline({
+        q: str("query"),
+        limit: num("limit") ?? 10,
+        by: options.chatId ? `chat:${options.chatId}` : "agent",
+        ...pickArgs(args, { source: "source", year: "year", sort: "sort", minCitations: "min_citations", type: "type", author: "author", venue: "venue", openAccess: "open_access" }),
+      })
+      return foundText(found, "Nothing found.")
+    }
+    case "library_related": {
+      const kind = str("kind") as "references" | "cited_by" | "similar"
+      const found = await owlit.rpc.library.related({
+        ref: str("id"),
+        kind,
+        limit: num("limit") ?? 20,
+        by: options.chatId ? `chat:${options.chatId}` : "agent",
+        ...pickArgs(args, { year: "year", sort: "sort" }),
+      })
+      const what = { references: "References of", cited_by: "Papers citing", similar: "Papers like" }[kind]
+      return foundText({ ...found, matched: `${what} ${found.matched ?? str("id")}` }, kind === "references" ? "No references known." : kind === "cited_by" ? "Nothing cites it yet, as far as the source knows." : "No similar papers found.")
+    }
+    case "library_journal": {
+      const offset = num("offset") ?? 0
+      const found = await owlit.rpc.library.journal({
+        journal: str("journal"),
+        year: str("year"),
+        offset,
+        limit: num("limit") ?? 50,
+        by: options.chatId ? `chat:${options.chatId}` : "agent",
+        ...pickArgs(args, { query: "query" }),
+      })
+      const total = found.total ?? found.papers.length
+      const head = `${found.matched}, ${str("year")}: ${total} research article${total === 1 ? "" : "s"}${args.query ? ` with “${str("query")}”` : ""} (Crossref's full list, by issue date).`
+      if (!found.papers.length) return offset && total ? `${head} Nothing after ${offset}.` : head
+      const next = offset + found.papers.length < total ? ` Pass offset ${offset + found.papers.length} for the next.` : ""
+      return `${head} ${offset + 1}–${offset + found.papers.length}:${next}\n${found.papers.map((p) => foundLine(p, 160)).join("\n")}`
     }
     case "library_add": {
-      const { paper, existingId } = await owlit.rpc.library.resolve({ input: str("ref") })
-      if (existingId) return `Already in the library as ${existingId}: ${paper.title}`
-      const refused = await consent(owlit, options, "add_paper", `Add “${paper.title}” to the Library`)
+      const refs = [...new Set((args.refs as string[]).map((r) => r.trim()).filter(Boolean))]
+      if (!refs.length) return "library_add needs at least one ref."
+      // One question for the lot: the user answers for the batch they asked for
+      const refused = await consent(owlit, options, "add_paper", refs.length === 1 ? `Add ${refs[0]} to the Library` : `Add ${refs.length} papers to the Library`)
       if (refused) return refused
-      const added = await owlit.rpc.library.add({ paper, addedBy: "agent", ...asker })
-      return `Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}). Its PDF and text arrive by themselves; once you have read it, keep a reading note with library_write_digest.`
+      const lines: string[] = []
+      for (const ref of refs) {
+        try {
+          const { paper, existingId } = await owlit.rpc.library.resolve({ input: ref })
+          if (existingId) {
+            lines.push(`Already in the library as ${existingId}: ${paper.title}`)
+            continue
+          }
+          const added = await owlit.rpc.library.add({ paper, addedBy: "agent", ...asker })
+          lines.push(`Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}).`)
+        } catch (error) {
+          lines.push(`Couldn't add ${ref}: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      if (lines.some((l) => l.startsWith("Added"))) lines.push("PDFs and text arrive by themselves; once you have read a paper, keep a reading note with library_write_digest.")
+      return lines.join("\n")
     }
     case "library_write_digest": {
       const paper = await owlit.rpc.library.writeDigest({ id: str("id"), text: str("digest"), by: options.chatId ? `chat:${options.chatId}` : "agent" })
@@ -297,6 +333,31 @@ function shortAuthors(authors: string[]) {
   if (!authors.length) return ""
   const last = (name: string) => name.trim().split(/\s+/).at(-1)
   return authors.length > 2 ? `${last(authors[0])} et al.` : authors.map(last).join(" & ")
+}
+
+// A found paper in a line or two: what it is, then its summary (tldr) or the start of its abstract
+function foundLine(p: FoundPaper, abstractChars = 300) {
+  const where = [p.volume ? `vol. ${p.volume}${p.issue ? `(${p.issue})` : ""}` : ""].filter(Boolean)
+  const facts = [
+    [shortAuthors(p.authors), p.year, p.venue, ...where].filter(Boolean).join(", "),
+    p.citationCount !== undefined ? `${p.citationCount} citations` : "",
+    p.openPdf ? "free PDF" : "",
+    p.inLibrary ? `already in the library as ${p.inLibrary}${p.hasPdf === false ? " (no PDF yet)" : ""}` : "",
+  ].filter(Boolean)
+  const about = p.tldr ? `TLDR: ${p.tldr}` : p.abstract ? `${p.abstract.slice(0, abstractChars)}${p.abstract.length > abstractChars ? "…" : ""}` : ""
+  return `- ${p.id} · ${p.title} · ${facts.join(" · ")}` + (about ? `\n  ${about}` : "")
+}
+
+function foundText(found: FoundPapers, none: string) {
+  const source = { openalex: "OpenAlex", s2: "Semantic Scholar", arxiv: "arXiv", crossref: "Crossref" }[found.source] ?? found.source
+  const head = [found.matched, `from ${source}`, found.total !== undefined && found.total > found.papers.length ? `${found.papers.length} of ${found.total}` : "", found.note ?? ""].filter(Boolean).join(" · ")
+  if (!found.papers.length) return `${none} (${head})`
+  return `${head}\n${found.papers.map((p) => foundLine(p)).join("\n")}`
+}
+
+// The tool's optional arguments under their RPC names, leaving out the ones not given
+function pickArgs(args: Record<string, unknown>, names: Record<string, string>) {
+  return Object.fromEntries(Object.entries(names).flatMap(([to, from]) => (args[from] === undefined || args[from] === null || args[from] === "" ? [] : [[to, args[from]]])))
 }
 
 const citeAs = (p: Pick<Paper, "authors" | "year">) => [shortAuthors(p.authors) || "Anonymous", p.year].filter(Boolean).join(" ")

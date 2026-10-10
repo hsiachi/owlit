@@ -291,12 +291,18 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
             const touched = lineTouched(ref.from)
             const end = withSpace(node)
             let depth = 0
-            for (let p: SyntaxNode | null = node.parent; p; p = p.parent) if (p.name === "ListItem") depth++
+            let quoted = false
+            for (let p: SyntaxNode | null = node.parent; p; p = p.parent) {
+              if (p.name === "ListItem") depth++
+              else if (p.name === "Blockquote") quoted = true
+            }
             decos.push(Decoration.line({ class: "cm-li", attributes: { style: `--li-depth: ${Math.max(1, depth)}` } }).range(line.from))
             if (!touched) hide(line.from, ref.from)
+            // In a quote, the "> " shown while editing shares the marker's box, so it doesn't push the text out
+            const markFrom = touched && quoted ? line.from : ref.from
             if (list === "BulletList" && !isTask && !touched) decos.push(bullet.range(ref.from, end))
             else if (list === "BulletList" && isTask && !touched) hide(ref.from, end)
-            else decos.push(mark("cm-list-mark").range(ref.from, end))
+            else decos.push(mark("cm-list-mark").range(markFrom, end))
             break
           }
           case "TaskMarker": {

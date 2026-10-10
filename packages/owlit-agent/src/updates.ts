@@ -56,6 +56,6 @@ function resultText(result: unknown): string {
 // Read-only tools by name, so a Reviewer's steps read as reading (owlit refuses edits by kind)
 export function kindOf(tool: string): ToolKind {
   if (/_(list|get|read|highlights)$|^owlit_help$/.test(tool)) return "read"
-  if (tool.endsWith("_search")) return "search"
+  if (tool.endsWith("_search") || tool === "library_related" || tool === "library_journal") return "search"
   return "other"
 }

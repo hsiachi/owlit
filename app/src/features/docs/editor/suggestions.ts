@@ -36,14 +36,22 @@ function hunk(oldText: string, newText: string) {
   return { at: p, removed: oldText.slice(p, oldText.length - s), added: newText.slice(p, newText.length - s) }
 }
 
-// Where the edit sits in the doc as it is now; null once the passage has changed
+// Where text occurs exactly once in the doc, or -1
+function only(doc: string, text: string) {
+  const i = doc.indexOf(text)
+  return i >= 0 && doc.indexOf(text, i + 1) < 0 ? i : -1
+}
+
+// Where the edit sits in the doc as it is now; null once the passage has changed. The whole passage the
+// agent quoted pins the edit down first: a pure insertion removes nothing, so it has nothing else to go by.
 function locate(state: EditorState, edit: PendingEdit) {
   const doc = state.doc.toString()
   const h = hunk(edit.oldText, edit.newText)
-  if (doc === edit.oldText) return { from: h.at, to: h.at + h.removed.length, added: h.added }
+  const base = doc === edit.oldText ? 0 : edit.oldText ? only(doc, edit.oldText) : -1
+  if (base >= 0) return { from: base + h.at, to: base + h.at + h.removed.length, added: h.added }
   if (!h.removed) return null
-  const i = doc.indexOf(h.removed)
-  if (i < 0 || doc.indexOf(h.removed, i + 1) >= 0) return null
+  const i = only(doc, h.removed)
+  if (i < 0) return null
   return { from: i, to: i + h.removed.length, added: h.added }
 }
 

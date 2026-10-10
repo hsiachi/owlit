@@ -2,6 +2,7 @@ import type { LibrarySettings, PaperIds, PaperKind } from "@owlit/protocol"
 import type { Http, RequestOptions } from "../net/http.ts"
 import { cleanDoi, paperIdOf, parseRef, type Ref } from "./refs.ts"
 import { ARXIV_HOST, fetchArxiv } from "./sources/arxiv.ts"
+import { CROSSREF_HOST } from "./sources/crossref.ts"
 import { fetchOpenAlex, OPENALEX_HOST } from "./sources/openalex.ts"
 import { fetchS2, S2_HOST } from "./sources/semanticscholar.ts"
 import type { SourceRecord } from "./sources/types.ts"
@@ -36,6 +37,7 @@ export function limitMetadataHosts(http: Http, keys: MetadataKeys = {}) {
   http.limit(ARXIV_HOST, { perSecond: 1 / 3, concurrent: 1 })
   http.limit(OPENALEX_HOST, { perSecond: 8, concurrent: 4 })
   http.limit(S2_HOST, keys.s2ApiKey ? { perSecond: 1, concurrent: 1 } : { perSecond: 0.5, concurrent: 1 })
+  http.limit(CROSSREF_HOST, { perSecond: 5, concurrent: 1 })
 }
 
 // No service knows the paper, or what was given isn't a reference

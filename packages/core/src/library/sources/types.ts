@@ -21,3 +21,9 @@ export interface SourceRecord {
   // The response as it came, kept in the paper's sources/
   raw: string
 }
+
+// A span of publication years; either end may be open
+export interface Years {
+  from?: number
+  to?: number
+}
