@@ -8,6 +8,7 @@ import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic"
 import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek"
 import { moonshotaiCnProvider } from "@earendil-works/pi-ai/providers/moonshotai-cn"
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai"
+import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex"
 import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter"
 import { qwenTokenPlanCnProvider } from "@earendil-works/pi-ai/providers/qwen-token-plan-cn"
 import { spawn } from "node:child_process"
@@ -172,11 +173,18 @@ export async function signIn(models: Models, credentials: CredentialStore, home:
   throw new Error(`Unknown sign-in: ${methodId}`)
 }
 
+// What a ChatGPT sign-in may use: OpenAI refuses the rest ("not supported when using Codex with a ChatGPT
+// account"). pi-ai's Codex catalog lists exactly those (checked against Codex's own list, 2026-10-10).
+let chatgptModels: Set<string> | undefined
+const chatgptAllows = (id: string) => (chatgptModels ??= new Set(openaiCodexProvider().getModels().map((m) => m.id))).has(id)
+
 // The models some sign-in reaches, a few per provider, newest first
-export async function availableModels(models: Models): Promise<Model<Api>[]> {
+export async function availableModels(models: Models, credentials: CredentialStore): Promise<Model<Api>[]> {
+  const viaChatGPT = (await credentials.read("openai"))?.type === "oauth"
   const best = new Map<string, Map<string, Model<Api>>>()
   for (const m of await models.getAvailable()) {
     if (NOT_FOR_CHAT.test(m.id) || (m.provider === "openrouter" && !OPENROUTER_LABS.test(m.id))) continue
+    if (m.provider === "openai" && viaChatGPT && !chatgptAllows(m.id)) continue
     const families = best.get(m.provider) ?? new Map<string, Model<Api>>()
     best.set(m.provider, families)
     const key = m.provider === "openrouter" ? `${m.id.split("/")[0]}/${family(m.id)}` : family(m.id)

@@ -115,7 +115,7 @@ export class Engine implements acp.Agent {
 
   // Without any sign-in there is no model to talk to: owlit shows that as "not signed in"
   private async open(id: string, cwd: string, servers: acp.McpServer[], saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}) {
-    const available = await availableModels(this.models)
+    const available = await availableModels(this.models, this.credentials)
     if (!available.length) throw acp.RequestError.authRequired()
     const toolbox = await connectTools(servers, cwd, this.log)
     const session = new EngineSession({
