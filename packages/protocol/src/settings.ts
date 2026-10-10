@@ -1,12 +1,13 @@
 // Settings as the window sees and changes them. Keys never leave core: a window learns only that one
 // is set and how it ends.
 
-import type { AppearanceSettings, ProxySettings } from "./workspace.ts"
+import type { AppearanceSettings, ProfileSettings, ProxySettings } from "./workspace.ts"
 
 export type SecretName = "s2ApiKey" | "openalexApiKey" | "mineruToken"
 
 export interface SettingsView {
   appearance: AppearanceSettings
+  profile: ProfileSettings
   library: {
     contactEmail?: string
     proxy?: ProxySettings
@@ -26,6 +27,7 @@ export interface SettingsView {
 // null clears a value back to its default
 export interface SettingsPatch {
   appearance?: Partial<AppearanceSettings>
+  profile?: { name?: string | null }
   library?: { contactEmail?: string | null; digestLanguage?: string | null; digestEveryPaper?: boolean }
   parsing?: { service?: "cloud" | "self-hosted" | null; url?: string | null; auto?: boolean }
   backgroundAgent?: string | null

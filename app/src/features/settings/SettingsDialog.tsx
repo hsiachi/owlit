@@ -3,7 +3,7 @@
 // the rail, and links where something could work better ("Set up library proxy", "Manage agents…"),
 // which open it at their section. Closing it leaves you exactly where you were.
 
-import { BotIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon, ScanTextIcon, type LucideIcon } from "lucide-react"
+import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon, ScanTextIcon, type LucideIcon } from "lucide-react"
 import { cn } from "cn"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
@@ -14,12 +14,20 @@ import { Info } from "./parts"
 import { AgentsSection } from "./sections/AgentsSection"
 import { AppearanceSection } from "./sections/AppearanceSection"
 import { PrivacySection } from "./sections/PrivacySection"
+import { ProfileSection } from "./sections/ProfileSection"
 import { ProxySection } from "./sections/ProxySection"
 import { ReadingSection } from "./sections/ReadingSection"
 import { SourcesSection } from "./sections/SourcesSection"
 import { closeSettings, showSection, useSettings, type SettingsSection } from "./store"
 
 const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; about: string; body: React.ComponentType }[] = [
+  {
+    id: "profile",
+    label: "Profile",
+    icon: CircleUserIcon,
+    about: "Who you are to Owlit. It stays on this computer and is told only to the agent you chat with.",
+    body: ProfileSection,
+  },
   {
     id: "appearance",
     label: "Appearance",
@@ -98,7 +106,7 @@ export function SettingsDialog() {
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">This computer's settings for owlit.</DialogDescription>
-        {/* Six short names need about 200px; the rest goes to the section */}
+        {/* Seven short names need about 200px; the rest goes to the section */}
         <SidebarProvider className="min-h-0 items-start" style={{ "--sidebar-width": "12.5rem" } as React.CSSProperties}>
           <Sidebar collapsible="none" className="hidden h-[560px] border-r bg-sidebar-panel md:flex">
             <SidebarContent>

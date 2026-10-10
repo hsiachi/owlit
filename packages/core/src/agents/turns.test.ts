@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { promptBlocks } from "./turns.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
 const cores: Core[] = []
@@ -69,6 +70,12 @@ describe("turns", () => {
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
     expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 5/)
+  })
+
+  it("tells a new session the user's name when they gave one", () => {
+    const first = (name?: string) => (promptBlocks({ text: "hi", mentions: [], attachments: [] }, "/ws", null, true, name)[0] as { text: string }).text
+    expect(first("Xia")).toContain("The user's name is Xia")
+    expect(first()).not.toContain("The user's name")
   })
 
   it("sets the model and effort the chat asks for, and leaves the mode of an agent owlit has no guard for", async () => {

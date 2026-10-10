@@ -106,6 +106,7 @@ export class Core {
       workspace: () => this.workspace,
       notify: (chatId, update) => this.notifier.notify("chat.update", { chatId, update }),
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
+      userName: async () => (await this.settings.get()).profile.name,
     })
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its reading note comes first

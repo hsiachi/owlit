@@ -41,6 +41,7 @@ describe("settings", () => {
     const { call } = setup()
     expect(await call("settings.get")).toEqual({
       appearance: { theme: "system", tone: "warm" },
+      profile: {},
       library: {},
       parsing: { auto: true },
       secrets: {},
@@ -55,6 +56,12 @@ describe("settings", () => {
     expect(view).toMatchObject({ appearance: { theme: "dark", tone: "sepia" }, library: { contactEmail: "me@uni.edu" }, backgroundAgent: "codex" })
     expect(view.library).not.toHaveProperty("digestLanguage")
     expect(heard.filter((n) => n.method === "settings.changed")).toHaveLength(2)
+  })
+
+  it("keeps the name Owlit calls the user, trimmed, and forgets it when cleared", async () => {
+    const { call } = setup()
+    expect((await call("settings.update", { patch: { profile: { name: "  Xia " } } })).profile).toEqual({ name: "Xia" })
+    expect((await call("settings.update", { patch: { profile: { name: null } } })).profile).toEqual({})
   })
 
   it("keeps keys sealed on disk and shows the window only how they end", async () => {
