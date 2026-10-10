@@ -61,6 +61,8 @@ export const docTheme = EditorView.theme({
   ".cm-task-done": { color: "var(--muted-foreground)" },
 
   ".cm-quote": { borderLeft: "2px solid var(--border)", paddingLeft: "14px !important", color: "var(--muted-foreground)" },
+  // A list inside a quote or callout hangs from the block's inset, not from the bar
+  ".cm-line.cm-quote.cm-li, .cm-line.cm-callout.cm-li": { paddingLeft: "calc(14px + var(--li-depth) * 1.5em) !important" },
   ".cm-hr": { position: "relative" },
   ".cm-hr::after": { content: '""', position: "absolute", left: "0", right: "0", top: "50%", borderTop: "1px solid var(--border)" },
   ".cm-hr-text": { color: "transparent" },
