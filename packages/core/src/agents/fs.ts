@@ -1,4 +1,4 @@
-import { RpcErrorCode, type AgentNote, type AgentRecord } from "@owlit/protocol"
+import { editStats, RpcErrorCode, type AgentNote, type AgentRecord } from "@owlit/protocol"
 import type { Journal } from "../activity/index.ts"
 import { sha1, type Version } from "../docs/versions.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -147,6 +147,21 @@ export class AgentFs {
     const version = await ws.versions.saveFile(rel, before, after, { chatId })
     this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, chatId })
     this.options.wrote({ path: rel, versionId: version.id, chatId })
+  }
+
+  // How much a run of an agent's writes to one file changed it: from the text before the first (`from`) to
+  // the text after the last (`to`), which the file's next version holds when one was kept since, and the
+  // file itself otherwise. Agents report their edits in pieces, if at all; these texts are what happened.
+  async stats(from: string, to: string) {
+    const ws = this.workspace()
+    const first = await ws.versions.get(from)
+    const last = to === from ? first : await ws.versions.get(to)
+    if (first?.kind !== "file" || last?.kind !== "file" || last.path !== first.path) return null
+    const all = (await ws.versions.list({ path: first.path })).reverse()
+    const next = all.slice(all.findIndex((v) => v.id === last.id) + 1).find((v) => v.kind === "file")
+    const after = last.deleted ? "" : next ? ((await ws.versions.get(next.id))?.content ?? null) : ((await this.fromEditor(first.path)) ?? (await ws.docs.readDisk(first.path)))
+    if (after === null) return null
+    return editStats(first.path, first.existed === false ? "" : first.content, after)
   }
 
   // Takes back what a version recorded: a file goes back to its text from before (one the agent created

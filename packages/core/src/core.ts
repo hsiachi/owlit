@@ -306,6 +306,7 @@ export class Core {
     )
     this.router.register("ui.say", z.object({ text: z.string().min(1) }), (params) => this.ui.act("say", params))
     this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
+    this.router.register("versions.stats", z.object({ from: z.string().min(1), to: z.string().min(1) }), ({ from, to }) => this.fs.stats(from, to))
     this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>

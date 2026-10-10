@@ -1,4 +1,6 @@
-import { useState, type ComponentType } from "react"
+import { useEffect, useState, type ComponentType } from "react"
+import { create } from "zustand"
+import { editStats, type EditStats } from "@owlit/protocol"
 import { toast } from "sonner"
 import { ArrowUpRightIcon, BookOpenIcon, FileTextIcon, StickyNoteIcon } from "lucide-react"
 import { useOpenFromChat } from "@/features/agent/hooks"
@@ -6,7 +8,7 @@ import { useDocsStore } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
 import type { ChatMessage } from "../../types"
 import { undoResult, useResultsStore, type AgentResult } from "../../results"
-import { diffCounts } from "./step-results"
+import { isDesktop, rpc } from "@/lib/rpc"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
 // notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
@@ -23,37 +25,50 @@ export interface ResultRow {
   undone: boolean
   view?: () => void
   undo?: () => Promise<void> | void
-  // For the summary line: what kind of change, and how many lines an edit added and removed
+  // For the summary line: what kind of change, and how much an edit changed
   kind: "doc" | "paper" | "note" | "knowledge"
-  lines?: { added: number; removed: number }
+  stats?: EditStats
+  // An edited file that is one of the user's Markdown docs
+  markdown?: boolean
 }
 
 const FOLD_AFTER = 3
 
-// Lines added and removed in a file by the reply's own edits, read from their diffs
-function linesIn(parts: ChatMessage["parts"], path: string) {
-  let added = 0
-  let removed = 0
-  let any = false
-  for (const p of parts) {
-    if (p.type !== "tool_call" || p.status !== "completed" || !p.diff) continue
-    const at = p.diff.path
-    if (at !== path && !at.endsWith(`/${path}`)) continue
-    const c = diffCounts(p.diff.oldText ?? "", p.diff.newText)
-    added += c.added
-    removed += c.removed
-    any = true
-  }
-  return any ? { added, removed } : undefined
+// What the reply's edits to a file amounted to. Core reads it from the versions it kept, which is the whole
+// change whatever the agent reported; without core (the browser preview) the reply's own diffs are summed.
+const statsCache = create<{ byKey: Record<string, EditStats | null>; load: (from: string, to: string) => void }>()((set, get) => ({
+  byKey: {},
+  load: (from, to) => {
+    const key = `${from}|${to}`
+    if (key in get().byKey) return
+    set((s) => ({ byKey: { ...s.byKey, [key]: null } }))
+    void rpc.versions
+      .stats({ from, to })
+      .then((stats) => set((s) => ({ byKey: { ...s.byKey, [key]: stats } })))
+      .catch(() => undefined)
+  },
+}))
+
+function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | undefined {
+  const edits = parts.filter((p) => p.type === "tool_call" && p.status === "completed" && !!p.diff && (p.diff.path === path || p.diff.path.endsWith(`/${path}`)))
+  const all = edits.map((p) => (p.type === "tool_call" && p.diff ? editStats(path, p.diff.oldText ?? "", p.diff.newText) : null)).filter((s) => s !== null)
+  if (!all.length) return undefined
+  // Only a lone Write carries the whole file, so only it can tell that most of the doc went
+  const whole = edits.length === 1 && edits[0].type === "tool_call" && edits[0].tool?.name === "Write"
+  return { unit: all[0].unit, added: all.reduce((t, s) => t + s.added, 0), removed: all.reduce((t, s) => t + s.removed, 0), rewritten: whole && all[0].rewritten }
 }
 
-// "+31 −1": new lines in Owlit's suggestion colour, as the doc marks its edits; removals muted, never red
-export function LineCounts({ added, removed }: { added: number; removed: number }) {
+// "+31 −1": new words in Owlit's suggestion colour, as the doc marks its edits; removals muted, never red.
+// A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
+export function EditCounts({ stats }: { stats: EditStats }) {
+  if (stats.rewritten) return <span>Rewritten</span>
+  const { added, removed } = stats
   return (
-    <span className="tabular-nums">
-      {added > 0 && <span className="text-suggestion">+{added}</span>}
+    <span className="tabular-nums" title={`${stats.unit === "words" ? "Words" : "Lines"} added and removed`}>
+      {added > 0 && <span className="text-suggestion">+{added.toLocaleString()}</span>}
       {added > 0 && removed > 0 && " "}
-      {removed > 0 && <span>−{removed}</span>}
+      {removed > 0 && <span>−{removed.toLocaleString()}</span>}
+      {stats.unit === "lines" && (added > 0 || removed > 0) && ` ${added + removed === 1 ? "line" : "lines"}`}
     </span>
   )
 }
@@ -77,6 +92,19 @@ async function undoResults(messageId: string, results: AgentResult[]) {
 function useResultRows(message: ChatMessage): ResultRow[] {
   const navigate = useOpenFromChat()
   const results = useResultsStore((s) => s.byMessage[message.id]) ?? []
+  const stats = statsCache((s) => s.byKey)
+  // Each file's first and last version from this reply, whose stats core is asked for once
+  const spans = isDesktop
+    ? [...new Map(results.filter((r) => r.kind === "file").map((r) => [r.path, r])).keys()].map((path) => {
+        const list = results.filter((r) => r.kind === "file" && r.path === path).sort((a, b) => a.at - b.at)
+        return { path, key: `${list[0].versionId}|${list.at(-1)!.versionId}`, from: list[0].versionId, to: list.at(-1)!.versionId }
+      })
+    : []
+  const wanted = spans.map((s) => s.key).join(",")
+  useEffect(() => {
+    for (const s of spans) statsCache.getState().load(s.from, s.to)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted])
   const openDoc = (path: string) => {
     const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
     return file ? () => navigate(`/docs/${file.id}`) : undefined
@@ -92,7 +120,8 @@ function useResultRows(message: ChatMessage): ResultRow[] {
         rows.push({ key: `note:${path}`, kind: "note", icon: StickyNoteIcon, name, detail: list.length === 1 ? "1 note" : `${list.length} notes`, ...of(list), view: openDoc(path) })
         continue
       }
-      const lines = linesIn(message.parts, path)
+      const span = spans.find((s) => s.path === path)
+      const edit = span ? (stats[span.key] ?? undefined) : statsFromParts(message.parts, path)
       // A paper's note is the user's own text, named by its paper and opened on the paper's page
       const notePaper = /^\.owlit\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
       rows.push({
@@ -100,8 +129,9 @@ function useResultRows(message: ChatMessage): ResultRow[] {
         kind: "doc",
         icon: notePaper ? BookOpenIcon : FileTextIcon,
         name: notePaper ? `Your note on ${name}` : name,
-        detail: lines ? <LineCounts {...lines} /> : undefined,
-        lines,
+        detail: edit ? <EditCounts stats={edit} /> : undefined,
+        stats: edit,
+        markdown: /\.(md|markdown)$/i.test(path),
         ...of(list),
         view: notePaper ? () => navigate(`/library/${notePaper}`) : openDoc(path),
       })
@@ -120,7 +150,8 @@ const count = (n: number, one: string, many: string) => (n === 1 ? one : `${n} $
 function summary(rows: ResultRow[]) {
   const n = (kind: ResultRow["kind"]) => rows.filter((r) => r.kind === kind).length
   const said = [
-    n("doc") && `edited ${count(n("doc"), "a doc", "docs")}`,
+    // A doc is a Markdown file of the user's; a script or a paper's .tex is a file
+    n("doc") && `edited ${rows.filter((r) => r.kind === "doc").every((r) => r.markdown) ? count(n("doc"), "a doc", "docs") : count(n("doc"), "a file", "files")}`,
     n("paper") && `added ${count(n("paper"), "a paper", "papers")}`,
     n("note") && `left notes on ${count(n("note"), "a doc", "docs")}`,
     n("knowledge") && `updated ${count(n("knowledge"), "a topic", "topics")}`,
@@ -160,7 +191,12 @@ export function ResultCard({ message }: { message: ChatMessage }) {
   const [all, setAll] = useState(false)
   if (!rows.length) return null
   const live = rows.filter((r) => !r.undone && r.undo)
-  const total = rows.reduce((t, r) => (r.lines && !r.undone ? { added: t.added + r.lines.added, removed: t.removed + r.lines.removed } : t), { added: 0, removed: 0 })
+  // The total counts in one unit only: words when every edit was to prose
+  const edits = rows.flatMap((r) => (r.stats && !r.undone ? [r.stats] : []))
+  const total: EditStats | undefined =
+    edits.length > 1 && edits.every((e) => e.unit === edits[0].unit)
+      ? { unit: edits[0].unit, added: edits.reduce((t, e) => t + e.added, 0), removed: edits.reduce((t, e) => t + e.removed, 0), rewritten: false }
+      : undefined
   const folded = !all && rows.length > FOLD_AFTER + 1 ? rows.length - FOLD_AFTER : 0
   return (
     <div className="flex flex-col rounded-lg border p-1">
@@ -174,7 +210,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
                 Undo all
               </button>
             )}
-            {(total.added > 0 || total.removed > 0) && <LineCounts {...total} />}
+            {total && (total.added > 0 || total.removed > 0) && <EditCounts stats={total} />}
             <ArrowUpRightIcon className="invisible size-3.5" />
           </span>
         </div>

@@ -1,4 +1,5 @@
 import type { ActivityEvent } from "./activity.ts"
+import type { EditStats } from "./edit-stats.ts"
 import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
@@ -241,6 +242,9 @@ export interface Methods {
   // restore from a doc's Versions. A file that changed since is refused with Conflict unless forced.
   // redoId undoes the restore.
   "versions.restore": { params: { id: string; force?: boolean }; result: { path: string; kind: VersionInfo["kind"]; redoId: string } }
+  // How much an agent's writes to one file changed it, from before the first version's write to after the
+  // last one's; null when they aren't a file's or are no longer kept
+  "versions.stats": { params: { from: string; to: string }; result: EditStats | null }
   // The versions kept, newest first; of one doc or topic, or of everything since a time
   "versions.list": { params: { path?: string; since?: number }; result: VersionInfo[] }
 
