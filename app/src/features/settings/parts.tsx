@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, InfoIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, InfoIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -80,12 +80,8 @@ export function Note({ tone = "muted", children }: { tone?: "muted" | "bad"; chi
   return <div className={cn("mt-1 text-[13px] leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
 }
 
-// An action in a row, in the body colour so it reads as something to click beside the muted status
-export function TextAction({ className, ...props }: React.ComponentProps<typeof Button>) {
-  return <Button variant="ghost" size="sm" className={cn("font-normal last:-mr-2.5", className)} {...props} />
-}
-
-// A small icon button whose label lives in a tooltip
+// An action in a row: a small icon button whose label lives in a tooltip. All are one width, so the
+// status text before them lines up from row to row.
 export function IconAction({ label, onClick, disabled, className, children }: { label: string; onClick: () => void; disabled?: boolean; className?: string; children: React.ReactNode }) {
   return (
     <Tooltip>
@@ -206,8 +202,9 @@ export function CheckLine({ checking, result, service }: { checking: boolean; re
   return <Note tone={result.result === "rejected" ? "bad" : "muted"}>{result.message}</Note>
 }
 
-// A key: "Not set · Add", or its last four characters with Change and Remove. Adding or changing opens
-// a field in the row; Enter keeps it, and owlit tries it once.
+// A key: "Not set" with Add, or its last four characters with Change and Remove. The actions are icons
+// of one width, so the status before them lines up from row to row. Adding or changing opens a field in
+// the row; Enter keeps it, and owlit tries it once.
 export function SecretRow({ name, label, info, getFrom, service }: { name: SecretName; label: string; info: string; getFrom?: { label: string; href: string }; service: string }) {
   const last4 = useSettings((s) => s.view?.secrets[name])
   const [editing, setEditing] = useState(false)
@@ -244,32 +241,39 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
           }}
           className="h-8 w-56 font-mono text-[13px]"
         />
-        <TextAction onClick={fold}>Cancel</TextAction>
+        <IconAction label="Cancel" onClick={fold}>
+          <XIcon />
+        </IconAction>
       </>
     )
   } else if (last4) {
     control = (
       <>
-        <TextAction
+        <IconAction
+          label="Remove key"
           className={onHover}
           onClick={() => {
             check.reset()
             void setSecret(name, null)
           }}
         >
-          Remove
-        </TextAction>
-        <span className="mx-1 font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
+          <Trash2Icon />
+        </IconAction>
+        <span className="font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
           ••••{last4}
         </span>
-        <TextAction onClick={() => setEditing(true)}>Change</TextAction>
+        <IconAction label="Change key" onClick={() => setEditing(true)}>
+          <PencilIcon />
+        </IconAction>
       </>
     )
   } else {
     control = (
       <>
-        <span className="mr-1 text-[13px] text-muted-foreground">Not set</span>
-        <TextAction onClick={() => setEditing(true)}>Add</TextAction>
+        <span className="text-[13px] text-muted-foreground">Not set</span>
+        <IconAction label="Add key" onClick={() => setEditing(true)}>
+          <PlusIcon />
+        </IconAction>
       </>
     )
   }
