@@ -5,6 +5,7 @@ import * as acp from "@agentclientprotocol/sdk"
 import type { CredentialStore, Models } from "@earendil-works/pi-ai"
 import { randomUUID } from "node:crypto"
 import { authMethods, availableModels, providerOf, signIn, signIns } from "./models.ts"
+import { systemPrompt } from "./prompt.ts"
 import { EngineSession } from "./session.ts"
 import { DEFAULT_ROLE, fileTools, type Role } from "./files.ts"
 import { connectTools, type Toolbox } from "./tools.ts"
@@ -37,6 +38,9 @@ export class Engine implements acp.Agent {
       agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } },
       agentInfo: { name: "owlit-engine", title: "Owlit engine", version: VERSION },
       authMethods: authMethods(this.models),
+      // owlit's rules, the role and the user's name go into the system prompt (prompt.ts), so owlit leaves
+      // them out of the first prompt and passes the name in the session's _meta
+      _meta: { owlit: { rulesInSystemPrompt: true } },
     }
   }
 
@@ -65,7 +69,7 @@ export class Engine implements acp.Agent {
   }
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
-    const session = await this.open(randomUUID(), params.cwd, params.mcpServers, roleOf(params._meta), undefined, backgroundOf(params._meta)).catch((error) => {
+    const session = await this.open(randomUUID(), params.cwd, params.mcpServers, roleOf(params._meta), userNameOf(params._meta), undefined, backgroundOf(params._meta)).catch((error) => {
       throw asAcpError(error)
     })
     return { sessionId: session.id, configOptions: session.configOptions() }
@@ -76,7 +80,7 @@ export class Engine implements acp.Agent {
     await this.sessions.get(params.sessionId)?.close()
     const saved = await EngineSession.read(params.cwd, params.sessionId)
     if (!saved) throw acp.RequestError.resourceNotFound(params.sessionId)
-    const session = await this.open(params.sessionId, params.cwd, params.mcpServers, roleOf(params._meta), saved)
+    const session = await this.open(params.sessionId, params.cwd, params.mcpServers, roleOf(params._meta), userNameOf(params._meta), saved)
     return { configOptions: session.configOptions() }
   }
 
@@ -122,16 +126,18 @@ export class Engine implements acp.Agent {
   // comes as a new session (owlit loads it again with the role's _meta)
   // A background session (a reading note, a Knowledge run) has nobody to ask and no files to touch: it
   // gets only the owlit tools owlit names for it, and its answer is the result
-  private async open(id: string, cwd: string, servers: acp.McpServer[], role: Role, saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}, background?: RegExp[]) {
+  private async open(id: string, cwd: string, servers: acp.McpServer[], role: Role, userName: string | undefined, saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}, background?: RegExp[]) {
     const available = await availableModels(this.models, this.credentials)
     if (!available.length) throw acp.RequestError.authRequired()
     const mcp = await connectTools(servers, cwd, this.log)
     const allowed = background ? mcp.tools.filter((t) => background.some((pattern) => pattern.test(t.name))) : mcp.tools
     const files = this.files && !background ? fileTools({ conn: this.conn, sessionId: id, cwd, role }) : { tools: [], infos: new Map() }
     const toolbox: Toolbox = { tools: [...files.tools, ...allowed], info: (name) => files.infos.get(name) ?? mcp.info(name), close: mcp.close }
+    const prompt = systemPrompt({ role, background: !!background, workspace: cwd, userName, rules: mcp.instructions, today: new Date().toISOString().slice(0, 10) })
     const session = new EngineSession({
       id,
       cwd,
+      systemPrompt: prompt,
       models: this.models,
       available,
       toolbox,
@@ -147,6 +153,11 @@ export class Engine implements acp.Agent {
 const roleOf = (meta: Record<string, unknown> | null | undefined): Role => {
   const role = (meta as { owlit?: { role?: string } } | null | undefined)?.owlit?.role
   return role === "reviewer" || role === "assistant" || role === "coauthor" ? role : DEFAULT_ROLE
+}
+
+const userNameOf = (meta: Record<string, unknown> | null | undefined) => {
+  const name = (meta as { owlit?: { userName?: unknown } } | null | undefined)?.owlit?.userName
+  return typeof name === "string" && name.trim() ? name.trim() : undefined
 }
 
 // The tools a background session may use, as patterns over their names

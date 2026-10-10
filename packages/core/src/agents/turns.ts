@@ -26,7 +26,7 @@ import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { AcpProcess, SessionHandler } from "./process.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
-import { answerFor, consentFor, guardFor, roleNote, type Guard } from "./roles.ts"
+import { answerFor, consentFor, guardFor, roleNote, takesRules, withUserName, type Guard } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
 export interface TurnRequest {
@@ -151,10 +151,12 @@ export class Turns {
       log("configured")
       // Stopped while the agent was starting: it isn't asked at all
       if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
-      const userName = fresh.created ? await this.options.userName?.() : undefined
-      const prompt = promptBlocks(req.input, ws.root, fresh.history, fresh.created, userName)
+      // owlit's rules and the role: in a new session's first prompt, unless the agent takes them itself
+      const preamble = fresh.created && !fresh.rulesInSystemPrompt
+      const userName = preamble ? await this.options.userName?.() : undefined
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName)
       // The role goes before the user's words whenever it is new to this session
-      if (live.told !== turn.role) prompt.splice(fresh.created ? 1 : 0, 0, { type: "text", text: roleNote(turn.role) })
+      if (live.told !== turn.role && !fresh.rulesInSystemPrompt) prompt.splice(preamble ? 1 : 0, 0, { type: "text", text: roleNote(turn.role) })
       live.told = turn.role
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
@@ -266,10 +268,14 @@ export class Turns {
   private async session(req: TurnRequest, ws: { root: string; chats: Chats; docs: Docs }) {
     const key = `${req.chatId}/${req.connectorId}`
     const proc = await this.options.agents.process(req.connectorId)
-    const guard = guardFor(req.connectorId, req.role ?? DEFAULT_ROLE, roots(ws.root))
+    // An agent that takes owlit's rules in its own system prompt (the Owlit engine) is told the user's name
+    // with the session's options instead of in a first-prompt preamble
+    const rulesInSystemPrompt = takesRules(await proc.initialized())
+    const role = guardFor(req.connectorId, req.role ?? DEFAULT_ROLE, roots(ws.root))
+    const guard = rulesInSystemPrompt ? withUserName(role, await this.options.userName?.()) : role
     const meta = JSON.stringify(guard.meta ?? null)
     const known = this.live.get(key)
-    if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId) && known.meta === meta) return { live: known, history: null, created: false, guard }
+    if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId) && known.meta === meta) return { live: known, history: null, created: false, guard, rulesInSystemPrompt }
 
     const handler = this.handler(key, req.chatId, ws.root)
     const chat = await ws.chats.get(req.chatId)
@@ -282,7 +288,7 @@ export class Turns {
         const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
         const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, owlitCalls: new Set(), turn: null }
         this.live.set(key, live)
-        return { live, history: null, created: false, guard }
+        return { live, history: null, created: false, guard, rulesInSystemPrompt }
       } catch {
         // The agent no longer has it; a new session takes the conversation as context instead
       } finally {
@@ -295,7 +301,7 @@ export class Turns {
     await ws.chats.update(req.chatId, { sessions: { ...chat.sessions, [req.connectorId]: created.sessionId } })
     // The messages before this turn (the user's new one is already appended, so it is left out)
     const earlier = chat.messages.filter((m) => m.id !== req.userMessage.id && m.id !== req.assistantMessageId)
-    return { live, history: earlier.length ? transcript(earlier) : null, created: true, guard }
+    return { live, history: earlier.length ? transcript(earlier) : null, created: true, guard, rulesInSystemPrompt }
   }
 
   // Sets the model and effort the chat asks for and the mode its role needs, where they differ from what

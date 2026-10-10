@@ -101,6 +101,18 @@ describe("Owlit engine", () => {
     })
   }, 30_000)
 
+  it("takes owlit's rules, the role and the user's name in its system prompt, not in the first prompt", async () => {
+    const { start, send, said } = await setup()
+    const { call } = await start()
+    await call("settings.update", { patch: { profile: { name: "Xia" } } })
+    await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+    await send(call, "system?", { role: "assistant" })
+    expect(said()).toBe("rules:true role:Assistant name:Xia preamble:false")
+    // A new role is a new system prompt (the session is loaded again with the role's options)
+    await send(call, "system?", { role: "coauthor" })
+    expect(said()).toBe("rules:true role:Co-author name:Xia preamble:false")
+  }, 30_000)
+
   it("picks a chat up again after owlit restarts, with the model it was set to", async () => {
     const { start, send, said, root } = await setup()
     const first = await start()

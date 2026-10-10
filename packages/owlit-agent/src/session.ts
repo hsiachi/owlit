@@ -11,13 +11,6 @@ import { modelKey } from "./models.ts"
 import type { Toolbox } from "./tools.ts"
 import { updatesFor } from "./updates.ts"
 
-// The engine's own instructions. owlit's rules reach it as they reach every agent: before the first
-// prompt of a session.
-const SYSTEM_PROMPT = `You are Owlit, the assistant inside owlit, a research workspace for reading papers and writing about them.
-You work only through the tools you are given. You can't run commands or browse the web; for papers, use owlit's library tools.
-To change a file, read it with read_file first, then use edit_file (or write_file for a new doc), when you have them. They are the only way to change files.
-Answer in Markdown. Keep answers to what the user asked.`
-
 export const EFFORTS: { id: ThinkingLevel; name: string }[] = [
   { id: "low", name: "Low" },
   { id: "medium", name: "Medium" },
@@ -35,6 +28,8 @@ interface Saved {
 export interface SessionInit {
   id: string
   cwd: string
+  // prompt.ts, made for this session's role and context
+  systemPrompt: string
   models: Models
   available: Model<Api>[]
   toolbox: Toolbox
@@ -59,7 +54,8 @@ export class EngineSession {
     this.model = init.available.find((m) => modelKey(m) === init.saved?.model) ?? defaultModel(init.available)
     this.effort = init.saved?.effort ?? DEFAULT_EFFORT
     this.agent = new Agent({
-      initialState: { systemPrompt: SYSTEM_PROMPT, model: this.model, thinkingLevel: this.thinking(), tools: init.toolbox.tools, messages: init.saved?.messages ?? [] },
+      // A saved conversation starts with the system prompt it was made with; this session's own leads instead
+      initialState: { systemPrompt: init.systemPrompt, model: this.model, thinkingLevel: this.thinking(), tools: init.toolbox.tools, messages: withoutLeadingSystem(init.saved?.messages ?? []) },
       streamFn: init.models.streamSimple.bind(init.models),
       sessionId: init.id,
     })
@@ -150,6 +146,8 @@ export class EngineSession {
     await rename(temp, file)
   }
 }
+
+const withoutLeadingSystem = (messages: AgentMessage[]) => (messages[0]?.role === "system" ? messages.slice(1) : messages)
 
 // The newest model of the first provider signed in to (each provider's list runs newest first)
 const defaultModel = (available: Model<Api>[]) => available[0]

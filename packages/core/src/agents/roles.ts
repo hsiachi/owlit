@@ -1,3 +1,4 @@
+import type * as acp from "@agentclientprotocol/sdk"
 import type { ConsentAction, Role, ToolKind } from "@owlit/protocol"
 import { sessionMeta } from "./isolation.ts"
 
@@ -45,6 +46,17 @@ export function guardFor(connectorId: string, role: Role, roots: string[]): Guar
   // The Owlit engine (packages/owlit-agent) takes the role itself and holds its file tools to it
   if (connectorId === "owlit-engine") return { modes: [], meta: { owlit: { role } } }
   return { modes: [] }
+}
+
+// Whether the agent takes owlit's rules, its role and the user's name in its own system prompt (it says so
+// when it starts, as the Owlit engine does); owlit then leaves them out of the first prompt
+export const takesRules = (init: acp.InitializeResponse) => (init._meta as { owlit?: { rulesInSystemPrompt?: unknown } } | null | undefined)?.owlit?.rulesInSystemPrompt === true
+
+// The user's name, for such an agent, with the session's options; a new name makes a new session
+export function withUserName(guard: Guard, userName: string | undefined): Guard {
+  if (!userName) return guard
+  const owlit = (guard.meta?.owlit as Record<string, unknown> | undefined) ?? {}
+  return { ...guard, meta: { ...guard.meta, owlit: { ...owlit, userName } } }
 }
 
 // How owlit answers an agent's permission request before the user sees it: a Reviewer's request to

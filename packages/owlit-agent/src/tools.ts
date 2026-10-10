@@ -12,6 +12,8 @@ export interface Toolbox {
   tools: AgentTool[]
   info(name: string): ToolInfo | undefined
   close(): Promise<void>
+  // What the servers say about themselves (owlit-mcp's is owlit's rules)
+  instructions?: string
 }
 
 const VERSION = "0.0.0"
@@ -50,8 +52,10 @@ export async function connectTools(servers: McpServer[], cwd: string, log: (line
       })
     }
   }
+  const instructions = clients.map((c) => c.instructions).filter(Boolean).join("\n\n")
   return {
     tools,
+    ...(instructions ? { instructions } : {}),
     info: (name) => infos.get(name),
     close: async () => {
       await Promise.all(clients.map((c) => c.close().catch(() => undefined)))

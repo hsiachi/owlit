@@ -1,6 +1,7 @@
 // A model for tests (OWLIT_ENGINE_FAUX=1): pi-ai's faux provider answering from the last message.
 //   "tool <name> <json>"  calls that tool, then reports its result
 //   "slow"                answers at length, slowly (to be cancelled)
+//   "system?"             says what the system prompt holds and whether owlit's preamble came in the prompt
 //   anything else         "engine: <text> (<model>/<effort>)"
 
 import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall, type CredentialStore, type FauxResponseFactory, type Models } from "@earendil-works/pi-ai"
@@ -17,6 +18,15 @@ export function fauxModels(credentials: CredentialStore): Models {
     const call = /tool (\w+)(?: (\{.*\}))?/.exec(text)
     if (call) return fauxAssistantMessage(fauxToolCall(call[1], call[2] ? JSON.parse(call[2]) : {}), { stopReason: "toolUse" })
     if (text.includes("slow")) return fauxAssistantMessage(fauxText("word ".repeat(2000)))
+    if (text.includes("system?")) {
+      const system = context.messages
+        .filter((m) => m.role === "system")
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join("\n")
+      const role = /Your role in this chat: ([\w-]+)/.exec(system)?.[1] ?? (system.includes("This is background work") ? "background" : "none")
+      const name = /The user's name: ([^.]+)\./.exec(system)?.[1] ?? "none"
+      return fauxAssistantMessage(`rules:${system.includes("owlit agent rules")} role:${role} name:${name} preamble:${text.includes("[owlit]")}`)
+    }
     const request = text.split("\n\n").at(-1) ?? text
     return fauxAssistantMessage(`engine: ${request.slice(0, 40)} (${model.id}/${options?.reasoning ?? "off"})`)
   }

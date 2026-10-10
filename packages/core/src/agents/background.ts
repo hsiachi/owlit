@@ -3,6 +3,7 @@ import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import { sessionMeta } from "./isolation.ts"
+import { takesRules } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
@@ -102,7 +103,9 @@ export class Background {
       await setMode(proc, session, "default")
       const model = run.models?.[connectorId]
       if (model) await setModel(proc, session, model)
-      const response = await proc.prompt({ sessionId: session.sessionId, prompt: [{ type: "text", text: preamble(run.root) }, { type: "text", text: run.prompt }] })
+      // An agent that takes owlit's rules in its system prompt has them already
+      const rules = takesRules(await proc.initialized()) ? [] : [{ type: "text" as const, text: preamble(run.root) }]
+      const response = await proc.prompt({ sessionId: session.sessionId, prompt: [...rules, { type: "text", text: run.prompt }] })
       run.signal.throwIfAborted()
       log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
       if (response.stopReason === "refusal") throw new Error("The agent declined.")
