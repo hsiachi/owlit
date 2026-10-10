@@ -1,6 +1,6 @@
 import { useState, type ComponentType } from "react"
 import { toast } from "sonner"
-import { BookOpenIcon, ChevronRightIcon, FileTextIcon, StickyNoteIcon } from "lucide-react"
+import { ArrowUpRightIcon, BookOpenIcon, FileTextIcon, StickyNoteIcon } from "lucide-react"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { useDocsStore } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
@@ -9,8 +9,10 @@ import { undoResult, useResultsStore, type AgentResult } from "../../results"
 import { diffCounts } from "./step-results"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, Knowledge updated. A row opens what it names; Undo shows on hover, since it's rarely wanted
-// and a column of Undo buttons reads as a form to fill in. Several notes or edits on one doc are one
+// notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
+// anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
+// whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
+// of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
 // row, so a long hand-off stays a few lines; past FOLD_AFTER rows the rest wait behind "Show N more".
 export interface ResultRow {
   key: string
@@ -135,7 +137,7 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
   const Icon = row.icon
   const live = !row.undone
   return (
-    <div className={`group/row relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm ${row.view && live ? "hover:bg-muted" : ""} ${className ?? ""}`}>
+    <div className={`group/row relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm ${row.view && live ? "hover:bg-muted" : ""} ${className ?? ""}`}>
       {/* The whole row opens what it names; Undo sits above that click */}
       {row.view && live && <button type="button" onClick={row.view} aria-label={`Open ${row.name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
       <Icon className="size-4 shrink-0 text-muted-foreground" />
@@ -147,7 +149,7 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
           </button>
         )}
         {live ? row.detail : "Undone"}
-        <ChevronRightIcon className={`size-3.5 ${row.view && live ? "opacity-60" : "invisible"}`} />
+        <ArrowUpRightIcon className={`size-3.5 ${row.view && live ? SHOW_ON_HOVER : "invisible"}`} />
       </span>
     </div>
   )
@@ -164,7 +166,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
     <div className="flex flex-col rounded-lg border p-1">
       {/* One change says itself; several get a line saying what happened, with Undo for all of them */}
       {rows.length > 1 && (
-        <div className="group/row flex h-9 items-center gap-2.5 px-2.5 text-sm">
+        <div className="group/row flex h-8 items-center gap-2.5 px-2.5 text-sm">
           <span className="min-w-0 truncate text-foreground">{summary(rows)}</span>
           <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[13px] text-muted-foreground">
             {live.length > 1 && (
@@ -173,7 +175,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
               </button>
             )}
             {(total.added > 0 || total.removed > 0) && <LineCounts {...total} />}
-            <ChevronRightIcon className="invisible size-3.5" />
+            <ArrowUpRightIcon className="invisible size-3.5" />
           </span>
         </div>
       )}
@@ -181,7 +183,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
         <Row key={row.key} row={row} />
       ))}
       {folded > 0 && (
-        <button type="button" onClick={() => setAll(true)} className="flex h-9 items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+        <button type="button" onClick={() => setAll(true)} className="flex h-8 items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
           Show {folded} more
         </button>
       )}
