@@ -39,6 +39,8 @@ export interface SessionInit {
   available: Model<Api>[]
   toolbox: Toolbox
   saved?: Saved
+  // Whether the transcript is kept; a background run is never picked up again, so it isn't
+  persist: boolean
   send: (update: acp.SessionUpdate) => Promise<void>
 }
 
@@ -116,7 +118,7 @@ export class EngineSession {
 
   async prompt(blocks: acp.ContentBlock[]): Promise<acp.StopReason> {
     await this.agent.prompt({ role: "user", content: textOf(blocks), timestamp: Date.now() })
-    await this.save()
+    if (this.init.persist) await this.save()
     const last = this.agent.state.messages.at(-1)
     const stop = last?.role === "assistant" ? last.stopReason : undefined
     if (stop === "aborted") return "cancelled"

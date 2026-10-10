@@ -545,7 +545,7 @@ export class Core {
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
                 agent: async (prompt, signal) =>
-                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, connectorId: (await this.settings.get()).connectors.background }),
+                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
               },
               knowledge: {
                 agent: async (prompt, signal) => {
@@ -553,7 +553,7 @@ export class Core {
                   // agent can't change Knowledge, and a run that ended anyway would skip what it was given
                   const mcpServers = this.mcpServers(root)
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
-                  return this.background.run({ prompt, root, mcpServers, signal, connectorId: (await this.settings.get()).connectors.background, allow: KNOWLEDGE_TOOLS })
+                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow: KNOWLEDGE_TOOLS })
                 },
                 changed: (change) => this.notifier.notify("knowledge.changed", change),
                 updated: (run) => this.notifier.notify("knowledge.updated", run),
@@ -634,6 +634,12 @@ export class Core {
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()
+  }
+
+  // The agent (and its model) chosen for background work in Settings
+  private async backgroundAgent() {
+    const { connectors } = await this.settings.get()
+    return { connectorId: connectors.background, models: connectors.backgroundModels }
   }
 
   // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)

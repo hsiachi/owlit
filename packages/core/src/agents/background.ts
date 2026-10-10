@@ -28,6 +28,8 @@ export interface BackgroundRun {
   connectorId?: string
   // Further tools this run may use (a Knowledge run writes topics)
   allow?: RegExp
+  // The model each agent uses here, when not its default (Settings › Agents › Background work)
+  models?: Record<string, string>
 }
 
 export interface BackgroundResult {
@@ -51,7 +53,9 @@ export class Background {
     // into its first line ("I'll read the rest.# Title")
     let apart = false
     const refused: string[] = []
-    const _meta = sessionMeta(connectorId)
+    // The Owlit engine calls owlit's tools itself rather than asking for each, so it is told which it may
+    // offer the model; other agents are held to READ_ONLY when they ask, below
+    const _meta = connectorId === "owlit-engine" ? { owlit: { role: "reviewer", background: { tools: [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])] } } } : sessionMeta(connectorId)
     const session = await proc.newSession(
       { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {
@@ -96,6 +100,8 @@ export class Background {
       // without asking, and requestPermission only refuses what is asked: the session asks first.
       // (Not plan mode: Claude Code then ends by asking to leave it, which nobody can answer here.)
       await setMode(proc, session, "default")
+      const model = run.models?.[connectorId]
+      if (model) await setModel(proc, session, model)
       const response = await proc.prompt({ sessionId: session.sessionId, prompt: [{ type: "text", text: preamble(run.root) }, { type: "text", text: run.prompt }] })
       run.signal.throwIfAborted()
       log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
@@ -116,6 +122,15 @@ export class Background {
     if (!chosen) throw new RpcFailure(RpcErrorCode.Unavailable, "No agent is set up to work in the background.")
     return chosen.id
   }
+}
+
+// The model set on the session if the agent still offers it; otherwise its default stays
+async function setModel(proc: Awaited<ReturnType<Agents["process"]>>, session: acp.NewSessionResponse, model: string) {
+  const option = session.configOptions?.find((o) => o.category === "model" && o.type === "select")
+  if (!option || option.type !== "select" || option.currentValue === model) return
+  const values = (option.options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
+  if (values.includes(model)) await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: model })
+  else log(`model ${model} isn't offered any more; the agent's default is used`)
 }
 
 // The mode set on the session if the agent offers it: as a config option (category mode) or, for an

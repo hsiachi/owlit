@@ -181,6 +181,17 @@ function BackgroundWork() {
     { value: "", label: fallback ? `Automatic (${fallback.name})` : "Automatic" },
     ...connectors.filter((c) => isReady(c) || c.id === chosen).map((c) => ({ value: c.id, label: c.name })),
   ]
+  // The agent doing the work, and the models it offers (an agent's own "Default" is not a real choice)
+  const agent = connectors.find((c) => c.id === (chosen || fallback?.id))
+  const models = agent?.models.filter((m) => m.id !== "default") ?? []
+  const defaultModel = models.find((m) => m.id === agent?.defaultModelId) ?? models[0]
+  const groups = new Set(models.map((m) => m.group).filter(Boolean)).size
+  const modelOptions = [
+    { value: "", label: defaultModel ? `Its default (${defaultModel.name})` : "Its default" },
+    // Models from more than one sign-in say whose they are, as the composer's headings do
+    ...models.map((m) => ({ value: m.id, label: groups > 1 && m.group ? `${m.group} · ${m.name}` : m.name })),
+  ]
+  const chosenModel = (agent && view?.backgroundModels?.[agent.id]) ?? ""
   return (
     <List>
       <Row
@@ -188,6 +199,13 @@ function BackgroundWork() {
         info="Owlit uses this agent for work nobody is waiting on, such as reading notes. Automatic picks the first agent that is ready."
         control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
+      {agent && models.length > 1 && (
+        <Row
+          name="Model"
+          info="The model this agent uses for work nobody is waiting on. A smaller one costs less, and reading notes rarely need the strongest."
+          control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model || null } })} />}
+        />
+      )}
       <Row
         name="Reading notes in"
         info="The language Owlit writes reading notes in. Papers keep their own language."

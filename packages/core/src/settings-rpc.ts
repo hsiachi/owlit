@@ -45,7 +45,7 @@ export function settingsView(s: AppSettings): SettingsView {
     }),
     parsing: defined({ service: parsing.service, url: parsing.url, auto: parsing.auto ?? true }),
     secrets,
-    ...defined({ backgroundAgent: s.connectors.background }),
+    ...defined({ backgroundAgent: s.connectors.background, backgroundModels: s.connectors.backgroundModels }),
     activity: s.activity,
   }
 }
@@ -68,7 +68,11 @@ function merge<T extends object>(into: T, patch: Record<string, unknown> | undef
 }
 
 export function applyPatch(s: AppSettings, patch: SettingsPatch): AppSettings {
-  const connectors = patch.backgroundAgent === undefined ? s.connectors : merge(s.connectors, { background: patch.backgroundAgent })
+  let connectors = patch.backgroundAgent === undefined ? s.connectors : merge(s.connectors, { background: patch.backgroundAgent })
+  if (patch.backgroundModel) {
+    const models = merge(connectors.backgroundModels ?? {}, { [patch.backgroundModel.agent]: patch.backgroundModel.model })
+    connectors = Object.keys(models).length ? { ...connectors, backgroundModels: models } : merge(connectors, { backgroundModels: null })
+  }
   return {
     ...s,
     appearance: { ...s.appearance, ...patch.appearance },
@@ -98,6 +102,7 @@ const patchSchema = z.object({
     })
     .optional(),
   backgroundAgent: nullable(z.string().min(1)),
+  backgroundModel: z.object({ agent: z.string().min(1), model: nullable(z.string().min(1)) }).optional(),
 })
 const secretName = z.enum(["s2ApiKey", "openalexApiKey", "mineruToken"])
 const presetName = z.enum(Object.keys(PROXY_PRESETS) as [keyof typeof PROXY_PRESETS])

@@ -213,4 +213,29 @@ describe("Owlit engine", () => {
       expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
     }, 30_000)
   })
+
+  describe("background work", () => {
+    it("offers only the owlit tools the run allows, no file tools, and uses the model chosen for background work", async () => {
+      const { start, root } = await setup()
+      const { core, call } = await start()
+      const run = (prompt: string, extra: object = {}) =>
+        (core as any).background.run({ prompt, root, mcpServers: (core as any).mcpServers(root), signal: new AbortController().signal, connectorId: ENGINE_ID, ...extra })
+
+      expect((await run("tool docs_list")).text).toMatch(/^tool said: .*notes\.md/)
+      // Writing a margin note or a file isn't for a background run
+      expect((await run(`tool docs_add_note ${JSON.stringify({ path: "notes.md", quote: "twelve", text: "hm" })}`)).text).toBe("tool failed: Tool docs_add_note not found")
+      expect((await run(`tool write_file ${JSON.stringify({ path: "x.md", content: "x" })}`)).text).toBe("tool failed: Tool write_file not found")
+      expect(existsSync(path.join(root, "x.md"))).toBe(false)
+      // Nothing of a background run is kept in the workspace
+      expect(existsSync(path.join(root, ".owlit/engine"))).toBe(false)
+
+      // The model picked in Settings, kept per agent
+      await call("settings.update", { patch: { backgroundModel: { agent: ENGINE_ID, model: "faux/faux-large" } } })
+      const { connectors } = await (core as any).settings.get()
+      expect(connectors.backgroundModels).toEqual({ [ENGINE_ID]: "faux/faux-large" })
+      expect((await run("hello", { models: connectors.backgroundModels })).text).toMatch(/^engine: hello \(faux-large\//)
+      await call("settings.update", { patch: { backgroundModel: { agent: ENGINE_ID, model: null } } })
+      expect((await (core as any).settings.get()).connectors.backgroundModels).toBeUndefined()
+    }, 30_000)
+  })
 })

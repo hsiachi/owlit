@@ -112,6 +112,8 @@ export interface ConnectorSettings {
   custom?: { id: string; name: string; command: string }[]
   // The agent that writes reading notes and other background work; the first one set up when absent
   background?: string
+  // The model each agent uses for background work, when not its own default (a cheaper one for reading notes)
+  backgroundModels?: Record<string, string>
   // From the last check: what the agent offers, so the pickers fill without starting it
   probed?: Record<string, ProbedConnector>
 }

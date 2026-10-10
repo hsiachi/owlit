@@ -21,6 +21,8 @@ export interface SettingsView {
   secrets: Partial<Record<SecretName, string>>
   // The agent that does background work; unset means the first one that is ready
   backgroundAgent?: string
+  // The model each agent uses for background work, by agent id; absent means the agent's default
+  backgroundModels?: Record<string, string>
   activity: { enabled: boolean }
 }
 
@@ -31,6 +33,8 @@ export interface SettingsPatch {
   library?: { contactEmail?: string | null; digestLanguage?: string | null; digestEveryPaper?: boolean }
   parsing?: { service?: "cloud" | "self-hosted" | null; url?: string | null; auto?: boolean }
   backgroundAgent?: string | null
+  // One agent's background model; null goes back to the agent's default
+  backgroundModel?: { agent: string; model: string | null }
 }
 
 // What a service said when owlit tried a key (or reached a server). unknown: it couldn't tell, so the
