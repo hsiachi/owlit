@@ -1,6 +1,6 @@
 import type { PaperKind } from "@owlit/protocol"
 import type { Http, RequestOptions } from "../../net/http.ts"
-import type { SourceRecord } from "./types.ts"
+import type { SourceRecord, Years } from "./types.ts"
 import { parseRef } from "../refs.ts"
 
 // OpenAlex: the main source for published work (venue, year, type, open-access links). Asked only by
@@ -101,19 +101,107 @@ function kindOf(type: string | null | undefined): PaperKind | undefined {
   }
 }
 
-// Works matching words in their title and abstract, most cited first among the relevant; what an agent's
-// library_search finds before it decides what to add
+type Keys = { contactEmail?: string; openalexApiKey?: string }
+
+// The works endpoint with a filter, a sort and the account's keys
+async function listWorks(http: Http, params: URLSearchParams, keys: Keys, request: RequestOptions) {
+  if (keys.contactEmail) params.set("mailto", keys.contactEmail)
+  if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+  const raw = await http.text(`https://${OPENALEX_HOST}/works?${params}`, request)
+  const { results, meta } = JSON.parse(raw) as { results?: unknown[]; meta?: { count?: number } }
+  return {
+    records: (results ?? []).map((work) => parseOpenAlex(JSON.stringify(work))).filter((r): r is SourceRecord => !!r),
+    total: meta?.count,
+  }
+}
+
+// What OpenAlex calls each kind. Without a type a search keeps to papers and books: OpenAlex also holds
+// datasets, software and front matter, which crowd the newest results.
+const TYPES: Record<NonNullable<WorkFilters["type"]>, string> = {
+  article: "article|conference-paper",
+  review: "review",
+  preprint: "preprint",
+  book: "book|book-chapter",
+}
+const PAPERS = "article|conference-paper|review|preprint|book|book-chapter|dissertation"
+
+export interface WorkFilters {
+  years?: Years
+  sort?: "relevance" | "citations" | "newest"
+  minCitations?: number
+  type?: "article" | "review" | "preprint" | "book"
+  author?: string
+  // OpenAlex source ids (S…), any of them
+  sources?: string[]
+  openAccess?: boolean
+}
+
+function filterOf(filters: WorkFilters, extra: string[] = []) {
+  const { years, minCitations, type, author, sources, openAccess } = filters
+  const parts = [...extra, `type:${type ? TYPES[type] : PAPERS}`]
+  if (years?.from !== undefined && years.to !== undefined) parts.push(`publication_year:${years.from}-${years.to}`)
+  else if (years?.from !== undefined) parts.push(`publication_year:>${years.from - 1}`)
+  else if (years?.to !== undefined) parts.push(`publication_year:<${years.to + 1}`)
+  // Some records carry dates years ahead; newest first would put them on top
+  parts.push(`to_publication_date:${new Date().toISOString().slice(0, 10)}`)
+  if (minCitations) parts.push(`cited_by_count:>${minCitations - 1}`)
+  if (author) parts.push(`raw_author_name.search:${author.replace(/[,|]/g, " ")}`)
+  if (sources?.length) parts.push(`primary_location.source.id:${sources.join("|")}`)
+  if (openAccess) parts.push("is_oa:true")
+  return parts.join(",")
+}
+
+const SORTS = { citations: "cited_by_count:desc", newest: "publication_date:desc" }
+
+// Works matching words in their title and abstract (OpenAlex ranks the relevant, and the cited among
+// them, first); what an agent's library_search finds before it decides what to add
 export async function searchOpenAlex(
   http: Http,
   query: string,
   limit: number,
-  keys: { contactEmail?: string; openalexApiKey?: string },
+  filters: WorkFilters,
+  keys: Keys,
   request: RequestOptions = {},
-): Promise<SourceRecord[]> {
-  const params = new URLSearchParams({ search: query, "per-page": String(Math.min(Math.max(limit, 1), 25)) })
+): Promise<{ records: SourceRecord[]; total?: number }> {
+  const params = new URLSearchParams({ search: query, filter: filterOf(filters), "per-page": String(limit) })
+  if (filters.sort && filters.sort !== "relevance") params.set("sort", SORTS[filters.sort])
+  return listWorks(http, params, keys, request)
+}
+
+// A paper's references (the works it cites) or the works citing it, by its OpenAlex id
+export async function neighboursOpenAlex(
+  http: Http,
+  work: string,
+  kind: "references" | "cited_by",
+  limit: number,
+  filters: Pick<WorkFilters, "years" | "sort">,
+  keys: Keys,
+  request: RequestOptions = {},
+): Promise<{ records: SourceRecord[]; total?: number }> {
+  // OpenAlex's cited_by:W lists what W cites; cites:W what cites W
+  const params = new URLSearchParams({ filter: filterOf(filters, [`${kind === "references" ? "cited_by" : "cites"}:${work}`]), "per-page": String(limit) })
+  if (filters.sort && filters.sort !== "relevance") params.set("sort", SORTS[filters.sort])
+  return listWorks(http, params, keys, request)
+}
+
+export interface OpenAlexSource {
+  id: string
+  name: string
+  type: string
+  issns: string[]
+}
+
+// Journals and conferences by name, best match first
+export async function findSources(http: Http, name: string, keys: Keys, request: RequestOptions = {}): Promise<OpenAlexSource[]> {
+  const params = new URLSearchParams({ search: name, "per-page": "8", select: "id,display_name,type,issn_l,issn" })
   if (keys.contactEmail) params.set("mailto", keys.contactEmail)
   if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
-  const raw = await http.text(`https://${OPENALEX_HOST}/works?${params}`, request)
-  const { results } = JSON.parse(raw) as { results?: unknown[] }
-  return (results ?? []).map((work) => parseOpenAlex(JSON.stringify(work))).filter((r): r is SourceRecord => !!r)
+  const raw = await http.text(`https://${OPENALEX_HOST}/sources?${params}`, request)
+  const { results } = JSON.parse(raw) as { results?: { id: string; display_name: string; type?: string; issn_l?: string | null; issn?: string[] | null }[] }
+  return (results ?? []).map((s) => ({
+    id: s.id.replace(/^https?:\/\/openalex\.org\//, ""),
+    name: s.display_name,
+    type: s.type ?? "",
+    issns: [...new Set([s.issn_l, ...(s.issn ?? [])].filter((i): i is string => !!i))],
+  }))
 }

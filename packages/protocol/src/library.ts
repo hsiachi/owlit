@@ -101,6 +101,49 @@ export interface PaperNote {
 export type ResolvedPaper = Pick<Paper, "title" | "authors" | "ids"> &
   Partial<Pick<Paper, "id" | "year" | "venue" | "abstract" | "pdf" | "kind">>
 
+// Where a search outside the library looks. Each has filters the others lack, so they are asked one at
+// a time and a filter the chosen one can't apply is refused rather than applied to its results after.
+export type OnlineSource = "openalex" | "s2" | "arxiv"
+
+export interface OnlineFilters {
+  // 2023, 2019-2023, 2023- or -2023
+  year?: string
+  sort?: "relevance" | "citations" | "newest"
+  minCitations?: number
+  // article: a journal or conference paper
+  type?: "article" | "review" | "preprint" | "book"
+  author?: string
+  venue?: string
+  // Only papers with a free full text
+  openAccess?: boolean
+}
+
+// A paper found outside the library (or in it already: inLibrary is its id, hasPdf whether it has the file)
+export type FoundPaper = ResolvedPaper & {
+  inLibrary?: string
+  hasPdf?: boolean
+  citationCount?: number
+  tldr?: string
+  // A free PDF is known
+  openPdf?: boolean
+  // Where it sits in a journal
+  volume?: string
+  issue?: string
+}
+
+export interface FoundPapers {
+  papers: FoundPaper[]
+  // How many there are in all, when the service says
+  total?: number
+  // Who answered: openalex, s2, arxiv or crossref
+  source: string
+  // What the answer stands for, when the request had to be interpreted ("venue: Proceedings of the CHI
+  // Conference…", "Information Processing & Management (ISSN 0306-4573)")
+  matched?: string
+  // What the agent should know about the list ("Semantic Scholar gives the first 1000; sorted among those")
+  note?: string
+}
+
 // library/papers/<id>/paper.json: what the paper is, as the services and the file say. Regenerable;
 // what the user changed by hand lives in .owlit/papers/<id>/state.json (overrides) and wins.
 export interface PaperRecord {

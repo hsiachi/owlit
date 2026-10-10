@@ -21,7 +21,9 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
   const root = path.join(base, "ws")
   mkdirSync(root)
   const dir = realpathSync(mkdtempSync("/tmp/owm-"))
+  const asked: string[] = []
   const fetch = (async (url: string) => {
+    asked.push(decodeURIComponent(url.replace(/\+/g, " ")))
     const match = Object.entries(options.routes ?? {}).find(([pattern]) => url.includes(pattern))
     return match ? new Response(match[1]) : new Response("", { status: 404 })
   }) as unknown as typeof globalThis.fetch
@@ -41,7 +43,7 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
     const result = (await mcp.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean }
     return { text: result.content.map((c) => c.text).join(""), isError: !!result.isError }
   }
-  return { root, core, call, mcp, tool }
+  return { root, core, call, mcp, tool, asked }
 }
 
 describe("owlit-mcp", () => {
@@ -71,17 +73,142 @@ describe("owlit-mcp", () => {
 
   it("searches outside the library, records the search, and adds as the agent", async () => {
     const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
-    const routes: Record<string, string> = { "api.openalex.org/works?search": JSON.stringify({ results: [JSON.parse(openalex)] }) }
+    const routes: Record<string, string> = { "api.openalex.org/works?search": JSON.stringify({ meta: { count: 1 }, results: [JSON.parse(openalex)] }) }
     const { root, tool, call } = await setup({ routes })
     const found = await tool("library_search", { query: "historical newspapers question answering" })
-    expect(found.text).toMatch(/^- doi-10\.1145-3626772\.3657891 · ChroniclingAmericaQA/)
+    expect(found.text).toMatch(/^from OpenAlex\n- doi-10\.1145-3626772\.3657891 · ChroniclingAmericaQA.* · 7 citations/)
     const searches = readFileSync(path.join(root, ".owlit/searches.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
-    expect(searches).toMatchObject([{ query: "historical newspapers question answering", by: "chat:chat-1", results: ["doi-10.1145-3626772.3657891"] }])
+    expect(searches).toMatchObject([{ query: "historical newspapers question answering", source: "openalex", by: "chat:chat-1", results: ["doi-10.1145-3626772.3657891"] }])
     // What a search just found is added without asking the services again
-    expect((await tool("library_add", { ref: "doi-10.1145-3626772.3657891" })).text).toMatch(/^Added doi-10\.1145-3626772\.3657891/)
+    expect((await tool("library_add", { refs: ["doi-10.1145-3626772.3657891"] })).text).toMatch(/^Added doi-10\.1145-3626772\.3657891/)
     expect((await call("library.list")).papers[0]).toMatchObject({ addedBy: "agent" })
     routes["api.openalex.org/works/doi:10.1145"] = openalex
-    expect((await tool("library_add", { ref: "10.1145/3626772.3657891" })).text).toMatch(/^Already in the library as doi-10\.1145-3626772\.3657891/)
+    expect((await tool("library_add", { refs: ["10.1145/3626772.3657891"] })).text).toMatch(/^Already in the library as doi-10\.1145-3626772\.3657891/)
+    // and a search marks it as the library's, saying it has no PDF yet
+    expect((await tool("library_search", { query: "newspapers" })).text).toMatch(/already in the library as doi-10\.1145-3626772\.3657891 \(no PDF yet\)/)
+  })
+
+  it("adds several papers in one call, saying which couldn't be added", async () => {
+    const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
+    const { tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })
+    const added = await tool("library_add", { refs: ["10.1145/3626772.3657891", "not a paper"] })
+    expect(added.text).toMatch(/^Added doi-10\.1145-3626772\.3657891: ChroniclingAmericaQA.*\nCouldn't add not a paper: .+\nPDFs and text arrive by themselves/)
+    expect((await tool("library_add", { refs: [] })).text).toBe("library_add needs at least one ref.")
+  })
+
+  it("applies each source's own filters, and refuses one the source can't apply", async () => {
+    const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
+    const s2 = JSON.parse(readFileSync(path.join(fixtures, "s2-doi.json"), "utf8"))
+    const arxiv = readFileSync(path.join(fixtures, "arxiv-1706.03762.xml"), "utf8")
+    const sources = { results: [
+      { id: "https://openalex.org/S1", display_name: "CHI Conference on Human Factors in Computing Systems", type: "conference" },
+      { id: "https://openalex.org/S2", display_name: "Extended Abstracts of the CHI Conference on Human Factors in Computing Systems", type: "conference" },
+      { id: "https://openalex.org/S3", display_name: "ACM SIGCHI Conference on Human Factors in Computing Systems (CHI)", type: "conference" },
+    ] }
+    const { tool, asked } = await setup({
+      routes: {
+        "api.openalex.org/sources?": JSON.stringify(sources),
+        "api.openalex.org/works?": JSON.stringify({ meta: { count: 120 }, results: [JSON.parse(openalex)] }),
+        "api.semanticscholar.org/graph/v1/paper/search": JSON.stringify({ total: 3, data: [s2] }),
+        "export.arxiv.org/api/query?search_query": arxiv,
+      },
+    })
+
+    const chi = await tool("library_search", { query: "sensemaking", venue: "CHI", year: "2019-2023", min_citations: 10, sort: "citations", type: "article", author: "Pirolli", open_access: true })
+    expect(chi.text).toMatch(/^venue: CHI Conference on Human Factors in Computing Systems; ACM SIGCHI Conference .* · from OpenAlex · 1 of 120\n/)
+    const works = asked.find((u) => u.includes("/works?"))!
+    // The main track only: the extended abstracts share the name
+    expect(works).toContain("primary_location.source.id:S1|S3,")
+    for (const part of ["type:article|conference-paper", "publication_year:2019-2023", "cited_by_count:>9", "raw_author_name.search:Pirolli", "is_oa:true", "sort=cited_by_count:desc"]) expect(works).toContain(part)
+
+    const ranked = await tool("library_search", { query: "newspaper qa", source: "s2", year: "2023-", type: "review" })
+    expect(ranked.text).toMatch(/^from Semantic Scholar · 1 of 3\n- doi-10\.1145-3626772\.3657891 · .*\n  TLDR: ChroniclingAmericaQA/)
+    expect(asked.find((u) => u.includes("paper/search"))).toMatch(/year=2023-&.*publicationTypes=Review/)
+
+    const preprints = await tool("library_search", { query: "attention transformer", source: "arxiv", author: "Vaswani", sort: "newest", year: "2017" })
+    expect(preprints.text).toMatch(/^from arXiv\n- arxiv-1706\.03762 · Attention Is All You Need/)
+    expect(asked.find((u) => u.includes("search_query"))).toContain('search_query=all:attention AND all:transformer AND au:"Vaswani" AND submittedDate:[201701010000 TO 201712312359]')
+
+    for (const [args, says] of [
+      [{ source: "s2", sort: "newest" }, /^Semantic Scholar only ranks by relevance; use source openalex/],
+      [{ source: "s2", author: "Lewis" }, /^Semantic Scholar search can't filter by author/],
+      [{ source: "arxiv", min_citations: 5 }, /^arXiv doesn't count citations/],
+      [{ year: "last year" }, /^year should look like 2023/],
+    ] as const) {
+      const refused = await tool("library_search", { query: "x", ...args })
+      expect(refused).toMatchObject({ isError: true, text: expect.stringMatching(says) })
+    }
+  })
+
+  it("follows a paper's citations: OpenAlex for published work, Semantic Scholar for preprints and similar ones", async () => {
+    const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
+    const s2 = JSON.parse(readFileSync(path.join(fixtures, "s2-doi.json"), "utf8"))
+    const older = { ...s2, paperId: "b".repeat(40), externalIds: { ArXiv: "2005.11401" }, title: "Retrieval-Augmented Generation", year: 2020, citationCount: 5000 }
+    const { call, tool, asked } = await setup({
+      routes: {
+        "api.openalex.org/works/doi:10.1145": openalex,
+        "api.openalex.org/works?filter=": JSON.stringify({ meta: { count: 7 }, results: [JSON.parse(openalex)] }),
+        "/references?": JSON.stringify({ data: [{ citedPaper: s2 }, { citedPaper: older }] }),
+        "/citations?": JSON.stringify({ next: 1000, data: [{ citingPaper: s2 }] }),
+        "recommendations/v1/papers/forpaper": JSON.stringify({ recommendedPapers: [older] }),
+      },
+    })
+    await call("library.add", { paper: { id: "doi-10.1145-3626772.3657891", title: "ChroniclingAmericaQA", authors: ["Bhawna Piryani"], ids: { doi: "10.1145/3626772.3657891" }, year: 2024 } })
+    const citing = await tool("library_related", { id: "doi-10.1145-3626772.3657891", kind: "cited_by", sort: "newest", year: "2024-" })
+    expect(citing.text).toMatch(/^Papers citing ChroniclingAmericaQA.* · from OpenAlex · 1 of 7\n- doi-10\.1145-3626772\.3657891 · .*already in the library/)
+    expect(asked.find((u) => u.includes("works?filter="))).toMatch(/filter=cites:W4393248081,.*publication_year:>2023.*sort=publication_date:desc/)
+
+    // A preprint goes to S2, which neither sorts nor filters: owlit does, over the whole page
+    const refs = await tool("library_related", { id: "arxiv-2403.17859", kind: "references", sort: "citations" })
+    expect(refs.text).toMatch(/^References of arxiv-2403\.17859 · from Semantic Scholar\n- arxiv-2005\.11401 · Retrieval-Augmented Generation .*5000 citations[\s\S]*\n- doi-10\.1145/)
+    expect(asked.find((u) => u.includes("graph/v1/paper/ARXIV:2403.17859/references"))).not.toContain("tldr")
+    expect((await tool("library_related", { id: "arxiv-2403.17859", kind: "cited_by", sort: "citations" })).text).toMatch(
+      /^Papers citing arxiv-2403\.17859 · from Semantic Scholar · Semantic Scholar gives only the first 1000, sorted among those; for the most cited overall, use library_search on the topic with sort citations\n/,
+    )
+
+    const like = await tool("library_related", { id: "10.1145/3626772.3657891", kind: "similar" })
+    expect(like.text).toMatch(/^Papers like 10\.1145\/3626772\.3657891 · from Semantic Scholar\n- arxiv-2005\.11401/)
+    expect((await tool("library_related", { id: "nothing here", kind: "references" })).text).toMatch(/^That isn't a paper owlit knows/)
+    // Semantic Scholar without a key: one request every two seconds
+  }, 30_000)
+
+  it("lists a journal's articles a page at a time, and refuses a conference", async () => {
+    const work = (n: number, title: string, issue: string) => ({
+      DOI: `10.1016/j.ipm.2024.${n}`,
+      title: [title],
+      author: [{ given: "Ada", family: "Lovelace" }],
+      issued: { "date-parts": [[2024, 5]] },
+      "container-title": ["Information Processing &amp; Management"],
+      volume: "61",
+      issue,
+      page: String(n),
+      abstract: n === 2 ? "<jats:title>Abstract</jats:title><jats:p>We study retrieval &amp; ranking.</jats:p>" : undefined,
+      "is-referenced-by-count": n,
+    })
+    const crossref = { message: { "total-results": 4, items: [work(3, "Graphs", "4"), work(2, "Dense retrieval at scale", "3"), work(1, "Query logs", "3"), work(9, "Editorial Board", "4")] } }
+    // OpenAlex leads with the journal's old ISSN, under which Crossref has nothing recent
+    const journals = { results: [{ id: "https://openalex.org/S174847851", display_name: "Information Processing & Management", type: "journal", issn_l: "0020-0271", issn: ["0020-0271", "0306-4573"] }] }
+    const { tool, asked, root } = await setup({ routes: { "api.openalex.org/sources?search=Information": JSON.stringify(journals), "api.openalex.org/sources?search=CHI": JSON.stringify({ results: [{ id: "S1", display_name: "CHI Conference on Human Factors in Computing Systems", type: "conference" }] }), "api.crossref.org/journals/0306-4573/works": JSON.stringify(crossref), "api.crossref.org/journals/0020-0271/works": JSON.stringify({ message: { "total-results": 0, items: [] } }) } })
+
+    const first = await tool("library_journal", { journal: "Information Processing and Management", year: "2024", limit: 2 })
+    expect(first.text).toBe(
+      [
+        "Information Processing & Management (ISSN 0306-4573), 2024: 3 research articles (Crossref's full list, by issue date). 1–2: Pass offset 2 for the next.",
+        "- doi-10.1016-j.ipm.2024.1 · Query logs · Lovelace, 2024, Information Processing & Management, vol. 61(3) · 1 citations",
+        "- doi-10.1016-j.ipm.2024.2 · Dense retrieval at scale · Lovelace, 2024, Information Processing & Management, vol. 61(3) · 2 citations",
+        "  We study retrieval & ranking.",
+      ].join("\n"),
+    )
+    expect(asked.find((u) => u.includes("crossref"))).toContain("filter=from-pub-date:2024-01-01,until-pub-date:2024-12-31,type:journal-article")
+    // The next page and a query use the list fetched a moment ago
+    expect((await tool("library_journal", { journal: "Information Processing and Management", year: "2024", offset: 2 })).text).toMatch(/1 research article|3–3:\n- doi-10\.1016-j\.ipm\.2024\.3 · Graphs/)
+    expect((await tool("library_journal", { journal: "Information Processing and Management", year: "2024", query: "Retrieval" })).text).toMatch(/: 1 research article with “Retrieval” \(Crossref's full list, by issue date\)\. 1–1:\n- doi-10\.1016-j\.ipm\.2024\.2/)
+    expect(asked.filter((u) => u.includes("crossref"))).toHaveLength(2)
+    expect(readFileSync(path.join(root, ".owlit/searches.jsonl"), "utf8")).toContain('"source":"crossref"')
+
+    const chi = await tool("library_journal", { journal: "CHI", year: "2024" })
+    expect(chi).toMatchObject({ isError: true, text: expect.stringMatching(/is a conference, and owlit can only list a journal's papers for now\. Use library_search with venue “CHI” instead\./) })
+    expect((await tool("library_journal", { journal: "Information Processing and Management", year: "2015-2024" })).text).toMatch(/at most five years/)
   })
 
   it("leaves a note on a doc without changing the file", async () => {
@@ -167,7 +294,7 @@ describe("owlit-mcp", () => {
     })
     writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
     await tool("docs_add_note", { path: "Draft.md", quote: "all you need", note: "Cite it." })
-    await tool("library_add", { ref: "10.1145/3626772.3657891" })
+    await tool("library_add", { refs: ["10.1145/3626772.3657891"] })
     expect(changed).toMatchObject([
       { kind: "note", label: "Draft", chatId: "chat-1" },
       { kind: "paper", label: expect.stringMatching(/^ChroniclingAmericaQA/), chatId: "chat-1" },
