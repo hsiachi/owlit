@@ -356,6 +356,13 @@ export class Docs {
     return null
   }
 
+  async reveal(rel: string) {
+    await this.entry(rel)
+    if (!this.host.revealPath) throw new RpcFailure(RpcErrorCode.InternalError, "owlit can't show files in Finder here.")
+    this.host.revealPath(this.abs(rel))
+    return null
+  }
+
   // ---- inside ----
 
   // Every docs path under rel (rel itself not included), as it is on disk now

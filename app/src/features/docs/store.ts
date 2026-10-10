@@ -32,6 +32,8 @@ interface DocsState {
   createDoc: (folder: string) => WorkspaceFile
   // A doc written whole at a chosen path (an agent creating a file); null if the path is taken
   createDocAt: (path: string, content: string) => WorkspaceFile | null
+  // A copy beside a Markdown doc, named "Name copy", holding the given text (the doc as it reads now)
+  duplicateDoc: (id: string, content: string) => WorkspaceFile | null
   // Saves the text; while the file was never renamed by hand, its name follows the first line. `keepTime`
   // leaves the edit time alone, for changes the user didn't make (links following a renamed doc).
   writeDoc: (id: string, content: string, keepTime?: boolean) => void
@@ -96,6 +98,15 @@ export const useDocsStore = create<DocsState>()(
         set((s) => ({ files: { ...s.files, [file.id]: file } }))
         if (disk.onDisk) disk.saveDoc(file.id)
         return file
+      },
+
+      duplicateDoc: (id, content) => {
+        const s = get()
+        const f = s.files[id]
+        if (!f || !isMarkdown(f.path)) return null
+        const ext = extOf(f.path)
+        const stem = baseName(f.path).slice(0, -ext.length || undefined)
+        return get().createDocAt(uniquePath(parentPath(f.path), `${stem} copy`, ext, pathTaken(s.files, s.folders)), content)
       },
 
       writeDoc: (id, content, keepTime) => {

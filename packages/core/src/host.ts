@@ -5,6 +5,8 @@ export interface Host {
   trash?(absolutePath: string): Promise<void>
   // Opens a file in the system's app for it
   openPath?(absolutePath: string): Promise<void>
+  // Shows a file or folder in the system's file manager (Finder), selected
+  revealPath?(absolutePath: string): void
   // fetch that goes the way the system's network goes (its proxy settings, its certificates). Node's
   // own fetch ignores both; Electron's net.fetch follows them.
   fetch?: typeof fetch

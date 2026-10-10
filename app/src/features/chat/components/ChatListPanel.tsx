@@ -3,13 +3,8 @@ import { NavLink, useNavigate, useParams } from "react-router-dom"
 import { EllipsisVerticalIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
 import { keysFor } from "@/app/shortcuts"
 import {
@@ -66,68 +61,73 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
     toast("Chat deleted", { description: chat.title })
   }
 
+  // The same actions from the row's ⋯ and from a right-click
+  const groups: MenuGroups = [
+    [
+      { label: chat.pinned ? "Unpin" : "Pin", onSelect: () => togglePin(chat.id) },
+      { label: "Rename", onSelect: startRename },
+    ],
+    [{ label: "Delete", destructive: true, onSelect: remove }],
+  ]
+
   return (
-    <SidebarMenuItem>
-      {renaming ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitRename()
-            if (e.key === "Escape") {
-              setDraft(chat.title)
-              setRenaming(false)
-            }
-          }}
-          className="h-9 w-full rounded-md border bg-card px-2.5 text-sm outline-none focus-key:border-foreground/30"
-          aria-label="Rename chat"
-        />
-      ) : (
-        <SidebarMenuButton
-          asChild
-          isActive={active}
-          // The title gets the full row (cancelling the primitive's fixed pr-8 for the action); room for
-          // the actions button is only made while it shows
-          className={cn(
-            rowClass,
-            keepRowInIconMode,
-            "group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent",
-            "group-has-data-[sidebar=menu-action]/menu-item:pr-2.5",
-            "group-hover/menu-item:pr-8! group-focus-within/menu-item:pr-8! group-has-[[data-state=open]]/menu-item:pr-8!",
-            "gap-2 pl-1.5",
-          )}
-        >
-          <NavLink to={`/chat/${chat.id}`}>
-            <StatusRing status={status} />
-            <span className="truncate">{chat.title}</span>
-          </NavLink>
-        </SidebarMenuButton>
-      )}
-      {!renaming && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            {/* A small square that darkens on its own hover, on top of the row's hover */}
-            <SidebarMenuAction
-              showOnHover
-              aria-label="Chat actions"
-              className={cn(keepActionInIconMode, "top-1/2! right-1.5 size-6 w-6 -translate-y-1/2 text-muted-foreground hover:bg-foreground/8 hover:text-foreground data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground")}
-            >
-              <EllipsisVerticalIcon />
-            </SidebarMenuAction>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" className="w-44">
-            <DropdownMenuItem onSelect={() => togglePin(chat.id)}>{chat.pinned ? "Unpin" : "Pin"}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={startRename}>Rename</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={remove}>
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </SidebarMenuItem>
+    <ActionsOnRightClick groups={renaming ? [] : groups}>
+      <SidebarMenuItem>
+        {renaming ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename()
+              if (e.key === "Escape") {
+                setDraft(chat.title)
+                setRenaming(false)
+              }
+            }}
+            className="h-9 w-full rounded-md border bg-card px-2.5 text-sm outline-none focus-key:border-foreground/30"
+            aria-label="Rename chat"
+          />
+        ) : (
+          <SidebarMenuButton
+            asChild
+            isActive={active}
+            // The title gets the full row (cancelling the primitive's fixed pr-8 for the action); room for
+            // the actions button is only made while it shows
+            className={cn(
+              rowClass,
+              keepRowInIconMode,
+              // Lit while its ⋯ menu or its right-click menu is open
+              "group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent group-data-[state=open]/menu-item:bg-sidebar-accent",
+              "group-has-data-[sidebar=menu-action]/menu-item:pr-2.5",
+              "group-hover/menu-item:pr-8! group-focus-within/menu-item:pr-8! group-has-[[data-state=open]]/menu-item:pr-8!",
+              "gap-2 pl-1.5",
+            )}
+          >
+            <NavLink to={`/chat/${chat.id}`}>
+              <StatusRing status={status} />
+              <span className="truncate">{chat.title}</span>
+            </NavLink>
+          </SidebarMenuButton>
+        )}
+        {!renaming && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {/* A small square that darkens on its own hover, on top of the row's hover */}
+              <SidebarMenuAction
+                showOnHover
+                aria-label="Chat actions"
+                className={cn(keepActionInIconMode, "top-1/2! right-1.5 size-6 w-6 -translate-y-1/2 text-muted-foreground hover:bg-foreground/8 hover:text-foreground data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground")}
+              >
+                <EllipsisVerticalIcon />
+              </SidebarMenuAction>
+            </DropdownMenuTrigger>
+            <ActionsDropdownContent groups={groups} side="right" align="start" />
+          </DropdownMenu>
+        )}
+      </SidebarMenuItem>
+    </ActionsOnRightClick>
   )
 }
 

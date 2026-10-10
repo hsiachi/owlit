@@ -18,6 +18,12 @@ interface DocsUiState {
   renaming: string | null
   // The agent note shown open under its paragraph, at most one at a time
   openNote: { docId: string; noteId: string } | null
+  // Rows picked with ⌘- or ⇧-click to act on together, by row key (see rowKey); the anchor is where a
+  // ⇧-click range starts
+  picked: string[]
+  pickAnchor: string | null
+  // The doc whose Versions dialog is open
+  versionsOf: string | null
 
   setExpanded: (path: string, open: boolean) => void
   expandTo: (path: string) => void
@@ -26,7 +32,13 @@ interface DocsUiState {
   openedDoc: (id: string, folder: string) => void
   setRenaming: (key: string | null) => void
   setOpenNote: (docId: string, noteId: string | null) => void
+  setPicked: (picked: string[], anchor?: string | null) => void
+  showVersions: (docId: string | null) => void
 }
+
+// How a tree row is named in `renaming` and `picked`: a file by its id, a folder by its path
+export const rowKey = { file: (id: string) => id, folder: (path: string) => `folder:${path}` }
+export const folderOfKey = (key: string) => (key.startsWith("folder:") ? key.slice("folder:".length) : null)
 
 export const useDocsUiStore = create<DocsUiState>()(
   persist(
@@ -38,6 +50,9 @@ export const useDocsUiStore = create<DocsUiState>()(
       lastDocId: null,
       renaming: null,
       openNote: null,
+      picked: [],
+      pickAnchor: null,
+      versionsOf: null,
 
       // A folder the user opens or closes is theirs: it stays as they left it
       setExpanded: (path, open) => set((s) => ({ expanded: { ...s.expanded, [path]: open }, autoOpened: s.autoOpened.filter((p) => p !== path) })),
@@ -70,6 +85,8 @@ export const useDocsUiStore = create<DocsUiState>()(
       openedDoc: (id, folder) => set({ lastDocId: id, targetFolder: folder, selectedFolder: null }),
       setRenaming: (renaming) => set({ renaming }),
       setOpenNote: (docId, noteId) => set({ openNote: noteId ? { docId, noteId } : null }),
+      setPicked: (picked, anchor) => set((s) => ({ picked, pickAnchor: anchor === undefined ? s.pickAnchor : anchor })),
+      showVersions: (versionsOf) => set({ versionsOf }),
     }),
     {
       name: "owlit-docs-ui",

@@ -31,6 +31,8 @@ export const SHORTCUT_GROUPS: { title: string; shortcuts: Shortcut[] }[] = [
       { id: "mention", label: "Mention or cite", where: "in a doc, note or message", keys: ["@"] },
       { id: "send", label: "Send", where: "in the composer", keys: ["↵"] },
       { id: "newline", label: "New line", where: "in the composer", keys: ["⇧", "↵"] },
+      { id: "rename-row", label: "Rename", where: "in the docs list", keys: ["F2"] },
+      { id: "delete-row", label: "Delete", where: "in the docs list, with Undo", keys: ["⌘", "⌫"] },
     ],
   },
   {

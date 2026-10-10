@@ -1,11 +1,10 @@
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { EllipsisVerticalIcon } from "lucide-react"
-import { toast } from "sonner"
+import { ActionsDropdownContent } from "@/components/action-menu"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { isDesktop } from "@/lib/rpc"
-import { VersionsDialog } from "../components/VersionsDialog"
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useDocActions } from "../actions"
 import { saveAgain } from "../disk"
 import { DocEditor } from "../editor/DocEditor"
 import { anchor } from "../editor/agent-notes"
@@ -20,7 +19,7 @@ export function DocPage() {
   const file = useDocsStore((s) => s.files[docId])
   const loaded = useDocsStore((s) => s.loaded)
   const folder = file ? parentPath(file.path) : ""
-  const [versionsOpen, setVersionsOpen] = useState(false)
+  const { fileGroups } = useDocActions()
 
   // The panel follows the open doc: its folder opens (and folders opened only for the last doc close), and
   // new docs land beside it
@@ -43,15 +42,6 @@ export function DocPage() {
         </Button>
       </div>
     )
-  }
-
-  const remove = () => {
-    const removed = useDocsStore.getState().deleteFile(file.id)
-    navigate("/docs", { replace: true })
-    toast("Doc deleted", {
-      description: displayName(file.path),
-      action: { label: "Undo", onClick: () => useDocsStore.getState().restore(removed) },
-    })
   }
 
   return (
@@ -91,17 +81,10 @@ export function DocPage() {
               <EllipsisVerticalIcon />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onSelect={() => setTimeout(() => useDocsUiStore.getState().setRenaming(file.id), 0)}>Rename</DropdownMenuItem>
-            {isDesktop && <DropdownMenuItem onSelect={() => setVersionsOpen(true)}>Versions…</DropdownMenuItem>}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={remove}>
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+          {/* The same actions as the doc's row in the list */}
+          <ActionsDropdownContent groups={fileGroups(file)} align="end" />
         </DropdownMenu>
       </header>
-      {isDesktop && <VersionsDialog file={file} open={versionsOpen} onOpenChange={setVersionsOpen} />}
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 pt-6">
           <DocEditor key={file.id} file={file} />
