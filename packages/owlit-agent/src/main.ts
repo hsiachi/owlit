@@ -7,12 +7,17 @@ import * as acp from "@agentclientprotocol/sdk"
 import { homedir } from "node:os"
 import path from "node:path"
 import { Readable, Writable } from "node:stream"
+import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
 import { Engine } from "./engine.ts"
 import { fauxModels } from "./faux.ts"
 import { createEngineModels, FileCredentials } from "./models.ts"
 
 // stdout carries ACP, so anything said goes to stderr (owlit shows it with OWLIT_LOG_AGENTS)
 const log = (line: string) => process.stderr.write(`${line}\n`)
+
+// pi-ai loads its sign-in flows from a path made at run time, which a bundle (owlit-agent.cjs) doesn't
+// contain; this entry imports them outright. Meant for Pi's Bun binary, it works for any bundle.
+registerBunOAuthFlows()
 
 const home = process.env.OWLIT_ENGINE_HOME ?? path.join(homedir(), ".owlit-engine")
 const credentials = new FileCredentials(path.join(home, "auth.json"))
