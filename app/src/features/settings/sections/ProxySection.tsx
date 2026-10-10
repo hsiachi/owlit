@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { resumeTask, useTasksStore } from "@/features/tasks/store"
 import { RpcError } from "@/lib/rpc"
 import { useFoldWhile } from "../form-state"
-import { List, Note, Picker, Row } from "../parts"
+import { List, Note, Picker, Row, TextAction } from "../parts"
 import { setProxy, signInToProxy, useSettings } from "../store"
 
 type Choice = "none" | ProxyPreset | "other"
@@ -38,7 +38,7 @@ export function ProxySection() {
   return (
     <List>
       <Row name="Your library" control={<Picker label="Your library" value={choice} options={options} onChange={pick} />} />
-      {choice === "other" && (linkOpen || !proxy ? <LinkForm onDone={() => setLinkOpen(false)} /> : <Row name="Proxy" control={<><span className="text-[13px] text-muted-foreground">{describe(proxy)}</span><Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => setLinkOpen(true)}>Change</Button></>} />)}
+      {choice === "other" && (linkOpen || !proxy ? <LinkForm onDone={() => setLinkOpen(false)} /> : <Row name="Proxy" control={<><span className="text-[13px] text-muted-foreground">{describe(proxy)}</span><TextAction onClick={() => setLinkOpen(true)}>Change</TextAction></>} />)}
       {proxy && !linkOpen && <SignIn signedInAt={signedInAt} />}
     </List>
   )

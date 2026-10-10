@@ -1,5 +1,10 @@
 // The pieces every Settings section is made of: one bordered list with dividers, one setting per row,
 // the control at the right, and a second line only for a problem or a form that is open.
+//
+// Every control ends on the same right edge. Text and icon buttons that come last are pulled out by
+// their own padding, so their text lines up with a switch or a field and only their hover fill reaches
+// into the row's padding. Controls shown only on hover sit to the left of what always shows, so nothing
+// moves or leaves a gap when they appear.
 
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
@@ -38,7 +43,7 @@ export function Row({
   className?: string
 }) {
   return (
-    <div className={cn("group/row flex min-h-12 flex-col justify-center py-2.5 pr-2.5 pl-3.5", className)}>
+    <div className={cn("group/row flex min-h-12 flex-col justify-center px-3.5 py-2.5", className)}>
       <div className="flex min-h-7 items-center gap-3">
         <span className="flex shrink-0 items-center gap-1">
           {name}
@@ -75,6 +80,28 @@ export function Note({ tone = "muted", children }: { tone?: "muted" | "bad"; chi
   return <div className={cn("mt-1 text-[13px] leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
 }
 
+// An action in a row, in the body colour so it reads as something to click beside the muted status
+export function TextAction({ className, ...props }: React.ComponentProps<typeof Button>) {
+  return <Button variant="ghost" size="sm" className={cn("font-normal last:-mr-2.5", className)} {...props} />
+}
+
+// A small icon button whose label lives in a tooltip
+export function IconAction({ label, onClick, disabled, className, children }: { label: string; onClick: () => void; disabled?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground last:-mr-1.5 hover:text-foreground", className)} onClick={onClick} disabled={disabled} aria-label={label}>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+// For controls shown only on hover or focus; they go before the ones that always show
+export const onHover = "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+
 // A plain-text trigger that opens a words-only menu; the chosen item carries the check on the right
 export function Picker<T extends string>({
   value,
@@ -91,7 +118,7 @@ export function Picker<T extends string>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={label} className="h-7 gap-1 px-2 font-normal data-open:bg-muted">
+        <Button variant="ghost" size="sm" aria-label={label} className="h-7 gap-1 px-2 font-normal last:-mr-2 data-open:bg-muted">
           {current.label}
           <ChevronsUpDownIcon className="text-muted-foreground" />
         </Button>
@@ -217,38 +244,32 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
           }}
           className="h-8 w-56 font-mono text-[13px]"
         />
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={fold}>
-          Cancel
-        </Button>
+        <TextAction onClick={fold}>Cancel</TextAction>
       </>
     )
   } else if (last4) {
     control = (
       <>
-        <span className="mr-1 font-mono text-[13px] text-muted-foreground">••••••••{last4}</span>
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => setEditing(true)}>
-          Change
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="font-normal text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+        <TextAction
+          className={onHover}
           onClick={() => {
             check.reset()
             void setSecret(name, null)
           }}
         >
           Remove
-        </Button>
+        </TextAction>
+        <span className="mx-1 font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
+          ••••{last4}
+        </span>
+        <TextAction onClick={() => setEditing(true)}>Change</TextAction>
       </>
     )
   } else {
     control = (
       <>
         <span className="mr-1 text-[13px] text-muted-foreground">Not set</span>
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => setEditing(true)}>
-          Add
-        </Button>
+        <TextAction onClick={() => setEditing(true)}>Add</TextAction>
       </>
     )
   }
