@@ -1,4 +1,5 @@
 import katex from "katex"
+import { isValidElement, type ReactNode } from "react"
 import "katex/dist/katex.min.css"
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -36,6 +37,14 @@ const mathClass = (className: unknown) => {
   return names.includes("math-display") ? "display" : names.includes("math-inline") ? "inline" : null
 }
 
+// The words of rendered Markdown, without its emphasis or code marks
+function textOf(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return ""
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join("")
+  return isValidElement<{ children?: ReactNode }>(node) ? textOf(node.props.children) : ""
+}
+
 // Markdown renderer for assistant text; styles live under `.markdown` in index.css
 export function Markdown({ text, className }: { text: string; className?: string }) {
   const openPage = useOpenFromChat()
@@ -66,10 +75,11 @@ export function Markdown({ text, className }: { text: string; className?: string
             if (mathClass(props?.className) === "display") return <>{children}</>
             return <pre {...rest}>{children}</pre>
           },
-          // Workspace references look the same as the user's @-mentions
+          // Workspace references look the same as the user's @-mentions, which are plain text: an agent
+          // may still format inside the link ("[Lam et al., *Concept Induction*](owlit://…)")
           a: ({ href, children }) =>
             href?.startsWith("owlit://") ? (
-              <MentionToken label={String(children)} title={appLinkTitle(href) ?? mentionTitle(href) ?? String(children)} onClick={() => open(href)} />
+              <MentionToken label={textOf(children)} title={appLinkTitle(href) ?? mentionTitle(href) ?? textOf(children)} onClick={() => open(href)} />
             ) : (
               <a href={href} target="_blank" rel="noreferrer">
                 {children}
