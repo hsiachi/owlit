@@ -148,11 +148,8 @@ export class EngineSession {
   }
 }
 
-// The newest model of the first provider signed in to (the list runs oldest first)
-function defaultModel(available: Model<Api>[]) {
-  const first = available[0]
-  return available.filter((m) => m.provider === first.provider).at(-1) ?? first
-}
+// The newest model of the first provider signed in to (each provider's list runs newest first)
+const defaultModel = (available: Model<Api>[]) => available[0]
 
 // owlit's prompt as the user's message: text as it is, mentions and attachments as links and quotes
 function textOf(blocks: acp.ContentBlock[]): string {

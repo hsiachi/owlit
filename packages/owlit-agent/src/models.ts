@@ -19,10 +19,29 @@ const PROVIDERS: (() => Provider)[] = [openaiProvider, anthropicProvider, openro
 export const CHATGPT = "chatgpt"
 const API_KEY = "api-key:"
 
-// How many models of each provider the picker shows: the catalog lists dozens (OpenRouter hundreds),
-// oldest first, including ones for audio, images or search that a chat can't use
-const PER_PROVIDER = 6
-const NOT_FOR_CHAT = /realtime|audio|image|search|transcribe|tts|embed|moderation|daybreak|-pro$|nano/
+// The picker shows the newest model of each family (claude-sonnet, gpt-mini, kimi), at most a few per
+// provider, newest first. The catalogs list every dated snapshot, alias and variant, and models for
+// audio, images or search that a chat can't use. OpenRouter lists hundreds, so it keeps the big labs only.
+const PER_PROVIDER = 8
+const NOT_FOR_CHAT = /realtime|audio|image|search|transcribe|tts|embed|moderation|daybreak|preview|:|-latest$/
+const OPENROUTER_LABS = /^(anthropic|openai|google|deepseek|moonshotai|qwen|z-ai|x-ai)\//
+
+const family = (id: string) =>
+  id
+    .replace(/^.*\//, "")
+    .replace(/-?\d{8}$/, "")
+    .replace(/(^|[-.])\d+([.-]\d+)*(?=[-.]|$)/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+const version = (id: string) => (id.replace(/-?\d{8}$/, "").match(/\d+/g) ?? []).map(Number)
+function newer(a: Model<Api>, b: Model<Api>) {
+  const x = version(a.id)
+  const y = version(b.id)
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? -1) !== (y[i] ?? -1)) return (x[i] ?? -1) > (y[i] ?? -1)
+  // Same version (Opus, Sonnet and Haiku 5.5): the dearer first, so the strongest leads and the cheapest ends
+  if (a.cost.input !== b.cost.input) return a.cost.input > b.cost.input
+  return a.id.length < b.id.length
+}
 
 // Credentials in one file in the engine's own folder, readable by the user only. Beta keeps them here
 // rather than in the keychain: this process runs as plain Node and can't reach Electron's safeStorage.
@@ -83,12 +102,33 @@ export function createEngineModels(credentials: CredentialStore): Models {
   return models
 }
 
-// The sign-ins owlit offers: ChatGPT in the browser, then an API key per provider
+// The sign-ins owlit offers: ChatGPT in the browser, then an API key per provider. pi-ai keeps one
+// credential per provider, so ChatGPT and an OpenAI key replace each other (both are provider "openai").
 export function authMethods(models: Models): AuthMethod[] {
   return [
-    { id: CHATGPT, name: "Sign in with ChatGPT", description: "Uses your ChatGPT plan." },
+    { id: CHATGPT, name: "ChatGPT", description: "Uses your ChatGPT plan.", _meta: { owlit: { provider: "openai" } } },
     ...models.getProviders().map((p) => ({ id: `${API_KEY}${p.id}`, name: `${p.name} API key`, _meta: { owlit: { provider: p.id, apiKey: true } } })),
   ]
+}
+
+export const providerOf = (methodId: string) => (methodId === CHATGPT ? "openai" : methodId.slice(API_KEY.length))
+
+// What the engine is signed in to, for Settings: one entry per provider, a key by its last four
+// characters only
+export async function signIns(models: Models, credentials: CredentialStore) {
+  const out: { methodId: string; name: string; hint?: string }[] = []
+  for (const { providerId, type } of await credentials.list()) {
+    const provider = models.getProvider(providerId)
+    if (!provider) continue
+    if (type === "oauth") {
+      out.push({ methodId: providerId === "openai" ? CHATGPT : `${API_KEY}${providerId}`, name: providerId === "openai" ? "ChatGPT" : provider.name })
+      continue
+    }
+    const credential = await credentials.read(providerId)
+    const key = credential?.type === "api_key" ? (credential.key ?? "") : ""
+    out.push({ methodId: `${API_KEY}${providerId}`, name: `${provider.name} API key`, ...(key ? { hint: key.slice(-4) } : {}) })
+  }
+  return out
 }
 
 export async function signIn(models: Models, credentials: CredentialStore, methodId: string, meta: Record<string, unknown> | null | undefined, signal: AbortSignal) {
@@ -114,15 +154,18 @@ export async function signIn(models: Models, credentials: CredentialStore, metho
   throw new Error(`Unknown sign-in: ${methodId}`)
 }
 
-// The models some sign-in reaches, a few per provider, newest last
+// The models some sign-in reaches, a few per provider, newest first
 export async function availableModels(models: Models): Promise<Model<Api>[]> {
-  const available = await models.getAvailable()
-  const byProvider = new Map<string, Model<Api>[]>()
-  for (const m of available) {
-    if (NOT_FOR_CHAT.test(m.id)) continue
-    byProvider.set(m.provider, [...(byProvider.get(m.provider) ?? []), m])
+  const best = new Map<string, Map<string, Model<Api>>>()
+  for (const m of await models.getAvailable()) {
+    if (NOT_FOR_CHAT.test(m.id) || (m.provider === "openrouter" && !OPENROUTER_LABS.test(m.id))) continue
+    const families = best.get(m.provider) ?? new Map<string, Model<Api>>()
+    best.set(m.provider, families)
+    const key = m.provider === "openrouter" ? `${m.id.split("/")[0]}/${family(m.id)}` : family(m.id)
+    const current = families.get(key)
+    if (!current || newer(m, current)) families.set(key, m)
   }
-  return [...byProvider.values()].flatMap((list) => list.slice(-PER_PROVIDER))
+  return [...best.values()].flatMap((families) => [...families.values()].sort((a, b) => (newer(a, b) ? -1 : 1)).slice(0, PER_PROVIDER))
 }
 
 export const modelKey = (m: Model<Api>) => `${m.provider}/${m.id}`

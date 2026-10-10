@@ -155,6 +155,8 @@ export interface AgentModel {
   id: string
   name: string
   description?: string
+  // The heading it goes under in the picker, when the agent groups its models (the Owlit engine, by provider)
+  group?: string
 }
 
 export interface AgentMode {
@@ -175,6 +177,15 @@ export interface SignInMethod {
   name: string
   description?: string
   apiKey?: boolean
+  // Methods for the same provider replace each other (ChatGPT and an OpenAI key)
+  provider?: string
+}
+
+// A sign-in the agent holds now; a key shows only its last four characters
+export interface SignIn {
+  methodId: string
+  name: string
+  hint?: string
 }
 
 export interface Connector {
@@ -189,6 +200,8 @@ export interface Connector {
   // Sign-ins the agent runs itself, offered in owlit (the Owlit engine): a browser sign-in, or an API key
   // for one provider when apiKey is set
   signInMethods?: SignInMethod[]
+  // The ones it is signed in with now
+  signIns?: SignIn[]
   builtIn: boolean
   status: ConnectorStatus
   version?: string

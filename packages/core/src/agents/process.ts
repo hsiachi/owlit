@@ -79,6 +79,11 @@ export class AcpProcess {
     return this.call((c) => c.logout(params))
   }
 
+  // A method of the agent's own (the Owlit engine's _owlit/…)
+  extMethod(method: string, params: Record<string, unknown> = {}) {
+    return this.call((c) => c.extMethod(method, params))
+  }
+
   loadSession(params: acp.LoadSessionRequest, handler: SessionHandler) {
     return this.call(async (c) => {
       // Updates replaying the history arrive while the request runs, so the handler goes in first

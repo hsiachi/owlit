@@ -256,7 +256,7 @@ export class Core {
     this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), ({ name, command }) => this.agents.add(name, command))
     this.router.register("agents.remove", z.object({ id: z.string() }), ({ id }) => this.agents.remove(id))
     this.router.register("agents.signIn", z.object({ id: z.string(), methodId: z.string(), apiKey: z.string().optional() }), ({ id, methodId, apiKey }) => this.agents.signIn(id, methodId, apiKey))
-    this.router.register("agents.signOut", z.object({ id: z.string() }), ({ id }) => this.agents.signOut(id))
+    this.router.register("agents.signOut", z.object({ id: z.string(), methodId: z.string().optional() }), ({ id, methodId }) => this.agents.signOut(id, methodId))
     this.router.register(
       "agents.prompt",
       z.object({

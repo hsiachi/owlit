@@ -1,3 +1,4 @@
+import { Fragment } from "react"
 import { CheckIcon, TriangleAlertIcon } from "lucide-react"
 import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
 import { cn } from "cn"
@@ -16,6 +17,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AgentIcon } from "./agent-icons"
+import { needsSignIn } from "../../lib/sign-in"
 import { useChatStore, type Selection } from "../../store"
 import { openSettings } from "@/features/settings/store"
 import type { Connector, ConnectorStatus } from "../../types"
@@ -30,9 +32,6 @@ export const statusLabel: Record<ConnectorStatus, string> = {
 }
 
 export const isUnavailable = (c?: Connector) => !!c && (c.status === "not_installed" || c.status === "error")
-// An agent that signs in inside owlit (the Owlit engine) and isn't signed in yet: it needs the user, but
-// isn't broken
-export const needsSignIn = (c: Connector) => !!c.signInMethods?.length && c.authenticated === false
 
 // Resolves the agent, model, effort and role in effect for a chat (or the global default)
 export function useResolvedSelection(chatId?: string) {
@@ -184,8 +183,13 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
             {effort && <span className="shrink-0 @max-[19rem]:hidden">{effort.name}</span>}
           </PickerButton>
           <DropdownMenuContent align="end" className="w-52">
-            {connector.models.map((m) => (
-              <RadioItem key={m.id} checked={m.id === model?.id} onSelect={() => update({ modelId: m.id })} title={m.name} />
+            {/* An agent that groups its models (the Owlit engine, by provider) gets a heading per group,
+                so the same kind of model from two sign-ins reads apart */}
+            {connector.models.map((m, i) => (
+              <Fragment key={m.id}>
+                {m.group && m.group !== connector.models[i - 1]?.group && <DropdownMenuLabel>{m.group}</DropdownMenuLabel>}
+                <RadioItem checked={m.id === model?.id} onSelect={() => update({ modelId: m.id })} title={m.name} />
+              </Fragment>
             ))}
             {connector.efforts && connector.efforts.length > 0 && (
               <>

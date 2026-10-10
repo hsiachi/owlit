@@ -69,9 +69,11 @@ describe("Owlit engine", () => {
     const engine = (await call("agents.list")).find((c: any) => c.id === ENGINE_ID)
     expect(engine).toMatchObject({ name: "Owlit engine (Beta)", builtIn: true })
     const checked = await call("agents.check", { id: ENGINE_ID })
-    expect(checked).toMatchObject({ status: "connected", authenticated: true, defaultModelId: "faux/faux-large", defaultEffortId: "medium" })
+    expect(checked).toMatchObject({ status: "connected", authenticated: true, defaultModelId: "faux/faux-small", defaultEffortId: "medium" })
     expect(checked.models.map((m: any) => m.id)).toEqual(["faux/faux-small", "faux/faux-large"])
     expect(checked.signInMethods.map((m: any) => m.id)).toEqual(["chatgpt", "api-key:faux"])
+    expect(checked.signInMethods[0]).toMatchObject({ name: "ChatGPT", provider: "openai" })
+    expect(checked.models.map((m: any) => m.group)).toEqual(["faux", "faux"])
     expect(checked.signInMethods[1]).toMatchObject({ apiKey: true })
   }, 30_000)
 
@@ -80,7 +82,7 @@ describe("Owlit engine", () => {
     await start().then(async ({ call }) => {
       await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
       expect(await send(call, "hello there")).toEqual({ stopReason: "end_turn" })
-      expect(said()).toBe("engine: hello there (faux-large/off)")
+      expect(said()).toBe("engine: hello there (faux-small/medium)")
 
       await send(call, "tool docs_list")
       const tool = updates.find((u) => u.type === "tool_call") as any
@@ -131,7 +133,19 @@ describe("Owlit engine", () => {
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ deepseek: { type: "api_key", key: "sk-test" } })
     expect(statSync(file).mode & 0o777).toBe(0o600)
 
-    expect(await call("agents.signOut", { id: ENGINE_ID })).toMatchObject({ authenticated: false })
+    expect(signedIn.signIns).toEqual([{ methodId: "api-key:deepseek", name: "DeepSeek API key", hint: "test" }])
+
+    // A second provider at once: models from both, each under its provider's heading
+    const both = await call("agents.signIn", { id: ENGINE_ID, methodId: "api-key:anthropic", apiKey: "sk-ant-wxyz" })
+    expect(both.signIns.map((s: any) => s.methodId)).toEqual(["api-key:deepseek", "api-key:anthropic"])
+    expect(new Set(both.models.map((m: any) => m.group))).toEqual(new Set(["DeepSeek", "Anthropic"]))
+
+    // Signing out of one keeps the other
+    const one = await call("agents.signOut", { id: ENGINE_ID, methodId: "api-key:deepseek" })
+    expect(one).toMatchObject({ authenticated: true, signIns: [{ methodId: "api-key:anthropic", name: "Anthropic API key", hint: "wxyz" }] })
+    expect(one.models.every((m: any) => m.group === "Anthropic")).toBe(true)
+
+    expect(await call("agents.signOut", { id: ENGINE_ID })).toMatchObject({ authenticated: false, signIns: [] })
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({})
   }, 30_000)
 })

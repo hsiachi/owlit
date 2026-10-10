@@ -7,7 +7,7 @@ import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon,
 import { cn } from "cn"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
-import { needsSignIn } from "@/features/chat/components/composer/AgentPicker"
+import { needsSignIn } from "@/features/chat/lib/sign-in"
 import { useChatStore } from "@/features/chat/store"
 import { useTasksStore } from "@/features/tasks/store"
 import { useFold } from "./form-state"

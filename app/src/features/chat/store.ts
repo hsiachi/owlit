@@ -56,7 +56,7 @@ interface ChatState {
   checkConnector: (id: string) => Promise<void>
   // The agent's own sign-in (the Owlit engine); throws what went wrong, for the form to show
   signInConnector: (id: string, methodId: string, apiKey?: string) => Promise<void>
-  signOutConnector: (id: string) => Promise<void>
+  signOutConnector: (id: string, methodId?: string) => Promise<void>
   addCustomConnector: (name: string, command: string) => Promise<Connector>
   removeConnector: (id: string) => void
 }
@@ -273,8 +273,8 @@ export const useChatStore = create<ChatState>()(
         set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
       },
 
-      async signOutConnector(id) {
-        const result = await rpc.agents.signOut({ id })
+      async signOutConnector(id, methodId) {
+        const result = await rpc.agents.signOut({ id, ...(methodId ? { methodId } : {}) })
         set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
       },
 

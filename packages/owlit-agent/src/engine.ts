@@ -4,7 +4,7 @@
 import * as acp from "@agentclientprotocol/sdk"
 import type { CredentialStore, Models } from "@earendil-works/pi-ai"
 import { randomUUID } from "node:crypto"
-import { authMethods, availableModels, signIn } from "./models.ts"
+import { authMethods, availableModels, providerOf, signIn, signIns } from "./models.ts"
 import { EngineSession } from "./session.ts"
 import { connectTools } from "./tools.ts"
 
@@ -39,9 +39,18 @@ export class Engine implements acp.Agent {
     return {}
   }
 
-  async logout(): Promise<acp.LogoutResponse> {
-    for (const { providerId } of await this.credentials.list()) await this.models.logout(providerId)
+  // One sign-in when _meta.owlit.methodId names it, otherwise all of them
+  async logout(params: acp.LogoutRequest): Promise<acp.LogoutResponse> {
+    const methodId = (params._meta as { owlit?: { methodId?: string } } | null | undefined)?.owlit?.methodId
+    const providers = methodId ? [providerOf(methodId)] : (await this.credentials.list()).map((c) => c.providerId)
+    for (const provider of providers) await this.models.logout(provider)
     return {}
+  }
+
+  // _owlit/sign_ins: what the engine is signed in to, for owlit's Settings
+  async extMethod(method: string): Promise<Record<string, unknown>> {
+    if (method === "_owlit/sign_ins") return { signIns: await signIns(this.models, this.credentials) }
+    throw acp.RequestError.methodNotFound(method)
   }
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {

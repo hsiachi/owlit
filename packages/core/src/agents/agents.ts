@@ -1,5 +1,5 @@
 import type * as acp from "@agentclientprotocol/sdk"
-import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignInMethod } from "@owlit/protocol"
+import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignIn, type SignInMethod } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { mkdir } from "node:fs/promises"
 import { homedir } from "node:os"
@@ -93,6 +93,7 @@ interface Live {
   error?: string
   authenticated?: boolean
   signInMethods?: SignInMethod[]
+  signIns?: SignIn[]
 }
 
 // The local agents: which exist, whether they work, and the one running process for each
@@ -145,7 +146,7 @@ export class Agents {
     }
     try {
       const init = await proc.initialized()
-      if (def.launch) this.setLive(id, { signInMethods: signInMethodsOf(init) })
+      if (def.launch) this.setLive(id, { signInMethods: signInMethodsOf(init), signIns: await signInsOf(proc) })
       await mkdir(this.options.probeDir, { recursive: true })
       const session = await proc.newSession({ cwd: this.options.probeDir, mcpServers: [] }, ignoreSession)
       await proc.closeSession(session.sessionId)
@@ -177,9 +178,9 @@ export class Agents {
     return this.check(id)
   }
 
-  async signOut(id: string): Promise<Connector> {
+  async signOut(id: string, methodId?: string): Promise<Connector> {
     const proc = await this.process(id)
-    await proc.logout({})
+    await proc.logout(methodId ? { _meta: { owlit: { methodId } } } : {})
     // Its open sessions were made with the old sign-in
     proc.stop()
     this.processes.delete(id)
@@ -255,6 +256,7 @@ export class Agents {
       installHint: def.installHint,
       signIn: def.builtIn && !def.launch ? splitCommand(BUILT_IN_SIGN_IN[def.id] ?? def.command)[0] : undefined,
       signInMethods: live.signInMethods,
+      signIns: live.signIns,
       builtIn: def.builtIn,
       // Checked before: ready unless something since says otherwise
       status: live.status ?? (probed ? "available" : "unknown"),
@@ -277,9 +279,14 @@ class NotInstalled extends Error {}
 function signInMethodsOf(init: acp.InitializeResponse): SignInMethod[] {
   return (init.authMethods ?? []).flatMap((m) => {
     if ("type" in m && m.type === "terminal") return []
-    const owlit = (m._meta as { owlit?: { apiKey?: boolean } } | null | undefined)?.owlit
-    return [{ id: m.id, name: m.name, ...(m.description ? { description: m.description } : {}), ...(owlit?.apiKey ? { apiKey: true } : {}) }]
+    const owlit = (m._meta as { owlit?: { apiKey?: boolean; provider?: string } } | null | undefined)?.owlit
+    return [{ id: m.id, name: m.name, ...(m.description ? { description: m.description } : {}), ...(owlit?.apiKey ? { apiKey: true } : {}), ...(owlit?.provider ? { provider: owlit.provider } : {}) }]
   })
+}
+
+async function signInsOf(proc: AcpProcess): Promise<SignIn[]> {
+  const answer = await proc.extMethod("_owlit/sign_ins").catch(() => ({ signIns: [] }))
+  return (answer.signIns as SignIn[] | undefined) ?? []
 }
 
 // A session opened only to look at the agent; nothing it sends matters
@@ -300,9 +307,9 @@ export function probe(init: acp.InitializeResponse, session: acp.NewSessionRespo
     const option = options.find((o) => o.category === category && o.type === "select")
     if (!option || option.type !== "select") return null
     const grouped = option.options as (SelectOption | { options: SelectOption[] })[]
-    const flat = grouped.flatMap((o) => ("options" in o ? o.options : [o]))
+    const flat = grouped.flatMap((o) => ("options" in o ? o.options.map((x) => ({ ...x, group: (o as { name?: string }).name })) : [o as SelectOption & { group?: string }]))
     return {
-      items: flat.map((o) => ({ id: o.value, name: o.name, ...(o.description ? { description: o.description } : {}) })),
+      items: flat.map((o) => ({ id: o.value, name: o.name, ...(o.description ? { description: o.description } : {}), ...(o.group ? { group: o.group } : {}) })),
       current: option.currentValue,
     }
   }
