@@ -9,6 +9,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { MessageGroup } from "@/components/ui/message"
+import { useAgentWindow } from "@/features/agent/store"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
 import { useBrokenReply, useLookAt } from "../status"
@@ -30,6 +31,11 @@ export function ChatView() {
   const composer = useRef<ComposerHandle>(null)
   const navigate = useNavigate()
   useLookAt(chat ? chatId : null)
+  // The chat on screen is the current one, so ⇧⌘J brings it beside another page
+  const found = !!chat
+  useEffect(() => {
+    if (found) useAgentWindow.getState().follow(chatId)
+  }, [found, chatId])
   const broken = useBrokenReply(chat)
 
   useEffect(() => {
