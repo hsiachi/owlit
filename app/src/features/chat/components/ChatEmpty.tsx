@@ -73,7 +73,7 @@ export function ChatEmpty() {
           </Button>
         ))}
       </div>
-      <p className="-mt-2 text-[13px] text-muted-foreground">From anywhere, {keysFor("owlit")} asks Owlit about what’s on your screen.</p>
+      <p className="-mt-2 text-detail text-muted-foreground">From anywhere, {keysFor("owlit")} asks Owlit about what’s on your screen.</p>
     </div>
   )
 }

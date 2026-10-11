@@ -4,7 +4,7 @@
 // which open it at their section. Closing it leaves you exactly where you were.
 
 import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon, ScanTextIcon, type LucideIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
 import { needsSignIn } from "@/features/chat/lib/sign-in"

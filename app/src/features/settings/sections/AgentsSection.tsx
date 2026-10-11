@@ -2,7 +2,7 @@ import { useState } from "react"
 import { CopyIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -14,6 +14,7 @@ import { useFoldWhile } from "../form-state"
 import { CommitInput, GroupLabel, IconAction, Info, List, Note, onHover, Picker, Row } from "../parts"
 import { EngineSignIns } from "./EngineSignIns"
 import { updateSettings, useSettings } from "../store"
+import { copyText } from "@/lib/clipboard"
 
 const isReady = (c: Connector) => c.status === "available" || c.status === "connected"
 
@@ -51,7 +52,7 @@ export function AgentsSection() {
 // Ready: just the version, quietly. Not installed: a neutral chip. Error: a red chip.
 function Status({ c }: { c: Connector }) {
   if (isReady(c)) {
-    return c.version && c.version !== "unknown" ? <span className="text-[13px] text-muted-foreground">{c.version}</span> : null
+    return c.version && c.version !== "unknown" ? <span className="text-detail text-muted-foreground">{c.version}</span> : null
   }
   if (needsSignIn(c)) return <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs leading-4 text-muted-foreground">Not signed in</span>
   if (c.status === "not_installed" || c.status === "error") {
@@ -71,8 +72,8 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
 
   const copyInstall = () => {
     if (!c.installHint) return
-    void navigator.clipboard.writeText(c.installHint)
-    toast("Install command copied", { description: c.installHint })
+    const hint = c.installHint
+    void copyText(hint).then((ok) => ok && toast("Install command copied", { description: hint }))
   }
 
   // A ready agent needs nothing, so its check shows on hover, before the version
@@ -155,7 +156,7 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
       </label>
       <label className="flex flex-col gap-1.5">
         <span className="text-xs text-muted-foreground">Command</span>
-        <Input placeholder="my-agent --acp" value={command} onChange={(e) => setCommand(e.target.value)} className="font-mono text-[13px]" />
+        <Input placeholder="my-agent --acp" value={command} onChange={(e) => setCommand(e.target.value)} className="font-mono text-detail" />
         <span className="text-xs text-muted-foreground">What owlit runs to start the agent. It must speak ACP over stdio.</span>
       </label>
       <div className="flex justify-end gap-2 pt-0.5">

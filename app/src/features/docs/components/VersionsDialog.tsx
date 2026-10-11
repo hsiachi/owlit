@@ -4,15 +4,13 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useChatStore } from "@/features/chat/store"
-import { shortDate } from "@/features/knowledge/lib/when"
+import { dateTime } from "@/lib/time"
 import { Info } from "@/features/settings/parts"
 import { rpc } from "@/lib/rpc"
 import { undoChange } from "@/lib/versions"
 import { displayName, type WorkspaceFile } from "../types"
 
 const ABOUT = "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
-
-const time = (t: number) => `${shortDate(t)}, ${new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
 
 // The doc as it was before each change an agent made to it (and before each undo), newest first. Restore
 // puts that text back even if the doc changed since; the toast offers Undo.
@@ -64,7 +62,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
                   <p className="flex min-w-0 flex-1 items-baseline gap-2">
                     <span className="shrink-0 text-sm">{v.by === "undo" ? "Before an undo" : "Before Owlit's edit"}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {time(v.at)}
+                      {dateTime(v.at)}
                       {chat ? ` · from “${chat.title || "a chat"}”` : v.chatId ? " · from a chat" : ""}
                     </span>
                   </p>

@@ -1,6 +1,6 @@
 import { useSelectionCapability } from "@embedpdf/plugin-selection/react"
 import type { SelectionSelectionMenuProps } from "@embedpdf/plugin-selection/react"
-import { copyText } from "../lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { cleanPdfText } from "../lib/highlights"
 import { useLibraryStore } from "../store"
 import type { HighlightColor, PageRect } from "../types"

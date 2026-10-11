@@ -30,8 +30,8 @@ export function PaperPeek({ paper }: { paper: Paper }) {
       }}
       className="-mx-1.5 my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 shadow-sm"
     >
-      <h3 className="text-[15px] leading-snug font-medium text-balance">{paper.title}</h3>
-      <p className="mt-1 text-[13px] leading-normal text-muted-foreground">
+      <h3 className="text-body leading-snug font-medium text-balance">{paper.title}</h3>
+      <p className="mt-1 text-detail leading-normal text-muted-foreground">
         {paper.authors.join(", ") || "Unknown authors"}
         {published && (
           <>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown, paperHighlights } from "../lib/highlights"
-import { copyText } from "../lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import type { Highlight } from "../types"
@@ -43,7 +43,7 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
   }, [highlights])
 
   if (highlights.length === 0) {
-    return <p className="text-[13px] text-muted-foreground">Select text in the PDF to highlight it.</p>
+    return <p className="text-detail text-muted-foreground">Select text in the PDF to highlight it.</p>
   }
 
   return (

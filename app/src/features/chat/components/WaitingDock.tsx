@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { MessageCircleQuestionIcon, ShieldAlertIcon } from "lucide-react"
 import { editStats } from "@owlit/protocol"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type { Chat, MessagePart, PermissionKind } from "../types"
 import { useAskDraft } from "../ask-draft"
@@ -94,7 +94,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
         <ShieldAlertIcon className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="min-w-0 flex-1">
           <div className="font-medium break-words">{askSentence(ask.title, call)}</div>
-          {summary && <div className="mt-0.5 text-[13px] text-muted-foreground">{summary}</div>}
+          {summary && <div className="mt-0.5 text-detail text-muted-foreground">{summary}</div>}
         </div>
       </div>
       {(diff || command || url) && (
@@ -104,7 +104,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
           ) : command ? (
             <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap">{command}</pre>
           ) : (
-            <a href={url} target="_blank" rel="noreferrer" className="text-[13px] text-mention hover:underline">
+            <a href={url} target="_blank" rel="noreferrer" className="text-detail text-mention hover:underline">
               {shortUrl(url!)}
             </a>
           )}
@@ -118,7 +118,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
           </Button>
         ))}
         {(diff || command) && (
-          <button type="button" onClick={() => setAll((a) => !a)} className="rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+          <button type="button" onClick={() => setAll((a) => !a)} className="rounded-md px-1.5 py-1 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
             {all ? "Show less" : "Show all"}
           </button>
         )}
@@ -161,7 +161,7 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
           <div className="text-xs text-muted-foreground">
             {[agent ? `Owlit asks for the agent “${agent}”` : "Owlit asks", q.header && q.header !== q.question ? q.header : undefined].filter(Boolean).join(" · ")}
           </div>
-          <div className="mt-0.5 text-[15px] font-medium break-words">{q.question}</div>
+          <div className="mt-0.5 text-body font-medium break-words">{q.question}</div>
         </div>
         {ask.questions.length > 1 && (
           <span className="shrink-0 text-xs text-muted-foreground">
@@ -186,7 +186,7 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
               <span className="w-3 shrink-0 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
               <span className="min-w-0">
                 <span className={cn(picks.includes(o.label) && "font-medium")}>{o.label}</span>
-                {o.description && <span className="ml-2 text-[13px] text-muted-foreground">{o.description}</span>}
+                {o.description && <span className="ml-2 text-detail text-muted-foreground">{o.description}</span>}
               </span>
             </button>
           ))}
@@ -198,7 +198,7 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
             {index + 1 < ask.questions.length ? "Next" : "Done"}
           </Button>
         )}
-        <button type="button" onClick={() => useAskDraft.getState().skip(chatId, ask)} className="rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+        <button type="button" onClick={() => useAskDraft.getState().skip(chatId, ask)} className="rounded-md px-1.5 py-1 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
           Skip
         </button>
         {!compact && q.allowsText && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}

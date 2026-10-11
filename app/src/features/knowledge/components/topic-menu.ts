@@ -6,7 +6,7 @@ import { runUpdates } from "../runner"
 import { deleteTopic, mergeTopic, setArchived, useKnowledgeStore, useTopics } from "../store"
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
-import { dayLabel } from "../lib/when"
+import { dayLabel } from "@/lib/time"
 
 // Rename, Merge into…, Split…, Archive, Update now, Pause updates, Delete. The same menu from a row's ⋯,
 // a right-click on the row and the topic page's header.

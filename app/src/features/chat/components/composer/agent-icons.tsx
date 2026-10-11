@@ -1,5 +1,5 @@
 import { BotIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 // Each built-in agent's own mark, single-colour so it takes the text colour like any icon. The shapes are
 // from @lobehub/icons-static-svg (MIT); the marks belong to their makers. An agent the user added gets a

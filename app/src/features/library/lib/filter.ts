@@ -1,3 +1,4 @@
+import { DAY } from "@/lib/time"
 import type { Paper } from "../types"
 import type { Sort, StatusFilter } from "../ui-store"
 
@@ -89,7 +90,6 @@ export interface PaperGroup {
   papers: Paper[]
 }
 
-const DAY = 86_400_000
 const AGE_BANDS: [string, number][] = [
   ["Today", DAY],
   ["Previous 7 days", 7 * DAY],

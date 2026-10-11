@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useChatStore } from "@/features/chat/store"
 import { openSettings } from "@/features/settings/store"
+import { copyText } from "@/lib/clipboard"
 
 const isReady = (c: Connector) => (c.status === "available" || c.status === "connected") && c.authenticated !== false
 const isChecking = (c: Connector) => c.status === "checking" || c.status === "unknown"
@@ -44,8 +45,7 @@ export function AgentCheck() {
   const first = connectors.find((c) => c.builtIn && c.installHint)
 
   const copy = (text: string) => {
-    void navigator.clipboard.writeText(text)
-    toast("Copied", { description: text })
+    void copyText(text).then((ok) => ok && toast("Copied", { description: text }))
   }
   const recheck = () => {
     for (const c of useChatStore.getState().connectors) if (!isChecking(c)) void check(c.id)
@@ -140,7 +140,7 @@ export function AgentCheck() {
 
 function Line({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 text-[13px] leading-normal text-muted-foreground [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0">
+    <div className="flex items-start gap-2.5 text-detail leading-normal text-muted-foreground [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0">
       {icon}
       {children}
     </div>

@@ -2,6 +2,7 @@ import { useDocsStore } from "@/features/docs/store"
 import { freshId, getTopic, useKnowledgeStore, writeTopic } from "./store"
 import { firstWords, isoDay, paperRef } from "./format"
 import type { Line, Ref } from "./types"
+import { capital, plural } from "@/lib/words"
 
 // Owlit's update runs. The real ones will be background ACP runs of the user's agent, reading the topic
 // files and what changed, and writing back through the app; this mock applies a few scripted steps with the
@@ -73,8 +74,7 @@ export function runUpdate(topicId: string): string | null {
   for (const h of history) k.record(topicId, { lineId: h.lineId, what: h.before ? "Rewritten" : "Added", why: h.why, by: "owlit", before: h.before })
   const added = history.filter((h) => !h.before).length
   const rewritten = history.length - added
-  const what = [added && `${added} line${added === 1 ? "" : "s"} added`, rewritten && `${rewritten} rewritten`].filter(Boolean).join(", ")
-  return what.charAt(0).toUpperCase() + what.slice(1)
+  return capital([added && `${plural(added, "line")} added`, rewritten && `${rewritten} rewritten`].filter(Boolean).join(", "))
 }
 
 // One run over several topics, kept as the page's "Updated" line

@@ -159,7 +159,7 @@ function SearchPill({ documentId, onClose }: { documentId: string; onClose: () =
           }
         }}
         placeholder="Find in paper"
-        className="h-6 w-40 bg-transparent px-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+        className="h-6 w-40 bg-transparent px-1.5 text-detail text-foreground outline-none placeholder:text-muted-foreground"
       />
       {/* No "0/0" before anything is typed; it reads as a failed search */}
       {query.trim() !== "" && <span className="shrink-0 px-1 tabular-nums">{total === 0 ? "None" : `${active} of ${total}`}</span>}

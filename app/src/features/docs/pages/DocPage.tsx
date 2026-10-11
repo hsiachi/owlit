@@ -36,7 +36,7 @@ export function DocPage() {
   if (!file || !isMarkdown(file.path)) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-[15px] font-medium">This doc is not in the workspace</p>
+        <p className="text-body font-medium">This doc is not in the workspace</p>
         <p className="text-sm text-muted-foreground">It may have been moved or deleted.</p>
         <Button variant="outline" size="sm" onClick={() => navigate("/docs")}>
           Back to docs
@@ -48,7 +48,7 @@ export function DocPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Starts at the sheet's edge, as the paper page's breadcrumb does, rather than at the text column */}
-      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-[13px]">
+      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-detail">
         <nav aria-label="Location" className="flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
           {folder
             .split("/")

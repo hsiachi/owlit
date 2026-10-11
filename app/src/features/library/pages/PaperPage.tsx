@@ -1,3 +1,4 @@
+import { ago } from "@/lib/time"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
@@ -13,7 +14,7 @@ import { PaperDropdownContent } from "../components/PaperMenu"
 import { StarButton } from "../components/StarButton"
 import { StatusMenu } from "../components/StatusMenu"
 import { TagsEditor } from "../components/TagsEditor"
-import { externalLinks, formatAdded } from "../lib/format"
+import { externalLinks } from "../lib/format"
 import { visiblePapers } from "../lib/filter"
 import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../prefs-store"
 import { NoteEditor } from "../notes/NoteEditor"
@@ -33,6 +34,7 @@ import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { rpc } from "@/lib/rpc"
 import { notePathOf } from "../notes/note-actions"
+import { joinAnd } from "@/lib/words"
 
 function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
   return (
@@ -112,7 +114,7 @@ export function PaperPage() {
   if (!paper) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-[15px] font-medium">This paper is not in the library</p>
+        <p className="text-body font-medium">This paper is not in the library</p>
         <p className="text-sm text-muted-foreground">It may have been removed.</p>
         <Button variant="outline" size="sm" onClick={() => navigate("/library")}>
           Back to library
@@ -125,7 +127,7 @@ export function PaperPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-[13px]">
+      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-detail">
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
           <Link to="/library" className="-ml-1 shrink-0 rounded-md px-1 py-0.5 hover:bg-muted hover:text-foreground">
             Library
@@ -220,7 +222,7 @@ function DetailsPanel({ paper }: { paper: Paper }) {
   return (
     <aside style={{ width }} className="flex shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-4">
       <h1 className="text-lg leading-snug font-medium text-balance">{paper.title}</h1>
-      <p className="mt-2 text-[13px] leading-normal text-muted-foreground">
+      <p className="mt-2 text-detail leading-normal text-muted-foreground">
         {paper.authors.join(", ") || "Unknown authors"}
         {published && (
           <>
@@ -283,7 +285,7 @@ function About({ paper }: { paper: Paper }) {
     <div>
       {paper.abstract ? <p className="text-sm leading-relaxed">{paper.abstract}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
       <Digest paper={paper} />
-      <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-[13px]">
+      <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-detail">
         <dt className="text-muted-foreground">Tags</dt>
         <dd>
           <TagsEditor
@@ -307,7 +309,7 @@ function About({ paper }: { paper: Paper }) {
         ))}
         <dt className="text-muted-foreground">Added</dt>
         <dd>
-          {formatAdded(paper.addedAt)}
+          {ago(paper.addedAt)}
           {paper.addedBy === "agent" && " by an agent"}
         </dd>
         <dt className="text-muted-foreground">File</dt>
@@ -415,7 +417,7 @@ function NoPdf({ paper }: { paper: Paper }) {
           dragging && "border-foreground/30 bg-muted",
         )}
       >
-        <p className="flex items-center gap-2 text-[15px] font-medium">
+        <p className="flex items-center gap-2 text-body font-medium">
           {looking && <Spinner />}
           {title}
         </p>
@@ -558,8 +560,7 @@ function triedSentence(routes: string[]) {
     r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? "the publisher" : r.endsWith(":proxied") ? "the library proxy" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
   const names = [...new Set(routes.map(nameOf))].filter(Boolean)
   if (!names.length) return "owlit knows of no open copy of this paper."
-  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
-  return `Tried ${list}.`
+  return `Tried ${joinAnd(names)}.`
 }
 
 // Reading notes an agent wrote for the paper (digest.md), or that one is being written. Here for now;

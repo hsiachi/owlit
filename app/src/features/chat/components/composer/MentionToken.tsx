@@ -1,4 +1,4 @@
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 // One look for a mentioned workspace item wherever it appears. In the editor it
 // carries a faint fill so it reads as one unit you can delete; in messages it is

@@ -9,6 +9,7 @@ import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
 import type { ChatMessage } from "../../types"
 import { undoResult, useResultsStore, type AgentResult } from "../../results"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { capital, joinAnd } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
 // notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
@@ -163,8 +164,7 @@ function summary(rows: ResultRow[]) {
     n("note") && `left notes on ${count(n("note"), "a doc", "docs")}`,
     n("knowledge") && `updated ${count(n("knowledge"), "a topic", "topics")}`,
   ].filter(Boolean) as string[]
-  const text = said.length > 1 ? `${said.slice(0, -1).join(", ")} and ${said.at(-1)}` : said[0]
-  return text.charAt(0).toUpperCase() + text.slice(1)
+  return capital(joinAnd(said))
 }
 
 // Muted text button inside a row, 24px tall so Undo is easy to hit
@@ -180,7 +180,7 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
       {row.view && live && <button type="button" onClick={row.view} aria-label={`Open ${row.name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
       <Icon className="size-4 shrink-0 text-muted-foreground" />
       <span className={`min-w-0 truncate ${live ? "text-foreground" : "text-muted-foreground line-through"}`}>{row.name}</span>
-      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
         {live && row.undo && (
           <button type="button" onClick={() => void row.undo!()} className={`relative ${BUTTON} ${SHOW_ON_HOVER}`}>
             Undo
@@ -211,7 +211,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
       {rows.length > 1 && (
         <div className="group/row flex h-8 items-center gap-2.5 px-2.5 text-sm">
           <span className="min-w-0 truncate text-foreground">{summary(rows)}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+          <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
             {live.length > 1 && (
               <button type="button" onClick={() => void Promise.all(live.map((r) => r.undo!()))} className={`${BUTTON} ${SHOW_ON_HOVER}`}>
                 Undo all

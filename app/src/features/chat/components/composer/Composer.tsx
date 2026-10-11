@@ -4,7 +4,7 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
 import { ArrowUpIcon, PlusIcon, SquareIcon, TriangleAlertIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -140,7 +140,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     ],
     autofocus: autoFocus ? "end" : false,
     editorProps: {
-      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-[15px] leading-6 outline-none" },
+      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-body leading-6 outline-none" },
       handlePaste: (_view, event) => {
         const pasted = Array.from(event.clipboardData?.files ?? [])
         if (pasted.length === 0) return false

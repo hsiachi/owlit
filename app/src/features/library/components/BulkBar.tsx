@@ -18,7 +18,7 @@ export function BulkBar() {
   const allStarred = ids.every((id) => papers[id]?.starred)
 
   return (
-    <div className="absolute bottom-5 left-1/2 z-20 flex h-11 -translate-x-1/2 items-center gap-0.5 rounded-xl border bg-popover pr-1.5 pl-4 text-[13px] whitespace-nowrap shadow-lg">
+    <div className="absolute bottom-5 left-1/2 z-20 flex h-11 -translate-x-1/2 items-center gap-0.5 rounded-xl border bg-popover pr-1.5 pl-4 text-detail whitespace-nowrap shadow-lg">
       <span className="mr-2">{ids.length} selected</span>
       <Button variant="ghost" size="sm" className="font-normal" onClick={() => actions.setStarred(ids, !allStarred)}>
         {allStarred ? "Unstar" : "Star"}

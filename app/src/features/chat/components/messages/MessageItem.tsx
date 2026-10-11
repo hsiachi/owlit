@@ -16,6 +16,7 @@ import { unansweredSentence } from "../../lib/step-words"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultCard } from "./ResultRows"
 import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
+import { copyText } from "@/lib/clipboard"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -34,9 +35,11 @@ function CopyButton({ text }: { text: string }) {
           size="icon-xs"
           aria-label="Copy"
           onClick={() => {
-            void navigator.clipboard.writeText(text)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1200)
+            void copyText(text).then((ok) => {
+              if (!ok) return
+              setCopied(true)
+              setTimeout(() => setCopied(false), 1200)
+            })
           }}
         >
           {copied ? <CheckIcon /> : <CopyIcon />}
@@ -61,7 +64,7 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
   const detail = message.errorDetail && message.errorDetail !== message.error ? message.errorDetail : undefined
   const why = [message.error, unansweredSentence(message.parts)].filter(Boolean).join(" ")
   return (
-    <div className="rounded-lg border py-2 pr-2 pl-3 text-[13px] text-muted-foreground" role="status">
+    <div className="rounded-lg border py-2 pr-2 pl-3 text-detail text-muted-foreground" role="status">
       <div className="flex items-center gap-1.5">
         <CircleXIcon className="size-3.5 shrink-0 text-destructive" />
         <span className="text-destructive">Owlit stopped</span>
@@ -154,11 +157,11 @@ function renderWithMentions(text: string, mentions: ChatMessage["mentions"]) {
 export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?: (text: string) => void }) {
   const text = messageText(message)
   return (
-    <Message align="end" className="text-[15px]">
+    <Message align="end" className="text-body">
       <MessageContent className="items-end">
         {/* The passage it was sent with: one quiet quoted line, not a card */}
         {message.selection && (
-          <p className="max-w-[85%] truncate border-r-2 pr-2 text-[13px] text-muted-foreground" title={message.selection.text}>
+          <p className="max-w-[85%] truncate border-r-2 pr-2 text-detail text-muted-foreground" title={message.selection.text}>
             “{message.selection.text.replace(/\s+/g, " ").trim()}”
           </p>
         )}
@@ -214,7 +217,7 @@ export function AssistantMessage({
   const agentWaiting = waiting && message.parts.some((p) => (p.type === "permission" || p.type === "question") && !p.outcome && !!p.agentId)
   const blockId = (key: string) => `${message.id}-${key}`
   return (
-    <Message className="text-[15px]">
+    <Message className="text-body">
       <MessageContent className="gap-3">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1

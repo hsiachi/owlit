@@ -10,7 +10,7 @@ import { NoteDot } from "../components/bits"
 import { KnowledgeEmpty } from "../components/KnowledgeEmpty"
 import { ActionsDropdownContent, ActionsOnRightClick } from "@/components/action-menu"
 import { useTopicMenu } from "../components/topic-menu"
-import { ago, shortDate, thisWeek } from "../lib/when"
+import { ago, DAY, shortDate } from "@/lib/time"
 import { changedSince, renameTopic, useKnowledgeStore, useTopics } from "../store"
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
@@ -43,9 +43,11 @@ export function KnowledgePage() {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const shown = useMemo(() => topics.filter((t) => matches(t, query.toLowerCase().split(/\s+/).filter(Boolean))), [topics, query])
   const live = shown.filter((t) => !t.archived)
+  // This week means the last seven days
+  const weekAgo = Date.now() - 7 * DAY
   const groups = [
-    { label: "This week", topics: live.filter((t) => thisWeek(t.updatedAt)) },
-    { label: "Earlier", topics: live.filter((t) => !thisWeek(t.updatedAt)) },
+    { label: "This week", topics: live.filter((t) => t.updatedAt > weekAgo) },
+    { label: "Earlier", topics: live.filter((t) => t.updatedAt <= weekAgo) },
   ].filter((g) => g.topics.length)
   const archived = shown.filter((t) => t.archived)
   const looseHit = words.length > 0 && loose.some((l) => words.every((w) => l.quote.toLowerCase().includes(w)))
@@ -55,7 +57,7 @@ export function KnowledgePage() {
     <KnowledgeShell>
       <header className="px-0.5">
         {/* Questions may join as a second view; until then a lone tab strip would say nothing */}
-        <h1 className="text-[22px] leading-tight font-medium tracking-tight">Knowledge</h1>
+        <h1 className="text-title leading-tight font-medium tracking-tight">Knowledge</h1>
       </header>
       {/* With no topics the empty state says when Owlit last read */}
       {topics.length > 0 && <RecentRun />}
@@ -149,7 +151,7 @@ function RecentRun() {
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className="-ml-1 mt-3 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted data-[state=open]:bg-muted data-[state=open]:text-foreground">
-          Updated {ago(run.at)} · {n} topic{n === 1 ? "" : "s"}
+          Updated {ago(run.at, { inSentence: true })} · {n} topic{n === 1 ? "" : "s"}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 gap-0 p-1">
@@ -164,7 +166,7 @@ function RecentRun() {
               className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left outline-none hover:bg-accent focus-key:bg-accent"
             >
               <span className="text-sm font-medium">{t.name}</span>
-              <span className="text-[13px] text-muted-foreground">{i.what}</span>
+              <span className="text-detail text-muted-foreground">{i.what}</span>
             </button>
           )
         })}
@@ -203,7 +205,7 @@ function FindField() {
         placeholder="Find a topic, a line or a question"
         aria-label="Find in Knowledge"
         spellCheck={false}
-        className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+        className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted-foreground"
       />
       {query ? (
         <Button variant="ghost" size="icon-sm" aria-label="Clear" onClick={() => setQuery("")} className="text-muted-foreground">
@@ -248,8 +250,8 @@ function TopicRow({ topic }: { topic: Topic }) {
       >
         {fresh && <NoteDot className="-ml-0.5" label="Changed since you last looked" />}
         <span className={cn("shrink-0 truncate", topic.archived && "text-muted-foreground")}>{topic.name}</span>
-        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{topic.summary}</span>
-        <span className="shrink-0 pr-1.5 text-[13px] text-muted-foreground group-hover/row:hidden group-focus-within/row:hidden group-has-data-menu-up/row:hidden">
+        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{topic.summary}</span>
+        <span className="shrink-0 pr-1.5 text-detail text-muted-foreground group-hover/row:hidden group-focus-within/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(topic.updatedAt)}
         </span>
         <DropdownMenu onOpenChange={(open) => open && setMenuUp(true)}>

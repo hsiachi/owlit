@@ -1,3 +1,4 @@
+import { DAY, startOfDay } from "@/lib/time"
 import type { Chat } from "../types"
 
 export interface ChatGroup {
@@ -5,13 +6,6 @@ export interface ChatGroup {
   chats: Chat[]
 }
 
-const DAY = 24 * 60 * 60 * 1000
-
-function startOfDay(t: number) {
-  const d = new Date(t)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
 
 // Pinned first, then by recency buckets like most chat apps
 export function groupChats(chats: Chat[], now = Date.now()): ChatGroup[] {

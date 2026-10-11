@@ -89,7 +89,7 @@ export function WelcomePage() {
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[460px] px-4 pt-[9vh] pb-16">
             <OwlitLockup className="ml-0.5 h-auto w-34 text-foreground" />
-            <p className="mt-4.5 text-[15px] leading-normal text-muted-foreground">
+            <p className="mt-4.5 text-body leading-normal text-muted-foreground">
               Read, write and think through papers with Owlit. Everything lives in a folder on your Mac.
             </p>
 
@@ -117,7 +117,7 @@ export function WelcomePage() {
                     <FolderPlusIcon className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0">
                       <span className="block text-sm font-medium">Create a workspace</span>
-                      <span className="block truncate text-[13px] text-muted-foreground">{info ? `${tilde(parent)}/${name}` : " "}</span>
+                      <span className="block truncate text-detail text-muted-foreground">{info ? `${tilde(parent)}/${name}` : " "}</span>
                     </span>
                   </button>
                   <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={!info} onClick={() => setEditing(true)}>
@@ -133,7 +133,7 @@ export function WelcomePage() {
                 <FolderOpenIcon className="size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">Open a folder you have</span>
-                  <span className="block truncate text-[13px] text-muted-foreground">Notes, an Obsidian vault, PDFs. Your files stay as they are.</span>
+                  <span className="block truncate text-detail text-muted-foreground">Notes, an Obsidian vault, PDFs. Your files stay as they are.</span>
                 </span>
               </button>
             </div>
@@ -147,7 +147,7 @@ export function WelcomePage() {
                       <div key={w.path} className="group/gone flex h-9 min-w-0 items-center gap-2.5 rounded-md pr-1 pl-2.5 text-sm">
                         <FolderXIcon className="size-4 shrink-0 text-muted-foreground" />
                         <span className="max-w-[45%] shrink-0 truncate text-muted-foreground">{w.name}</span>
-                        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground" title={w.path}>
+                        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground" title={w.path}>
                           isn’t at {tilde(w.path)} anymore
                         </span>
                         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => locate(w)}>
@@ -171,7 +171,7 @@ export function WelcomePage() {
                       >
                         <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
                         <span className="max-w-[45%] shrink-0 truncate">{w.name}</span>
-                        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{tilde(w.path)}</span>
+                        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{tilde(w.path)}</span>
                       </button>
                     ),
                   )}
@@ -252,7 +252,7 @@ function CreateForm({
         <FolderPlusIcon className="size-4 shrink-0 text-muted-foreground" />
         <span className="text-sm font-medium">Create a workspace</span>
       </div>
-      <div className="mt-3 grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5 pl-7 text-[13px]">
+      <div className="mt-3 grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5 pl-7 text-detail">
         <label htmlFor="workspace-name" className="text-muted-foreground">
           Name
         </label>

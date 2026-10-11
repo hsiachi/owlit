@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { CheckIcon, ChevronRightIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, ShieldAlertIcon, XIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Spinner } from "@/components/ui/spinner"
 import type { MessagePart } from "../../types"
@@ -8,6 +8,7 @@ import { Markdown } from "./Markdown"
 import { toolTitle } from "../../lib/tool-title"
 import { blockSentence, foldable, groupPhrase, liveSentence, stepWords, type StepWords, type ToolCall } from "../../lib/step-words"
 import { hasResult, StepResult, stepMeta } from "./step-results"
+import { capital } from "@/lib/words"
 
 type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 
@@ -81,7 +82,7 @@ function StepLine({
 
 const ResultBox = ({ children }: { children: React.ReactNode }) => (
   <div className="px-3 pb-3">
-    <div className="max-h-60 overflow-auto rounded-md bg-muted px-2.5 py-2 text-[13px]">{children}</div>
+    <div className="max-h-60 overflow-auto rounded-md bg-muted px-2.5 py-2 text-detail">{children}</div>
   </div>
 )
 
@@ -116,9 +117,9 @@ function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: Step
         onToggle={canOpen ? () => setOpen((o) => !o) : undefined}
         after={
           failed ? (
-            <span className="shrink-0 text-[13px] text-destructive">Failed</span>
+            <span className="shrink-0 text-detail text-destructive">Failed</span>
           ) : outcome || answered ? (
-            <span className="shrink-0 text-[13px] text-muted-foreground">{answered ?? outcomeLabel[outcome!]}</span>
+            <span className="shrink-0 text-detail text-muted-foreground">{answered ?? outcomeLabel[outcome!]}</span>
           ) : undefined
         }
         right={right}
@@ -140,7 +141,7 @@ function FoldRow({ calls, group, asks, streaming }: { calls: { call: ToolCall; w
   return (
     <div className="border-t first:border-t-0">
       <StepLine
-        words={words.charAt(0).toUpperCase() + words.slice(1)}
+        words={capital(words)}
         open={open}
         onToggle={() => setOpen((o) => !o)}
         right={group === "fetch" && hosts.length === 1 ? hosts[0] : undefined}
@@ -295,7 +296,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
           <div className="mt-2 overflow-hidden rounded-lg border">
             {hidden > 0 && (
               <div className="border-t first:border-t-0">
-                <StepLine words={`${hidden} earlier ${hidden === 1 ? "step" : "steps"}`} open={false} onToggle={() => setEarlier(true)} className="text-[13px]" />
+                <StepLine words={`${hidden} earlier ${hidden === 1 ? "step" : "steps"}`} open={false} onToggle={() => setEarlier(true)} className="text-detail" />
               </div>
             )}
             {rows.slice(hidden).map((r) =>

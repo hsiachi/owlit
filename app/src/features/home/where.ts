@@ -4,7 +4,6 @@ import { useDocsStore } from "@/features/docs/store"
 import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
 import { shortAuthors } from "@/features/library/lib/format"
-import { shortDate } from "@/features/knowledge/lib/when"
 import { useTrail, workspaceKey } from "./trail"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
@@ -114,15 +113,4 @@ export function usePlaces(): Place[] {
 
     return out.sort((a, b) => b.at - a.at)
   }, [files, chats, papers, highlights, notes, marks])
-}
-
-// "Just now", "12 min ago", "3 h ago", "Yesterday", then the date
-export function when(t: number, now = Date.now()) {
-  const d = now - t
-  if (d < 60_000) return "Just now"
-  if (d < 3_600_000) return `${Math.floor(d / 60_000)} min ago`
-  const today = new Date(now).setHours(0, 0, 0, 0)
-  if (t >= today || d < 12 * 3_600_000) return `${Math.floor(d / 3_600_000)} h ago`
-  if (t >= today - 86_400_000) return "Yesterday"
-  return shortDate(t)
 }

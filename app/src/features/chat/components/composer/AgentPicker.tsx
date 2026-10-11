@@ -1,7 +1,7 @@
 import { Fragment } from "react"
 import { CheckIcon, TriangleAlertIcon } from "lucide-react"
 import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,

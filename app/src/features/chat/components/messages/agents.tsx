@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { ChevronRightIcon, ShieldAlertIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import type { MessagePart } from "../../types"
 import { stepWords, type ToolCall } from "../../lib/step-words"
@@ -53,7 +53,7 @@ function Report({ text }: { text: string }) {
         {!all && long && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />}
       </div>
       {long && (
-        <button type="button" onClick={() => setAll((a) => !a)} className="-ml-1.5 mt-0.5 rounded-md px-1.5 py-0.5 text-[13px] text-foreground outline-none hover:bg-muted focus-key:bg-muted">
+        <button type="button" onClick={() => setAll((a) => !a)} className="-ml-1.5 mt-0.5 rounded-md px-1.5 py-0.5 text-detail text-foreground outline-none hover:bg-muted focus-key:bg-muted">
           {all ? "Show less" : "Show all"}
         </button>
       )}
@@ -86,9 +86,9 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
       >
         {/* While it works its task shimmers; the step it is at stays plain at the right */}
         <span className={cn("min-w-0 shrink-0 max-w-[55%]", open ? "break-words" : "truncate", working && !waiting && "shimmer")}>{agent.title}</span>
-        {agent.status === "failed" && <span className="shrink-0 text-[13px] text-destructive">Failed</span>}
+        {agent.status === "failed" && <span className="shrink-0 text-detail text-destructive">Failed</span>}
         <ChevronRightIcon className={cn("size-3.5 shrink-0 text-muted-foreground opacity-55 transition-transform", open && "rotate-90 opacity-100")} />
-        {right && <span className="ml-auto flex min-w-0 items-center gap-1.5 pl-3 text-[13px] text-muted-foreground">{right}</span>}
+        {right && <span className="ml-auto flex min-w-0 items-center gap-1.5 pl-3 text-detail text-muted-foreground">{right}</span>}
       </button>
       {open && (
         <div className="flex flex-col gap-2.5 pr-3 pb-3.5 pl-8">
@@ -98,7 +98,7 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
               <Report text={agent.report} />
             </div>
           ) : (
-            agent.status === "working" && streaming && <div className="text-[13px] text-muted-foreground">Its findings show here when it’s done.</div>
+            agent.status === "working" && streaming && <div className="text-detail text-muted-foreground">Its findings show here when it’s done.</div>
           )}
           {steps.length > 0 && <StepsPart parts={steps} active={working && !waiting} streaming={streaming} asks={asks} />}
         </div>
@@ -201,7 +201,7 @@ export function AgentsWaitLine({ blockId, working, waiting }: { blockId: string;
       ) : (
         <span className="shimmer">Waiting for {working === 1 ? "an agent" : `${working} agents`}</span>
       )}
-      <button type="button" onClick={show} className="rounded-md px-1.5 py-0.5 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+      <button type="button" onClick={show} className="rounded-md px-1.5 py-0.5 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
         Show
       </button>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   MessageScroller,

@@ -8,7 +8,8 @@ import { useWorkspace } from "@/lib/workspace"
 import { WaitingOnYou } from "./WaitingOnYou"
 import { AWAY_FOR, SinceYouLeft } from "./SinceYouLeft"
 import { useTrail, workspaceKey } from "./trail"
-import { type Kind, type Place, usePlaces, when } from "./where"
+import { ago } from "@/lib/time"
+import { type Kind, type Place, usePlaces } from "./where"
 
 // Home answers, in this order: where was I (every launch), what is waiting for me (only while something
 // waits) and what changed while I was away (only after three days or more). There is no composer: asking
@@ -45,7 +46,7 @@ export function HomePage() {
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-4 pt-10 pb-24">
           {/* The workspace folder is what this desk is about; its full path on hover */}
-          <h1 className="px-2.5 text-[22px] leading-tight font-medium tracking-tight" title={workspace?.path}>
+          <h1 className="px-2.5 text-title leading-tight font-medium tracking-tight" title={workspace?.path}>
             {workspace?.name ?? "Home"}
           </h1>
           {lead ? (
@@ -87,8 +88,7 @@ export function HomePage() {
 function LeadCard({ place }: { place: Place }) {
   const Icon = ICON[place.kind]
   // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday"
-  const time = when(place.at)
-  const did = place.did ? `${place.did} ${/^(Just now|Yesterday)$/.test(time) ? time.toLowerCase() : time}` : time
+  const did = place.did ? `${place.did} ${ago(place.at, { inSentence: true })}` : ago(place.at)
   const meta = [place.detail, did].filter(Boolean).join(" · ")
   return (
     <Link
@@ -98,7 +98,7 @@ function LeadCard({ place }: { place: Place }) {
       <div className="flex min-w-0 items-center gap-2">
         <Icon className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate text-sm font-medium">{place.title}</span>
-        <span className="shrink-0 text-[13px] whitespace-nowrap text-muted-foreground">{meta}</span>
+        <span className="shrink-0 text-detail whitespace-nowrap text-muted-foreground">{meta}</span>
       </div>
       {place.words && <p className="mt-2.5 line-clamp-3 border-l-2 pl-3 text-sm leading-relaxed text-muted-foreground">{place.words}</p>}
     </Link>
@@ -111,8 +111,8 @@ function PlaceRow({ place }: { place: Place }) {
     <Link to={place.to} className="flex h-9 min-w-0 items-center gap-2.5 rounded-md px-2.5 text-sm outline-none hover:bg-muted focus-key:bg-muted">
       <Icon className="size-4 shrink-0 text-muted-foreground" />
       <span className="max-w-[62%] shrink-0 truncate">{place.title}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{place.detail}</span>
-      <span className="shrink-0 text-[13px] text-muted-foreground">{when(place.at)}</span>
+      <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{place.detail}</span>
+      <span className="shrink-0 text-detail text-muted-foreground">{ago(place.at)}</span>
     </Link>
   )
 }
@@ -143,12 +143,12 @@ function Start() {
           >
             <r.icon className="size-4 shrink-0 text-muted-foreground" />
             <span className="shrink-0 font-medium">{r.title}</span>
-            <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{r.detail}</span>
+            <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{r.detail}</span>
           </button>
         ))}
       </div>
       {/* The few keys worth knowing from the first day; gone with the rest once the workspace has things in it */}
-      <p className="mt-7 px-2.5 text-[13px] text-muted-foreground">
+      <p className="mt-7 px-2.5 text-detail text-muted-foreground">
         {keysFor("palette")} find anything · {keysFor("owlit")} ask Owlit ·{" "}
         <button type="button" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground" onClick={openShortcuts}>
           {keysFor("shortcuts")} all shortcuts

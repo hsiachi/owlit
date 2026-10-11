@@ -134,7 +134,7 @@ function EmptyLibrary() {
   return (
     <div className="mt-12 flex justify-center">
       <div className="flex flex-col items-center gap-2 rounded-2xl border-[1.5px] border-dashed border-foreground/15 px-14 py-10 text-center">
-        <p className="text-[15px] font-medium">Add your first papers</p>
+        <p className="text-body font-medium">Add your first papers</p>
         <p className="max-w-72 text-sm text-muted-foreground">Paste a DOI, arXiv id or link in the field above, or drop PDFs here.</p>
         <div className="mt-3 flex gap-2">
           <Button size="sm" onClick={() => fileInput.current?.click()}>

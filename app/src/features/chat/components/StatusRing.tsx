@@ -1,5 +1,5 @@
 import { ShieldAlertIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { STATUS_LABEL, type ChatStatus } from "../status"
 
 // The slot before a chat's title, as Claude Code's session list draws it: a hollow ring while nothing is

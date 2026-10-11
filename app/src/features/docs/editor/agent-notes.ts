@@ -1,3 +1,4 @@
+import { shortDate } from "@/lib/time"
 import { Facet, StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
 import type { AgentNote } from "../types"
@@ -70,8 +71,6 @@ interface Actions {
   onDismiss: (note: AgentNote, next: string | null) => void
 }
 
-const day = (t: number) => new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-
 const chevron = (d: string) =>
   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`
 
@@ -113,7 +112,7 @@ class NoteWidget extends WidgetType {
     const head = document.createElement("div")
     head.className = "cm-note-head"
     const meta = document.createElement("span")
-    meta.textContent = `${note.by} · ${day(note.createdAt)}`
+    meta.textContent = `${note.by} · ${shortDate(note.createdAt)}`
     head.append(meta)
     if (n > 1) {
       const nav = document.createElement("span")

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { copyText } from "./lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { apaCitation, bibtex } from "./lib/cite"
 import { useLibraryStore } from "./store"
 import type { Paper, ReadStatus } from "./types"

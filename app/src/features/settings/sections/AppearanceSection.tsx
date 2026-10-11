@@ -1,5 +1,5 @@
 import type { PaperTone, ThemeChoice } from "@owlit/protocol"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { List, Row } from "../parts"
 import { appearanceOf, updateSettings, useSettings } from "../store"
 
@@ -32,7 +32,7 @@ export function AppearanceSection() {
                 aria-checked={theme === t.value}
                 onClick={() => void updateSettings({ appearance: { theme: t.value } })}
                 className={cn(
-                  "h-6 rounded-md px-3 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
+                  "h-6 rounded-md px-3 text-detail text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
                   theme === t.value && "bg-card text-foreground shadow-xs",
                 )}
               >
@@ -52,7 +52,7 @@ export function AppearanceSection() {
               role="radio"
               aria-checked={tone === t.value}
               onClick={() => void updateSettings({ appearance: { tone: t.value } })}
-              className={cn("group/tone flex flex-col items-center gap-2 text-[13px] text-muted-foreground outline-none", tone === t.value && "font-medium text-foreground")}
+              className={cn("group/tone flex flex-col items-center gap-2 text-detail text-muted-foreground outline-none", tone === t.value && "font-medium text-foreground")}
             >
               <TonePreview tone={t.value} selected={tone === t.value} />
               {t.label}

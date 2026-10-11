@@ -10,6 +10,7 @@ import type { WorkspaceFile } from "@/features/docs/types"
 import { parseTopic, serializeTopic, slugify, topicPath } from "./format"
 import { seedLoose, seedPapers, seedSidecars, seedTopicFiles } from "./mocks/seed"
 import type { Change, Connection, Line, PaperKnowledge, Passage, Ref, Topic, TopicSidecar } from "./types"
+import { joinAnd, plural } from "@/lib/words"
 
 // Topics are the Markdown files in `knowledge/`; the Docs store stands in for the disk until the desktop
 // shell exists. This store is the sidecar beside them (`.owlit/knowledge/`): what the user did to each
@@ -178,8 +179,8 @@ export function provenance(topic: Topic) {
     ] as const
   )
     .filter(([, n]) => n > 0)
-    .map(([k, n]) => `${n} ${k}${n === 1 ? "" : "s"}`)
-  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "nothing yet")
+    .map(([k, n]) => plural(n, k))
+  return parts.length ? joinAnd(parts) : "nothing yet"
 }
 
 // ---- Acting on lines (the user's own edits go straight to the file and are guarded by the sidecar) ----

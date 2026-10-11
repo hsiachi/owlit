@@ -15,6 +15,11 @@
     --font-heading: var(--font-sans);
     --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
     --font-display: 'Dosis', ui-sans-serif, system-ui, sans-serif;
+    /* DESIGN.md's type steps that Tailwind has no name for: page titles, body, and secondary text. No
+       line-height of their own, so a line keeps the height it inherits, as the arbitrary sizes did */
+    --text-title: 22px;
+    --text-body: 15px;
+    --text-detail: 13px;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

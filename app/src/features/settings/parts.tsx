@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
 import { CheckIcon, ChevronsUpDownIcon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -76,7 +76,7 @@ export function Info({ text, label = "About this" }: { text: string; label?: str
 
 // A second line under a row. Red only for something broken.
 export function Note({ tone = "muted", children }: { tone?: "muted" | "bad"; children: React.ReactNode }) {
-  return <div className={cn("mt-1 text-[13px] leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
+  return <div className={cn("mt-1 text-detail leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
 }
 
 // An action in a row: a small icon button whose label lives in a tooltip. All are one width, so the
@@ -165,7 +165,7 @@ export function CommitInput({
         {...props}
         value={draft}
         aria-invalid={!!error || undefined}
-        className={cn("h-8 w-64 text-[13px]", className)}
+        className={cn("h-8 w-64 text-detail", className)}
         onChange={(e) => {
           editing.current = true
           setDraft(e.target.value)
@@ -182,7 +182,7 @@ export function CommitInput({
 
 function ErrorLine({ error }: { error: string | null }) {
   if (!error) return null
-  return <div className="mt-1 w-64 text-[13px] leading-5 text-destructive">{error}</div>
+  return <div className="mt-1 w-64 text-detail leading-5 text-destructive">{error}</div>
 }
 
 type Check = { checking: boolean; result?: SettingsCheck }
@@ -261,7 +261,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
           onKeyDown={(e) => {
             if (e.key === "Enter") void save()
           }}
-          className="h-8 w-56 font-mono text-[13px]"
+          className="h-8 w-56 font-mono text-detail"
         />
         <IconAction label="Cancel" onClick={fold}>
           <XIcon />
@@ -282,7 +282,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
           <Trash2Icon />
         </IconAction>
         <CheckMark {...check} service={service} />
-        <span className="font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
+        <span className="font-mono text-detail text-muted-foreground" aria-label={`Key ending in ${last4}`}>
           ••••{last4}
         </span>
         <IconAction label="Change key" onClick={() => setEditing(true)}>
@@ -293,7 +293,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
   } else {
     control = (
       <>
-        <span className="text-[13px] text-muted-foreground">Not set</span>
+        <span className="text-detail text-muted-foreground">Not set</span>
         <IconAction label="Add key" onClick={() => setEditing(true)}>
           <PlusIcon />
         </IconAction>

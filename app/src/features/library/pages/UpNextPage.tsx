@@ -7,7 +7,7 @@ export function UpNextPage() {
     <LibraryShell>
       <LibraryHeader />
       <div className="mx-auto mt-20 max-w-sm text-center">
-        <p className="text-[15px] font-medium">Nothing here yet</p>
+        <p className="text-body font-medium">Nothing here yet</p>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           What to read next will appear here, ordered by what you're reading and what your searches turn up.
         </p>

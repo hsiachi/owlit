@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { editStats, HUNK_GAP, type EditStats } from "@owlit/protocol"
 import { hunk } from "@/features/docs/editor/suggestions"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
@@ -114,7 +114,7 @@ const Removed = ({ children }: { children: string }) => (
 export function DiffPreview({ oldText, newText, className }: { oldText: string; newText: string; className?: string }) {
   const chunks = diffLines(oldText, newText)
   return (
-    <div className={cn("flex flex-col gap-1.5 text-[13px] leading-relaxed", className)}>
+    <div className={cn("flex flex-col gap-1.5 text-detail leading-relaxed", className)}>
       {chunks.map((c, i) =>
         c.type === "same" ? (
           <p key={i} className="text-muted-foreground whitespace-pre-wrap">
@@ -273,7 +273,7 @@ export function StepResult({ call, question }: { call: ToolCall; question?: Ques
     return (
       <div className="flex flex-col gap-1.5">
         <Hit title={url} url={url} detail="" />
-        {output && <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground">{output}</p>}
+        {output && <p className="text-detail leading-relaxed whitespace-pre-wrap text-muted-foreground">{output}</p>}
       </div>
     )
   }

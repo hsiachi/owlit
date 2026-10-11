@@ -14,7 +14,7 @@ import { Info, NoteDot, Refs, SentenceEditor } from "../components/bits"
 import { TopicMenuContent } from "../components/TopicMenu"
 import { firstWords, isAbstractOnly, paperRef, topicUri, verbOf } from "../format"
 import { ringBlock } from "../lib/ring"
-import { dayLabel, shortDate } from "../lib/when"
+import { dayLabel, shortDate } from "@/lib/time"
 import { changedSince, editLine, provenance, removeLine, useKnowledgeStore, useTopic } from "../store"
 import type { Change, Line, Topic, TopicSidecar } from "../types"
 import { useKnowledgeUi } from "../ui-store"
@@ -56,7 +56,7 @@ function TopicView({ topicId }: { topicId: string }) {
   if (!topic) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-[15px] font-medium">This topic is gone</p>
+        <p className="text-body font-medium">This topic is gone</p>
         <p className="text-sm text-muted-foreground">It may have been merged, deleted or renamed outside owlit.</p>
         <Button variant="outline" size="sm" onClick={() => navigate("/knowledge")}>
           Back to Knowledge
@@ -68,7 +68,7 @@ function TopicView({ topicId }: { topicId: string }) {
   const sidecar: TopicSidecar = side ?? { seenAt: 0, history: [], edits: {}, removed: {}, said: {}, changedAt: {} }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-[13px]">
+      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-detail">
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
           <Link to="/knowledge" className="-ml-1 shrink-0 rounded-md px-1 py-0.5 hover:bg-muted hover:text-foreground">
             Knowledge
@@ -145,29 +145,29 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
   return (
     <>
       {renaming ? (
-        <RenameInput topic={topic} onDone={() => set({ renaming: null })} className="-mx-1 w-full px-1 text-[22px] leading-tight font-medium tracking-tight ring-1 ring-border" />
+        <RenameInput topic={topic} onDone={() => set({ renaming: null })} className="-mx-1 w-full px-1 text-title leading-tight font-medium tracking-tight ring-1 ring-border" />
       ) : (
-        <h1 className="text-[22px] leading-tight font-medium tracking-tight" onDoubleClick={() => set({ renaming: topic.id })}>
+        <h1 className="text-title leading-tight font-medium tracking-tight" onDoubleClick={() => set({ renaming: topic.id })}>
           {topic.name}
         </h1>
       )}
-      <p className="mt-2 text-[13px] text-muted-foreground">
+      <p className="mt-2 text-detail text-muted-foreground">
         Updated {shortDate(topic.updatedAt)}
         {side.paused && " · updates paused"}{" "}
         <Info>Owlit keeps this topic from your notes, papers and chats. Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words.</Info>
       </p>
       {cited && (
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="mt-1 text-detail text-muted-foreground">
           Cited in <MentionToken label={displayName(cited.file.path)} onClick={() => navigate(`/docs/${cited.file.id}`)} />
           {cited.heading && <> · {cited.heading}</>}
         </p>
       )}
-      {topic.summary && <p className="mt-5 border-l-2 border-border pl-4 text-[15px] leading-relaxed text-pretty">{topic.summary}</p>}
+      {topic.summary && <p className="mt-5 border-l-2 border-border pl-4 text-body leading-relaxed text-pretty">{topic.summary}</p>}
       {freshIds.length > 0 && (
         <button
           type="button"
           onClick={() => ringBlock(freshIds[0])}
-          className="-ml-1.5 mt-4 flex items-center gap-2 rounded-md px-1.5 py-0.5 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
+          className="-ml-1.5 mt-4 flex items-center gap-2 rounded-md px-1.5 py-0.5 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
         >
           <NoteDot />
           {freshIds.length} line{freshIds.length === 1 ? "" : "s"} changed since you last looked{seenBefore > 0 && ` on ${shortDate(seenBefore)}`}
@@ -209,8 +209,8 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
   const { ref, hit } = useTarget(id)
   return (
     <div ref={ref} id={id} className={cn("-mx-2 rounded-md px-2 py-0.5", hit && "animate-highlight-flash")}>
-      <p className="text-[15px] leading-relaxed">{text}</p>
-      {status && <p className="text-[13px] leading-relaxed text-muted-foreground">{status}</p>}
+      <p className="text-body leading-relaxed">{text}</p>
+      {status && <p className="text-detail leading-relaxed text-muted-foreground">{status}</p>}
       <span className="sr-only">In {topic.name}</span>
     </div>
   )
@@ -218,7 +218,7 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
 
 function MoreButton({ open, hidden, onClick }: { open: boolean; hidden: number; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="-ml-1.5 mt-2 rounded-md px-1.5 py-0.5 text-[13px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+    <button type="button" onClick={onClick} className="-ml-1.5 mt-2 rounded-md px-1.5 py-0.5 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
       {open ? "Show fewer" : `Show ${hidden} more`}
     </button>
   )
@@ -334,7 +334,7 @@ function LineRow({ topic, line, side, seenBefore, fresh, onViewed }: { topic: To
         }
       }}
     >
-      <div className="relative pt-[3px] text-[13px] leading-snug">
+      <div className="relative pt-[3px] text-detail leading-snug">
         {fresh && <NoteDot className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
         <Speaker line={line} />
       </div>
@@ -342,7 +342,7 @@ function LineRow({ topic, line, side, seenBefore, fresh, onViewed }: { topic: To
         {editing ? (
           <SentenceEditor
             value={line.text}
-            className="text-[15px] leading-relaxed"
+            className="text-body leading-relaxed"
             onCancel={() => set({ editing: null })}
             onSave={(text) => {
               editLine(topic.id, line.id, text)
@@ -351,9 +351,9 @@ function LineRow({ topic, line, side, seenBefore, fresh, onViewed }: { topic: To
           />
         ) : (
           <>
-            <p className={cn("text-[15px] leading-relaxed text-pretty", abstractOnly && "text-muted-foreground")}>{line.text}</p>
+            <p className={cn("text-body leading-relaxed text-pretty", abstractOnly && "text-muted-foreground")}>{line.text}</p>
             {(line.sources.length > 0 || line.condition || abstractOnly) && (
-              <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">
                 <Refs refs={line.sources} />
                 {line.condition && (
                   <>
@@ -364,7 +364,7 @@ function LineRow({ topic, line, side, seenBefore, fresh, onViewed }: { topic: To
                 {abstractOnly && <span className="ml-2 inline-flex h-5 items-center rounded-md bg-muted px-1.5 align-[0.05em] text-xs">abstract only</span>}
               </p>
             )}
-            {was && !open && <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">Was: “{was}”</p>}
+            {was && !open && <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">Was: “{was}”</p>}
           </>
         )}
         {open && !editing && <LineHistory topic={topic} line={line} side={side} />}
@@ -423,7 +423,7 @@ function LineHistory({ topic, line, side }: { topic: Topic; line: Line; side: To
   }
   rows.sort((a, b) => a.at - b.at)
   return (
-    <div className="mt-2.5 flex flex-col gap-1.5 border-t pt-2.5 text-[13px] leading-relaxed">
+    <div className="mt-2.5 flex flex-col gap-1.5 border-t pt-2.5 text-detail leading-relaxed">
       {rows.map((r, i) => (
         <div key={i} className="grid grid-cols-[4.5rem_1fr] gap-2">
           <span className="text-muted-foreground tabular-nums">{shortDate(r.at)}</span>
@@ -448,7 +448,7 @@ function Sources({ topic }: { topic: Topic }) {
         <div className="mt-2 flex flex-col gap-1.5 text-sm">
           {topic.sources.map((s, i) => (
             <div key={i} className="grid grid-cols-[4.5rem_1fr] gap-2 leading-relaxed">
-              <span className="text-[13px] text-muted-foreground tabular-nums">{dayLabel(s.date)}</span>
+              <span className="text-detail text-muted-foreground tabular-nums">{dayLabel(s.date)}</span>
               <span>
                 <Refs refs={[s.ref]} />
                 {s.how && <span className="text-muted-foreground"> · {s.how}</span>}
@@ -489,7 +489,7 @@ function Changes({ topic, history }: { topic: Topic; history: Change[] }) {
         {history.length} change{history.length === 1 ? "" : "s"}
       </FoldButton>
       {open && (
-        <div className="mt-2 flex flex-col gap-1.5 text-[13px] leading-relaxed">
+        <div className="mt-2 flex flex-col gap-1.5 text-detail leading-relaxed">
           {history.map((h) => {
             const who = subject(h)
             return (

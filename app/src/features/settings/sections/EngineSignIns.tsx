@@ -87,7 +87,7 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
           onKeyDown={(e) => {
             if (e.key === "Enter") void save()
           }}
-          className="h-8 w-56 font-mono text-[13px]"
+          className="h-8 w-56 font-mono text-detail"
         />
         <IconAction label="Cancel" onClick={fold}>
           <XIcon />
@@ -100,7 +100,7 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
         <IconAction label="Remove key" className={onHover} onClick={remove}>
           <Trash2Icon />
         </IconAction>
-        <span className="font-mono text-[13px] text-muted-foreground" aria-label={s.hint ? `Key ending in ${s.hint}` : "Key set"}>
+        <span className="font-mono text-detail text-muted-foreground" aria-label={s.hint ? `Key ending in ${s.hint}` : "Key set"}>
           ••••{s.hint}
         </span>
         <IconAction label="Change key" onClick={() => setEditing(true)}>
@@ -114,7 +114,7 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
         <IconAction label="Sign out" className={onHover} onClick={remove}>
           <LogOutIcon />
         </IconAction>
-        <span className="text-[13px] text-muted-foreground">Signed in</span>
+        <span className="text-detail text-muted-foreground">Signed in</span>
       </>
     )
   }
@@ -182,7 +182,7 @@ function AddSignIn({ connector: c, methods, open, setOpen }: { connector: Connec
       {method.apiKey ? (
         <label className="flex flex-col gap-1.5">
           <span className="text-xs text-muted-foreground">API key</span>
-          <Input autoFocus type="password" autoComplete="off" spellCheck={false} placeholder="Paste the key" value={key} onChange={(e) => setKey(e.target.value)} className="font-mono text-[13px]" />
+          <Input autoFocus type="password" autoComplete="off" spellCheck={false} placeholder="Paste the key" value={key} onChange={(e) => setKey(e.target.value)} className="font-mono text-detail" />
           <span className="text-xs text-muted-foreground">Kept on this Mac, in owlit's own folder. Model requests are billed to this key.</span>
         </label>
       ) : (

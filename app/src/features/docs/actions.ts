@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import type { MenuGroups } from "@/components/action-menu"
-import { copyText } from "@/features/library/lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
 import { useDocsStore, type Removed } from "./store"

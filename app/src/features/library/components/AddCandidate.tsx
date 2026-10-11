@@ -13,18 +13,18 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
   return (
     <div className="mt-5 flex items-center gap-3.5 rounded-xl border bg-card py-3 pr-3.5 pl-4">
       {lookup.state === "loading" && (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-detail text-muted-foreground">
           <Spinner className="size-3.5" />
           Looking up {input}…
         </div>
       )}
-      {lookup.state === "error" && <div className="text-[13px] text-muted-foreground">{lookup.message}</div>}
+      {lookup.state === "error" && <div className="text-detail text-muted-foreground">{lookup.message}</div>}
       {lookup.state === "found" && (
         <>
           <div className="min-w-0 flex-1">
             <div className="text-xs text-muted-foreground">Add to library</div>
             <div className="mt-0.5 truncate text-sm font-medium">{lookup.resolved.title}</div>
-            <div className="mt-0.5 truncate text-[13px] text-muted-foreground">
+            <div className="mt-0.5 truncate text-detail text-muted-foreground">
               {[shortAuthors(lookup.resolved.authors), lookup.resolved.year, lookup.resolved.venue, lookup.resolved.pdf && "PDF available"]
                 .filter(Boolean)
                 .join(" · ")}
@@ -44,7 +44,7 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
               Already in your library
             </div>
             <div className="mt-0.5 truncate text-sm font-medium">{lookup.paper.title}</div>
-            <div className="mt-0.5 text-[13px] text-muted-foreground">
+            <div className="mt-0.5 text-detail text-muted-foreground">
               {[shortAuthors(lookup.paper.authors), lookup.paper.year].filter(Boolean).join(" · ")}
             </div>
           </div>

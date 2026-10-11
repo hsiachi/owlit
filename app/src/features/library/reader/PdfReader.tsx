@@ -272,7 +272,7 @@ function Loading() {
 function Message({ title, detail, action }: { title: string; detail?: string; action?: React.ReactNode }) {
   return (
     <div className="m-auto flex max-w-sm flex-col items-center gap-2 p-6 text-center">
-      <p className="text-[15px] font-medium">{title}</p>
+      <p className="text-body font-medium">{title}</p>
       {detail && <p className="text-sm text-muted-foreground">{detail}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>

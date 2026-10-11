@@ -1,3 +1,4 @@
+import { ago } from "@/lib/time"
 import { MARK_CLOSE, MARK_OPEN } from "@owlit/protocol"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
@@ -8,7 +9,7 @@ import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { usePaperActions } from "../actions"
 import type { PaperGroup } from "../lib/filter"
-import { formatAdded, shortAuthors, shortVenue } from "../lib/format"
+import { shortAuthors, shortVenue } from "../lib/format"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useUiStore } from "../ui-store"
@@ -92,7 +93,7 @@ function ListRow({ paper, order, snippet }: { paper: Paper; order: string[]; sni
             {/* Finished papers recede; the star belongs to the title, and the authors take what's left */}
             <span className={cn("min-w-0 truncate", paper.status === "read" && "text-muted-foreground")}>{paper.title}</span>
             {paper.starred && <StarMark />}
-            <span className="shrink-0 text-[13px] text-muted-foreground">
+            <span className="shrink-0 text-detail text-muted-foreground">
               {[shortAuthors(paper.authors), paper.year].filter(Boolean).join(" · ")}
             </span>
             <span className="flex-1" />
@@ -166,7 +167,7 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>): Column[] {
 function TableRow({ paper, order, columns, snippet }: { paper: Paper; order: string[]; columns: Set<ColumnKey>; snippet?: string }) {
   const { selected, menuIds, handlers } = useRowHandlers(paper, order)
   // Square cells with a hairline under each row (none under the last), as in answer tables
-  const td = cn("h-9 truncate border-b px-2.5 text-[13px] text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
+  const td = cn("h-9 truncate border-b px-2.5 text-detail text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
   const venue = paper.venue && shortVenue(paper.venue)
   // Status says "Read" in its own column; only when that column has given way does the title recede instead
   const muted = paper.status === "read" && !columns.has("status")
@@ -202,7 +203,7 @@ function TableRow({ paper, order, columns, snippet }: { paper: Paper; order: str
           {columns.has("status") && <td className={td}>{paper.status === "unread" ? "" : paper.status === "reading" ? "Reading" : "Read"}</td>}
           <td className={cn(td, "tabular-nums")}>
             {/* The date gives way to the row's actions on hover */}
-            <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-menu-up/row:hidden">{formatAdded(paper.addedAt)}</span>
+            <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-menu-up/row:hidden">{ago(paper.addedAt)}</span>
             <RowActions paper={paper} menuIds={menuIds} className="-my-1 -mr-1.5 justify-end" />
           </td>
         </tr>

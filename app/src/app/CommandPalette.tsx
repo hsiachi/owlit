@@ -247,7 +247,7 @@ export function CommandPalette() {
   )
 }
 
-const itemClass = "gap-3 rounded-md px-3 py-2 text-[15px] [&_svg]:text-muted-foreground"
+const itemClass = "gap-3 rounded-md px-3 py-2 text-body [&_svg]:text-muted-foreground"
 
 // Whether every word typed is in what the row shows besides the text (title, authors, venue, …)
 function inDetails(value: string, query: string) {

@@ -1,5 +1,6 @@
 import type { MessagePart } from "../types"
 import { OWLIT_TOOLS, toolTitle } from "./tool-title"
+import { capital, joinAnd } from "@/lib/words"
 
 // How a step of an answer is put in words: what it is doing while it runs, what it did once done, and what
 // kind of work it is, so a block of steps can say in one sentence what happened ("Read 3 files and
@@ -42,7 +43,6 @@ const ING: Record<string, string> = Object.fromEntries(
   Object.keys(PAST).map((v) => [v.endsWith("e") && !v.endsWith("ee") ? `${v.slice(0, -1)}ing` : /^(run|get|set|stop|skim|scan|grep|diff|commit)$/.test(v) ? `${v}${v.at(-1)}ing` : `${v}ing`, v]),
 )
 
-const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
 
 // The sentence with its first verb in the past tense; unchanged when the first word isn't a verb owlit knows
@@ -247,8 +247,6 @@ export function groupPhrase(group: string, n: number, one?: string) {
   if (group.startsWith("mcp:")) return n === 1 ? `used ${group.slice(4)}` : `used ${group.slice(4)} ${count(n)}`
   return n === 1 ? "used a tool" : `used ${n} tools`
 }
-
-const joinAnd = (items: string[]) => (items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`)
 
 // The sentence a finished block folds into: its one step, or up to three kinds of work in the order they
 // came ("Listed your Library, searched the web twice and opened 3 pages"), or "Took 12 steps"

@@ -6,7 +6,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import { useLibraryStore } from "@/features/library/store"
 import { NoteDot, Refs } from "@/features/knowledge/components/bits"
 import { topicUri, verbOf } from "@/features/knowledge/format"
-import { shortDate } from "@/features/knowledge/lib/when"
+import { DAY, shortDate } from "@/lib/time"
 import { changedSince, useKnowledgeStore, useTopics } from "@/features/knowledge/store"
 import type { Line, Topic, TopicSidecar } from "@/features/knowledge/types"
 import { cn } from "@/lib/utils"
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 // changed lines, and one line for papers Owlit added. It belongs to this launch only; what the user
 // doesn't open keeps its dot on the Knowledge page.
 
-export const AWAY_FOR = 3 * 86_400_000
+export const AWAY_FOR = 3 * DAY
 
 interface Changed {
   topic: Topic
@@ -81,7 +81,7 @@ export function SinceYouLeft({ since }: { since: number }) {
                   <NoteDot className={cn("transition-opacity duration-500", !unseen && "opacity-0")} />
                 </span>
                 <span className="max-w-[40%] shrink-0 truncate">{c.topic.name}</span>
-                <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{c.what}</span>
+                <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{c.what}</span>
                 <ChevronRightIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
               </button>
               {isOpen && <Peek c={c} since={since} />}
@@ -118,10 +118,10 @@ function Peek({ c, since }: { c: Changed; since: number }) {
             <div className="pt-px text-sm">
               <span className="font-medium">{l.speaker}</span> <span className="text-muted-foreground">{verbOf(l)}</span>
             </div>
-            <div className="text-[15px] leading-normal">
+            <div className="text-body leading-normal">
               {l.text}
               {(l.sources.length > 0 || was) && (
-                <div className="mt-0.5 text-[13px] text-muted-foreground">
+                <div className="mt-0.5 text-detail text-muted-foreground">
                   <Refs refs={l.sources} />
                   {was && <div>Was: “{was}”</div>}
                 </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react"
 import { useDocumentState } from "@embedpdf/core/react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { copyText } from "../lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { HIGHLIGHT_MARK, HIGHLIGHT_VAR } from "../lib/highlights"
 import { useLibraryStore } from "../store"
 import type { Highlight, PageRect } from "../types"
@@ -161,7 +161,7 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
 function CommentPreview({ highlight, pageIndex, scale }: { highlight: Highlight; pageIndex: number; scale: number }) {
   return (
     <Anchor highlight={highlight} pageIndex={pageIndex} scale={scale}>
-      <div data-reader-ui className="pointer-events-none w-max max-w-72 rounded-xl bg-popover px-3 py-2 text-[13px] leading-normal whitespace-pre-wrap text-popover-foreground shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14">
+      <div data-reader-ui className="pointer-events-none w-max max-w-72 rounded-xl bg-popover px-3 py-2 text-detail leading-normal whitespace-pre-wrap text-popover-foreground shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14">
         {highlight.comment}
       </div>
     </Anchor>

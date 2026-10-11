@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { ArrowUpIcon, ChevronDownIcon, Maximize2Icon, SquarePenIcon, XIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { OwlitMark } from "@/components/owlit-mark"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -236,7 +236,7 @@ export function AgentAskBar() {
             if (e.key === "Escape") useAgentWindow.getState().close()
           }}
           placeholder={hint ?? (context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…")}
-          className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent pl-1.5 text-body outline-none placeholder:text-muted-foreground"
           aria-label="Ask Owlit"
         />
         {current && !text && !selection && !holding && (
@@ -358,7 +358,7 @@ export function AgentPanel() {
           </MessageScroller>
         </MessageScrollerProvider>
       ) : (
-        <div className="flex flex-1 items-end px-4 pb-3 text-[15px] text-muted-foreground">
+        <div className="flex flex-1 items-end px-4 pb-3 text-body text-muted-foreground">
           {context[0] ? `Ask about ${KIND_NAME[context[0].kind]}, or anything else.` : "Ask anything."}
         </div>
       )}

@@ -13,7 +13,7 @@ import { useReaderStore } from "@/features/library/reader/reader-store"
 import type { Paper } from "@/features/library/types"
 import { Info, NoteDot, SentenceEditor } from "../components/bits"
 import { isAbstractOnly, paperRef, verbOf } from "../format"
-import { shortDate } from "../lib/when"
+import { shortDate } from "@/lib/time"
 import { dismissConnection, editLine, setConnection, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
 import type { Connection, ConnectionKind, Line, PaperKnowledge, Passage, Topic } from "../types"
 import { findInPaper } from "./find"
@@ -174,7 +174,7 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
       {items.length === 0 && (
         <div className="pt-8 text-center">
           <p className="text-sm font-medium">Nothing connected yet</p>
-          <p className="mx-auto mt-1 max-w-64 text-[13px] leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-1 max-w-64 text-detail leading-relaxed text-muted-foreground">
             Owlit links this paper to your notes, questions and topics once you highlight, cite or talk about it.
           </p>
         </div>
@@ -254,7 +254,7 @@ function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
         )
       ) : (
         // The user knows what they wrote: their words are the quiet part, the relation is the payoff
-        <p className="mt-0.5 text-[13px] leading-relaxed text-pretty text-muted-foreground">“{item.words}”</p>
+        <p className="mt-0.5 text-detail leading-relaxed text-pretty text-muted-foreground">“{item.words}”</p>
       )}
       <Relation
         item={item}
@@ -308,7 +308,7 @@ function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?
     const { line, found } = item.taken
     if (found)
       return (
-        <p className="mt-1 flex items-center gap-1.5 text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 flex items-center gap-1.5 text-detail leading-relaxed text-muted-foreground">
           <NoteDot label="Found by you" />
           <span>
             {section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper.
@@ -318,18 +318,18 @@ function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?
       )
     if (isAbstractOnly(line))
       return (
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
           From the abstract only. {find}
         </p>
       )
     if (!passage)
       return (
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
           Its passage isn’t in this copy of the paper. {find}
         </p>
       )
     return (
-      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
         {section}
         {fold}
       </p>
@@ -350,7 +350,7 @@ function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?
 }
 
 function Quote({ passage }: { passage: Passage }) {
-  return <blockquote className="mt-2 border-l-2 border-border pl-3 text-[13px] leading-relaxed text-muted-foreground">{passage.text}</blockquote>
+  return <blockquote className="mt-2 border-l-2 border-border pl-3 text-detail leading-relaxed text-muted-foreground">{passage.text}</blockquote>
 }
 
 function TextButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {

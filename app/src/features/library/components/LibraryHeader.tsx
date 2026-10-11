@@ -30,7 +30,7 @@ export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
   const current = pathname === "/library/up-next" ? "/library/up-next" : "/library"
   return (
     <header className="px-0.5">
-      <h1 className="text-[22px] leading-tight font-medium tracking-tight">Library</h1>
+      <h1 className="text-title leading-tight font-medium tracking-tight">Library</h1>
       <div className="mt-3 flex items-center gap-2">
         <Tabs value={current} onValueChange={(v) => navigate(v)}>
           <TabsList variant="line" className="-ml-1.5">
@@ -154,7 +154,7 @@ export function FindField({ onSubmit, onPickFiles }: { onSubmit: () => void; onP
         placeholder="Search, or paste a DOI, arXiv id or link to add"
         aria-label="Search or add papers"
         spellCheck={false}
-        className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+        className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted-foreground"
       />
       {query ? (
         <Button variant="ghost" size="icon-sm" aria-label="Clear" onClick={() => setQuery("")} className="text-muted-foreground">
@@ -196,7 +196,7 @@ const FILTERS: { id: StatusFilter; label: string }[] = [
   { id: "needs", label: "Needs you" },
 ]
 
-const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
+const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-detail text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
 
 // Status chips on the left, the tag filter on the right of the same line
 export function FilterBar() {
@@ -253,7 +253,7 @@ function TagMenu() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-80 w-52">
-        {tags.length === 0 && <div className="px-2 py-1.5 text-[13px] text-muted-foreground">No tags yet.</div>}
+        {tags.length === 0 && <div className="px-2 py-1.5 text-detail text-muted-foreground">No tags yet.</div>}
         {tags.map(([t, n]) => (
           // Keep the menu open so several tags can be picked in a row
           <DropdownMenuItem key={t} onSelect={(e) => { e.preventDefault(); toggleTag(t) }}>

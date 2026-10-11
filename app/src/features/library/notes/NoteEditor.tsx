@@ -51,7 +51,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       contentType: "markdown",
       onUpdate: ({ editor }) => setNote(paperId, editor.isEmpty ? "" : editor.getMarkdown()),
       editorProps: {
-        attributes: { class: "note-editor markdown text-[15px] leading-relaxed outline-none" },
+        attributes: { class: "note-editor markdown text-body leading-relaxed outline-none" },
         handleClick: (_view, _pos, event) => {
           const a = event.target instanceof HTMLElement ? event.target.closest("a") : null
           const href = a?.getAttribute("href") ?? ""
@@ -176,7 +176,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       {menu && (
         // The Docs selection menu: one compact row in a thin frame, covering as little text as it can
         <div
-          className={cn("absolute z-20 flex rounded-[8px] border bg-popover p-0.5 text-[13px] shadow-lg", !menu.below && "-translate-y-full")}
+          className={cn("absolute z-20 flex rounded-[8px] border bg-popover p-0.5 text-detail shadow-lg", !menu.below && "-translate-y-full")}
           style={{ left: menu.left, top: menu.top }}
         >
           <button

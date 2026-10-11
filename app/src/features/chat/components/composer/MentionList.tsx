@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Kbd } from "@/components/ui/kbd"
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion"
 import type { Mentionable, SourceKind } from "../../types"
