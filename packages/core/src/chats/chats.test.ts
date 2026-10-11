@@ -89,7 +89,17 @@ describe("chats", () => {
     await call("chats.delete", { id: "a" })
     expect(await call("chats.list")).toEqual([])
     expect(existsSync(path.join(chatsDir, "a.json"))).toBe(false)
-    expect(readdirSync(path.join(root, ".owlit/trash")).some((n) => n.endsWith("-chat-a.json"))).toBe(true)
+    expect(readdirSync(path.join(root, ".owlit/trash")).some((n) => n.endsWith("-chat-a"))).toBe(true)
+  })
+
+  it("brings back a chat trashed by an older build, which kept only its JSON", async () => {
+    const { open, root } = await setup()
+    const { call } = await open()
+    const { mkdirSync } = await import("node:fs")
+    mkdirSync(path.join(root, ".owlit/trash"), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/trash/5-chat-old.json"), JSON.stringify({ version: 1, ...summary("old", 1), messages: [msg("u1", "user", 2)] }))
+    expect((await call("chats.restore", { id: "old" })).messages.map((m: any) => m.id)).toEqual(["u1"])
+    expect((await call("chats.list")).map((c: any) => c.id)).toEqual(["old"])
   })
 
   it("rebuilds the index from the chat files", async () => {

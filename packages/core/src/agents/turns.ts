@@ -2,6 +2,7 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { RequestError } from "@agentclientprotocol/sdk"
 import {
   applyUpdate,
+  type AttachmentFile,
   DEFAULT_ROLE,
   type AgentStatus,
   HUNK_GAP,
@@ -20,6 +21,8 @@ import {
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { realpathSync } from "node:fs"
+import { readFile, stat } from "node:fs/promises"
+import { pathToFileURL } from "node:url"
 import path from "node:path"
 import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
@@ -27,7 +30,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { AgentEnded, type AcpProcess, type SessionHandler } from "./process.ts"
-import { guardFor, handbackOf, isOwlitCall, ownTurnOver } from "./profiles.ts"
+import { guardFor, handbackOf, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
@@ -199,7 +202,9 @@ export class Turns {
       const userName = preamble ? await this.options.userName?.() : undefined
       // The role goes before the user's words whenever it is new to this session
       const role = live.told !== turn.role && !fresh.rulesInSystemPrompt ? roleNote(turn.role) : undefined
-      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role)
+      const pictures = sendsPictures(req.connectorId, await live.proc.initialized(), req.modelId)
+      const attached = await attachmentBlocks(req.input.attachments, ws.root, pictures)
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached)
       live.told = turn.role
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
@@ -751,8 +756,16 @@ const loading = new Set<string>()
 // quoted. A session started over gets the conversation so far first.
 // What the agent is told for one turn, in this order: owlit's rules (a new session), the role (when it is
 // new to the session), the conversation so far (a session started over), then the user's own words after
-// a line marking where they begin
-export function promptBlocks(input: PromptInput, root: string, history: string | null, fresh = false, userName?: string, role?: string): acp.ContentBlock[] {
+// a line marking where they begin, and last the attached files (attachmentBlocks)
+export function promptBlocks(
+  input: PromptInput,
+  root: string,
+  history: string | null,
+  fresh = false,
+  userName?: string,
+  role?: string,
+  attached?: acp.ContentBlock[],
+): acp.ContentBlock[] {
   const blocks: acp.ContentBlock[] = []
   // A new session hears owlit's rules first; a loaded one heard them when it began
   if (fresh) blocks.push({ type: "text", text: preamble(root, userName) })
@@ -774,7 +787,38 @@ export function promptBlocks(input: PromptInput, root: string, history: string |
     seen.add(m.uri)
     blocks.push(linkOf(m, root))
   }
-  for (const a of input.attachments) blocks.push({ type: "text", text: `(The user attached ${a.name}, which owlit can't pass on yet.)` })
+  blocks.push(...(attached ?? []))
+  return blocks
+}
+
+// The files the user attached, as the agent gets them: a line saying where owlit keeps the copies (the
+// same paths every agent can read, whatever it makes of a link), then a link to each copy, and an image
+// also as a picture when `pictures` says the agent takes one (profiles.ts). A file attached before owlit
+// kept copies only had its name, and a copy can have gone (deleted by hand); the agent is told so rather
+// than left to look for it.
+export async function attachmentBlocks(attachments: AttachmentFile[], root: string, pictures: boolean): Promise<acp.ContentBlock[]> {
+  if (!attachments.length) return []
+  const kept: { file: AttachmentFile; abs: string; size: number }[] = []
+  const lost: string[] = []
+  for (const file of attachments) {
+    const abs = file.path ? path.join(root, ...file.path.split("/")) : null
+    const info = abs ? await stat(abs).catch(() => null) : null
+    if (abs && info?.isFile()) kept.push({ file, abs, size: info.size })
+    else lost.push(file.name)
+  }
+  const blocks: acp.ContentBlock[] = []
+  if (kept.length) {
+    const lines = kept.map(({ file, abs }) => `- ${file.name}: ${abs}`)
+    blocks.push({ type: "text", text: `The user attached ${kept.length === 1 ? "a file" : `${kept.length} files`}. owlit keeps a copy of each in the workspace; leave them unchanged:\n${lines.join("\n")}` })
+  }
+  for (const { file, abs, size } of kept) {
+    blocks.push({ type: "resource_link", uri: pathToFileURL(abs).href, name: file.name, title: file.name, size, ...(file.mimeType ? { mimeType: file.mimeType } : {}) })
+    if (pictures && PICTURE_TYPES.has(file.mimeType) && size <= PICTURE_MAX_BYTES) {
+      const data = await readFile(abs).catch(() => null)
+      if (data) blocks.push({ type: "image", data: data.toString("base64"), mimeType: file.mimeType, uri: pathToFileURL(abs).href })
+    }
+  }
+  for (const name of lost) blocks.push({ type: "text", text: `(The user attached ${name}, but owlit no longer has a copy of it.)` })
   return blocks
 }
 

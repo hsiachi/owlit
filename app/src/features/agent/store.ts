@@ -60,7 +60,8 @@ interface AgentWindowState {
   setPanelWidth: (width: number) => void
   // Sends from the window: the ask bar starts a chat, the panel adds to the current one (or starts one
   // when there is none); either way the panel shows it
-  send: (input: PromptInput, context: Mentionable[]) => void
+  // newId: the id a new chat is started with (the composer's, whose attached files are in its folder)
+  send: (input: PromptInput, context: Mentionable[], newId?: string) => void
 }
 
 export const useAgentWindow = create<AgentWindowState>()(
@@ -102,10 +103,10 @@ export const useAgentWindow = create<AgentWindowState>()(
       setListShown: (listShown) => set({ listShown }),
       setPanelWidth: (width) => set({ panelWidth: clampPanelWidth(width) }),
 
-      send: (input, context) => {
+      send: (input, context, newId) => {
         const chats = useChatStore.getState()
         const { chatId, selection, stage } = get()
-        const chat = stage === "open" && chatId && chats.chats[chatId] ? chats.chats[chatId] : chats.createChat()
+        const chat = stage === "open" && chatId && chats.chats[chatId] ? chats.chats[chatId] : chats.createChat(newId ? { id: newId } : undefined)
         set({ chatId: chat.id, stage: "open", selection: null, hint: null })
         void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
       },

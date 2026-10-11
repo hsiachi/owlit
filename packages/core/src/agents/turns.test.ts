@@ -4,8 +4,8 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
-import { ownTurnOver } from "./profiles.ts"
-import { promptBlocks } from "./turns.ts"
+import { cannotRead, ownTurnOver, sendsPictures } from "./profiles.ts"
+import { attachmentBlocks, promptBlocks } from "./turns.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
 const cores: Core[] = []
@@ -70,7 +70,7 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 5/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 6/)
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {
@@ -85,6 +85,46 @@ describe("turns", () => {
     ])
     // Nothing of owlit's to say: just the message
     expect(texts(promptBlocks(input, "/ws", null))).toEqual(["hi"])
+  })
+
+  it("gives the agent each attached file as a link to owlit's copy, and an image as a picture too", async () => {
+    const { send, text, call, root } = await setup()
+    const { file } = await call("chats.attach", { chatId: "c1", name: "shot.png", mimeType: "image/png", data: Buffer.from("png").toString("base64") })
+    await send("whole prompt", { input: { text: "whole prompt", mentions: [], attachments: [file] } })
+    const abs = path.join(root, ".owlit/chats/c1/files/shot.png")
+    expect(text()).toContain(`The user attached a file. owlit keeps a copy of each in the workspace; leave them unchanged:\n- shot.png: ${abs}`)
+    expect(text()).toContain(`[file://${abs}] [image]`)
+  })
+
+  it("leaves pictures out where the agent can't take them, and says when a copy is gone", async () => {
+    const root = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-blocks-")))
+    mkdirSync(path.join(root, ".owlit/chats/c1/files"), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/chats/c1/files/My shot.png"), "png")
+    const shot = { id: "a", name: "My shot.png", size: 3, mimeType: "image/png", path: ".owlit/chats/c1/files/My shot.png" }
+    const gone = { id: "b", name: "gone.pdf", size: 3, mimeType: "application/pdf", path: ".owlit/chats/c1/files/gone.pdf" }
+    const old = { id: "c", name: "old.docx", size: 3, mimeType: "" }
+    const types = (blocks: Awaited<ReturnType<typeof attachmentBlocks>>) => blocks.map((b) => b.type)
+    const withPicture = await attachmentBlocks([shot], root, true)
+    expect(types(withPicture)).toEqual(["text", "resource_link", "image"])
+    expect(withPicture[1]).toMatchObject({ uri: `file://${root}/.owlit/chats/c1/files/My%20shot.png`, name: "My shot.png", mimeType: "image/png", size: 3 })
+    expect(withPicture[2]).toMatchObject({ data: Buffer.from("png").toString("base64"), mimeType: "image/png" })
+    const blocks = await attachmentBlocks([shot, gone, old], root, false)
+    expect(types(blocks)).toEqual(["text", "resource_link", "text", "text"])
+    expect(blocks.slice(2).map((b) => (b as { text: string }).text)).toEqual([
+      "(The user attached gone.pdf, but owlit no longer has a copy of it.)",
+      "(The user attached old.docx, but owlit no longer has a copy of it.)",
+    ])
+    expect(await attachmentBlocks([], root, true)).toEqual([])
+  })
+
+  it("knows which agents take pictures and which files each can't read", () => {
+    const images = { agentCapabilities: { promptCapabilities: { image: true } } }
+    expect(sendsPictures("claude-code", images, "opus")).toBe(true)
+    expect(sendsPictures("codex", images, "gpt-6-sol")).toBe(true)
+    expect(sendsPictures("codex", images, "gpt-oss-120b")).toBe(false)
+    expect(sendsPictures("gemini-cli", { agentCapabilities: {} })).toBe(false)
+    expect(cannotRead("owlit-engine")).toEqual(["word", "other"])
+    expect(cannotRead("claude-code")).toEqual([])
   })
 
   it("tells a new session the user's name when they gave one", () => {

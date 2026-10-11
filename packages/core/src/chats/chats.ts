@@ -1,11 +1,16 @@
-import { RpcErrorCode, type Chat, type ChatMessage, type ChatSummary } from "@owlit/protocol"
-import { mkdir, readdir, rm } from "node:fs/promises"
+import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary } from "@owlit/protocol"
+import { constants } from "node:fs"
+import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 
 // How often a streaming chat is written while its messages keep changing
 const WRITE_EVERY_MS = 500
+
+// A new chat's composer copies files into the folder of the chat it is about to start; a folder whose
+// chat never started is cleared away once it is this old
+const DRAFT_KEPT_MS = 24 * 60 * 60 * 1000
 
 interface IndexFile {
   version: 1
@@ -19,7 +24,8 @@ const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, "That cha
 // The workspace's chats in .owlit/chats/: <id>.json holds a chat whole (its fields and messages), so one
 // file can be read on its own (Knowledge reads them); index.json lists them without messages, so the
 // list opens without reading every chat, and is rebuilt from the chat files when missing. Chats being
-// streamed are written at most every WRITE_EVERY_MS and once more when the turn ends.
+// streamed are written at most every WRITE_EVERY_MS and once more when the turn ends. <id>/files/ holds
+// the copies of the files attached to the chat's messages.
 export class Chats {
   private readonly dir: string
   private readonly trashDir: string
@@ -76,7 +82,8 @@ export class Chats {
     return summaryOf(next)
   }
 
-  // To .owlit/trash/, whole, so it can be put back by hand
+  // To .owlit/trash/<stamp>-chat-<id>/, whole (chat.json, and files/ with the copies of its attached
+  // files), so restore() can put it back
   async delete(id: string) {
     const chat = await this.get(id)
     clearTimeout(this.timers.get(id))
@@ -84,10 +91,65 @@ export class Chats {
     ;(await this.loadIndex()).delete(id)
     this.bodies.delete(id)
     await this.serial(async () => {
-      await writeJsonAtomic(path.join(this.trashDir, `${Date.now()}-chat-${id}.json`), { version: 1, ...chat })
+      const entry = path.join(this.trashDir, `${Date.now()}-chat-${id}`)
+      await writeJsonAtomic(path.join(entry, "chat.json"), { version: 1, ...chat })
+      await rename(this.filesDir(id), path.join(entry, "files")).catch(ignoreMissing)
+      await rm(path.join(this.dir, id), { recursive: true, force: true })
       await rm(this.fileOf(id), { force: true })
       await this.writeIndex()
     })
+    return null
+  }
+
+  // The chat deleted last under this id, back with its files (Undo). Chats trashed by older builds were
+  // a single <stamp>-chat-<id>.json and come back the same way.
+  async restore(id: string): Promise<Chat> {
+    const index = await this.loadIndex()
+    if (index.has(id)) throw new RpcFailure(RpcErrorCode.Conflict, "That chat is already in the workspace.", { id })
+    const suffix = `-chat-${id}`
+    const entries = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix) || n.endsWith(`${suffix}.json`)).sort().reverse()
+    const entry = entries[0]
+    if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, "That chat is no longer in the trash.", { id })
+    const from = path.join(this.trashDir, entry)
+    const legacy = entry.endsWith(".json")
+    const stored = await readJson<ChatFile>(legacy ? from : path.join(from, "chat.json"))
+    if (!stored || stored.id !== id) throw new RpcFailure(RpcErrorCode.NotFound, "That chat is no longer in the trash.", { id })
+    const { version: _v, ...chat } = stored
+    return this.serial(async () => {
+      if (!legacy) {
+        await mkdir(path.join(this.dir, id), { recursive: true })
+        await rename(path.join(from, "files"), this.filesDir(id)).catch(ignoreMissing)
+      }
+      index.set(id, summaryOf(chat))
+      this.bodies.set(id, chat)
+      await writeJsonAtomic(this.fileOf(id), { version: 1, ...chat })
+      await this.writeIndex()
+      await rm(from, { recursive: true, force: true })
+      return chat
+    })
+  }
+
+  // ---- Attached files: copies in <id>/files/, named as the file was ("report 2.pdf" beside an earlier
+  // "report.pdf"). The chat need not exist yet: a new chat's composer copies into the folder of the chat
+  // it will start. Paths are relative to the workspace, as messages keep them.
+
+  // Copies a file the user has on disk
+  async copyIn(id: string, source: string, name: string) {
+    return this.place(id, name, (dest) => copyFile(source, dest, constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE))
+  }
+
+  // Keeps bytes that came without a file (a pasted image)
+  async writeIn(id: string, name: string, bytes: Uint8Array) {
+    return this.place(id, name, (dest) => writeFile(dest, bytes, { flag: "wx" }))
+  }
+
+  // A copy whose chip was removed before sending. One that a message of the chat still points at stays:
+  // that message was sent with it.
+  async removeFile(id: string, rel: string) {
+    const name = this.fileName(id, rel)
+    const chat = (await this.loadIndex()).has(id) ? await this.get(id) : null
+    if (chat?.messages.some((m) => m.attachments?.some((a) => a.path === rel))) return null
+    await rm(path.join(this.filesDir(id), name), { force: true })
     return null
   }
 
@@ -129,6 +191,37 @@ export class Chats {
   }
 
   // ---- inside ----
+
+  private filesDir(id: string) {
+    this.fileOf(id)
+    return path.join(this.dir, id, "files")
+  }
+
+  // The name of a copy in this chat's folder, from its workspace-relative path; anything else is refused
+  private fileName(id: string, rel: string) {
+    const prefix = `${chatFilesDir(id)}/`
+    const name = rel.startsWith(prefix) ? rel.slice(prefix.length) : ""
+    if (!name || name.includes("/") || name === "." || name === "..") throw new RpcFailure(RpcErrorCode.InvalidParams, "That isn't a file of this chat.", { path: rel })
+    return name
+  }
+
+  // Writes under the file's own name, or the first free "name N.ext" after it
+  private async place(id: string, name: string, write: (dest: string) => Promise<void>) {
+    const dir = this.filesDir(id)
+    await mkdir(dir, { recursive: true })
+    const clean = safeName(name)
+    const ext = path.extname(clean)
+    const stem = clean.slice(0, clean.length - ext.length) || "file"
+    for (let n = 1; ; n++) {
+      const candidate = n === 1 ? clean : `${stem} ${n}${ext}`
+      try {
+        await write(path.join(dir, candidate))
+        return `${chatFilesDir(id)}/${candidate}`
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST" || n > 999) throw error
+      }
+    }
+  }
 
   private fileOf(id: string) {
     if (!/^[\w-]+$/.test(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, "That is not a chat id.", { id })
@@ -190,7 +283,20 @@ export class Chats {
     }
     this.index = index
     if (!stored && index.size) await mkdir(this.dir, { recursive: true }).then(() => this.writeIndex())
+    await this.sweepDrafts(names, index)
     return index
+  }
+
+  // Folders of files for chats that never started (a new chat's composer, left without sending), once
+  // they are a day old. Only copies are lost: the originals were never touched.
+  private async sweepDrafts(names: string[], index: Map<string, ChatSummary>) {
+    const files = new Set(names)
+    for (const name of names) {
+      if (name.includes(".") || index.has(name) || files.has(`${name}.json`)) continue
+      const folder = path.join(this.dir, name)
+      const info = await stat(folder).catch(() => null)
+      if (info?.isDirectory() && Date.now() - info.mtimeMs > DRAFT_KEPT_MS) await rm(folder, { recursive: true, force: true }).catch(() => undefined)
+    }
   }
 }
 
@@ -210,4 +316,16 @@ const cutOff = (m: ChatMessage): ChatMessage => ({
 function clean(message: ChatMessage): ChatMessage {
   if (!message.attachments?.some((a) => a.previewUrl)) return message
   return { ...message, attachments: message.attachments.map(({ previewUrl: _url, ...rest }) => rest) }
+}
+
+const ignoreMissing = (error: NodeJS.ErrnoException) => {
+  if (error.code !== "ENOENT") throw error
+}
+
+// A file name as it can be kept: no folders, no control characters, not empty
+function safeName(name: string) {
+  const base = name.split(/[\\/]/).pop() ?? ""
+  // oxlint-disable-next-line no-control-regex -- control characters are what is taken out
+  const clean = base.replace(/[\u0000-\u001f\u007f:]/g, " ").replace(/\s+/g, " ").trim().replace(/^\.+/, "")
+  return clean.slice(0, 200) || "file"
 }

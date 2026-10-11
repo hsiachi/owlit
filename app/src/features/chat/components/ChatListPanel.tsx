@@ -61,7 +61,10 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
   const remove = () => {
     deleteChat(chat.id)
     if (active) navigate("/chat")
-    toast("Chat deleted", { description: chat.title })
+    toast("Chat deleted", {
+      description: chat.title,
+      action: { label: "Undo", onClick: () => void useChatStore.getState().restoreChat(chat.id).catch(() => undefined) },
+    })
   }
 
   // The same actions from the row's ⋯ and from a right-click

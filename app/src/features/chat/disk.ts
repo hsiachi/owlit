@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatSummary } from "@owlit/protocol"
+import type { Chat, ChatMessage, ChatSummary } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -77,6 +77,14 @@ export const updateChatOnDisk = (id: string, patch: Partial<Omit<ChatSummary, "i
 export function deleteChatOnDisk(id: string) {
   dropPending(id)
   enqueue(() => rpc.chats.delete({ id }))
+}
+
+// The chat deleted last under this id, back from .owlit/trash/ with its files; after the delete reached core
+export function restoreChatOnDisk(id: string): Promise<Chat> {
+  return new Promise((resolve, reject) => enqueue(() => rpc.chats.restore({ id }).then(resolve, (error) => {
+    reject(error)
+    throw error
+  })))
 }
 
 export const appendMessageOnDisk = (id: string, message: ChatMessage) => enqueue(() => rpc.chats.appendMessage({ id, message }))

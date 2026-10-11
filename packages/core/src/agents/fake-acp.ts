@@ -12,6 +12,7 @@
 //                      hears the agent finish and gives the real answer, with no prompt open
 //   "after the turn, slowly"  the same, but that answer streams for a few seconds (to be stopped)
 //   "slow"             streams for a few seconds (to be cancelled)
+//   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
@@ -55,7 +56,7 @@ class FakeAgent implements acp.Agent {
   async initialize(): Promise<acp.InitializeResponse> {
     return {
       protocolVersion: acp.PROTOCOL_VERSION,
-      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } },
+      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} }, promptCapabilities: { image: true } },
       agentInfo: { name: "fake-acp", version: "1.2.3" },
       authMethods: process.env.FAKE_ACP_AUTH ? [{ id: "login", name: "Log in" }] : [],
     }
@@ -257,6 +258,10 @@ class FakeAgent implements acp.Agent {
           await say(`${i} `)
           await sleep(100, signal)
         }
+        return { stopReason: "end_turn" }
+      }
+      if (text.startsWith("whole prompt")) {
+        await say(text)
         return { stopReason: "end_turn" }
       }
       await say(`echo: ${text.slice(0, 40)}`)
