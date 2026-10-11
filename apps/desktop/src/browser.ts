@@ -64,7 +64,7 @@ export function createBrowserHost(): PublisherBrowser {
       show: false,
       width: 1100,
       height: 800,
-      title: "owlit · Publisher",
+      title: "Owlit · Publisher",
       webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true },
     })
     // Closing it (the library proxy's sign-in) hides it: the session lives on

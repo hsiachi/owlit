@@ -24,7 +24,7 @@ await build({
   targets: Platform.MAC.createTarget("dir"),
   config: {
     appId: "app.owlit.desktop",
-    productName: "owlit",
+    productName: "Owlit",
     electronVersion: require("electron/package.json").version,
     directories: { output: "release" },
     files: ["dist/**/*", "package.json"],

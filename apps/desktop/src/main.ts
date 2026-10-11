@@ -128,7 +128,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 480,
     show: false,
-    title: "owlit",
+    title: "Owlit",
     ...(isMac ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: TRAFFIC_LIGHTS } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -163,7 +163,7 @@ function createWindow() {
 // every window
 function attachCore(core: Core, browser: PublisherBrowser) {
   ipcMain.handle("rpc", (event, request: RpcRequest) => {
-    if (!isOwnPage(event.senderFrame?.url ?? "")) throw new Error("Only owlit's own page may call core.")
+    if (!isOwnPage(event.senderFrame?.url ?? "")) throw new Error("Only Owlit's own page may call core.")
     return core.handle(request)
   })
   // Where the renderer wants the publisher's page during Check now
@@ -228,7 +228,7 @@ async function chooseWorkspace(core: Core) {
   const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
   const options: Electron.OpenDialogOptions = {
     title: "Open Workspace",
-    message: "Choose the folder owlit works in. Your docs, library and notes live there.",
+    message: "Choose the folder Owlit works in. Your docs, library and notes live there.",
     buttonLabel: "Open",
     properties: ["openDirectory", "createDirectory"],
   }

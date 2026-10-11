@@ -1,9 +1,9 @@
 {
   "name": "@owlit/desktop",
-  "productName": "owlit",
+  "productName": "Owlit",
   "private": true,
   "version": "0.0.0",
-  "description": "owlit desktop shell",
+  "description": "Owlit desktop shell",
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {
