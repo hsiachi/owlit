@@ -35,7 +35,7 @@ export interface BrowserHost {
 
 export interface BrowserRequest {
   landing: string
-  // The PDF's address; without one, the page's citation_pdf_url is used
+  // The PDF's address; without one, the page's citation_pdf_url, or its own link labelled PDF, is used
   pdf?: string
   // Through a proxy: fetch the PDF's path on the host the page settled on (the proxy's rewrite of it)
   pdfOnPageHost?: boolean

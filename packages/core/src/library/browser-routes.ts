@@ -84,6 +84,25 @@ export function browserRoutes(doi: string, proxy: ProxySettings | undefined, reg
   return routes
 }
 
+// The page's own link to its PDF, for a page without citation_pdf_url: one labelled just "PDF" (or
+// "Download PDF"), to a .pdf on the page's own site. APA PsycNet's full-text pages link
+// /fulltext/<id>.pdf this way and carry no citation tags (2026-10-11: an open-access APA article was
+// left without a PDF, "The publisher's page doesn't link a PDF").
+export function pdfLinkOn(page: string, links: { text: string; href: string }[]) {
+  const site = siteOf(hostOf(page))
+  for (const link of links) {
+    if (!/^(download\s+)?(article\s+)?pdf$/i.test(link.text.replace(/\s+/g, " ").trim())) continue
+    let url: URL
+    try {
+      url = new URL(link.href, page)
+    } catch {
+      continue
+    }
+    if (/^https?:$/.test(url.protocol) && siteOf(url.hostname) === site && /\.pdf$/i.test(url.pathname)) return url.toString()
+  }
+  return undefined
+}
+
 // A host's registrable domain, without the public suffix list: the last two labels, or three under a
 // country's second level (ac.uk, edu.cn, com.au)
 export function siteOf(host: string) {
