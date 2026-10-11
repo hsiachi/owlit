@@ -302,6 +302,7 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
             const markFrom = touched && quoted ? line.from : ref.from
             if (list === "BulletList" && !isTask && !touched) decos.push(bullet.range(ref.from, end))
             else if (list === "BulletList" && isTask && !touched) hide(ref.from, end)
+            else if (list === "BulletList" && !isTask && !quoted) decos.push(mark("cm-list-mark cm-list-dash").range(ref.from, end))
             else decos.push(mark("cm-list-mark").range(markFrom, end))
             break
           }

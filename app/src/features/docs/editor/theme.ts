@@ -40,6 +40,8 @@ export const docTheme = EditorView.theme({
   ".cm-li *": { textIndent: "0" },
   ".cm-bullet": { display: "inline-block", width: "1.5em", paddingLeft: "0.3em", color: "var(--muted-foreground)" },
   ".cm-list-mark": { display: "inline-block", minWidth: "1.5em", color: "var(--muted-foreground)" },
+  // The raw "-" shown while editing sits where the bullet was
+  ".cm-list-dash": { paddingLeft: "0.3em", boxSizing: "border-box" },
   ".cm-task": {
     display: "inline-block",
     width: "14px",
