@@ -126,6 +126,33 @@ describe("turns", () => {
     await turn
   })
 
+  it("keeps an agent's own agents apart: their steps, their questions and their reports", async () => {
+    const { send, updates, call, text } = await setup()
+    const turn = send("use agents")
+    while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+    const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
+    // The question comes from the agent's own session, and says which agent asks
+    expect(ask).toMatchObject({ toolCallId: "b1", agentId: "agent-b" })
+    await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "yes" })
+    expect(await turn).toEqual({ stopReason: "end_turn" })
+    expect(text()).toBe("both agents are done")
+    const saved = (await call("chats.get", { id: "c1" })).messages[1]
+    const agents = saved.parts.filter((p: any) => p.type === "agent")
+    expect(agents).toEqual([
+      { type: "agent", agentId: "agent-a", title: "Read the notes", status: "done", report: "The notes say twelve chars." },
+      { type: "agent", agentId: "agent-b", title: "Fix the title", status: "done", report: "The user chose yes." },
+    ])
+    // Each step is marked as its agent's
+    const steps = saved.parts.filter((p: any) => p.type === "tool_call")
+    expect(steps.map((p: any) => [p.toolCallId, p.agentId, p.status])).toEqual([
+      ["a1", "agent-a", "completed"],
+      ["a2", "agent-a", "pending"],
+      ["b1", "agent-b", "completed"],
+      ["b2", "agent-b", "pending"],
+    ])
+    expect(saved.parts.find((p: any) => p.type === "permission")).toMatchObject({ agentId: "agent-b", outcome: "allow_once" })
+  })
+
   it("asks permission and passes on the answer; Reject reaches the agent", async () => {
     const { send, updates, call, text } = await setup()
     const turn = send("needs permission")

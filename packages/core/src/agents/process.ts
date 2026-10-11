@@ -4,14 +4,23 @@ import { Readable, Writable } from "node:stream"
 
 // What owlit does for one ACP session: hear its updates, answer its permission requests, serve its
 // file reads and writes. Registered per session; the process routes each request by session id.
+//
+// An agent may hand part of the work to agents of its own, each in a session of its own (ACP's draft
+// subagents, which owlit says it understands). Those sessions are never registered: what comes from one
+// goes to the handler of the session it works for, with `agentId` naming it, and `agent` hears it start
+// and finish.
 export interface SessionHandler {
-  update(notification: acp.SessionNotification): void
-  requestPermission(request: acp.RequestPermissionRequest): Promise<acp.RequestPermissionResponse>
+  update(notification: acp.SessionNotification, agentId?: string): void
+  requestPermission(request: acp.RequestPermissionRequest, agentId?: string): Promise<acp.RequestPermissionResponse>
   readTextFile(request: acp.ReadTextFileRequest): Promise<acp.ReadTextFileResponse>
   writeTextFile(request: acp.WriteTextFileRequest): Promise<acp.WriteTextFileResponse>
   // A form the agent asks the user to fill in (Claude Code's AskUserQuestion)
-  createElicitation(request: acp.CreateElicitationRequest): Promise<acp.CreateElicitationResponse>
+  createElicitation(request: acp.CreateElicitationRequest, agentId?: string): Promise<acp.CreateElicitationResponse>
+  agent?(notice: AgentNotice): void
 }
+
+// An agent working for a session: announced (with its task, as the agent named it), or its state changed
+export type AgentNotice = { kind: "started"; agentId: string; title: string } | { kind: "state"; agentId: string; state: string }
 
 export interface ProcessOptions {
   // Executable and its arguments, already resolved
@@ -60,6 +69,8 @@ export class AcpProcess {
   private connection: acp.ClientSideConnection | null = null
   private started: Promise<acp.InitializeResponse> | null = null
   private handlers = new Map<string, SessionHandler>()
+  // The session each agent's own session works for (child → parent), as the agent announced them
+  private children = new Map<string, string>()
   private busy = 0
   private idleTimer: ReturnType<typeof setTimeout> | undefined
   // Each child has its own
@@ -210,17 +221,25 @@ export class AcpProcess {
 
     this.connection = new acp.ClientSideConnection(
       () => ({
-        sessionUpdate: async (n) => this.handlers.get(n.sessionId)?.update(n),
-        requestPermission: (r) => this.handlerFor(r.sessionId).requestPermission(r),
-        readTextFile: (r) => this.handlerFor(r.sessionId).readTextFile(r),
-        writeTextFile: (r) => this.handlerFor(r.sessionId).writeTextFile(r),
+        sessionUpdate: async (n) => {
+          const to = this.route(n.sessionId)
+          to?.handler.update(n, to.agentId)
+        },
+        requestPermission: (r) => {
+          const to = this.handlerFor(r.sessionId)
+          return to.handler.requestPermission(r, to.agentId)
+        },
+        readTextFile: (r) => this.handlerFor(r.sessionId).handler.readTextFile(r),
+        writeTextFile: (r) => this.handlerFor(r.sessionId).handler.writeTextFile(r),
         // A form not tied to a session (an MCP server's own) has nobody to show it to
         createElicitation: async (r) => {
           const sessionId = (r as { sessionId?: unknown }).sessionId
-          return typeof sessionId === "string" ? this.handlerFor(sessionId).createElicitation(r) : { action: "decline" }
+          if (typeof sessionId !== "string") return { action: "decline" }
+          const to = this.handlerFor(sessionId)
+          return to.handler.createElicitation(r, to.agentId)
         },
       }),
-      acp.ndJsonStream(Writable.toWeb(child.stdin!), Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>),
+      acp.ndJsonStream(Writable.toWeb(child.stdin!), this.takeAgentNotices(Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>)),
     )
     const connection = this.connection
     // The connection can close before the process is seen to exit; the next call must not use it
@@ -232,8 +251,9 @@ export class AcpProcess {
       connection.initialize({
         protocolVersion: acp.PROTOCOL_VERSION,
         // Forms: without them Claude Code turns its AskUserQuestion into a permission request, which
-        // can only be allowed or rejected, never answered
-        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, elicitation: { form: {} } },
+        // can only be allowed or rejected, never answered. Subagents: an agent's own agents then work in
+        // sessions of their own, so their steps and questions say whose they are.
+        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, elicitation: { form: {} }, subagents: {} },
         clientInfo: { name: "owlit", version: "0.0.0" },
       }),
     ])
@@ -246,9 +266,82 @@ export class AcpProcess {
   }
 
   private handlerFor(sessionId: string) {
-    const handler = this.handlers.get(sessionId)
-    if (!handler) throw acp.RequestError.invalidParams(undefined, `owlit has no session ${sessionId}`)
-    return handler
+    const to = this.route(sessionId)
+    if (!to) throw acp.RequestError.invalidParams(undefined, `owlit has no session ${sessionId}`)
+    return to
+  }
+
+  // The handler a session's messages go to: its own, or, for an agent's own agent, the handler of the
+  // session it works for, with the agent directly under that session as `agentId` (an agent of an agent
+  // counts as the one that started it)
+  private route(sessionId: string): { handler: SessionHandler; agentId?: string } | undefined {
+    let id = sessionId
+    let agentId: string | undefined
+    for (let depth = 0; !this.handlers.has(id); depth++) {
+      const parent = this.children.get(id)
+      if (!parent || depth > 8) return undefined
+      agentId = id
+      id = parent
+    }
+    return { handler: this.handlers.get(id)!, agentId }
+  }
+
+  // Takes an agent's announcements of its own agents out of what it sends, before the SDK reads it.
+  // Claude Code and Codex send them under names from before the draft settled ("subagent_spawned",
+  // "subagent_state_update"; checked 2026-10-11 with claude-agent-acp 0.88), which no SDK release knows:
+  // the SDK would refuse each one as invalid and drop it. The draft's own "subagent_update" is taken the
+  // same way.
+  private takeAgentNotices(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+    const decoder = new TextDecoder()
+    const encoder = new TextEncoder()
+    let pending = ""
+    return stream.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform: (chunk, out) => {
+          pending += decoder.decode(chunk, { stream: true })
+          let end: number
+          let kept = ""
+          while ((end = pending.indexOf("\n")) >= 0) {
+            const line = pending.slice(0, end + 1)
+            pending = pending.slice(end + 1)
+            if (!this.agentNotice(line)) kept += line
+          }
+          if (kept) out.enqueue(encoder.encode(kept))
+        },
+        flush: (out) => {
+          if (pending) out.enqueue(encoder.encode(pending))
+        },
+      }),
+    )
+  }
+
+  // Whether the line was an announcement of an agent's own agent (and so is handled here)
+  private agentNotice(line: string): boolean {
+    if (!line.includes('"subagent_')) return false
+    let message: { method?: unknown; params?: { sessionId?: unknown; update?: Record<string, unknown> } }
+    try {
+      message = JSON.parse(line)
+    } catch {
+      return false
+    }
+    const update = message.params?.update
+    const kind = update?.sessionUpdate
+    if (!update || message.method !== "session/update" || (kind !== "subagent_spawned" && kind !== "subagent_state_update" && kind !== "subagent_update")) return false
+    const parent = message.params?.sessionId
+    const child = update.subagentSessionId ?? update.sessionId
+    if (typeof parent !== "string" || typeof child !== "string") return true
+    const known = this.children.has(child)
+    this.children.set(child, parent)
+    const to = this.route(child)
+    // Only the agents directly under a session are shown; an agent's own agents count as its work
+    if (!to || to.agentId !== child) return true
+    const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined)
+    // A later announcement may rename it (the draft's updates are patches)
+    const title = text(update.name) ?? text(update.title) ?? text(update.description) ?? text(update.task)
+    if (!known || title) to.handler.agent?.({ kind: "started", agentId: child, title: title ?? "An agent" })
+    const state = typeof update.state === "string" ? update.state : (update.state as { state?: unknown } | null | undefined)?.state
+    if (typeof state === "string") to.handler.agent?.({ kind: "state", agentId: child, state })
+    return true
   }
 
   private reset() {
@@ -256,6 +349,7 @@ export class AcpProcess {
     this.connection = null
     this.started = null
     this.handlers.clear()
+    this.children.clear()
   }
 
   private scheduleIdle() {

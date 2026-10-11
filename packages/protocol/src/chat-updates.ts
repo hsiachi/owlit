@@ -28,7 +28,7 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
     case "tool_call":
       // A tool call announced again (an agent may, and owlit does before asking permission for it) is merged
       if (parts.some((p) => p.type === "tool_call" && p.toolCallId === u.toolCallId)) return applyUpdate(parts, { ...u, type: "tool_call_update" })
-      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff, tool: u.tool }]
+      return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff, tool: u.tool, ...(u.agentId ? { agentId: u.agentId } : {}) }]
     case "tool_call_update":
       return parts.map((p) =>
         p.type === "tool_call" && p.toolCallId === u.toolCallId
@@ -40,12 +40,22 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
       const entry: MessagePart = { type: "plan", entries: u.entries }
       return i >= 0 ? parts.map((p, j) => (j === i ? entry : p)) : [...parts, entry]
     }
+    case "agent_started":
+      // Announced again (a session replaying its history) it keeps its place
+      if (parts.some((p) => p.type === "agent" && p.agentId === u.agentId)) return applyUpdate(parts, { type: "agent_update", agentId: u.agentId, title: u.title })
+      return [...parts, { type: "agent", agentId: u.agentId, title: u.title, status: "working" }]
+    case "agent_update":
+      return parts.map((p) =>
+        p.type === "agent" && p.agentId === u.agentId
+          ? { ...p, ...(u.title ? { title: u.title } : {}), ...(u.status ? { status: u.status } : {}), ...(u.report !== undefined ? { report: u.report } : {}) }
+          : p,
+      )
     case "permission_request":
-      return [...parts, { type: "permission", requestId: u.requestId, toolCallId: u.toolCallId, title: u.title, kind: u.kind, options: u.options }]
+      return [...parts, { type: "permission", requestId: u.requestId, toolCallId: u.toolCallId, title: u.title, kind: u.kind, options: u.options, ...(u.agentId ? { agentId: u.agentId } : {}) }]
     case "permission_resolved":
       return parts.map((p) => (p.type === "permission" && p.requestId === u.requestId ? { ...p, outcome: u.outcome } : p))
     case "question_request":
-      return [...parts, { type: "question", requestId: u.requestId, toolCallId: u.toolCallId, questions: u.questions }]
+      return [...parts, { type: "question", requestId: u.requestId, toolCallId: u.toolCallId, questions: u.questions, ...(u.agentId ? { agentId: u.agentId } : {}) }]
     case "question_resolved":
       return parts.map((p) => (p.type === "question" && p.requestId === u.requestId ? { ...p, outcome: u.outcome, answers: u.answers } : p))
   }

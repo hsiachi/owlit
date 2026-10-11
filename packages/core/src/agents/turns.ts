@@ -3,6 +3,7 @@ import { RequestError } from "@agentclientprotocol/sdk"
 import {
   applyUpdate,
   DEFAULT_ROLE,
+  type AgentStatus,
   HUNK_GAP,
   RpcErrorCode,
   type ChatMessage,
@@ -26,7 +27,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { AgentEnded, type AcpProcess, type SessionHandler } from "./process.ts"
-import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
+import { contentFrom, handbackOf, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, guardFor, roleNote, takesRules, withUserName, type Guard } from "./roles.ts"
 import { preamble, USER_FOLLOWS } from "./rules.ts"
 
@@ -81,6 +82,9 @@ interface Turn {
   cancelled: boolean
   // Shows an update in the chat and saves it in the answer; set once the turn runs
   emit?: (update: SessionUpdate) => void
+  // What each of the agent's own agents said as text, and the ones that handed a report back
+  agentText: Map<string, string>
+  handedBack: Set<string>
 }
 
 // Chat turns on local agents. Each chat has one ACP session per agent, recorded in the chat so it can be
@@ -115,7 +119,7 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    const turn: Turn = { chatId: req.chatId, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false }
+    const turn: Turn = { chatId: req.chatId, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, agentText: new Map(), handedBack: new Set() }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -136,6 +140,10 @@ export class Turns {
     turn.emit = emit
     if (turn.role === "coauthor") this.coauthors.set(req.chatId, Infinity)
     const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string) => {
+      // An agent of the agent's that hadn't finished won't go on once the answer has ended
+      for (const p of turn.message.parts) {
+        if (p.type === "agent" && p.status === "working") emit({ type: "agent_update", agentId: p.agentId, status: status === "done" && p.report ? "done" : "stopped" })
+      }
       turn.message = withoutAgentError({ ...turn.message, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}) })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
     }
@@ -341,20 +349,32 @@ export class Turns {
   // now (its emit), never to the one that opened the session
   private handler(key: string, chatId: string, root: string): SessionHandler {
     return {
-      update: (n) => {
+      update: (n, agentId) => {
         // A loaded session replays its history first; the chat already has it
         if (loading.has(key)) return
         const live = this.live.get(key)
-        if (n.update.sessionUpdate === "config_option_update" && live) live.options = n.update.configOptions
-        if (n.update.sessionUpdate === "current_mode_update" && live?.modes) live.modes = { ...live.modes, currentModeId: n.update.currentModeId }
+        if (!agentId && n.update.sessionUpdate === "config_option_update" && live) live.options = n.update.configOptions
+        if (!agentId && n.update.sessionUpdate === "current_mode_update" && live?.modes) live.modes = { ...live.modes, currentModeId: n.update.currentModeId }
         if (!live?.turn) return
         if (n.update.sessionUpdate === "tool_call" && isOwlitCall(n.update)) live.owlitCalls.add(n.update.toolCallId)
+        if (agentId) return this.agentWork(live.turn, agentId, n.update, root)
         const update = toUpdate(n.update, root)
         if (!update) return
         live.turn.emit?.(update)
         this.claim(live.turn, update)
       },
-      requestPermission: (r) => {
+      // One of the agent's own agents started or changed state
+      agent: (notice) => {
+        if (loading.has(key)) return
+        const emit = this.live.get(key)?.turn?.emit
+        if (!emit) return
+        if (notice.kind === "started") emit({ type: "agent_started", agentId: notice.agentId, title: notice.title })
+        else {
+          const status = agentStatus(notice.state)
+          if (status) emit({ type: "agent_update", agentId: notice.agentId, status })
+        }
+      },
+      requestPermission: (r, agentId) => {
         const turn = this.live.get(key)?.turn
         const emit = turn?.emit
         if (!turn || !emit || turn.cancelled) return Promise.resolve({ outcome: { outcome: "cancelled" } })
@@ -376,7 +396,8 @@ export class Turns {
         const title = r.toolCall.title ?? (announced?.type === "tool_call" ? announced.title : undefined)
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
-        emit({ type: "tool_call", toolCallId, title: title ?? "Tool", kind: toKind(r.toolCall.kind), status: "pending", ...toolContent(r.toolCall, root) })
+        const by = agentId ? { agentId } : {}
+        emit({ type: "tool_call", toolCallId, title: title ?? "Tool", kind: toKind(r.toolCall.kind), status: "pending", ...toolContent(r.toolCall, root), ...by })
         emit({
           type: "permission_request",
           requestId,
@@ -384,6 +405,7 @@ export class Turns {
           title: title ?? "The agent asks to go ahead",
           kind: toKind(r.toolCall.kind),
           options: r.options.map((o) => ({ optionId: o.optionId, name: o.name, kind: o.kind as PermissionKind })),
+          ...by,
         })
         return new Promise((resolve) => {
           turn.permissions.set(requestId, {
@@ -399,7 +421,7 @@ export class Turns {
         })
       },
       // The agent's questions, shown in the chat until the user answers or skips them
-      createElicitation: async (r) => {
+      createElicitation: async (r, agentId) => {
         const turn = this.live.get(key)?.turn
         const emit = turn?.emit
         if (!turn || !emit || turn.cancelled) return { action: "cancel" }
@@ -408,7 +430,7 @@ export class Turns {
         if (!questions.length) return { action: "decline" }
         const requestId = randomUUID()
         const toolCallId = (r as { toolCallId?: string | null }).toolCallId ?? undefined
-        emit({ type: "question_request", requestId, ...(toolCallId ? { toolCallId } : {}), questions })
+        emit({ type: "question_request", requestId, ...(toolCallId ? { toolCallId } : {}), questions, ...(agentId ? { agentId } : {}) })
         return new Promise<acp.CreateElicitationResponse>((resolve) => {
           turn.questions.set(requestId, (answers) => {
             turn.questions.delete(requestId)
@@ -431,6 +453,31 @@ export class Turns {
         return {}
       },
     }
+  }
+
+  // What one of the agent's own agents sent: its steps, marked as its own, and its report. Its report is
+  // the call it hands back with, or else what it said as text (an agent may tell its findings that way).
+  private agentWork(turn: Turn, agentId: string, u: acp.SessionUpdate, root: string) {
+    const emit = turn.emit
+    if (!emit) return
+    if (u.sessionUpdate === "tool_call" || u.sessionUpdate === "tool_call_update") {
+      const report = handbackOf(u)
+      if (report) {
+        turn.handedBack.add(agentId)
+        emit({ type: "agent_update", agentId, report })
+      }
+    }
+    if (u.sessionUpdate === "agent_message_chunk" && u.content.type === "text") {
+      const text = (turn.agentText.get(agentId) ?? "") + u.content.text
+      turn.agentText.set(agentId, text)
+      if (!turn.handedBack.has(agentId)) emit({ type: "agent_update", agentId, report: text })
+      return
+    }
+    const update = toUpdate(u, root)
+    if (update?.type === "tool_call") emit({ ...update, agentId })
+    else if (update?.type === "tool_call_update") emit(update)
+    else return
+    this.claim(turn, update)
   }
 
   // A tool call that edits, moves or deletes workspace files claims them for this chat while it runs
@@ -513,6 +560,16 @@ function isOwlitCall(call: acp.ToolCall) {
 // A select option's values, flattening groups
 const flatValues = (options: unknown) =>
   (options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
+
+// An agent's state, as owlit shows it: the adapters' words ("completed", "cancelled") and the draft's
+// ("idle" once it has nothing left to do; "running" and "requires_action" while it is at it)
+function agentStatus(state: string): AgentStatus | undefined {
+  if (state === "completed" || state === "idle" || state === "done") return "done"
+  if (state === "cancelled" || state === "interrupted") return "stopped"
+  if (state === "failed" || state === "error") return "failed"
+  if (state === "running" || state === "requires_action") return "working"
+  return undefined
+}
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()

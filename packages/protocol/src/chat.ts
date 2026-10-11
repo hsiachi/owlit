@@ -131,8 +131,13 @@ export type MessagePart =
       locations?: ToolLocation[]
       diff?: FileDiff
       tool?: ToolInfo
+      // Set when one of the agent's own agents took this step (its id, as on the agent part)
+      agentId?: string
     }
   | { type: "plan"; entries: PlanEntry[] }
+  // An agent the answering agent handed part of the work to, where it was handed out: its task as the
+  // agent named it, how it is doing, and the report it handed back
+  | { type: "agent"; agentId: string; title: string; status: AgentStatus; report?: string }
   | {
       type: "question"
       requestId: string
@@ -142,6 +147,7 @@ export type MessagePart =
       // Set once answered (by question id), skipped or closed
       answers?: Record<string, QuestionAnswer>
       outcome?: "answered" | "skipped" | "cancelled"
+      agentId?: string
     }
   | {
       type: "permission"
@@ -152,7 +158,12 @@ export type MessagePart =
       options: PermissionOption[]
       // Set once the user answered
       outcome?: PermissionKind | "cancelled"
+      agentId?: string
     }
+
+// How an agent handed part of the work is doing: still at it, finished (with or without a report), broke,
+// or stopped with the answer
+export type AgentStatus = "working" | "done" | "failed" | "stopped"
 
 export type MessageStatus = "streaming" | "done" | "cancelled" | "error"
 
@@ -285,6 +296,7 @@ export type SessionUpdate =
       locations?: ToolLocation[]
       diff?: FileDiff
       tool?: ToolInfo
+      agentId?: string
     }
   | {
       type: "tool_call_update"
@@ -297,6 +309,8 @@ export type SessionUpdate =
       tool?: ToolInfo
     }
   | { type: "plan"; entries: PlanEntry[] }
+  | { type: "agent_started"; agentId: string; title: string }
+  | { type: "agent_update"; agentId: string; title?: string; status?: AgentStatus; report?: string }
   | {
       type: "permission_request"
       requestId: string
@@ -304,9 +318,10 @@ export type SessionUpdate =
       title: string
       kind: ToolKind
       options: PermissionOption[]
+      agentId?: string
     }
   | { type: "permission_resolved"; requestId: string; outcome: PermissionKind | "cancelled" }
-  | { type: "question_request"; requestId: string; toolCallId?: string; questions: AgentQuestion[] }
+  | { type: "question_request"; requestId: string; toolCallId?: string; questions: AgentQuestion[]; agentId?: string }
   | { type: "question_resolved"; requestId: string; outcome: "answered" | "skipped" | "cancelled"; answers?: Record<string, QuestionAnswer> }
 
 export type StopReason = "end_turn" | "cancelled" | "refusal" | "error"
