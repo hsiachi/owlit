@@ -475,7 +475,7 @@ To calm a colour, lower the chroma of its token. Don't add `muted-*` variants: i
   - **Callouts**, as a quiet tinted box: the type as a plain muted word, the title in medium weight.
   - **Wikilinks**, drawn as a mention when they name a doc in the workspace, and as muted text with a dotted underline when they don't.
   - **Embeds**, as a small muted chip with the file's name.
-  - **Headings**, sized by rank under the title, not by their number of `#`s: the title line is 22px medium, the shallowest level below it 18px semibold, and anything deeper 15px semibold. A heading gets extra room above it and none below, so it reads as the start of what follows.
+  - **Headings**, sized by their number of `#`s, so editing one heading never restyles another: the title line is 22px medium whatever its `#`s, `#` and `##` below it 18px semibold, and anything deeper 15px semibold. A line of bare `#`s is body text until the space after them, so a heading being typed doesn't flash large. A heading gets extra room above it and none below, so it reads as the start of what follows.
   - **Lists hang.** A list marker sits in a 1.5em box, and the item's text, wrapped lines included, starts after it. Each level of nesting steps in by one box, whatever spaces the file uses.
   - **Code blocks** hide their fences while the cursor is outside the block; the language sits in 12px muted text in the block's top right corner.
   - **Front matter** folds into one 12px muted line of its fields above the title while the cursor is elsewhere, and shows as quiet monospace when clicked.

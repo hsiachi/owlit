@@ -163,22 +163,6 @@ class CodeLangWidget extends WidgetType {
   }
 }
 
-// The heading level the doc's sections use: the shallowest one below the title. "# Title" with "## Section"
-// and "# Title" with "# Section" both give their sections the larger heading size.
-function sectionLevel(state: EditorState, titleLine: number) {
-  let level = 7
-  syntaxTree(state).iterate({
-    enter: (node) => {
-      if (node.name.startsWith("ATXHeading")) {
-        if (state.doc.lineAt(node.from).number !== titleLine) level = Math.min(level, Number(node.name.slice(-1)))
-        return false
-      }
-      if (node.name === "Paragraph" || node.name === "FencedCode" || node.name === "Table") return false
-    },
-  })
-  return level
-}
-
 const bullet = Decoration.replace({ widget: new BulletWidget() })
 const hidden = Decoration.replace({})
 const lineDeco = (cls: string) => Decoration.line({ class: cls })
@@ -227,7 +211,6 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
   // The first line after any front matter is the doc's title
   const title = doc.lineAt(Math.min(fmEnd, doc.length))
   decos.push(lineDeco("cm-doc-title").range(title.from))
-  const sections = sectionLevel(state, title.number)
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
@@ -242,11 +225,15 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
           case "ATXHeading3":
           case "ATXHeading4":
           case "ATXHeading5":
-          case "ATXHeading6":
-            // Sized by rank under the title, not by the number of #s: sections are 18px, everything below 15px
-            if (doc.lineAt(ref.from).number !== title.number)
-              decos.push(lineDeco(Number(ref.name.slice(-1)) <= sections ? "cm-h1" : "cm-h2").range(doc.lineAt(ref.from).from))
+          case "ATXHeading6": {
+            const line = doc.lineAt(ref.from)
+            // Markdown counts a lone "#" as an empty heading, but it is usually a heading half typed: it stays
+            // body text, marks and all, until the space after the #s
+            if (/^\s*#+$/.test(line.text)) return false
+            // Sized by the number of #s, so editing one heading never restyles another: # and ## are 18px, deeper 15px
+            if (line.number !== title.number) decos.push(lineDeco(Number(ref.name.slice(-1)) <= 2 ? "cm-h1" : "cm-h2").range(line.from))
             break
+          }
           case "HeaderMark":
             if (node.parent?.name.startsWith("ATX") && !lineTouched(ref.from)) hide(ref.from, withSpace(node))
             break
