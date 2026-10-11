@@ -136,6 +136,9 @@ export function createBrowserHost(): PublisherBrowser {
       allowed = request.allowHosts
     }
     stopped = undefined
+    // OWLIT_LOG_BROWSER: where a run's time goes
+    const started = Date.now()
+    const trace = (step: string) => process.env.OWLIT_LOG_BROWSER && console.log(`[publisher] +${((Date.now() - started) / 1000).toFixed(1)}s ${step} ${contents.getURL()}`)
     const abort = () => contents.stop()
     request.signal.addEventListener("abort", abort, { once: true })
     try {
@@ -143,12 +146,15 @@ export function createBrowserHost(): PublisherBrowser {
       await load(contents, request.landing, request.signal).catch((error: Error) => {
         throw stopped ? new Error(`${hostOf(request.landing)} sent the page on to ${stopped}, which owlit doesn't open unattended.`) : error
       })
+      trace("opened")
       await waitUntilClear(contents, request)
+      trace("clear")
       const pdfUrl = await pdfAddress(contents, request)
       if (!pdfUrl) throw new Error("The publisher's page doesn't link a PDF.")
       let bytes = await fetchWithSession(pdfUrl, request.signal)
       // Some publishers check again at the PDF itself: open it in the page and look once more
       if (!isPdf(bytes)) {
+        trace(`no PDF from ${pdfUrl}, opening it`)
         await load(contents, pdfUrl, request.signal).catch(() => undefined)
         await waitUntilClear(contents, request)
         bytes = await fetchWithSession(pdfUrl, request.signal)
@@ -180,6 +186,7 @@ export function createBrowserHost(): PublisherBrowser {
           if (request.signal.aborted) throw error
           throw new NeedsUser(state)
         })
+        await settle(contents, request.signal)
         continue
       }
       // The page out of sight too long ends the run; core keeps the note for the next Check now
@@ -196,6 +203,9 @@ export function createBrowserHost(): PublisherBrowser {
       } finally {
         away.delete(left)
       }
+      // Past the check the page goes on to the article: let it arrive before looking for the PDF
+      // (2026-10-11: read the moment the user got through, a SAGE page had no PDF link)
+      await settle(contents, request.signal)
     }
     const state = await pageState(contents)
     if (state !== "ok") throw request.withUser ? new Error("The publisher kept asking for a check.") : new NeedsUser(state)
@@ -268,6 +278,9 @@ async function settle(contents: WebContents, signal: AbortSignal) {
   const until = Date.now() + 10_000
   let url = contents.getURL()
   while (Date.now() < until && !contents.isDestroyed() && !signal.aborted) {
+    // A check or a sign-in won't turn into the article while this waits: hand it to waitUntilClear at
+    // once, so the line above the page says what it wants
+    if ((await pageState(contents)) !== "ok") return
     await new Promise((r) => setTimeout(r, 1500))
     if (contents.isDestroyed() || signal.aborted) return
     const now = contents.getURL()
