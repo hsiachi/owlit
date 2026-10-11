@@ -107,11 +107,9 @@ export class MockAgentClient implements AgentClient {
         return "end_turn"
       }
 
-      for (const a of attachments) {
-        const id = `tc-${crypto.randomUUID()}`
-        emit({ type: "tool_call", toolCallId: id, title: `Reading attachment ${a.name}`, kind: "read", status: "in_progress" })
-        await sleep(500, signal)
-        emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: `${formatBytes(a.size)} · ${a.mimeType || "unknown type"}` })
+      // The browser build keeps no copies of attached files, so it can't read them and says so
+      if (attachments.length) {
+        await this.stream(emit, signal, `I can't open ${attachments.length === 1 ? attachments[0].name : `the ${attachments.length} attached files`} in this preview: files are read only in the desktop app.\n\n`, "agent_message_chunk", 14)
       }
 
       if (mentions.length === 0 && /\b(paper|library|literature)\b/i.test(text)) {
@@ -450,12 +448,6 @@ export class MockAgentClient implements AgentClient {
 
 function slug(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
-}
-
-function formatBytes(n: number) {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
 const WANTS_REVIEW = /\b(review|check|critique|feedback|comments?|proofread)\b/i

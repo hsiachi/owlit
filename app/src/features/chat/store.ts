@@ -22,6 +22,9 @@ export const agentClient: AgentClient = isDesktop ? new RpcAgentClient() : new M
 // Whether the store saves messages through ./disk (core saves them itself when it runs the turn)
 const savesMessages = () => disk.onDisk && !agentClient.persistsMessages
 
+// Chats deleted in this window, for Undo in the browser build (the desktop app's are in .owlit/trash/)
+const deleted = new Map<string, Chat>()
+
 // Abort controllers for in-flight turns, and when each turn is over; not part of persisted state
 const inflight = new Map<string, AbortController>()
 const over = new Map<string, Promise<void>>()
@@ -45,8 +48,12 @@ interface ChatState {
   // Chat ids with a running turn
   streaming: Record<string, true>
 
-  createChat: (init?: Partial<Pick<Chat, "connectorId" | "modelId" | "role" | "effortId">>) => Chat
+  createChat: (init?: Partial<Pick<Chat, "id" | "connectorId" | "modelId" | "role" | "effortId">>) => Chat
   deleteChat: (id: string) => void
+  // Brings a deleted chat back, with its files (Undo)
+  restoreChat: (id: string) => Promise<void>
+  // A file sent with a message was added to the Library from its chip
+  setAttachmentPaper: (chatId: string, messageId: string, attachmentId: string, paperId: string) => void
   renameChat: (id: string, title: string) => void
   togglePin: (id: string) => void
   setSelection: (patch: Partial<Selection>) => void
@@ -115,11 +122,29 @@ export const useChatStore = create<ChatState>()(
       deleteChat(id) {
         get().cancel(id)
         useSeenStore.getState().forget(id)
+        const removed = get().chats[id]
+        if (removed) deleted.set(id, removed)
         set((s) => {
           const { [id]: _removed, ...rest } = s.chats
           return { chats: rest }
         })
         if (disk.onDisk) disk.deleteChatOnDisk(id)
+      },
+
+      async restoreChat(id) {
+        // In the desktop app the chat comes back from .owlit/trash/, its files with it
+        const chat = disk.onDisk ? await disk.restoreChatOnDisk(id) : deleted.get(id)
+        deleted.delete(id)
+        if (chat) set((s) => ({ chats: { ...s.chats, [id]: chat } }))
+      },
+
+      setAttachmentPaper(chatId, messageId, attachmentId, paperId) {
+        const chat = get().chats[chatId]
+        const message = chat?.messages.find((m) => m.id === messageId)
+        if (!chat || !message?.attachments) return
+        const next = { ...message, attachments: message.attachments.map((a) => (a.id === attachmentId ? { ...a, paperId } : a)) }
+        set((s) => ({ chats: { ...s.chats, [chatId]: { ...chat, messages: chat.messages.map((m) => (m.id === messageId ? next : m)) } } }))
+        if (disk.onDisk) disk.patchMessageOnDisk(chatId, next, true)
       },
 
       renameChat(id, title) {

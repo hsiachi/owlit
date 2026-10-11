@@ -7,7 +7,7 @@ import { Readable } from "node:stream"
 // Only files inside the workspace, after links are followed; byte ranges, so the reader fetches what
 // it shows rather than the whole file.
 
-const TYPES: Record<string, string> = { ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".md": "text/markdown; charset=utf-8" }
+const TYPES: Record<string, string> = { ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".md": "text/markdown; charset=utf-8" }
 
 export async function serveWorkspaceFile(root: string | undefined, request: Request): Promise<Response> {
   const url = new URL(request.url)

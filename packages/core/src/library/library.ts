@@ -768,6 +768,12 @@ export class Library {
     })
   }
 
+  // The paper whose PDF is this very file (the same bytes), if the library has one; reads nothing else
+  async paperOfFile(file: string): Promise<string | undefined> {
+    const sha = await sha256Of(file)
+    return this.serial(() => this.paperWithPdf(sha))
+  }
+
   // A PDF dropped on the library: which paper it is (arXiv's stamp, a DOI on its first pages), added
   // with its metadata when the services know it, or kept as local-<hash> with a title guessed from the
   // file. The same file dropped again is the paper it already is.

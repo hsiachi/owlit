@@ -3,7 +3,8 @@
 // it can do. An agent owlit knows nothing about gets the defaults: its own mode, owlit's refusals, the
 // standard parts of ACP. (Rule: README of the tasks folder, "引擎能力"; 2026-10-11.)
 
-import type { Role } from "@owlit/protocol"
+import type * as acp from "@agentclientprotocol/sdk"
+import type { FileKind, Role } from "@owlit/protocol"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
 
 // The agent owlit picks when nothing else says which (background work, a first chat)
@@ -142,5 +143,34 @@ export function isOwlitCall(call: { title?: string | null; rawInput?: unknown })
   return input?.server === "owlit" || /^mcp(\.|__)owlit(\.|__)/.test(call.title ?? "")
 }
 
+// ---- Files the user attaches ----
+
+// Every agent gets an attached file as a link to owlit's copy and reads it with its own tools (checked
+// 2026-10-11, attachments-proposal.md): Claude Code (claude-agent-acp 0.88) reads a PDF with its Read
+// tool and a Word file by unzipping it; Codex (codex-acp 2.2.1) reads a PDF with pdftotext and a Word file
+// by unzipping it. The Owlit engine has no shell: it reads text files with its own tool, PDFs through
+// owlit's docs_read, and sees images when its model does, but can't open a Word file or anything else
+// that isn't text. An agent owlit knows nothing about is assumed to manage, since it can't be checked.
+export function cannotRead(connectorId: string): FileKind[] {
+  if (connectorId === ENGINE) return ["word", "other"]
+  return []
+}
+
+// Model APIs refuse other image types, and images over 5 MB (Anthropic's limit, the lowest of them);
+// such an image still goes as a link, which the agent can open itself
+export const PICTURE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
+export const PICTURE_MAX_BYTES = 5 * 1024 * 1024
+
+// Whether an attached image also goes to the agent as a picture (an ACP image block), so its model sees
+// it without a step: when the agent says it takes images. Codex says so for every model, but refuses the
+// whole prompt when the chat's model takes text only (codex-acp 2.2.1). Every model it listed on
+// 2026-10-11 takes images; the open-weight gpt-oss models (Codex's --oss) and Codex-Spark are taken to be
+// text-only, so they get the link alone, which loses nothing. The Owlit engine knows its models and leaves
+// the picture out itself, with a word to the model, when one takes text only.
+export function sendsPictures(connectorId: string, init: Pick<acp.InitializeResponse, "agentCapabilities">, modelId?: string) {
+  if (!init.agentCapabilities?.promptCapabilities?.image) return false
+  if (connectorId === "codex" && modelId && /gpt-oss|codex-spark/i.test(modelId)) return false
+  return true
+}
 
 const ENGINE = "owlit-engine"

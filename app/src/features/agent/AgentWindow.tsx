@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/message-scroller"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { keysFor } from "@/app/shortcuts"
-import { Composer, type ComposerHandle } from "@/features/chat/components/composer/Composer"
+import { agentName, Composer, openAttached, type ComposerHandle } from "@/features/chat/components/composer/Composer"
+import { AttachmentList } from "@/features/chat/components/composer/AttachmentList"
+import { useResolvedSelection } from "@/features/chat/components/composer/AgentPicker"
+import { fromDrop, useAttachments } from "@/features/chat/lib/attachments"
 import { AssistantMessage, UserMessage } from "@/features/chat/components/messages/MessageItem"
 import { StatusRing } from "@/features/chat/components/StatusRing"
 import { useChatStatus } from "@/features/chat/use-chat-status"
@@ -146,6 +149,12 @@ export function AgentAskBar() {
   const context = useVisibleContext()
   const [text, setText] = useState("")
   const input = useRef<HTMLInputElement>(null)
+  // The bar takes files like the composer: copied into the folder of the chat it will start
+  const [draftId, setDraftId] = useState(() => crypto.randomUUID())
+  const [mentions, setMentions] = useState<Mentionable[]>([])
+  const attachments = useAttachments(draftId, (m) => setMentions((list) => (list.some((x) => x.uri === m.uri) ? list : [...list, m])))
+  const { connector } = useResolvedSelection(undefined)
+  const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     if (stage === "bar") input.current?.focus()
@@ -153,50 +162,99 @@ export function AgentAskBar() {
 
   if (!allowed || stage !== "bar") return null
 
+  const ready = attachments.files.some((f) => f.state === "ready")
+  const canSend = (!!text.trim() || ready || mentions.length > 0) && !attachments.adding
   const send = () => {
-    if (!text.trim()) return
-    useAgentWindow.getState().send({ text: text.trim(), mentions: [], attachments: [] }, context)
+    if (!canSend) return
+    useAgentWindow.getState().send({ text: text.trim(), mentions, attachments: attachments.take() }, context, draftId)
     setText("")
+    setMentions([])
+    setDraftId(crypto.randomUUID())
   }
+  const holding = attachments.files.length > 0 || mentions.length > 0
 
   return (
-    <div className="absolute bottom-4 left-1/2 z-20 flex h-12 w-[min(600px,calc(100%-48px))] -translate-x-1/2 items-center gap-2 rounded-xl border bg-card pr-2 pl-2.5 shadow-md transition-[border-color] focus-within:border-foreground/20">
-      {selection && (
-        <span className="shrink-0">
-          <Chip label="Don't include the selection" onRemove={() => useAgentWindow.getState().clearSelection()}>
-            {selectionLabel(selection)} · “{shorten(selection.text, 24)}”
-          </Chip>
-        </span>
+    <div
+      className={cn(
+        "absolute bottom-4 left-1/2 z-20 flex w-[min(600px,calc(100%-48px))] -translate-x-1/2 flex-col rounded-xl border bg-card shadow-md transition-[border-color] focus-within:border-foreground/20",
+        dragging && "border-ring ring-2 ring-ring/30",
       )}
-      <input
-        ref={input}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault()
+          setDragging(true)
+        }
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragging(false)
+        const { files, folders } = fromDrop(e.dataTransfer)
+        attachments.add(files, folders)
+      }}
+    >
+      {holding && (
+        <div className="flex min-w-0 items-center gap-1.5 px-2.5 pt-2">
+          {mentions.map((m) => (
+            <Chip key={m.uri} label={`Don't include ${m.title}`} onRemove={() => setMentions((list) => list.filter((x) => x.uri !== m.uri))}>
+              <span className="text-mention">{m.title}</span>
+            </Chip>
+          ))}
+          <AttachmentList
+            files={attachments.files}
+            size="xs"
+            onRemove={attachments.remove}
+            onOpen={openAttached}
+            onAddToLibrary={(f) => attachments.addToLibrary(f.id)}
+            reader={connector?.cannotRead?.length ? { name: agentName(connector.name), cannotRead: connector.cannotRead } : undefined}
+          />
+        </div>
+      )}
+      <div className="flex h-12 items-center gap-2 pr-2 pl-2.5">
+        {selection && (
+          <span className="shrink-0">
+            <Chip label="Don't include the selection" onRemove={() => useAgentWindow.getState().clearSelection()}>
+              {selectionLabel(selection)} · “{shorten(selection.text, 24)}”
+            </Chip>
+          </span>
+        )}
+        <input
+          ref={input}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            const pasted = Array.from(e.clipboardData.files)
+            if (!pasted.length) return
             e.preventDefault()
-            send()
-          }
-          if (e.key === "Escape") useAgentWindow.getState().close()
-        }}
-        placeholder={hint ?? (context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…")}
-        className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
-        aria-label="Ask Owlit"
-      />
-      {current && !text && !selection && (
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => useAgentWindow.getState().togglePanel()}
-          className="flex h-7 min-w-0 shrink items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <Kbd>{keysFor("owlit-panel")}</Kbd>
-          <span className="max-w-[200px] truncate">{current}</span>
-        </button>
-      )}
-      <Button size="icon-sm" className="rounded-full" disabled={!text.trim()} onClick={send} aria-label="Send">
-        <ArrowUpIcon />
-      </Button>
+            attachments.add(pasted)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              send()
+            }
+            if (e.key === "Escape") useAgentWindow.getState().close()
+          }}
+          placeholder={hint ?? (context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…")}
+          className="min-w-0 flex-1 bg-transparent pl-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
+          aria-label="Ask Owlit"
+        />
+        {current && !text && !selection && !holding && (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => useAgentWindow.getState().togglePanel()}
+            className="flex h-7 min-w-0 shrink items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Kbd>{keysFor("owlit-panel")}</Kbd>
+            <span className="max-w-[200px] truncate">{current}</span>
+          </button>
+        )}
+        <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={send} aria-label="Send">
+          <ArrowUpIcon />
+        </Button>
+      </div>
+      {attachments.dialog}
     </div>
   )
 }
@@ -314,7 +372,7 @@ export function AgentPanel() {
           streaming={streaming}
           waiting={chat && streaming ? pendingAsk(chat)?.type : undefined}
           onCancel={() => chat && useChatStore.getState().cancel(chat.id)}
-          onSubmit={(input) => send(input, context)}
+          onSubmit={(input, id) => send(input, context, id)}
           placeholder={chat?.messages.length ? "Ask a follow-up…" : "Ask Owlit…"}
           header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
         />

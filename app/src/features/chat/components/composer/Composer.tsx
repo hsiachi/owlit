@@ -17,7 +17,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Kbd } from "@/components/ui/kbd"
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { openSettings } from "@/features/settings/store"
-import type { AttachmentFile, Mentionable, PromptInput, SourceKind } from "../../types"
+import { isDesktop, rpc } from "@/lib/rpc"
+import { toast } from "sonner"
+import { fromDrop, useAttachments, type AttachedMention } from "../../lib/attachments"
+import type { Mentionable, PromptInput, SourceKind } from "../../types"
 import { sourceKindLabel } from "../source-icons"
 import { AgentPicker, isUnavailable, useResolvedSelection } from "./AgentPicker"
 import { AttachmentList } from "./AttachmentList"
@@ -32,7 +35,9 @@ export interface ComposerHandle {
 
 interface ComposerProps {
   chatId?: string
-  onSubmit: (input: PromptInput) => void
+  // chatId is the chat sent to; without one (a new chat) the composer names the id the chat is to get,
+  // since files attached before sending are already copied into that chat's folder
+  onSubmit: (input: PromptInput, chatId: string) => void
   streaming?: boolean
   // What the running turn waits on the user for: what they type then answers it (see the store's send)
   waiting?: "permission" | "question"
@@ -62,15 +67,17 @@ const SubmitKeymap = Extension.create<{ onSubmit: () => void }>({
   },
 })
 
-// Flatten the document into plain text plus the mentioned items
-function extract(editor: Editor): { text: string; mentions: Mentionable[] } {
+// Flatten the document into plain text plus the mentioned items. `known` holds mentions that @ doesn't
+// offer (a workspace file that isn't Markdown, made a mention by attaching it).
+function extract(editor: Editor, known: Mentionable[] = []): { text: string; mentions: Mentionable[] } {
   const mentions: Mentionable[] = []
   const lines: string[] = []
   editor.state.doc.forEach((block) => {
     let line = ""
     block.descendants((node) => {
       if (node.type.name === "mention") {
-        const m = docMentionItems("").find((x) => x.id === node.attrs.id && (!node.attrs.kind || x.kind === node.attrs.kind))
+        const same = (x: Mentionable) => x.id === node.attrs.id && (!node.attrs.kind || x.kind === node.attrs.kind)
+        const m = docMentionItems("").find(same) ?? known.find(same)
         if (m && !mentions.some((x) => x.id === m.id)) mentions.push(m)
         line += `@[${node.attrs.label}]`
       } else if (node.isText) {
@@ -85,21 +92,18 @@ function extract(editor: Editor): { text: string; mentions: Mentionable[] } {
   return { text: lines.join("\n").trim(), mentions }
 }
 
-function toAttachment(file: File): AttachmentFile {
-  return {
-    id: crypto.randomUUID(),
-    name: file.name,
-    size: file.size,
-    mimeType: file.type,
-    previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
-  }
-}
-
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
   { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className, header },
   ref,
 ) {
-  const [files, setFiles] = useState<AttachmentFile[]>([])
+  // A new chat's id, named before it exists so attached files can be copied into its folder
+  const [draftId, setDraftId] = useState(() => crypto.randomUUID())
+  const target = chatId ?? draftId
+  // Mentions that attaching made, for extract() to find again
+  const attachedMentions = useRef<AttachedMention[]>([])
+  const insertRef = useRef<(m: AttachedMention) => void>(() => {})
+  const attachments = useAttachments(target, (m) => insertRef.current(m))
+  const files = attachments.files
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
@@ -140,7 +144,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       handlePaste: (_view, event) => {
         const pasted = Array.from(event.clipboardData?.files ?? [])
         if (pasted.length === 0) return false
-        setFiles((f) => [...f, ...pasted.map(toAttachment)])
+        addRef.current(pasted)
         return true
       },
     },
@@ -162,18 +166,29 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr)
   }, [editor, hint])
 
-  const typed = !isEmpty || files.length > 0
-  const canSend = (!streaming || !!waiting) && !blocked && typed
+  // A file attached is a mention at the cursor when owlit already has it (a doc, a Library paper)
+  insertRef.current = (m) => {
+    attachedMentions.current.push(m)
+    editor?.chain().focus().insertContent([{ type: "mention", attrs: { id: m.id, label: m.label, kind: m.kind } }, { type: "text", text: " " }]).run()
+  }
+  const addRef = useRef(attachments.add)
+  addRef.current = attachments.add
+
+  const ready = files.some((f) => f.state === "ready")
+  const typed = !isEmpty || ready
+  // A file still being copied holds Send for a moment, so the message never goes without it
+  const canSend = (!streaming || !!waiting) && !blocked && typed && !attachments.adding
 
   const submit = useCallback(() => {
     if (!editor || !canSend) return
-    const { text, mentions } = extract(editor)
-    if (!text && files.length === 0) return
-    onSubmit({ text, mentions, attachments: files })
+    const { text, mentions } = extract(editor, attachedMentions.current)
+    if (!text && !ready) return
+    onSubmit({ text, mentions, attachments: attachments.take() }, target)
     editor.commands.clearContent(true)
-    setFiles([])
+    attachedMentions.current = []
     setIsEmpty(true)
-  }, [editor, canSend, files, onSubmit])
+    if (!chatId) setDraftId(crypto.randomUUID())
+  }, [editor, canSend, ready, onSubmit, attachments, target, chatId])
   useEffect(() => {
     submitRef.current = submit
   }, [submit])
@@ -199,11 +214,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     openMention,
   }))
 
-  const addFiles = (list: FileList | File[] | null) => {
-    if (!list) return
-    setFiles((f) => [...f, ...Array.from(list).map(toAttachment)])
-  }
-
   return (
     <div
       className={cn(
@@ -221,7 +231,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       onDrop={(e) => {
         e.preventDefault()
         setDragging(false)
-        addFiles(e.dataTransfer.files)
+        const { files: dropped, folders } = fromDrop(e.dataTransfer)
+        attachments.add(dropped, folders)
       }}
     >
       {/* Only an agent that can't run gets a banner; a working one stays quiet */}
@@ -243,9 +254,16 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
       {files.length > 0 && (
         <div className="px-3 pt-3">
-          <AttachmentList files={files} onRemove={(id) => setFiles((f) => f.filter((x) => x.id !== id))} />
+          <AttachmentList
+            files={files}
+            onRemove={attachments.remove}
+            onOpen={openAttached}
+            onAddToLibrary={(f) => attachments.addToLibrary(f.id)}
+            reader={connector?.cannotRead?.length ? { name: agentName(connector.name), cannotRead: connector.cannotRead } : undefined}
+          />
         </div>
       )}
+      {attachments.dialog}
 
       {/* Click anywhere in the editor area to focus */}
       <div className="cursor-text" onClick={() => editor?.commands.focus()}>
@@ -284,7 +302,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           multiple
           className="hidden"
           onChange={(e) => {
-            addFiles(e.target.files)
+            attachments.add(Array.from(e.target.files ?? []))
             e.target.value = ""
           }}
         />
@@ -317,6 +335,15 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     </div>
   )
 })
+
+// An attached file's copy, opened in the system's app for it
+export function openAttached(file: { path?: string }) {
+  if (!isDesktop || !file.path) return
+  rpc.chats.openFile({ path: file.path }).catch((error: Error) => toast.error(error.message))
+}
+
+// An agent as a chip names it: "Owlit engine (Beta)" is the Owlit engine there
+export const agentName = (name: string) => name.replace(/\s*\([^)]*\)$/, "")
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")

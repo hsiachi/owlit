@@ -1,13 +1,16 @@
 import { useState } from "react"
-import { withoutAgentError } from "@owlit/protocol"
+import { chatOfFile, withoutAgentError } from "@owlit/protocol"
 import { CheckIcon, CircleXIcon, CopyIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { ChatMessage, MessagePart } from "../../types"
+import type { AttachmentFile, ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
+import { openAttached } from "../composer/Composer"
+import { importCopy } from "../../lib/attachments"
+import { useChatStore } from "../../store"
 import { MentionBadge } from "../composer/MentionBadge"
 import { unansweredSentence } from "../../lib/step-words"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
@@ -129,6 +132,13 @@ function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[
   return { segments: out, asks, byAgent }
 }
 
+// A PDF sent with a message, added to the Library from its chip: the chip says so from then on
+async function addSentToLibrary(message: ChatMessage, file: AttachmentFile) {
+  const paper = await importCopy(file)
+  const chatId = file.path ? chatOfFile(file.path) : null
+  if (paper && chatId) useChatStore.getState().setAttachmentPaper(chatId, message.id, file.id, paper.id)
+}
+
 // Split "@[label]" markers out of the text so they can render as chips
 function renderWithMentions(text: string, mentions: ChatMessage["mentions"]) {
   const parts = text.split(/(@\[[^\]]+\])/g)
@@ -151,7 +161,9 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
             “{message.selection.text.replace(/\s+/g, " ").trim()}”
           </p>
         )}
-        {message.attachments && message.attachments.length > 0 && <AttachmentList files={message.attachments} size="xs" />}
+        {message.attachments && message.attachments.length > 0 && (
+          <AttachmentList files={message.attachments} size="xs" onOpen={openAttached} onAddToLibrary={(file) => addSentToLibrary(message, file)} />
+        )}
         <Bubble variant="secondary" align="end">
           <BubbleContent className="whitespace-pre-wrap">{renderWithMentions(text, message.mentions)}</BubbleContent>
         </Bubble>

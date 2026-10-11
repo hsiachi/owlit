@@ -1,6 +1,6 @@
 import type { ActivityEvent } from "./activity.ts"
 import type { EditStats } from "./edit-stats.ts"
-import type { Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
+import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
@@ -169,7 +169,7 @@ export interface Methods {
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
-  // Moves the chat to .owlit/trash/
+  // Moves the chat, with the copies of its attached files, to .owlit/trash/
   "chats.delete": { params: { id: string }; result: null }
   "chats.appendMessage": { params: { id: string; message: ChatMessage }; result: null }
   // Replaces a message by id. While final is false the disk catches up within half a second;
@@ -177,6 +177,21 @@ export interface Methods {
   // Takes messages out of a chat (a broken reply and its question, when Retry asks again)
   "chats.removeMessages": { params: { id: string; messageIds: string[] }; result: null }
   "chats.patchMessage": { params: { id: string; message: ChatMessage; final?: boolean }; result: null }
+  // Brings back the chat deleted last under this id, with its files (Undo)
+  "chats.restore": { params: { id: string }; result: Chat }
+  // A file the user attaches to a message in this chat (which may not exist yet: a new chat's composer
+  // names the id it will get). Given by its path on disk (window.owlit.pathForFile), or as bytes (base64)
+  // when it has none (a pasted image). What owlit already has isn't copied: a file inside the workspace
+  // comes back as a doc, a PDF the Library has (the same file) as that paper; anything else is copied into
+  // the chat's folder. Refused for a folder.
+  "chats.attach": {
+    params: { chatId: string; path?: string; name?: string; mimeType?: string; data?: string }
+    result: { kind: "file"; file: AttachmentFile } | { kind: "doc"; path: string } | { kind: "paper"; paperId: string }
+  }
+  // A copy whose chip was removed before sending; one a sent message still has is kept
+  "chats.detach": { params: { chatId: string; path: string }; result: null }
+  // Opens an attached file's copy in the system's app for it
+  "chats.openFile": { params: { path: string }; result: null }
 
   // ---- Local agents (ACP over stdio). Built-in ones plus those the user added; each runs as one
   // process, started when needed and ended after ten idle minutes.

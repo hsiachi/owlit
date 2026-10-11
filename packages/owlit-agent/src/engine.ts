@@ -36,7 +36,8 @@ export class Engine implements acp.Agent {
     this.files = !!params.clientCapabilities?.fs?.readTextFile && !!params.clientCapabilities?.fs?.writeTextFile
     return {
       protocolVersion: acp.PROTOCOL_VERSION,
-      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } },
+      // Images the user attaches come as pictures; the session passes them to a model that takes them
+      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} }, promptCapabilities: { image: true } },
       agentInfo: { name: "owlit-engine", title: "Owlit engine", version: VERSION },
       authMethods: authMethods(this.models),
       // owlit's rules, the role and the user's name go into the system prompt (prompt.ts), so owlit leaves

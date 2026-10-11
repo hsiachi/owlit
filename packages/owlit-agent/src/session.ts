@@ -4,7 +4,7 @@
 
 import type * as acp from "@agentclientprotocol/sdk"
 import { Agent, type AgentMessage, type ThinkingLevel } from "@earendil-works/pi-agent-core"
-import type { Api, Model, Models } from "@earendil-works/pi-ai"
+import type { Api, ImageContent, Model, Models, TextContent, UserMessage } from "@earendil-works/pi-ai"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { modelKey } from "./models.ts"
@@ -113,7 +113,7 @@ export class EngineSession {
   }
 
   async prompt(blocks: acp.ContentBlock[]): Promise<acp.StopReason> {
-    await this.agent.prompt({ role: "user", content: textOf(blocks), timestamp: Date.now() })
+    await this.agent.prompt({ role: "user", content: contentOf(blocks, this.model.input.includes("image")), timestamp: Date.now() })
     if (this.init.persist) await this.save()
     const last = this.agent.state.messages.at(-1)
     const stop = last?.role === "assistant" ? last.stopReason : undefined
@@ -157,14 +157,23 @@ const withoutLeadingSystem = (messages: AgentMessage[]) => (messages[0]?.role ==
 // The newest model of the first provider signed in to (each provider's list runs newest first)
 const defaultModel = (available: Model<Api>[]) => available[0]
 
-// owlit's prompt as the user's message: text as it is, mentions and attachments as links and quotes
-function textOf(blocks: acp.ContentBlock[]): string {
-  return blocks
-    .map((b) => {
-      if (b.type === "text") return b.text
-      if (b.type === "resource_link") return `[${b.title ?? b.name}](${b.uri})`
-      if (b.type === "resource" && "text" in b.resource) return `<resource uri="${b.resource.uri}">\n${b.resource.text}\n</resource>`
-      return `[${b.type} left out: the engine takes text only]`
-    })
-    .join("\n\n")
+// owlit's prompt as the user's message: text as it is, mentions and attachments as links and quotes, and
+// an attached image as a picture when the model takes one (otherwise it is told the picture was left out;
+// the link to the file comes with it anyway)
+export function contentOf(blocks: acp.ContentBlock[], seesImages: boolean): UserMessage["content"] {
+  const parts: (TextContent | ImageContent)[] = []
+  const say = (text: string) => {
+    const last = parts.at(-1)
+    if (last?.type === "text") last.text += `\n\n${text}`
+    else parts.push({ type: "text", text })
+  }
+  for (const b of blocks) {
+    if (b.type === "text") say(b.text)
+    else if (b.type === "resource_link") say(`[${b.title ?? b.name}](${b.uri})`)
+    else if (b.type === "resource" && "text" in b.resource) say(`<resource uri="${b.resource.uri}">\n${b.resource.text}\n</resource>`)
+    else if (b.type === "image" && seesImages) parts.push({ type: "image", data: b.data, mimeType: b.mimeType })
+    else if (b.type === "image") say(`[An image${b.uri ? ` (${b.uri})` : ""} was left out: this model takes text only. Tell the user you can't see it with this model.]`)
+    else say(`[${b.type} left out: the engine takes text and images only]`)
+  }
+  return parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts
 }

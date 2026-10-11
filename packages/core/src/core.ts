@@ -1,4 +1,4 @@
-import { ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
@@ -19,6 +19,7 @@ import { limitMetadataHosts } from "./library/resolve.ts"
 import { pickFromText } from "./library/library.ts"
 import { extractText, toMarkdown, UnreadablePdf } from "./library/text/extract.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
+import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { registerSettings, settingsView } from "./settings-rpc.ts"
@@ -30,7 +31,7 @@ import { OWLIT_DIR } from "./workspace/paths.ts"
 export const CORE_VERSION = "0.0.0"
 
 // Methods that change what the search index covers
-const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
+const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
 
 export interface CoreOptions {
   // This machine's data directory for owlit (Electron's userData): settings.json, workspaces/<hash>/
@@ -194,6 +195,10 @@ export class Core {
     this.router.register("docs.readPdf", z.object({ path: rel, pages: z.string().optional() }), async ({ path: file, pages }) => {
       const ws = this.requireWorkspace()
       const relPath = ws.docs.resolve(file)
+      // Of owlit's own folder, only the copies of files attached in chats are the user's to read
+      if (relPath.split("/")[0].toLowerCase() === OWLIT_DIR && !chatOfFile(relPath)) {
+        throw new RpcFailure(RpcErrorCode.InvalidParams, `${relPath} is owlit's own state, not a document.`, { path: relPath })
+      }
       const bytes = await readFile(path.join(ws.root, relPath)).catch(() => {
         throw new RpcFailure(RpcErrorCode.NotFound, `There is no ${relPath} in the workspace.`, { path: relPath })
       })
@@ -271,6 +276,22 @@ export class Core {
     this.router.register("chats.patchMessage", z.object({ id: chatId, message, final: z.boolean().optional() }), ({ id, message, final }) =>
       chats().patchMessage(id, message, final),
     )
+    this.router.register("chats.restore", z.object({ id: chatId }), ({ id }) => chats().restore(id))
+    this.router.register(
+      "chats.attach",
+      z.object({ chatId, path: z.string().min(1).optional(), name: z.string().optional(), mimeType: z.string().optional(), data: z.string().optional() }),
+      (params) => attachFile(this.requireWorkspace(), params),
+    )
+    this.router.register("chats.detach", z.object({ chatId, path: z.string() }), ({ chatId, path }) => chats().removeFile(chatId, chatFile(path)))
+    this.router.register("chats.openFile", z.object({ path: z.string() }), async ({ path: rel }) => {
+      const ws = this.requireWorkspace()
+      const host = this.options.host
+      if (!host?.openPath) throw new RpcFailure(RpcErrorCode.InternalError, "owlit can't open files in other apps here.")
+      const file = path.join(ws.root, ...chatFile(rel).split("/"))
+      if (!existsSync(file)) throw new RpcFailure(RpcErrorCode.NotFound, "owlit no longer has that file.", { path: rel })
+      await host.openPath(file)
+      return null
+    })
 
     this.router.register("agents.list", noParams, () => this.agents.list())
     this.router.register("agents.check", z.object({ id: z.string() }), ({ id }) => this.agents.check(id))

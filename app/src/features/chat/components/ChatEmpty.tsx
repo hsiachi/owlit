@@ -40,8 +40,9 @@ export function ChatEmpty() {
     if (starter) composer.current?.setText(starter)
   }, [starter])
 
-  const start = (input: PromptInput) => {
-    const chat = createChat()
+  // The composer names the new chat's id: files attached before sending are already in its folder
+  const start = (input: PromptInput, id: string) => {
+    const chat = createChat({ id })
     navigate(`/chat/${chat.id}`)
     void send(chat.id, input)
   }

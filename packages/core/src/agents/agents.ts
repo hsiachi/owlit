@@ -7,6 +7,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
 import { AcpProcess } from "./process.ts"
+import { cannotRead } from "./profiles.ts"
 
 const IDLE_MS = 10 * 60_000
 
@@ -283,6 +284,7 @@ export class Agents {
       defaultModelId: probed?.defaultModelId ?? "default",
       defaultModeId: probed?.defaultModeId ?? "default",
       defaultEffortId: probed?.defaultEffortId,
+      ...(cannotRead(def.id).length ? { cannotRead: cannotRead(def.id) } : {}),
     }
   }
 }

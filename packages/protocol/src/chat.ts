@@ -1,6 +1,7 @@
 // Chat domain types. Message parts and session updates follow the shape of the
 // Agent Client Protocol (ACP) so a real local-agent connector can feed them later.
 
+import type { FileKind } from "./files.ts"
 import type { Role } from "./roles.ts"
 
 export type SourceKind = "paper" | "doc" | "knowledge"
@@ -15,11 +16,18 @@ export interface Mentionable {
   uri: string
 }
 
+// A file the user attached to a message. owlit copies it into the chat's own folder when it is attached
+// (.owlit/chats/<chat id>/files/), and the agent reads the copy; the original is never touched.
 export interface AttachmentFile {
   id: string
   name: string
   size: number
   mimeType: string
+  // The copy, relative to the workspace: what the agent is pointed at and what clicking the chip opens.
+  // Missing on files attached before owlit kept copies (only their name was kept)
+  path?: string
+  // The paper it became, once the user added this PDF to the Library from its chip
+  paperId?: string
   // Object URL for image previews; not persisted
   previewUrl?: string
 }
@@ -282,6 +290,8 @@ export interface Connector {
   defaultModelId?: string
   defaultModeId?: string
   defaultEffortId?: string
+  // Kinds of attached file this agent can't read (profiles.ts knows), said on a file's chip before sending
+  cannotRead?: FileKind[]
 }
 
 // ---- Session updates streamed from an agent (ACP SessionUpdate subset) ----
