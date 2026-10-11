@@ -90,8 +90,10 @@ export const useAgentWindow = create<AgentWindowState>()(
       togglePanel: () =>
         get().stage === "open" ? get().close() : set((s) => ({ stage: "open", fromNote: null, hint: null, focusTick: s.focusTick + 1 })),
       follow: (chatId) => set((s) => (s.chatId === chatId ? s : { chatId, fromNote: null })),
-      // The ask bar always starts a chat, so the current one stays for ⇧⌘J to come back to
-      newChat: () => set((s) => ({ stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
+      // From the panel's header: an empty chat in the panel itself, not the ask bar, so the conversation
+      // stays where the user is looking; sending starts it. The one left is in the header's menu.
+      newChat: () =>
+        set((s) => ({ stage: "open", chatId: null, selection: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
       askHowTo: () =>
         set((s) => ({ stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: "How do I… (about owlit)", focusTick: s.focusTick + 1 })),
       showChat: (chatId) => set((s) => ({ chatId, stage: "open", fromNote: chatId === s.chatId ? s.fromNote : null, focusTick: s.focusTick + 1 })),
