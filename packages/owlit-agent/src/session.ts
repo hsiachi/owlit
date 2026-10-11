@@ -132,6 +132,11 @@ export class EngineSession {
     await this.init.toolbox.close()
   }
 
+  // The model and effort an agent of this session's starts with
+  current() {
+    return { model: this.model, thinking: this.thinking() }
+  }
+
   // A model without reasoning ignores the effort
   private thinking(): ThinkingLevel {
     return this.model.reasoning ? this.effort : "off"

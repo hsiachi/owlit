@@ -214,6 +214,28 @@ describe("Owlit engine", () => {
       expect(of("agent.wrote")).toEqual([expect.objectContaining({ path: "plan.md", chatId: "c1" })])
     }, 30_000)
 
+    it("hands work to agents of its own: each shown on its own, its edits asked for in its name", async () => {
+      const { start, send, said, updates, root } = await setup()
+      const { call } = await start()
+      await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+      const agent = (task: string, prompt: string) => `tool agent ${JSON.stringify({ task, prompt })}`
+      const turn = send(call, agent("Fix the notes", edit("notes.md", "twelve", "twenty")), { role: "assistant" })
+      const ask = await waitFor(updates, "permission_request")
+      // The agent's edit is asked for on its own session, so owlit knows whose it is
+      expect(ask).toMatchObject({ title: "Edit notes.md", agentId: expect.stringContaining(":agent:") })
+      await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "apply" })
+      expect(await turn).toEqual({ stopReason: "end_turn" })
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twenty chars")
+      // The chat's agent got the agent's report back as the tool's result
+      expect(said()).toBe("tool said: tool said: Changed notes.md.")
+      const saved = (await call("chats.get", { id: "c1" })).messages[1]
+      const shown = saved.parts.filter((p: any) => p.type === "agent")
+      expect(shown).toEqual([{ type: "agent", agentId: ask.agentId, title: "Fix the notes", status: "done", report: "tool said: Changed notes.md." }])
+      // The agent tool itself is no step; the agent's steps are its own
+      const steps = saved.parts.filter((p: any) => p.type === "tool_call")
+      expect(steps.map((p: any) => [p.title, p.agentId])).toEqual([["Edit notes.md", ask.agentId]])
+    }, 30_000)
+
     it("as Reviewer, reads but has no edit tools", async () => {
       const { start, send, said, root } = await setup()
       const { call } = await start()

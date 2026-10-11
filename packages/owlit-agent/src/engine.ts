@@ -9,6 +9,7 @@ import { systemPrompt } from "./prompt.ts"
 import { EngineSession } from "./session.ts"
 import { DEFAULT_ROLE, fileTools, type Role } from "./files.ts"
 import { connectTools, type Toolbox } from "./tools.ts"
+import { AGENT_TOOL, agentTool, agentToolInfo } from "./agents.ts"
 
 export const VERSION = "0.1.0-beta"
 
@@ -131,10 +132,34 @@ export class Engine implements acp.Agent {
     if (!available.length) throw acp.RequestError.authRequired()
     const mcp = await connectTools(servers, cwd, this.log)
     const allowed = background ? mcp.tools.filter((t) => background.some((pattern) => pattern.test(t.name))) : mcp.tools
-    const files = this.files && !background ? fileTools({ conn: this.conn, sessionId: id, cwd, role }) : { tools: [], infos: new Map() }
-    const toolbox: Toolbox = { tools: [...files.tools, ...allowed], info: (name) => files.infos.get(name) ?? mcp.info(name), close: mcp.close }
-    const prompt = systemPrompt({ role, background: !!background, workspace: cwd, userName, rules: mcp.instructions, today: new Date().toISOString().slice(0, 10) })
-    const session = new EngineSession({
+    const filesFor = (sessionId: string) => (this.files && !background ? fileTools({ conn: this.conn, sessionId, cwd, role }) : { tools: [], infos: new Map() })
+    const files = filesFor(id)
+    const context = { role, workspace: cwd, userName, rules: mcp.instructions, today: new Date().toISOString().slice(0, 10) }
+    const prompt = systemPrompt({ ...context, background: !!background })
+    // A chat's session can hand work to agents of its own (agents.ts); a background run and the agents
+    // themselves can't. An agent's file tools are made for its own session, so owlit sees whose they are.
+    let session: EngineSession | undefined
+    const agents = background
+      ? []
+      : [
+          agentTool({
+            conn: this.conn,
+            sessionId: id,
+            models: this.models,
+            current: () => session!.current(),
+            systemPrompt: systemPrompt({ ...context, background: false, agent: true }),
+            toolsFor: (agentSessionId) => {
+              const own = filesFor(agentSessionId)
+              return { tools: [...own.tools, ...allowed], info: (name) => own.infos.get(name) ?? mcp.info(name) }
+            },
+          }),
+        ]
+    const toolbox: Toolbox = {
+      tools: [...files.tools, ...allowed, ...agents],
+      info: (name) => (name === AGENT_TOOL ? agentToolInfo : (files.infos.get(name) ?? mcp.info(name))),
+      close: mcp.close,
+    }
+    session = new EngineSession({
       id,
       cwd,
       systemPrompt: prompt,
