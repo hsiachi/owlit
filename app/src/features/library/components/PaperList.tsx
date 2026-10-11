@@ -41,19 +41,25 @@ function useRowHandlers(paper: Paper, order: string[]) {
   }
 }
 
-// Star and ellipsis, shown while the row is hovered, focused or has its menu open
+// Star and ellipsis, shown while the row is hovered, focused or has its menu up. "Up" lasts until
+// the menu's fade-out ends: hiding the trigger as soon as the menu closes leaves the fading menu
+// anchored to nothing, and it jumps to the window's top-left corner.
 function RowActions({ paper, menuIds, className }: { paper: Paper; menuIds: string[]; className?: string }) {
   const toggleStar = useLibraryStore((s) => s.toggleStar)
+  const [menuUp, setMenuUp] = useState(false)
   return (
-    <span className={cn("hidden shrink-0 items-center group-hover/row:flex group-focus-within/row:flex has-data-[state=open]:flex", className)}>
+    <span
+      data-menu-up={menuUp || undefined}
+      className={cn("hidden shrink-0 items-center group-hover/row:flex group-focus-within/row:flex data-menu-up:flex", className)}
+    >
       <StarButton size="icon-xs" starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={(open) => open && setMenuUp(true)}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-xs" aria-label="More actions" className="text-muted-foreground hover:bg-foreground/8 data-[state=open]:bg-foreground/8">
             <EllipsisVerticalIcon />
           </Button>
         </DropdownMenuTrigger>
-        <PaperDropdownContent ids={menuIds} />
+        <PaperDropdownContent ids={menuIds} onCloseAutoFocus={() => setMenuUp(false)} />
       </DropdownMenu>
     </span>
   )
@@ -196,7 +202,7 @@ function TableRow({ paper, order, columns, snippet }: { paper: Paper; order: str
           {columns.has("status") && <td className={td}>{paper.status === "unread" ? "" : paper.status === "reading" ? "Reading" : "Read"}</td>}
           <td className={cn(td, "tabular-nums")}>
             {/* The date gives way to the row's actions on hover */}
-            <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">{formatAdded(paper.addedAt)}</span>
+            <span className="group-hover/row:hidden group-focus-within/row:hidden group-has-data-menu-up/row:hidden">{formatAdded(paper.addedAt)}</span>
             <RowActions paper={paper} menuIds={menuIds} className="-my-1 -mr-1.5 justify-end" />
           </td>
         </tr>

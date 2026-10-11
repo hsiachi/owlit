@@ -157,14 +157,17 @@ export function PaperDropdownContent({
   ids,
   afterRemove,
   align = "end",
+  onCloseAutoFocus,
 }: {
   ids: string[]
   afterRemove?: () => void
   align?: "start" | "end"
+  // Fires once the menu has finished closing, fade-out included
+  onCloseAutoFocus?: (event: Event) => void
 }) {
   const sections = useMenuSections(usePapers(ids), afterRemove)
   return (
-    <DropdownMenuContent align={align} className="w-48">
+    <DropdownMenuContent align={align} className="w-48" onCloseAutoFocus={onCloseAutoFocus}>
       {renderSections(sections, dropdownKit)}
     </DropdownMenuContent>
   )

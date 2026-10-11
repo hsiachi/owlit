@@ -225,6 +225,8 @@ function TopicRow({ topic }: { topic: Topic }) {
   const side = useKnowledgeStore((s) => s.topics[topic.id])
   const fresh = !!side && changedSince(topic, side).length > 0
   const menu = useTopicMenu(topic)
+  // The ⋯ stays laid out until its menu has faded out; see RowActions in the Library's PaperList
+  const [menuUp, setMenuUp] = useState(false)
 
   if (renaming) {
     return (
@@ -247,21 +249,30 @@ function TopicRow({ topic }: { topic: Topic }) {
         {fresh && <NoteDot className="-ml-0.5" label="Changed since you last looked" />}
         <span className={cn("shrink-0 truncate", topic.archived && "text-muted-foreground")}>{topic.name}</span>
         <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{topic.summary}</span>
-        <span className="shrink-0 pr-1.5 text-[13px] text-muted-foreground group-hover/row:hidden group-focus-within/row:hidden group-has-data-[state=open]/row:hidden">
+        <span className="shrink-0 pr-1.5 text-[13px] text-muted-foreground group-hover/row:hidden group-focus-within/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(topic.updatedAt)}
         </span>
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => open && setMenuUp(true)}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon-xs"
               aria-label="Topic actions"
-              className="hidden text-muted-foreground group-hover/row:flex group-focus-within/row:flex hover:bg-foreground/8 data-[state=open]:flex data-[state=open]:bg-foreground/8"
+              data-menu-up={menuUp || undefined}
+              className="hidden text-muted-foreground group-hover/row:flex group-focus-within/row:flex hover:bg-foreground/8 data-menu-up:flex data-[state=open]:bg-foreground/8"
             >
               <EllipsisVerticalIcon />
             </Button>
           </DropdownMenuTrigger>
-          <ActionsDropdownContent groups={menu} align="end" className="w-48" />
+          <ActionsDropdownContent
+            groups={menu}
+            align="end"
+            className="w-48"
+            onCloseAutoFocus={(e) => {
+              e.preventDefault()
+              setMenuUp(false)
+            }}
+          />
         </DropdownMenu>
       </div>
     </ActionsOnRightClick>
