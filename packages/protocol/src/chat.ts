@@ -119,7 +119,8 @@ export interface PermissionOption {
 }
 
 export type MessagePart =
-  | { type: "text"; text: string }
+  // messageId: the agent's own message this text belongs to, when it says (a new one starts a new paragraph)
+  | { type: "text"; text: string; messageId?: string }
   | { type: "thought"; text: string }
   | {
       type: "tool_call"
@@ -284,7 +285,7 @@ export interface Connector {
 // ---- Session updates streamed from an agent (ACP SessionUpdate subset) ----
 
 export type SessionUpdate =
-  | { type: "agent_message_chunk"; text: string }
+  | { type: "agent_message_chunk"; text: string; messageId?: string }
   | { type: "agent_thought_chunk"; text: string }
   | {
       type: "tool_call"

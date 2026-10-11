@@ -666,7 +666,7 @@ function toolContent(call: { content?: acp.ToolCallContent[] | null; locations?:
 export function toUpdate(u: acp.SessionUpdate, root: string): SessionUpdate | null {
   switch (u.sessionUpdate) {
     case "agent_message_chunk":
-      return u.content.type === "text" ? { type: "agent_message_chunk", text: u.content.text } : null
+      return u.content.type === "text" ? { type: "agent_message_chunk", text: u.content.text, ...(u.messageId ? { messageId: u.messageId } : {}) } : null
     case "agent_thought_chunk":
       return u.content.type === "text" ? { type: "agent_thought_chunk", text: u.content.text } : null
     case "tool_call": {

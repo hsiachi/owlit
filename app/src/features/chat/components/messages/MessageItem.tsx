@@ -12,6 +12,7 @@ import { MentionBadge } from "../composer/MentionBadge"
 import { unansweredSentence } from "../../lib/step-words"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultCard } from "./ResultRows"
+import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
 
 function messageText(m: ChatMessage) {
   return m.parts
@@ -89,17 +90,32 @@ const timeOf = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digi
 
 // Fold consecutive thoughts and tool calls into one steps block; everything else stays a part.
 // A permission or question belongs to its tool call's row (waiting, then its outcome), so the steps on
-// either side of it merge; its buttons are above the composer.
-type Segment = { type: "steps"; key: string; parts: StepPart[] } | { type: "part"; key: string; part: Exclude<MessagePart, StepPart> }
-function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[]; asks: StepAsks } {
+// either side of it merge; its buttons are above the composer. The agents the answering agent handed work
+// to sit together where they were handed out, and their steps go to them, not into the answer's steps.
+type Segment =
+  | { type: "steps"; key: string; parts: StepPart[] }
+  | { type: "agents"; key: string; agents: AgentPart[] }
+  | { type: "part"; key: string; part: Exclude<MessagePart, StepPart | AgentPart> }
+function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[]; asks: StepAsks; byAgent: Record<string, StepPart[]> } {
   const toolCallIds = new Set(parts.flatMap((p) => (p.type === "tool_call" ? [p.toolCallId] : [])))
   const asks: StepAsks = { outcomes: {}, questions: {} }
+  const byAgent: Record<string, StepPart[]> = {}
   const out: Segment[] = []
   parts.forEach((p, i) => {
     if ((p.type === "permission" || p.type === "question") && p.toolCallId && toolCallIds.has(p.toolCallId)) {
       if (p.type === "permission" && p.outcome) asks.outcomes[p.toolCallId] = p.outcome
       if (p.type === "question") asks.questions[p.toolCallId] = p
       if (!p.outcome && streaming) asks.waiting = p.toolCallId
+      return
+    }
+    if (p.type === "tool_call" && p.agentId) {
+      ;(byAgent[p.agentId] ??= []).push(p)
+      return
+    }
+    if (p.type === "agent") {
+      const last = out[out.length - 1]
+      if (last?.type === "agents") last.agents.push(p)
+      else out.push({ type: "agents", key: `agents-${i}`, agents: [p] })
       return
     }
     if (p.type === "thought" || p.type === "tool_call") {
@@ -110,7 +126,7 @@ function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[
       out.push({ type: "part", key: p.type === "permission" || p.type === "question" ? p.requestId : `${p.type}-${i}`, part: p })
     }
   })
-  return { segments: out, asks }
+  return { segments: out, asks, byAgent }
 }
 
 // Split "@[label]" markers out of the text so they can render as chips
@@ -177,14 +193,20 @@ export function AssistantMessage({
   const streaming = message.status === "streaming"
   const last = message.parts[message.parts.length - 1]
   const text = messageText(message)
-  const { segments, asks } = segment(message.parts, streaming)
+  const { segments, asks, byAgent } = segment(message.parts, streaming)
   const waiting = streaming && message.parts.some((p) => (p.type === "permission" || p.type === "question") && !p.outcome)
+  // The last block of agents still at work, for the reply's last line
+  const working = streaming ? message.parts.filter((p) => p.type === "agent" && p.status === "working").length : 0
+  const workingBlock = working ? [...segments].reverse().find((s) => s.type === "agents" && s.agents.some((a) => a.status === "working")) : undefined
+  const agentWaiting = waiting && message.parts.some((p) => (p.type === "permission" || p.type === "question") && !p.outcome && !!p.agentId)
+  const blockId = (key: string) => `${message.id}-${key}`
   return (
     <Message className="text-[15px]">
       <MessageContent className="gap-3">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1
           if (seg.type === "steps") return <StepsPart key={seg.key} parts={seg.parts} active={streaming && isLast && !waiting} streaming={streaming} asks={asks} />
+          if (seg.type === "agents") return <AgentsPart key={seg.key} id={blockId(seg.key)} agents={seg.agents} stepsOf={(id) => byAgent[id] ?? []} streaming={streaming} asks={asks} />
           const { part } = seg
           switch (part.type) {
             case "text":
@@ -196,7 +218,8 @@ export function AssistantMessage({
               return <LooseAskPart key={seg.key} part={part} waiting={streaming && !part.outcome} />
           }
         })}
-        {streaming && !waiting && (!last || last.type === "plan" || last.type === "permission" || last.type === "question") && (
+        {workingBlock && <AgentsWaitLine blockId={blockId(workingBlock.key)} working={working} waiting={agentWaiting} />}
+        {!workingBlock && streaming && !waiting && (!last || last.type === "plan" || last.type === "permission" || last.type === "question" || last.type === "agent" || (last.type === "tool_call" && !!last.agentId)) && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Spinner className="size-3.5" />
             Working…

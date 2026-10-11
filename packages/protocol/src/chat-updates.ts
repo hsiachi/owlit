@@ -20,8 +20,10 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
   const last = parts[parts.length - 1]
   switch (u.type) {
     case "agent_message_chunk":
-      if (last?.type === "text") return [...parts.slice(0, -1), { ...last, text: last.text + u.text }]
-      return [...parts, { type: "text", text: u.text }]
+      // Two of the agent's messages in a row (Claude Code writes one each time an agent of its reports
+      // back) stay two paragraphs rather than running into one another
+      if (last?.type === "text" && (!u.messageId || !last.messageId || last.messageId === u.messageId)) return [...parts.slice(0, -1), { ...last, text: last.text + u.text }]
+      return [...parts, { type: "text", text: u.text, ...(u.messageId ? { messageId: u.messageId } : {}) }]
     case "agent_thought_chunk":
       if (last?.type === "thought") return [...parts.slice(0, -1), { ...last, text: last.text + u.text }]
       return [...parts, { type: "thought", text: u.text }]
