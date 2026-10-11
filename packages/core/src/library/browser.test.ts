@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { NeedsUser, type BrowserHost, type BrowserRequest } from "../host.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, siteOf, throughProxy } from "./browser-routes.ts"
+import { browserRoutes, pdfLinkOn, siteOf, throughProxy } from "./browser-routes.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
 
@@ -39,6 +39,23 @@ describe("browser routes", () => {
     expect(browserRoutes("10.1111/x", undefined)[0].name).toBe("browser:wiley")
     expect(siteOf("www.ncbi.nlm.nih.gov")).toBe("nih.gov")
     expect(siteOf("www.ucl.ac.uk")).toBe("ucl.ac.uk")
+  })
+
+  it("takes the page's own PDF link when it has no citation_pdf_url", () => {
+    // APA PsycNet's full-text page, as it was on 2026-10-11
+    const page = "https://psycnet.apa.org/fulltext/2025-04548-001.html"
+    expect(
+      pdfLinkOn(page, [
+        { text: "Supplemental Materials", href: "https://supp.apa.org/psycarticles/supplemental/xap0000515/supp.pdf" },
+        { text: "\n  PDF\n", href: "https://psycnet.apa.org/fulltext/2025-04548-001.pdf" },
+      ]),
+    ).toBe("https://psycnet.apa.org/fulltext/2025-04548-001.pdf")
+    expect(pdfLinkOn("https://example.org/article/1", [{ text: "Download PDF", href: "/article/1.pdf" }])).toBe("https://example.org/article/1.pdf")
+    // Only a link labelled PDF, to a .pdf on the page's own site
+    expect(pdfLinkOn(page, [{ text: "PDF", href: "https://elsewhere.com/a.pdf" }])).toBeUndefined()
+    expect(pdfLinkOn(page, [{ text: "Author guidelines (PDF)", href: "https://psycnet.apa.org/guide.pdf" }])).toBeUndefined()
+    expect(pdfLinkOn(page, [{ text: "PDF", href: "https://psycnet.apa.org/buy?item=1" }])).toBeUndefined()
+    expect(pdfLinkOn(page, [{ text: "PDF", href: "javascript:void(0)" }])).toBeUndefined()
   })
 
   it("rewrites a host for an EZproxy that works by host names", () => {

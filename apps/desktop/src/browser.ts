@@ -4,7 +4,7 @@
 // (core notes it for Check now). With the user there, the page shows inside owlit's own window, in the
 // room the renderer reserved for it, and waits for them.
 
-import { NeedsUser, type BrowserHost, type BrowserRequest } from "@owlit/core"
+import { NeedsUser, pdfLinkOn, type BrowserHost, type BrowserRequest } from "@owlit/core"
 import { app, BrowserWindow, session as electronSession, WebContentsView, type Rectangle, type WebContents } from "electron"
 
 const PARTITION = "persist:owlit-browser"
@@ -14,6 +14,8 @@ const SETTLE_MS = 20_000
 // With the user: how long the page may be out of sight (the renderer reloaded, the paper was left
 // without a goodbye) before the run gives up on them
 const AWAY_MS = 30_000
+// A page without citation_pdf_url: how long its own PDF link may take to appear
+const PDF_LINK_WAIT_MS = 15_000
 
 // Cloudflare and the like put these in the title or the page. Only the interstitial's own markers:
 // Cloudflare loads /cdn-cgi/challenge-platform/ scripts on ordinary article pages too, and pages embed
@@ -301,7 +303,8 @@ async function pageState(contents: WebContents): Promise<PageState> {
   return "ok"
 }
 
-// The PDF's address on this page: the one asked for (rebased onto a proxy's host), or citation_pdf_url
+// The PDF's address on this page: the one asked for (rebased onto a proxy's host), citation_pdf_url, or
+// the page's own PDF link
 async function pdfAddress(contents: WebContents, request: BrowserRequest) {
   const page = contents.getURL()
   if (request.pdf) {
@@ -312,8 +315,20 @@ async function pdfAddress(contents: WebContents, request: BrowserRequest) {
     pdf.host = at.host
     return pdf.toString()
   }
-  const found = await contents.executeJavaScript(`document.querySelector('meta[name="citation_pdf_url"]')?.content ?? null`, true).catch(() => null)
-  return typeof found === "string" && found ? new URL(found, page).toString() : undefined
+  // A page that builds itself by script (APA PsycNet) has its PDF link only seconds after it loaded:
+  // look again for a while before saying it has none
+  const until = Date.now() + PDF_LINK_WAIT_MS
+  for (;;) {
+    if (contents.isDestroyed() || request.signal.aborted) return undefined
+    const found = await contents.executeJavaScript(`document.querySelector('meta[name="citation_pdf_url"]')?.content ?? null`, true).catch(() => null)
+    if (typeof found === "string" && found) return new URL(found, contents.getURL()).toString()
+    const links = await contents
+      .executeJavaScript(`[...document.querySelectorAll('a[href]')].map((a) => ({ text: a.textContent ?? "", href: a.href }))`, true)
+      .catch(() => [])
+    const link = pdfLinkOn(contents.getURL(), Array.isArray(links) ? links : [])
+    if (link || Date.now() >= until) return link
+    await new Promise((r) => setTimeout(r, 1000))
+  }
 }
 
 // The page's own session fetches it, cookies and all
