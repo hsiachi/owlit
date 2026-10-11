@@ -19,6 +19,20 @@ describe("Http", () => {
     expect(calls[0].headers["user-agent"]).toBe("owlit-test")
   })
 
+  it("doesn't retry a 429 from a used-up daily allowance, and says when it comes back", async () => {
+    const used = { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "7200" }
+    const { fetch, calls } = fakeFetch(() => new Response("", { status: 429, headers: used }))
+    const http = new Http({ fetch, userAgent: "t", retryBaseMs: 1 })
+    await expect(http.get("https://api.openalex.org/works?search=x")).rejects.toMatchObject({ status: 429, quotaResetIn: 7200 })
+    expect(calls).toHaveLength(1)
+    // Some credits left but fewer than the request needs is used up too
+    const short = fakeFetch(() => new Response("", { status: 429, headers: { "x-ratelimit-remaining": "4", "x-ratelimit-credits-required": "10", "x-ratelimit-reset": "600" } }))
+    await expect(new Http({ fetch: short.fetch, userAgent: "t", retryBaseMs: 1 }).get("https://api.openalex.org/works")).rejects.toMatchObject({ quotaResetIn: 600 })
+    // A quota back within a minute is a burst: retried as before
+    const burst = fakeFetch((_, n) => (n < 2 ? new Response("", { status: 429, headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1" } }) : Response.json({ ok: 1 })))
+    expect(await new Http({ fetch: burst.fetch, userAgent: "t", retryBaseMs: 1 }).json("https://api.openalex.org/works")).toEqual({ ok: 1 })
+  })
+
   it("doesn't retry a 404 and says so in a sentence", async () => {
     const { fetch, calls } = fakeFetch(() => new Response("", { status: 404 }))
     const http = new Http({ fetch, userAgent: "t", retryBaseMs: 1 })

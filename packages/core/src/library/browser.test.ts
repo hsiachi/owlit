@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { NeedsUser, type BrowserHost, type BrowserRequest } from "../host.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, throughProxy } from "./browser-routes.ts"
+import { browserRoutes, siteOf, throughProxy } from "./browser-routes.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
 
@@ -19,6 +19,26 @@ describe("browser routes", () => {
     ])
     expect(routes[1].allowHosts).toContain("tlink.lib.tsinghua.edu.cn")
     expect(browserRoutes("10.9999/x", undefined)).toMatchObject([{ name: "browser:doi", landing: "https://doi.org/10.9999/x" }])
+  })
+
+  it("follows the site a DOI is registered to, and lets the page go there", () => {
+    // A journal that moved to SAGE keeps its 10.1111 (Wiley) DOIs
+    expect(browserRoutes("10.1111/j.0963-7214.2005.00355.x", undefined, "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x")).toMatchObject([
+      { name: "browser:sage", landing: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x", pdf: "https://journals.sagepub.com/doi/pdf/10.1111/j.0963-7214.2005.00355.x" },
+    ])
+    // ACL's old DOIs live in the ACM's library
+    expect(browserRoutes("10.3115/1654595.1654614", undefined, "http://portal.acm.org/citation.cfm?doid=1654595.1654614")[0]).toMatchObject({ name: "browser:acm", landing: "https://dl.acm.org/doi/10.3115/1654595.1654614" })
+    // One that moved to OUP, which has no row: through doi.org, and OUP may be visited
+    const oup = browserRoutes("10.1007/s12160-016-9830-8", undefined, "https://academic.oup.com/abm/article/52/6/446/4733473")[0]
+    expect(oup).toMatchObject({ name: "browser:doi", landing: "https://doi.org/10.1007/s12160-016-9830-8" })
+    expect(oup.allowHosts).toContain("oup.com")
+    // doi.org sending the reader to BMJ or APA no longer stops at a host it doesn't know
+    expect(browserRoutes("10.1136/qhc.12.4.304", undefined, "https://qualitysafety.bmj.com/lookup/doi/10.1136/qhc.12.4.304")[0].allowHosts).toContain("bmj.com")
+    expect(browserRoutes("10.1037/0022-3514.54.4.569", undefined, "https://doi.apa.org/doi/10.1037/0022-3514.54.4.569")[0].allowHosts).toContain("apa.org")
+    // Not known: the prefix decides, as before
+    expect(browserRoutes("10.1111/x", undefined)[0].name).toBe("browser:wiley")
+    expect(siteOf("www.ncbi.nlm.nih.gov")).toBe("nih.gov")
+    expect(siteOf("www.ucl.ac.uk")).toBe("ucl.ac.uk")
   })
 
   it("rewrites a host for an EZproxy that works by host names", () => {
@@ -47,14 +67,19 @@ function fakeBrowser(answer: (request: BrowserRequest) => Promise<Uint8Array>) {
   return { browser, asked }
 }
 
-async function setup(browser: BrowserHost, library: object = {}) {
+async function setup(browser: BrowserHost, library: object = {}, registered: Record<string, string> = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-browser-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
   mkdirSync(path.join(base, "userData"))
   writeFileSync(path.join(base, "userData/settings.json"), JSON.stringify({ version: 1, recentWorkspaces: [], library }))
-  // The plain routes get the publisher's sign-in page
-  const fetch = (async () => new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
+  // The plain routes get the publisher's sign-in page; doi.org's handle records say where a DOI is
+  // registered when the test gives any
+  const fetch = (async (url: string) => {
+    const doi = decodeURIComponent(url.match(/doi\.org\/api\/handles\/([^?]+)/)?.[1] ?? "")
+    if (registered[doi]) return Response.json({ responseCode: 1, values: [{ type: "URL", data: { value: registered[doi] } }] })
+    return new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })
+  }) as unknown as typeof globalThis.fetch
   const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch, browser }, retryBaseMs: 1 })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
@@ -84,6 +109,16 @@ describe("paper.pdf.browser", () => {
       "publisher:acm",
       "browser:acm",
     ])
+  })
+
+  it("goes where the DOI is registered rather than where its prefix says", async () => {
+    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
+    const moved = { id: "doi-10.1111-j.0963-7214.2005.00355.x", title: "Affective Forecasting", authors: [], ids: { doi: "10.1111/j.0963-7214.2005.00355.x" } }
+    const { call } = await setup(browser, {}, { [moved.ids.doi]: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x" })
+    await call("library.add", { paper: moved })
+    expect((await call("library.fetchPdf", { id: moved.id })).pdf).toBeDefined()
+    expect(asked[0]).toMatchObject({ landing: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x" })
+    expect(asked[0].allowHosts).toContain("sagepub.com")
   })
 
   it("tries the proxy when the publisher's page gives nothing directly", async () => {

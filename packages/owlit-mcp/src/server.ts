@@ -110,6 +110,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         {
           ...paper,
           pdf: !!paper.pdf,
+          ...(paper.pdf ? {} : { noPdf: pdfFact(paper) }),
           highlights: highlights.length,
           note: notes.some((n) => n.paperId === paper.id && n.content.trim()),
           cite: `[${citeAs(paper)}](owlit://library/${paper.id})`,
@@ -322,11 +323,26 @@ function paperLine(p: Paper) {
     p.status,
     p.starred ? "starred" : "",
     p.tags.length ? `tags: ${p.tags.join(" ")}` : "",
-    p.pdf ? "" : "no PDF",
+    pdfFact(p),
     p.text === "full" ? "full text" : "",
     p.hasDigest ? "digest" : "",
   ].filter(Boolean)
   return `- ${p.id} · ${p.title} · ${[shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", ")} · ${facts.join(", ")}`
+}
+
+// Why a paper has no PDF, in words an agent can pass on. A bare "no PDF" had an agent tell the user to
+// set up the library proxy they already had (2026-10-10), and say nothing of the papers waiting on a
+// Check now.
+export function pdfFact(p: Pick<Paper, "pdf" | "noPdf" | "ids">) {
+  if (p.pdf) return ""
+  if (!p.noPdf) return "no PDF yet (still looking)"
+  if (p.noPdf.needs === "check") return "no PDF: the publisher wants a person to pass a check; the user can press Check now on the paper (the Library's Needs you filter lists these)"
+  if (p.noPdf.needs === "sign-in") return "no PDF: waiting for the user to sign in to the library or publisher; the user can press Check now on the paper"
+  const { tried } = p.noPdf
+  if (tried.some((r) => r.endsWith(":proxied"))) return "no PDF: no free copy, and the user's library proxy didn't get it either; the user can drop the PDF on the paper"
+  if (tried.some((r) => r.startsWith("browser:"))) return "no PDF: no free copy, and no library proxy is set up ([Settings › Library proxy](owlit://settings/proxy))"
+  if (p.ids.doi || p.ids.arxiv) return "no PDF: owlit couldn't download it; the user can drop the PDF on the paper"
+  return "no PDF: no free copy, and without a DOI owlit can't ask the publisher; the user can drop the PDF on the paper"
 }
 
 function shortAuthors(authors: string[]) {

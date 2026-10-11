@@ -25,11 +25,14 @@ export interface RequestOptions {
 export class HttpError extends Error {
   readonly status: number
   readonly url: string
-  constructor(status: number, url: string, message: string) {
+  // A 429 from a used-up quota: seconds until it comes back
+  readonly quotaResetIn?: number
+  constructor(status: number, url: string, message: string, quotaResetIn?: number) {
     super(message)
     this.name = "HttpError"
     this.status = status
     this.url = url
+    if (quotaResetIn !== undefined) this.quotaResetIn = quotaResetIn
   }
 }
 
@@ -80,6 +83,9 @@ export class Http {
         if (response.ok) return response
         await response.body?.cancel().catch(() => {})
         if (response.status !== 429 && response.status < 500) throw new HttpError(response.status, url, describe(response.status, url))
+        // A daily allowance that's used up won't come back on a retry (OpenAlex's resets at midnight UTC)
+        const quota = response.status === 429 ? quotaResetIn(response) : undefined
+        if (quota !== undefined) throw new HttpError(429, url, `${hostOf(url)}'s allowance is used up for now.`, quota)
         if (attempt >= retries) throw new HttpError(response.status, url, describe(response.status, url))
         wait = retryAfter(response) ?? this.retryBaseMs * 2 ** attempt
       } catch (error) {
@@ -175,6 +181,16 @@ function describe(status: number, url: string) {
   if (status === 429) return `${host} is asking owlit to slow down.`
   if (status >= 500) return `${host} is having trouble right now.`
   return `${host} answered ${status}.`
+}
+
+// Seconds until the quota comes back, when a 429 says none is left and it won't be back within a minute:
+// X-RateLimit-Remaining 0 (or the credits a request needs above what's left) and X-RateLimit-Reset
+function quotaResetIn(response: Response) {
+  const remaining = Number(response.headers.get("x-ratelimit-remaining") ?? NaN)
+  const required = Number(response.headers.get("x-ratelimit-credits-required") ?? NaN)
+  const reset = Number(response.headers.get("x-ratelimit-reset") ?? NaN)
+  const empty = remaining === 0 || (Number.isFinite(required) && Number.isFinite(remaining) && required > remaining)
+  return empty && Number.isFinite(reset) && reset > 60 ? reset : undefined
 }
 
 // Retry-After in seconds or as a date, capped at a minute
