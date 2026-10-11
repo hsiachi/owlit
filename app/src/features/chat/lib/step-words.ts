@@ -236,6 +236,9 @@ const LIVE: Record<string, string> = {
 
 const count = (n: number) => (n === 2 ? "twice" : `${n} times`)
 
+// Groups whose phrase counts files ("edited 3 files"), so a file worked on twice is counted once
+const FILE_GROUPS = new Set(["read", "edit", "write"])
+
 // What a group of n steps did, in a lower-case phrase ("read 3 files"); `one` is the step itself when alone
 export function groupPhrase(group: string, n: number, one?: string) {
   if (n === 1 && one) return lower(one)
@@ -259,11 +262,16 @@ export function blockSentence(calls: ToolCall[], questionsOf: (call: ToolCall) =
   const counted = shown.filter((x) => x.c.status === "completed" || !["edit", "write"].includes(x.w.group))
   if (counted.length === 0) return said(shown[0])
   if (counted.length === 1) return said(counted[0])
-  const groups = new Map<string, { n: number; one: string }>()
+  // Steps on files count the files, not the steps: two edits of draft.md are "Read and edited draft.md",
+  // not "Read draft.md and edited 2 files". A step that names no file ("a file") counts as its own.
+  const groups = new Map<string, { n: number; one: string; seen: Set<string> }>()
   for (const { w } of counted) {
     const g = groups.get(w.group)
-    if (g) g.n++
-    else groups.set(w.group, { n: 1, one: w.done })
+    if (!g) groups.set(w.group, { n: 1, one: w.done, seen: new Set([w.done]) })
+    else if (!FILE_GROUPS.has(w.group) || !g.seen.has(w.done) || w.done.endsWith(" a file")) {
+      g.n++
+      g.seen.add(w.done)
+    }
   }
   if (groups.size > 3) return `Took ${shown.length} steps`
   // Single steps on one file name it once ("Read and edited story.md")
