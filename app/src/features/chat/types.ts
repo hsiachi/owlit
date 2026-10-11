@@ -22,6 +22,7 @@ export type {
   Role,
   AgentEffort,
   Connector,
+  SignIn,
   SessionUpdate,
   StopReason,
   PromptInput,
