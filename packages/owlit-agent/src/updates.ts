@@ -11,6 +11,8 @@ export interface ToolInfo {
   kind: ToolKind
   // The files it touches, so owlit can tell which chat changed them
   locations?: (args: Record<string, unknown> | undefined) => string[]
+  // Not shown as a step (the agent tool: owlit shows the agent itself)
+  hidden?: boolean
 }
 
 export function updatesFor(event: AgentEvent, tools: (name: string) => ToolInfo | undefined): SessionUpdate[] {
@@ -23,11 +25,13 @@ export function updatesFor(event: AgentEvent, tools: (name: string) => ToolInfo 
     }
     case "tool_execution_start": {
       const tool = tools(event.toolName)
+      if (tool?.hidden) return []
       const title = typeof tool?.title === "function" ? tool.title(event.args) : (tool?.title ?? event.toolName)
       const locations = tool?.locations?.(event.args).map((path) => ({ path }))
       return [{ sessionUpdate: "tool_call", toolCallId: event.toolCallId, title, kind: tool?.kind ?? "other", status: "in_progress", rawInput: event.args, ...(locations?.length ? { locations } : {}) }]
     }
     case "tool_execution_end": {
+      if (tools(event.toolName)?.hidden) return []
       const text = resultText(event.result)
       return [
         {
