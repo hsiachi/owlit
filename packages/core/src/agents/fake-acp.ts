@@ -8,6 +8,9 @@
 //   "agents"           hands work to two agents of its own in sessions of their own, as Claude Code does once
 //                      owlit says it understands subagents: one reads and hands a report back, the other asks
 //                      to edit (on its own session) and reports what the user chose
+//   "after the turn"   as Claude Code after background agents: starts an agent, ends its turn, and only then
+//                      hears the agent finish and gives the real answer, with no prompt open
+//   "after the turn, slowly"  the same, but that answer streams for a few seconds (to be stopped)
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "crash"            exits mid-turn
@@ -175,6 +178,30 @@ class FakeAgent implements acp.Agent {
         await step("agent-b", { sessionUpdate: "tool_call", toolCallId: "b2", title: "SubagentHandback", kind: "other", status: "pending", rawInput: { message: `The user chose ${chose}.` }, _meta: meta("SubagentHandback", "toolu_b") })
         await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-b", state: "completed" })
         await say("both agents are done")
+        return { stopReason: "end_turn" }
+      }
+      if (text.includes("after the turn")) {
+        const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
+        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-l", name: "Count the words", task: "wc -w notes.md", capabilities: {} })
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m1", content: { type: "text", text: "I'm waiting on the agent." } } })
+        const slow = text.includes("slowly")
+        // What comes after the turn can be stopped like a turn
+        const after = new AbortController()
+        setTimeout(async () => {
+          session.turn = after
+          try {
+            await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-l", state: "completed" })
+            await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m2", content: { type: "text", text: "The file has " } } })
+            for (let i = 0; i < (slow ? 50 : 1); i++) {
+              await sleep(slow ? 100 : 20, after.signal)
+              await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m2", content: { type: "text", text: slow ? `${i} ` : "two words." } } })
+            }
+          } catch {
+            // Stopped
+          } finally {
+            if (session.turn === after) session.turn = null
+          }
+        }, 150)
         return { stopReason: "end_turn" }
       }
       if (text.includes("permission")) {

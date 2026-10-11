@@ -283,7 +283,8 @@ export const useChatStore = create<ChatState>()(
             controller.signal,
           )
           if (stop === "cancelled") ended = "cancelled"
-          patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done", finishedAt: Date.now() }), true)
+          // Unless the agent has already taken the reply up again (lateReply), which has the reply as it is
+          if (!late.has(chatId)) patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done", finishedAt: Date.now() }), true)
         } catch (e) {
           ended = "failed"
           // Core may say more than its sentence: how the agent's process ended, for Details
@@ -304,16 +305,20 @@ export const useChatStore = create<ChatState>()(
           // showed only its first letter), and this side never hears it again
           if (agentClient.persistsMessages && isDesktop) {
             const saved = (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === assistantMsg.id)
-            if (saved && saved.status !== "streaming") patchAssistant(() => saved)
+            if (saved && saved.status !== "streaming" && !late.has(chatId)) patchAssistant(() => saved)
           }
           inflight.delete(chatId)
           over.delete(chatId)
-          // Work handed off goes on without anyone watching; how it ended waits on its row until seen
-          if (get().chats[chatId]) useSeenStore.getState().ended(chatId, ended)
-          set((s) => {
-            const { [chatId]: _done, ...rest } = s.streaming
-            return { streaming: rest }
-          })
+          // The agent took the reply up again before its turn was over here: it runs on as that
+          if (late.has(chatId)) followLate(chatId)
+          else {
+            // Work handed off goes on without anyone watching; how it ended waits on its row until seen
+            if (get().chats[chatId]) useSeenStore.getState().ended(chatId, ended)
+            set((s) => {
+              const { [chatId]: _done, ...rest } = s.streaming
+              return { streaming: rest }
+            })
+          }
           endTurn()
         }
       },
@@ -424,6 +429,67 @@ export const useChatStore = create<ChatState>()(
     },
   ),
 )
+
+// ---- Replies the agent takes up again ----
+
+// An agent may go on after its turn has ended (Claude Code writes its answer once its background agents
+// report back, after its prompt has come back): core opens the chat's last reply again, says so with
+// chat.lateReply, streams what the agent adds as chat.update for that reply, and says again when it ends.
+// Here it runs as a turn does: the chat is working, Stop stops it (core cancels the agent's session), what
+// the user types waits for it, and a reply that finished while nobody looked keeps its mark until seen.
+
+// Chat → its reply that is open again
+const late = new Map<string, string>()
+// The stand-in for a turn's controller and end while a reply is open again, as send keeps them
+const lateRuns = new Map<string, { controller: AbortController; end: () => void }>()
+
+function patchMessage(chatId: string, messageId: string, fn: (m: ChatMessage) => ChatMessage) {
+  useChatStore.setState((s) => {
+    const c = s.chats[chatId]
+    if (!c || !c.messages.some((m) => m.id === messageId)) return s
+    return { chats: { ...s.chats, [chatId]: { ...c, messages: c.messages.map((m) => (m.id === messageId ? fn(m) : m)) } } }
+  })
+}
+
+function followLate(chatId: string) {
+  const controller = new AbortController()
+  controller.signal.addEventListener("abort", () => void rpc.agents.cancel({ chatId }).catch(() => undefined))
+  let end = () => {}
+  over.set(chatId, new Promise<void>((resolve) => (end = resolve)))
+  inflight.set(chatId, controller)
+  lateRuns.set(chatId, { controller, end })
+  useChatStore.setState((s) => ({ streaming: { ...s.streaming, [chatId]: true } }))
+}
+
+function lateReply(chatId: string, message: ChatMessage) {
+  patchMessage(chatId, message.id, () => message)
+  if (message.status === "streaming") {
+    late.set(chatId, message.id)
+    // A turn sent from here that hasn't seen its end yet hands over when it does (send)
+    if (!inflight.has(chatId) && useChatStore.getState().chats[chatId]) followLate(chatId)
+    return
+  }
+  if (late.get(chatId) === message.id) late.delete(chatId)
+  const run = lateRuns.get(chatId)
+  if (!run) return
+  lateRuns.delete(chatId)
+  if (inflight.get(chatId) !== run.controller) return
+  inflight.delete(chatId)
+  over.delete(chatId)
+  if (useChatStore.getState().chats[chatId]) useSeenStore.getState().ended(chatId, message.status === "cancelled" ? "cancelled" : message.status === "error" ? "failed" : "finished")
+  useChatStore.setState((s) => {
+    const { [chatId]: _done, ...rest } = s.streaming
+    return { streaming: rest }
+  })
+  run.end()
+}
+
+if (isDesktop) {
+  onNotify("chat.lateReply", ({ chatId, message }) => lateReply(chatId, message))
+  onNotify("chat.update", ({ chatId, messageId, update }) => {
+    if (late.get(chatId) === messageId) patchMessage(chatId, messageId, (m) => ({ ...m, parts: applyUpdate(m.parts, update) }))
+  })
+}
 
 // ---- Local agents, from core ----
 

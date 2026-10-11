@@ -385,8 +385,11 @@ export interface Notifications {
   "docs.changed": DocsChange
   // An agent's state changed (it started, ended, crashed, was checked)
   "agents.changed": Connector
-  // One streamed update of a chat's running turn
-  "chat.update": { chatId: string; update: SessionUpdate }
+  // One streamed update of a chat's running turn, for that turn's reply (messageId)
+  "chat.update": { chatId: string; messageId: string; update: SessionUpdate }
+  // A reply that had ended was opened again because the agent went on after its turn, or that reply ended
+  // again: the reply as core has it (status "streaming" while it runs). What it adds streams as chat.update.
+  "chat.lateReply": { chatId: string; message: ChatMessage }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it

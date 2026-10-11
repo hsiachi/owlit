@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
-import { cannotRead, sendsPictures } from "./profiles.ts"
+import { cannotRead, ownTurnOver, sendsPictures } from "./profiles.ts"
 import { attachmentBlocks, promptBlocks } from "./turns.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
@@ -19,7 +19,7 @@ async function setup() {
   const root = path.join(base, "ws")
   mkdirSync(root)
   writeFileSync(path.join(root, "notes.md"), "twelve chars")
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: path.join(base, "userData"), lateQuietMs: 300 })
   cores.push(core)
   const updates: SessionUpdate[] = []
   core.onNotify((n: RpcNotification) => {
@@ -287,9 +287,10 @@ describe("turns", () => {
   })
 
   it("says a turn cut off by owlit closing was closed, not that the agent broke", async () => {
-    const { send, call, core } = await setup()
+    const { send, call, core, text } = await setup()
     const turn = send("slow please").catch((e) => e)
-    await sleep(400)
+    // Wait for the agent to be talking, not for a set time: starting it can take longer under load
+    while (!text()) await sleep(20)
     core.agents.dispose()
     const error = await turn
     expect(error.message).toBe("Owlit was closed before it could finish.")
@@ -355,5 +356,89 @@ describe("turns", () => {
     await send("write new.md hello")
     expect(readFileSync(path.join(root, "new.md"), "utf8")).toBe("hello")
     expect(heard).toHaveLength(1)
+  })
+
+  describe("a reply the agent takes up again after its turn", () => {
+    async function watch(core: Core) {
+      const late: any[] = []
+      const ids: string[] = []
+      core.onNotify((n: RpcNotification) => {
+        if (n.method === "chat.lateReply") late.push((n.params as { message: unknown }).message)
+        if (n.method === "chat.update") ids.push((n.params as { messageId: string }).messageId)
+      })
+      const until = async (ok: () => boolean) => {
+        for (let i = 0; i < 200 && !ok(); i++) await sleep(25)
+      }
+      return { late, ids, until }
+    }
+
+    it("gets what the agent says after end_turn, is saved, and ends again", async () => {
+      const { send, core, call, root } = await setup()
+      const { late, ids, until } = await watch(core)
+      expect(await send("answer after the turn")).toEqual({ stopReason: "end_turn" })
+      await until(() => late.length >= 2)
+      expect(late.map((m) => [m.id, m.status])).toEqual([["a1", "streaming"], ["a1", "done"]])
+      const expected = [
+        { type: "agent", agentId: "agent-l", title: "Count the words", status: "done" },
+        { type: "text", text: "I'm waiting on the agent.", messageId: "m1" },
+        { type: "text", text: "The file has two words.", messageId: "m2" },
+      ]
+      expect(late[1].parts).toMatchObject(expected)
+      expect(late[1].finishedAt).toBeGreaterThan(0)
+      expect(new Set(ids)).toEqual(new Set(["a1"]))
+      const saved = JSON.parse(readFileSync(path.join(root, ".owlit/chats/c1.json"), "utf8")).messages
+      expect(saved.map((m: any) => [m.id, m.status ?? null])).toEqual([["u1", null], ["a1", "done"]])
+      expect(saved[1].parts).toMatchObject(expected)
+      // The chat goes on as usual
+      expect(await send("hello")).toEqual({ stopReason: "end_turn" })
+      expect((await call("chats.get", { id: "c1" })).messages.map((m: any) => [m.id, m.status ?? null])).toEqual([
+        ["u1", null],
+        ["a1", "done"],
+        ["u2", null],
+        ["a2", "done"],
+      ])
+    })
+
+    it("is stopped by Stop, which cancels the agent's work", async () => {
+      const { send, core, call } = await setup()
+      const { late, ids, until } = await watch(core)
+      await send("answer after the turn, slowly")
+      await until(() => late.length >= 1)
+      await sleep(250)
+      expect(await call("agents.cancel", { chatId: "c1" })).toBeNull()
+      expect(late.map((m) => m.status)).toEqual(["streaming", "cancelled"])
+      const heard = ids.length
+      await sleep(400)
+      // The agent stopped, and nothing more reaches the reply
+      expect(ids.length).toBe(heard)
+      const reply = (await call("chats.get", { id: "c1" })).messages[1]
+      expect(reply.status).toBe("cancelled")
+      expect(reply.parts.at(-1).text).toMatch(/^The file has 0 /)
+    })
+
+    it("gives way to the user's next message, whose turn gets what the agent still says", async () => {
+      const { send, core, call } = await setup()
+      const { late, until } = await watch(core)
+      await send("answer after the turn, slowly")
+      await until(() => late.length >= 1)
+      expect(await send("hello")).toEqual({ stopReason: "end_turn" })
+      expect(late[1]).toMatchObject({ id: "a1", status: "done" })
+      const messages = (await call("chats.get", { id: "c1" })).messages
+      expect(messages.map((m: any) => [m.id, m.status ?? null])).toEqual([
+        ["u1", null],
+        ["a1", "done"],
+        ["u2", null],
+        ["a2", "done"],
+      ])
+      expect(messages[3].parts.map((p: any) => p.text).join("")).toContain("echo: hello")
+      await call("agents.cancel", { chatId: "c1" })
+    })
+
+    it("knows Claude Code's turn is over at the usage update that carries its cost", () => {
+      const usage = { sessionUpdate: "usage_update", used: 1, size: 2 } as const
+      expect(ownTurnOver("claude-code", { ...usage, cost: { amount: 0.1, currency: "USD" } })).toBe(true)
+      expect(ownTurnOver("claude-code", usage)).toBe(false)
+      expect(ownTurnOver("codex", { ...usage, cost: { amount: 0.1, currency: "USD" } })).toBe(false)
+    })
   })
 })
