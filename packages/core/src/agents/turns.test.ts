@@ -247,9 +247,10 @@ describe("turns", () => {
   })
 
   it("says a turn cut off by owlit closing was closed, not that the agent broke", async () => {
-    const { send, call, core } = await setup()
+    const { send, call, core, text } = await setup()
     const turn = send("slow please").catch((e) => e)
-    await sleep(400)
+    // Wait for the agent to be talking, not for a set time: starting it can take longer under load
+    while (!text()) await sleep(20)
     core.agents.dispose()
     const error = await turn
     expect(error.message).toBe("Owlit was closed before it could finish.")
