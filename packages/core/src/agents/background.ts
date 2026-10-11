@@ -2,7 +2,7 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
-import { sessionMeta } from "./isolation.ts"
+import { backgroundMeta, FIRST_CHOICE } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
@@ -54,9 +54,9 @@ export class Background {
     // into its first line ("I'll read the rest.# Title")
     let apart = false
     const refused: string[] = []
-    // The Owlit engine calls owlit's tools itself rather than asking for each, so it is told which it may
-    // offer the model; other agents are held to READ_ONLY when they ask, below
-    const _meta = connectorId === "owlit-engine" ? { owlit: { role: "reviewer", background: { tools: [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])] } } } : sessionMeta(connectorId)
+    // Agents that ask before each of owlit's tools are held to READ_ONLY when they ask, below; one that
+    // calls them itself is told which it may offer (backgroundMeta)
+    const _meta = backgroundMeta(connectorId, [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])])
     const session = await proc.newSession(
       { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {
@@ -117,11 +117,11 @@ export class Background {
     }
   }
 
-  // The first agent that is installed and signed in, Claude Code first
+  // The first agent that is installed and signed in, owlit's first choice first
   private async pickConnector() {
     const all = await this.agents.list()
     const ready = all.filter((c) => c.status === "available" || c.status === "connected")
-    const chosen = ready.find((c) => c.id === "claude-code") ?? ready[0]
+    const chosen = ready.find((c) => c.id === FIRST_CHOICE) ?? ready[0]
     if (!chosen) throw new RpcFailure(RpcErrorCode.Unavailable, "No agent is set up to work in the background.")
     return chosen.id
   }

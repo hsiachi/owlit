@@ -27,8 +27,10 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { AgentEnded, type AcpProcess, type SessionHandler } from "./process.ts"
-import { contentFrom, handbackOf, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
-import { answerFor, consentFor, guardFor, roleNote, takesRules, withUserName, type Guard } from "./roles.ts"
+import { guardFor, handbackOf, isOwlitCall } from "./profiles.ts"
+import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
+import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
+import type { Guard } from "./profiles.ts"
 import { preamble, USER_FOLLOWS } from "./rules.ts"
 
 export interface TurnRequest {
@@ -548,13 +550,6 @@ function roots(root: string) {
     // Gone or unreadable: the path as given still names it
   }
   return [...new Set([root, real])]
-}
-
-// A tool call to owlit's own MCP server: Codex says so in rawInput (and titles it mcp.owlit.<tool>),
-// Claude Code titles it mcp__owlit__<tool>
-function isOwlitCall(call: acp.ToolCall) {
-  const input = call.rawInput as { server?: unknown } | undefined
-  return input?.server === "owlit" || /^mcp(\.|__)owlit(\.|__)/.test(call.title ?? "")
 }
 
 // A select option's values, flattening groups

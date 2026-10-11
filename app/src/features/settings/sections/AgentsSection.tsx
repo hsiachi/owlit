@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { CopyIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
+import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +19,7 @@ const isReady = (c: Connector) => c.status === "available" || c.status === "conn
 
 export function AgentsSection() {
   const connectors = useChatStore((s) => s.connectors)
-  const engine = connectors.find((c) => c.id === "owlit-engine")
+  const engine = connectors.find((c) => c.signsInHere)
   const [adding, setAdding] = useState(false)
   useFoldWhile(adding, () => setAdding(false))
 
@@ -174,8 +175,8 @@ function BackgroundWork() {
   const connectors = useChatStore((s) => s.connectors)
   const view = useSettings((s) => s.view)
   const ready = connectors.filter(isReady)
-  // Unset means the first agent that is ready, Claude Code first (core's own choice)
-  const fallback = ready.find((c) => c.id === "claude-code") ?? ready[0]
+  // Unset means the first agent that is ready, owlit's first choice first (core's own choice)
+  const fallback = ready.find((c) => c.id === FIRST_CHOICE_AGENT) ?? ready[0]
   const chosen = view?.backgroundAgent ?? ""
   const options = [
     { value: "", label: fallback ? `Automatic (${fallback.name})` : "Automatic" },
