@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { useDebouncedQuery } from "@/hooks/use-debounced-query"
 import { libraryClient, useLibraryStore } from "../store"
 import type { Paper, ResolvedPaper } from "../types"
 import { useUiStore } from "../ui-store"
@@ -21,32 +21,25 @@ function findExisting(papers: Record<string, Paper>, r: ResolvedPaper): Paper | 
 
 // Resolves a pasted reference, and adds it when asked (the Add button, or Enter in the field)
 export function useRefLookup(input: string | null) {
-  const [result, setResult] = useState<{ input: string; lookup: Lookup } | null>(null)
   const addPaper = useLibraryStore((s) => s.addPaper)
 
-  useEffect(() => {
-    if (!input) return
-    let live = true
-    // A short pause so typing an id character by character doesn't fire a lookup per key
-    const timer = setTimeout(() => {
+  // A short pause so typing an id character by character doesn't fire a lookup per key
+  const answer = useDebouncedQuery(
+    input || null,
+    (input): Promise<Lookup> =>
       libraryClient.resolve(input).then(
         (resolved) => {
-          if (!live) return
           const { papers } = useLibraryStore.getState()
           const existing = (resolved.existingId ? papers[resolved.existingId] : undefined) ?? findExisting(papers, resolved)
-          setResult({ input, lookup: existing ? { state: "exists", paper: existing } : { state: "found", resolved } })
+          return existing ? { state: "exists", paper: existing } : { state: "found", resolved }
         },
-        (e) => live && setResult({ input, lookup: { state: "error", message: e instanceof Error ? e.message : "Could not look that up." } }),
-      )
-    }, 250)
-    return () => {
-      live = false
-      clearTimeout(timer)
-    }
-  }, [input])
+        (e) => ({ state: "error", message: e instanceof Error ? e.message : "Could not look that up." }),
+      ),
+    250,
+  )
 
   // Until the answer for this exact input arrives, it is still loading
-  const lookup: Lookup | null = !input ? null : result?.input === input ? result.lookup : { state: "loading" }
+  const lookup: Lookup | null = !input ? null : (answer ?? { state: "loading" })
 
   const add = () => {
     if (lookup?.state !== "found") return

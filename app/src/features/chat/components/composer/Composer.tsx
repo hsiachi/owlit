@@ -13,16 +13,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Kbd } from "@/components/ui/kbd"
+import { Tip } from "@/components/tip"
+import { KIND_PLACE } from "@/lib/kinds"
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { openSettings } from "@/features/settings/store"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toast } from "sonner"
+import { useFileDrop } from "@/hooks/use-file-drop"
 import { fromDrop, useAttachments, type AttachedMention } from "../../lib/attachments"
 import type { Mentionable, PromptInput, SourceKind } from "../../types"
-import { sourceKindLabel } from "../source-icons"
-import { AgentPicker, isUnavailable, useResolvedSelection } from "./AgentPicker"
+import { AgentPicker, useResolvedSelection } from "./AgentPicker"
+import { isUnavailable, problemSentence } from "../../lib/connector-status"
 import { AttachmentList } from "./AttachmentList"
 import { mentionFilter, mentionPopup, WorkspaceMention } from "./mention-extension"
 
@@ -104,7 +105,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const insertRef = useRef<(m: AttachedMention) => void>(() => {})
   const attachments = useAttachments(target, (m) => insertRef.current(m))
   const files = attachments.files
-  const [dragging, setDragging] = useState(false)
+  const { dragging, dropProps } = useFileDrop((data) => {
+    const { files: dropped, folders } = fromDrop(data)
+    attachments.add(dropped, folders)
+  })
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
   const { connector } = useResolvedSelection(chatId)
@@ -221,19 +225,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         dragging && "border-ring ring-2 ring-ring/30",
         className,
       )}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes("Files")) {
-          e.preventDefault()
-          setDragging(true)
-        }
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDragging(false)
-        const { files: dropped, folders } = fromDrop(e.dataTransfer)
-        attachments.add(dropped, folders)
-      }}
+      {...dropProps}
     >
       {/* Only an agent that can't run gets a banner; a working one stays quiet */}
       {connector && blocked && (
@@ -244,7 +236,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         >
           <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" />
           <span className="min-w-0 flex-1 truncate">
-            {connector.name} {connector.status === "not_installed" ? "is not installed" : `can't be reached${connector.error ? ` · ${connector.error}` : ""}`}
+            {problemSentence(connector)}
+            {connector.status === "error" && connector.error && ` · ${connector.error}`}
           </span>
           <span className="shrink-0 font-medium text-foreground">Set up</span>
         </button>
@@ -272,16 +265,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
       <div className="flex items-center gap-1 px-2.5 pb-2.5">
         <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label="Add attachments or context">
-                  <PlusIcon />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Attach files or mention a paper, doc or note</TooltipContent>
-          </Tooltip>
+          <Tip label="Attach files or mention a paper, doc or note">
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label="Add attachments or context">
+                <PlusIcon />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tip>
           {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
           <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
@@ -290,7 +280,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             <DropdownMenuSeparator />
             {(["paper", "doc", "knowledge"] as SourceKind[]).map((kind) => (
               <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
-                Add from {sourceKindLabel[kind]}
+                Add from {KIND_PLACE[kind]}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -310,25 +300,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         <div className="ml-auto flex items-center gap-1">
           <AgentPicker chatId={chatId} />
           {streaming && !(waiting && typed) ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label="Stop generating">
-                  <SquareIcon className="size-3 fill-current" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Stop</TooltipContent>
-            </Tooltip>
+            <Tip label="Stop">
+              <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label="Stop generating">
+                <SquareIcon className="size-3 fill-current" />
+              </Button>
+            </Tip>
           ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label="Send message">
-                  <ArrowUpIcon />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="flex items-center gap-1.5">
-                Send <Kbd>↵</Kbd>
-              </TooltipContent>
-            </Tooltip>
+            <Tip label="Send" shortcut="send">
+              <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label="Send message">
+                <ArrowUpIcon />
+              </Button>
+            </Tip>
           )}
         </div>
       </div>

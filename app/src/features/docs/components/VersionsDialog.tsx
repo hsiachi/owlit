@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react"
 import type { VersionInfo } from "@owlit/protocol"
 import { toast } from "sonner"
+import { BorderedList } from "@/components/bordered-list"
+import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useChatStore } from "@/features/chat/store"
 import { dateTime } from "@/lib/time"
-import { Info } from "@/features/settings/parts"
 import { rpc } from "@/lib/rpc"
 import { undoChange } from "@/lib/versions"
 import { displayName, type WorkspaceFile } from "../types"
+import { toastUndo } from "@/lib/toast"
 
 const ABOUT = "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
 
@@ -37,7 +39,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
       .restore({ id: v.id, force: true })
       .then(({ redoId }) => {
         onOpenChange(false)
-        toast("Version restored", { description: name, action: { label: "Undo", onClick: () => undoChange(redoId, name) } })
+        toastUndo("Version restored", () => undoChange(redoId, name), { description: name })
       })
       .catch((error: Error) => toast.error(error.message))
 
@@ -45,16 +47,10 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Focus would land on the title's info icon and open its tooltip */}
       <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-1">
-            Versions of {name}
-            <Info text={ABOUT} />
-          </DialogTitle>
-          <DialogDescription className="sr-only">{ABOUT}</DialogDescription>
-        </DialogHeader>
+        <DialogHeading title={`Versions of ${name}`} about={ABOUT} />
         {versions && !versions.length && <p className="py-6 text-center text-sm text-muted-foreground">Owlit hasn't changed this doc.</p>}
         {!!versions?.length && (
-          <ul className="flex max-h-96 flex-col divide-y overflow-y-auto rounded-lg border">
+          <BorderedList as="ul" className="max-h-96 overflow-y-auto">
             {versions.map((v) => {
               const chat = v.chatId ? chats[v.chatId] : undefined
               return (
@@ -72,7 +68,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
                 </li>
               )
             })}
-          </ul>
+          </BorderedList>
         )}
       </DialogContent>
     </Dialog>

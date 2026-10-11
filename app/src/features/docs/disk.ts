@@ -2,7 +2,9 @@ import type { AgentNote, DocConflict, DocsChange, DocStat, NoteAnchor, Workspace
 import { RpcErrorCode } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
+import { countDown, countUp } from "@/lib/counts"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { openEditor, replaceInEditor } from "./editors"
 import { freshDocIds, useDocsStore } from "./store"
 import { baseName, displayName, isMarkdown, isWithin } from "./types"
@@ -19,29 +21,16 @@ const known = new Map<string, { path: string; modifiedAt: number }>()
 // The text last read from or written to disk, so an unchanged text is never written again
 const written = new Map<string, string>()
 // Ops queued and not yet done, by id; a file's path is reconciled only once it has none left
-const pending = new Map<string, number>()
-let chain: Promise<void> = Promise.resolve()
-// Bumped when another workspace opens, so ops queued for the old one are dropped
-let generation = 0
+let pending: Record<string, number> = {}
+const queue = createWorkspaceQueue({ onError: failed })
 
 export const onDisk = isDesktop
 
 function enqueue(ids: string[], op: () => Promise<void>) {
-  const gen = generation
-  for (const id of ids) pending.set(id, (pending.get(id) ?? 0) + 1)
-  chain = chain.then(async () => {
-    try {
-      if (gen === generation) await op()
-    } catch (error) {
-      if (gen === generation) await failed(error)
-    } finally {
-      for (const id of ids) {
-        const left = (pending.get(id) ?? 1) - 1
-        if (left) pending.set(id, left)
-        else pending.delete(id)
-      }
-      if (gen === generation) reconcile(ids)
-    }
+  for (const id of ids) pending = countUp(pending, id)
+  queue.enqueue(op, (sameWorkspace) => {
+    for (const id of ids) pending = countDown(pending, id)
+    if (sameWorkspace) reconcile(ids)
   })
 }
 
@@ -52,7 +41,7 @@ function reconcile(ids: string[]) {
   for (const id of ids) {
     const disk = known.get(id)
     const file = files[id]
-    if (!disk || !file || pending.has(id) || file.path === disk.path) continue
+    if (!disk || !file || pending[id] || file.path === disk.path) continue
     moved[id] = { ...file, path: disk.path }
   }
   if (Object.keys(moved).length) useDocsStore.setState((s) => ({ files: { ...s.files, ...moved } }))
@@ -100,19 +89,11 @@ async function load() {
 
 // ---- Changes made outside owlit ----
 
-// True while the store takes a change that came from disk. Renames that happen this way are someone
+// Up while the store takes a change that came from disk. Renames that happen this way are someone
 // else's (Finder, git), so links to the file in other docs are not rewritten for them.
-let applyingDiskChange = false
-export const isDiskChange = () => applyingDiskChange
-
-function fromDisk(update: () => void) {
-  applyingDiskChange = true
-  try {
-    update()
-  } finally {
-    applyingDiskChange = false
-  }
-}
+const diskFlag = createDiskFlag()
+export const isDiskChange = diskFlag.isOn
+const fromDisk = diskFlag.apply
 
 // Whether the open editor for a doc holds exactly this text (in "\n" lines, for a CRLF file); true when
 // the doc isn't open
@@ -384,10 +365,10 @@ function conflicted(id: string, disk: DocConflict) {
 
 if (onDisk) {
   onWorkspaceOpened(() => {
-    generation++
+    queue.reset()
     known.clear()
     written.clear()
-    pending.clear()
+    pending = {}
     freshDocIds.clear()
     useDocsStore.setState({ files: {}, folders: [], notes: {}, missing: {}, loaded: false })
     reload()

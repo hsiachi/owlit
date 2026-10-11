@@ -1,13 +1,16 @@
 import { useEffect, useRef } from "react"
 import type { Connector } from "@owlit/protocol"
-import { BotIcon, CopyIcon, LoaderCircleIcon, ShieldAlertIcon } from "lucide-react"
+import { CopyIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
+import { CopyButton } from "@/components/copy-button"
+import { WaitingShield } from "@/components/marks"
+import { KindIcon } from "@/components/kind-icon"
 import { Button } from "@/components/ui/button"
+import { canRun, connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { openSettings } from "@/features/settings/store"
 import { copyText } from "@/lib/clipboard"
 
-const isReady = (c: Connector) => (c.status === "available" || c.status === "connected") && c.authenticated !== false
 const isChecking = (c: Connector) => c.status === "checking" || c.status === "unknown"
 
 // One line at the bottom of the welcome page: whether an agent on this Mac can run Owlit. It only
@@ -28,7 +31,7 @@ export function AgentCheck() {
   useEffect(() => {
     const onFocus = () => {
       const all = useChatStore.getState().connectors
-      if (all.some(isReady)) return
+      if (all.some(canRun)) return
       for (const c of all) if (!isChecking(c)) void check(c.id)
     }
     window.addEventListener("focus", onFocus)
@@ -36,12 +39,12 @@ export function AgentCheck() {
   }, [check])
 
   // Built-in agents come first, Claude Code first of all, as background work picks them
-  const ready = connectors.find(isReady)
+  const ready = connectors.find(canRun)
   const checking = !connectors.length || connectors.some(isChecking)
   // The Owlit engine (Beta) signs in under Settings, not in Terminal, and isn't what a first run is about
   const installed = connectors.filter((c) => !c.signsInHere)
-  const signedOut = installed.find((c) => c.status === "error" && c.authenticated === false)
-  const broken = installed.find((c) => c.status === "error")
+  const signedOut = installed.find((c) => connectorProblem(c) === "signed_out")
+  const broken = installed.find((c) => connectorProblem(c) === "error")
   const first = connectors.find((c) => c.builtIn && c.installHint)
 
   const copy = (text: string) => {
@@ -54,12 +57,12 @@ export function AgentCheck() {
   let body: React.ReactNode
   if (ready) {
     body = (
-      <Line icon={<BotIcon />}>
+      <Line icon={<KindIcon kind="agent" />}>
         <span className="flex-1">
           Owlit will use <span className="font-medium text-foreground">{ready.name}</span>
           {ready.version && ready.version !== "unknown" && ` · ${ready.version}`}
         </span>
-        <Button variant="ghost" size="sm" className="-my-1 -mr-2" onClick={() => openSettings("agents")}>
+        <Button variant="text" size="inline" className="-my-1 -mr-1.5" onClick={() => openSettings("agents")}>
           Change…
         </Button>
       </Line>
@@ -73,15 +76,15 @@ export function AgentCheck() {
   } else if (signedOut) {
     const command = signedOut.signIn ?? signedOut.command
     body = (
-      <Line icon={<ShieldAlertIcon className="text-warning" />}>
+      <Line icon={<WaitingShield size="md" />}>
         <div className="min-w-0 flex-1">
-          <span className="text-foreground">{signedOut.name} isn’t signed in.</span> Run <code className="font-mono text-xs text-foreground">{command}</code> in Terminal to sign in.
-          <div className="mt-1 -ml-2.5 flex gap-0.5">
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => copy(command)}>
+          <span className="text-foreground">{problemSentence(signedOut)}.</span> Run <code className="font-mono text-xs text-foreground">{command}</code> in Terminal to sign in.
+          <div className="mt-1 -ml-1.5 flex gap-0.5">
+            <Button variant="text" size="inline" onClick={() => copy(command)}>
               <CopyIcon />
               Copy
             </Button>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={recheck}>
+            <Button variant="text" size="inline" onClick={recheck}>
               Check again
             </Button>
           </div>
@@ -90,15 +93,15 @@ export function AgentCheck() {
     )
   } else if (broken) {
     body = (
-      <Line icon={<ShieldAlertIcon className="text-warning" />}>
+      <Line icon={<WaitingShield size="md" />}>
         <div className="min-w-0 flex-1">
-          <span className="text-foreground">{broken.name} can’t run.</span>
+          <span className="text-foreground">{problemSentence(broken)}.</span>
           {broken.error && <div className="mt-0.5 text-xs break-words">{broken.error}</div>}
-          <div className="mt-1 -ml-2.5 flex gap-0.5">
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={recheck}>
+          <div className="mt-1 -ml-1.5 flex gap-0.5">
+            <Button variant="text" size="inline" onClick={recheck}>
               Check again
             </Button>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => openSettings("agents")}>
+            <Button variant="text" size="inline" onClick={() => openSettings("agents")}>
               Use another agent…
             </Button>
           </div>
@@ -107,7 +110,7 @@ export function AgentCheck() {
     )
   } else {
     body = (
-      <Line icon={<ShieldAlertIcon className="text-warning" />}>
+      <Line icon={<WaitingShield size="md" />}>
         <div className="min-w-0 flex-1">
           <span className="text-foreground">Owlit needs a coding agent on this Mac.</span>
           {first?.installHint && (
@@ -116,17 +119,15 @@ export function AgentCheck() {
               To use {first.name}, run this in Terminal:
               <div className="mt-1 flex items-start gap-1">
                 <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{first.installHint}</code>
-                <Button variant="ghost" size="icon-xs" className="mt-0.5 text-muted-foreground" aria-label="Copy the install command" onClick={() => copy(first.installHint!)}>
-                  <CopyIcon />
-                </Button>
+                <CopyButton text={first.installHint} label="Copy the install command" className="mt-0.5" />
               </div>
             </>
           )}
-          <div className="mt-1 -ml-2.5 flex gap-0.5">
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={recheck}>
+          <div className="mt-1 -ml-1.5 flex gap-0.5">
+            <Button variant="text" size="inline" onClick={recheck}>
               Check again
             </Button>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => openSettings("agents")}>
+            <Button variant="text" size="inline" onClick={() => openSettings("agents")}>
               Use another agent…
             </Button>
           </div>

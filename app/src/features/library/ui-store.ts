@@ -33,7 +33,6 @@ interface UiState {
   setFilter: (f: StatusFilter) => void
   toggleTag: (tag: string) => void
   showTag: (tag: string) => void
-  clearTags: () => void
   sortBy: (key: SortKey) => void
 
   // A plain click selects the row and opens or folds its peek; ⌘ toggles and ⇧ extends
@@ -44,7 +43,6 @@ interface UiState {
   closePeek: () => void
   selectAll: (order: string[]) => void
   clearSelection: () => void
-  setCursor: (id: string | null) => void
   setScrollTop: (top: number) => void
   setEditingId: (id: string | null) => void
 }
@@ -78,7 +76,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set((s) => ({ tags: s.tags.includes(tag) ? s.tags.filter((t) => t !== tag) : [...s.tags, tag], peekId: null })),
   // Clicking a tag chip shows everything carrying that tag
   showTag: (tag) => set({ tags: [tag], filter: "all", query: "", peekId: null, selectedIds: [] }),
-  clearTags: () => set({ tags: [] }),
   // Picking the current key again flips the direction; a new key starts in its natural direction
   sortBy: (key) =>
     set((s) => ({ sort: s.sort.key === key ? { key, desc: !s.sort.desc } : { key, desc: naturalDesc(key) } })),
@@ -114,7 +111,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
   closePeek: () => set({ peekId: null }),
   selectAll: (order) => set({ selectedIds: order, peekId: null }),
   clearSelection: () => set({ selectedIds: [], anchorId: null, peekId: null }),
-  setCursor: (cursorId) => set({ cursorId }),
   setScrollTop: (scrollTop) => set({ scrollTop }),
   setEditingId: (editingId) => set({ editingId }),
 }))

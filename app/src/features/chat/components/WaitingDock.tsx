@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react"
-import { MessageCircleQuestionIcon, ShieldAlertIcon } from "lucide-react"
+import { useState } from "react"
+import { MessageCircleQuestionIcon } from "lucide-react"
+import { BorderedList } from "@/components/bordered-list"
+import { FadeClip, ShowAllButton } from "@/components/fade-clip"
+import { WaitingShield } from "@/components/marks"
+import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { editStats } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import type { Chat, MessagePart, PermissionKind } from "../types"
+import type { Chat, Part, PermissionKind } from "../types"
 import { useAskDraft } from "../ask-draft"
 import { useInPlace } from "../in-place"
 import { askSentence, shortUrl, type ToolCall } from "../lib/step-words"
@@ -11,7 +15,6 @@ import { pendingAsk } from "../status"
 import { useChatStore } from "../store"
 import { DiffPreview } from "./messages/step-results"
 
-type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 
 // A paper's note, kept inside .owlit beside the paper
 const NOTE_PATH = /^\.owlit\/papers\/[^/]+\/note\.md$/
@@ -52,6 +55,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
   const inPlace = useInPlace((s) => !!editPath && !!s.shown[editPath])
   const [answerHere, setAnswerHere] = useState(false)
   const [all, setAll] = useState(false)
+  const [long, setLong] = useState(false)
   const respond = (optionId: string) => useChatStore.getState().respondPermission(chatId, ask.requestId, optionId)
 
   // An edit already drawn where it would land is answered there, with Apply and Discard
@@ -59,12 +63,12 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
     const where = editPath && NOTE_PATH.test(editPath) ? "your note" : "the doc"
     return (
       <div className={cn(CARD, "flex items-center gap-2 py-2 text-muted-foreground")}>
-        <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
+        <WaitingShield size="md" />
         <span className="min-w-0 truncate">Waiting in {where}: Apply or Discard it there</span>
         <span aria-hidden>·</span>
-        <button type="button" onClick={() => setAnswerHere(true)} className="shrink-0 rounded-md px-1 py-0.5 text-foreground outline-none hover:bg-muted focus-key:bg-muted">
+        <Button variant="text" size="inline" onClick={() => setAnswerHere(true)}>
           Answer here
-        </button>
+        </Button>
       </div>
     )
   }
@@ -91,14 +95,14 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
   return (
     <div className={CARD} role="group" aria-label="Owlit is waiting on you">
       <div className="flex items-start gap-2.5">
-        <ShieldAlertIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+        <WaitingShield size="md" className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <div className="font-medium break-words">{askSentence(ask.title, call)}</div>
           {summary && <div className="mt-0.5 text-detail text-muted-foreground">{summary}</div>}
         </div>
       </div>
       {(diff || command || url) && (
-        <div className={cn("relative mt-2.5 ml-6.5 overflow-hidden rounded-lg border px-3 py-2.5", all ? "max-h-72 overflow-y-auto" : "max-h-36")}>
+        <FadeClip open={all} long={long} onLong={setLong} max="max-h-36" openMax="max-h-72 overflow-y-auto" surface="card" className="mt-2.5 ml-6.5 rounded-lg border px-3 py-2.5">
           {diff ? (
             <DiffPreview oldText={diff.oldText} newText={diff.newText} />
           ) : command ? (
@@ -108,8 +112,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
               {shortUrl(url!)}
             </a>
           )}
-          {!all && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />}
-        </div>
+        </FadeClip>
       )}
       <div className="mt-3 ml-6.5 flex flex-wrap items-center gap-1.5">
         {options.map((o) => (
@@ -117,11 +120,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
             {OPTION_WORDS[o.kind] ?? o.name}
           </Button>
         ))}
-        {(diff || command) && (
-          <button type="button" onClick={() => setAll((a) => !a)} className="rounded-md px-1.5 py-1 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
-            {all ? "Show less" : "Show all"}
-          </button>
-        )}
+        {(diff || command) && long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} />}
         {!compact && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">Or type below to say what to do instead</span>}
       </div>
     </div>
@@ -138,19 +137,14 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
   const pick = (label: string) => useAskDraft.getState().pick(chatId, ask, label)
 
   // A number picks that option, unless the user is typing somewhere
-  useEffect(() => {
-    if (!q?.options.length) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || editable(document.activeElement)) return
-      const n = Number(e.key)
-      const option = Number.isInteger(n) && n >= 1 ? q.options[n - 1] : undefined
-      if (!option) return
-      e.preventDefault()
-      pick(option.label)
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  })
+  useWindowKeydown((e) => {
+    if (!q || e.metaKey || e.ctrlKey || e.altKey || editable(document.activeElement)) return
+    const n = Number(e.key)
+    const option = Number.isInteger(n) && n >= 1 ? q.options[n - 1] : undefined
+    if (!option) return
+    e.preventDefault()
+    pick(option.label)
+  }, !!q?.options.length)
 
   if (!q) return null
   return (
@@ -170,7 +164,7 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
         )}
       </div>
       {q.options.length > 0 && (
-        <div className="mt-2.5 ml-6.5 overflow-hidden rounded-lg border">
+        <BorderedList className="mt-2.5 ml-6.5">
           {q.options.map((o, i) => (
             <button
               key={o.label}
@@ -179,7 +173,7 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
               aria-pressed={q.multiSelect ? picks.includes(o.label) : undefined}
               onClick={() => pick(o.label)}
               className={cn(
-                "flex w-full items-baseline gap-2.5 border-t px-3 py-2 text-left outline-none first:border-t-0 hover:bg-muted focus-key:bg-muted",
+                "flex w-full items-baseline gap-2.5 px-3 py-2 text-left outline-none hover:bg-muted focus-key:bg-muted",
                 picks.includes(o.label) && "bg-muted",
               )}
             >
@@ -190,7 +184,7 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
               </span>
             </button>
           ))}
-        </div>
+        </BorderedList>
       )}
       <div className="mt-2.5 ml-6.5 flex items-center gap-1.5">
         {q.multiSelect && (
@@ -198,9 +192,9 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
             {index + 1 < ask.questions.length ? "Next" : "Done"}
           </Button>
         )}
-        <button type="button" onClick={() => useAskDraft.getState().skip(chatId, ask)} className="rounded-md px-1.5 py-1 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+        <Button variant="text" size="inline" onClick={() => useAskDraft.getState().skip(chatId, ask)}>
           Skip
-        </button>
+        </Button>
         {!compact && q.allowsText && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}
       </div>
     </div>

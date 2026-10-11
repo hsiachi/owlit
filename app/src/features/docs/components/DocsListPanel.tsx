@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { ChevronRightIcon, EllipsisVerticalIcon, FolderPlusIcon, PlusIcon, SearchIcon } from "lucide-react"
+import { FolderPlusIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { usePaletteStore } from "@/app/palette-store"
-import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Kbd } from "@/components/ui/kbd"
-import { keysFor } from "@/app/shortcuts"
-import { SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
+import { FoldChevron } from "@/components/fold"
+import { NewRow, PanelEmpty, PanelHeader } from "@/components/list-panel"
+import { RenameInput } from "@/components/rename-input"
+import { SidebarContent } from "@/components/ui/sidebar"
+import { Tip } from "@/components/tip"
 import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
 import { onDisk, openOnDisk } from "../disk"
@@ -101,53 +100,12 @@ function usePickedMenu(key: string, own: () => MenuGroups) {
 }
 
 function RowMenu({ groups, label, onOpen }: { groups: MenuGroups; label: string; onOpen: () => void }) {
-  return (
-    <DropdownMenu onOpenChange={(open) => open && onOpen()}>
-      <DropdownMenuTrigger asChild>
-        {/* A small square that shows on hover and darkens on its own hover, as in the Chat list */}
-        <button
-          type="button"
-          aria-label={label}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-hidden group-hover/row:opacity-100 group-has-focus-key/row:opacity-100 hover:bg-foreground/8 hover:text-foreground focus-key:bg-foreground/8 data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground data-[state=open]:opacity-100"
-        >
-          <EllipsisVerticalIcon className="size-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <ActionsDropdownContent groups={groups} side="right" align="start" />
-    </DropdownMenu>
-  )
+  return <RowMenuButton groups={groups} label={label} onOpen={onOpen} side="right" align="start" className="absolute top-1/2 right-1 -translate-y-1/2" />
 }
 
-// `byKey`: ended with Enter or Esc, so focus goes back to the row; a blur means the user went elsewhere
-function RenameInput({ initial, depth, onDone }: { initial: string; depth: number; onDone: (name: string | null, byKey: boolean) => void }) {
-  const [draft, setDraft] = useState(initial)
-  // Enter or Esc ends it; the blur that follows as the input goes away must not end it again
-  const done = useRef(false)
-  const finish = (name: string | null, byKey: boolean) => {
-    if (done.current) return
-    done.current = true
-    onDone(name, byKey)
-  }
-  return (
-    <input
-      autoFocus
-      value={draft}
-      onFocus={(e) => e.currentTarget.select()}
-      // The field keeps the system's text menu (Cut, Copy, Paste) rather than the list's New doc / New folder
-      onContextMenu={(e) => e.stopPropagation()}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => finish(draft, false)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") finish(draft, true)
-        if (e.key === "Escape") finish(null, true)
-      }}
-      // The text stays where the name was: past the chevron slot, less the border
-      style={{ paddingLeft: indent(depth).paddingLeft + 17 }}
-      className="h-8 w-full rounded-md border bg-card pr-2 text-sm outline-none focus-visible:border-foreground/30"
-      aria-label="Rename"
-    />
-  )
+// The text stays where the name was: past the chevron slot, less the border
+function TreeRename({ initial, depth, onDone }: { initial: string; depth: number; onDone: (name: string | null, byKey: boolean) => void }) {
+  return <RenameInput initial={initial} onDone={onDone} style={{ paddingLeft: indent(depth).paddingLeft + 17 }} className="h-8 pr-2" />
 }
 
 interface TreeProps {
@@ -183,7 +141,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
 
   if (renaming)
     return (
-      <RenameInput
+      <TreeRename
         initial={node.name}
         depth={depth}
         onDone={(name, byKey) => {
@@ -263,7 +221,7 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
   return (
     <>
       {renaming ? (
-        <RenameInput
+        <TreeRename
           initial={node.name}
           depth={depth}
           onDone={(name, byKey) => {
@@ -321,7 +279,7 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
               className="flex min-w-0 flex-1 items-center gap-1 py-1.5 text-left outline-hidden group-hover/row:pr-6"
             >
               <Slot>
-                <ChevronRightIcon className={cn("size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} />
+                <FoldChevron open={open} className="text-muted-foreground" />
               </Slot>
               <span data-name className={cn("truncate", !open && activeInside && "font-medium")}>
                 {node.name}
@@ -415,7 +373,6 @@ export function DocsListPanel() {
   const files = useDocsStore((s) => s.files)
   const folders = useDocsStore((s) => s.folders)
   const { expandTo, selectFolder } = useDocsUiStore.getState()
-  const openPalette = usePaletteStore((s) => s.setOpen)
   const newDoc = useNewDoc()
   const { startRenaming } = useDocActions()
   const onKeyDown = useTreeKeys()
@@ -454,34 +411,12 @@ export function DocsListPanel() {
 
   return (
     <>
-      <SidebarHeader className="gap-1.5 px-2.5 pt-2.5 pb-1">
-        {/* Looks like a search field, opens the ⌘K palette, as in Chat; it finds docs by their text too */}
-        <button
-          type="button"
-          onClick={() => openPalette(true)}
-          className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-key:border-foreground/30 focus-key:text-foreground"
-        >
-          <SearchIcon className="size-4" />
-          <span className="flex-1 text-left">Search</span>
-          <Kbd className="bg-transparent">{keysFor("palette")}</Kbd>
-        </button>
-        <div className="group/new relative mt-1.5 flex items-center">
-          <button
-            type="button"
-            onClick={() => newDoc()}
-            className="flex h-9 w-full items-center gap-2 rounded-md pr-2.5 pl-1.5 text-sm outline-hidden transition-colors hover:bg-sidebar-accent focus-key:bg-sidebar-accent"
-          >
-            {/* Drawn exactly like New chat, so switching between Chat and Docs moves nothing */}
-            <span className="grid size-5 place-items-center">
-              <span className="flex size-4.5 items-center justify-center rounded-full bg-foreground/8">
-                <PlusIcon className="size-3" />
-              </span>
-            </span>
-            <span className="flex-1 text-left">New doc</span>
-            <Kbd className="mr-7 bg-transparent opacity-0 transition-opacity group-hover/new:opacity-100">{keysFor("new")}</Kbd>
-          </button>
-          <Tooltip>
-            <TooltipTrigger asChild>
+      <PanelHeader>
+        <NewRow
+          label="New doc"
+          onClick={() => newDoc()}
+          extra={
+            <Tip label="New folder" side="right">
               <button
                 type="button"
                 aria-label="New folder"
@@ -490,11 +425,10 @@ export function DocsListPanel() {
               >
                 <FolderPlusIcon className="size-4" />
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">New folder</TooltipContent>
-          </Tooltip>
-        </div>
-      </SidebarHeader>
+            </Tip>
+          }
+        />
+      </PanelHeader>
       {/* Right-clicking the space around the rows makes something at the workspace root; a row's own menu
           takes the right-clicks on it */}
       <ActionsOnRightClick
@@ -524,7 +458,7 @@ export function DocsListPanel() {
           onDragLeave={(e) => e.target === e.currentTarget && setDragOver(null)}
           onDrop={(e) => onDropInto("", e)}
         >
-          {tree.children.length === 0 && <div className="px-2.5 py-2 text-sm text-muted-foreground">No docs yet.</div>}
+          {tree.children.length === 0 && <PanelEmpty>No docs yet.</PanelEmpty>}
           <TreeLevel nodes={tree.children} depth={0} {...props} />
         </SidebarContent>
       </ActionsOnRightClick>

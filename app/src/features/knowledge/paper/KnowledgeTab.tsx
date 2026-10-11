@@ -1,23 +1,28 @@
+import { paperUri } from "@owlit/protocol"
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { EmptyPlace } from "@/components/empty-place"
+import { GroupLabel } from "@/components/group-label"
+import { NoteDot } from "@/components/marks"
+import { MentionLink, MentionToken } from "@/components/mention/mention-token"
+import { Quote } from "@/components/quote"
+import { Button } from "@/components/ui/button"
 import { useAgentWindow } from "@/features/agent/store"
-import { MentionToken } from "@/features/chat/components/composer/MentionToken"
 import { useChatStore } from "@/features/chat/store"
 import { paperMentionable } from "@/features/docs/lib/mentions"
 import { isHidden } from "@/features/docs/lib/tree"
-import { useDocsStore } from "@/features/docs/store"
+import { filesByPath, useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { useReaderStore } from "@/features/library/reader/reader-store"
 import type { Paper } from "@/features/library/types"
-import { Info, NoteDot, SentenceEditor } from "../components/bits"
+import { SentenceEditor } from "../components/bits"
 import { isAbstractOnly, paperRef, verbOf } from "../format"
 import { shortDate } from "@/lib/time"
-import { dismissConnection, editLine, setConnection, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
+import { dismissConnection, editLine, lineKey, setConnection, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
 import type { Connection, ConnectionKind, Line, PaperKnowledge, Passage, Topic } from "../types"
 import { findInPaper } from "./find"
 import { useLibraryStore } from "@/features/library/store"
+import { toastUndo } from "@/lib/toast"
 
 // How this paper relates to what the user already has. Each item pairs something they have (their words,
 // a question, a line in a topic) with a passage of the paper; the group says the relation.
@@ -53,9 +58,9 @@ interface Item {
 
 const sectionOf = (p: Passage) => p.section || (p.page !== undefined ? `p. ${p.page + 1}` : "Passage")
 
+// A topic, opened at one of its lines or questions
 function TopicLink({ topic, block }: { topic: Topic; block?: string }) {
-  const navigate = useNavigate()
-  return <MentionToken label={topic.name} onClick={() => navigate(`/knowledge/${topic.id}${block ? `#${block}` : ""}`)} />
+  return <MentionLink label={topic.name} to={`/knowledge/${topic.id}${block ? `#${block}` : ""}`} />
 }
 
 // Everything the tab shows, in group order
@@ -71,13 +76,13 @@ function useItems(paper: Paper, k: PaperKnowledge, seenBefore: number): Item[] {
       const base = { key: c.id, group: c.kind, passage, relation: c.relation, connection: c, fresh: c.kind === "might" && c.createdAt > seenBefore }
       const h = c.have
       if (h.kind === "doc") {
-        const file = Object.values(files).find((f) => f.path === h.path)
+        const file = filesByPath(files).get(h.path)
         if (!file) continue
         items.push({
           ...base,
           who: (
             <>
-              You wrote in <DocLink id={file.id} path={file.path} /> · {shortDate(h.at)}
+              You wrote in <MentionLink label={displayName(file.path)} to={`/docs/${file.id}`} /> · {shortDate(h.at)}
             </>
           ),
           words: h.quote.replace(/\$([^$]+)\$/g, "$1"),
@@ -117,11 +122,11 @@ function useItems(paper: Paper, k: PaperKnowledge, seenBefore: number): Item[] {
       if (topic.archived) continue
       for (const line of topic.lines) {
         if (line.speaker === "You" || line.speaker === "Owlit") continue
-        const ref = line.sources.map((r) => paperRef(r.uri)).find((r) => r?.paperId === paper.id)
+        const ref = line.sources.map((r) => paperRef(r.uri)).find((r) => r?.id === paper.id)
         if (!ref) continue
-        const found = k.found?.[`${topic.id}/${line.id}`]
+        const found = k.found?.[lineKey(topic.id, line.id)]
         items.push({
-          key: `${topic.id}/${line.id}`,
+          key: lineKey(topic.id, line.id),
           group: "taken",
           who: (
             <>
@@ -130,18 +135,13 @@ function useItems(paper: Paper, k: PaperKnowledge, seenBefore: number): Item[] {
           ),
           words: line.text,
           muted: isAbstractOnly(line),
-          passage: ref.passageId ? k.passages[ref.passageId] : undefined,
+          passage: ref.passage ? k.passages[ref.passage] : undefined,
           taken: { topic, line, found: found ? k.passages[found.passageId] : undefined },
         })
       }
     }
     return items
   }, [topics, files, k, paper.id, seenBefore])
-}
-
-function DocLink({ id, path }: { id: string; path: string }) {
-  const navigate = useNavigate()
-  return <MentionToken label={displayName(path)} onClick={() => navigate(`/docs/${id}`)} />
 }
 
 // The tab label carries no count, only the dot while a guess is unseen
@@ -172,19 +172,18 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
   return (
     <div className="flex flex-col gap-7 pb-6">
       {items.length === 0 && (
-        <div className="pt-8 text-center">
-          <p className="text-sm font-medium">Nothing connected yet</p>
-          <p className="mx-auto mt-1 max-w-64 text-detail leading-relaxed text-muted-foreground">
-            Owlit links this paper to your notes, questions and topics once you highlight, cite or talk about it.
-          </p>
-        </div>
+        <EmptyPlace
+          size="panel"
+          title="Nothing connected yet"
+          detail="Owlit links this paper to your notes, questions and topics once you highlight, cite or talk about it."
+          className="pt-8"
+        />
       )}
       {groups.map((g, n) => (
         <section key={g.id}>
-          <h3 className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
+          <GroupLabel as="h3" flush info={n === 0 && ABOUT} infoLabel="About the Knowledge tab">
             {g.label}
-            {n === 0 && <Info label="About the Knowledge tab">{ABOUT}</Info>}
-          </h3>
+          </GroupLabel>
           <ul className="-mx-2 flex flex-col gap-1">
             {g.items.map((i) => (
               <ItemRow key={i.key} item={i} paper={paper} />
@@ -243,13 +242,9 @@ function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
         ) : (
           <p className={cn("mt-0.5 text-sm leading-relaxed text-pretty", item.muted && !item.taken.found && "text-muted-foreground")}>
             {item.words}
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="ml-1.5 rounded px-1 text-xs text-muted-foreground opacity-0 outline-none group-hover/item:opacity-100 hover:bg-muted hover:text-foreground focus-key:opacity-100"
-            >
+            <Button variant="text" size="inline" onClick={() => setEditing(true)} className="ml-1.5 opacity-0 group-hover/item:opacity-100 focus-key:opacity-100">
               Edit
-            </button>
+            </Button>
           </p>
         )
       ) : (
@@ -263,23 +258,15 @@ function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
         paper={paper}
         fold={
           passage && (
-            <button
-              type="button"
-              aria-expanded={open}
-              onClick={() => setOpen((o) => !o)}
-              className={cn(
-                "ml-1 rounded-md px-1 text-xs text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:opacity-100",
-                !open && "opacity-0 group-hover/item:opacity-100",
-              )}
-            >
+            <Button variant="text" size="inline" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={cn("ml-1 focus-key:opacity-100", !open && "opacity-0 group-hover/item:opacity-100")}>
               {open ? "Hide passage" : "Passage"}
-            </button>
+            </Button>
           )
         }
       />
-      {passage && open && <Quote passage={passage} />}
+      {passage && open && <Quote className="mt-2">{passage.text}</Quote>}
       {item.group === "might" && item.connection && (
-        <div className="mt-1 -ml-1 flex flex-wrap items-center gap-x-0.5 text-xs">
+        <div className="mt-1 -ml-1.5 flex flex-wrap items-center gap-x-0.5">
           <MightActions connection={item.connection} paper={paper} passage={passage} />
         </div>
       )}
@@ -290,20 +277,8 @@ function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
 // The relation in one sentence, opening with the section it rests on; the Passage toggle sits at its end.
 // A taken line needs no sentence: the group says what it is, so only its section and passage follow.
 function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?: Passage; onJump: () => void; paper: Paper; fold?: React.ReactNode }) {
-  const section = passage && (
-    <button type="button" onClick={onJump} className="rounded-[0.3em] text-mention outline-none hover:bg-mention/10 focus-key:ring-2 focus-key:ring-ring/50">
-      {sectionOf(passage)}
-    </button>
-  )
-  const find = (
-    <button
-      type="button"
-      onClick={() => item.taken && void findInPaper(paper.id, item.taken.topic.id, item.taken.line.id)}
-      className="rounded-[0.3em] text-mention outline-none hover:bg-mention/10 focus-key:ring-2 focus-key:ring-ring/50"
-    >
-      Find it in the paper
-    </button>
-  )
+  const section = passage && <MentionToken label={sectionOf(passage)} onClick={onJump} />
+  const find = <MentionToken label="Find it in the paper" onClick={() => item.taken && void findInPaper(paper.id, item.taken.topic.id, item.taken.line.id)} />
   if (item.taken) {
     const { line, found } = item.taken
     if (found)
@@ -349,18 +324,6 @@ function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?
   )
 }
 
-function Quote({ passage }: { passage: Passage }) {
-  return <blockquote className="mt-2 border-l-2 border-border pl-3 text-detail leading-relaxed text-muted-foreground">{passage.text}</blockquote>
-}
-
-function TextButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="rounded-md px-1 py-0.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
-      {children}
-    </button>
-  )
-}
-
 // A guess: the user connects it, says it isn't related, or asks. Both answers show a toast with Undo.
 function MightActions({ connection, paper, passage }: { connection: Connection; paper: Paper; passage?: Passage }) {
   const connect = () => {
@@ -368,33 +331,38 @@ function MightActions({ connection, paper, passage }: { connection: Connection; 
     // "may touch it: …" becomes "touches it: …" once the user has said so
     const relation = connection.relation.replace(/^may (\w+) it/, (_, v: string) => `${v}${/(s|sh|ch|x)$/.test(v) ? "es" : "s"} it`)
     setConnection(paper.id, connection.id, { kind: "backs", relation })
-    toast("Connected", { description: "It now sits under Backs what you have.", action: { label: "Undo", onClick: () => setConnection(paper.id, connection.id, was) } })
+    toastUndo("Connected", () => setConnection(paper.id, connection.id, was), { description: "It now sits under Backs what you have." })
   }
   return (
     <>
-      <TextButton onClick={connect}>Connect</TextButton>
-      <TextButton
+      <Button variant="text" size="inline" onClick={connect}>
+        Connect
+      </Button>
+      <Button
+        variant="text"
+        size="inline"
         onClick={() => {
           const undo = dismissConnection(paper.id, connection.id)
-          toast("Marked as not related", { action: { label: "Undo", onClick: undo } })
+          toastUndo("Marked as not related", undo)
         }}
       >
         Not related
-      </TextButton>
-      <TextButton onClick={() => useAgentWindow.getState().open(passage ? { text: passage.text, source: paperMentionable(paper) } : undefined)}>Ask Owlit</TextButton>
+      </Button>
+      <Button variant="text" size="inline" onClick={() => useAgentWindow.getState().open(passage ? { text: passage.text, source: paperMentionable(paper) } : undefined)}>
+        Ask Owlit
+      </Button>
     </>
   )
 }
 
 // Drafts that cite the paper and chats that mention it
 function UsedIn({ paper }: { paper: Paper }) {
-  const navigate = useNavigate()
   const files = useDocsStore((s) => s.files)
   const chats = useChatStore((s) => s.chats)
   const aliases = useLibraryStore((s) => s.aliases)
   // Mentions under ids the paper had before it moved (a local file given its DOI) count too
   const uris = useMemo(
-    () => [paper.id, ...Object.keys(aliases).filter((old) => aliases[old] === paper.id)].map((id) => `owlit://library/${id}`),
+    () => [paper.id, ...Object.keys(aliases).filter((old) => aliases[old] === paper.id)].map((id) => paperUri(id)),
     [paper.id, aliases],
   )
   const docs = useMemo(
@@ -415,17 +383,19 @@ function UsedIn({ paper }: { paper: Paper }) {
   if (!docs.length && !talked.length) return null
   return (
     <section>
-      <h3 className="mb-2 text-xs text-muted-foreground">Used in</h3>
+      <GroupLabel as="h3" flush>
+        Used in
+      </GroupLabel>
       <ul className="flex flex-col gap-1.5 text-sm">
         {docs.map(({ file, heading }) => (
           <li key={file.id}>
-            <MentionToken label={displayName(file.path)} onClick={() => navigate(`/docs/${file.id}`)} />
+            <MentionLink label={displayName(file.path)} to={`/docs/${file.id}`} />
             {heading && <span className="text-muted-foreground"> · {heading}</span>}
           </li>
         ))}
         {talked.map((c) => (
           <li key={c.id}>
-            <MentionToken label={c.title} onClick={() => navigate(`/chat/${c.id}`)} />
+            <MentionLink label={c.title} to={`/chat/${c.id}`} />
             <span className="text-muted-foreground"> · chat, {shortDate(c.updatedAt)}</span>
           </li>
         ))}

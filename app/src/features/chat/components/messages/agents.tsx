@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react"
-import { ChevronRightIcon, ShieldAlertIcon } from "lucide-react"
+import { ChevronRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FadeClip, ShowAllButton } from "@/components/fade-clip"
+import { GroupLabel } from "@/components/group-label"
+import { WaitingLabel, WaitingShield } from "@/components/marks"
+import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import type { MessagePart } from "../../types"
+import type { Part } from "../../types"
 import { stepWords, type ToolCall } from "../../lib/step-words"
 import { Markdown } from "./Markdown"
 import { StepsPart, type StepAsks, type StepPart } from "./parts"
 
-type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 export type AgentPart = Part<"agent">
 
 // The agents the answering agent handed parts of the work to at one point of the answer, as one block where
@@ -41,22 +44,13 @@ function agentNow(steps: StepPart[]) {
 // A report as an answer reads, cut with a fade until Show all
 function Report({ text }: { text: string }) {
   const [all, setAll] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
   const [long, setLong] = useState(false)
-  useEffect(() => {
-    if (box.current) setLong(box.current.scrollHeight > box.current.clientHeight + 4)
-  }, [text])
   return (
     <div>
-      <div ref={box} className={cn("relative text-sm", !all && "max-h-56 overflow-hidden")}>
+      <FadeClip open={all} long={long} onLong={setLong} max="max-h-56" className="text-sm">
         <Markdown text={text} className="text-sm" />
-        {!all && long && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />}
-      </div>
-      {long && (
-        <button type="button" onClick={() => setAll((a) => !a)} className="-ml-1.5 mt-0.5 rounded-md px-1.5 py-0.5 text-detail text-foreground outline-none hover:bg-muted focus-key:bg-muted">
-          {all ? "Show less" : "Show all"}
-        </button>
-      )}
+      </FadeClip>
+      {long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} className="-ml-1.5 mt-0.5" />}
     </div>
   )
 }
@@ -66,13 +60,7 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
   const waiting = !!asks.waiting && steps.some((p) => p.type === "tool_call" && p.toolCallId === asks.waiting)
   const working = agent.status === "working" && streaming
   let right: React.ReactNode
-  if (waiting)
-    right = (
-      <>
-        <ShieldAlertIcon className="size-3.5 text-warning" />
-        Waiting on you
-      </>
-    )
+  if (waiting) right = <WaitingLabel />
   else if (working) right = <span className="truncate">{agentNow(steps)}</span>
   else if (agent.status === "stopped" || (agent.status === "working" && !streaming)) right = "Stopped"
   else if (agent.status === "done") right = agentDone(steps)
@@ -94,7 +82,9 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
         <div className="flex flex-col gap-2.5 pr-3 pb-3.5 pl-8">
           {agent.report ? (
             <div>
-              <div className="mb-1 text-xs text-muted-foreground">What it found</div>
+              <GroupLabel as="div" flush>
+                What it found
+              </GroupLabel>
               <Report text={agent.report} />
             </div>
           ) : (
@@ -143,8 +133,7 @@ export function AgentsPart({
   if (waiting)
     head = (
       <>
-        <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
-        <span className="truncate">{agents.length === 1 ? "The agent is waiting on you" : "An agent is waiting on you"}</span>
+        <WaitingLabel size="md">{agents.length === 1 ? "The agent is waiting on you" : "An agent is waiting on you"}</WaitingLabel>
         {agents.length > 1 && <span className="shrink-0 text-muted-foreground">· {done} of {agents.length} done</span>}
       </>
     )
@@ -195,15 +184,15 @@ export function AgentsWaitLine({ blockId, working, waiting }: { blockId: string;
     <div className="flex items-center gap-1.5 text-sm text-foreground/80">
       {waiting ? (
         <>
-          <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
+          <WaitingShield size="md" />
           <span>An agent is waiting on you</span>
         </>
       ) : (
         <span className="shimmer">Waiting for {working === 1 ? "an agent" : `${working} agents`}</span>
       )}
-      <button type="button" onClick={show} className="rounded-md px-1.5 py-0.5 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+      <Button variant="text" size="inline" onClick={show}>
         Show
-      </button>
+      </Button>
     </div>
   )
 }

@@ -8,10 +8,6 @@ import type { AgentClient, PromptRequest } from "./client"
 export class RpcAgentClient implements AgentClient {
   readonly persistsMessages = true
 
-  listConnectors(): Promise<Connector[]> {
-    return rpc.agents.list()
-  }
-
   check(connector: Connector): Promise<Connector> {
     return rpc.agents.check({ id: connector.id })
   }

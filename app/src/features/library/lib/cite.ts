@@ -1,11 +1,11 @@
 import type { Paper, PaperKind } from "../types"
+import { externalLinks, surname } from "./format"
 
 // Citations built from a paper's own metadata. Titles are left as recorded: changing their case
 // would lowercase names like "Transformer" that a reader expects to keep.
 
 function splitName(name: string): { given: string[]; family: string } {
-  const parts = name.trim().split(/\s+/)
-  return { family: parts.at(-1) ?? name, given: parts.slice(0, -1) }
+  return { family: surname(name), given: name.trim().split(/\s+/).slice(0, -1) }
 }
 
 // "Aidan N. Gomez" → "Gomez, A. N."
@@ -24,12 +24,6 @@ function apaAuthors(authors: string[]): string {
   return `${names.slice(0, -1).join(", ")}, & ${names.at(-1)}`
 }
 
-function link(p: Paper): string | undefined {
-  if (p.ids.doi) return `https://doi.org/${p.ids.doi}`
-  if (p.ids.arxiv) return `https://arxiv.org/abs/${p.ids.arxiv}`
-  return p.ids.url
-}
-
 // What kind of entry it is when the resolver did not say: an arXiv id and nothing else is a preprint
 export function kindOf(p: Paper): PaperKind {
   if (p.kind) return p.kind
@@ -46,7 +40,7 @@ export function apaCitation(p: Paper): string {
   const source =
     kind === "preprint" ? "arXiv" : kind === "conference" && p.venue ? `In ${p.venue}` : p.venue && !/arxiv/i.test(p.venue) ? p.venue : undefined
   const head = authors ? `${authors} ${year}. ${title}.` : `${title}. ${year}.`
-  return [head, source && `${source}.`, link(p)].filter(Boolean).join(" ")
+  return [head, source && `${source}.`, externalLinks(p)[0]?.href].filter(Boolean).join(" ")
 }
 
 const STOP_WORDS = new Set(["a", "an", "the", "on", "of", "for", "in", "to", "and", "with", "is", "are", "do", "does"])
@@ -60,7 +54,7 @@ const ascii = (s: string) =>
     .toLowerCase()
 
 // Google Scholar's shape: first author's family name, year, first real word of the title
-export function bibtexKey(p: Paper): string {
+function bibtexKey(p: Paper): string {
   const family = ascii(splitName(p.authors[0] ?? "anon").family) || "anon"
   const word = p.title.split(/[\s:—-]+/).map(ascii).find((w) => w && !STOP_WORDS.has(w)) ?? ""
   return `${family}${p.year ?? ""}${word}`

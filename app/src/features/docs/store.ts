@@ -229,4 +229,18 @@ export const useDocsStore = create<DocsState>()(
     }),
 )
 
-export const folderOf = (file: WorkspaceFile) => parentPath(file.path)
+// Something derived from the files, built once per change to them rather than on every lookup
+export function perFiles<T>(build: (files: Record<string, WorkspaceFile>) => T) {
+  const cache = new WeakMap<Record<string, WorkspaceFile>, T>()
+  return (files: Record<string, WorkspaceFile>) => {
+    let value = cache.get(files)
+    if (value === undefined) cache.set(files, (value = build(files)))
+    return value
+  }
+}
+
+// The files by their workspace path
+export const filesByPath = perFiles((files) => new Map(Object.values(files).map((f) => [f.path, f])))
+
+// The file at a workspace path, if the workspace has one
+export const fileAt = (path: string) => filesByPath(useDocsStore.getState().files).get(path)

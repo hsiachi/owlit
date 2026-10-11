@@ -1,7 +1,8 @@
 import { useEffect } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { Chat, ChatMessage, MessagePart } from "./types"
+import { countDown, countUp } from "@/lib/counts"
+import type { Chat, ChatMessage, Part } from "./types"
 
 // Where a chat stands, for its row in the list, its header and Home's "Waiting on you". Handed-off work
 // has no list of its own: the chat list is that list, so every chat says whether something is happening.
@@ -40,14 +41,9 @@ export const useSeenStore = create<SeenState>()(
       look: (chatId) => {
         set((s) => {
           const { [chatId]: _seen, ...unseen } = s.unseen
-          return { viewing: { ...s.viewing, [chatId]: (s.viewing[chatId] ?? 0) + 1 }, unseen }
+          return { viewing: countUp(s.viewing, chatId), unseen }
         })
-        return () =>
-          set((s) => {
-            const n = (s.viewing[chatId] ?? 1) - 1
-            const { [chatId]: _gone, ...viewing } = s.viewing
-            return { viewing: n > 0 ? { ...viewing, [chatId]: n } : viewing }
-          })
+        return () => set((s) => ({ viewing: countDown(s.viewing, chatId) }))
       },
       forget: (chatId) =>
         set((s) => {
@@ -84,15 +80,8 @@ export function useLookAt(chatId: string | null | undefined) {
   }, [chatId])
 }
 
-// A permission the last reply is waiting on, if any
-export function pendingPermission(chat: Chat): Extract<MessagePart, { type: "permission" }> | undefined {
-  const last = chat.messages[chat.messages.length - 1]
-  if (last?.role !== "assistant" || last.status !== "streaming") return undefined
-  return last.parts.find((p): p is Extract<MessagePart, { type: "permission" }> => p.type === "permission" && !p.outcome)
-}
-
 // What the last reply waits on the user for: a permission, or a question of the agent's
-export type PendingAsk = Extract<MessagePart, { type: "permission" }> | Extract<MessagePart, { type: "question" }>
+export type PendingAsk = Part<"permission"> | Part<"question">
 export function pendingAsk(chat: Chat): PendingAsk | undefined {
   const last = chat.messages[chat.messages.length - 1]
   if (last?.role !== "assistant" || last.status !== "streaming") return undefined

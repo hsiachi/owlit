@@ -6,6 +6,7 @@ import type { Notifications } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { chatOnScreen } from "@/features/chat/results"
+import { toastUndo } from "./toast"
 
 export function undoChange(versionId: string, what: string, redo = false) {
   rpc.versions
@@ -31,6 +32,6 @@ if (isDesktop) {
   onNotify("agent.changed", ({ kind, op, versionId, label, chatId }) => {
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(chatId)) return
-    toast(op === "removed" ? "Paper removed" : TITLES[kind], { description: label, action: { label: "Undo", onClick: () => undoChange(versionId, label) } })
+    toastUndo(op === "removed" ? "Paper removed" : TITLES[kind], () => undoChange(versionId, label), { description: label })
   })
 }

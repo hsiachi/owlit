@@ -3,6 +3,7 @@
 // passage highlighted. Each answers with the title of what it showed, or refuses in a sentence the
 // agent reads.
 
+import { parseOwlitUri } from "@owlit/protocol"
 import { EditorSelection } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { toast } from "sonner"
@@ -12,7 +13,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { openEditor, onEditorsChanged } from "@/features/docs/editors"
 import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
-import { useDocsStore } from "@/features/docs/store"
+import { fileAt } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import type { PassageTarget } from "@/features/library/reader/passages"
 import { useReaderStore } from "@/features/library/reader/reader-store"
@@ -26,23 +27,20 @@ const EDITOR_WITHIN_MS = 5_000
 type Target = { kind: "paper"; id: string; title: string } | { kind: "doc"; id: string; title: string } | { kind: "other"; title: string }
 
 function target(uri: string): Target {
-  const paper = /^owlit:\/\/library\/([^#?]+)/.exec(uri)
-  if (paper) {
+  const u = parseOwlitUri(uri)
+  if (u?.kind === "paper") {
     const { papers, aliases } = useLibraryStore.getState()
-    const id = papers[paper[1]] ? paper[1] : aliases[paper[1]]
+    const id = papers[u.id] ? u.id : aliases[u.id]
     if (!id || !papers[id]) throw new Error("That paper isn't in the library.")
     return { kind: "paper", id, title: papers[id].title }
   }
-  const doc = /^owlit:\/\/docs\/(.+)$/.exec(uri)
-  if (doc) {
-    const path = doc[1].split("/").map(decodeURIComponent).join("/")
-    const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
-    if (!file) throw new Error(`There is no doc at ${path}.`)
+  if (u?.kind === "doc") {
+    const file = fileAt(u.path)
+    if (!file) throw new Error(`There is no doc at ${u.path}.`)
     return { kind: "doc", id: file.id, title: displayName(file.path) }
   }
-  const chat = /^owlit:\/\/chat\/(.+)$/.exec(uri)
-  if (chat) {
-    const found = useChatStore.getState().chats[chat[1]]
+  if (u?.kind === "chat") {
+    const found = useChatStore.getState().chats[u.id]
     if (!found) throw new Error("There is no such chat.")
     return { kind: "other", title: found.title || "the chat" }
   }

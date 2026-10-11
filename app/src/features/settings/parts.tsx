@@ -8,21 +8,27 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { BorderedList } from "@/components/bordered-list"
+import { ChoiceMenu } from "@/components/choice-menu"
+import { GroupLabel as SharedGroupLabel } from "@/components/group-label"
+import { IconButton } from "@/components/icon-button"
+import { Info } from "@/components/info"
 import { Input } from "@/components/ui/input"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tip } from "@/components/tip"
 import { useFoldWhile, useCheck } from "./form-state"
 import { setSecret, useSettings } from "./store"
 
-export function List({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("divide-y rounded-lg border bg-card", className)}>{children}</div>
-}
+export const List = BorderedList
 
-export function GroupLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mt-6 mb-1.5 px-0.5 text-xs text-muted-foreground">{children}</div>
+// A second group in a section; its rows start at the list's edge, so the label does too
+export function GroupLabel({ info, children }: { info?: string; children: React.ReactNode }) {
+  return (
+    <SharedGroupLabel as="div" flush info={info} className="mt-6">
+      {children}
+    </SharedGroupLabel>
+  )
 }
 
 export function Row({
@@ -46,31 +52,12 @@ export function Row({
       <div className="flex min-h-7 items-center gap-3">
         <span className="flex shrink-0 items-center gap-1">
           {name}
-          {info && <Info text={info} />}
+          {info && <Info>{info}</Info>}
         </span>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-1">{control}</div>
       </div>
       {children}
     </div>
-  )
-}
-
-export function Info({ text, label = "About this" }: { text: string; label?: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
-          aria-label={label}
-        >
-          <InfoIcon className="size-3.5" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-72">
-        {text}
-      </TooltipContent>
-    </Tooltip>
   )
 }
 
@@ -83,51 +70,19 @@ export function Note({ tone = "muted", children }: { tone?: "muted" | "bad"; chi
 // status text before them lines up from row to row.
 export function IconAction({ label, onClick, disabled, className, children }: { label: string; onClick: () => void; disabled?: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground last:-mr-1.5 hover:text-foreground", className)} onClick={onClick} disabled={disabled} aria-label={label}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <IconButton label={label} className={cn("last:-mr-1.5", className)} onClick={onClick} disabled={disabled}>
+      {children}
+    </IconButton>
   )
 }
 
 // For controls shown only on hover or focus; they go before the ones that always show
-export const onHover = "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+export const onHover = "opacity-0 group-hover/row:opacity-100 focus-key:opacity-100"
 
-// A plain-text trigger that opens a words-only menu; the chosen item carries the check on the right
-export function Picker<T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T
-  options: { value: T; label: string }[]
-  onChange: (value: T) => void
-  label: string
-}) {
-  const current = options.find((o) => o.value === value) ?? options[0]
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={label} className="h-7 gap-1 px-2 font-normal last:-mr-2 data-open:bg-muted">
-          {current.label}
-          <ChevronsUpDownIcon className="text-muted-foreground" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-48">
-        {options.map((o) => (
-          <DropdownMenuItem key={o.value} onSelect={() => onChange(o.value)} className="gap-3">
-            <span className="flex-1">{o.label}</span>
-            {o.value === value && <CheckIcon className="size-4" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+// A row's choice: the shared text menu with the value in body tone and up-down chevrons, pulled out by its
+// padding when it comes last
+export function Picker<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (value: T) => void; label: string }) {
+  return <ChoiceMenu {...props} icon={<ChevronsUpDownIcon className="text-muted-foreground" />} className="h-7 gap-1 px-2 text-foreground last:-mr-2" />
 }
 
 // A text field that keeps its value when it loses focus or on Enter; Esc puts the saved value back.
@@ -203,12 +158,9 @@ export function CheckMark({ checking, result, service, accepted = `${service} ac
   return (
     <>
       {mark && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-grid size-6 shrink-0 place-items-center">{mark}</span>
-          </TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
-        </Tooltip>
+        <Tip label={label}>
+          <span className="inline-grid size-6 shrink-0 place-items-center">{mark}</span>
+        </Tip>
       )}
       <span role="status" className="sr-only">
         {label}

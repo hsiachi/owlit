@@ -2,6 +2,7 @@ import type { Highlight, Paper, PaperNote, PaperPatch } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { useLibraryStore } from "./store"
 
 // The library store's link to the workspace (library/papers/ and .owlit/papers/, through core). The
@@ -11,32 +12,24 @@ import { useLibraryStore } from "./store"
 // with every keystroke or scroll, are sent once they rest. Papers core changes on its own come in
 // through library.changed and are taken as they are, without being sent back.
 
-export const onDisk = isDesktop
+const onDisk = isDesktop
 
 const NOTE_REST_MS = 500
 const POSITION_REST_MS = 1000
 
 const PATCHABLE = ["title", "authors", "year", "venue", "abstract", "kind", "ids", "starred", "status", "tags", "position", "lastOpenedAt"] as const
 
-let chain: Promise<void> = Promise.resolve()
-let generation = 0
 // Removed in this window and not yet put back: a paper with one of these ids reappearing is an Undo
 const removedHere = new Set<string>()
 const resting = new Map<string, ReturnType<typeof setTimeout>>()
 
-function enqueue(op: () => Promise<unknown>) {
-  const gen = generation
-  chain = chain.then(async () => {
-    if (gen !== generation) return
-    try {
-      await op()
-    } catch (error) {
-      if (gen !== generation) return
-      toast.error(error instanceof Error ? error.message : "Couldn't save the library.")
-      void reload()
-    }
-  })
-}
+const queue = createWorkspaceQueue({
+  onError: (error) => {
+    toast.error(error instanceof Error ? error.message : "Couldn't save the library.")
+    void reload()
+  },
+})
+const enqueue = (op: () => Promise<unknown>) => queue.enqueue(op)
 
 // Later calls with the same key replace earlier ones until the key has rested for ms
 function afterRest(key: string, ms: number, op: () => Promise<unknown>) {
@@ -50,22 +43,15 @@ function afterRest(key: string, ms: number, op: () => Promise<unknown>) {
   )
 }
 
-// True while the store takes what core says, so the watcher below doesn't send it back
-let fromCore = false
-export const isLibraryFromCore = () => fromCore
-function takeFromCore(update: () => void) {
-  fromCore = true
-  try {
-    update()
-  } finally {
-    fromCore = false
-  }
-}
+// Up while the store takes what core says, so the watcher below doesn't send it back
+const coreFlag = createDiskFlag()
+export const isLibraryFromCore = coreFlag.isOn
+const takeFromCore = coreFlag.apply
 
 async function load() {
-  const gen = generation
+  const sameWorkspace = queue.tracker()
   const { papers, highlights, notes, aliases } = await rpc.library.list()
-  if (gen !== generation) return
+  if (!sameWorkspace()) return
   takeFromCore(() =>
     useLibraryStore.setState({
       papers: byId(papers),
@@ -87,6 +73,13 @@ async function reload() {
 // A paper core made or changed at the window's request (an imported PDF), taken without being sent back
 export function takePaper(paper: Paper) {
   takeFromCore(() => useLibraryStore.setState((s) => ({ papers: { ...s.papers, [paper.id]: paper } })))
+}
+
+// A PDF on disk imported by core (recognised, kept in the workspace) and taken into the store
+export async function importPdf(path: string) {
+  const imported = await rpc.library.importPdf({ path })
+  takePaper(imported.paper)
+  return imported
 }
 
 // ---- Differences, store → core
@@ -167,7 +160,7 @@ const byId = <T extends { id: string }>(items: T[]) => Object.fromEntries(items.
 
 if (onDisk) {
   useLibraryStore.subscribe((state, prev) => {
-    if (fromCore || !useWorkspace.getState().current) return
+    if (coreFlag.isOn() || !useWorkspace.getState().current) return
     if (state.papers !== prev.papers) papersChanged(state.papers, prev.papers)
     if (state.highlights !== prev.highlights) highlightsChanged(state.highlights, prev.highlights, state.papers)
     if (state.notes !== prev.notes) notesChanged(state.notes, prev.notes, state.papers)
@@ -202,7 +195,7 @@ if (onDisk) {
   })
 
   onWorkspaceOpened(() => {
-    generation++
+    queue.reset()
     for (const timer of resting.values()) clearTimeout(timer)
     resting.clear()
     removedHere.clear()

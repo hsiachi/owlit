@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { appLinkTitle, openAppLink } from "@/app/app-links"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
-import { MentionToken } from "../composer/MentionToken"
+import { MentionToken } from "@/components/mention/mention-token"
 
 // The default sanitizer drops unknown schemes; keep owlit:// so workspace references survive
 const urlTransform = (url: string) => (url.startsWith("owlit://") ? url : defaultUrlTransform(url))

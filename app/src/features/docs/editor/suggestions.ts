@@ -1,48 +1,10 @@
 import { StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view"
-import type { Chat } from "@/features/chat/types"
+import { suggestionBar, type PendingEdit } from "@/features/chat/pending-edits"
+import { hunk } from "@/lib/text-diff"
+import { renderInline } from "./render-inline"
 
-// An edit an agent has proposed to a doc and is waiting on: an ACP edit tool call with a diff, plus its
-// permission request. It is drawn in place; Apply and Discard answer the request.
-export interface PendingEdit {
-  chatId: string
-  requestId: string
-  path: string
-  oldText: string
-  newText: string
-}
-
-export function pendingEdits(chats: Record<string, Chat>, path: string): PendingEdit[] {
-  const out: PendingEdit[] = []
-  for (const chat of Object.values(chats)) {
-    const last = chat.messages[chat.messages.length - 1]
-    if (last?.role !== "assistant" || last.status !== "streaming") continue
-    for (const part of last.parts) {
-      if (part.type !== "permission" || part.outcome) continue
-      const call = last.parts.find((p) => p.type === "tool_call" && p.toolCallId === part.toolCallId)
-      if (call?.type === "tool_call" && call.diff?.path === path)
-        out.push({ chatId: chat.id, requestId: part.requestId, path, oldText: call.diff.oldText, newText: call.diff.newText })
-    }
-  }
-  return out
-}
-
-// A letter or digit of a script that spaces its words. Han and kana run on without spaces, so widening to
-// the whole run there would take in the sentence.
-const isWord = (c: string | undefined) =>
-  c !== undefined && /[\p{L}\p{N}_]/u.test(c) && !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(c)
-
-// The one span an edit changes, between the text it shares with the old file at both ends. Its ends are
-// widened to whole words, so "mostly" to "mainly" reads as one word swapped, not "m(ost)(ain)ly".
-export function hunk(oldText: string, newText: string) {
-  let p = 0
-  while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++
-  let s = 0
-  while (s < oldText.length - p && s < newText.length - p && oldText[oldText.length - 1 - s] === newText[newText.length - 1 - s]) s++
-  while (p > 0 && isWord(oldText[p - 1]) && (isWord(oldText[p]) || isWord(newText[p]))) p--
-  while (s > 0 && isWord(oldText[oldText.length - s]) && (isWord(oldText[oldText.length - s - 1]) || isWord(newText[newText.length - s - 1]))) s--
-  return { at: p, removed: oldText.slice(p, oldText.length - s), added: newText.slice(p, newText.length - s) }
-}
+// An agent's proposed edit to the doc (a PendingEdit), drawn in place
 
 // Where text occurs exactly once in the doc, or -1
 function only(doc: string, text: string) {
@@ -63,8 +25,9 @@ function locate(state: EditorState, edit: PendingEdit) {
   return { from: i, to: i + h.removed.length, added: h.added }
 }
 
-// New words, with any [label](owlit://…) drawn as the mention it will become. Spaces at either end stay
-// outside the underline. After struck words they keep a small gap, so the old and new don't run together.
+// New words, drawn as they will read: a [label](owlit://…) as the mention it will become. Spaces at either
+// end stay outside the underline. After struck words they keep a small gap, so the old and new don't run
+// together.
 class AddedWidget extends WidgetType {
   readonly text: string
   readonly replaces: boolean
@@ -80,19 +43,9 @@ class AddedWidget extends WidgetType {
     const [, lead, words, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(this.text)!
     const outer = document.createElement("span")
     const span = document.createElement("span")
-    span.className = this.replaces ? "cm-suggest-ins cm-suggest-ins-after" : "cm-suggest-ins"
+    span.className = this.replaces ? "suggest-ins suggest-ins-after" : "suggest-ins"
     outer.append(lead, span, trail)
-    for (const piece of words.split(/(\[[^\]]*\]\(owlit:\/\/[^)]+\))/g)) {
-      const m = /^\[([^\]]*)\]\(owlit:\/\/[^)]+\)$/.exec(piece)
-      if (!m) {
-        span.append(piece)
-        continue
-      }
-      const mention = document.createElement("span")
-      mention.className = "cm-mention"
-      mention.textContent = m[1]
-      span.append(mention)
-    }
+    renderInline(words, span)
     return outer
   }
 }
@@ -109,22 +62,7 @@ class BarWidget extends WidgetType {
     return other.edit.requestId === this.edit.requestId
   }
   toDOM() {
-    const bar = document.createElement("div")
-    bar.className = "cm-suggest-bar"
-    const label = document.createElement("span")
-    label.textContent = "Suggested by Owlit"
-    const discard = document.createElement("button")
-    discard.type = "button"
-    discard.className = "cm-suggest-discard"
-    discard.textContent = "Discard"
-    discard.onclick = () => this.respond(this.edit, false)
-    const apply = document.createElement("button")
-    apply.type = "button"
-    apply.className = "cm-suggest-apply"
-    apply.textContent = "Apply"
-    apply.onclick = () => this.respond(this.edit, true)
-    bar.append(label, discard, apply)
-    return bar
+    return suggestionBar((apply) => this.respond(this.edit, apply))
   }
   ignoreEvent() {
     return true
@@ -138,10 +76,10 @@ function build(state: EditorState, edits: PendingEdit[], respond: (edit: Pending
   for (const edit of edits) {
     const at = locate(state, edit)
     if (!at) continue
-    if (at.to > at.from) decos.push(Decoration.mark({ class: "cm-suggest-del" }).range(at.from, at.to))
+    if (at.to > at.from) decos.push(Decoration.mark({ class: "suggest-del" }).range(at.from, at.to))
     // Every line the edit touches carries the rule that joins it to the bar
     for (let n = state.doc.lineAt(at.from).number; n <= state.doc.lineAt(at.to).number; n++)
-      decos.push(Decoration.line({ class: "cm-suggest-line" }).range(state.doc.line(n).from))
+      decos.push(Decoration.line({ class: "suggest-line" }).range(state.doc.line(n).from))
     if (at.added) decos.push(Decoration.widget({ widget: new AddedWidget(at.added, at.to > at.from), side: 1 }).range(at.to))
     decos.push(Decoration.widget({ widget: new BarWidget(edit, respond), block: true, side: 1 }).range(state.doc.lineAt(at.to).to))
   }

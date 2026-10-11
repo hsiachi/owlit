@@ -1,17 +1,17 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { editStats, HUNK_GAP, type EditStats } from "@owlit/protocol"
-import { hunk } from "@/features/docs/editor/suggestions"
+import { hunk } from "@/lib/text-diff"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
-import type { MessagePart } from "../../types"
+import type { QuestionPart } from "../../types"
 import { hostOf, type ToolCall } from "../../lib/step-words"
 
 // What a step got, shown when its row is opened: a command's output, the hits of a search, the pages
 // opened (a paper among them can go straight into the Library), a file's text, the change an edit made,
 // the answers to a question. Kept short; the agent's own words are the answer.
 
-type QuestionPart = Extract<MessagePart, { type: "question" }>
 
 // The text a tool sent back, without the code fences Claude Code wraps it in
 const plain = (content?: string) =>
@@ -72,14 +72,9 @@ function AddToLibrary({ url }: { url: string }) {
   }
   if (state === "added") return <span className="shrink-0 text-xs text-muted-foreground">In Library</span>
   return (
-    <button
-      type="button"
-      onClick={add}
-      disabled={state === "adding"}
-      className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground opacity-0 outline-none group-hover/hit:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-key:bg-muted"
-    >
+    <Button variant="text" size="inline" onClick={add} disabled={state === "adding"} className="opacity-0 group-hover/hit:opacity-100 focus-visible:opacity-100">
       {state === "adding" ? "Adding…" : "Add to Library"}
-    </button>
+    </Button>
   )
 }
 

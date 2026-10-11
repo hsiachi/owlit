@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { LARGE_FILE_BYTES, type AttachmentFile, type Mentionable } from "@owlit/protocol"
+import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Mentionable } from "@owlit/protocol"
+import { BorderedList } from "@/components/bordered-list"
+import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { bridge, isDesktop, rpc } from "@/lib/rpc"
 import { useWorkspace } from "@/lib/workspace"
-import { docMentionable, paperMentionable, shortCite } from "@/features/docs/lib/mentions"
-import { useDocsStore } from "@/features/docs/store"
+import { docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
+import { fileAt } from "@/features/docs/store"
+import { citationLabel } from "@/features/library/lib/format"
 import { displayName, docUri, parentPath } from "@/features/docs/types"
-import { takePaper } from "@/features/library/disk"
+import { importPdf } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
-import { Info } from "@/features/settings/parts"
 import { formatBytes } from "../components/composer/AttachmentList"
 
 // A file on its way into a message: being copied, ready to send, or refused (a folder, a file that can't
@@ -48,7 +50,7 @@ export function useAttachments(chatId: string, onMention: (mention: AttachedMent
   const copy = useCallback(async (file: File, draft: DraftFile) => {
     if (!isDesktop) return patch(draft.id, { state: "ready" })
     try {
-      const path = window.owlit?.pathForFile(file)
+      const path = bridge?.pathForFile(file)
       const result = path
         ? await rpc.chats.attach({ chatId: chatRef.current, path, mimeType: file.type })
         : await rpc.chats.attach({ chatId: chatRef.current, name: file.name, mimeType: file.type, data: await base64(file) })
@@ -125,21 +127,15 @@ export function useAttachments(chatId: string, onMention: (mention: AttachedMent
     <Dialog open={!!asking} onOpenChange={(open) => !open && setAsking(null)}>
       {/* Focus would land on the title's info icon and open its tooltip */}
       <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-1">
-            {big.length === 1 ? "Copy this large file?" : `Copy ${big.length} large files?`}
-            <Info text={ABOUT_COPIES} />
-          </DialogTitle>
-          <DialogDescription className="sr-only">{ABOUT_COPIES}</DialogDescription>
-        </DialogHeader>
-        <ul className="flex flex-col divide-y rounded-lg border">
+        <DialogHeading title={big.length === 1 ? "Copy this large file?" : `Copy ${big.length} large files?`} about={ABOUT_COPIES} />
+        <BorderedList as="ul">
           {big.map((f, i) => (
             <li key={i} className="flex h-9 items-center gap-3 px-3.5 text-sm">
               <span className="min-w-0 flex-1 truncate">{f.name}</span>
               <span className="shrink-0 text-muted-foreground">{formatBytes(f.size)}</span>
             </li>
           ))}
-        </ul>
+        </BorderedList>
         <DialogFooter>
           <Button
             variant="ghost"
@@ -205,7 +201,7 @@ async function base64(file: File): Promise<string> {
 }
 
 function docMention(path: string): AttachedMention {
-  const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
+  const file = fileAt(path)
   const mention = file ? docMentionable(file) : { id: path, kind: "doc" as const, title: displayName(path), subtitle: parentPath(path) || undefined, uri: docUri(path) }
   return { ...mention, label: displayName(path) }
 }
@@ -213,8 +209,8 @@ function docMention(path: string): AttachedMention {
 async function paperMention(id: string, fallback: string): Promise<AttachedMention> {
   const paper = useLibraryStore.getState().papers[id]
   // A paper owlit knows no authors of (a local PDF) goes by its title rather than "Unknown"
-  if (paper) return { ...paperMentionable(paper), label: paper.authors.length ? shortCite(paper) : paper.title }
-  return { id, kind: "paper", title: fallback, uri: `owlit://library/${id}`, label: fallback }
+  if (paper) return { ...paperMentionable(paper), label: paper.authors.length ? citationLabel(paper) : paper.title }
+  return { id, kind: "paper", title: fallback, uri: paperUri(id), label: fallback }
 }
 
 // Adds an attached PDF's copy to the Library; the paper, or null when it couldn't be read (said in a toast)
@@ -222,8 +218,7 @@ export async function importCopy(file: AttachmentFile) {
   const root = useWorkspace.getState().current?.path
   if (!file.path || !root) return null
   try {
-    const { paper, existed } = await rpc.library.importPdf({ path: `${root}/${file.path}` })
-    takePaper(paper)
+    const { paper, existed } = await importPdf(`${root}/${file.path}`)
     toast(existed ? "Already in your library" : "Added to library", { description: paper.title })
     return paper
   } catch (error) {

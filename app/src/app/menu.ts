@@ -3,10 +3,11 @@
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
 import { openSettings } from "@/features/settings/store"
+import { bridge } from "@/lib/rpc"
 import { openShortcuts } from "./shortcuts"
 
 export function startMenu(router: typeof appRouter) {
-  window.owlit?.onMenu((command) => {
+  bridge?.onMenu((command) => {
     if (command === "settings") openSettings()
     if (command === "shortcuts") openShortcuts()
     if (command === "how-to") {

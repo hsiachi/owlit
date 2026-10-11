@@ -489,6 +489,11 @@
     @apply font-sans;
     }
 }
+/* The floating material: menus, popovers, the mention popup, the reader's pills and toolbar, the bulk
+   bar. The corner and the text colour stay with each shape (14px for a menu, full for a pill) */
+@utility menu-surface {
+  @apply bg-popover shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14;
+}
 /* ---- Paper note (Tiptap, rendered with the .markdown styles) ---- */
 .note-editor p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -500,21 +505,30 @@
 /* The 8px note dot (something Owlit did since the user last looked), wherever it appears: the amber
    with a deeper rim, so the mark holds 3:1 on the light panels and on a hovered row */
 .note-dot { background: var(--note); box-shadow: inset 0 0 0 1px var(--note-rim); }
-/* Owlit's proposed edit in the note, as Docs draws one: Owlit marks like one more editor, in its own
-   colour. Removed words keep the muted tone with a strike in that colour (removal is not an error, so
-   never red), new words take the colour with an underline, and a rule at the left joins the paragraphs
-   it touches to the one line under them that answers it */
-.note-suggest-del { color: var(--muted-foreground); text-decoration: line-through 1.5px var(--suggestion); }
-.note-suggest-ins { color: var(--suggestion); text-decoration: underline 1px var(--suggestion); text-underline-offset: 3px; margin-left: 0.25em; white-space: pre-wrap; }
-.note-suggest-block, .note-suggest-bar { position: relative; }
-/* A block's rule reaches down over the 0.5rem gap after it, to the next block or the line */
-.note-suggest-block::before, .note-suggest-bar::before { content: ""; position: absolute; left: -12px; top: 0; bottom: -0.5rem; width: 2px; background: var(--suggestion); }
-.note-suggest-bar::before { bottom: 0; }
-.note-suggest-bar { display: flex; align-items: center; gap: 6px; margin: 2px 0 10px; font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
-.note-suggest-bar span { flex: 1; }
-.note-suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
-.note-suggest-discard:hover { background: var(--accent); color: var(--foreground); }
-.note-suggest-apply { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
+/* ---- Owlit in a doc or a note ---- */
+/* A selected passage's menu, "Ask Owlit": one compact row in a thin frame, covering as little text as it
+   can; 8px corners concentric with the 6px item inside */
+.selection-menu { @apply flex gap-0.5 rounded-[8px] border bg-popover p-0.5 font-sans text-detail shadow-lg; }
+.selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
+/* Owlit's proposed edit, marked as one more editor would, in its own colour. Removed words keep the muted
+   tone with a strike in that colour (removal is not an error, so never red); new words take the colour,
+   with an underline so the two differ in shape too. A rule at the left runs down the lines (a doc) or
+   paragraphs (a note) it touches and the bar under them, so each edit reads as one piece with its answer. */
+.suggest-del { color: var(--muted-foreground); text-decoration: line-through 1.5px var(--suggestion); }
+.suggest-ins { color: var(--suggestion); text-decoration: underline 1px var(--suggestion); text-underline-offset: 3px; white-space: pre-wrap; }
+/* After struck words a small gap, so the old and new don't run together */
+.suggest-ins-after { margin-left: 0.25em; }
+.suggest-line, .suggest-block, .suggest-bar { position: relative; }
+.suggest-line::before, .suggest-block::before, .suggest-bar::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: var(--suggestion); }
+.note-editor .suggest-block::before, .note-editor .suggest-bar::before { left: -12px; }
+/* A note's block rule reaches down over the 0.5rem gap after it; the bar's bridges its own top margin */
+.suggest-block::before { bottom: -0.5rem; }
+.suggest-bar::before { top: -2px; }
+.suggest-bar { display: flex; align-items: center; gap: 6px; margin: 2px 0 10px; font-size: 13px; line-height: 1.4; color: var(--muted-foreground); }
+.suggest-bar span { flex: 1; }
+.suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
+.suggest-discard:hover { background: var(--accent); color: var(--foreground); }
+.suggest-apply { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
 /* A quote's page link back to its highlight: part of the quote, not a call to action */
 .markdown a[href^="owlit://highlight/"] {
   color: inherit;

@@ -1,9 +1,13 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { BookOpenIcon, BotIcon, LibraryIcon, MessageSquareIcon, ShieldAlertIcon, XIcon } from "lucide-react"
+import { LibraryIcon, XIcon, type LucideIcon } from "lucide-react"
+import { BorderedList } from "@/components/bordered-list"
+import { GroupLabel } from "@/components/group-label"
+import { IconButton } from "@/components/icon-button"
+import { WaitingShield } from "@/components/marks"
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { needsSignIn } from "@/features/chat/lib/sign-in"
+import { KIND_ICON } from "@/lib/kinds"
+import { connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { brokenReply, pendingAsk, useSeenStore } from "@/features/chat/status"
 import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
@@ -11,7 +15,7 @@ import { regenerate } from "@/features/chat/lib/regenerate"
 import { useLibraryStore } from "@/features/library/store"
 import { citationLabel } from "@/features/library/lib/format"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { useTasksStore } from "@/features/tasks/store"
+import { useLoginTasks } from "@/features/tasks/store"
 
 // Everything stuck on the user, in one list: a permission a chat waits for, a publisher that wants a
 // check, handed-off work that broke, an agent that can't run, a library sign-in. Each line is the thing
@@ -19,7 +23,7 @@ import { useTasksStore } from "@/features/tasks/store"
 // places these come from keep their own marks (a chat's status ring, the rail's dots).
 interface Waiting {
   key: string
-  icon: typeof MessageSquareIcon
+  icon: LucideIcon
   what: string
   where?: string
   // The full story when the line is short for it, such as the agent's own error message
@@ -38,7 +42,7 @@ function useWaiting(): Waiting[] {
   const dismissed = useSeenStore((s) => s.dismissed)
   const papers = useLibraryStore((s) => s.papers)
   const background = useSettings((s) => s.view?.backgroundAgent)
-  const loginTask = useTasksStore((s) => Object.values(s.byId).find((t) => t.state === "waiting_for_you" && t.waiting?.reason === "login"))
+  const loginTask = useLoginTasks()[0]
 
   return useMemo(() => {
     const out: Waiting[] = []
@@ -49,12 +53,12 @@ function useWaiting(): Waiting[] {
         // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
         const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
         const what = ask.type === "permission" ? askSentence(ask.title, call) : "Owlit has a question"
-        out.push({ key: `ask:${chat.id}`, icon: MessageSquareIcon, what, where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
+        out.push({ key: `ask:${chat.id}`, icon: KIND_ICON.chat, what, where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
       } else if (broken) {
         const index = chat.messages.length - 1
         out.push({
           key: `fail:${chat.id}`,
-          icon: MessageSquareIcon,
+          icon: KIND_ICON.chat,
           what: "Owlit stopped",
           where: `in “${chat.title}”`,
           detail: broken.error || undefined,
@@ -74,7 +78,7 @@ function useWaiting(): Waiting[] {
       if (!needs) continue
       out.push({
         key: `paper:${paper.id}`,
-        icon: BookOpenIcon,
+        icon: KIND_ICON.paper,
         what: needs === "sign-in" ? "The publisher wants you to sign in" : "The publisher wants a quick check",
         where: `for ${citationLabel(paper)}`,
         fix: { label: needs === "sign-in" ? "Sign in" : "Check now", run: () => navigate(`/library/${paper.id}?check=1`) },
@@ -83,13 +87,14 @@ function useWaiting(): Waiting[] {
     // Only agents owlit would run: the one picked for chats and the one doing background work
     const used = new Set([selected, background].filter(Boolean))
     for (const c of connectors) {
-      if (!used.has(c.id) || (c.status !== "not_installed" && c.status !== "error")) continue
+      const problem = connectorProblem(c)
+      if (!used.has(c.id) || !problem) continue
       const role = c.id === selected ? "picked for chats" : "picked for background work"
       out.push({
         key: `agent:${c.id}`,
-        icon: BotIcon,
-        what: c.status === "not_installed" ? `${c.name} isn’t installed` : needsSignIn(c) ? `${c.name} isn’t signed in` : `${c.name} can’t run`,
-        where: c.status === "error" && c.error && !needsSignIn(c) ? `· ${c.error}` : `· ${role}`,
+        icon: KIND_ICON.agent,
+        what: problemSentence(c) ?? "",
+        where: problem === "error" && c.error ? `· ${c.error}` : `· ${role}`,
         fix: { label: "Manage agents…", run: () => openSettings("agents"), quiet: true },
       })
     }
@@ -105,11 +110,10 @@ export function WaitingOnYou() {
   if (!waiting.length) return null
   return (
     <section aria-labelledby="waiting-label">
-      <h2 id="waiting-label" className="flex items-center gap-1.5 px-2.5 pb-1.5 text-xs font-normal text-muted-foreground">
-        <ShieldAlertIcon className="size-3.5 text-warning" />
+      <GroupLabel id="waiting-label" icon={<WaitingShield />}>
         Waiting on you
-      </h2>
-      <ul className="divide-y overflow-hidden rounded-[10px] border bg-card">
+      </GroupLabel>
+      <BorderedList as="ul">
         {waiting.map((w) => (
           <li key={w.key} className="group/waiting flex min-h-11 items-center gap-2.5 py-1.5 pr-2 pl-3">
             <w.icon className="size-4 shrink-0 text-muted-foreground" />
@@ -119,27 +123,16 @@ export function WaitingOnYou() {
             </p>
             {w.dismiss && (
               // Leaving a broken reply as it is: a quiet way out, shown where the pointer or focus is
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Dismiss"
-                    onClick={w.dismiss}
-                    className="text-muted-foreground opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100"
-                  >
-                    <XIcon />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Dismiss</TooltipContent>
-              </Tooltip>
+              <IconButton label="Dismiss" onClick={w.dismiss} className="opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100">
+                <XIcon />
+              </IconButton>
             )}
             <Button size="sm" variant={w.fix.quiet ? "ghost" : "outline"} onClick={w.fix.run} className={w.fix.quiet ? "text-muted-foreground" : undefined}>
               {w.fix.label}
             </Button>
           </li>
         ))}
-      </ul>
+      </BorderedList>
     </section>
   )
 }

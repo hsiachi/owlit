@@ -1,8 +1,8 @@
 import { create } from "zustand"
-import type { MessagePart, QuestionAnswer } from "@owlit/protocol"
+import type { QuestionAnswer } from "@owlit/protocol"
+import type { QuestionPart } from "./types"
 import { useChatStore } from "./store"
 
-type QuestionPart = Extract<MessagePart, { type: "question" }>
 
 // A question the agent asked, while the user works through it: which of its questions is showing and
 // what they gave so far. Both the card above the composer and the composer itself answer it (typing is an

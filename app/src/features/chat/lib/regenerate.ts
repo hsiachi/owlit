@@ -1,4 +1,5 @@
 import { useChatStore } from "../store"
+import { messageText } from "./message-text"
 
 // Sends again the user message that came before an assistant reply: Regenerate, and Retry on a reply
 // that broke. A broken reply is replaced, with the question it answered, so retrying doesn't leave the
@@ -11,6 +12,6 @@ export function regenerate(chatId: string, index: number) {
   if (!prev) return
   const reply = chat.messages[index]
   if (reply?.role === "assistant" && reply.status === "error") removeMessages(chatId, [prev.id, reply.id])
-  const text = prev.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n")
+  const text = messageText(prev, "\n")
   void send(chatId, { text, mentions: prev.mentions ?? [], attachments: prev.attachments ?? [], context: prev.context, selection: prev.selection })
 }

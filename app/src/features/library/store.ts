@@ -7,6 +7,7 @@ import { MockLibraryClient } from "./mock-client"
 import { RpcLibraryClient } from "./rpc-client"
 import { seedPapers } from "./mocks/papers"
 import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "./types"
+import { normalizeTag } from "./lib/tags"
 
 export const libraryClient: LibraryClient = isDesktop ? new RpcLibraryClient() : new MockLibraryClient()
 
@@ -49,8 +50,6 @@ interface LibraryState {
 
 // A removed paper's highlights and note, held until the session ends so Undo brings them back too
 const removedWith = new Map<string, { highlights: Highlight[]; note?: PaperNote }>()
-
-const normalizeTag = (tag: string) => tag.trim().toLowerCase().replace(/\s+/g, "-")
 
 export const useLibraryStore = create<LibraryState>()(
   persist(

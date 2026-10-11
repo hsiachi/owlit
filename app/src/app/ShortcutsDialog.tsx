@@ -1,4 +1,7 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { BorderedList } from "@/components/bordered-list"
+import { GroupLabel } from "@/components/group-label"
+import { DialogHeading } from "@/components/info"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { SHORTCUT_GROUPS, useShortcutsSheet } from "./shortcuts"
 
@@ -8,14 +11,13 @@ export function ShortcutsDialog() {
   return (
     <Dialog open={open} onOpenChange={(o) => useShortcutsSheet.setState({ open: o })}>
       <DialogContent className="max-h-[min(40rem,calc(100svh-4rem))] gap-0 overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription className="sr-only">Every keyboard shortcut in owlit</DialogDescription>
-        </DialogHeader>
+        <DialogHeading title="Keyboard shortcuts" description="Every keyboard shortcut in owlit" />
         {SHORTCUT_GROUPS.map((group) => (
           <section key={group.title} className="mt-4">
-            <h3 className="mb-1.5 text-xs text-muted-foreground">{group.title}</h3>
-            <ul className="divide-y rounded-lg border">
+            <GroupLabel as="h3" flush>
+              {group.title}
+            </GroupLabel>
+            <BorderedList as="ul">
               {group.shortcuts.map((s) => (
                 <li key={s.id} className="flex min-h-9 items-center gap-3 px-3 py-1 text-sm">
                   <span className="min-w-0 flex-1">
@@ -27,7 +29,7 @@ export function ShortcutsDialog() {
                   </KbdGroup>
                 </li>
               ))}
-            </ul>
+            </BorderedList>
           </section>
         ))}
       </DialogContent>

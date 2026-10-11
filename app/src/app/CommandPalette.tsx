@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { BookOpenIcon, FilePlusIcon, FileTextIcon, MessageSquareIcon, SquarePenIcon } from "lucide-react"
+import { FilePlusIcon, SquarePenIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { KindIcon } from "@/components/kind-icon"
 import {
   Command,
   CommandDialog,
@@ -13,7 +14,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { Kbd } from "@/components/ui/kbd"
-import { keysFor } from "@/app/shortcuts"
+import { keysFor, useShortcut } from "@/app/shortcuts"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { isHidden } from "@/features/docs/lib/tree"
@@ -22,6 +23,8 @@ import { useNewDoc } from "@/features/docs/use-new-doc"
 import { paperMeta } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { useFullText } from "@/features/search/full-text"
+import { messageText } from "@/features/chat/lib/message-text"
+import { hasAllWords, queryWords } from "@/lib/words"
 import { usePaletteStore } from "./palette-store"
 
 // Before anything is typed, each group shows its most recent few
@@ -31,12 +34,10 @@ const RECENT = 6
 // long value finds letters scattered over authors and venues, so it is not used. A match in the
 // title (passed as the first keyword) ranks above one in the details.
 function filter(value: string, search: string, keywords?: string[]): number {
-  const words = search.toLowerCase().split(/\s+/).filter(Boolean)
+  const words = queryWords(search)
   if (words.length === 0) return 1
-  const hay = value.toLowerCase()
-  if (!words.every((w) => hay.includes(w))) return 0
-  const title = keywords?.[0]?.toLowerCase() ?? ""
-  return words.every((w) => title.includes(w)) ? 1 : 0.5
+  if (!hasAllWords(value, words)) return 0
+  return hasAllWords(keywords?.[0] ?? "", words) ? 1 : 0.5
 }
 
 // ⌘K from anywhere: jump to a paper, a doc or a chat. The place you are in comes first.
@@ -53,16 +54,7 @@ export function CommandPalette() {
   // Papers whose text (not just their details) has every word typed
   const fullText = useFullText(open ? query : "")
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setOpen(!usePaletteStore.getState().open)
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [setOpen])
+  useShortcut("palette", () => setOpen(!usePaletteStore.getState().open))
 
   const paperItems = useMemo(
     () =>
@@ -93,9 +85,8 @@ export function CommandPalette() {
           // Searchable body: what the user wrote
           const preview = c.messages
             .filter((m) => m.role === "user")
-            .flatMap((m) => m.parts)
-            .filter((p) => p.type === "text")
-            .map((p) => p.text)
+            .map((m) => messageText(m, " "))
+            .filter(Boolean)
             .join(" ")
             .slice(0, 200)
           return { id: c.id, title: c.title, preview, value: `${c.title} ${preview} ${c.id}` }
@@ -131,7 +122,7 @@ export function CommandPalette() {
         // A new key once a text match arrives: cmdk works out its groups when an item comes, not when
         // an item's value changes
         <CommandItem key={p.snippet ? `${p.id}:text` : p.id} value={p.value} keywords={[p.title]} onSelect={() => go(`/library/${p.id}`)} className={itemClass}>
-          <BookOpenIcon />
+          <KindIcon kind="paper" />
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
             <span className="max-w-[70%] shrink-0 truncate">{p.title}</span>
             <span className="min-w-0 truncate text-sm text-muted-foreground">{p.snippet && !inDetails(p.details, query) ? p.snippet : p.meta}</span>
@@ -145,7 +136,7 @@ export function CommandPalette() {
     <CommandGroup key="chats" heading="Chats" className="p-0">
       {(typing ? chatItems : chatItems.slice(0, RECENT)).map((c) => (
         <CommandItem key={c.id} value={c.value} keywords={[c.title]} onSelect={() => go(`/chat/${c.id}`)} className={itemClass}>
-          <MessageSquareIcon />
+          <KindIcon kind="chat" />
           {/* The title keeps its width; the preview takes what's left */}
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
             <span className="max-w-[70%] shrink-0 truncate">{c.title}</span>
@@ -160,7 +151,7 @@ export function CommandPalette() {
     <CommandGroup key="docs" heading="Docs" className="p-0">
       {(typing ? docItems : docItems.slice(0, RECENT)).map((d) => (
         <CommandItem key={d.id} value={d.value} keywords={[d.title]} onSelect={() => go(`/docs/${d.id}`)} className={itemClass}>
-          <FileTextIcon />
+          <KindIcon kind="doc" />
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
             <span className="max-w-[70%] shrink-0 truncate">{d.title}</span>
             {d.folder && <span className="min-w-0 truncate text-sm text-muted-foreground">{d.folder}</span>}
@@ -250,11 +241,4 @@ export function CommandPalette() {
 const itemClass = "gap-3 rounded-md px-3 py-2 text-body [&_svg]:text-muted-foreground"
 
 // Whether every word typed is in what the row shows besides the text (title, authors, venue, …)
-function inDetails(value: string, query: string) {
-  const details = value.toLowerCase()
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((w) => details.includes(w))
-}
+const inDetails = (value: string, query: string) => hasAllWords(value, queryWords(query))

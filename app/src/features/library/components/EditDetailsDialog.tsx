@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react"
+import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useLibraryStore } from "../store"
@@ -85,11 +79,9 @@ export function EditDetailsDialog() {
 
   return (
     <Dialog open={!!paper} onOpenChange={(open) => !open && setEditingId(null)}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit details</DialogTitle>
-          <DialogDescription>Fix what the resolver got wrong, or fill in a PDF-only paper.</DialogDescription>
-        </DialogHeader>
+      {/* The title field takes focus once it mounts; the info icon would otherwise, and open its tooltip */}
+      <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogHeading title="Edit details" about="Fix what the resolver got wrong, or fill in a PDF-only paper." />
         {draft && (
           <form
             className="flex flex-col gap-4"

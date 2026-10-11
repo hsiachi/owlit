@@ -5,46 +5,25 @@ import { useSearch, useSearchCapability } from "@embedpdf/plugin-search/react"
 import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react"
 import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { keysFor } from "@/app/shortcuts"
-import { Kbd } from "@/components/ui/kbd"
+import { Tip } from "@/components/tip"
+import { Separator } from "@/components/ui/separator"
+import { useShortcut } from "@/app/shortcuts"
 import type { ReturnMark } from "./LinkLayer"
 
 // Zoom and find float over the page instead of sitting in a toolbar above it: no band of chrome
 // before the document starts, and the controls rest on the thing they act on.
 
-// Floating material, the same as menus (popover surface, hairline ring, soft shadow), fully rounded. z-30 keeps it above
-// the selection layer and the interaction overlay (z 10) and the link layer (z 20).
-const PILL = "z-30 flex h-8 items-center gap-0.5 rounded-full bg-popover p-1 text-xs text-muted-foreground shadow-md ring-1 ring-foreground/8 dark:ring-foreground/14"
+// The floating material of menus, fully rounded. z-30 keeps it above the selection layer and the
+// interaction overlay (z 10) and the link layer (z 20).
+const PILL = "menu-surface z-30 flex h-8 items-center gap-0.5 rounded-full p-1 text-xs text-muted-foreground"
 const ITEM = "flex h-6 items-center rounded-full transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
 const ICON = cn(ITEM, "w-6 justify-center [&_svg]:size-3.5")
-
-function Tip({ label, keys, children }: { label: string; keys?: string; children: React.ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>
-        {label}
-        {keys && <Kbd>{keys}</Kbd>}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
 
 export function ReaderControls({ documentId, back, onBack }: { documentId: string; back: ReturnMark | null; onBack: () => void }) {
   const [searching, setSearching] = useState(false)
 
   // ⌘F finds in the paper rather than in the page around it
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault()
-        setSearching(true)
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [])
+  useShortcut("find-in-paper", () => setSearching(true))
 
   return (
     <>
@@ -55,7 +34,7 @@ export function ReaderControls({ documentId, back, onBack }: { documentId: strin
           ) : (
             <div className={PILL}>
               <ZoomReadout documentId={documentId} />
-              <Tip label="Find in paper" keys={keysFor("find-in-paper")}>
+              <Tip label="Find in paper" shortcut="find-in-paper">
                 <button type="button" aria-label="Find in paper" onClick={() => setSearching(true)} className={ICON}>
                   <SearchIcon />
                 </button>
@@ -236,7 +215,7 @@ function PageIndicator({ documentId, back, onBack }: { documentId: string; back:
               {back.pageNumber}
             </button>
           </Tip>
-          <span className="h-3.5 w-px bg-border" />
+          <Separator orientation="vertical" className="h-3.5" />
         </>
       )}
       <span className="px-2 tabular-nums">

@@ -4,6 +4,7 @@
 
 import { isTaskFinished, TASK_PRIORITIES, type Task } from "@owlit/protocol"
 import { create } from "zustand"
+import { useShallow } from "zustand/react/shallow"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 
@@ -20,6 +21,10 @@ export function openTasksFor(state: TasksState, subject: string) {
     .filter((task) => task.subject === subject && !isTaskFinished(task))
     .sort((a, b) => rank(a) - rank(b) || a.createdAt - b.createdAt)
 }
+
+// Fetches stopped at the library proxy's sign-in page, waiting for the user to sign in
+const isLoginTask = (task: Task) => task.state === "waiting_for_you" && task.waiting?.reason === "login"
+export const useLoginTasks = () => useTasksStore(useShallow((s) => Object.values(s.byId).filter(isLoginTask)))
 
 export const cancelTask = (id: string) => rpc.tasks.cancel({ id })
 export const resumeTask = (id: string) => rpc.tasks.resume({ id })

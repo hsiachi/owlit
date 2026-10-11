@@ -1,11 +1,12 @@
 import { EllipsisVerticalIcon } from "lucide-react"
+import { ActionsDropdownContent } from "@/components/action-menu"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { usePaperActions } from "../actions"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useUiStore } from "../ui-store"
-import { PaperDropdownContent } from "./PaperMenu"
+import { PaperMenu } from "./PaperMenu"
 import { StarButton } from "./StarButton"
 import { StatusMenu } from "./StatusMenu"
 import { TagsEditor } from "./TagsEditor"
@@ -56,7 +57,10 @@ export function PaperPeek({ paper }: { paper: Paper }) {
               <EllipsisVerticalIcon />
             </Button>
           </DropdownMenuTrigger>
-          <PaperDropdownContent ids={[paper.id]} />
+          {/* Focus goes back to the ⋯ on close, as from any button in the peek */}
+          <ActionsDropdownContent align="end" className="w-48" onCloseAutoFocus={() => undefined}>
+            <PaperMenu ids={[paper.id]} />
+          </ActionsDropdownContent>
         </DropdownMenu>
         <Button size="sm" className="ml-1.5" onClick={() => actions.open(paper.id)}>
           {openLabel}

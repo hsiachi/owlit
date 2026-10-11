@@ -13,6 +13,7 @@ import { TilingLayer, TilingPluginPackage } from "@embedpdf/plugin-tiling/react"
 import { Viewport, ViewportPluginPackage } from "@embedpdf/plugin-viewport/react"
 import { ZoomGestureWrapper, ZoomMode, ZoomPluginPackage } from "@embedpdf/plugin-zoom/react"
 import { ExternalLinkIcon } from "lucide-react"
+import { EmptyPlace } from "@/components/empty-place"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { cleanPdfText } from "../lib/highlights"
@@ -271,10 +272,8 @@ function Loading() {
 
 function Message({ title, detail, action }: { title: string; detail?: string; action?: React.ReactNode }) {
   return (
-    <div className="m-auto flex max-w-sm flex-col items-center gap-2 p-6 text-center">
-      <p className="text-body font-medium">{title}</p>
-      {detail && <p className="text-sm text-muted-foreground">{detail}</p>}
-      {action && <div className="mt-2">{action}</div>}
-    </div>
+    <EmptyPlace title={title} detail={detail} className="m-auto p-6">
+      {action}
+    </EmptyPlace>
   )
 }

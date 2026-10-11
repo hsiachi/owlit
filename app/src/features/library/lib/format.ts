@@ -1,6 +1,7 @@
 import type { Paper } from "../types"
 
-const surname = (name: string) => name.trim().split(/\s+/).at(-1) ?? name
+// An author's family name, taken as the last word: "Aidan N. Gomez" → "Gomez"
+export const surname = (name: string) => name.trim().split(/\s+/).at(-1) ?? name
 
 // "Lewis et al." / "Pirolli & Card" / "Vaswani"
 export function shortAuthors(authors: string[]): string {
@@ -9,6 +10,9 @@ export function shortAuthors(authors: string[]): string {
   if (authors.length === 2) return `${surname(authors[0])} & ${surname(authors[1])}`
   return `${surname(authors[0])} et al.`
 }
+
+// "Pirolli & Card · 2005"
+export const authorsYear = (p: Pick<Paper, "authors" | "year">) => [shortAuthors(p.authors), p.year].filter(Boolean).join(" · ")
 
 // The one-line citation shown after a title: "Pirolli & Card · 2005 · CHI"
 export function paperMeta(p: Paper): string {
@@ -32,22 +36,30 @@ export function shortVenue(venue: string): string {
   return words.map((w) => (w === w.toUpperCase() ? w : w[0])).join("")
 }
 
-export function citationLabel(p: Paper): string {
+// "Pirolli & Card 2005", the way a writer cites it
+export function citationLabel(p: Pick<Paper, "authors" | "year">): string {
   return p.year ? `${shortAuthors(p.authors)} ${p.year}` : shortAuthors(p.authors)
 }
 
-export function externalLinks(p: Paper): { label: string; href: string }[] {
-  const links: { label: string; href: string }[] = []
-  if (p.ids.doi) links.push({ label: `doi:${p.ids.doi}`, href: `https://doi.org/${p.ids.doi}` })
-  if (p.ids.arxiv) links.push({ label: `arXiv:${p.ids.arxiv}`, href: `https://arxiv.org/abs/${p.ids.arxiv}` })
+export interface ExternalLink {
+  kind: "doi" | "arxiv" | "url"
+  // The DOI, the arXiv id, or the link's host name
+  value: string
+  href: string
+}
+
+export function externalLinks(p: Paper): ExternalLink[] {
+  const links: ExternalLink[] = []
+  if (p.ids.doi) links.push({ kind: "doi", value: p.ids.doi, href: `https://doi.org/${p.ids.doi}` })
+  if (p.ids.arxiv) links.push({ kind: "arxiv", value: p.ids.arxiv, href: `https://arxiv.org/abs/${p.ids.arxiv}` })
   if (p.ids.url) {
-    let label = p.ids.url
+    let value = p.ids.url
     try {
-      label = new URL(p.ids.url).hostname
+      value = new URL(p.ids.url).hostname
     } catch {
       // keep raw
     }
-    links.push({ label, href: p.ids.url })
+    links.push({ kind: "url", value, href: p.ids.url })
   }
   return links
 }

@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom"
+import { DropCard } from "@/components/empty-place"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { keysFor } from "@/app/shortcuts"
@@ -25,14 +26,18 @@ export function DocsHome() {
   if (!loaded) return null
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="text-body font-medium">No docs yet</p>
-      <p className="max-w-md text-sm leading-relaxed text-muted-foreground">Notes and drafts live here as Markdown files in your workspace. Files you add in Finder show up too.</p>
-      <Button size="sm" className="mt-1" onClick={() => newDoc()}>
-        New doc
-        <Kbd className="bg-transparent text-primary-foreground/60">{keysFor("new")}</Kbd>
-      </Button>
-      <p className="mt-2 text-detail text-muted-foreground">In a doc, type @ to cite a paper.</p>
+    <div className="flex flex-1 flex-col items-center justify-center p-6">
+      <DropCard
+        title="No docs yet"
+        detail="Notes and drafts live here as Markdown files in your workspace. Files you add in Finder show up too."
+        actions={
+          <Button size="sm" onClick={() => newDoc()}>
+            New doc
+            <Kbd className="bg-transparent text-primary-foreground/60">{keysFor("new")}</Kbd>
+          </Button>
+        }
+      />
+      <p className="mt-4 text-detail text-muted-foreground">In a doc, type @ to cite a paper.</p>
     </div>
   )
 }

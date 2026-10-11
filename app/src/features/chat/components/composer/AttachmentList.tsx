@@ -12,7 +12,7 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@/components/ui/attachment"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tip } from "@/components/tip"
 import { isDesktop } from "@/lib/rpc"
 import type { AttachmentFile } from "../../types"
 
@@ -127,21 +127,18 @@ function FileChip({
       {(offerLibrary || onRemove) && (
         <AttachmentActions>
           {offerLibrary && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AttachmentAction
-                  aria-label="Add to Library"
-                  disabled={adding}
-                  onClick={() => {
-                    setAdding(true)
-                    void onAddToLibrary?.(f).finally(() => setAdding(false))
-                  }}
-                >
-                  {adding ? <Loader2Icon className="animate-spin" /> : <BookPlusIcon />}
-                </AttachmentAction>
-              </TooltipTrigger>
-              <TooltipContent>Add to Library</TooltipContent>
-            </Tooltip>
+            <Tip label="Add to Library">
+              <AttachmentAction
+                aria-label="Add to Library"
+                disabled={adding}
+                onClick={() => {
+                  setAdding(true)
+                  void onAddToLibrary?.(f).finally(() => setAdding(false))
+                }}
+              >
+                {adding ? <Loader2Icon className="animate-spin" /> : <BookPlusIcon />}
+              </AttachmentAction>
+            </Tip>
           )}
           {onRemove && (
             <AttachmentAction onClick={() => onRemove(f.id)} aria-label={`Remove ${f.name}`}>

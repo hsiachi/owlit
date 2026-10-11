@@ -1,4 +1,5 @@
 import type { EditorView } from "@codemirror/view"
+import { spanChange } from "@/lib/text-diff"
 
 // Docs open in an editor, by file id. Changes that don't come from the keyboard (an agent's write, the
 // file changing on disk) go through the open editor, so they land as one undoable change and the
@@ -28,15 +29,6 @@ export function onEditorsChanged(listener: () => void) {
 }
 
 export const openEditor = (id: string) => openEditors.get(id)
-
-// The smallest change that turns `from` into `to`: one replaced span between a shared prefix and suffix
-export function spanChange(from: string, to: string) {
-  let start = 0
-  while (start < from.length && start < to.length && from[start] === to[start]) start++
-  let end = 0
-  while (end < from.length - start && end < to.length - start && from[from.length - 1 - end] === to[to.length - 1 - end]) end++
-  return { from: start, to: from.length - end, insert: to.slice(start, to.length - end) }
-}
 
 // Puts new text into an open editor as one change; false when the doc isn't open
 export function replaceInEditor(id: string, content: string, userEvent?: string) {

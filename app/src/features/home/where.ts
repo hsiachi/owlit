@@ -3,8 +3,10 @@ import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
-import { shortAuthors } from "@/features/library/lib/format"
+import { authorsYear } from "@/features/library/lib/format"
 import { useTrail, workspaceKey } from "./trail"
+import { markdownPlain } from "@/lib/markdown-plain"
+import { messageText } from "@/features/chat/lib/message-text"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
@@ -27,28 +29,17 @@ export interface Place {
   did: string
 }
 
-// Markdown read as plain words: links and mentions keep their label, marks go
-export function plain(text: string) {
-  return text
-    .replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, name, label) => label ?? name)
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ x]\]\s+)?|\d+[.)]\s+)/gm, "")
-    .replace(/(\*\*|__|~~|==|`)/g, "")
-    .replace(/(^|\W)[*_](\S[^*_]*)[*_](?=\W|$)/g, "$1$2")
-    .replace(/\s+/g, " ")
-    .trim()
-}
 
 // The paragraph around an offset: the run of non-blank lines that holds it
 function paragraphAt(text: string, head: number) {
   const at = Math.min(Math.max(head, 0), text.length)
   const start = text.lastIndexOf("\n\n", Math.max(at - 1, 0))
   const end = text.indexOf("\n\n", at)
-  const words = plain(text.slice(start < 0 ? 0 : start + 2, end < 0 ? text.length : end))
+  const words = markdownPlain(text.slice(start < 0 ? 0 : start + 2, end < 0 ? text.length : end))
   return words || undefined
 }
 
-const lastParagraph = (text: string) => plain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
+const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
 
 export function usePlaces(): Place[] {
   const files = useDocsStore((s) => s.files)
@@ -81,14 +72,14 @@ export function usePlaces(): Place[] {
     for (const c of Object.values(chats)) {
       const mine = c.messages.findLast((m) => m.role === "user")
       if (!mine) continue
-      const text = mine.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ")
-      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: plain(text) || undefined, did: "" })
+      const text = messageText(mine, " ")
+      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: markdownPlain(text) || undefined, did: "" })
     }
 
     const lastMark = new Map<string, { at: number; words: string }>()
     for (const h of Object.values(highlights)) {
       if (h.addedBy === "agent") continue
-      const words = h.comment ? `“${plain(h.text)}” ${h.comment}` : `“${plain(h.text)}”`
+      const words = h.comment ? `“${markdownPlain(h.text)}” ${h.comment}` : `“${markdownPlain(h.text)}”`
       if ((lastMark.get(h.paperId)?.at ?? 0) < h.createdAt) lastMark.set(h.paperId, { at: h.createdAt, words })
     }
     for (const n of Object.values(notes)) {
@@ -103,7 +94,7 @@ export function usePlaces(): Place[] {
         kind: "paper",
         key: `paper:${p.id}`,
         title: p.title,
-        detail: [shortAuthors(p.authors), p.year].filter(Boolean).join(" · "),
+        detail: authorsYear(p),
         at,
         to: `/library/${p.id}`,
         words: mark?.words,

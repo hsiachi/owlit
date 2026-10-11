@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from "react"
 import { useDocumentState } from "@embedpdf/core/react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { copyText } from "@/lib/clipboard"
 import { HIGHLIGHT_MARK, HIGHLIGHT_VAR } from "../lib/highlights"
@@ -10,6 +9,7 @@ import { HighlightToolbar } from "./HighlightToolbar"
 import { useReaderStore } from "./reader-store"
 import { useAgentWindow } from "@/features/agent/store"
 import { paperMentionable } from "@/features/docs/lib/mentions"
+import { toastUndo } from "@/lib/toast"
 
 // Highlights are drawn with multiply, so they tint the page like a marker and the glyphs under
 // them stay black. The layer has no z-index on purpose: a stacking context of its own would
@@ -142,7 +142,7 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
           onDelete={() => {
             const removed = removeHighlight(highlight.id)
             close()
-            if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
+            if (removed) toastUndo("Highlight deleted", () => restoreHighlight(removed))
           }}
           onAsk={() => {
             const paper = useLibraryStore.getState().papers[highlight.paperId]
@@ -161,7 +161,7 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
 function CommentPreview({ highlight, pageIndex, scale }: { highlight: Highlight; pageIndex: number; scale: number }) {
   return (
     <Anchor highlight={highlight} pageIndex={pageIndex} scale={scale}>
-      <div data-reader-ui className="pointer-events-none w-max max-w-72 rounded-xl bg-popover px-3 py-2 text-detail leading-normal whitespace-pre-wrap text-popover-foreground shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14">
+      <div data-reader-ui className="menu-surface pointer-events-none w-max max-w-72 rounded-xl px-3 py-2 text-detail leading-normal whitespace-pre-wrap text-popover-foreground">
         {highlight.comment}
       </div>
     </Anchor>

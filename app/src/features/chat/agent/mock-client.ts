@@ -1,7 +1,8 @@
-import { DEFAULT_ROLE, type AgentQuestion, type QuestionAnswer, type ToolInfo, type ToolKind } from "@owlit/protocol"
+import { DEFAULT_ROLE, paperUri, parseOwlitUri, type AgentQuestion, type QuestionAnswer, type ToolInfo, type ToolKind } from "@owlit/protocol"
+import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
-import { builtInConnectors, mockCheckResults } from "../mocks/connectors"
+import { mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceKnowledge, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
 import { recordResult, setMockUndo } from "../results"
 
@@ -26,10 +27,6 @@ const AUTO_ROLES = new Set<string>(["coauthor"])
 export class MockAgentClient implements AgentClient {
   private pendingPermissions = new Map<string, (optionId: string) => void>()
   private pendingQuestions = new Map<string, (answers: Record<string, QuestionAnswer> | null) => void>()
-
-  async listConnectors() {
-    return builtInConnectors
-  }
 
   async check(connector: Connector): Promise<Connector> {
     await new Promise((r) => setTimeout(r, 700))
@@ -302,7 +299,7 @@ export class MockAgentClient implements AgentClient {
     const papers = relatedPapers(selection.text)
     emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: `${papers.length} papers bear on the passage.` })
     await sleep(300, signal)
-    const lines = papers.map((p) => `- [${p.cite}](owlit://library/${p.id}) · ${p.title}. ${p.reason}`)
+    const lines = papers.map((p) => `- [${p.cite}](${paperUri(p.id)}) · ${p.title}. ${p.reason}`)
     const answer = papers.length
       ? `These papers in your Library bear on the passage:\n\n${lines.join("\n")}\n\nNone of them settles the claim on its own; cite them for the parts they cover.`
       : "Nothing in your Library speaks to this passage directly. A search beyond the Library would be the next step."
@@ -486,8 +483,8 @@ function replacePassage(doc: string, selection: QuotedSelection, text: string) {
 
 // owlit://docs/writing/Related%20work.md → "writing/Related work.md"
 function docPath(uri: string) {
-  const m = /^owlit:\/\/docs\/(.+)$/.exec(uri)
-  return m ? m[1].split("/").map(decodeURIComponent).join("/") : null
+  const u = parseOwlitUri(uri)
+  return u?.kind === "doc" ? u.path : null
 }
 
 // A canned rewrite for the seed draft's overclaim; elsewhere, plain tightening
@@ -523,7 +520,6 @@ const STOPWORDS = new Set(
 // Library papers that share the passage's words, best first
 function relatedPapers(text: string) {
   const words = new Set((text.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter((w) => !STOPWORDS.has(w)))
-  const lastName = (a: string) => a.trim().split(/\s+/).pop() ?? a
   return Object.values(useLibraryStore.getState().papers)
     .map((p) => {
       const hay = `${p.title} ${p.abstract ?? ""}`.toLowerCase()
@@ -536,7 +532,7 @@ function relatedPapers(text: string) {
     .map(({ p, shared }) => ({
       id: p.id,
       title: p.title,
-      cite: `${p.authors.length > 2 ? `${lastName(p.authors[0])} et al.` : p.authors.map(lastName).join(" and ")} ${p.year ?? ""}`.trim(),
+      cite: citationLabel(p),
       reason: `It also deals with ${shared.slice(0, 2).join(" and ")}.`,
     }))
 }

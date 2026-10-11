@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import { AppSidebar } from "@/app/AppSidebar"
 import { CommandPalette } from "@/app/CommandPalette"
 import { ShortcutsDialog } from "@/app/ShortcutsDialog"
 import { useShortcutsShortcut } from "@/app/shortcuts"
 import { matchNav } from "@/app/nav"
-import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/icon-button"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useControlsRoom } from "@/lib/window-frame"
@@ -80,14 +80,12 @@ function AppShell() {
             className="app-drag flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground"
             style={controlsRoom ? { paddingLeft: controlsRoom } : undefined}
           >
-            <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)}>
-              <ArrowLeft />
-              <span className="sr-only">Back</span>
-            </Button>
-            <Button variant="ghost" size="icon-sm" onClick={() => navigate(1)}>
-              <ArrowRight />
-              <span className="sr-only">Forward</span>
-            </Button>
+            <IconButton label="Back" onClick={() => navigate(-1)}>
+              <ArrowLeftIcon />
+            </IconButton>
+            <IconButton label="Forward" onClick={() => navigate(1)}>
+              <ArrowRightIcon />
+            </IconButton>
             {hasPanel && <SidebarTrigger />}
             <AgentToggle />
           </header>

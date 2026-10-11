@@ -7,11 +7,11 @@ import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon,
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
-import { needsSignIn } from "@/features/chat/lib/sign-in"
+import { isBroken } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
-import { useTasksStore } from "@/features/tasks/store"
+import { useLoginTasks } from "@/features/tasks/store"
 import { useFold } from "./form-state"
-import { Info } from "./parts"
+import { Info } from "@/components/info"
 import { AgentsSection } from "./sections/AgentsSection"
 import { AppearanceSection } from "./sections/AppearanceSection"
 import { PrivacySection } from "./sections/PrivacySection"
@@ -76,8 +76,8 @@ const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; about: s
 // A section shows a small dot in the list only while something in it needs the user
 function useNeedsYou(): Partial<Record<SettingsSection, boolean>> {
   // An agent nobody has signed in to yet (the Owlit engine in Beta) isn't broken
-  const agentBroken = useChatStore((s) => s.connectors.some((c) => c.status === "error" && !needsSignIn(c)))
-  const loginWaiting = useTasksStore((s) => Object.values(s.byId).some((t) => t.state === "waiting_for_you" && t.waiting?.reason === "login"))
+  const agentBroken = useChatStore((s) => s.connectors.some(isBroken))
+  const loginWaiting = useLoginTasks().length > 0
   return { agents: agentBroken, proxy: loginWaiting }
 }
 
@@ -134,7 +134,7 @@ export function SettingsDialog() {
           <main className="flex h-[560px] min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex h-14 shrink-0 items-center gap-1 pr-12 pl-6">
               <h2 className="text-base font-medium">{section.label}</h2>
-              <Info text={section.about} label={`About ${section.label}`} />
+              <Info label={`About ${section.label}`}>{section.about}</Info>
             </header>
             <div className={cn("flex-1 overflow-y-auto px-6 pt-1 pb-7")}>
               <Body key={section.id} />

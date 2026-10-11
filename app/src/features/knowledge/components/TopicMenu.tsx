@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { BorderedList } from "@/components/bordered-list"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -52,7 +53,7 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
           if (ok) onDone(splitTopic(topic.id, picked, name))
         }}
       >
-        <ul className="flex flex-col divide-y rounded-lg border">
+        <BorderedList as="ul">
           {topic.lines.map((l) => (
             <li key={l.id}>
               <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 text-sm leading-snug">
@@ -68,7 +69,7 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
               </label>
             </li>
           ))}
-        </ul>
+        </BorderedList>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">New topic</span>
           <input

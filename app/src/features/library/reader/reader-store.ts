@@ -21,7 +21,7 @@ export interface ReaderApi {
 }
 
 // A passage outlined in the PDF: the box around its lines. `pulse` rings it twice and lets it go.
-export interface Ring {
+interface Ring {
   passageId: string
   page: number
   box: Rect

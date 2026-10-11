@@ -1,20 +1,27 @@
 import { ago } from "@/lib/time"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { ChevronDownIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { ActionsDropdownContent } from "@/components/action-menu"
+import { DropCard } from "@/components/empty-place"
+import { PdfFileInput } from "@/components/file-drop"
+import { NotFound, PageHeader } from "@/components/page"
+import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { Button } from "@/components/ui/button"
+import { useFileDrop } from "@/hooks/use-file-drop"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { GroupLabel } from "@/components/group-label"
+import { IconButton } from "@/components/icon-button"
 import { CopyAllHighlights, HighlightsList, useHighlightCount } from "../components/HighlightsList"
-import { PaperDropdownContent } from "../components/PaperMenu"
+import { PaperMenu } from "../components/PaperMenu"
 import { StarButton } from "../components/StarButton"
 import { StatusMenu } from "../components/StatusMenu"
 import { TagsEditor } from "../components/TagsEditor"
-import { externalLinks } from "../lib/format"
+import { externalLinks, type ExternalLink } from "../lib/format"
 import { visiblePapers } from "../lib/filter"
 import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../prefs-store"
 import { NoteEditor } from "../notes/NoteEditor"
@@ -32,22 +39,9 @@ import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useReaderStore } from "../reader/reader-store"
 import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
-import { rpc } from "@/lib/rpc"
+import { bridge, rpc } from "@/lib/rpc"
 import { notePathOf } from "../notes/note-actions"
 import { joinAnd } from "@/lib/words"
-
-function IconButton({ label, onClick, disabled, pressed, children }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean; children: React.ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={label} aria-pressed={pressed} disabled={disabled} onClick={onClick} className="text-muted-foreground">
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  )
-}
 
 // One paper, reader first: the PDF on a darker well, details beside it
 export function PaperPage() {
@@ -111,35 +105,14 @@ export function PaperPage() {
   }, [paperId, passageId, setParams])
 
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
-  if (!paper) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-body font-medium">This paper is not in the library</p>
-        <p className="text-sm text-muted-foreground">It may have been removed.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/library")}>
-          Back to library
-        </Button>
-      </div>
-    )
-  }
+  if (!paper) return <NotFound title="This paper is not in the library" detail="It may have been removed." back={{ label: "Back to library", to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-detail">
-        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
-          <Link to="/library" className="-ml-1 shrink-0 rounded-md px-1 py-0.5 hover:bg-muted hover:text-foreground">
-            Library
-          </Link>
-          {/* With the details open the title is right there in the panel, so the trail stops at Library */}
-          {!panelOpen && (
-            <>
-              <ChevronRightIcon className="size-3.5 shrink-0" />
-              <span className="truncate text-foreground">{paper.title}</span>
-            </>
-          )}
-        </nav>
+      {/* With the details open the title is right there in the panel, so the trail stops at Library */}
+      <PageHeader trail={[{ label: "Library", to: "/library" }]} current={panelOpen ? undefined : paper.title}>
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">
             {idx + 1} of {order.length}
@@ -151,56 +124,35 @@ export function PaperPage() {
         <IconButton label="Next paper" disabled={!nextId} onClick={() => go(nextId)}>
           <ChevronDownIcon />
         </IconButton>
-        <IconButton label={panelOpen ? "Hide details" : "Show details"} pressed={panelOpen} onClick={togglePanel}>
+        <IconButton label={panelOpen ? "Hide details" : "Show details"} aria-pressed={panelOpen} onClick={togglePanel}>
           <PanelRightIcon />
         </IconButton>
-      </header>
+      </PageHeader>
 
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
         <main className={cn("flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
           {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf paper={paper} />}
         </main>
-        {panelOpen && (
-          <>
-            <ResizeHandle />
-            <DetailsPanel paper={paper} />
-          </>
-        )}
+        {panelOpen && <DetailsPanel paper={paper} />}
       </div>
     </div>
   )
 }
 
-// Drag the panel's left edge to widen it for writing; double-click puts it back
+// Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back
 function ResizeHandle() {
   const width = usePrefsStore((s) => s.panelWidth)
   const setWidth = usePrefsStore((s) => s.setPanelWidth)
-  const start = useRef<{ x: number; width: number; max: number } | null>(null)
   return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize details"
-      aria-valuenow={width}
-      className="group/resize relative z-10 w-0 cursor-col-resize"
-      onPointerDown={(e) => {
-        const row = e.currentTarget.parentElement
-        if (!row) return
-        e.currentTarget.setPointerCapture(e.pointerId)
-        start.current = { x: e.clientX, width, max: Math.max(PANEL_MIN, row.clientWidth / 2) }
-      }}
-      onPointerMove={(e) => {
-        const s = start.current
-        if (!s) return
-        setWidth(Math.round(Math.min(s.max, Math.max(PANEL_MIN, s.width + s.x - e.clientX))))
-      }}
-      onPointerUp={() => (start.current = null)}
-      onDoubleClick={() => setWidth(PANEL_DEFAULT)}
-    >
-      <div className="absolute inset-y-0 -left-1 w-2" />
-      <div className="absolute inset-y-0 -left-px w-0.5 bg-transparent transition-colors group-hover/resize:bg-border group-active/resize:bg-foreground/20" />
-    </div>
+    <PanelResizeHandle
+      label="Resize details"
+      width={width}
+      setWidth={setWidth}
+      min={PANEL_MIN}
+      max={(panel) => Math.max(PANEL_MIN, panel.parentElement!.clientWidth / 2)}
+      defaultWidth={PANEL_DEFAULT}
+    />
   )
 }
 
@@ -220,61 +172,69 @@ function DetailsPanel({ paper }: { paper: Paper }) {
   }
 
   return (
-    <aside style={{ width }} className="flex shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-4">
-      <h1 className="text-lg leading-snug font-medium text-balance">{paper.title}</h1>
-      <p className="mt-2 text-detail leading-normal text-muted-foreground">
-        {paper.authors.join(", ") || "Unknown authors"}
-        {published && (
-          <>
-            <br />
-            {published}
-          </>
-        )}
-      </p>
-      <div className="mt-3 -ml-2.5 flex items-center gap-0.5">
-        <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} align="start" />
-        <StarButton starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <PaperDropdownContent ids={[paper.id]} align="start" afterRemove={() => navigate("/library")} />
-        </DropdownMenu>
-      </div>
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as PanelTab)} className="mt-5 flex-1 gap-4">
-        <div className="flex items-center justify-between">
-          <TabsList variant="line" className="-ml-1.5">
-            <TabsTrigger value="notes" className="px-1.5">Notes</TabsTrigger>
-            <TabsTrigger value="highlights" className="px-1.5">
-              Highlights
-              {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
-            </TabsTrigger>
-            <TabsTrigger value="knowledge" className="px-1.5">
-              <KnowledgeTabLabel paper={paper} />
-            </TabsTrigger>
-            <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
-          </TabsList>
-          {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
+    // The resize edge sits on this box rather than on the panel, which scrolls and would carry it along
+    <div className="relative flex shrink-0">
+      <ResizeHandle />
+      <aside style={{ width }} className="flex shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-4">
+        <h1 className="text-lg leading-snug font-medium text-balance">{paper.title}</h1>
+        <p className="mt-2 text-detail leading-normal text-muted-foreground">
+          {paper.authors.join(", ") || "Unknown authors"}
+          {published && (
+            <>
+              <br />
+              {published}
+            </>
+          )}
+        </p>
+        <div className="mt-3 -ml-2.5 flex items-center gap-0.5">
+          <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} align="start" />
+          <StarButton starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
+                <EllipsisVerticalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <ActionsDropdownContent align="start" className="w-48" onCloseAutoFocus={() => undefined}>
+              <PaperMenu ids={[paper.id]} afterRemove={() => navigate("/library")} />
+            </ActionsDropdownContent>
+          </DropdownMenu>
         </div>
-        <TabsContent value="notes" className="flex flex-col">
-          <NoteEditor paperId={paper.id} />
-        </TabsContent>
-        <TabsContent value="highlights">
-          <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
-        </TabsContent>
-        <TabsContent value="knowledge">
-          <KnowledgeTab key={paper.id} paper={paper} />
-        </TabsContent>
-        <TabsContent value="about">
-          <About paper={paper} />
-        </TabsContent>
-      </Tabs>
-    </aside>
+  
+        <Tabs value={tab} onValueChange={(v) => setTab(v as PanelTab)} className="mt-5 flex-1 gap-4">
+          <div className="flex items-center justify-between">
+            <TabsList variant="line" className="-ml-1.5">
+              <TabsTrigger value="notes" className="px-1.5">Notes</TabsTrigger>
+              <TabsTrigger value="highlights" className="px-1.5">
+                Highlights
+                {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="knowledge" className="px-1.5">
+                <KnowledgeTabLabel paper={paper} />
+              </TabsTrigger>
+              <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
+            </TabsList>
+            {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
+          </div>
+          <TabsContent value="notes" className="flex flex-col">
+            <NoteEditor paperId={paper.id} />
+          </TabsContent>
+          <TabsContent value="highlights">
+            <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
+          </TabsContent>
+          <TabsContent value="knowledge">
+            <KnowledgeTab key={paper.id} paper={paper} />
+          </TabsContent>
+          <TabsContent value="about">
+            <About paper={paper} />
+          </TabsContent>
+        </Tabs>
+      </aside>
+    </div>
   )
 }
+
+const LINK_NAMES: Record<ExternalLink["kind"], string> = { doi: "DOI", arxiv: "arXiv", url: "Link" }
 
 function About({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
@@ -299,10 +259,10 @@ function About({ paper }: { paper: Paper }) {
         </dd>
         {links.map((l) => (
           <div key={l.href} className="contents">
-            <dt className="text-muted-foreground">{l.label.split(":")[0] === "doi" ? "DOI" : l.label.startsWith("arXiv") ? "arXiv" : "Link"}</dt>
+            <dt className="text-muted-foreground">{LINK_NAMES[l.kind]}</dt>
             <dd className="min-w-0 truncate">
               <a href={l.href} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-                {l.label.replace(/^(doi|arXiv):/, "")}
+                {l.value}
               </a>
             </dd>
           </div>
@@ -328,7 +288,6 @@ function About({ paper }: { paper: Paper }) {
 function NoPdf({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [fetching, setFetching] = useState(false)
-  const [dragging, setDragging] = useState(false)
   // Arriving from Home's "Waiting on you" (?check=1) goes straight to the publisher's page
   const [params, setParams] = useSearchParams()
   const wantsCheck = params.get("check") === "1"
@@ -345,8 +304,8 @@ function NoPdf({ paper }: { paper: Paper }) {
     if (wantsCheck) setParams({}, { replace: true })
   }, [wantsCheck, setParams])
 
-  const attach = async (files: FileList | null) => {
-    const file = files?.[0]
+  const attach = async (files: ArrayLike<File>) => {
+    const file = files[0]
     if (!file) return
     try {
       const pdf = await libraryClient.attachPdf(paper, file)
@@ -375,6 +334,7 @@ function NoPdf({ paper }: { paper: Paper }) {
   }
 
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
+  const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
   if (checking) return <PublisherPage paper={paper} onEnd={() => setChecking(false)} />
 
@@ -398,30 +358,33 @@ function NoPdf({ paper }: { paper: Paper }) {
           : "Drop a PDF here, or let owlit look for an open-access copy."
 
   return (
-    <div
-      className="flex flex-1 items-center justify-center p-6"
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDragging(false)
-        void attach(e.dataTransfer.files)
-      }}
-    >
-      <div
-        className={cn(
-          "flex flex-col items-center gap-2 rounded-2xl border-[1.5px] border-dashed border-foreground/15 px-14 py-10 text-center transition-colors",
-          dragging && "border-foreground/30 bg-muted",
-        )}
+    <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
+      <DropCard
+        active={dragging}
+        title={
+          <>
+            {looking && <Spinner />}
+            {title}
+          </>
+        }
+        detail={body}
+        actions={
+          <>
+            {needs && canCheck && !looking ? (
+              <Button size="sm" onClick={() => setChecking(true)}>
+                {needs === "sign-in" ? "Sign in" : "Check now"}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={fetchPdf} disabled={looking}>
+                {paper.noPdf ? "Try again" : "Find PDF"}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+              Choose file
+            </Button>
+          </>
+        }
       >
-        <p className="flex items-center gap-2 text-body font-medium">
-          {looking && <Spinner />}
-          {title}
-        </p>
-        <p className="max-w-72 text-sm text-muted-foreground">{body}</p>
         {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
         {paper.noPdf && !needs && !looking && paper.ids.doi && proxyMissing && (
           <p className="max-w-72 text-sm text-muted-foreground">
@@ -431,31 +394,8 @@ function NoPdf({ paper }: { paper: Paper }) {
             </button>
           </p>
         )}
-        <div className="mt-3 flex gap-2">
-          {needs && canCheck && !looking ? (
-            <Button size="sm" onClick={() => setChecking(true)}>
-              {needs === "sign-in" ? "Sign in" : "Check now"}
-            </Button>
-          ) : (
-            <Button size="sm" onClick={fetchPdf} disabled={looking}>
-              {paper.noPdf ? "Try again" : "Find PDF"}
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-            Choose file
-          </Button>
-        </div>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          onChange={(e) => {
-            void attach(e.target.files)
-            e.target.value = ""
-          }}
-        />
-      </div>
+      </DropCard>
+      <PdfFileInput ref={fileInput} onFiles={(files) => void attach(files)} />
     </div>
   )
 }
@@ -474,10 +414,10 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
   // Keep the page over the box as the layout moves
   useEffect(() => {
     const el = box.current
-    if (!el || !window.owlit) return
+    if (!el || !bridge) return
     const place = () => {
       const r = el.getBoundingClientRect()
-      window.owlit?.setPublisherView({ x: r.left, y: r.top, width: r.width, height: r.height })
+      bridge?.setPublisherView({ x: r.left, y: r.top, width: r.width, height: r.height })
     }
     place()
     const observer = new ResizeObserver(place)
@@ -486,7 +426,7 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
     return () => {
       observer.disconnect()
       window.removeEventListener("resize", place)
-      window.owlit?.setPublisherView(null)
+      bridge?.setPublisherView(null)
     }
   }, [])
 
@@ -584,7 +524,9 @@ function Digest({ paper }: { paper: Paper }) {
   if (!shown && !writing) return null
   return (
     <section className="mt-5">
-      <h3 className="mb-2 text-xs text-muted-foreground">Digest</h3>
+      <GroupLabel as="h3" flush>
+        Digest
+      </GroupLabel>
       {shown ? (
         <Markdown text={shown} className="text-sm" />
       ) : (

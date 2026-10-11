@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef } from "react"
-import { EllipsisVerticalIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { GroupLabel } from "@/components/group-label"
 import { Button } from "@/components/ui/button"
-import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown, paperHighlights } from "../lib/highlights"
 import { copyText } from "@/lib/clipboard"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import type { Highlight } from "../types"
+import { toastUndo } from "@/lib/toast"
 
 async function copy(text: string, done: string) {
   if (await copyText(text)) toast(done)
@@ -51,7 +51,9 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
       <div className="flex flex-col gap-6">
         {pages.map(([page, hs]) => (
           <section key={page}>
-            <h3 className="mb-1.5 text-xs text-muted-foreground">Page {page + 1}</h3>
+            <GroupLabel as="h3" flush>
+              Page {page + 1}
+            </GroupLabel>
             <ul className="-mx-2 flex flex-col gap-0.5">
               {hs.map((h) => (
                 <HighlightItem key={h.id} highlight={h} onAddToNote={() => onAddToNote(h)} />
@@ -108,7 +110,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
         destructive: true,
         onSelect: () => {
           const removed = removeHighlight(h.id)
-          if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
+          if (removed) toastUndo("Highlight deleted", () => restoreHighlight(removed))
         },
       },
     ],
@@ -116,7 +118,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
 
   return (
     <ActionsOnRightClick groups={menu}>
-      <li ref={ref} className={cn("group/hl relative rounded-md hover:bg-accent has-[[data-state=open]]:bg-accent data-[state=open]:bg-accent", active && "bg-accent")}>
+      <li ref={ref} className={cn("group/row relative rounded-md hover:bg-accent has-[[data-state=open]]:bg-accent data-[state=open]:bg-accent", active && "bg-accent")}>
         <button type="button" onClick={jump} className="block w-full rounded-md px-2 py-1.5 pr-9 text-left outline-none focus-key:bg-accent">
           <span className="flex gap-2.5">
             <span aria-hidden className="w-[3px] shrink-0 rounded-full" style={{ background: HIGHLIGHT_MARK[h.color] }} />
@@ -125,19 +127,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
           {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
           {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">Added by Owlit</span>}
         </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Highlight actions"
-              className="absolute top-1 right-1 text-muted-foreground opacity-0 group-hover/hl:opacity-100 focus-key:opacity-100 data-[state=open]:opacity-100"
-            >
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <ActionsDropdownContent groups={menu} align="end" />
-        </DropdownMenu>
+        <RowMenuButton groups={menu} label="Highlight actions" className="absolute top-1.5 right-1.5" />
       </li>
     </ActionsOnRightClick>
   )

@@ -5,7 +5,7 @@ import type { Highlight } from "../types"
 export const notePathOf = (paperId: string) => `.owlit/papers/${paperId}/note.md`
 
 // A highlight as a quote in the note, its page a link back to the passage
-export function highlightQuote(h: Highlight): string {
+function highlightQuote(h: Highlight): string {
   const quote = `> ${h.text.replace(/\n+/g, " ")} [p. ${h.page + 1}](owlit://highlight/${h.id})`
   return h.comment ? `${quote}\n\n${h.comment}` : quote
 }

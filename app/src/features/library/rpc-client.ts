@@ -1,20 +1,12 @@
 import { PublisherNeedsUser, type LibraryClient, type Resolved } from "./client"
-import { MockLibraryClient } from "./mock-client"
 import type { Paper } from "./types"
-import { rpc } from "@/lib/rpc"
+import { filePath, rpc } from "@/lib/rpc"
 
-// The desktop app's library client: lookups and PDFs go to core. Recognising a dropped file still uses
-// the mock until core does it (T19).
+// The desktop app's library client: lookups and PDFs go to core
 export class RpcLibraryClient implements LibraryClient {
-  private mock = new MockLibraryClient()
-
   async resolve(input: string): Promise<Resolved> {
     const { paper, existingId } = await rpc.library.resolve({ input })
     return { ...paper, existingId }
-  }
-
-  importPdf(file: File) {
-    return this.mock.importPdf(file)
   }
 
   // Waits while core looks; a paper still without a PDF rejects with what was tried
@@ -30,9 +22,7 @@ export class RpcLibraryClient implements LibraryClient {
   }
 
   async attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]> {
-    const path = window.owlit?.pathForFile(file)
-    if (!path) throw new Error("That file can't be read from here.")
-    const attached = await rpc.library.attachPdf({ id: paper.id, path })
+    const attached = await rpc.library.attachPdf({ id: paper.id, path: filePath(file) })
     return attached.pdf
   }
 }

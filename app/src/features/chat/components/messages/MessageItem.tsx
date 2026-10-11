@@ -1,11 +1,13 @@
 import { useState } from "react"
 import { chatOfFile, withoutAgentError } from "@owlit/protocol"
-import { CheckIcon, CircleXIcon, CopyIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
+import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
+import { CopyButton } from "@/components/copy-button"
+import { IconButton } from "@/components/icon-button"
+import { Quote } from "@/components/quote"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
 import { Spinner } from "@/components/ui/spinner"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { AttachmentFile, ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { openAttached } from "../composer/Composer"
@@ -13,45 +15,10 @@ import { importCopy } from "../../lib/attachments"
 import { useChatStore } from "../../store"
 import { MentionBadge } from "../composer/MentionBadge"
 import { unansweredSentence } from "../../lib/step-words"
+import { messageText } from "../../lib/message-text"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultCard } from "./ResultRows"
 import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
-import { copyText } from "@/lib/clipboard"
-
-function messageText(m: ChatMessage) {
-  return m.parts
-    .filter((p) => p.type === "text")
-    .map((p) => p.text)
-    .join("\n\n")
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Copy"
-          onClick={() => {
-            void copyText(text).then((ok) => {
-              if (!ok) return
-              setCopied(true)
-              setTimeout(() => setCopied(false), 1200)
-            })
-          }}
-        >
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{copied ? "Copied" : "Copy"}</TooltipContent>
-    </Tooltip>
-  )
-}
-
-// A small text button in a muted line (Retry, Dismiss), 24px tall so it is easy to hit
-const TEXT_BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-foreground outline-none hover:bg-muted focus-key:bg-muted"
 
 // The one red mark a reply can have, as a small bordered block (the result card's frame) so it reads as
 // one thing apart from the answer and its results, rather than a line that wraps: "Owlit stopped"
@@ -70,19 +37,19 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
         <span className="text-destructive">Owlit stopped</span>
         <span className="ml-auto flex shrink-0 items-center gap-0.5">
           {detail && (
-            <button type="button" aria-expanded={details} onClick={() => setDetails((d) => !d)} className={TEXT_BUTTON}>
+            <Button variant="text" size="inline" aria-expanded={details} onClick={() => setDetails((d) => !d)}>
               Details
-            </button>
+            </Button>
           )}
           {onDismiss && (
-            <button type="button" onClick={onDismiss} className={TEXT_BUTTON}>
+            <Button variant="text" size="inline" onClick={onDismiss}>
               Dismiss
-            </button>
+            </Button>
           )}
           {onRetry && (
-            <button type="button" onClick={onRetry} className={TEXT_BUTTON}>
+            <Button variant="text" size="inline" onClick={onRetry}>
               Retry
-            </button>
+            </Button>
           )}
         </span>
       </div>
@@ -161,9 +128,9 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
       <MessageContent className="items-end">
         {/* The passage it was sent with: one quiet quoted line, not a card */}
         {message.selection && (
-          <p className="max-w-[85%] truncate border-r-2 pr-2 text-detail text-muted-foreground" title={message.selection.text}>
+          <Quote side="right" clamp={1} title={message.selection.text} className="max-w-[85%]">
             “{message.selection.text.replace(/\s+/g, " ").trim()}”
-          </p>
+          </Quote>
         )}
         {message.attachments && message.attachments.length > 0 && (
           <AttachmentList files={message.attachments} size="xs" onOpen={openAttached} onAddToLibrary={(file) => addSentToLibrary(message, file)} />
@@ -175,14 +142,9 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
       <MessageFooter className="absolute -bottom-7 right-0 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
         <CopyButton text={text} />
         {onEdit && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-label="Edit message" onClick={() => onEdit(text)}>
-                <PencilIcon />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Edit</TooltipContent>
-          </Tooltip>
+          <IconButton label="Edit message" size="icon-xs" onClick={() => onEdit(text)}>
+            <PencilIcon />
+          </IconButton>
         )}
       </MessageFooter>
     </Message>
@@ -258,24 +220,14 @@ export function AssistantMessage({
             </span>
             {text && <CopyButton text={text} />}
             {text && onSaveAsDoc && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-xs" aria-label="Save as doc" onClick={() => onSaveAsDoc(text)}>
-                    <FilePlusIcon />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Save as doc</TooltipContent>
-              </Tooltip>
+              <IconButton label="Save as doc" size="icon-xs" onClick={() => onSaveAsDoc(text)}>
+                <FilePlusIcon />
+              </IconButton>
             )}
             {onRegenerate && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-xs" aria-label="Regenerate" onClick={onRegenerate}>
-                    <RefreshCwIcon />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Regenerate</TooltipContent>
-              </Tooltip>
+              <IconButton label="Regenerate" size="icon-xs" onClick={onRegenerate}>
+                <RefreshCwIcon />
+              </IconButton>
             )}
           </span>
         </MessageFooter>

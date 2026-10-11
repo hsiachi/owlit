@@ -18,9 +18,17 @@ declare global {
   }
 }
 
-const bridge = typeof window === "undefined" ? undefined : window.owlit
+// The Electron preload's API; undefined in a plain browser
+export const bridge = typeof window === "undefined" ? undefined : window.owlit
 
 export const isDesktop = bridge !== undefined
+
+// Where a dropped or picked file is on disk, for core to read it
+export function filePath(file: File) {
+  const path = bridge?.pathForFile(file)
+  if (!path) throw new Error("That file can't be read from here.")
+  return path
+}
 
 // An error core answered with. message is one sentence fit to show as is.
 export class RpcError extends Error {
@@ -36,7 +44,7 @@ export class RpcError extends Error {
 }
 
 // Not one of JSON-RPC's codes: the request never left the renderer
-export const NO_CORE = -32099
+const NO_CORE = -32099
 
 type Args<M extends MethodName> = ParamsOf<M> extends void ? [] : [params: ParamsOf<M>]
 

@@ -15,7 +15,7 @@ export interface PassageTarget {
   page?: number
 }
 
-export interface Located {
+interface Located {
   page: number
   // Char range on the page, as PDFium and the selection plugin count glyphs
   from: number

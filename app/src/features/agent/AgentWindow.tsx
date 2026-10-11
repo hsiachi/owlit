@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { ArrowUpIcon, ChevronDownIcon, Maximize2Icon, SquarePenIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
+import { PanelResizeHandle } from "@/components/panel-resize-handle"
+import { useFileDrop } from "@/hooks/use-file-drop"
+import { StatusRing } from "@/components/status-ring"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
@@ -14,14 +18,12 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { keysFor } from "@/app/shortcuts"
 import { agentName, Composer, openAttached, type ComposerHandle } from "@/features/chat/components/composer/Composer"
 import { AttachmentList } from "@/features/chat/components/composer/AttachmentList"
 import { useResolvedSelection } from "@/features/chat/components/composer/AgentPicker"
 import { fromDrop, useAttachments } from "@/features/chat/lib/attachments"
 import { AssistantMessage, UserMessage } from "@/features/chat/components/messages/MessageItem"
-import { StatusRing } from "@/features/chat/components/StatusRing"
 import { useChatStatus } from "@/features/chat/use-chat-status"
 import { pendingAsk, useBrokenReply, useLookAt } from "@/features/chat/status"
 import { WaitingDock } from "@/features/chat/components/WaitingDock"
@@ -120,16 +122,9 @@ export function AgentToggle() {
   const togglePanel = useAgentWindow((s) => s.togglePanel)
   if (!allowed) return null
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Owlit" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
-          <OwlitMark />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent className="flex items-center gap-1.5">
-        Owlit <Kbd>{keysFor("owlit-panel")}</Kbd>
-      </TooltipContent>
-    </Tooltip>
+    <IconButton label="Owlit" shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
+      <OwlitMark />
+    </IconButton>
   )
 }
 
@@ -154,7 +149,10 @@ export function AgentAskBar() {
   const [mentions, setMentions] = useState<Mentionable[]>([])
   const attachments = useAttachments(draftId, (m) => setMentions((list) => (list.some((x) => x.uri === m.uri) ? list : [...list, m])))
   const { connector } = useResolvedSelection(undefined)
-  const [dragging, setDragging] = useState(false)
+  const { dragging, dropProps } = useFileDrop((data) => {
+    const { files, folders } = fromDrop(data)
+    attachments.add(files, folders)
+  })
 
   useEffect(() => {
     if (stage === "bar") input.current?.focus()
@@ -179,19 +177,7 @@ export function AgentAskBar() {
         "absolute bottom-4 left-1/2 z-20 flex w-[min(600px,calc(100%-48px))] -translate-x-1/2 flex-col rounded-xl border bg-card shadow-md transition-[border-color] focus-within:border-foreground/20",
         dragging && "border-ring ring-2 ring-ring/30",
       )}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes("Files")) {
-          e.preventDefault()
-          setDragging(true)
-        }
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDragging(false)
-        const { files, folders } = fromDrop(e.dataTransfer)
-        attachments.add(files, folders)
-      }}
+      {...dropProps}
     >
       {holding && (
         <div className="flex min-w-0 items-center gap-1.5 px-2.5 pt-2">
@@ -311,10 +297,10 @@ export function AgentPanel() {
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="flex-1" />
-        <PanelButton label="New chat" onClick={newChat}>
+        <IconButton label="New chat" onClick={newChat}>
           <SquarePenIcon />
-        </PanelButton>
-        <PanelButton
+        </IconButton>
+        <IconButton
           label="Open in Chat"
           disabled={!chat}
           onClick={() => {
@@ -324,10 +310,10 @@ export function AgentPanel() {
           }}
         >
           <Maximize2Icon />
-        </PanelButton>
-        <PanelButton label="Close" onClick={close}>
+        </IconButton>
+        <IconButton label="Close" onClick={close}>
           <XIcon />
-        </PanelButton>
+        </IconButton>
       </header>
 
       {/* One scroller per chat, so switching chats opens the next one at its end */}
@@ -381,74 +367,14 @@ export function AgentPanel() {
   )
 }
 
-// The panel's left edge: drag it (or use the arrow keys) to resize, double-click to go back to the default.
-// It looks like the list panel's edge: nothing until hovered, then a 2px line.
+// The store keeps the width within the panel's least and the page's least
 function ResizeEdge() {
   const width = useAgentWindow((s) => s.panelWidth)
   const setWidth = useAgentWindow((s) => s.setPanelWidth)
-  const [dragging, setDragging] = useState(false)
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return
-    e.preventDefault()
-    const edge = e.currentTarget
-    const startX = e.clientX
-    // Starts from the width on screen, which a narrow window may have cut below the stored one
-    const startWidth = edge.parentElement!.getBoundingClientRect().width
-    edge.setPointerCapture(e.pointerId)
-    setDragging(true)
-    // The resize cursor and no text selection over the whole window while dragging, not just the edge
-    document.body.style.cursor = "col-resize"
-    document.body.style.userSelect = "none"
-    const move = (ev: PointerEvent) => setWidth(startWidth + startX - ev.clientX)
-    const end = () => {
-      edge.removeEventListener("pointermove", move)
-      edge.removeEventListener("pointerup", end)
-      edge.removeEventListener("pointercancel", end)
-      document.body.style.cursor = ""
-      document.body.style.userSelect = ""
-      setDragging(false)
-    }
-    edge.addEventListener("pointermove", move)
-    edge.addEventListener("pointerup", end)
-    edge.addEventListener("pointercancel", end)
-  }
-
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize Owlit"
-      aria-valuenow={width}
-      tabIndex={0}
-      data-dragging={dragging || undefined}
-      onPointerDown={onPointerDown}
-      onDoubleClick={() => setWidth(PANEL_WIDTH)}
-      onKeyDown={(e) => {
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          e.preventDefault()
-          setWidth(width + (e.key === "ArrowLeft" ? 16 : -16))
-        }
-      }}
-      className="absolute inset-y-0 left-0 z-20 w-3 -translate-x-1/2 cursor-col-resize outline-hidden after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 hover:after:bg-sidebar-border focus-visible:after:bg-ring data-dragging:after:bg-sidebar-border"
-    />
-  )
+  return <PanelResizeHandle label="Resize Owlit" width={width} setWidth={setWidth} defaultWidth={PANEL_WIDTH} />
 }
 
 // The chat list's status ring, so a chat at work reads the same in the switcher
 function RecentStatus({ chatId }: { chatId: string }) {
   return <StatusRing status={useChatStatus(chatId)} />
-}
-
-function PanelButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick} className="text-muted-foreground">
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  )
 }

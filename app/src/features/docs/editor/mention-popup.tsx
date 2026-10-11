@@ -2,7 +2,7 @@ import { createRef } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { Prec, type Extension } from "@codemirror/state"
 import { EditorView, keymap, ViewPlugin, type ViewUpdate } from "@codemirror/view"
-import { MentionList, type MentionListHandle, type MentionListProps } from "@/features/chat/components/composer/MentionList"
+import { MentionList, type MentionListHandle } from "@/components/mention/mention-list"
 import type { DocMention } from "../lib/mentions"
 
 // "@" opens the composer's own mention popup, so a mention is picked the same way everywhere. On pick the
@@ -67,8 +67,7 @@ export function mentionPopup(search: (query: string) => DocMention[]): Extension
       }
 
       render() {
-        const props = { items: this.open?.items ?? [], command: ({ id, kind }: { id: string; kind: string }) => this.pick(id, kind) }
-        this.root.render(<MentionList ref={this.list} {...(props as unknown as MentionListProps)} />)
+        this.root.render(<MentionList ref={this.list} items={this.open?.items ?? []} command={({ id, kind }) => this.pick(id, kind)} />)
       }
 
       pick(id: string, kind: string) {
@@ -110,7 +109,7 @@ export function mentionPopup(search: (query: string) => DocMention[]): Extension
       p.dismiss()
       return true
     }
-    return p.list.current?.onKeyDown({ event: { key, shiftKey } as KeyboardEvent } as Parameters<MentionListHandle["onKeyDown"]>[0]) ?? false
+    return p.list.current?.onKeyDown({ event: { key, shiftKey } }) ?? false
   }
 
   return [

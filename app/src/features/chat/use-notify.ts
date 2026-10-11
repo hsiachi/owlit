@@ -4,6 +4,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import { askSentence, type ToolCall } from "./lib/step-words"
 import { brokenReply, pendingAsk, useSeenStore } from "./status"
 import { useChatStore } from "./store"
+import { bridge } from "@/lib/rpc"
 
 // Tells the system when a chat starts waiting on the user or breaks, so handed-off work reaches them while
 // owlit is behind other windows; the desktop shell shows it only then. A chat that merely finished says
@@ -19,7 +20,6 @@ export function useChatNotifications() {
   const dismissed = useSeenStore((s) => s.dismissed)
 
   useEffect(() => {
-    const bridge = window.owlit
     if (!bridge) return
     for (const id of Object.keys(streaming)) ran.current.add(id)
     for (const chat of Object.values(chats)) {
@@ -42,7 +42,7 @@ export function useChatNotifications() {
 
   useEffect(
     () =>
-      window.owlit?.onNotificationClick((chatId) => {
+      bridge?.onNotificationClick((chatId) => {
         const panel = useAgentWindow.getState()
         if (panel.stage === "open" && panel.chatId === chatId) return
         navigate(`/chat/${chatId}`)

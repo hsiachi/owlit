@@ -1,6 +1,7 @@
 import type { PaperKnowledge, TopicSidecar } from "@owlit/protocol"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
+import { createDiskFlag } from "@/lib/write-queue"
 import { useKnowledgeStore } from "./store"
 
 // In the desktop app what the user did to Knowledge lives in the workspace (.owlit/knowledge/), where core
@@ -8,16 +9,8 @@ import { useKnowledgeStore } from "./store"
 // sidecar and each paper's passages back as they change, and takes what core changed (an agent's write, a
 // run) from knowledge.changed and knowledge.updated.
 
-let applying = false
-
-function apply(fn: () => void) {
-  applying = true
-  try {
-    fn()
-  } finally {
-    applying = false
-  }
-}
+const fromCore = createDiskFlag()
+const apply = fromCore.apply
 
 const put = (what: "topic" | "paper", id: string, value: TopicSidecar | PaperKnowledge) => {
   const call = what === "topic" ? rpc.knowledge.putTopic({ id, sidecar: value as TopicSidecar }) : rpc.knowledge.putPaper({ id, paper: value as PaperKnowledge })
@@ -32,7 +25,7 @@ if (isDesktop) {
   })
 
   useKnowledgeStore.subscribe((s, prev) => {
-    if (applying) return
+    if (fromCore.isOn()) return
     for (const [id, side] of Object.entries(s.topics)) if (prev.topics[id] !== side) put("topic", id, side)
     for (const [id, paper] of Object.entries(s.papers)) if (prev.papers[id] !== paper) put("paper", id, paper)
   })

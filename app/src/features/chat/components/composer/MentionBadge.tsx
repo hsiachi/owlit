@@ -1,5 +1,5 @@
 import type { Mentionable } from "../../types"
-import { MentionToken } from "./MentionToken"
+import { MentionToken } from "@/components/mention/mention-token"
 
 // Read-only token used when echoing mentions in sent messages
 export function MentionBadge({ item, className }: { item: Mentionable; className?: string }) {

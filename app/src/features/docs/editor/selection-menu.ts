@@ -1,5 +1,6 @@
 import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { EditorView, showTooltip, type Tooltip } from "@codemirror/view"
+import { isPassage } from "@/app/text-menu"
 
 // While the mouse is held down the user is still choosing; the menu waits for the release
 const setDragging = StateEffect.define<boolean>()
@@ -13,7 +14,7 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
   const tooltip = (state: EditorState): Tooltip | null => {
     const sel = state.selection.main
     // A stray click-drag of a character or two is not a passage
-    if (state.field(dragging) || sel.empty || state.sliceDoc(sel.from, sel.to).trim().length < 3) return null
+    if (state.field(dragging) || sel.empty || !isPassage(state.sliceDoc(sel.from, sel.to))) return null
     return {
       pos: sel.from,
       end: sel.to,
@@ -21,7 +22,7 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
       arrow: false,
       create: (view) => {
         const dom = document.createElement("div")
-        dom.className = "cm-selection-menu"
+        dom.className = "selection-menu"
         const button = document.createElement("button")
         button.type = "button"
         button.textContent = "Ask Owlit"
@@ -55,6 +56,6 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
   })
 
   // Only while the editor has focus, so a selection left behind doesn't keep a menu floating
-  const focusOnly = EditorView.theme({ "&:not(.cm-focused) .cm-selection-menu": { display: "none" } })
+  const focusOnly = EditorView.theme({ "&:not(.cm-focused) .selection-menu": { display: "none" } })
   return [dragging, field, mouse, focusOnly]
 }

@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { Outlet, useNavigate } from "react-router-dom"
+import { useShortcut } from "@/app/shortcuts"
 import { useChatStore } from "./store"
 
 // Hosts the chat routes plus chat-wide dialogs and shortcuts
@@ -12,18 +13,7 @@ export function ChatLayout() {
     for (const c of connectors) if (c.status === "unknown") void checkConnector(c.id)
   }, [])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey
-      if (!mod) return
-      if (e.key.toLowerCase() === "n" && !e.shiftKey) {
-        e.preventDefault()
-        navigate("/chat")
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [navigate])
+  useShortcut("new", () => navigate("/chat"))
 
   return (
     <>

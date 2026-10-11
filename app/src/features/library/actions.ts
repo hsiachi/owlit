@@ -5,6 +5,7 @@ import { apaCitation, bibtex } from "./lib/cite"
 import { useLibraryStore } from "./store"
 import type { Paper, ReadStatus } from "./types"
 import { useUiStore } from "./ui-store"
+import { toastUndo } from "@/lib/toast"
 
 // Actions on one or several papers, shared by the row menu, the detail pane and the paper page
 export function usePaperActions() {
@@ -37,9 +38,8 @@ export function usePaperActions() {
     if (removed.length === 0) return
     clearSelection()
     opts.afterRemove?.()
-    toast(removed.length === 1 ? "Removed from library" : `Removed ${removed.length} papers`, {
+    toastUndo(removed.length === 1 ? "Removed from library" : `Removed ${removed.length} papers`, () => restorePapers(removed), {
       description: removed.length === 1 ? removed[0].title : undefined,
-      action: { label: "Undo", onClick: () => restorePapers(removed) },
     })
   }
 

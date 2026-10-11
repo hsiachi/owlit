@@ -7,6 +7,7 @@ import { deleteTopic, mergeTopic, setArchived, useKnowledgeStore, useTopics } fr
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
 import { dayLabel } from "@/lib/time"
+import { toastUndo } from "@/lib/toast"
 
 // Rename, Merge into…, Split…, Archive, Update now, Pause updates, Delete. The same menu from a row's ⋯,
 // a right-click on the row and the topic page's header.
@@ -35,7 +36,7 @@ export function useTopicMenu(topic: Topic, afterDelete?: () => void): MenuGroups
 
   return [
     [
-      { label: "Rename", onSelect: () => set({ renaming: topic.id }) },
+      { label: "Rename", afterClose: true, onSelect: () => set({ renaming: topic.id }) },
       {
         label: "Merge into",
         childrenClassName: "w-56",
@@ -45,7 +46,7 @@ export function useTopicMenu(topic: Topic, afterDelete?: () => void): MenuGroups
             const undo = mergeTopic(topic.id, t.id)
             if (!undo) return
             navigate(`/knowledge/${t.id}`)
-            toast(`Merged into ${t.name}`, { action: { label: "Undo", onClick: () => (undo(), navigate(`/knowledge/${topic.id}`)) } })
+            toastUndo(`Merged into ${t.name}`, () => (undo(), navigate(`/knowledge/${topic.id}`)))
           },
         })),
       },
@@ -64,7 +65,7 @@ export function useTopicMenu(topic: Topic, afterDelete?: () => void): MenuGroups
           const undo = deleteTopic(topic.id)
           if (!undo) return
           afterDelete?.()
-          toast(`Deleted ${topic.name}`, { action: { label: "Undo", onClick: undo } })
+          toastUndo(`Deleted ${topic.name}`, undo)
         },
       },
     ],

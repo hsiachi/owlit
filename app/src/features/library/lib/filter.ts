@@ -1,23 +1,18 @@
 import { DAY } from "@/lib/time"
+import { hasAllWords, queryWords } from "@/lib/words"
 import type { Paper } from "../types"
+import { surname } from "./format"
 import type { Sort, StatusFilter } from "../ui-store"
 
-const firstSurname = (p: Paper) => p.authors[0]?.trim().split(/\s+/).at(-1) ?? ""
+const firstSurname = (p: Paper) => (p.authors[0] ? surname(p.authors[0]) : "")
 
 export function matchesQuery(p: Paper, q: string): boolean {
   if (!q) return true
-  const hay = [p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags]
-    .join(" ")
-    .toLowerCase()
   // Every word must appear somewhere
-  return q
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((w) => hay.includes(w))
+  return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
 
-export function matchesFilter(p: Paper, f: StatusFilter): boolean {
+function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {
     case "all":
       return true
@@ -53,7 +48,7 @@ export function compare(a: Paper, b: Paper, sort: Sort): number {
   return sort.desc ? -r : r
 }
 
-export interface ListParams {
+interface ListParams {
   query: string
   filter: StatusFilter
   tags: string[]

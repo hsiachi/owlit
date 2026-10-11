@@ -526,9 +526,3 @@ if (isDesktop) {
 }
 
 // ---- Selectors ----
-
-export const selectChatList = (s: ChatState) =>
-  Object.values(s.chats).sort((a, b) => b.updatedAt - a.updatedAt)
-
-export const selectConnector = (s: ChatState, id?: string) =>
-  s.connectors.find((c) => c.id === (id ?? s.selection.connectorId))

@@ -1,42 +1,18 @@
+import { docUri, paperUri } from "@owlit/protocol"
 import { useDocsStore } from "@/features/docs/store"
 import { freshId, getTopic, useKnowledgeStore, writeTopic } from "./store"
 import { firstWords, isoDay, paperRef } from "./format"
-import type { Line, Ref } from "./types"
+import { SCRIPT } from "./mocks/script"
 import { capital, plural } from "@/lib/words"
 
 // Owlit's update runs. The real ones will be background ACP runs of the user's agent, reading the topic
-// files and what changed, and writing back through the app; this mock applies a few scripted steps with the
-// same rules, so the UI around a run (the dot, the Updated line, the history) can be built and tried now.
+// files and what changed, and writing back through the app; this mock applies a few scripted steps
+// (mocks/script.ts) with the same rules, so the UI around a run (the dot, the Updated line, the history)
+// can be built and tried now.
 //
 // Rules every run keeps: ids stay, a line the user rewrote stays word for word, a removed line never comes
 // back, "Owlit thinks" only for its own inferences, questions only from the user's words, and a paper line
 // is anchored to a passage or marked abstract only.
-
-interface Step {
-  id: string
-  why: string
-  // The line to add or, with `replaces`, the line it rewrites
-  line: Omit<Line, "id">
-  replaces?: string
-  source?: { ref: Ref; how: string }
-}
-
-const SCRIPT: Record<string, Step[]> = {
-  "when-to-call": [
-    {
-      id: "react-both",
-      why: "you read Yao 2022",
-      line: { speaker: "Yao 2022", text: "ReAct did best when combined with chain of thought, drawing on what the model knows and on what it looks up.", sources: [{ label: "§1", uri: "owlit://library/p7#passage=react-both" }], condition: "Prompted with one to six examples, not trained." },
-    },
-  ],
-  retrieval: [
-    {
-      id: "rag-tool",
-      why: "you read Schick 2023 §2",
-      line: { speaker: "Schick 2023", text: "Toolformer treats a retrieval system as one more API, sampled and filtered like the calculator.", sources: [{ label: "§2", uri: "owlit://library/p6#passage=tf-retrieval" }] },
-    },
-  ],
-}
 
 // Applies whatever is new for a topic. Returns what changed, as the Updated line words it.
 export function runUpdate(topicId: string): string | null {
@@ -184,7 +160,7 @@ export function paperClosed(paperId: string) {
     if (!t || !line || !passage || k.sidecar(topicId).edits[lineId]) continue
     const next = structuredClone(t)
     const l = next.lines.find((x) => x.id === lineId)!
-    l.sources = l.sources.map((r) => (paperRef(r.uri)?.paperId === paperId && paperRef(r.uri)?.abstract ? { label: passage.section, uri: `owlit://library/${paperId}#passage=${passageId}` } : r))
+    l.sources = l.sources.map((r) => (paperRef(r.uri)?.id === paperId && paperRef(r.uri)?.abstract ? { label: passage.section, uri: paperUri(paperId, passageId) } : r))
     writeTopic(next)
     const at = Date.now()
     k.patchSidecar(topicId, (s) => ({ changedAt: { ...s.changedAt, [lineId]: at } }))
@@ -211,7 +187,7 @@ useDocsStore.subscribe((state, prev) => {
       f.id,
       setTimeout(() => {
         timers.delete(f.id)
-        const uri = `owlit://docs/${f.path.split("/").map(encodeURIComponent).join("/")}`
+        const uri = docUri(f.path)
         const topics = Object.values(useDocsStore.getState().files)
           .filter((x) => x.path.startsWith("knowledge/") && x.content?.includes(uri))
           .map((x) => /\nid: (.+)\n/.exec(x.content ?? "")?.[1])

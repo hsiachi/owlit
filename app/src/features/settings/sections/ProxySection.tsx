@@ -1,11 +1,10 @@
 import { shortDate } from "@/lib/time"
 import { useState } from "react"
 import { PencilIcon } from "lucide-react"
-import { useShallow } from "zustand/react/shallow"
 import { PROXY_PRESETS, proxyFromLink, type ProxyPreset, type ProxySettings } from "@owlit/protocol"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { resumeTask, useTasksStore } from "@/features/tasks/store"
+import { resumeTask, useLoginTasks } from "@/features/tasks/store"
 import { RpcError } from "@/lib/rpc"
 import { useFoldWhile } from "../form-state"
 import { IconAction, List, Note, Picker, Row } from "../parts"
@@ -104,7 +103,7 @@ function LinkForm({ onDone }: { onDone: () => void }) {
 function SignIn({ signedInAt }: { signedInAt?: number }) {
   const [busy, setBusy] = useState(false)
   // Fetches stopped at the library's sign-in page; they go on once the user has signed in
-  const waiting = useTasksStore(useShallow((s) => Object.values(s.byId).filter((t) => t.state === "waiting_for_you" && t.waiting?.reason === "login")))
+  const waiting = useLoginTasks()
   const signIn = async () => {
     setBusy(true)
     try {

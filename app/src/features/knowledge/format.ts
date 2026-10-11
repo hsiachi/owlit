@@ -1,7 +1,8 @@
+import { parseOwlitUri } from "@owlit/protocol"
 import type { Line, Verb } from "./types"
 
 // Topic files are read and written by @owlit/protocol's parseTopic and serializeTopic, shared with core
-export { parseTopic, serializeTopic } from "@owlit/protocol"
+export { parseTopic, serializeTopic, topicPath, topicSlug, topicUri } from "@owlit/protocol"
 
 // ---- Reading a line ----
 
@@ -21,33 +22,14 @@ export function firstWords(text: string, n = 5) {
 export function verbOf(l: Line): Verb {
   if (l.verb) return l.verb
   if (isOwlit(l)) return "thinks"
-  if (isYou(l)) return l.sources[0]?.uri.startsWith("owlit://chat/") ? "said" : "wrote"
+  if (isYou(l)) return l.sources[0] && parseOwlitUri(l.sources[0].uri)?.kind === "chat" ? "said" : "wrote"
   return isAbstractOnly(l) ? "says" : "found"
 }
 
-// owlit://library/p6#passage=tf-filter → { paperId: "p6", passageId: "tf-filter" }
-export function paperRef(uri: string): { paperId: string; passageId?: string; abstract?: boolean } | null {
-  const m = /^owlit:\/\/library\/([^#/]+)(?:#(.*))?$/.exec(uri)
-  if (!m) return null
-  const frag = m[2] ?? ""
-  if (frag === "abstract") return { paperId: m[1], abstract: true }
-  const p = /^passage=(.+)$/.exec(frag)
-  return { paperId: m[1], passageId: p?.[1] }
-}
-
-export const topicUri = (id: string, block?: string) => `owlit://knowledge/${encodeURIComponent(id)}${block ? `#^${block}` : ""}`
-
-// A topic's file name follows its name
-export const topicPath = (name: string) => `knowledge/${name.replace(/[\\/:*?"<>|#^[\]]/g, " ").replace(/\s+/g, " ").trim()}.md`
-
-export function slugify(name: string) {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 40) || "topic"
-  )
+// owlit://library/p6#passage=tf-filter → { kind: "paper", id: "p6", passage: "tf-filter" }
+export function paperRef(uri: string) {
+  const u = parseOwlitUri(uri)
+  return u?.kind === "paper" ? u : null
 }
 
 export const isoDay = (t: number) => {

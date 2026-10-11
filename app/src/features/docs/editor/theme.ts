@@ -107,57 +107,8 @@ export const docTheme = EditorView.theme({
 
   // Floating pieces drawn by the editor take the menu look: popover surface, 10px corners, soft shadow
   ".cm-tooltip": { border: "none", backgroundColor: "transparent" },
-  ".cm-selection-menu": {
-    display: "flex",
-    gap: "2px",
-    padding: "2px",
-    backgroundColor: "var(--popover)",
-    border: "1px solid var(--border)",
-    // Concentric with the 6px item inside it
-    borderRadius: "8px",
-    boxShadow: "0 2px 6px oklch(0.3 0.02 60 / 0.08), 0 12px 32px oklch(0.3 0.02 60 / 0.12)",
-    fontFamily: "var(--font-sans, inherit)",
-    fontSize: "13px",
-  },
-  ".cm-selection-menu button": { height: "24px", padding: "0 8px", borderRadius: "6px", color: "var(--foreground)", cursor: "default" },
-  ".cm-selection-menu button:hover": { backgroundColor: "var(--accent)" },
-
-  // An agent's proposed edit, marked as one more editor would in its own colour. Removed words keep the
-  // muted tone with a strike in that colour (removal is not an error, so never red); new words take the
-  // colour, with an underline so the two differ in shape too. A rule at the left runs down the lines it
-  // touches and the bar under them, so each edit reads as one piece with its answer.
-  ".cm-suggest-del": { color: "var(--muted-foreground)", textDecoration: "line-through 1.5px var(--suggestion)" },
-  ".cm-suggest-ins": {
-    color: "var(--suggestion)",
-    textDecoration: "underline 1px var(--suggestion)",
-    textUnderlineOffset: "3px",
-  },
-  ".cm-suggest-ins-after": { marginLeft: "0.25em" },
-  ".cm-suggest-line, .cm-suggest-bar": { position: "relative" },
-  ".cm-suggest-line::before, .cm-suggest-bar::before": {
-    content: '""',
-    position: "absolute",
-    left: "-16px",
-    top: "0",
-    bottom: "0",
-    width: "2px",
-    backgroundColor: "var(--suggestion)",
-  },
-  // The bar's top margin is bridged so the rule doesn't break above it
-  ".cm-suggest-bar::before": { top: "-2px" },
-  ".cm-suggest-bar": {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    margin: "2px 0 10px",
-    fontSize: "13px",
-    lineHeight: "1.4",
-    color: "var(--muted-foreground)",
-  },
-  ".cm-suggest-bar span": { flex: "1" },
-  ".cm-suggest-bar button": { height: "28px", padding: "0 10px", borderRadius: "8px", cursor: "default" },
-  ".cm-suggest-discard:hover": { backgroundColor: "var(--accent)", color: "var(--foreground)" },
-  ".cm-suggest-apply": { backgroundColor: "var(--primary)", color: "var(--primary-foreground)", fontWeight: "500" },
+  // The selection menu and proposed edits are styled in index.css (.selection-menu, .suggest-*), shared
+  // with the paper note
 })
 
 export const docHighlight = syntaxHighlighting(

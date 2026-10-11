@@ -1,3 +1,4 @@
+import { parseOwlitUri } from "@owlit/protocol"
 import { setWorkspaceKnowledge } from "@/features/chat/agent/client"
 import { reviseLine } from "./runner"
 import { getTopic } from "./store"
@@ -17,10 +18,10 @@ export const canUndoRevision = (callId: string) => undos.has(callId)
 
 setWorkspaceKnowledge({
   reviseLine({ uri, said, chatId, callId }) {
-    const m = /^owlit:\/\/knowledge\/([^#]+)#\^?(.+)$/.exec(uri)
-    if (!m) return null
-    const topicId = decodeURIComponent(m[1])
-    const r = reviseLine(topicId, m[2], said, chatId)
+    const u = parseOwlitUri(uri)
+    if (u?.kind !== "knowledge" || !u.block) return null
+    const { topicId } = u
+    const r = reviseLine(topicId, u.block, said, chatId)
     const t = getTopic(topicId)
     if (!r || !t) return null
     const changed = r.how !== "none"

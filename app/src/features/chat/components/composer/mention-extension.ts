@@ -5,8 +5,8 @@ import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion
 import type { Mentionable, SourceKind } from "../../types"
 // The same items as @ in a doc: Library papers, workspace docs, knowledge
 import { docMentionItems } from "@/features/docs/lib/mentions"
+import { MentionList, type MentionListHandle, type MentionListProps } from "@/components/mention/mention-list"
 import { MentionChip } from "./MentionChip"
-import { MentionList, type MentionListHandle } from "./MentionList"
 
 export interface MentionAttrs {
   id: string
@@ -42,20 +42,20 @@ export const WorkspaceMention = Mention.extend({
     allowSpaces: false,
     items: ({ query }: { query: string }) => docMentionItems(query),
     render: () => {
-      let component: ReactRenderer<MentionListHandle, SuggestionProps<Mentionable, MentionAttrs>> | null = null
+      let component: ReactRenderer<MentionListHandle, MentionListProps> | null = null
       let unmount: (() => void) | undefined
 
       return {
-        onStart: (props) => {
+        onStart: (props: SuggestionProps<Mentionable, MentionAttrs>) => {
           component = new ReactRenderer(MentionList, {
-            props: { ...props, initialFilter: mentionFilter.next },
+            props: { items: props.items, command: props.command, initialFilter: mentionFilter.next },
             editor: props.editor as Editor,
           })
           mentionFilter.next = "all"
           unmount = props.mount(component.element)
           mentionPopup.open = true
         },
-        onUpdate: (props) => component?.updateProps(props),
+        onUpdate: (props: SuggestionProps<Mentionable, MentionAttrs>) => component?.updateProps({ items: props.items, command: props.command }),
         onKeyDown: (props: SuggestionKeyDownProps) => {
           if (props.event.key === "Escape") {
             unmount?.()

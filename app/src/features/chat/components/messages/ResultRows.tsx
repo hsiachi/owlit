@@ -1,10 +1,12 @@
-import { useEffect, useState, type ComponentType } from "react"
+import { useEffect, useState } from "react"
 import { create } from "zustand"
 import { editStats, type EditStats } from "@owlit/protocol"
 import { toast } from "sonner"
-import { ArrowUpRightIcon, BookOpenIcon, FileTextIcon, StickyNoteIcon } from "lucide-react"
+import { ArrowUpRightIcon, type LucideIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
-import { useDocsStore } from "@/features/docs/store"
+import { fileAt } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
 import type { ChatMessage } from "../../types"
 import { undoResult, useResultsStore, type AgentResult } from "../../results"
@@ -19,7 +21,7 @@ import { capital, joinAnd } from "@/lib/words"
 // row, so a long hand-off stays a few lines; past FOLD_AFTER rows the rest wait behind "Show N more".
 export interface ResultRow {
   key: string
-  icon: ComponentType<{ className?: string }>
+  icon: LucideIcon
   name: string
   // At the right: "+31 −1" for an edit, "Added" for a paper, "3 notes"
   detail?: React.ReactNode
@@ -109,7 +111,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted])
   const openDoc = (path: string) => {
-    const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
+    const file = fileAt(path)
     return file ? () => navigate(`/docs/${file.id}`) : undefined
   }
   const rows: ResultRow[] = []
@@ -120,7 +122,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     for (const [path, list] of byPath) {
       const name = list[0].label
       if (kind === "note") {
-        rows.push({ key: `note:${path}`, kind: "note", icon: StickyNoteIcon, name, detail: list.length === 1 ? "1 note" : `${list.length} notes`, ...of(list), view: openDoc(path) })
+        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: list.length === 1 ? "1 note" : `${list.length} notes`, ...of(list), view: openDoc(path) })
         continue
       }
       const span = spans.find((s) => s.path === path)
@@ -130,7 +132,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
       rows.push({
         key: `file:${path}`,
         kind: "doc",
-        icon: notePaper ? BookOpenIcon : FileTextIcon,
+        icon: notePaper ? KIND_ICON.paper : KIND_ICON.doc,
         name: notePaper ? `Your note on ${name}` : name,
         detail: edit ? <EditCounts stats={edit} /> : undefined,
         stats: edit,
@@ -144,7 +146,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
   for (const r of results.filter((r) => r.kind === "paper")) {
     // A paper the agent took back has nothing to open; Undo puts it back
     const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
-    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: BookOpenIcon, name: r.label, detail: r.removed ? "Removed" : "Added", ...of([r]), view, removed: r.removed })
+    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? "Removed" : "Added", ...of([r]), view, removed: r.removed })
   }
   return rows
 }
@@ -167,8 +169,6 @@ function summary(rows: ResultRow[]) {
   return capital(joinAnd(said))
 }
 
-// Muted text button inside a row, 24px tall so Undo is easy to hit
-const BUTTON = "inline-flex h-6 items-center rounded-md px-1.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
 const SHOW_ON_HOVER = "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
 
 function Row({ row, className }: { row: ResultRow; className?: string }) {
@@ -182,9 +182,9 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
       <span className={`min-w-0 truncate ${live ? "text-foreground" : "text-muted-foreground line-through"}`}>{row.name}</span>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
         {live && row.undo && (
-          <button type="button" onClick={() => void row.undo!()} className={`relative ${BUTTON} ${SHOW_ON_HOVER}`}>
+          <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
             Undo
-          </button>
+          </Button>
         )}
         {live ? row.detail : "Undone"}
         <ArrowUpRightIcon className={`size-3.5 ${row.view && live ? SHOW_ON_HOVER : "invisible"}`} />
@@ -213,9 +213,9 @@ export function ResultCard({ message }: { message: ChatMessage }) {
           <span className="min-w-0 truncate text-foreground">{summary(rows)}</span>
           <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
             {live.length > 1 && (
-              <button type="button" onClick={() => void Promise.all(live.map((r) => r.undo!()))} className={`${BUTTON} ${SHOW_ON_HOVER}`}>
+              <Button variant="text" size="inline" onClick={() => void Promise.all(live.map((r) => r.undo!()))} className={SHOW_ON_HOVER}>
                 Undo all
-              </button>
+              </Button>
             )}
             {total && (total.added > 0 || total.removed > 0) && <EditCounts stats={total} />}
             <ArrowUpRightIcon className="invisible size-3.5" />

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { Spinner } from "@/components/ui/spinner"
 import { usePaperActions } from "../actions"
-import { shortAuthors } from "../lib/format"
+import { authorsYear, shortAuthors } from "../lib/format"
 import type { Lookup } from "../lib/use-ref-lookup"
 
 // The one card that replaces the list while the find field holds a reference
@@ -45,7 +45,7 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
             </div>
             <div className="mt-0.5 truncate text-sm font-medium">{lookup.paper.title}</div>
             <div className="mt-0.5 text-detail text-muted-foreground">
-              {[shortAuthors(lookup.paper.authors), lookup.paper.year].filter(Boolean).join(" · ")}
+              {authorsYear(lookup.paper)}
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => actions.open(lookup.paper.id)}>

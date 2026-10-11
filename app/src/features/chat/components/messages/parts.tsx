@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react"
-import { CheckIcon, ChevronRightIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, ShieldAlertIcon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronRightIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { WaitingLabel } from "@/components/marks"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Spinner } from "@/components/ui/spinner"
-import type { MessagePart } from "../../types"
+import type { Part } from "../../types"
 import { Markdown } from "./Markdown"
 import { toolTitle } from "../../lib/tool-title"
 import { blockSentence, foldable, groupPhrase, liveSentence, stepWords, type StepWords, type ToolCall } from "../../lib/step-words"
 import { hasResult, StepResult, stepMeta } from "./step-results"
 import { capital } from "@/lib/words"
 
-type Part<T extends MessagePart["type"]> = Extract<MessagePart, { type: T }>
 
 // The outcome of a permission request, keyed by the tool call it was asked for
 export type PermissionOutcome = NonNullable<Part<"permission">["outcome"]>
@@ -99,13 +99,7 @@ function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: Step
   const canOpen = !running && !waiting && hasResult(call, question)
   const answered = question?.outcome === "skipped" ? "Skipped" : question?.outcome === "cancelled" ? "Not answered" : undefined
   let right: React.ReactNode = stepMeta(call)
-  if (waiting)
-    right = (
-      <>
-        <ShieldAlertIcon className="size-3.5 text-warning" />
-        Waiting on you
-      </>
-    )
+  if (waiting) right = <WaitingLabel />
   else if (running) right = call.status === "in_progress" ? <Spinner className="size-3.5" /> : undefined
   else if (unfinished && !streaming) right = "Stopped"
   return (
@@ -248,12 +242,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
 
   let head: React.ReactNode
   if (waitingHere) {
-    head = (
-      <>
-        <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
-        <span className="truncate">Waiting on you</span>
-      </>
-    )
+    head = <WaitingLabel size="md" />
   } else if (active) {
     const thinking = parts.at(-1)?.type === "thought"
     head = (
@@ -363,8 +352,7 @@ export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Par
   if (waiting)
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ShieldAlertIcon className="size-4 shrink-0 text-warning" />
-        <span className="truncate">Waiting on you</span>
+        <WaitingLabel size="md" />
       </div>
     )
   const said =

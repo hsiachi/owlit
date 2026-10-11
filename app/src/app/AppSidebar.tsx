@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/sidebar"
 import { SettingsIcon } from "lucide-react"
 import { matchNav, nav } from "@/app/nav"
-import { keysFor } from "@/app/shortcuts"
-import { Kbd } from "@/components/ui/kbd"
+import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useChatStore } from "@/features/chat/store"
@@ -98,14 +97,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 function SettingsButton() {
   return (
-    <SidebarMenuButton tooltip={{
-        children: (
-          <>
-            Settings <Kbd>{keysFor("settings")}</Kbd>
-          </>
-        ),
-        hidden: false,
-      }} onClick={() => openSettings()} className="px-2.5 md:px-2">
+    <SidebarMenuButton
+      tooltip={{ children: <TipLabel label="Settings" shortcut="settings" />, hidden: false }}
+      onClick={() => openSettings()}
+      className="px-2.5 md:px-2"
+    >
       <SettingsIcon />
       <span>Settings</span>
     </SidebarMenuButton>

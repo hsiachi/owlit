@@ -1,4 +1,4 @@
-import type { KnowledgeRun } from "@owlit/protocol"
+import { parseOwlitUri, type KnowledgeRun } from "@owlit/protocol"
 import { useMemo } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
@@ -7,7 +7,7 @@ import { reportKnowledgeEdited } from "@/lib/activity"
 import { isDesktop } from "@/lib/rpc"
 import { useDocsStore } from "@/features/docs/store"
 import type { WorkspaceFile } from "@/features/docs/types"
-import { parseTopic, serializeTopic, slugify, topicPath } from "./format"
+import { parseTopic, serializeTopic, topicPath, topicSlug } from "./format"
 import { seedLoose, seedPapers, seedSidecars, seedTopicFiles } from "./mocks/seed"
 import type { Change, Connection, Line, PaperKnowledge, Passage, Ref, Topic, TopicSidecar } from "./types"
 import { joinAnd, plural } from "@/lib/words"
@@ -168,7 +168,8 @@ export function changedSince(topic: Topic, side: TopicSidecar, seenAt = side.see
 export function provenance(topic: Topic) {
   const kinds = { doc: new Set<string>(), paper: new Set<string>(), chat: new Set<string>() }
   for (const s of topic.sources) {
-    const k = s.ref.uri.startsWith("owlit://library/") ? "paper" : s.ref.uri.startsWith("owlit://chat/") ? "chat" : "doc"
+    const kind = parseOwlitUri(s.ref.uri)?.kind
+    const k = kind === "paper" || kind === "chat" ? kind : "doc"
     kinds[k].add(s.ref.uri.replace(/#.*$/, ""))
   }
   const parts = (
@@ -210,17 +211,6 @@ export function editLine(topicId: string, lineId: string, text: string) {
   k.patchSidecar(topicId, (s) => ({ edits: { ...s.edits, [lineId]: { text: clean, at: Date.now() } } }))
   k.record(topicId, { lineId, what: "You rewrote it", why: "edited on the topic page", by: "you", before: was.text })
   reportKnowledgeEdited(topicId, lineId)
-}
-
-export function editQuestion(topicId: string, questionId: string, text: string) {
-  const clean = text.replace(/\s+/g, " ").trim()
-  if (!clean) return
-  mutate(topicId, (t) => {
-    const q = t.questions.find((x) => x.id === questionId)
-    if (!q || q.text === clean) return null
-    q.text = clean
-    return t
-  })
 }
 
 // Removes a line for good: no update brings it back. Returns an undo.
@@ -315,8 +305,8 @@ export function splitTopic(topicId: string, lineIds: string[], name: string): st
   const clean = name.replace(/\s+/g, " ").trim()
   if (!t || !clean || !lineIds.length) return null
   const taken = new Set(allTopics().map((x) => x.id))
-  let id = slugify(clean)
-  for (let n = 2; taken.has(id); n++) id = `${slugify(clean)}-${n}`
+  let id = topicSlug(clean)
+  for (let n = 2; taken.has(id); n++) id = `${topicSlug(clean)}-${n}`
   const moving = t.lines.filter((l) => lineIds.includes(l.id))
   const uris = new Set(moving.flatMap((l) => l.sources.map((r) => r.uri.replace(/#.*$/, ""))))
   const fresh: Topic = {

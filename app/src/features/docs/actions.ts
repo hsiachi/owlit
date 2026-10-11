@@ -8,13 +8,10 @@ import { useDocsStore, type Removed } from "./store"
 import { displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
 import { useNewDoc } from "./use-new-doc"
+import { toastUndo } from "@/lib/toast"
 
-function undoToast(title: string, description: string | undefined, removed: Removed) {
-  toast(title, {
-    description,
-    action: { label: "Undo", onClick: () => useDocsStore.getState().restore(removed) },
-  })
-}
+const undoToast = (title: string, description: string | undefined, removed: Removed) =>
+  toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
 
 // Renaming waits a tick, so a closing menu doesn't take the focus back from the input
 const startRenaming = (key: string) => setTimeout(() => useDocsUiStore.getState().setRenaming(key), 0)

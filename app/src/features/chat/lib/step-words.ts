@@ -1,4 +1,4 @@
-import type { MessagePart } from "../types"
+import type { MessagePart, ToolCall } from "../types"
 import { OWLIT_TOOLS, toolTitle } from "./tool-title"
 import { capital, joinAnd } from "@/lib/words"
 
@@ -7,7 +7,7 @@ import { capital, joinAnd } from "@/lib/words"
 // searched the web twice"). Steps are named by the agent's own tool and inputs when it says them (Claude
 // Code does); otherwise by the title it gave, read as plainly as it allows.
 
-export type ToolCall = Extract<MessagePart, { type: "tool_call" }>
+export type { ToolCall }
 
 export interface StepWords {
   // While it runs or waits, in the agent's words ("Read the lit check")

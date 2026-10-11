@@ -2,16 +2,20 @@ import { useEffect, useRef, useState } from "react"
 import type { RecentWorkspace, WelcomeInfo } from "@owlit/protocol"
 import { FolderIcon, FolderOpenIcon, FolderPlusIcon, FolderXIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
+import { BorderedList } from "@/components/bordered-list"
+import { GroupLabel } from "@/components/group-label"
+import { IconButton } from "@/components/icon-button"
+import { ListRow } from "@/components/list-row"
 import { OwlitLockup } from "@/components/owlit-lockup"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Toaster } from "@/components/ui/sonner"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { useSettingsShortcut } from "@/features/settings/hooks"
 import { CommitInput } from "@/features/settings/parts"
 import { updateSettings, useSettings } from "@/features/settings/store"
-import { rpc } from "@/lib/rpc"
+import { bridge, rpc } from "@/lib/rpc"
 import { useControlsRoom } from "@/lib/window-frame"
 import { AgentCheck } from "./AgentCheck"
 
@@ -50,7 +54,7 @@ export function WelcomePage() {
   const create = () => rpc.workspace.create({ parent, name: name.trim() || info!.suggestion.name }).catch(failed)
 
   const openFolder = async () => {
-    const folder = await window.owlit?.chooseFolder({
+    const folder = await bridge?.chooseFolder({
       title: "Open a Folder",
       message: "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit.",
       buttonLabel: "Open",
@@ -59,13 +63,13 @@ export function WelcomePage() {
   }
 
   const chooseParent = async () => {
-    const folder = await window.owlit?.chooseFolder({ title: "Where the Workspace Goes", buttonLabel: "Choose", defaultPath: parent })
+    const folder = await bridge?.chooseFolder({ title: "Where the Workspace Goes", buttonLabel: "Choose", defaultPath: parent })
     if (folder) setParent(folder)
   }
 
   // A moved workspace, found again: it opens, and its old place leaves the list
   const locate = async (gone: RecentWorkspace) => {
-    const folder = await window.owlit?.chooseFolder({ title: `Locate ${gone.name}`, buttonLabel: "Open", defaultPath: parentOf(gone.path) })
+    const folder = await bridge?.chooseFolder({ title: `Locate ${gone.name}`, buttonLabel: "Open", defaultPath: parentOf(gone.path) })
     if (!folder) return
     try {
       await rpc.workspace.open({ path: folder })
@@ -95,7 +99,7 @@ export function WelcomePage() {
 
             <NameField />
 
-            <div className="mt-7 divide-y overflow-hidden rounded-[10px] border bg-card">
+            <BorderedList className="mt-7">
               {editing ? (
                 <CreateForm
                   name={name}
@@ -136,43 +140,29 @@ export function WelcomePage() {
                   <span className="block truncate text-detail text-muted-foreground">Notes, an Obsidian vault, PDFs. Your files stay as they are.</span>
                 </span>
               </button>
-            </div>
+            </BorderedList>
 
             {!!info?.recent.length && (
               <section className="mt-7">
-                <h2 className="mb-1 px-2.5 text-xs text-muted-foreground">Recent</h2>
+                <GroupLabel>Recent</GroupLabel>
                 <div className="flex flex-col gap-0.5">
                   {info.recent.map((w) =>
                     w.missing ? (
                       <div key={w.path} className="group/gone flex h-9 min-w-0 items-center gap-2.5 rounded-md pr-1 pl-2.5 text-sm">
                         <FolderXIcon className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="max-w-[45%] shrink-0 truncate text-muted-foreground">{w.name}</span>
+                        <span className="max-w-[60%] shrink-0 truncate text-muted-foreground">{w.name}</span>
                         <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground" title={w.path}>
                           isn’t at {tilde(w.path)} anymore
                         </span>
                         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => locate(w)}>
                           Locate…
                         </Button>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon-xs" className="text-muted-foreground opacity-0 group-hover/gone:opacity-100 focus-visible:opacity-100" aria-label="Remove from Recent" onClick={() => forget(w)}>
-                              <XIcon />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Remove from Recent</TooltipContent>
-                        </Tooltip>
+                        <IconButton label="Remove from Recent" size="icon-xs" className="opacity-0 group-hover/gone:opacity-100 focus-visible:opacity-100" onClick={() => forget(w)}>
+                          <XIcon />
+                        </IconButton>
                       </div>
                     ) : (
-                      <button
-                        key={w.path}
-                        type="button"
-                        className="flex h-9 min-w-0 items-center gap-2.5 rounded-md px-2.5 text-left text-sm outline-none hover:bg-muted focus-key:bg-muted"
-                        onClick={() => rpc.workspace.open({ path: w.path }).catch(failed)}
-                      >
-                        <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="max-w-[45%] shrink-0 truncate">{w.name}</span>
-                        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{tilde(w.path)}</span>
-                      </button>
+                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={tilde(w.path)} onClick={() => rpc.workspace.open({ path: w.path }).catch(failed)} />
                     ),
                   )}
                 </div>
@@ -200,7 +190,7 @@ function NameField() {
   }, [view, asking])
   if (!asking) return null
   return (
-    <div className="mt-7 flex items-center gap-3 rounded-[10px] border bg-card py-2.5 pr-2.5 pl-3.5">
+    <div className="mt-7 flex items-center gap-3 rounded-lg border bg-card py-2.5 pr-2.5 pl-3.5">
       <label htmlFor="welcome-name" className="flex-1 text-sm font-medium">
         What should Owlit call you?
       </label>

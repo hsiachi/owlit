@@ -1,24 +1,31 @@
+import { paperUri } from "@owlit/protocol"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { ChevronRightIcon, EllipsisVerticalIcon, MessageSquareIcon } from "lucide-react"
-import { toast } from "sonner"
+import { useLocation, useNavigate, useParams } from "react-router-dom"
+import { EllipsisVerticalIcon, MessageSquareIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
+import { FoldButton } from "@/components/fold"
+import { NotFound, PageHeader, PageTitle } from "@/components/page"
+import { RenameInput } from "@/components/rename-input"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAgentWindow } from "@/features/agent/store"
-import { MentionToken } from "@/features/chat/components/composer/MentionToken"
+import { GroupLabel } from "@/components/group-label"
+import { Info } from "@/components/info"
+import { Dot, NoteDot } from "@/components/marks"
+import { MentionLink, MentionToken } from "@/components/mention/mention-token"
 import { isHidden } from "@/features/docs/lib/tree"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName, type WorkspaceFile } from "@/features/docs/types"
-import { Info, NoteDot, Refs, SentenceEditor } from "../components/bits"
+import { Refs, SentenceEditor } from "../components/bits"
 import { TopicMenuContent } from "../components/TopicMenu"
 import { firstWords, isAbstractOnly, paperRef, topicUri, verbOf } from "../format"
 import { ringBlock } from "../lib/ring"
 import { dayLabel, shortDate } from "@/lib/time"
-import { changedSince, editLine, provenance, removeLine, useKnowledgeStore, useTopic } from "../store"
+import { changedSince, editLine, lineKey, provenance, removeLine, renameTopic, useKnowledgeStore, useTopic } from "../store"
 import type { Change, Line, Topic, TopicSidecar } from "../types"
 import { useKnowledgeUi } from "../ui-store"
-import { RenameInput } from "./KnowledgePage"
+import { toastUndo } from "@/lib/toast"
 
 // Hard caps keep a topic to a screen; the renderer folds anything beyond
 const MAX_LINES = 7
@@ -53,29 +60,13 @@ function TopicView({ topicId }: { topicId: string }) {
     if (topic && freshIds.length === 0) useKnowledgeStore.getState().markSeen(topic.id)
   }, [topic?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!topic) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-body font-medium">This topic is gone</p>
-        <p className="text-sm text-muted-foreground">It may have been merged, deleted or renamed outside owlit.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/knowledge")}>
-          Back to Knowledge
-        </Button>
-      </div>
-    )
-  }
+  if (!topic)
+    return <NotFound title="This topic is gone" detail="It may have been merged, deleted or renamed outside owlit." back={{ label: "Back to Knowledge", to: "/knowledge" }} />
 
   const sidecar: TopicSidecar = side ?? { seenAt: 0, history: [], edits: {}, removed: {}, said: {}, changedAt: {} }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-detail">
-        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
-          <Link to="/knowledge" className="-ml-1 shrink-0 rounded-md px-1 py-0.5 hover:bg-muted hover:text-foreground">
-            Knowledge
-          </Link>
-          <ChevronRightIcon className="size-3.5 shrink-0" />
-          <span className="truncate text-foreground">{topic.name}</span>
-        </nav>
+      <PageHeader trail={[{ label: "Knowledge", to: "/knowledge" }]} current={topic.name}>
         <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => useAgentWindow.getState().open()}>
           <MessageSquareIcon />
           Chat about this
@@ -88,7 +79,7 @@ function TopicView({ topicId }: { topicId: string }) {
           </DropdownMenuTrigger>
           <TopicMenuContent topic={topic} afterDelete={() => navigate("/knowledge")} />
         </DropdownMenu>
-      </header>
+      </PageHeader>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <article className="mx-auto w-full max-w-3xl px-4 pt-8 pb-32">
           <Intro topic={topic} side={sidecar} seenBefore={seenBefore} freshIds={freshIds} />
@@ -102,32 +93,13 @@ function TopicView({ topicId }: { topicId: string }) {
   )
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-2 text-xs text-muted-foreground">{children}</h2>
-}
-
-// A fold's header row: "Sources · 4 docs and 2 papers", "5 changes"
-function FoldButton({ open, onClick, children }: { open: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={onClick}
-      className="-ml-1.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
-    >
-      <ChevronRightIcon className={cn("size-3.5 transition-transform", open && "rotate-90")} />
-      {children}
-    </button>
-  )
-}
-
 // "Cited in Related work · Acting with tools": a draft that cites one of the topic's papers, computed
 function citedIn(topic: Topic, files: Record<string, WorkspaceFile>) {
-  const papers = new Set(topic.lines.flatMap((l) => l.sources.map((r) => paperRef(r.uri)?.paperId).filter(Boolean)))
+  const papers = new Set(topic.lines.flatMap((l) => l.sources.flatMap((r) => paperRef(r.uri)?.id ?? [])))
   for (const f of Object.values(files).sort((a, b) => b.modifiedAt - a.modifiedAt)) {
     if (isHidden(f.path) || !f.content || !f.path.startsWith("writing/")) continue
     for (const id of papers) {
-      const at = f.content.indexOf(`owlit://library/${id})`)
+      const at = f.content.indexOf(`${paperUri(id)})`)
       if (at < 0) continue
       const heading = [...f.content.slice(0, at).matchAll(/^#{2,}\s+(.+)$/gm)].at(-1)?.[1]
       return { file: f, heading }
@@ -137,7 +109,6 @@ function citedIn(topic: Topic, files: Record<string, WorkspaceFile>) {
 }
 
 function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: TopicSidecar; seenBefore: number; freshIds: string[] }) {
-  const navigate = useNavigate()
   const renaming = useKnowledgeUi((s) => s.renaming === topic.id)
   const set = useKnowledgeUi((s) => s.set)
   const files = useDocsStore((s) => s.files)
@@ -145,11 +116,18 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
   return (
     <>
       {renaming ? (
-        <RenameInput topic={topic} onDone={() => set({ renaming: null })} className="-mx-1 w-full px-1 text-title leading-tight font-medium tracking-tight ring-1 ring-border" />
+        <RenameInput
+          initial={topic.name}
+          label="Topic name"
+          onDone={(name) => {
+            if (name !== null) renameTopic(topic.id, name)
+            set({ renaming: null })
+          }}
+          // The name stays where it was: the border and padding are taken back out of the margins
+          className="-mx-[5px] -my-px px-1 text-title leading-tight font-medium tracking-tight"
+        />
       ) : (
-        <h1 className="text-title leading-tight font-medium tracking-tight" onDoubleClick={() => set({ renaming: topic.id })}>
-          {topic.name}
-        </h1>
+        <PageTitle onDoubleClick={() => set({ renaming: topic.id })}>{topic.name}</PageTitle>
       )}
       <p className="mt-2 text-detail text-muted-foreground">
         Updated {shortDate(topic.updatedAt)}
@@ -158,20 +136,17 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
       </p>
       {cited && (
         <p className="mt-1 text-detail text-muted-foreground">
-          Cited in <MentionToken label={displayName(cited.file.path)} onClick={() => navigate(`/docs/${cited.file.id}`)} />
+          Cited in <MentionLink label={displayName(cited.file.path)} to={`/docs/${cited.file.id}`} />
           {cited.heading && <> · {cited.heading}</>}
         </p>
       )}
-      {topic.summary && <p className="mt-5 border-l-2 border-border pl-4 text-body leading-relaxed text-pretty">{topic.summary}</p>}
+      {/* The topic's own words, not a quote, so in body tone behind the rule */}
+      {topic.summary && <p className="mt-5 border-l-2 pl-4 text-body leading-relaxed text-pretty">{topic.summary}</p>}
       {freshIds.length > 0 && (
-        <button
-          type="button"
-          onClick={() => ringBlock(freshIds[0])}
-          className="-ml-1.5 mt-4 flex items-center gap-2 rounded-md px-1.5 py-0.5 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted"
-        >
+        <Button variant="text" size="inline" onClick={() => ringBlock(freshIds[0])} className="-ml-1.5 mt-4 flex gap-2">
           <NoteDot />
           {freshIds.length} line{freshIds.length === 1 ? "" : "s"} changed since you last looked{seenBefore > 0 && ` on ${shortDate(seenBefore)}`}
-        </button>
+        </Button>
       )}
     </>
   )
@@ -194,7 +169,7 @@ function Questions({ topic }: { topic: Topic }) {
   const shown = all ? topic.questions : topic.questions.slice(0, MAX_QUESTIONS)
   return (
     <section className="mt-10">
-      <Label>Your questions</Label>
+      <GroupLabel flush>Your questions</GroupLabel>
       <div className="flex flex-col gap-4">
         {shown.map((q) => (
           <QuestionRow key={q.id} topic={topic} id={q.id} text={q.text} status={q.status} />
@@ -218,9 +193,9 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
 
 function MoreButton({ open, hidden, onClick }: { open: boolean; hidden: number; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="-ml-1.5 mt-2 rounded-md px-1.5 py-0.5 text-detail text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+    <FoldButton open={open} onClick={onClick} className="mt-2">
       {open ? "Show fewer" : `Show ${hidden} more`}
-    </button>
+    </FoldButton>
   )
 }
 
@@ -231,7 +206,7 @@ function SoFar({ topic, side, seenBefore, freshIds, onViewed }: { topic: Topic; 
   const shown = all ? topic.lines : topic.lines.slice(0, MAX_LINES)
   return (
     <section className="mt-10">
-      <Label>So far</Label>
+      <GroupLabel flush>So far</GroupLabel>
       <div className="-mx-2 flex flex-col gap-1">
         {shown.map((l) => (
           <LineRow key={l.id} topic={topic} line={l} side={side} seenBefore={seenBefore} fresh={freshIds.includes(l.id) ? freshness(l.id, side, seenBefore) : null} onViewed={onViewed} />
@@ -284,7 +259,7 @@ export function Speaker({ line }: { line: Line }) {
 }
 
 function LineRow({ topic, line, side, seenBefore, fresh, onViewed }: { topic: Topic; line: Line; side: TopicSidecar; seenBefore: number; fresh: "new" | "changed" | null; onViewed: (id: string) => void }) {
-  const key = `${topic.id}/${line.id}`
+  const key = lineKey(topic.id, line.id)
   const editing = useKnowledgeUi((s) => s.editing === key)
   const open = useKnowledgeUi((s) => s.open === key)
   const set = useKnowledgeUi((s) => s.set)
@@ -298,108 +273,89 @@ function LineRow({ topic, line, side, seenBefore, fresh, onViewed }: { topic: To
 
   const remove = () => {
     const undo = removeLine(topic.id, line.id)
-    if (undo) toast("Line removed", { description: "Updates won’t bring it back.", action: { label: "Undo", onClick: undo } })
+    if (undo) toastUndo("Line removed", undo, { description: "Updates won’t bring it back." })
   }
-  // Ask Owlit opens the agent window once the menu has closed, so the menu doesn't take focus back from it
-  const asking = useRef(false)
   const ask = () =>
     useAgentWindow.getState().open({ text: line.text, source: { id: key, kind: "knowledge", title: topic.name, uri: topicUri(topic.id, line.id) } })
   const toggle = () => set({ open: open ? null : key })
+  const menu: MenuGroups = editing
+    ? []
+    : [
+        [
+          { label: "Edit", onSelect: () => set({ editing: key, open: null }) },
+          // Once the menu has closed, so it doesn't take focus back from the agent window
+          { label: "Ask Owlit", afterClose: true, onSelect: ask },
+        ],
+        [{ label: "Remove", destructive: true, onSelect: remove }],
+      ]
 
   return (
-    <div
-      ref={(el) => {
-        ref.current = el
-        viewedRef.current = el
-      }}
-      id={line.id}
-      tabIndex={editing ? -1 : 0}
-      aria-expanded={open}
-      className={cn(
-        "group/line relative grid grid-cols-[112px_1fr] gap-x-4 rounded-md px-2 py-2 outline-none transition-colors",
-        !editing && "cursor-pointer hover:bg-muted/60 focus-key:bg-muted/60 has-data-[state=open]:bg-muted/60",
-        open && "bg-muted/60",
-        hit && "animate-highlight-flash",
-      )}
-      onClick={(e) => {
-        if (editing || (e.target as HTMLElement).closest("button, a, [role=menuitem], textarea")) return
-        if (window.getSelection()?.toString()) return
-        toggle()
-      }}
-      onKeyDown={(e) => {
-        if (editing || e.target !== e.currentTarget) return
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          toggle()
-        }
-      }}
-    >
-      <div className="relative pt-[3px] text-detail leading-snug">
-        {fresh && <NoteDot className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
-        <Speaker line={line} />
-      </div>
-      <div className="min-w-0 pr-8">
-        {editing ? (
-          <SentenceEditor
-            value={line.text}
-            className="text-body leading-relaxed"
-            onCancel={() => set({ editing: null })}
-            onSave={(text) => {
-              editLine(topic.id, line.id, text)
-              set({ editing: null })
-            }}
-          />
-        ) : (
-          <>
-            <p className={cn("text-body leading-relaxed text-pretty", abstractOnly && "text-muted-foreground")}>{line.text}</p>
-            {(line.sources.length > 0 || line.condition || abstractOnly) && (
-              <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">
-                <Refs refs={line.sources} />
-                {line.condition && (
-                  <>
-                    {line.sources.length > 0 && <span className="px-1 text-muted-foreground/70">·</span>}
-                    {line.condition}
-                  </>
-                )}
-                {abstractOnly && <span className="ml-2 inline-flex h-5 items-center rounded-md bg-muted px-1.5 align-[0.05em] text-xs">abstract only</span>}
-              </p>
-            )}
-            {was && !open && <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">Was: “{was}”</p>}
-          </>
+    <ActionsOnRightClick groups={menu}>
+      <div
+        ref={(el) => {
+          ref.current = el
+          viewedRef.current = el
+        }}
+        id={line.id}
+        tabIndex={editing ? -1 : 0}
+        aria-expanded={open}
+        className={cn(
+          "group/row relative grid grid-cols-[112px_1fr] gap-x-4 rounded-md px-2 py-2 outline-none transition-colors",
+          !editing && "cursor-pointer hover:bg-muted/60 focus-key:bg-muted/60 has-data-[state=open]:bg-muted/60 data-[state=open]:bg-muted/60",
+          open && "bg-muted/60",
+          hit && "animate-highlight-flash",
         )}
-        {open && !editing && <LineHistory topic={topic} line={line} side={side} />}
+        onClick={(e) => {
+          if (editing || (e.target as HTMLElement).closest("button, a, [role=menuitem], textarea")) return
+          if (window.getSelection()?.toString()) return
+          toggle()
+        }}
+        onKeyDown={(e) => {
+          if (editing || e.target !== e.currentTarget) return
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            toggle()
+          }
+        }}
+      >
+        <div className="relative pt-[3px] text-detail leading-snug">
+          {fresh && <NoteDot className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
+          <Speaker line={line} />
+        </div>
+        <div className="min-w-0 pr-8">
+          {editing ? (
+            <SentenceEditor
+              value={line.text}
+              className="text-body leading-relaxed"
+              onCancel={() => set({ editing: null })}
+              onSave={(text) => {
+                editLine(topic.id, line.id, text)
+                set({ editing: null })
+              }}
+            />
+          ) : (
+            <>
+              <p className={cn("text-body leading-relaxed text-pretty", abstractOnly && "text-muted-foreground")}>{line.text}</p>
+              {(line.sources.length > 0 || line.condition || abstractOnly) && (
+                <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">
+                  <Refs refs={line.sources} />
+                  {line.condition && (
+                    <>
+                      {line.sources.length > 0 && <Dot />}
+                      {line.condition}
+                    </>
+                  )}
+                  {abstractOnly && <span className="ml-2 inline-flex h-5 items-center rounded-md bg-muted px-1.5 align-[0.05em] text-xs">abstract only</span>}
+                </p>
+              )}
+              {was && !open && <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">Was: “{was}”</p>}
+            </>
+          )}
+          {open && !editing && <LineHistory topic={topic} line={line} side={side} />}
+        </div>
+        {!editing && <RowMenuButton groups={menu} label="Line actions" className="absolute top-2 right-1.5" />}
       </div>
-      {!editing && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Line actions"
-              className="absolute top-2 right-1.5 text-muted-foreground opacity-0 group-hover/line:opacity-100 group-focus-within/line:opacity-100 hover:bg-foreground/8 focus-key:opacity-100 data-[state=open]:bg-foreground/8 data-[state=open]:opacity-100"
-            >
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-40"
-            onCloseAutoFocus={(e) => {
-              e.preventDefault()
-              if (asking.current) ask()
-              asking.current = false
-            }}
-          >
-            <DropdownMenuItem onSelect={() => set({ editing: key, open: null })}>Edit</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => (asking.current = true)}>Ask Owlit</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={remove}>
-              Remove
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </div>
+    </ActionsOnRightClick>
   )
 }
 
@@ -468,19 +424,9 @@ function Changes({ topic, history }: { topic: Topic; history: Change[] }) {
   const subject = (h: Change): React.ReactNode => {
     if (!h.lineId) return null
     const line = topic.lines.find((l) => l.id === h.lineId)
-    if (line)
-      return (
-        <button type="button" onClick={() => ringBlock(line.id)} className="rounded-[0.3em] text-mention outline-none hover:bg-mention/10 focus-key:ring-2 focus-key:ring-ring/50">
-          “{firstWords(line.text)}”
-        </button>
-      )
+    if (line) return <MentionToken label={`“${firstWords(line.text)}”`} onClick={() => ringBlock(line.id)} />
     const q = topic.questions.find((x) => x.id === h.lineId)
-    if (q)
-      return (
-        <button type="button" onClick={() => ringBlock(q.id)} className="rounded-[0.3em] text-mention outline-none hover:bg-mention/10 focus-key:ring-2 focus-key:ring-ring/50">
-          “{firstWords(q.text)}”
-        </button>
-      )
+    if (q) return <MentionToken label={`“${firstWords(q.text)}”`} onClick={() => ringBlock(q.id)} />
     return h.before ? <>“{firstWords(h.before)}”</> : "A line"
   }
   return (
