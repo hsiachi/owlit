@@ -1,7 +1,10 @@
 import {
+  KNOWLEDGE_DIR,
   parseTopic,
   RpcErrorCode,
   serializeTopic,
+  topicPath,
+  topicSlug,
   type ActivityEvent,
   type Change,
   type JournalEntry,
@@ -37,7 +40,6 @@ import { checkTopic, findQuote, passageOf } from "./check.ts"
 //   changes.jsonl             every change any writer made, in order
 //   versions/<id>/            knowledge/ as it was before each run (and before each revert)
 
-export const KNOWLEDGE_DIR = "knowledge"
 const UPDATE = "knowledge.update"
 
 export interface KnowledgeTimings {
@@ -88,13 +90,6 @@ const blankSidecar = (): TopicSidecar => ({ seenAt: 0, history: [], edits: {}, r
 const blankPaper = (): PaperKnowledge => ({ passages: {}, connections: [], dismissed: [], seenAt: 0 })
 const fileName = (id: string) => `${encodeURIComponent(id)}.json`
 
-export const topicPath = (name: string) => `${KNOWLEDGE_DIR}/${name.replace(/[\\/:*?"<>|#^[\]]/g, " ").replace(/\s+/g, " ").trim() || "Topic"}.md`
-const slugify = (name: string) =>
-  name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "topic"
 
 export class Knowledge {
   private readonly root: string
@@ -381,7 +376,7 @@ export class Knowledge {
 
       const topics = await this.topics()
       const next = checked.topic
-      next.id = before?.id ?? uniqueId(slugify(next.name), topics)
+      next.id = before?.id ?? uniqueId(topicSlug(next.name), topics)
       const rel = before?.path ?? uniquePath(topicPath(next.name), topics)
       const text = serializeTopic(next)
       // Kept like any agent write, so it can be undone on its own (a run's snapshot covers the whole run)
