@@ -144,10 +144,14 @@ describe("keeping the library clean", () => {
     "api.crossref.org/works?query.bibliographic": JSON.stringify({ message: { items: [{ DOI: "10.1016/j.chbr.2024.100411", title: [title], issued: { "date-parts": [[2024]] } }] } }),
   }
   const workspaceOf = (core: Core) => (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+  // Papers written straight to disk reach the library's index a moment later
+  const indexed = (call: (method: string, params?: unknown) => Promise<any>, inputs: string[]) =>
+    vi.waitUntil(async () => ((await call("library.known", { inputs })) as (string | null)[]).every(Boolean))
 
   it("doesn't add a copy of a paper it has under a DOI, and keeps no version an agent could undo", async () => {
     const { root, call } = await setup({})
     putPaper(root, review)
+    await indexed(call, [review.ids.doi])
     const added = await call("library.add", { paper: { id: "s2-d9b08e17", title, authors: [], ids: { s2: "d9b08e17" } }, addedBy: "agent", chatId: "c1" })
     expect(added.id).toBe(review.id)
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id)).toEqual([review.id])
@@ -158,6 +162,7 @@ describe("keeping the library clean", () => {
     const { root, core, call } = await setup(strayRoutes)
     putPaper(root, review)
     putPaper(root, { id: "s2-d9b08e17", title, ids: { s2: "d9b08e17" } })
+    await indexed(call, [review.ids.doi])
     expect((await workspaceOf(core).tasks.run("paper.metadata", "s2-d9b08e17")).state).toBe("done")
     const listed = await call("library.list")
     expect(listed.papers.map((p: { id: string }) => p.id)).toEqual([review.id])

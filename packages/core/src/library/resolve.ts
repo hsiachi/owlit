@@ -248,8 +248,15 @@ function pickAbstract(title: string, from: (SourceRecord | undefined)[], fields:
   return undefined
 }
 
+// Function words, and the words any paper's abstract may use whatever it is about: a cancer study's
+// abstract shares "effect" with Fischhoff's title, so it can't count as a sign the two are one paper
 const STOP = new Set(
-  "about after also among from have into more only other over such than that their them then there these they this those through under upon using when where which while with within without would your what does been".split(" "),
+  [
+    "about after also among from have into more only other over such than that their them then there these they this those through under upon using when where which while with within without would your what does been",
+    "effect effects study studies analysis approach approaches model models based system systems method methods results research data design evaluation towards toward case review role impact understanding exploring investigating framework",
+  ]
+    .join(" ")
+    .split(" "),
 )
 
 // Telling words, by their first five letters so "remind" and "reminders" meet

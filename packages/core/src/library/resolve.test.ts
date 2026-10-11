@@ -134,7 +134,8 @@ describe("checking what the services say", () => {
   })
 
   it("drops an abstract that belongs to another paper", async () => {
-    const braf = { BRAF: [0], "mutated at V600E is a potent oncogenic driver in melanoma, lung and colorectal cancer": [1] }
+    // It shares "effect" with the title, as the real one does: a word any abstract may use
+    const braf = { BRAF: [0], "mutated at V600E is a potent oncogenic driver in melanoma, and its effect on lung and colorectal cancer": [1] }
     const { http } = httpServing({
       "api.openalex.org/works/doi:10.1145%2F2971648.2971747": work("Hindsight != foresight: the effect of outcome knowledge on judgment under uncertainty", { abstract_inverted_index: braf }),
     })
