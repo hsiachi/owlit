@@ -1,6 +1,7 @@
 import { useLibraryStore } from "@/features/library/store"
 import { useReaderStore } from "@/features/library/reader/reader-store"
-import { addPassage, lineKey, useKnowledgeStore } from "../store"
+import { lineKey } from "../format"
+import { addPassage, useKnowledgeStore } from "../store"
 
 // "Find it in the paper" for a line taken from the abstract alone: the reader selects the likeliest passage
 // with the highlight popover open. Whatever the user highlights next in that paper becomes the line's

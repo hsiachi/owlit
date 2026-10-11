@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAgentWindow } from "@/features/agent/store"
-import { askSentence, type ToolCall } from "./lib/step-words"
-import { brokenReply, pendingAsk, useSeenStore } from "./status"
+import { askSentence } from "./lib/step-words"
+import { brokenReply, callOf, pendingAsk, useSeenStore } from "./status"
 import { useChatStore } from "./store"
 import { bridge } from "@/lib/rpc"
 
@@ -15,12 +15,18 @@ export function useChatNotifications() {
   const said = useRef(new Set<string>())
   // Chats that ran a turn while owlit was open: only their breaking is news, not a reply that broke before
   const ran = useRef(new Set<string>())
-  const chats = useChatStore((s) => s.chats)
-  const streaming = useChatStore((s) => s.streaming)
   const dismissed = useSeenStore((s) => s.dismissed)
+  // Where every chat stands in one string, so this runs when one starts, stops, asks or breaks rather than
+  // on every streamed token
+  const standing = useChatStore((s) =>
+    Object.values(s.chats)
+      .map((c) => `${c.id}:${s.streaming[c.id] ? `run:${pendingAsk(c)?.requestId ?? ""}` : (brokenReply(c, dismissed[c.id])?.id ?? "")}`)
+      .join(" "),
+  )
 
   useEffect(() => {
     if (!bridge) return
+    const { chats, streaming } = useChatStore.getState()
     for (const id of Object.keys(streaming)) ran.current.add(id)
     for (const chat of Object.values(chats)) {
       const ask = streaming[chat.id] ? pendingAsk(chat) : undefined
@@ -30,15 +36,14 @@ export function useChatNotifications() {
       said.current.add(key)
       const where = `In “${chat.title}”`
       if (ask?.type === "permission") {
-        const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
-        bridge.notify({ title: askSentence(ask.title, call), body: where, chatId: chat.id })
+        bridge.notify({ title: askSentence(ask.title, callOf(chat, ask.toolCallId)), body: where, chatId: chat.id })
       } else if (ask?.type === "question") {
         bridge.notify({ title: "Owlit has a question", body: ask.questions[0]?.question ?? where, chatId: chat.id })
       } else if (broken) {
         bridge.notify({ title: "Owlit stopped", body: broken.error ? `${where}: ${broken.error}` : where, chatId: chat.id })
       }
     }
-  }, [chats, streaming, dismissed])
+  }, [standing, dismissed])
 
   useEffect(
     () =>

@@ -4,7 +4,6 @@
 // which open it at their section. Closing it leaves you exactly where you were.
 
 import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon, ScanTextIcon, type LucideIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
 import { isBroken } from "@/features/chat/lib/connector-status"
@@ -19,59 +18,47 @@ import { ProfileSection } from "./sections/ProfileSection"
 import { ProxySection } from "./sections/ProxySection"
 import { ReadingSection } from "./sections/ReadingSection"
 import { SourcesSection } from "./sections/SourcesSection"
-import { closeSettings, showSection, useSettings, type SettingsSection } from "./store"
+import { closeSettings, SECTIONS, showSection, useSettings, type SettingsSection } from "./store"
 
-const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon; about: string; body: React.ComponentType }[] = [
-  {
-    id: "profile",
-    label: "Profile",
+// What each section shows besides its name: its icon in the list, what it is about, and its body
+const PARTS: Record<SettingsSection, { icon: LucideIcon; about: string; body: React.ComponentType }> = {
+  profile: {
     icon: CircleUserIcon,
     about: "Who you are to Owlit. It stays on this computer and is told only to the agent you chat with.",
     body: ProfileSection,
   },
-  {
-    id: "appearance",
-    label: "Appearance",
+  appearance: {
     icon: PaletteIcon,
     about: "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean.",
     body: AppearanceSection,
   },
-  {
-    id: "agents",
-    label: "Agents",
+  agents: {
     icon: BotIcon,
     about: "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them.",
     body: AgentsSection,
   },
-  {
-    id: "sources",
-    label: "Paper sources",
+  sources: {
     icon: GlobeIcon,
     about: "Where owlit looks papers up. Everything works without these; they make lookups faster and fail less often.",
     body: SourcesSection,
   },
-  {
-    id: "proxy",
-    label: "Library proxy",
+  proxy: {
     icon: LandmarkIcon,
     about: "Gets publisher PDFs through your university's subscription. owlit opens publisher pages through the proxy in its own browser window, signed in as you.",
     body: ProxySection,
   },
-  {
-    id: "reading",
-    label: "PDF reading",
+  reading: {
     icon: ScanTextIcon,
     about: "How owlit reads the text of a PDF, for search, highlights and Owlit's reading.",
     body: ReadingSection,
   },
-  {
-    id: "privacy",
-    label: "Privacy",
+  privacy: {
     icon: EyeIcon,
     about: "What owlit keeps about how you work. It stays in this workspace and is never sent anywhere.",
     body: PrivacySection,
   },
-]
+}
+const LIST = SECTIONS.map((s) => ({ ...s, ...PARTS[s.id] }))
 
 // A section shows a small dot in the list only while something in it needs the user
 function useNeedsYou(): Partial<Record<SettingsSection, boolean>> {
@@ -85,7 +72,7 @@ export function SettingsDialog() {
   const open = useSettings((s) => s.open)
   const sectionId = useSettings((s) => s.section)
   const needs = useNeedsYou()
-  const section = SECTIONS.find((s) => s.id === sectionId) ?? SECTIONS[0]
+  const section = LIST.find((s) => s.id === sectionId) ?? LIST[0]
   const Body = section.body
 
   return (
@@ -117,7 +104,7 @@ export function SettingsDialog() {
                 <SidebarGroupContent>
                   {/* A list you pick from, not a menu: rows sit 2px apart so the chosen row and a hovered one never merge */}
                   <SidebarMenu className="gap-0.5">
-                    {SECTIONS.map((s) => (
+                    {LIST.map((s) => (
                       <SidebarMenuItem key={s.id}>
                         <SidebarMenuButton isActive={s.id === section.id} onClick={() => showSection(s.id)}>
                           <s.icon />
@@ -136,7 +123,7 @@ export function SettingsDialog() {
               <h2 className="text-base font-medium">{section.label}</h2>
               <Info label={`About ${section.label}`}>{section.about}</Info>
             </header>
-            <div className={cn("flex-1 overflow-y-auto px-6 pt-1 pb-7")}>
+            <div className="flex-1 overflow-y-auto px-6 pt-1 pb-7">
               <Body key={section.id} />
             </div>
           </main>

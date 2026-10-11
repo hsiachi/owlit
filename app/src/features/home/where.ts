@@ -5,6 +5,7 @@ import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
 import { authorsYear } from "@/features/library/lib/format"
 import { useTrail, workspaceKey } from "./trail"
+import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { messageText } from "@/features/chat/lib/message-text"
 
@@ -12,10 +13,8 @@ import { messageText } from "@/features/chat/lib/message-text"
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
 // highlighted or noted. Topic files are Owlit's, so they belong to Knowledge, not here.
 
-export type Kind = "doc" | "chat" | "paper"
-
 export interface Place {
-  kind: Kind
+  kind: Extract<Kind, "doc" | "chat" | "paper">
   key: string
   title: string
   // Muted text after the title: the doc's folder, the paper's authors and year
@@ -28,7 +27,6 @@ export interface Place {
   // What the time means for this kind ("edited", "read")
   did: string
 }
-
 
 // The paragraph around an offset: the run of non-blank lines that holds it
 function paragraphAt(text: string, head: number) {
@@ -49,10 +47,10 @@ export function usePlaces(): Place[] {
   const notes = useLibraryStore((s) => s.notes)
   const marks = useTrail((s) => s.docs[workspaceKey()])
 
-  return useMemo(() => {
+  // One list per kind, so a streamed reply doesn't requote every doc
+  const docPlaces = useMemo(() => {
     const out: Place[] = []
     const markByPath = new Map((marks ?? []).map((m) => [m.path, m]))
-
     for (const f of Object.values(files)) {
       if (!isMarkdown(f.path) || f.path.startsWith("knowledge/")) continue
       const mark = markByPath.get(f.path)
@@ -68,14 +66,22 @@ export function usePlaces(): Place[] {
         did: "edited",
       })
     }
+    return out
+  }, [files, marks])
 
+  const chatPlaces = useMemo(() => {
+    const out: Place[] = []
     for (const c of Object.values(chats)) {
       const mine = c.messages.findLast((m) => m.role === "user")
       if (!mine) continue
       const text = messageText(mine, " ")
       out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: markdownPlain(text) || undefined, did: "" })
     }
+    return out
+  }, [chats])
 
+  const paperPlaces = useMemo(() => {
+    const out: Place[] = []
     const lastMark = new Map<string, { at: number; words: string }>()
     for (const h of Object.values(highlights)) {
       if (h.addedBy === "agent") continue
@@ -101,7 +107,8 @@ export function usePlaces(): Place[] {
         did: "read",
       })
     }
+    return out
+  }, [papers, highlights, notes])
 
-    return out.sort((a, b) => b.at - a.at)
-  }, [files, chats, papers, highlights, notes, marks])
+  return useMemo(() => [...docPlaces, ...chatPlaces, ...paperPlaces].sort((a, b) => b.at - a.at), [docPlaces, chatPlaces, paperPlaces])
 }

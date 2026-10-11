@@ -6,12 +6,12 @@ import { Compartment, EditorSelection, EditorState, type Transaction } from "@co
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { useAgentWindow } from "@/features/agent/store"
 import { useShowsEditsInPlace } from "@/features/chat/in-place"
-import { reportDocEdited } from "@/lib/activity"
+import { reportDocEdited } from "@/app/activity"
 import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
+import { allDocMentions, docMentionable, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
 import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
@@ -128,7 +128,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
             onOpenRoute: (route) => navigateRef.current(route),
           }),
-          mentionPopup((query) => docMentionItems(query, id)),
+          mentionPopup(() => allDocMentions(id)),
           selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from)),
           agentSuggestions(respondToEdit),
           agentNotes({

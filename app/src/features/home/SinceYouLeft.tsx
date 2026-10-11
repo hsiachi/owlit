@@ -8,12 +8,13 @@ import { NoteDot } from "@/components/marks"
 import { Button } from "@/components/ui/button"
 import { useAgentWindow } from "@/features/agent/store"
 import { useLibraryStore } from "@/features/library/store"
-import { Refs } from "@/features/knowledge/components/bits"
-import { topicUri, verbOf } from "@/features/knowledge/format"
+import { LineBody, TopicLine } from "@/features/knowledge/components/TopicLine"
+import { topicUri, wasBefore } from "@/features/knowledge/format"
 import { DAY, shortDate } from "@/lib/time"
 import { changedSince, useKnowledgeStore, useTopics } from "@/features/knowledge/store"
 import type { Line, Topic, TopicSidecar } from "@/features/knowledge/types"
 import { cn } from "@/lib/utils"
+import { plural } from "@/lib/words"
 
 // After three days or more away: one row per topic Owlit changed meanwhile, opening in place to the
 // changed lines, and one line for papers Owlit added. It belongs to this launch only; what the user
@@ -30,7 +31,7 @@ interface Changed {
 
 // "2 lines added, 1 rewritten", or "New topic, 3 lines", from Owlit's history since the user left
 function summary(side: TopicSidecar, since: number, lines: Line[]) {
-  const lineCount = (n: number) => `${n} line${n === 1 ? "" : "s"}`
+  const lineCount = (n: number) => plural(n, "line")
   const recent = side.history.filter((h) => h.by === "owlit" && h.at > since)
   if (recent.some((h) => h.what === "Topic started")) return `New topic, ${lineCount(lines.length)}`
   const counts = new Map<string, number>()
@@ -92,7 +93,7 @@ export function SinceYouLeft({ since }: { since: number }) {
           <ListRow
             onClick={() => navigate("/library")}
             mark={<KindIcon kind="paper" className="size-4" />}
-            title={`Owlit added ${added} paper${added === 1 ? "" : "s"} to your Library`}
+            title={`Owlit added ${plural(added, "paper")} to your Library`}
           />
         )}
       </div>
@@ -103,29 +104,16 @@ export function SinceYouLeft({ since }: { since: number }) {
 // The changed lines as the topic page draws them: who and how, the line, its sources, and what it was
 function Peek({ c, since }: { c: Changed; since: number }) {
   const navigate = useNavigate()
-  const before = (lineId: string) => c.side.history.find((h) => h.lineId === lineId && h.at > since && h.before)?.before
   return (
     <div className="mt-1 mb-3 pr-2.5 pl-9">
-      {c.lines.map((l) => {
-        const was = before(l.id)
-        return (
-          <div key={l.id} className="grid grid-cols-[112px_1fr] gap-3 py-1.5">
-            <div className="pt-px text-sm">
-              <span className="font-medium">{l.speaker}</span> <span className="text-muted-foreground">{verbOf(l)}</span>
-            </div>
-            <div className="text-body leading-normal">
-              {l.text}
-              {(l.sources.length > 0 || was) && (
-                <div className="mt-0.5 text-detail text-muted-foreground">
-                  <Refs refs={l.sources} />
-                  {was && <div>Was: “{was}”</div>}
-                </div>
-              )}
-            </div>
+      {c.lines.map((l) => (
+        <TopicLine key={l.id} line={l} className="py-1.5">
+          <div className="min-w-0">
+            <LineBody line={l} was={wasBefore(l.id, c.side, since)} />
           </div>
-        )
-      })}
-      <div className="mt-1 ml-[124px] flex gap-1">
+        </TopicLine>
+      ))}
+      <div className="mt-1 ml-[128px] flex gap-1">
         <Button variant="text" size="inline" className="-ml-1.5" onClick={() => navigate(`/knowledge/${c.topic.id}`)}>
           Open topic
         </Button>

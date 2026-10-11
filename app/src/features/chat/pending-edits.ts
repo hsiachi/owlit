@@ -1,4 +1,5 @@
 import { useChatStore } from "./store"
+import { callOf } from "./status"
 import type { Chat } from "./types"
 
 // An edit an agent has proposed to a file and is waiting on: an ACP edit tool call with a diff, plus its
@@ -18,8 +19,8 @@ function waitingIn(chat: Chat): PendingEdit[] {
   const out: PendingEdit[] = []
   for (const part of last.parts) {
     if (part.type !== "permission" || part.outcome) continue
-    const call = last.parts.find((p) => p.type === "tool_call" && p.toolCallId === part.toolCallId)
-    if (call?.type === "tool_call" && call.diff)
+    const call = callOf(chat, part.toolCallId)
+    if (call?.diff)
       out.push({ chatId: chat.id, requestId: part.requestId, path: call.diff.path, oldText: call.diff.oldText, newText: call.diff.newText })
   }
   return out

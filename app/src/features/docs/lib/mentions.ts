@@ -32,7 +32,7 @@ export const paperMentionable = (paper: Paper): Mentionable => ({
 })
 
 // Everything @ can point to from a doc, minus the doc itself
-export function docMentionItems(query: string, selfId?: string): DocMention[] {
+export function allDocMentions(selfId?: string): DocMention[] {
   const papers: DocMention[] = Object.values(useLibraryStore.getState().papers)
     .sort((x, y) => (y.lastOpenedAt ?? y.addedAt) - (x.lastOpenedAt ?? x.addedAt))
     .map((p) => ({ ...paperMentionable(p), label: citationLabel(p) }))
@@ -40,12 +40,17 @@ export function docMentionItems(query: string, selfId?: string): DocMention[] {
     .filter((f) => f.id !== selfId && isMarkdown(f.path) && !isHidden(f.path))
     .sort((x, y) => y.modifiedAt - x.modifiedAt)
     .map((f) => ({ ...docMentionable(f), label: displayName(f.path) }))
-  const items = [...papers, ...docs, ...knowledgeMentionables().map((k) => ({ ...k, label: k.title }))]
+  return [...papers, ...docs, ...knowledgeMentionables().map((k) => ({ ...k, label: k.title }))]
+}
 
+// The items whose name or where they live holds every word of the query
+export function filterMentions(items: DocMention[], query: string) {
   const words = queryWords(query)
   if (!words.length) return items
   return items.filter((m) => hasAllWords(`${m.title} ${m.subtitle ?? ""} ${m.label}`, words))
 }
+
+export const docMentionItems = (query: string, selfId?: string) => filterMentions(allDocMentions(selfId), query)
 
 // Where a mention leads inside the app
 export function mentionRoute(uri: string): string | null {

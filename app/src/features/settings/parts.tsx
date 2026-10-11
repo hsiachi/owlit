@@ -15,6 +15,7 @@ import { ChoiceMenu } from "@/components/choice-menu"
 import { GroupLabel as SharedGroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { Info } from "@/components/info"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tip } from "@/components/tip"
 import { useFoldWhile, useCheck } from "./form-state"
@@ -181,17 +182,11 @@ export function CheckNote({ checking, result }: Check) {
 export function SecretRow({ name, label, info, getFrom, service }: { name: SecretName; label: string; info: string; getFrom?: { label: string; href: string }; service: string }) {
   const last4 = useSettings((s) => s.view?.secrets[name])
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState("")
   const check = useCheck()
-  const fold = () => {
-    setEditing(false)
-    setDraft("")
-  }
+  const fold = () => setEditing(false)
   useFoldWhile(editing, fold)
 
-  const save = async () => {
-    const value = draft.trim()
-    if (!value) return
+  const save = async (value: string) => {
     fold()
     check.reset()
     await setSecret(name, value)
@@ -200,47 +195,19 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
 
   let control: React.ReactNode
   if (editing) {
-    control = (
-      <>
-        <Input
-          autoFocus
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="Paste the key"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void save()
-          }}
-          className="h-8 w-56 font-mono text-detail"
-        />
-        <IconAction label="Cancel" onClick={fold}>
-          <XIcon />
-        </IconAction>
-      </>
-    )
+    control = <KeyInput onSave={(value) => void save(value)} onCancel={fold} />
   } else if (last4) {
     control = (
-      <>
-        <IconAction
-          label="Remove key"
-          className={onHover}
-          onClick={() => {
-            check.reset()
-            void setSecret(name, null)
-          }}
-        >
-          <Trash2Icon />
-        </IconAction>
+      <MaskedKey
+        last4={last4}
+        onChange={() => setEditing(true)}
+        onRemove={() => {
+          check.reset()
+          void setSecret(name, null)
+        }}
+      >
         <CheckMark {...check} service={service} />
-        <span className="font-mono text-detail text-muted-foreground" aria-label={`Key ending in ${last4}`}>
-          ••••{last4}
-        </span>
-        <IconAction label="Change key" onClick={() => setEditing(true)}>
-          <PencilIcon />
-        </IconAction>
-      </>
+      </MaskedKey>
     )
   } else {
     control = (
@@ -266,5 +233,113 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
       )}
       {!editing && <CheckNote {...check} />}
     </Row>
+  )
+}
+
+// A key being added or changed, in place of the row's value: Enter keeps it, Cancel (or Esc) folds it
+// and forgets what was typed
+export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void; onCancel: () => void }) {
+  const [draft, setDraft] = useState("")
+  return (
+    <>
+      <Input
+        autoFocus
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        placeholder="Paste the key"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && draft.trim()) onSave(draft.trim())
+        }}
+        className="h-8 w-56 font-mono text-detail"
+      />
+      <IconAction label="Cancel" onClick={onCancel}>
+        <XIcon />
+      </IconAction>
+    </>
+  )
+}
+
+// A key that is set, by its last four characters, with Change; Remove shows on hover. children sit
+// between the two (a check mark).
+export function MaskedKey({ last4, onChange, onRemove, children }: { last4?: string; onChange: () => void; onRemove: () => void; children?: React.ReactNode }) {
+  return (
+    <>
+      <IconAction label="Remove key" className={onHover} onClick={onRemove}>
+        <Trash2Icon />
+      </IconAction>
+      {children}
+      <span className="font-mono text-detail text-muted-foreground" aria-label={last4 ? `Key ending in ${last4}` : "Key set"}>
+        ••••{last4}
+      </span>
+      <IconAction label="Change key" onClick={onChange}>
+        <PencilIcon />
+      </IconAction>
+    </>
+  )
+}
+
+// A form under a list, folded behind a quiet "Add …" button until asked for ("Add an agent", "Add a
+// sign-in"); the button's label is the form's title once open
+export function FoldedForm({
+  label,
+  open,
+  onOpen,
+  onCancel,
+  onSubmit,
+  aside,
+  submit,
+  submitDisabled,
+  children,
+}: {
+  label: string
+  open: boolean
+  onOpen: () => void
+  onCancel: () => void
+  onSubmit: () => void
+  // At the right of the title
+  aside?: React.ReactNode
+  // What the submit button says
+  submit: React.ReactNode
+  submitDisabled?: boolean
+  children: React.ReactNode
+}) {
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" className="mt-2 -ml-2 font-normal text-muted-foreground" onClick={onOpen}>
+        <PlusIcon />
+        {label}
+      </Button>
+    )
+  }
+  const title = <div className="text-sm font-medium">{label}</div>
+  return (
+    <form
+      className="mt-3 flex flex-col gap-3.5 rounded-lg border bg-card p-4"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSubmit()
+      }}
+    >
+      {aside ? (
+        <div className="flex items-center justify-between gap-3">
+          {title}
+          {aside}
+        </div>
+      ) : (
+        title
+      )}
+      {children}
+      <div className="flex justify-end gap-2 pt-0.5">
+        <Button type="button" variant="ghost" className="text-muted-foreground" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={submitDisabled}>
+          {submit}
+        </Button>
+      </div>
+    </form>
   )
 }

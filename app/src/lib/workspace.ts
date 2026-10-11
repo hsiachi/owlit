@@ -42,7 +42,8 @@ function state({ current, opening }: WorkspaceState) {
   if (current) opened(current)
 }
 
-if (isDesktop) {
+export function startWorkspace() {
+  if (!isDesktop) return
   onNotify("workspace.opened", opened)
   onNotify("workspace.state", state)
   // Core may have opened it before this window was listening

@@ -1,94 +1,88 @@
-import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { BorderedList } from "@/components/bordered-list"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ActionsDropdownContent } from "@/components/action-menu"
-import { getTopic, splitTopic } from "../store"
+import { toast } from "sonner"
+import { ActionsDropdownContent, MenuItems, type MenuGroups } from "@/components/action-menu"
+import { isDesktop, rpc } from "@/lib/rpc"
+import { dayLabel } from "@/lib/time"
+import { toastUndo } from "@/lib/toast"
+import { runUpdates } from "../runner"
+import { deleteTopic, mergeTopic, setArchived, useKnowledgeStore, useTopics } from "../store"
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
-import { useTopicMenu } from "./topic-menu"
 
-// The topic's menu from a row's ⋯ or the topic page's header (a right-click on a row uses useTopicMenu)
-export function TopicMenuContent({ topic, align = "end", afterDelete }: { topic: Topic; align?: "start" | "end"; afterDelete?: () => void }) {
-  return <ActionsDropdownContent groups={useTopicMenu(topic, afterDelete)} align={align} className="w-48" />
-}
-
-// Split…: pick the lines that leave, name the new topic
-export function SplitDialog() {
+// Rename, Merge into…, Split…, Archive, Update now, Pause updates, Delete. The same menu from a row's ⋯,
+// a right-click on the row and the topic page's header.
+function useTopicMenu(topic: Topic, afterDelete?: () => void): MenuGroups {
   const navigate = useNavigate()
-  const splitting = useKnowledgeUi((s) => s.splitting)
+  const others = useTopics().filter((t) => t.id !== topic.id && !t.archived)
+  const paused = useKnowledgeStore((s) => !!s.topics[topic.id]?.paused)
+  const setPaused = useKnowledgeStore((s) => s.setPaused)
   const set = useKnowledgeUi((s) => s.set)
-  const topic = splitting ? getTopic(splitting) : undefined
-  return (
-    <Dialog open={!!topic} onOpenChange={(open) => !open && set({ splitting: null })}>
-      {topic && (
-        <SplitForm
-          key={topic.id}
-          topic={topic}
-          onDone={(id) => {
-            set({ splitting: null })
-            if (id) navigate(`/knowledge/${id}`)
-          }}
-        />
-      )}
-    </Dialog>
-  )
+
+  const update = () => {
+    // A real run reads everything that changed, for every topic; what it did shows as "Updated …"
+    if (isDesktop) {
+      rpc.knowledge
+        .update()
+        .then(() => toast("Owlit is updating Knowledge", { description: "It reads what changed since the last update." }))
+        .catch((error: Error) => toast.error(error.message))
+      return
+    }
+    const [item] = runUpdates([topic.id])
+    const last = topic.sources[0]?.date
+    toast(item ? `Updated · ${topic.name}` : "Nothing new", {
+      description: item ? item.what : `Nothing has changed in its sources${last ? ` since ${dayLabel(last)}` : ""}.`,
+    })
+  }
+
+  return [
+    [
+      { label: "Rename", afterClose: true, onSelect: () => set({ renaming: topic.id }) },
+      {
+        label: "Merge into",
+        childrenClassName: "w-56",
+        children: others.map((t) => ({
+          label: t.name,
+          onSelect: () => {
+            const undo = mergeTopic(topic.id, t.id)
+            if (!undo) return
+            navigate(`/knowledge/${t.id}`)
+            toastUndo(`Merged into ${t.name}`, () => (undo(), navigate(`/knowledge/${topic.id}`)))
+          },
+        })),
+      },
+      { label: "Split…", disabled: topic.lines.length < 2, onSelect: () => set({ splitting: topic.id }) },
+      { label: topic.archived ? "Unarchive" : "Archive", onSelect: () => setArchived(topic.id, !topic.archived) },
+    ],
+    [
+      { label: "Update now", disabled: paused, onSelect: update },
+      { label: paused ? "Resume updates" : "Pause updates", onSelect: () => setPaused(topic.id, !paused) },
+    ],
+    [
+      {
+        label: "Delete",
+        destructive: true,
+        onSelect: () => {
+          const undo = deleteTopic(topic.id)
+          if (!undo) return
+          afterDelete?.()
+          toastUndo(`Deleted ${topic.name}`, undo)
+        },
+      },
+    ],
+  ]
 }
 
-function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null) => void }) {
-  const [picked, setPicked] = useState<string[]>([])
-  const [name, setName] = useState("")
-  const ok = picked.length > 0 && picked.length < topic.lines.length && name.trim().length > 0
-  return (
-    <DialogContent className="sm:max-w-lg">
-      <DialogHeader>
-        <DialogTitle>Split {topic.name}</DialogTitle>
-      </DialogHeader>
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (ok) onDone(splitTopic(topic.id, picked, name))
-        }}
-      >
-        <BorderedList as="ul">
-          {topic.lines.map((l) => (
-            <li key={l.id}>
-              <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 text-sm leading-snug">
-                <Checkbox
-                  className="mt-0.5"
-                  checked={picked.includes(l.id)}
-                  onCheckedChange={(v) => setPicked((p) => (v ? [...p, l.id] : p.filter((x) => x !== l.id)))}
-                />
-                <span>
-                  <span className="text-muted-foreground">{l.speaker} · </span>
-                  {l.text}
-                </span>
-              </label>
-            </li>
-          ))}
-        </BorderedList>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">New topic</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            className="h-9 rounded-md border bg-card px-3 text-sm outline-none focus-visible:border-foreground/30"
-          />
-        </label>
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onDone(null)}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!ok}>
-            Split
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  )
+// The menu's items, for a row's ⋯ or right-click. Menus mount their items only while open, so a list of
+// closed rows doesn't each read every topic.
+export function TopicMenuItems({ topic, afterDelete }: { topic: Topic; afterDelete?: () => void }) {
+  return <MenuItems groups={useTopicMenu(topic, afterDelete)} />
 }
 
+// The menu from the topic page's header
+export function TopicMenuContent({ topic, afterDelete }: { topic: Topic; afterDelete?: () => void }) {
+  return (
+    <ActionsDropdownContent align="end" className="w-48">
+      <TopicMenuItems topic={topic} afterDelete={afterDelete} />
+    </ActionsDropdownContent>
+  )
+}

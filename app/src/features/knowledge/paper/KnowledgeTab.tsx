@@ -1,33 +1,21 @@
 import { paperUri } from "@owlit/protocol"
 import { useEffect, useMemo, useState } from "react"
-import { cn } from "@/lib/utils"
 import { EmptyPlace } from "@/components/empty-place"
 import { GroupLabel } from "@/components/group-label"
 import { NoteDot } from "@/components/marks"
-import { MentionLink, MentionToken } from "@/components/mention/mention-token"
-import { Quote } from "@/components/quote"
-import { Button } from "@/components/ui/button"
-import { useAgentWindow } from "@/features/agent/store"
+import { MentionLink } from "@/components/mention/mention-token"
 import { useChatStore } from "@/features/chat/store"
-import { paperMentionable } from "@/features/docs/lib/mentions"
-import { isHidden } from "@/features/docs/lib/tree"
 import { filesByPath, useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
-import { useReaderStore } from "@/features/library/reader/reader-store"
-import type { Paper } from "@/features/library/types"
-import { SentenceEditor } from "../components/bits"
-import { isAbstractOnly, paperRef, verbOf } from "../format"
-import { shortDate } from "@/lib/time"
-import { dismissConnection, editLine, lineKey, setConnection, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
-import type { Connection, ConnectionKind, Line, PaperKnowledge, Passage, Topic } from "../types"
-import { findInPaper } from "./find"
 import { useLibraryStore } from "@/features/library/store"
-import { toastUndo } from "@/lib/toast"
+import type { Paper } from "@/features/library/types"
+import { shortDate } from "@/lib/time"
+import { citingDocs, withAliases } from "../format"
+import { topicsOf, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
+import { ItemRow } from "./ItemRow"
+import { hasUnseenGuess, paperItems, type Group } from "./items"
 
-// How this paper relates to what the user already has. Each item pairs something they have (their words,
-// a question, a line in a topic) with a passage of the paper; the group says the relation.
-
-type Group = ConnectionKind | "taken"
+// How this paper relates to what the user already has, grouped by the relation (see ./items)
 
 const GROUPS: { id: Group; label: string }[] = [
   { id: "challenges", label: "Challenges what you have" },
@@ -43,112 +31,11 @@ const ABOUT =
 // The tab counts as looked at once it has been open this long; opening a paper on a remembered tab is not a look
 const SEEN_AFTER_MS = 3000
 
-interface Item {
-  key: string
-  group: Group
-  who: React.ReactNode
-  words: string
-  muted?: boolean
-  passage?: Passage
-  relation?: string
-  fresh?: boolean
-  connection?: Connection
-  taken?: { topic: Topic; line: Line; found?: Passage }
-}
-
-const sectionOf = (p: Passage) => p.section || (p.page !== undefined ? `p. ${p.page + 1}` : "Passage")
-
-// A topic, opened at one of its lines or questions
-function TopicLink({ topic, block }: { topic: Topic; block?: string }) {
-  return <MentionLink label={topic.name} to={`/knowledge/${topic.id}${block ? `#${block}` : ""}`} />
-}
-
-// Everything the tab shows, in group order
-function useItems(paper: Paper, k: PaperKnowledge, seenBefore: number): Item[] {
-  const topics = useTopics()
-  const files = useDocsStore((s) => s.files)
-  return useMemo(() => {
-    const byId = new Map(topics.map((t) => [t.id, t]))
-    const items: Item[] = []
-    for (const c of k.connections) {
-      if (k.dismissed.includes(c.id)) continue
-      const passage = k.passages[c.passageId]
-      const base = { key: c.id, group: c.kind, passage, relation: c.relation, connection: c, fresh: c.kind === "might" && c.createdAt > seenBefore }
-      const h = c.have
-      if (h.kind === "doc") {
-        const file = filesByPath(files).get(h.path)
-        if (!file) continue
-        items.push({
-          ...base,
-          who: (
-            <>
-              You wrote in <MentionLink label={displayName(file.path)} to={`/docs/${file.id}`} /> · {shortDate(h.at)}
-            </>
-          ),
-          words: h.quote.replace(/\$([^$]+)\$/g, "$1"),
-        })
-        continue
-      }
-      const topic = byId.get(h.topicId)
-      if (!topic || topic.archived) continue
-      if (h.kind === "question") {
-        const q = topic.questions.find((x) => x.id === h.questionId)
-        if (!q) continue
-        items.push({ ...base, who: <>Your question in <TopicLink topic={topic} block={q.id} /></>, words: q.text })
-        continue
-      }
-      const line = topic.lines.find((x) => x.id === h.lineId)
-      if (!line) continue
-      const verb = verbOf(line)
-      const who =
-        line.speaker === "You" ? (
-          <>
-            You {verb} in <TopicLink topic={topic} block={line.id} />
-          </>
-        ) : line.speaker === "Owlit" ? (
-          <>
-            Owlit thinks in <TopicLink topic={topic} block={line.id} />
-          </>
-        ) : (
-          <>
-            You took from {line.speaker} in <TopicLink topic={topic} block={line.id} />
-          </>
-        )
-      items.push({ ...base, who, words: line.text })
-    }
-
-    // Lines a topic took from this paper: the paper speaks them
-    for (const topic of topics) {
-      if (topic.archived) continue
-      for (const line of topic.lines) {
-        if (line.speaker === "You" || line.speaker === "Owlit") continue
-        const ref = line.sources.map((r) => paperRef(r.uri)).find((r) => r?.id === paper.id)
-        if (!ref) continue
-        const found = k.found?.[lineKey(topic.id, line.id)]
-        items.push({
-          key: lineKey(topic.id, line.id),
-          group: "taken",
-          who: (
-            <>
-              In <TopicLink topic={topic} block={line.id} />
-            </>
-          ),
-          words: line.text,
-          muted: isAbstractOnly(line),
-          passage: ref.passage ? k.passages[ref.passage] : undefined,
-          taken: { topic, line, found: found ? k.passages[found.passageId] : undefined },
-        })
-      }
-    }
-    return items
-  }, [topics, files, k, paper.id, seenBefore])
-}
-
-// The tab label carries no count, only the dot while a guess is unseen
+// The tab label carries no count, only the dot while a guess is unseen. It is always on screen, so it reads
+// the topics and docs only while there is an unseen guess to check.
 export function KnowledgeTabLabel({ paper }: { paper: Paper }) {
-  const k = usePaperKnowledge(paper.id)
-  const items = useItems(paper, k, k.seenAt)
-  const unseen = items.some((i) => i.fresh)
+  const k = useKnowledgeStore((s) => s.papers[paper.id])
+  const unseen = useDocsStore((s) => hasUnseenGuess(k, () => topicsOf(s.files), () => filesByPath(s.files)))
   return (
     <>
       Knowledge
@@ -166,7 +53,9 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
     const timer = setTimeout(() => useKnowledgeStore.getState().patchPaper(paper.id, () => ({ seenAt: Date.now() })), SEEN_AFTER_MS)
     return () => clearTimeout(timer)
   }, [paper.id])
-  const items = useItems(paper, k, seenBefore)
+  const topics = useTopics()
+  const files = useDocsStore((s) => s.files)
+  const items = useMemo(() => paperItems(paper.id, k, topics, filesByPath(files), seenBefore), [paper.id, k, topics, files, seenBefore])
   const groups = GROUPS.map((g) => ({ ...g, items: items.filter((i) => i.group === g.id) })).filter((g) => g.items.length)
 
   return (
@@ -196,190 +85,17 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
   )
 }
 
-function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const passage = item.taken?.found ?? item.passage
-  const api = () => useReaderStore.getState().api
-
-  const jump = () => passage && void api()?.showPassage(passage, "jump")
-
-  return (
-    <li
-      tabIndex={passage && !editing ? 0 : -1}
-      className={cn("group/item rounded-md px-2 py-2 outline-none transition-colors", passage && !editing && "cursor-pointer hover:bg-muted/60 focus-key:bg-muted/60")}
-      onMouseEnter={() => passage && void api()?.showPassage(passage, "hover")}
-      onMouseLeave={() => passage && useReaderStore.getState().clearHoverRing(passage.id)}
-      onClick={(e) => {
-        if (editing || (e.target as HTMLElement).closest("button, a, textarea, [role=link]")) return
-        if (window.getSelection()?.toString()) return
-        jump()
-      }}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget || e.key !== "Enter") return
-        e.preventDefault()
-        jump()
-      }}
-    >
-      <p className="flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground">
-        {item.fresh && <NoteDot label="New since you last looked" />}
-        <span>{item.who}</span>
-      </p>
-      {item.taken ? (
-        // A line taken from this paper is the thing itself, so it reads in full tone and can be edited here
-        editing ? (
-          <div className="mt-1.5">
-            <SentenceEditor
-              value={item.words}
-              className="text-sm leading-relaxed"
-              onCancel={() => setEditing(false)}
-              onSave={(text) => {
-                editLine(item.taken!.topic.id, item.taken!.line.id, text)
-                setEditing(false)
-              }}
-            />
-          </div>
-        ) : (
-          <p className={cn("mt-0.5 text-sm leading-relaxed text-pretty", item.muted && !item.taken.found && "text-muted-foreground")}>
-            {item.words}
-            <Button variant="text" size="inline" onClick={() => setEditing(true)} className="ml-1.5 opacity-0 group-hover/item:opacity-100 focus-key:opacity-100">
-              Edit
-            </Button>
-          </p>
-        )
-      ) : (
-        // The user knows what they wrote: their words are the quiet part, the relation is the payoff
-        <p className="mt-0.5 text-detail leading-relaxed text-pretty text-muted-foreground">“{item.words}”</p>
-      )}
-      <Relation
-        item={item}
-        passage={passage}
-        onJump={jump}
-        paper={paper}
-        fold={
-          passage && (
-            <Button variant="text" size="inline" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={cn("ml-1 focus-key:opacity-100", !open && "opacity-0 group-hover/item:opacity-100")}>
-              {open ? "Hide passage" : "Passage"}
-            </Button>
-          )
-        }
-      />
-      {passage && open && <Quote className="mt-2">{passage.text}</Quote>}
-      {item.group === "might" && item.connection && (
-        <div className="mt-1 -ml-1.5 flex flex-wrap items-center gap-x-0.5">
-          <MightActions connection={item.connection} paper={paper} passage={passage} />
-        </div>
-      )}
-    </li>
-  )
-}
-
-// The relation in one sentence, opening with the section it rests on; the Passage toggle sits at its end.
-// A taken line needs no sentence: the group says what it is, so only its section and passage follow.
-function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?: Passage; onJump: () => void; paper: Paper; fold?: React.ReactNode }) {
-  const section = passage && <MentionToken label={sectionOf(passage)} onClick={onJump} />
-  const find = <MentionToken label="Find it in the paper" onClick={() => item.taken && void findInPaper(paper.id, item.taken.topic.id, item.taken.line.id)} />
-  if (item.taken) {
-    const { line, found } = item.taken
-    if (found)
-      return (
-        <p className="mt-1 flex items-center gap-1.5 text-detail leading-relaxed text-muted-foreground">
-          <NoteDot label="Found by you" />
-          <span>
-            {section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper.
-            {fold}
-          </span>
-        </p>
-      )
-    if (isAbstractOnly(line))
-      return (
-        <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
-          From the abstract only. {find}
-        </p>
-      )
-    if (!passage)
-      return (
-        <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
-          Its passage isn’t in this copy of the paper. {find}
-        </p>
-      )
-    return (
-      <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
-        {section}
-        {fold}
-      </p>
-    )
-  }
-  if (!passage)
-    return (
-      <p className="mt-1 text-sm leading-relaxed text-pretty">
-        <span className="text-muted-foreground">A passage not in this copy</span> {item.relation}
-      </p>
-    )
-  return (
-    <p className="mt-1 text-sm leading-relaxed text-pretty">
-      {section} {item.relation}
-      {fold}
-    </p>
-  )
-}
-
-// A guess: the user connects it, says it isn't related, or asks. Both answers show a toast with Undo.
-function MightActions({ connection, paper, passage }: { connection: Connection; paper: Paper; passage?: Passage }) {
-  const connect = () => {
-    const was = { kind: connection.kind, relation: connection.relation }
-    // "may touch it: …" becomes "touches it: …" once the user has said so
-    const relation = connection.relation.replace(/^may (\w+) it/, (_, v: string) => `${v}${/(s|sh|ch|x)$/.test(v) ? "es" : "s"} it`)
-    setConnection(paper.id, connection.id, { kind: "backs", relation })
-    toastUndo("Connected", () => setConnection(paper.id, connection.id, was), { description: "It now sits under Backs what you have." })
-  }
-  return (
-    <>
-      <Button variant="text" size="inline" onClick={connect}>
-        Connect
-      </Button>
-      <Button
-        variant="text"
-        size="inline"
-        onClick={() => {
-          const undo = dismissConnection(paper.id, connection.id)
-          toastUndo("Marked as not related", undo)
-        }}
-      >
-        Not related
-      </Button>
-      <Button variant="text" size="inline" onClick={() => useAgentWindow.getState().open(passage ? { text: passage.text, source: paperMentionable(paper) } : undefined)}>
-        Ask Owlit
-      </Button>
-    </>
-  )
-}
-
-// Drafts that cite the paper and chats that mention it
+// Docs that cite the paper and chats that mention it
 function UsedIn({ paper }: { paper: Paper }) {
   const files = useDocsStore((s) => s.files)
   const chats = useChatStore((s) => s.chats)
   const aliases = useLibraryStore((s) => s.aliases)
-  // Mentions under ids the paper had before it moved (a local file given its DOI) count too
-  const uris = useMemo(
-    () => [paper.id, ...Object.keys(aliases).filter((old) => aliases[old] === paper.id)].map((id) => paperUri(id)),
-    [paper.id, aliases],
-  )
-  const docs = useMemo(
-    () =>
-      Object.values(files)
-        .filter((f) => !isHidden(f.path) && f.content && uris.some((uri) => f.content!.includes(`${uri})`) || f.content!.includes(`${uri}#`)))
-        .sort((a, b) => b.modifiedAt - a.modifiedAt)
-        .map((f) => {
-          const at = Math.max(0, ...uris.map((uri) => f.content!.indexOf(uri)))
-          return { file: f, heading: [...f.content!.slice(0, at).matchAll(/^#{2,}\s+(.+)$/gm)].at(-1)?.[1] }
-        }),
-    [files, uris],
-  )
-  const talked = useMemo(
-    () => Object.values(chats).filter((c) => c.messages.some((m) => m.mentions?.some((x) => uris.includes(x.uri)) || m.context?.some((x) => uris.includes(x.uri)))),
-    [chats, uris],
-  )
+  const ids = useMemo(() => withAliases([paper.id], aliases), [paper.id, aliases])
+  const docs = useMemo(() => citingDocs(files, ids), [files, ids])
+  const talked = useMemo(() => {
+    const uris = new Set(ids.map((id) => paperUri(id)))
+    return Object.values(chats).filter((c) => c.messages.some((m) => m.mentions?.some((x) => uris.has(x.uri)) || m.context?.some((x) => uris.has(x.uri))))
+  }, [chats, ids])
   if (!docs.length && !talked.length) return null
   return (
     <section>

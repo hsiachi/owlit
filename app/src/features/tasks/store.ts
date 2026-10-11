@@ -29,7 +29,8 @@ export const useLoginTasks = () => useTasksStore(useShallow((s) => Object.values
 export const cancelTask = (id: string) => rpc.tasks.cancel({ id })
 export const resumeTask = (id: string) => rpc.tasks.resume({ id })
 
-if (isDesktop) {
+export function startTasks() {
+  if (!isDesktop) return
   // Changes heard while the list is loading are newer than the list
   let heard: Map<string, Task> | null = null
 
@@ -53,6 +54,6 @@ if (isDesktop) {
     useTasksStore.setState((state) => ({ byId: { ...state.byId, [task.id]: task } }))
   })
   onWorkspaceOpened(() => void load())
-  // The workspace may have opened before this module loaded
+  // The workspace may have opened before this started
   if (useWorkspace.getState().current) void load()
 }

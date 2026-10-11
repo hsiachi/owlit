@@ -2,7 +2,7 @@ import { toast } from "sonner"
 import { filePath, isDesktop } from "@/lib/rpc"
 import { importPdf } from "../disk"
 import { libraryClient, useLibraryStore } from "../store"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 // Adds the papers in `files` and peeks the last one. Shared with the page-wide drop target. In the
 // desktop app core recognises each file (arXiv's stamp, a DOI) and keeps it in the workspace; one that
@@ -14,7 +14,7 @@ export async function addPdfFiles(files: File[]) {
     return
   }
   const last = isDesktop ? await importInCore(pdfs) : await addInBrowser(pdfs)
-  if (last) useUiStore.setState({ selectedIds: [last], cursorId: last, anchorId: last, peekId: last, query: "", filter: "all", tags: [] })
+  if (last) useLibraryUi.getState().revealPaper(last)
 }
 
 async function importInCore(pdfs: File[]) {

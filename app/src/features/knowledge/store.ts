@@ -3,11 +3,11 @@ import { useMemo } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
-import { reportKnowledgeEdited } from "@/lib/activity"
+import { reportKnowledgeEdited } from "@/app/activity"
 import { isDesktop } from "@/lib/rpc"
-import { useDocsStore } from "@/features/docs/store"
+import { perFiles, useDocsStore } from "@/features/docs/store"
 import type { WorkspaceFile } from "@/features/docs/types"
-import { parseTopic, serializeTopic, topicPath, topicSlug } from "./format"
+import { oneLine, parseTopic, serializeTopic, topicPath, topicSlug } from "./format"
 import { seedLoose, seedPapers, seedSidecars, seedTopicFiles } from "./mocks/seed"
 import type { Change, Connection, Line, PaperKnowledge, Passage, Ref, Topic, TopicSidecar } from "./types"
 import { joinAnd, plural } from "@/lib/words"
@@ -28,21 +28,19 @@ function parse(f: WorkspaceFile): Topic {
   return topic
 }
 
-export function topicsOf(files: Record<string, WorkspaceFile>): Topic[] {
-  return Object.values(files)
+// Newest first; built once per change to the files and shared by every reader
+export const topicsOf = perFiles((files): Topic[] =>
+  Object.values(files)
     .filter(isTopicFile)
     .map(parse)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-}
+    .sort((a, b) => b.updatedAt - a.updatedAt),
+)
 
 export const allTopics = () => topicsOf(useDocsStore.getState().files)
 export const getTopic = (id: string) => allTopics().find((t) => t.id === id)
 const fileOf = (id: string) => Object.values(useDocsStore.getState().files).find((f) => isTopicFile(f) && parse(f).id === id)
 
-export function useTopics(): Topic[] {
-  const files = useDocsStore((s) => s.files)
-  return useMemo(() => topicsOf(files), [files])
-}
+export const useTopics = (): Topic[] => topicsOf(useDocsStore((s) => s.files))
 
 export function useTopic(id: string): Topic | undefined {
   const topics = useTopics()
@@ -58,8 +56,6 @@ export function writeTopic(topic: Topic) {
 }
 
 const blankSidecar = (): TopicSidecar => ({ seenAt: Date.now(), history: [], edits: {}, removed: {}, said: {}, changedAt: {} })
-
-export const lineKey = (topicId: string, lineId: string) => `${topicId}/${lineId}`
 
 // The most recent run, for "Updated 3 min ago · 2 topics" on the Knowledge page
 export type Run = KnowledgeRun
@@ -195,7 +191,7 @@ function mutate(topicId: string, fn: (t: Topic) => Topic | null) {
 }
 
 export function editLine(topicId: string, lineId: string, text: string) {
-  const clean = text.replace(/\s+/g, " ").trim()
+  const clean = oneLine(text)
   if (!clean) return
   const before = mutate(topicId, (t) => {
     const l = t.lines.find((x) => x.id === lineId)
@@ -245,7 +241,7 @@ export function removeLine(topicId: string, lineId: string): (() => void) | null
 // ---- Topics ----
 
 export function renameTopic(topicId: string, name: string) {
-  const clean = name.replace(/\s+/g, " ").trim()
+  const clean = oneLine(name)
   const file = fileOf(topicId)
   const t = getTopic(topicId)
   if (!clean || !file || !t || clean === t.name) return
@@ -302,7 +298,7 @@ export function mergeTopic(fromId: string, intoId: string): (() => void) | null 
 // Moves the chosen lines into a new topic
 export function splitTopic(topicId: string, lineIds: string[], name: string): string | null {
   const t = getTopic(topicId)
-  const clean = name.replace(/\s+/g, " ").trim()
+  const clean = oneLine(name)
   if (!t || !clean || !lineIds.length) return null
   const taken = new Set(allTopics().map((x) => x.id))
   let id = topicSlug(clean)
@@ -325,7 +321,7 @@ export function splitTopic(topicId: string, lineIds: string[], name: string): st
   const k = useKnowledgeStore.getState()
   k.patchSidecar(id, () => ({ seenAt: Date.now() }))
   k.record(id, { what: `Split from “${t.name}”`, why: "you split the topic", by: "you" })
-  k.record(topicId, { what: `${moving.length} line${moving.length === 1 ? "" : "s"} moved to “${clean}”`, why: "you split the topic", by: "you" })
+  k.record(topicId, { what: `${plural(moving.length, "line")} moved to “${clean}”`, why: "you split the topic", by: "you" })
   return id
 }
 

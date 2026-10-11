@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { LogOutIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import { LogOutIcon } from "lucide-react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector, SignIn } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
-import { IconAction, List, Note, onHover, Picker, Row } from "../parts"
+import { FoldedForm, IconAction, KeyInput, List, MaskedKey, Note, onHover, Picker, Row } from "../parts"
 
 // The Owlit engine's sign-ins: one row for each it holds, and "Add a sign-in" for the rest. It can hold
 // several at once; each chat picks a model from any of them in the composer.
@@ -54,19 +53,13 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
   const signIn = useChatStore((st) => st.signInConnector)
   const signOut = useChatStore((st) => st.signOutConnector)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const fold = () => {
-    setEditing(false)
-    setDraft("")
-  }
+  const fold = () => setEditing(false)
   useFoldWhile(editing, fold)
   const apiKey = !!c.signInMethods?.find((m) => m.id === s.methodId)?.apiKey
   const remove = () => void signOut(c.id, s.methodId).catch((e: Error) => toast.error(e.message))
 
-  const save = async () => {
-    const value = draft.trim()
-    if (!value) return
+  const save = async (value: string) => {
     fold()
     setError(null)
     await signIn(c.id, s.methodId, value).catch((e: Error) => setError(e.message))
@@ -74,40 +67,9 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
 
   let control: React.ReactNode
   if (editing) {
-    control = (
-      <>
-        <Input
-          autoFocus
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="Paste the key"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void save()
-          }}
-          className="h-8 w-56 font-mono text-detail"
-        />
-        <IconAction label="Cancel" onClick={fold}>
-          <XIcon />
-        </IconAction>
-      </>
-    )
+    control = <KeyInput onSave={(value) => void save(value)} onCancel={fold} />
   } else if (apiKey) {
-    control = (
-      <>
-        <IconAction label="Remove key" className={onHover} onClick={remove}>
-          <Trash2Icon />
-        </IconAction>
-        <span className="font-mono text-detail text-muted-foreground" aria-label={s.hint ? `Key ending in ${s.hint}` : "Key set"}>
-          ••••{s.hint}
-        </span>
-        <IconAction label="Change key" onClick={() => setEditing(true)}>
-          <PencilIcon />
-        </IconAction>
-      </>
-    )
+    control = <MaskedKey last4={s.hint} onChange={() => setEditing(true)} onRemove={remove} />
   } else {
     control = (
       <>
@@ -154,31 +116,28 @@ function AddSignIn({ connector: c, methods, open, setOpen }: { connector: Connec
     }
   }
 
-  if (!open) {
-    return (
-      <Button variant="ghost" size="sm" className="mt-2 -ml-2 font-normal text-muted-foreground" onClick={() => setOpen(true)}>
-        <PlusIcon />
-        Add a sign-in
-      </Button>
-    )
-  }
-
   return (
-    <form
-      className="mt-3 flex flex-col gap-3.5 rounded-lg border bg-card p-4"
-      onSubmit={(e) => {
-        e.preventDefault()
+    <FoldedForm
+      label="Add a sign-in"
+      open={open}
+      onOpen={() => setOpen(true)}
+      onCancel={close}
+      onSubmit={() => {
         if (method.apiKey) {
           if (key.trim()) void run(key.trim())
         } else {
           void run()
         }
       }}
+      aside={<Picker label="Sign in with" value={method.id} options={methods.map((m) => ({ value: m.id, label: m.name }))} onChange={setMethodId} />}
+      submit={
+        <>
+          {waiting && <Spinner />}
+          {method.apiKey ? "Save key" : "Continue in browser"}
+        </>
+      }
+      submitDisabled={waiting || (method.apiKey && !key.trim())}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-medium">Add a sign-in</div>
-        <Picker label="Sign in with" value={method.id} options={methods.map((m) => ({ value: m.id, label: m.name }))} onChange={setMethodId} />
-      </div>
       {method.apiKey ? (
         <label className="flex flex-col gap-1.5">
           <span className="text-xs text-muted-foreground">API key</span>
@@ -189,15 +148,6 @@ function AddSignIn({ connector: c, methods, open, setOpen }: { connector: Connec
         <span className="text-xs text-muted-foreground">{waiting ? "Finish signing in in your browser." : "Opens your browser to sign in. Model requests use your ChatGPT plan."}</span>
       )}
       {error && <Note tone="bad">{error}</Note>}
-      <div className="flex justify-end gap-2 pt-0.5">
-        <Button type="button" variant="ghost" className="text-muted-foreground" onClick={close}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={waiting || (method.apiKey && !key.trim())}>
-          {waiting && <Spinner />}
-          {method.apiKey ? "Save key" : "Continue in browser"}
-        </Button>
-      </div>
-    </form>
+    </FoldedForm>
   )
 }

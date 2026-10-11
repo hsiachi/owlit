@@ -13,6 +13,7 @@ import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
+import { plural } from "@/lib/words"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
 export function DocPage() {
@@ -106,7 +107,7 @@ function NoteCount({ docId }: { docId: string }) {
 
   return (
     <Button variant="ghost" size="sm" onClick={next} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-      {notes.length} {notes.length === 1 ? "note" : "notes"}
+      {plural(notes.length, "note")}
     </Button>
   )
 }

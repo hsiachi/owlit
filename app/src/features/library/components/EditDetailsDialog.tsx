@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 interface Draft {
   title: string
@@ -41,8 +41,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // Mounted once in LibraryLayout; opens for whichever paper the ui-store names
 export function EditDetailsDialog() {
-  const editingId = useUiStore((s) => s.editingId)
-  const setEditingId = useUiStore((s) => s.setEditingId)
+  const editingId = useLibraryUi((s) => s.editingId)
+  const setEditingId = useLibraryUi((s) => s.setEditingId)
   const paper = useLibraryStore((s) => (editingId ? s.papers[editingId] : undefined))
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [draft, setDraft] = useState<Draft | null>(null)

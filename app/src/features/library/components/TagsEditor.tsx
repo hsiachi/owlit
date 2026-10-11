@@ -74,7 +74,7 @@ export function TagPicker({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const papers = useLibraryStore((s) => s.papers)
-  const allTags = useMemo(() => collectTags(papers), [papers])
+  const allTags = useMemo(() => collectTags(papers).map(([t]) => t), [papers])
   const q = normalizeTag(query)
   const canCreate = q.length > 0 && !allTags.includes(q)
 

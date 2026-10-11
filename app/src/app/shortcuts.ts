@@ -86,7 +86,8 @@ export function useShortcut(id: string, handler: () => void, { enabled = true }:
 // Help › Keyboard Shortcuts (⌘/)
 export const useShortcutsSheet = create<{ open: boolean }>(() => ({ open: false }))
 export const openShortcuts = () => useShortcutsSheet.setState({ open: true })
+export const closeShortcuts = () => useShortcutsSheet.setState({ open: false })
 
 // ⌘/ opens the list. In the desktop app the Help menu's accelerator usually gets there first and sends
 // the same command; this covers a plain browser.
-export const useShortcutsShortcut = () => useShortcut("shortcuts", () => useShortcutsSheet.setState((s) => ({ open: !s.open })))
+export const useShortcutsShortcut = () => useShortcut("shortcuts", () => (useShortcutsSheet.getState().open ? closeShortcuts() : openShortcuts()))

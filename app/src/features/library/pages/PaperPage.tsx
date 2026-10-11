@@ -1,53 +1,30 @@
-import { ago } from "@/lib/time"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { ChevronDownIcon, ChevronUpIcon, EllipsisVerticalIcon, PanelRightIcon } from "lucide-react"
-import { toast } from "sonner"
+import { useEffect, useMemo } from "react"
+import { Navigate, useNavigate, useParams } from "react-router-dom"
+import { ChevronDownIcon, ChevronUpIcon, PanelRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { ActionsDropdownContent } from "@/components/action-menu"
-import { DropCard } from "@/components/empty-place"
-import { PdfFileInput } from "@/components/file-drop"
 import { NotFound, PageHeader } from "@/components/page"
-import { PanelResizeHandle } from "@/components/panel-resize-handle"
-import { Button } from "@/components/ui/button"
-import { useFileDrop } from "@/hooks/use-file-drop"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Spinner } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
-import { CopyAllHighlights, HighlightsList, useHighlightCount } from "../components/HighlightsList"
-import { PaperMenu } from "../components/PaperMenu"
-import { StarButton } from "../components/StarButton"
-import { StatusMenu } from "../components/StatusMenu"
-import { TagsEditor } from "../components/TagsEditor"
-import { externalLinks, type ExternalLink } from "../lib/format"
-import { visiblePapers } from "../lib/filter"
-import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../prefs-store"
-import { NoteEditor } from "../notes/NoteEditor"
-import { addHighlightToNote } from "../notes/note-actions"
-import { PdfReader } from "../reader/PdfReader"
-import { PublisherNeedsUser } from "../client"
-import { libraryClient, useLibraryStore } from "../store"
-import type { Highlight, Paper } from "../types"
-import { useUiStore } from "../ui-store"
-import { openSettings, useSettings } from "@/features/settings/store"
 import { useAgentWindow } from "@/features/agent/store"
-import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
-import { useReaderStore } from "../reader/reader-store"
-import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
-import { Markdown } from "@/features/chat/components/messages/Markdown"
-import { bridge, rpc } from "@/lib/rpc"
+import { visiblePapers } from "../lib/filter"
+import { useTakeParam } from "../lib/use-take-param"
 import { notePathOf } from "../notes/note-actions"
-import { joinAnd } from "@/lib/words"
+import { usePrefsStore } from "../prefs-store"
+import { PdfReader } from "../reader/PdfReader"
+import { whenReaderReady } from "../reader/reader-store"
+import { useLibraryStore } from "../store"
+import type { Paper } from "../types"
+import { useLibraryUi } from "../ui-store"
+import { DetailsPanel } from "./paper/DetailsPanel"
+import { NoPdf } from "./paper/NoPdf"
 
 // One paper, reader first: the PDF on a darker well, details beside it
 export function PaperPage() {
   const { paperId = "" } = useParams()
   const navigate = useNavigate()
-  const paper = useLibraryStore((s) => s.papers[paperId])
+  const papers = usePapersAtRest()
+  const paper = papers[paperId]
   // A paper that moved (a local file given its DOI) still opens from its old link
   const movedTo = useLibraryStore((s) => (s.papers[paperId] ? undefined : s.aliases[paperId]))
   const markOpened = useLibraryStore((s) => s.markOpened)
@@ -66,11 +43,10 @@ export function PaperPage() {
   }
 
   // Previous / next walk All papers as it is currently filtered and sorted
-  const papers = useLibraryStore((s) => s.papers)
-  const query = useUiStore((s) => s.query)
-  const filter = useUiStore((s) => s.filter)
-  const tags = useUiStore((s) => s.tags)
-  const sort = useUiStore((s) => s.sort)
+  const query = useLibraryUi((s) => s.query)
+  const filter = useLibraryUi((s) => s.filter)
+  const tags = useLibraryUi((s) => s.tags)
+  const sort = useLibraryUi((s) => s.sort)
   const order = useMemo(() => visiblePapers(papers, { query, filter, tags, sort }).map((p) => p.id), [papers, query, filter, tags, sort])
   const idx = order.indexOf(paperId)
   const prevId = idx > 0 ? order[idx - 1] : null
@@ -80,7 +56,7 @@ export function PaperPage() {
   // ↑↓ carry on from here after going back, but nothing is shown as selected.
   useEffect(() => {
     if (!paper) return
-    useUiStore.setState({ cursorId: paper.id, anchorId: paper.id, selectedIds: [], peekId: null })
+    useLibraryUi.getState().placeCursor(paper.id)
     if (paper.pdf) markOpened(paper.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId])
@@ -92,17 +68,10 @@ export function PaperPage() {
   }, [paperId])
 
   // Opened from a passage link (a topic line's "§2"): go to the passage once the reader is ready
-  const [params, setParams] = useSearchParams()
-  const passageId = params.get("passage")
-  useEffect(() => {
-    if (!passageId) return
+  useTakeParam("passage", (passageId) => {
     const passage = useKnowledgeStore.getState().paper(paperId).passages[passageId]
-    setParams({}, { replace: true })
-    if (!passage) return
-    const { api } = useReaderStore.getState()
-    if (api) void api.showPassage(passage, "jump").then((ok) => ok || useReaderStore.setState({ pendingPassage: passage }))
-    else useReaderStore.setState({ pendingPassage: passage })
-  }, [paperId, passageId, setParams])
+    if (passage) void whenReaderReady(paperId).then((api) => api.showPassage(passage, "jump"), () => undefined)
+  })
 
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) return <NotFound title="This paper is not in the library" detail="It may have been removed." back={{ label: "Back to library", to: "/library" }} />
@@ -140,401 +109,32 @@ export function PaperPage() {
   )
 }
 
-// Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back
-function ResizeHandle() {
-  const width = usePrefsStore((s) => s.panelWidth)
-  const setWidth = usePrefsStore((s) => s.setPanelWidth)
-  return (
-    <PanelResizeHandle
-      label="Resize details"
-      width={width}
-      setWidth={setWidth}
-      min={PANEL_MIN}
-      max={(panel) => Math.max(PANEL_MIN, panel.parentElement!.clientWidth / 2)}
-      defaultWidth={PANEL_DEFAULT}
-    />
-  )
+// All papers, kept as they were while only reading positions move. A position changes at every scroll
+// pause and nothing on this page follows it (the reader reads its paper's once, in position.ts), so a
+// move neither redraws the page nor sorts the library again for previous / next.
+function usePapersAtRest() {
+  return useLibraryStore(useMemo(() => papersAtRest(), []))
 }
 
-function DetailsPanel({ paper }: { paper: Paper }) {
-  const navigate = useNavigate()
-  const toggleStar = useLibraryStore((s) => s.toggleStar)
-  const setStatus = useLibraryStore((s) => s.setStatus)
-  const width = usePrefsStore((s) => s.panelWidth)
-  const tab = usePrefsStore((s) => s.panelTab)
-  const setTab = usePrefsStore((s) => s.setPanelTab)
-  const highlightCount = useHighlightCount(paper.id)
-  const published = [paper.venue, paper.year].filter(Boolean).join(" · ")
-
-  const addToNote = (h: Highlight) => {
-    addHighlightToNote(h)
-    setTab("notes")
+function papersAtRest() {
+  let kept: Record<string, Paper> | undefined
+  return (s: { papers: Record<string, Paper> }) => {
+    if (!kept || !onlyPositionsMoved(s.papers, kept)) kept = s.papers
+    return kept
   }
-
-  return (
-    // The resize edge sits on this box rather than on the panel, which scrolls and would carry it along
-    <div className="relative flex shrink-0">
-      <ResizeHandle />
-      <aside style={{ width }} className="flex shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-4">
-        <h1 className="text-lg leading-snug font-medium text-balance">{paper.title}</h1>
-        <p className="mt-2 text-detail leading-normal text-muted-foreground">
-          {paper.authors.join(", ") || "Unknown authors"}
-          {published && (
-            <>
-              <br />
-              {published}
-            </>
-          )}
-        </p>
-        <div className="mt-3 -ml-2.5 flex items-center gap-0.5">
-          <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} align="start" />
-          <StarButton starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
-                <EllipsisVerticalIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <ActionsDropdownContent align="start" className="w-48" onCloseAutoFocus={() => undefined}>
-              <PaperMenu ids={[paper.id]} afterRemove={() => navigate("/library")} />
-            </ActionsDropdownContent>
-          </DropdownMenu>
-        </div>
-  
-        <Tabs value={tab} onValueChange={(v) => setTab(v as PanelTab)} className="mt-5 flex-1 gap-4">
-          <div className="flex items-center justify-between">
-            <TabsList variant="line" className="-ml-1.5">
-              <TabsTrigger value="notes" className="px-1.5">Notes</TabsTrigger>
-              <TabsTrigger value="highlights" className="px-1.5">
-                Highlights
-                {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
-              </TabsTrigger>
-              <TabsTrigger value="knowledge" className="px-1.5">
-                <KnowledgeTabLabel paper={paper} />
-              </TabsTrigger>
-              <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
-            </TabsList>
-            {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
-          </div>
-          <TabsContent value="notes" className="flex flex-col">
-            <NoteEditor paperId={paper.id} />
-          </TabsContent>
-          <TabsContent value="highlights">
-            <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
-          </TabsContent>
-          <TabsContent value="knowledge">
-            <KnowledgeTab key={paper.id} paper={paper} />
-          </TabsContent>
-          <TabsContent value="about">
-            <About paper={paper} />
-          </TabsContent>
-        </Tabs>
-      </aside>
-    </div>
-  )
 }
 
-const LINK_NAMES: Record<ExternalLink["kind"], string> = { doi: "DOI", arxiv: "arXiv", url: "Link" }
-
-function About({ paper }: { paper: Paper }) {
-  const navigate = useNavigate()
-  const setTags = useLibraryStore((s) => s.setTags)
-  const showTag = useUiStore((s) => s.showTag)
-  const links = externalLinks(paper)
-  return (
-    <div>
-      {paper.abstract ? <p className="text-sm leading-relaxed">{paper.abstract}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
-      <Digest paper={paper} />
-      <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-detail">
-        <dt className="text-muted-foreground">Tags</dt>
-        <dd>
-          <TagsEditor
-            tags={paper.tags}
-            onChange={(tags) => setTags(paper.id, tags)}
-            onOpenTag={(t) => {
-              showTag(t)
-              navigate("/library")
-            }}
-          />
-        </dd>
-        {links.map((l) => (
-          <div key={l.href} className="contents">
-            <dt className="text-muted-foreground">{LINK_NAMES[l.kind]}</dt>
-            <dd className="min-w-0 truncate">
-              <a href={l.href} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-                {l.value}
-              </a>
-            </dd>
-          </div>
-        ))}
-        <dt className="text-muted-foreground">Added</dt>
-        <dd>
-          {ago(paper.addedAt)}
-          {paper.addedBy === "agent" && " by an agent"}
-        </dd>
-        <dt className="text-muted-foreground">File</dt>
-        <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (paper.pdf.pages ? `PDF, ${paper.pdf.pages} pages` : "PDF") : "No PDF"}</dd>
-        {paper.text && (
-          <>
-            <dt className="text-muted-foreground">Text</dt>
-            <dd className={cn(paper.text === "basic" && "text-muted-foreground")}>{paper.text === "full" ? "Full" : "Basic"}</dd>
-          </>
-        )}
-      </dl>
-    </div>
-  )
-}
-
-function NoPdf({ paper }: { paper: Paper }) {
-  const updatePaper = useLibraryStore((s) => s.updatePaper)
-  const [fetching, setFetching] = useState(false)
-  // Arriving from Home's "Waiting on you" (?check=1) goes straight to the publisher's page
-  const [params, setParams] = useSearchParams()
-  const wantsCheck = params.get("check") === "1"
-  // Check now: the publisher's page takes the card's place
-  const [checking, setChecking] = useState(() => wantsCheck && !!paper.noPdf?.needs && !!libraryClient.checkPublisher)
-  const fileInput = useRef<HTMLInputElement>(null)
-  // A paper.pdf task core is running for this paper (on add, or a daily retry)
-  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
-  const needs = paper.noPdf?.needs
-  const canCheck = !!libraryClient.checkPublisher
-
-  // The request is taken once; the link stays clean
-  useEffect(() => {
-    if (wantsCheck) setParams({}, { replace: true })
-  }, [wantsCheck, setParams])
-
-  const attach = async (files: ArrayLike<File>) => {
-    const file = files[0]
-    if (!file) return
-    try {
-      const pdf = await libraryClient.attachPdf(paper, file)
-      updatePaper(paper.id, { pdf, noPdf: undefined })
-      toast("PDF attached", { description: file.name })
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't attach that file.")
-    }
-  }
-
-  const fetchPdf = async () => {
-    setFetching(true)
-    try {
-      const pdf = await libraryClient.fetchPdf(paper)
-      updatePaper(paper.id, { pdf })
-      toast("PDF found")
-    } catch (e) {
-      if (e instanceof PublisherNeedsUser) {
-        // The card now asks for the check; a system notification only if the user went elsewhere
-        updatePaper(paper.id, { noPdf: { ...(paper.noPdf ?? { tried: [], at: Date.now() }), needs: e.needs } })
-        if (document.hidden) notifyNeeds(paper, e.needs)
-      } else toast.error(e instanceof Error ? e.message : "Could not find a PDF.")
-    } finally {
-      setFetching(false)
-    }
-  }
-
-  const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
-  const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
-
-  if (checking) return <PublisherPage paper={paper} onEnd={() => setChecking(false)} />
-
-  const title = looking
-    ? "Looking for a PDF…"
-    : needs === "sign-in"
-      ? "The publisher wants you to sign in"
-      : needs
-        ? "The publisher wants a quick check"
-        : paper.noPdf
-          ? "No PDF found"
-          : "No PDF yet"
-  const body = looking
-    ? "If you already have it, drop it here."
-    : needs === "sign-in"
-      ? "Sign in on its page here and owlit fetches the PDF."
-      : needs
-        ? "It wants to see a person before it hands over the PDF. Open its page here to do that."
-        : paper.noPdf
-          ? `${triedSentence(paper.noPdf.tried)} Drop a PDF here if you have it.`
-          : "Drop a PDF here, or let owlit look for an open-access copy."
-
-  return (
-    <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
-      <DropCard
-        active={dragging}
-        title={
-          <>
-            {looking && <Spinner />}
-            {title}
-          </>
-        }
-        detail={body}
-        actions={
-          <>
-            {needs && canCheck && !looking ? (
-              <Button size="sm" onClick={() => setChecking(true)}>
-                {needs === "sign-in" ? "Sign in" : "Check now"}
-              </Button>
-            ) : (
-              <Button size="sm" onClick={fetchPdf} disabled={looking}>
-                {paper.noPdf ? "Try again" : "Find PDF"}
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-              Choose file
-            </Button>
-          </>
-        }
-      >
-        {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
-        {paper.noPdf && !needs && !looking && paper.ids.doi && proxyMissing && (
-          <p className="max-w-72 text-sm text-muted-foreground">
-            Your library may have it.{" "}
-            <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("proxy")}>
-              Set up library proxy
-            </button>
-          </p>
-        )}
-      </DropCard>
-      <PdfFileInput ref={fileInput} onFiles={(files) => void attach(files)} />
-    </div>
-  )
-}
-
-// Check now: the publisher's page fills the reader's place (the desktop app draws it over the box this
-// reserves) under one line saying what it waits for. Through, the reader takes over; Cancel, or
-// leaving the paper, ends the run and the card comes back.
-function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
-  const updatePaper = useLibraryStore((s) => s.updatePaper)
-  const box = useRef<HTMLDivElement>(null)
-  const task = useTasksStore((s) => openCheck(s, paper.id))
-  const mounted = useRef(false)
-  const end = useRef(onEnd)
-  end.current = onEnd
-
-  // Keep the page over the box as the layout moves
-  useEffect(() => {
-    const el = box.current
-    if (!el || !bridge) return
-    const place = () => {
-      const r = el.getBoundingClientRect()
-      bridge?.setPublisherView({ x: r.left, y: r.top, width: r.width, height: r.height })
-    }
-    place()
-    const observer = new ResizeObserver(place)
-    observer.observe(el)
-    window.addEventListener("resize", place)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener("resize", place)
-      bridge?.setPublisherView(null)
-    }
-  }, [])
-
-  // One run per visit; leaving the paper cancels it
-  useEffect(() => {
-    mounted.current = true
-    let live = true
-    const run = libraryClient.checkPublisher!(paper)
-      .then((found) => {
-        updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
-        if (found.pdf) toast("PDF found")
-      })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "owlit couldn't open the publisher's page."))
-      .finally(() => live && end.current())
-    return () => {
-      live = false
-      mounted.current = false
-      // Looked at a moment later: StrictMode mounts the page again at once. The run's task may not have
-      // reached this window yet; then it is cancelled when it does, unless the run ends first.
-      setTimeout(() => {
-        if (mounted.current) return
-        const cancelOpen = (s: Parameters<typeof openCheck>[0]) => {
-          const open = openCheck(s, paper.id)
-          if (open) void cancelTask(open.id)
-          return !!open
-        }
-        if (cancelOpen(useTasksStore.getState())) return
-        const unsubscribe = useTasksStore.subscribe((s) => cancelOpen(s) && unsubscribe())
-        void run.finally(unsubscribe)
-      })
-    }
-    // paper.id is the run's subject; the page remounts for another paper
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paper.id])
-
-  const line =
-    task?.state === "waiting_for_you"
-      ? task.waiting?.detail ?? "The publisher wants you on its page."
-      : "Opening the publisher's page…"
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 px-4 text-sm text-muted-foreground">
-        {task?.state !== "waiting_for_you" && <Spinner />}
-        <span className="min-w-0 flex-1 truncate">{line}</span>
-        <Button variant="ghost" size="sm" onClick={() => task && void cancelTask(task.id)} disabled={!task}>
-          Cancel
-        </Button>
-      </div>
-      {/* The publisher's page is drawn over this box by the desktop app */}
-      <div ref={box} className="min-h-0 flex-1 bg-background" />
-    </div>
-  )
-}
-
-const openCheck = (s: Parameters<typeof openTasksFor>[0], paperId: string) =>
-  openTasksFor(s, paperId).find((t) => t.kind === "paper.pdf.check")
-
-// The user went elsewhere while owlit looked: a system notification, which brings owlit back
-function notifyNeeds(paper: Paper, needs: "check" | "sign-in") {
-  if (typeof Notification === "undefined") return
-  const notification = new Notification(needs === "sign-in" ? "The publisher wants you to sign in" : "The publisher wants a quick check", {
-    body: paper.title,
+function onlyPositionsMoved(next: Record<string, Paper>, prev: Record<string, Paper>) {
+  if (next === prev) return true
+  const ids = Object.keys(next)
+  if (ids.length !== Object.keys(prev).length) return false
+  return ids.every((id) => {
+    const a = next[id]
+    const b = prev[id]
+    if (a === b) return true
+    if (!b) return false
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof Paper)[])
+    keys.delete("position")
+    return [...keys].every((k) => a[k] === b[k])
   })
-  notification.onclick = () => window.focus()
-}
-
-// "Tried arXiv, Unpaywall and the publisher." from acquisition route names
-function triedSentence(routes: string[]) {
-  const nameOf = (r: string) =>
-    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? "the publisher" : r.endsWith(":proxied") ? "the library proxy" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
-  const names = [...new Set(routes.map(nameOf))].filter(Boolean)
-  if (!names.length) return "owlit knows of no open copy of this paper."
-  return `Tried ${joinAnd(names)}.`
-}
-
-// Reading notes an agent wrote for the paper (digest.md), or that one is being written. Here for now;
-// its place is the interface's to settle.
-function Digest({ paper }: { paper: Paper }) {
-  const [text, setText] = useState<string | null>(null)
-  const writing = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.digest"))
-  useEffect(() => {
-    if (!paper.hasDigest) return
-    let live = true
-    rpc.library
-      .digest({ id: paper.id })
-      .then((t) => live && setText(t))
-      .catch(() => undefined)
-    return () => {
-      live = false
-    }
-  }, [paper.id, paper.hasDigest])
-  // A note fetched for a paper that has since lost it isn't shown
-  const shown = paper.hasDigest ? text : null
-  if (!shown && !writing) return null
-  return (
-    <section className="mt-5">
-      <GroupLabel as="h3" flush>
-        Digest
-      </GroupLabel>
-      {shown ? (
-        <Markdown text={shown} className="text-sm" />
-      ) : (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner />
-          Owlit is writing a reading note…
-        </p>
-      )}
-    </section>
-  )
 }

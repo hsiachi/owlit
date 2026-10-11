@@ -19,7 +19,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { cleanPdfText } from "../lib/highlights"
 import { useLibraryStore } from "../store"
 import type { Highlight, Paper } from "../types"
-import { HighlightLayer, useHighlightHitTest } from "./HighlightLayer"
+import { useHighlightsByPage } from "../lib/use-highlights"
+import { HighlightLayer } from "./HighlightLayer"
+import { useHighlightHitTest } from "./highlight-hits"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
 import { boundsOf, locatePassage, type PassageTarget } from "./passages"
 import { PassageRing } from "./PassageRing"
@@ -48,7 +50,6 @@ const PLUGINS = [
   createPluginRegistration(SelectionPluginPackage, { menuHeight: 44 }),
   createPluginRegistration(SearchPluginPackage),
 ]
-
 
 type Engine = NonNullable<ReturnType<typeof usePdfiumEngine>["engine"]>
 
@@ -94,6 +95,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
   // Where following a link left from, most recent last; it belongs to this reading and dies with it
   const [trail, setTrail] = useState<ReturnMark[]>([])
   const setApi = useReaderStore((s) => s.setApi)
+  const highlights = useHighlightsByPage(paper.id)
 
   usePositionMemory(documentId, paper)
 
@@ -165,17 +167,13 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
     return () => setApi(null)
   }, [scrollCap, selectionCap, registry, pdf, documentId, setApi, paper.id])
 
-  // Opened from a passage link: go there once the pages are laid out and the saved place restored
+  // Ready for jumps (whenReaderReady) once the pages are laid out and the saved place restored
   useEffect(() => {
     if (!scrollCap) return
     return scrollCap.onLayoutReady((e) => {
       if (e.documentId !== documentId || !e.isInitial) return
       setTimeout(() => {
-        const { pendingPassage, api } = useReaderStore.getState()
-        if (api?.paperId === paper.id) useReaderStore.setState({ ready: paper.id })
-        if (!pendingPassage || !api) return
-        useReaderStore.setState({ pendingPassage: null })
-        void api.showPassage(pendingPassage, "jump")
+        if (useReaderStore.getState().api?.paperId === paper.id) useReaderStore.setState({ ready: paper.id })
       }, 150)
     })
   }, [scrollCap, documentId, paper.id])
@@ -221,7 +219,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
                 <Scroller
                   documentId={documentId}
                   renderPage={({ pageIndex }) => (
-                    <Page documentId={documentId} paperId={paper.id} pageIndex={pageIndex} onFollow={(mark) => setTrail((t) => [...t, mark].slice(-TRAIL_DEPTH))} />
+                    <Page documentId={documentId} paperId={paper.id} pageIndex={pageIndex} highlights={highlights.get(pageIndex) ?? NONE} onFollow={(mark) => setTrail((t) => [...t, mark].slice(-TRAIL_DEPTH))} />
                   )}
                 />
               </ZoomGestureWrapper>
@@ -234,8 +232,23 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
   )
 }
 
-function Page({ documentId, paperId, pageIndex, onFollow }: { documentId: string; paperId: string; pageIndex: number; onFollow: (mark: ReturnMark) => void }) {
-  const hit = useHighlightHitTest(documentId, paperId, pageIndex)
+const NONE: Highlight[] = []
+
+function Page({
+  documentId,
+  paperId,
+  pageIndex,
+  highlights,
+  onFollow,
+}: {
+  documentId: string
+  paperId: string
+  pageIndex: number
+  // The paper's highlights that cover this page
+  highlights: Highlight[]
+  onFollow: (mark: ReturnMark) => void
+}) {
+  const hit = useHighlightHitTest(documentId, highlights, pageIndex)
   return (
     // The rendered page is an <img>: without this the browser starts dragging the picture,
     // cancels the pointer, and a text selection never ends
@@ -245,7 +258,7 @@ function Page({ documentId, paperId, pageIndex, onFollow }: { documentId: string
       {/* The page is white in both themes; a hairline gives it an edge on the light well */}
       <div className="pointer-events-none absolute inset-0 border border-(--pdf-page-edge)" />
       <SearchLayer documentId={documentId} pageIndex={pageIndex} highlightColor="var(--pdf-search)" activeHighlightColor="var(--pdf-search-active)" />
-      <HighlightLayer documentId={documentId} paperId={paperId} pageIndex={pageIndex} />
+      <HighlightLayer documentId={documentId} paperId={paperId} pageIndex={pageIndex} highlights={highlights} />
       <PassageRing documentId={documentId} pageIndex={pageIndex} />
       <SelectionLayer
         documentId={documentId}

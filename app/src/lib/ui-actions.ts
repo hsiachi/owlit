@@ -18,7 +18,8 @@ export function registerUiHandler<M extends UiMethod>(method: M, handler: Handle
   ;(handlers as Record<string, unknown>)[method] = handler
 }
 
-if (isDesktop) {
+export function startUiActions() {
+  if (!isDesktop) return
   onNotify("ui.request", async (request) => {
     if (request.clientId !== clientId) return
     const handler = handlers[request.method] as Handler<UiMethod> | undefined

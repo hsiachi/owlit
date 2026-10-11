@@ -6,7 +6,7 @@ import { usePaperActions } from "../actions"
 import { STATUS_LABEL, STATUS_ORDER } from "../lib/status"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 // The same actions, whether reached from a row's ⋯, a right-click or the paper page's header.
 // `afterRemove` lets the paper page leave once its paper is gone.
@@ -68,6 +68,6 @@ export function PaperMenu({ ids, afterRemove }: { ids: string[]; afterRemove?: (
 
 // A row's menu acts on every selected paper when the row is one of them, else on the row alone
 export function PaperRowMenu({ id }: { id: string }) {
-  const selected = useUiStore((s) => s.selectedIds)
+  const selected = useLibraryUi((s) => s.selectedIds)
   return <PaperMenu ids={selected.includes(id) ? selected : [id]} />
 }

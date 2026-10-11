@@ -1,5 +1,5 @@
 import { DAY } from "@/lib/time"
-import { hasAllWords, queryWords } from "@/lib/words"
+import { hasAllWords, plural, queryWords } from "@/lib/words"
 import type { Paper } from "../types"
 import { surname } from "./format"
 import type { Sort, StatusFilter } from "../ui-store"
@@ -95,7 +95,7 @@ const AGE_BANDS: [string, number][] = [
 // The list layout's groups, in the spirit of the chat history: by age when sorted by date added,
 // by year when sorted by year, one count while searching, and none for the alphabetical sorts
 export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now()): PaperGroup[] {
-  if (searching) return [{ label: `${papers.length} ${papers.length === 1 ? "paper" : "papers"}`, papers }]
+  if (searching) return [{ label: plural(papers.length, "paper"), papers }]
   if (sort.key === "addedAt") {
     const groups = AGE_BANDS.map(([label]) => ({ label, papers: [] as Paper[] }))
     for (const p of papers) groups[AGE_BANDS.findIndex(([, max]) => now - p.addedAt < max)].papers.push(p)

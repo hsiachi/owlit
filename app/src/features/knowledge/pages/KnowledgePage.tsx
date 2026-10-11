@@ -12,9 +12,9 @@ import { RenameInput } from "@/components/rename-input"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { KnowledgeEmpty } from "../components/KnowledgeEmpty"
-import { useTopicMenu } from "../components/topic-menu"
+import { TopicMenuItems } from "../components/TopicMenu"
 import { ago, DAY, shortDate } from "@/lib/time"
-import { hasAllWords, queryWords } from "@/lib/words"
+import { hasAllWords, plural, queryWords } from "@/lib/words"
 import { changedSince, renameTopic, useKnowledgeStore, useTopics } from "../store"
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
@@ -44,7 +44,7 @@ export function KnowledgePage() {
   ].filter((g) => g.topics.length)
   const archived = shown.filter((t) => t.archived)
   const looseHit = words.length > 0 && loose.some((l) => hasAllWords(l.quote, words))
-  const aside = [archived.length > 0 && `${archived.length} archived`, loose.length > 0 && `${loose.length} loose passage${loose.length === 1 ? "" : "s"}`].filter(Boolean)
+  const aside = [archived.length > 0 && `${archived.length} archived`, loose.length > 0 && plural(loose.length, "loose passage")].filter(Boolean)
 
   return (
     <PageShell>
@@ -108,7 +108,7 @@ function LooseRow({ count }: { count: number }) {
   return (
     <ListRow
       to="/knowledge/loose"
-      title={`Not in a topic yet · ${count} passage${count === 1 ? "" : "s"}`}
+      title={`Not in a topic yet · ${plural(count, "passage")}`}
       className="text-muted-foreground hover:text-foreground"
     />
   )
@@ -131,7 +131,7 @@ function RecentRun() {
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="text" size="inline" className="-ml-1.5 mt-3 data-[state=open]:bg-muted data-[state=open]:text-foreground">
-          Updated {ago(run.at, { inSentence: true })} · {n} topic{n === 1 ? "" : "s"}
+          Updated {ago(run.at, { inSentence: true })} · {plural(n, "topic")}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 gap-0 p-1">
@@ -163,7 +163,7 @@ function TopicRow({ topic }: { topic: Topic }) {
   const set = useKnowledgeUi((s) => s.set)
   const side = useKnowledgeStore((s) => s.topics[topic.id])
   const fresh = !!side && changedSince(topic, side).length > 0
-  const menu = useTopicMenu(topic)
+  const menu = <TopicMenuItems topic={topic} />
 
   if (renaming) {
     return (
@@ -181,7 +181,7 @@ function TopicRow({ topic }: { topic: Topic }) {
 
   return (
     // The same menu as the row's ⋯, on a right-click
-    <ActionsOnRightClick groups={menu} className="w-48">
+    <ActionsOnRightClick menu={menu} className="w-48">
       <div
         role="link"
         tabIndex={0}
@@ -196,7 +196,7 @@ function TopicRow({ topic }: { topic: Topic }) {
         <span className="shrink-0 pr-1.5 text-detail text-muted-foreground group-hover/row:hidden group-focus-key/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(topic.updatedAt)}
         </span>
-        <RowMenuButton groups={menu} label="Topic actions" menuClassName="w-48" />
+        <RowMenuButton menu={menu} label="Topic actions" menuClassName="w-48" />
       </div>
     </ActionsOnRightClick>
   )

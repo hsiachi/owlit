@@ -33,6 +33,8 @@ interface DocsUiState {
   setRenaming: (key: string | null) => void
   setOpenNote: (docId: string, noteId: string | null) => void
   setPicked: (picked: string[], anchor?: string | null) => void
+  // The rows an action on one row covers: every picked row when it is one of several picked, else the row alone
+  actingOn: (key: string) => string[]
   showVersions: (docId: string | null) => void
 }
 
@@ -42,7 +44,7 @@ export const folderOfKey = (key: string) => (key.startsWith("folder:") ? key.sli
 
 export const useDocsUiStore = create<DocsUiState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       expanded: { writing: true, notes: true },
       autoOpened: [],
       targetFolder: "",
@@ -86,6 +88,10 @@ export const useDocsUiStore = create<DocsUiState>()(
       setRenaming: (renaming) => set({ renaming }),
       setOpenNote: (docId, noteId) => set({ openNote: noteId ? { docId, noteId } : null }),
       setPicked: (picked, anchor) => set((s) => ({ picked, pickAnchor: anchor === undefined ? s.pickAnchor : anchor })),
+      actingOn: (key) => {
+        const { picked } = get()
+        return picked.length > 1 && picked.includes(key) ? picked : [key]
+      },
       showVersions: (versionsOf) => set({ versionsOf }),
     }),
     {

@@ -18,7 +18,7 @@ import { Tip } from "@/components/tip"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
 import { type Layout, usePrefsStore } from "../prefs-store"
-import { type SortKey, type StatusFilter, useUiStore } from "../ui-store"
+import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
 import { TagDot } from "./TagsEditor"
 
 // The Library's two pages, as underline tabs under its title. A third (Feed) can join later.
@@ -59,8 +59,8 @@ const SORTS: { value: SortKey; label: string }[] = [
 ]
 
 export function SortMenu() {
-  const sort = useUiStore((s) => s.sort)
-  const sortBy = useUiStore((s) => s.sortBy)
+  const sort = useLibraryUi((s) => s.sort)
+  const sortBy = useLibraryUi((s) => s.sortBy)
   // Venue is sorted from the table's header only
   const trigger = sort.key === "venue" ? "Venue" : undefined
   return <ChoiceMenu label="Sort" value={sort.key} options={SORTS} onChange={sortBy} trigger={trigger} />
@@ -74,7 +74,7 @@ const LAYOUTS: { id: Layout; label: string; icon: typeof ListIcon }[] = [
 export function LayoutToggle() {
   const layout = usePrefsStore((s) => s.layout)
   const setLayout = usePrefsStore((s) => s.setLayout)
-  const closePeek = useUiStore((s) => s.closePeek)
+  const closePeek = useLibraryUi((s) => s.closePeek)
   return (
     <div role="radiogroup" aria-label="Layout" className="flex gap-0.5 rounded-lg bg-muted p-0.5">
       {LAYOUTS.map((l) => (
@@ -103,8 +103,8 @@ export function LayoutToggle() {
 
 // One field to find and to add: words filter the list, a DOI / arXiv id / link offers to add
 export function LibraryFindField({ onSubmit, onPickFiles }: { onSubmit: () => void; onPickFiles: (files: File[]) => void }) {
-  const query = useUiStore((s) => s.query)
-  const setQuery = useUiStore((s) => s.setQuery)
+  const query = useLibraryUi((s) => s.query)
+  const setQuery = useLibraryUi((s) => s.setQuery)
   const fileInput = useRef<HTMLInputElement>(null)
   return (
     <FindField
@@ -136,10 +136,10 @@ const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-detail text-m
 
 // Status chips on the left, the tag filter on the right of the same line
 export function FilterBar() {
-  const filter = useUiStore((s) => s.filter)
-  const setFilter = useUiStore((s) => s.setFilter)
-  const tags = useUiStore((s) => s.tags)
-  const toggleTag = useUiStore((s) => s.toggleTag)
+  const filter = useLibraryUi((s) => s.filter)
+  const setFilter = useLibraryUi((s) => s.setFilter)
+  const tags = useLibraryUi((s) => s.tags)
+  const toggleTag = useLibraryUi((s) => s.toggleTag)
   const papers = useLibraryStore((s) => s.papers)
   const counts = useMemo(() => countByFilter(papers), [papers])
 
@@ -171,14 +171,10 @@ export function FilterBar() {
 }
 
 function TagMenu() {
-  const selected = useUiStore((s) => s.tags)
-  const toggleTag = useUiStore((s) => s.toggleTag)
+  const selected = useLibraryUi((s) => s.tags)
+  const toggleTag = useLibraryUi((s) => s.toggleTag)
   const papers = useLibraryStore((s) => s.papers)
-  const tags = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const p of Object.values(papers)) for (const t of p.tags) counts.set(t, (counts.get(t) ?? 0) + 1)
-    return collectTags(papers).map((t) => [t, counts.get(t) ?? 0] as const)
-  }, [papers])
+  const tags = useMemo(() => collectTags(papers), [papers])
 
   return (
     <DropdownMenu>

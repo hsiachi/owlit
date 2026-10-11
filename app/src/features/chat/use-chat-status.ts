@@ -1,11 +1,13 @@
 import { useChatStore } from "./store"
 import { chatStatus, useSeenStore, type ChatStatus } from "./status"
 
-// Where a chat stands now, for its status ring
+// Where a chat stands now, for its status ring; selected as the status itself, so its row is drawn again
+// only when that changes, not on every streamed token
 export function useChatStatus(chatId: string): ChatStatus {
-  const chat = useChatStore((s) => s.chats[chatId])
-  const streaming = useChatStore((s) => !!s.streaming[chatId])
   const unseen = useSeenStore((s) => s.unseen[chatId])
   const dismissed = useSeenStore((s) => s.dismissed[chatId])
-  return chat ? chatStatus(chat, streaming, unseen, dismissed) : "idle"
+  return useChatStore((s) => {
+    const chat = s.chats[chatId]
+    return chat ? chatStatus(chat, !!s.streaming[chatId], unseen, dismissed) : "idle"
+  })
 }

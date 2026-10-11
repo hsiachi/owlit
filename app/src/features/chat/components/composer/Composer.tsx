@@ -15,16 +15,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tip } from "@/components/tip"
 import { KIND_PLACE } from "@/lib/kinds"
-import { docMentionItems } from "@/features/docs/lib/mentions"
+import { docMentionItems, type DocMention } from "@/features/docs/lib/mentions"
 import { openSettings } from "@/features/settings/store"
-import { isDesktop, rpc } from "@/lib/rpc"
-import { toast } from "sonner"
 import { useFileDrop } from "@/hooks/use-file-drop"
-import { fromDrop, useAttachments, type AttachedMention } from "../../lib/attachments"
+import { fromDrop, openAttached, readerOf, useAttachments } from "../../lib/attachments"
 import type { Mentionable, PromptInput, SourceKind } from "../../types"
-import { AgentPicker, useResolvedSelection } from "./AgentPicker"
+import { useResolvedSelection } from "../../use-selection"
+import { AgentPicker } from "./AgentPicker"
 import { isUnavailable, problemSentence } from "../../lib/connector-status"
 import { AttachmentList } from "./AttachmentList"
+import { LargeFilesDialog } from "./LargeFilesDialog"
 import { mentionFilter, mentionPopup, WorkspaceMention } from "./mention-extension"
 
 export interface ComposerHandle {
@@ -34,7 +34,7 @@ export interface ComposerHandle {
   openMention: (kind: SourceKind | "all") => void
 }
 
-interface ComposerProps {
+export interface ComposerProps {
   chatId?: string
   // chatId is the chat sent to; without one (a new chat) the composer names the id the chat is to get,
   // since files attached before sending are already copied into that chat's folder
@@ -101,8 +101,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const [draftId, setDraftId] = useState(() => crypto.randomUUID())
   const target = chatId ?? draftId
   // Mentions that attaching made, for extract() to find again
-  const attachedMentions = useRef<AttachedMention[]>([])
-  const insertRef = useRef<(m: AttachedMention) => void>(() => {})
+  const attachedMentions = useRef<DocMention[]>([])
+  const insertRef = useRef<(m: DocMention) => void>(() => {})
   const attachments = useAttachments(target, (m) => insertRef.current(m))
   const files = attachments.files
   const { dragging, dropProps } = useFileDrop((data) => {
@@ -252,11 +252,11 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             onRemove={attachments.remove}
             onOpen={openAttached}
             onAddToLibrary={(f) => attachments.addToLibrary(f.id)}
-            reader={connector?.cannotRead?.length ? { name: agentName(connector.name), cannotRead: connector.cannotRead } : undefined}
+            reader={readerOf(connector)}
           />
         </div>
       )}
-      {attachments.dialog}
+      <LargeFilesDialog files={attachments.large} onAnswer={attachments.answerLarge} />
 
       {/* Click anywhere in the editor area to focus */}
       <div className="cursor-text" onClick={() => editor?.commands.focus()}>
@@ -317,15 +317,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     </div>
   )
 })
-
-// An attached file's copy, opened in the system's app for it
-export function openAttached(file: { path?: string }) {
-  if (!isDesktop || !file.path) return
-  rpc.chats.openFile({ path: file.path }).catch((error: Error) => toast.error(error.message))
-}
-
-// An agent as a chip names it: "Owlit engine (Beta)" is the Owlit engine there
-export const agentName = (name: string) => name.replace(/\s*\([^)]*\)$/, "")
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")

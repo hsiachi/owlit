@@ -157,7 +157,7 @@ export function WelcomePage() {
                         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => locate(w)}>
                           Locate…
                         </Button>
-                        <IconButton label="Remove from Recent" size="icon-xs" className="opacity-0 group-hover/gone:opacity-100 focus-visible:opacity-100" onClick={() => forget(w)}>
+                        <IconButton label="Remove from Recent" size="icon-xs" className="opacity-0 group-hover/gone:opacity-100 focus-key:opacity-100" onClick={() => forget(w)}>
                           <XIcon />
                         </IconButton>
                       </div>
@@ -185,9 +185,7 @@ export function WelcomePage() {
 function NameField() {
   const view = useSettings((s) => s.view)
   const [asking, setAsking] = useState<boolean | null>(null)
-  useEffect(() => {
-    if (view && asking === null) setAsking(!view.profile.name)
-  }, [view, asking])
+  if (view && asking === null) setAsking(!view.profile.name)
   if (!asking) return null
   return (
     <div className="mt-7 flex items-center gap-3 rounded-lg border bg-card py-2.5 pr-2.5 pl-3.5">

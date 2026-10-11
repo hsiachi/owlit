@@ -17,7 +17,7 @@ import { groupChats } from "../lib/group-chats"
 import { useChatStore } from "../store"
 import { StatusRing } from "@/components/status-ring"
 import { useChatStatus } from "../use-chat-status"
-import type { Chat } from "../types"
+import { useChatList, type ChatListItem } from "../use-chat-list"
 import { toastUndo } from "@/lib/toast"
 
 // Rows are a touch taller than the shadcn default so the list breathes; the left edge is tighter, for the
@@ -32,7 +32,7 @@ const rowClass = "h-9 rounded-md pr-2.5 pl-1.5"
 const keepRowInIconMode = "group-data-[collapsible=icon]:h-9! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:pr-2.5! group-data-[collapsible=icon]:pl-1.5!"
 const keepLabelInIconMode = "group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:opacity-100"
 
-function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
+function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
   const navigate = useNavigate()
   const togglePin = useChatStore((s) => s.togglePin)
   const renameChat = useChatStore((s) => s.renameChat)
@@ -98,10 +98,10 @@ function ChatRow({ chat, active }: { chat: Chat; active: boolean }) {
 // Second-column content for the Chat place: search, new chat, grouped history
 export function ChatListPanel() {
   const { chatId } = useParams()
-  const chats = useChatStore((s) => s.chats)
+  const chats = useChatList()
   const navigate = useNavigate()
 
-  const groups = useMemo(() => groupChats(Object.values(chats)), [chats])
+  const groups = useMemo(() => groupChats(chats), [chats])
 
   return (
     <>

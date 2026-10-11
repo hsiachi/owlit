@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { countDown, countUp } from "@/lib/counts"
-import type { Chat, ChatMessage, Part } from "./types"
+import type { Chat, ChatMessage, Part, PermissionOption, ToolCall } from "./types"
 
 // Where a chat stands, for its row in the list, its header and Home's "Waiting on you". Handed-off work
 // has no list of its own: the chat list is that list, so every chat says whether something is happening.
@@ -30,12 +30,12 @@ const pageShown = () => typeof document === "undefined" || document.visibilitySt
 
 export const useSeenStore = create<SeenState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       unseen: {},
       dismissed: {},
       viewing: {},
       ended: (chatId, how) => {
-        if (how !== "finished" || (get().viewing[chatId] && pageShown())) return
+        if (how !== "finished" || chatOnScreen(chatId)) return
         set((s) => ({ unseen: { ...s.unseen, [chatId]: how } }))
       },
       look: (chatId) => {
@@ -66,6 +66,9 @@ export const useSeenStore = create<SeenState>()(
   ),
 )
 
+// Whether the chat is on screen now (the Chat page or the docked agent window, in a window not hidden away)
+export const chatOnScreen = (chatId: string | undefined) => !!chatId && !!useSeenStore.getState().viewing[chatId] && pageShown()
+
 // The chat is on screen while this is mounted; coming back to the app with it showing counts as seeing it
 export function useLookAt(chatId: string | null | undefined) {
   useEffect(() => {
@@ -87,6 +90,14 @@ export function pendingAsk(chat: Chat): PendingAsk | undefined {
   if (last?.role !== "assistant" || last.status !== "streaming") return undefined
   return last.parts.find((p): p is PendingAsk => (p.type === "permission" || p.type === "question") && !p.outcome)
 }
+
+// The tool call a request of the last reply is about
+export const callOf = (chat: Chat, toolCallId: string | undefined) =>
+  chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === toolCallId)
+
+// The option of a permission that allows (or refuses) once, or the nearest one the agent offers
+export const optionFor = (options: PermissionOption[], allow: boolean) =>
+  options.find((o) => o.kind === (allow ? "allow_once" : "reject_once")) ?? options.find((o) => o.kind.startsWith(allow ? "allow" : "reject"))
 
 // The chat's last reply, if it broke and the user hasn't dismissed it
 export function brokenReply(chat: Chat, dismissed: string | undefined): ChatMessage | undefined {

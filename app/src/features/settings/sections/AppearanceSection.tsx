@@ -71,7 +71,7 @@ function TonePreview({ tone, selected }: { tone: PaperTone; selected: boolean })
     <span
       data-tone={tone}
       className={cn(
-        "grid aspect-[4/3] w-full grid-cols-[16%_30%_1fr] gap-[3px] overflow-hidden rounded-lg bg-sidebar p-[3px] ring-1 ring-border transition-shadow group-hover/tone:ring-foreground/25 group-focus-visible/tone:ring-2 group-focus-visible/tone:ring-ring",
+        "grid aspect-[4/3] w-full grid-cols-[16%_30%_1fr] gap-[3px] overflow-hidden rounded-lg bg-sidebar p-[3px] ring-1 ring-border transition-shadow group-hover/tone:ring-foreground/25 group-focus-key/tone:ring-2 group-focus-key/tone:ring-ring",
         selected && "ring-2 ring-foreground group-hover/tone:ring-foreground",
       )}
     >

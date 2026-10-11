@@ -336,7 +336,7 @@ export class MockAgentClient implements AgentClient {
       m.kind === "paper"
         ? `library/papers/${slug(m.title)}/digest.md`
         : m.kind === "doc"
-          ? `docs/${m.subtitle ?? ""}${m.title}`
+          ? `docs/${m.subtitle ? `${m.subtitle}/` : ""}${m.title}`
           : `knowledge/${topic}.md`
     emit({ type: "tool_call", toolCallId: id, title: `${verb} ${m.title}`, kind: "read", status: "in_progress", locations: [{ path }], tool: { name: "Read", path } })
     await sleep(700, signal)

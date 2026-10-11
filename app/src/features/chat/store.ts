@@ -1,24 +1,18 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { applyUpdate, DEFAULT_ROLE, withoutAgentError, type Role } from "@owlit/protocol"
+import { applyUpdate, DEFAULT_ROLE, withoutAgentError } from "@owlit/protocol"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
-import type { AgentClient } from "./agent/client"
+import { agentClient } from "./agent"
 import * as disk from "./disk"
-import { MockAgentClient } from "./agent/mock-client"
-import { RpcAgentClient } from "./agent/rpc-client"
 import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
-import { pendingAsk, useSeenStore } from "./status"
+import { optionFor, pendingAsk, useSeenStore } from "./status"
 import { useAskDraft } from "./ask-draft"
+import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
+import { resolveSelection, selectionOf, type Selection } from "./lib/selection"
 import type { QuestionAnswer } from "@owlit/protocol"
-import type {
-  Chat,
-  ChatMessage,
-  Connector,
-  PromptInput,
-} from "./types"
+import type { Chat, ChatMessage, PromptInput } from "./types"
 
-export const agentClient: AgentClient = isDesktop ? new RpcAgentClient() : new MockAgentClient()
 // Whether the store saves messages through ./disk (core saves them itself when it runs the turn)
 const savesMessages = () => disk.onDisk && !agentClient.persistsMessages
 
@@ -29,21 +23,12 @@ const deleted = new Map<string, Chat>()
 const inflight = new Map<string, AbortController>()
 const over = new Map<string, Promise<void>>()
 
-export interface Selection {
-  connectorId: string
-  modelId?: string
-  // Owlit's role, the same whichever agent runs; it stays when the agent changes
-  role: Role
-  effortId?: string
-}
-
 // In the desktop app chats live in the workspace (.owlit/chats/, through ./disk); in a plain browser
 // (pnpm dev:web) seeded chats are kept in localStorage as before.
-interface ChatState {
+export interface ChatState extends ConnectorSlice {
   chats: Record<string, Chat>
   // Whether the workspace's chat list has been read
   chatsLoaded: boolean
-  connectors: Connector[]
   selection: Selection
   // Chat ids with a running turn
   streaming: Record<string, true>
@@ -65,13 +50,6 @@ interface ChatState {
   // Takes messages out of a chat, here and on disk
   removeMessages: (chatId: string, messageIds: string[]) => void
   answerQuestion: (chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) => void
-
-  checkConnector: (id: string) => Promise<void>
-  // The agent's own sign-in (the Owlit engine); throws what went wrong, for the form to show
-  signInConnector: (id: string, methodId: string, apiKey?: string) => Promise<void>
-  signOutConnector: (id: string, methodId?: string) => Promise<void>
-  addCustomConnector: (name: string, command: string) => Promise<Connector>
-  removeConnector: (id: string) => void
 }
 
 // Keep a generous slice and let the list row truncate it with CSS
@@ -80,13 +58,18 @@ const titleFrom = (text: string) => {
   return t.slice(0, 80) || "New chat"
 }
 
+// The state with one chat changed; the same state when the chat is gone
+const patchChat = (s: ChatState, chatId: string, fn: (c: Chat) => Chat): ChatState | Pick<ChatState, "chats"> => {
+  const c = s.chats[chatId]
+  return c ? { chats: { ...s.chats, [chatId]: fn(c) } } : s
+}
+
 export const useChatStore = create<ChatState>()(
   persist(
-    (set, get) => ({
+    (set, get, store) => ({
+      ...connectorSlice(set, get, store),
       chats: isDesktop ? {} : Object.fromEntries(seedChats.map((c) => [c.id, c])),
       chatsLoaded: !isDesktop,
-      // In the desktop app core says which agents exist (./connectors); until it answers there are none
-      connectors: isDesktop ? [] : builtInConnectors,
       selection: {
         connectorId: builtInConnectors[0].id,
         modelId: builtInConnectors[0].defaultModelId,
@@ -139,11 +122,10 @@ export const useChatStore = create<ChatState>()(
       },
 
       setAttachmentPaper(chatId, messageId, attachmentId, paperId) {
-        const chat = get().chats[chatId]
-        const message = chat?.messages.find((m) => m.id === messageId)
-        if (!chat || !message?.attachments) return
+        const message = get().chats[chatId]?.messages.find((m) => m.id === messageId)
+        if (!message?.attachments) return
         const next = { ...message, attachments: message.attachments.map((a) => (a.id === attachmentId ? { ...a, paperId } : a)) }
-        set((s) => ({ chats: { ...s.chats, [chatId]: { ...chat, messages: chat.messages.map((m) => (m.id === messageId ? next : m)) } } }))
+        patchMessage(chatId, messageId, () => next)
         if (disk.onDisk) disk.patchMessageOnDisk(chatId, next, true)
       },
 
@@ -151,14 +133,14 @@ export const useChatStore = create<ChatState>()(
         const chat = get().chats[id]
         if (!chat) return
         const next = title.trim() || chat.title
-        set((s) => ({ chats: { ...s.chats, [id]: { ...chat, title: next } } }))
+        set((s) => patchChat(s, id, (c) => ({ ...c, title: next })))
         if (disk.onDisk) disk.updateChatOnDisk(id, { title: next })
       },
 
       togglePin(id) {
         const chat = get().chats[id]
         if (!chat) return
-        set((s) => ({ chats: { ...s.chats, [id]: { ...chat, pinned: !chat.pinned } } }))
+        set((s) => patchChat(s, id, (c) => ({ ...c, pinned: !chat.pinned })))
         if (disk.onDisk) disk.updateChatOnDisk(id, { pinned: !chat.pinned })
       },
 
@@ -179,7 +161,7 @@ export const useChatStore = create<ChatState>()(
         get().setSelection(patch)
         if (!get().chats[chatId]) return
         const { connectorId, modelId, role, effortId } = get().selection
-        set((s) => ({ chats: { ...s.chats, [chatId]: { ...s.chats[chatId], connectorId, modelId, role, effortId } } }))
+        set((s) => patchChat(s, chatId, (c) => ({ ...c, connectorId, modelId, role, effortId })))
         if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, role, effortId })
       },
 
@@ -194,20 +176,20 @@ export const useChatStore = create<ChatState>()(
           const ask = pendingAsk(chat)
           if (ask?.type === "question") return useAskDraft.getState().type(chatId, ask, input.text)
           if (ask?.type !== "permission") return
-          const reject = ask.options.find((o) => o.kind === "reject_once") ?? ask.options.find((o) => o.kind.startsWith("reject"))
+          const reject = optionFor(ask.options, false)
           if (reject) get().respondPermission(chatId, ask.requestId, reject.optionId)
           get().cancel(chatId)
           await over.get(chatId)
           return get().send(chatId, input)
         }
-        const connectorId = chat.connectorId ?? state.selection.connectorId
-        // A model the agent no longer lists (such as Claude Code's "default", which owlit doesn't show)
-        // falls back to the agent's own default, as the picker shows it
-        const connector = state.connectors.find((c) => c.id === connectorId)
-        const wanted = chat.modelId ?? state.selection.modelId
-        const modelId = !connector || connector.models.some((m) => m.id === wanted) ? wanted : connector.defaultModelId
-        const role = chat.role ?? state.selection.role ?? DEFAULT_ROLE
-        const effortId = chat.effortId ?? state.selection.effortId
+        // What the pickers show: a model the agent no longer lists (such as Claude Code's "default", which
+        // owlit doesn't show) is the agent's own default. Until core has listed the agents there is nothing
+        // to check the chat's choice against, and it goes as it is.
+        const selection = selectionOf(chat, state.selection)
+        const { connector, model, effort, role } = resolveSelection(state.connectors, selection)
+        const connectorId = connector?.id ?? selection.connectorId
+        const modelId = connector ? model?.id : selection.modelId
+        const effortId = connector ? effort?.id : selection.effortId
         const now = Date.now()
 
         const userMsg: ChatMessage = {
@@ -232,17 +214,14 @@ export const useChatStore = create<ChatState>()(
         const isFirst = chat.messages.length === 0
 
         set((s) => ({
-          chats: {
-            ...s.chats,
-            [chatId]: {
-              ...s.chats[chatId],
-              title: isFirst ? titleFrom(input.text) : s.chats[chatId].title,
-              updatedAt: now,
-              messages: [...s.chats[chatId].messages, userMsg, assistantMsg],
-            },
-          },
+          ...patchChat(s, chatId, (c) => ({
+            ...c,
+            title: isFirst ? titleFrom(input.text) : c.title,
+            updatedAt: now,
+            messages: [...c.messages, userMsg, assistantMsg],
+          })),
           streaming: { ...s.streaming, [chatId]: true },
-          connectors: s.connectors.map((c) => (c.id === connectorId && c.status === "available" ? { ...c, status: "connected" } : c)),
+          connectors: connector?.status === "available" ? withConnector(s.connectors, { ...connector, status: "connected" }) : s.connectors,
         }))
         if (disk.onDisk) {
           if (isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
@@ -259,26 +238,17 @@ export const useChatStore = create<ChatState>()(
 
         // The answer as it grows; on disk at a measured pace, and whole once the turn is over
         const patchAssistant = (fn: (m: ChatMessage) => ChatMessage, final = false) => {
-          set((s) => {
-            const c = s.chats[chatId]
-            if (!c) return s
-            return {
-              chats: {
-                ...s.chats,
-                [chatId]: { ...c, messages: c.messages.map((m) => (m.id === assistantMsg.id ? fn(m) : m)) },
-              },
-            }
-          })
+          patchMessage(chatId, assistantMsg.id, fn)
           const now = get().chats[chatId]?.messages.find((m) => m.id === assistantMsg.id)
           if (now && savesMessages()) disk.patchMessageOnDisk(chatId, now, final)
         }
 
-        let ended: "finished" | "failed" | "cancelled" = "finished"
+        let ended: TurnEnd = "finished"
         try {
           // A chat made just now must reach core before core can run a turn in it
           if (disk.onDisk) await disk.settled()
           const stop = await agentClient.prompt(
-            { chatId, connectorId, modelId, role, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
+            { chatId, connectorId, modelId, role: role.id, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )
@@ -311,14 +281,7 @@ export const useChatStore = create<ChatState>()(
           over.delete(chatId)
           // The agent took the reply up again before its turn was over here: it runs on as that
           if (late.has(chatId)) followLate(chatId)
-          else {
-            // Work handed off goes on without anyone watching; how it ended waits on its row until seen
-            if (get().chats[chatId]) useSeenStore.getState().ended(chatId, ended)
-            set((s) => {
-              const { [chatId]: _done, ...rest } = s.streaming
-              return { streaming: rest }
-            })
-          }
+          else turnOver(chatId, ended)
           endTurn()
         }
       },
@@ -329,10 +292,7 @@ export const useChatStore = create<ChatState>()(
 
       removeMessages(chatId, messageIds) {
         const gone = new Set(messageIds)
-        set((s) => {
-          const c = s.chats[chatId]
-          return c ? { chats: { ...s.chats, [chatId]: { ...c, messages: c.messages.filter((m) => !gone.has(m.id)) } } } : s
-        })
+        set((s) => patchChat(s, chatId, (c) => ({ ...c, messages: c.messages.filter((m) => !gone.has(m.id)) })))
         if (disk.onDisk) disk.removeMessagesOnDisk(chatId, messageIds)
       },
 
@@ -342,58 +302,6 @@ export const useChatStore = create<ChatState>()(
 
       answerQuestion(chatId, requestId, answers) {
         agentClient.answerQuestion(chatId, requestId, answers)
-      },
-
-      async checkConnector(id) {
-        const c = get().connectors.find((x) => x.id === id)
-        if (!c) return
-        set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? { ...x, status: "checking", error: undefined } : x)) }))
-        const result = isDesktop ? await rpc.agents.check({ id }).catch((e: Error) => ({ ...c, status: "error" as const, error: e.message })) : await agentClient.check(c)
-        set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
-      },
-
-      async signInConnector(id, methodId, apiKey) {
-        const result = await rpc.agents.signIn({ id, methodId, ...(apiKey ? { apiKey } : {}) })
-        set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
-      },
-
-      async signOutConnector(id, methodId) {
-        const result = await rpc.agents.signOut({ id, ...(methodId ? { methodId } : {}) })
-        set((s) => ({ connectors: s.connectors.map((x) => (x.id === id ? result : x)) }))
-      },
-
-      async addCustomConnector(name, command) {
-        if (isDesktop) {
-          const c = await rpc.agents.add({ name, command })
-          set((s) => ({ connectors: [...s.connectors, c] }))
-          return c
-        }
-        const c: Connector = {
-          id: `custom-${crypto.randomUUID().slice(0, 8)}`,
-          name: name.trim() || "Custom agent",
-          description: "Custom ACP agent",
-          command: command.trim(),
-          builtIn: false,
-          status: "unknown",
-          models: [{ id: "default", name: "Default" }],
-          modes: [{ id: "default", name: "Default" }],
-          defaultModelId: "default",
-          defaultModeId: "default",
-        }
-        set((s) => ({ connectors: [...s.connectors, c] }))
-        return c
-      },
-
-      removeConnector(id) {
-        if (isDesktop) void rpc.agents.remove({ id }).catch(() => undefined)
-        set((s) => {
-          const connectors = s.connectors.filter((c) => c.id !== id)
-          const selection =
-            s.selection.connectorId === id
-              ? { connectorId: connectors[0]?.id ?? "", modelId: connectors[0]?.defaultModelId, role: s.selection.role }
-              : s.selection
-          return { connectors, selection }
-        })
       },
     }),
     {
@@ -430,6 +338,24 @@ export const useChatStore = create<ChatState>()(
   ),
 )
 
+function patchMessage(chatId: string, messageId: string, fn: (m: ChatMessage) => ChatMessage) {
+  useChatStore.setState((s) =>
+    s.chats[chatId]?.messages.some((m) => m.id === messageId) ? patchChat(s, chatId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId ? fn(m) : m)) })) : s,
+  )
+}
+
+type TurnEnd = "finished" | "failed" | "cancelled"
+
+// A turn is over and the chat stops working. Work handed off goes on without anyone watching, so how it
+// ended waits on its row until seen.
+function turnOver(chatId: string, how: TurnEnd) {
+  if (useChatStore.getState().chats[chatId]) useSeenStore.getState().ended(chatId, how)
+  useChatStore.setState((s) => {
+    const { [chatId]: _done, ...rest } = s.streaming
+    return { streaming: rest }
+  })
+}
+
 // ---- Replies the agent takes up again ----
 
 // An agent may go on after its turn has ended (Claude Code writes its answer once its background agents
@@ -442,14 +368,6 @@ export const useChatStore = create<ChatState>()(
 const late = new Map<string, string>()
 // The stand-in for a turn's controller and end while a reply is open again, as send keeps them
 const lateRuns = new Map<string, { controller: AbortController; end: () => void }>()
-
-function patchMessage(chatId: string, messageId: string, fn: (m: ChatMessage) => ChatMessage) {
-  useChatStore.setState((s) => {
-    const c = s.chats[chatId]
-    if (!c || !c.messages.some((m) => m.id === messageId)) return s
-    return { chats: { ...s.chats, [chatId]: { ...c, messages: c.messages.map((m) => (m.id === messageId ? fn(m) : m)) } } }
-  })
-}
 
 function followLate(chatId: string) {
   const controller = new AbortController()
@@ -476,11 +394,7 @@ function lateReply(chatId: string, message: ChatMessage) {
   if (inflight.get(chatId) !== run.controller) return
   inflight.delete(chatId)
   over.delete(chatId)
-  if (useChatStore.getState().chats[chatId]) useSeenStore.getState().ended(chatId, message.status === "cancelled" ? "cancelled" : message.status === "error" ? "failed" : "finished")
-  useChatStore.setState((s) => {
-    const { [chatId]: _done, ...rest } = s.streaming
-    return { streaming: rest }
-  })
+  turnOver(chatId, message.status === "cancelled" ? "cancelled" : message.status === "error" ? "failed" : "finished")
   run.end()
 }
 
@@ -491,38 +405,4 @@ if (isDesktop) {
   })
 }
 
-// ---- Local agents, from core ----
-
-// The pickers show what the agent offers; a remembered model or effort it doesn't offer falls back to the
-// agent's own default
-function fitSelection(connectors: Connector[]) {
-  const { selection } = useChatStore.getState()
-  const c = connectors.find((x) => x.id === selection.connectorId) ?? connectors[0]
-  if (!c) return
-  const pick = <T extends { id: string }>(list: T[] | undefined, id: string | undefined, fallback: string | undefined) =>
-    list?.some((x) => x.id === id) ? id : fallback
-  useChatStore.setState({
-    selection: {
-      connectorId: c.id,
-      modelId: pick(c.models, selection.modelId, c.defaultModelId),
-      role: selection.role ?? DEFAULT_ROLE,
-      effortId: pick(c.efforts, selection.effortId, c.defaultEffortId),
-    },
-  })
-}
-
-if (isDesktop) {
-  // Agents are this machine's, not the workspace's: listed once, then kept current by core
-  void rpc.agents.list().then((connectors) => {
-    useChatStore.setState({ connectors })
-    fitSelection(connectors)
-    // Agents never checked are checked now, so the user never sees an "unknown" state
-    for (const c of connectors) if (c.status === "unknown") void useChatStore.getState().checkConnector(c.id)
-  })
-  onNotify("agents.changed", (connector) => {
-    useChatStore.setState((s) => ({ connectors: s.connectors.map((c) => (c.id === connector.id ? connector : c)) }))
-    fitSelection(useChatStore.getState().connectors)
-  })
-}
-
-// ---- Selectors ----
+watchConnectors(useChatStore)

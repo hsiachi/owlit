@@ -3,25 +3,24 @@ import { toast } from "sonner"
 import { copyText } from "@/lib/clipboard"
 import { apaCitation, bibtex } from "./lib/cite"
 import { useLibraryStore } from "./store"
-import type { Paper, ReadStatus } from "./types"
-import { useUiStore } from "./ui-store"
+import type { PageRect, Paper } from "./types"
+import { useLibraryUi } from "./ui-store"
 import { toastUndo } from "@/lib/toast"
+import { useAgentWindow } from "@/features/agent/store"
+import type { QuotedSelection } from "@/features/chat/types"
+import { paperMentionable } from "@/features/docs/lib/mentions"
 
 // Actions on one or several papers, shared by the row menu, the detail pane and the paper page
 export function usePaperActions() {
   const navigate = useNavigate()
-  const setStarredInStore = useLibraryStore((s) => s.setStarred)
-  const setStatusInStore = useLibraryStore((s) => s.setStatus)
+  const setStarred = useLibraryStore((s) => s.setStarred)
+  const setStatus = useLibraryStore((s) => s.setStatus)
   const removePapers = useLibraryStore((s) => s.removePapers)
   const restorePapers = useLibraryStore((s) => s.restorePapers)
-  const setEditingId = useUiStore((s) => s.setEditingId)
-  const clearSelection = useUiStore((s) => s.clearSelection)
+  const setEditingId = useLibraryUi((s) => s.setEditingId)
+  const clearSelection = useLibraryUi((s) => s.clearSelection)
 
   const open = (id: string) => navigate(`/library/${id}`)
-
-  const setStarred = (ids: string[], starred: boolean) => setStarredInStore(ids, starred)
-
-  const setStatus = (ids: string[], status: ReadStatus) => setStatusInStore(ids, status)
 
   // APA, one reference per line
   const copyCitation = async (papers: Paper[]) => {
@@ -46,4 +45,19 @@ export function usePaperActions() {
   const editDetails = (id: string) => setEditingId(id)
 
   return { open, setStarred, setStatus, copyCitation, copyBibtex, remove, editDetails }
+}
+
+// Deleting is immediate; the toast's Undo brings the highlight back
+export function deleteHighlight(id: string) {
+  const { removeHighlight, restoreHighlight } = useLibraryStore.getState()
+  const removed = removeHighlight(id)
+  if (removed) toastUndo("Highlight deleted", () => restoreHighlight(removed))
+}
+
+// A passage of a paper (a selection, a highlight, a line of its note) handed to the agent window; rects
+// keep a PDF selection drawn until it is asked about
+export function askAboutPassage(paperId: string, quote: Omit<QuotedSelection, "source">, rects?: PageRect[]) {
+  const paper = useLibraryStore.getState().papers[paperId]
+  if (!paper || !quote.text) return
+  useAgentWindow.getState().open({ ...quote, source: paperMentionable(paper) }, rects?.length ? { paperId, rects } : undefined)
 }

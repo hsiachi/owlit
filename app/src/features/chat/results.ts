@@ -3,8 +3,13 @@ import { persist } from "zustand/middleware"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
+import { paperOfNotePath } from "@/features/library/notes/note-actions"
+import { displayName } from "@/features/docs/types"
 import { useChatStore } from "./store"
-import { useSeenStore } from "./status"
+
+// Whether a change from a chat should still raise a toast: not while its chat is on screen, since the
+// result row there already says it
+export { chatOnScreen } from "./status"
 
 // What a reply changed outside its chat: papers added, notes left on a doc, a file written. Core reports
 // each change with its version (so it can be undone) and the chat it came from; the change is pinned to
@@ -63,12 +68,6 @@ function replyOf(chatId: string): string | undefined {
   return [...chat.messages].reverse().find((m) => m.role === "assistant")?.id
 }
 
-// Whether a change from this chat should still raise a toast: not while its chat is on screen, since the
-// result row there already says it
-export function chatOnScreen(chatId: string | undefined) {
-  return !!chatId && !!useSeenStore.getState().viewing[chatId] && document.visibilityState === "visible"
-}
-
 // Without the desktop app there is no core keeping versions; the mock agent says how to take back what it did
 const mockUndo = new Map<string, () => void>()
 export const setMockUndo = (versionId: string, undo: () => void) => mockUndo.set(versionId, undo)
@@ -84,9 +83,9 @@ export async function undoResult(versionId: string) {
 
 // A doc by its name; a paper's note by its paper ("Chen 2025")
 export function labelOf(path: string) {
-  const notePaper = /^\.owlit\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
+  const notePaper = paperOfNotePath(path)
   const paper = notePaper ? useLibraryStore.getState().papers[notePaper] : undefined
-  return paper ? citationLabel(paper) : path.split("/").pop()!.replace(/\.md$/i, "")
+  return paper ? citationLabel(paper) : displayName(path)
 }
 
 export function recordResult(chatId: string | undefined, result: AgentResult) {

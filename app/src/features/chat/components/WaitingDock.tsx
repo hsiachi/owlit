@@ -4,20 +4,18 @@ import { BorderedList } from "@/components/bordered-list"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { WaitingShield } from "@/components/marks"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
-import { editStats } from "@owlit/protocol"
+import { editStats, parentPath } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type { Chat, Part, PermissionKind } from "../types"
 import { useAskDraft } from "../ask-draft"
 import { useInPlace } from "../in-place"
-import { askSentence, shortUrl, type ToolCall } from "../lib/step-words"
-import { pendingAsk } from "../status"
+import { paperOfNotePath } from "@/features/library/notes/note-actions"
+import { amount } from "../lib/edit-counts"
+import { askSentence, runsCommand, shortUrl, type ToolCall } from "../lib/step-words"
+import { callOf, pendingAsk } from "../status"
 import { useChatStore } from "../store"
 import { DiffPreview } from "./messages/step-results"
-
-
-// A paper's note, kept inside .owlit beside the paper
-const NOTE_PATH = /^\.owlit\/papers\/[^/]+\/note\.md$/
 
 // What the chat waits on the user for, above the composer, wherever the chat is scrolled: a permission
 // (what Owlit wants to do, in its words, with a preview and owlit's buttons) or a question of the agent's
@@ -27,10 +25,9 @@ export function WaitingDock({ chat, compact = false }: { chat: Chat; compact?: b
   const streaming = useChatStore((s) => !!s.streaming[chat.id])
   const ask = streaming ? pendingAsk(chat) : undefined
   if (!ask) return null
-  const parts = chat.messages.at(-1)?.parts ?? []
-  const call = parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
+  const call = callOf(chat, ask.toolCallId)
   // Asked by one of the agent's own agents: the card says which, so it is found among several at work
-  const agent = ask.agentId ? parts.find((p): p is Part<"agent"> => p.type === "agent" && p.agentId === ask.agentId)?.title : undefined
+  const agent = ask.agentId ? chat.messages.at(-1)?.parts.find((p): p is Part<"agent"> => p.type === "agent" && p.agentId === ask.agentId)?.title : undefined
   return ask.type === "permission" ? (
     <PermissionCard key={ask.requestId} chatId={chat.id} ask={ask} call={call} agent={agent} compact={compact} />
   ) : (
@@ -60,7 +57,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
 
   // An edit already drawn where it would land is answered there, with Apply and Discard
   if (inPlace && !answerHere) {
-    const where = editPath && NOTE_PATH.test(editPath) ? "your note" : "the doc"
+    const where = editPath && paperOfNotePath(editPath) ? "your note" : "the doc"
     return (
       <div className={cn(CARD, "flex items-center gap-2 py-2 text-muted-foreground")}>
         <WaitingShield size="md" />
@@ -74,19 +71,18 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
   }
 
   const diff = call?.diff
-  const command = call?.tool?.command ?? (call && !call.tool && call.kind === "execute" ? call.title : undefined)
+  const command = call?.tool?.command ?? (call && runsCommand(call) ? call.title : undefined)
   const url = call?.tool?.url
-  const folder = diff?.path.includes("/") ? diff.path.split("/").slice(0, -1).join("/") : undefined
+  const folder = diff ? parentPath(diff.path) || undefined : undefined
   let summary: string | undefined
   if (diff) {
     const stats = editStats(diff.path, diff.oldText, diff.newText)
-    const of = (n: number) => `${n.toLocaleString()} ${stats.unit === "words" ? (n === 1 ? "word" : "words") : n === 1 ? "line" : "lines"}`
     // A Write carries the whole file, so only it can tell that most of the doc would go
     const said = !diff.oldText
       ? ["A new file"]
       : call?.tool?.name === "Write" && stats.rewritten
         ? ["Rewrites the doc"]
-        : [stats.added && `Adds ${of(stats.added)}`, stats.removed && `removes ${of(stats.removed)}`]
+        : [stats.added && `Adds ${amount(stats.added, stats.unit)}`, stats.removed && `removes ${amount(stats.removed, stats.unit)}`]
     summary = [...said, folder && `in ${folder}`].filter(Boolean).join(" · ")
   } else if (call?.tool?.description) summary = call.tool.description
   if (agent) summary = [`For the agent “${agent}”`, summary].filter(Boolean).join(" · ")

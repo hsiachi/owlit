@@ -1,7 +1,7 @@
 import type { OwlitUri } from "@owlit/protocol"
 import type { Mentionable } from "@/features/chat/types"
-import { topicUri } from "./format"
-import { allTopics, lineKey } from "./store"
+import { lineKey, topicUri } from "./format"
+import { allTopics } from "./store"
 
 // What @ reaches in Knowledge: topics and the user's questions, never single lines. A question is
 // addressed inside its topic file by its block id: owlit://knowledge/when-to-call#^q1.

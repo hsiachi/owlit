@@ -19,6 +19,15 @@ const PILL = "menu-surface z-30 flex h-8 items-center gap-0.5 rounded-full p-1 t
 const ITEM = "flex h-6 items-center rounded-full transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
 const ICON = cn(ITEM, "w-6 justify-center [&_svg]:size-3.5")
 
+// An icon in a pill, its label the tooltip
+function PillIcon({ label, shortcut, ...props }: React.ComponentProps<"button"> & { label: string; shortcut?: string }) {
+  return (
+    <Tip label={label} shortcut={shortcut}>
+      <button type="button" aria-label={label} className={ICON} {...props} />
+    </Tip>
+  )
+}
+
 export function ReaderControls({ documentId, back, onBack }: { documentId: string; back: ReturnMark | null; onBack: () => void }) {
   const [searching, setSearching] = useState(false)
 
@@ -34,11 +43,9 @@ export function ReaderControls({ documentId, back, onBack }: { documentId: strin
           ) : (
             <div className={PILL}>
               <ZoomReadout documentId={documentId} />
-              <Tip label="Find in paper" shortcut="find-in-paper">
-                <button type="button" aria-label="Find in paper" onClick={() => setSearching(true)} className={ICON}>
-                  <SearchIcon />
-                </button>
-              </Tip>
+              <PillIcon label="Find in paper" shortcut="find-in-paper" onClick={() => setSearching(true)}>
+                <SearchIcon />
+              </PillIcon>
             </div>
           )}
         </div>
@@ -69,7 +76,6 @@ function SearchPill({ documentId, onClose }: { documentId: string; onClose: () =
   const { state, provides } = useSearch(documentId)
   const [query, setQuery] = useState("")
   const input = useRef<HTMLInputElement>(null)
-
 
   useEffect(() => {
     input.current?.focus()
@@ -142,21 +148,15 @@ function SearchPill({ documentId, onClose }: { documentId: string; onClose: () =
       />
       {/* No "0/0" before anything is typed; it reads as a failed search */}
       {query.trim() !== "" && <span className="shrink-0 px-1 tabular-nums">{total === 0 ? "None" : `${active} of ${total}`}</span>}
-      <Tip label="Previous match">
-        <button type="button" aria-label="Previous match" onClick={() => provides?.previousResult()} disabled={total === 0} className={ICON}>
-          <ChevronUpIcon />
-        </button>
-      </Tip>
-      <Tip label="Next match">
-        <button type="button" aria-label="Next match" onClick={() => provides?.nextResult()} disabled={total === 0} className={ICON}>
-          <ChevronDownIcon />
-        </button>
-      </Tip>
-      <Tip label="Close">
-        <button type="button" aria-label="Close find" onClick={onClose} className={ICON}>
-          <XIcon />
-        </button>
-      </Tip>
+      <PillIcon label="Previous match" onClick={() => provides?.previousResult()} disabled={total === 0}>
+        <ChevronUpIcon />
+      </PillIcon>
+      <PillIcon label="Next match" onClick={() => provides?.nextResult()} disabled={total === 0}>
+        <ChevronDownIcon />
+      </PillIcon>
+      <PillIcon label="Close" aria-label="Close find" onClick={onClose}>
+        <XIcon />
+      </PillIcon>
     </div>
   )
 }

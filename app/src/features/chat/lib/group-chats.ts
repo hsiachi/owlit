@@ -1,16 +1,16 @@
 import { DAY, startOfDay } from "@/lib/time"
-import type { Chat } from "../types"
+import type { ChatListItem } from "../use-chat-list"
 
 export interface ChatGroup {
   label: string
-  chats: Chat[]
+  chats: ChatListItem[]
 }
 
 
 // Pinned first, then by recency buckets like most chat apps
-export function groupChats(chats: Chat[], now = Date.now()): ChatGroup[] {
+export function groupChats(chats: ChatListItem[], now = Date.now()): ChatGroup[] {
   const today = startOfDay(now)
-  const buckets: Record<string, Chat[]> = { Pinned: [], Today: [], Yesterday: [], "Previous 7 days": [], "Previous 30 days": [], Older: [] }
+  const buckets: Record<string, ChatListItem[]> = { Pinned: [], Today: [], Yesterday: [], "Previous 7 days": [], "Previous 30 days": [], Older: [] }
   for (const c of [...chats].sort((a, b) => b.updatedAt - a.updatedAt)) {
     if (c.pinned) {
       buckets.Pinned.push(c)

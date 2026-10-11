@@ -8,10 +8,12 @@ import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
+import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import type { ChatMessage } from "../../types"
 import { undoResult, useResultsStore, type AgentResult } from "../../results"
+import { countParts } from "../../lib/edit-counts"
 import { isDesktop, rpc } from "@/lib/rpc"
-import { capital, joinAnd } from "@/lib/words"
+import { capital, joinAnd, plural } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
 // notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
@@ -67,13 +69,13 @@ function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | 
 // A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
 export function EditCounts({ stats }: { stats: EditStats }) {
   if (stats.rewritten) return <span>Rewritten</span>
-  const { added, removed } = stats
+  const { added, removed, unit } = countParts(stats)
   return (
     <span className="tabular-nums" title={`${stats.unit === "words" ? "Words" : "Lines"} added and removed`}>
-      {added > 0 && <span className="text-suggestion">+{added.toLocaleString()}</span>}
-      {added > 0 && removed > 0 && " "}
-      {removed > 0 && <span>−{removed.toLocaleString()}</span>}
-      {stats.unit === "lines" && (added > 0 || removed > 0) && ` ${added + removed === 1 ? "line" : "lines"}`}
+      {added && <span className="text-suggestion">{added}</span>}
+      {added && removed && " "}
+      {removed && <span>{removed}</span>}
+      {unit && ` ${unit}`}
     </span>
   )
 }
@@ -122,13 +124,13 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     for (const [path, list] of byPath) {
       const name = list[0].label
       if (kind === "note") {
-        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: list.length === 1 ? "1 note" : `${list.length} notes`, ...of(list), view: openDoc(path) })
+        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, "note"), ...of(list), view: openDoc(path) })
         continue
       }
       const span = spans.find((s) => s.path === path)
       const edit = span ? (stats[span.key] ?? undefined) : statsFromParts(message.parts, path)
       // A paper's note is the user's own text, named by its paper and opened on the paper's page
-      const notePaper = /^\.owlit\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
+      const notePaper = paperOfNotePath(path)
       rows.push({
         key: `file:${path}`,
         kind: "doc",

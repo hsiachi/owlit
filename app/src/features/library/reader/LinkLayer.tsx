@@ -6,6 +6,7 @@ import {
   PdfZoomMode,
   type PdfDestinationObject,
   type PdfDocumentObject,
+  type PdfEngine,
   type PdfLinkAnnoObject,
 } from "@embedpdf/models"
 import { useScroll } from "@embedpdf/plugin-scroll/react"
@@ -59,6 +60,44 @@ function pointOf(doc: PdfDocumentObject, destination: PdfDestinationObject): Ret
   return { x: 0, y: Math.max(0, page.size.height - y - LEAD) }
 }
 
+// A page's links, read once per document: pages unmount and mount again as they scroll out of view and back
+const linksRead = new WeakMap<PdfDocumentObject, Map<number, Promise<Hotspot[]>>>()
+
+function pageLinks(engine: PdfEngine, doc: PdfDocumentObject, pageIndex: number): Promise<Hotspot[]> {
+  let byPage = linksRead.get(doc)
+  if (!byPage) linksRead.set(doc, (byPage = new Map()))
+  let links = byPage.get(pageIndex)
+  if (!links) {
+    links = readLinks(engine, doc, pageIndex)
+    byPage.set(pageIndex, links)
+  }
+  return links
+}
+
+async function readLinks(engine: PdfEngine, doc: PdfDocumentObject, pageIndex: number): Promise<Hotspot[]> {
+  const page = doc.pages[pageIndex]
+  // A rotated page would need every rect rotated too; it gets no links rather than wrong ones
+  if (!page || page.rotation !== 0) return []
+  // A page whose annotations do not read is a page without links
+  const annotations = await engine.getPageAnnotations(doc, page).toPromise().catch(() => [])
+  const found: Hotspot[] = []
+  annotations.forEach((a, i) => {
+    if (a.type !== PdfAnnotationSubtype.LINK) return
+    const destination = destinationOf(a)
+    if (!destination) return
+    const { origin, size } = a.rect
+    found.push({
+      key: `${a.id ?? i}-${i}`,
+      left: (origin.x / page.size.width) * 100,
+      top: (origin.y / page.size.height) * 100,
+      width: (size.width / page.size.width) * 100,
+      height: (size.height / page.size.height) * 100,
+      destination,
+    })
+  })
+  return found
+}
+
 export function LinkLayer({ documentId, pageIndex, onFollow }: { documentId: string; pageIndex: number; onFollow: (mark: ReturnMark) => void }) {
   const { registry } = useRegistry()
   const { provides: scroll } = useScroll(documentId)
@@ -68,35 +107,8 @@ export function LinkLayer({ documentId, pageIndex, onFollow }: { documentId: str
 
   useEffect(() => {
     if (!registry || !doc) return
-    const page = doc.pages[pageIndex]
-    // A rotated page would need every rect rotated too; it gets no links rather than wrong ones
-    if (!page || page.rotation !== 0) return
     let live = true
-    registry
-      .getEngine()
-      .getPageAnnotations(doc, page)
-      .toPromise()
-      .then((annotations) => {
-        if (!live) return
-        const found: Hotspot[] = []
-        annotations.forEach((a, i) => {
-          if (a.type !== PdfAnnotationSubtype.LINK) return
-          const destination = destinationOf(a)
-          if (!destination) return
-          const { origin, size } = a.rect
-          found.push({
-            key: `${a.id ?? i}-${i}`,
-            left: (origin.x / page.size.width) * 100,
-            top: (origin.y / page.size.height) * 100,
-            width: (size.width / page.size.width) * 100,
-            height: (size.height / page.size.height) * 100,
-            destination,
-          })
-        })
-        setHotspots(found)
-      })
-      // A page whose annotations do not read is a page without links
-      .catch(() => {})
+    void pageLinks(registry.getEngine(), doc, pageIndex).then((found) => live && setHotspots(found))
     return () => {
       live = false
     }

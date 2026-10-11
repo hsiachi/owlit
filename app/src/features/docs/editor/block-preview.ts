@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language"
-import { StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
+import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view"
 import katex from "katex"
 import { frontmatterEnd } from "../lib/naming"
@@ -103,37 +103,67 @@ class FrontMatterWidget extends BlockWidget {
 // Whether the editor has focus: an unfocused doc reads clean, wherever its cursor was left
 const setFocused = StateEffect.define<boolean>()
 
-function build(state: EditorState, focused: boolean): DecorationSet {
-  const decos: Range<Decoration>[] = []
-  const ranges = focused ? state.selection.ranges : []
+interface Block {
+  from: number
+  to: number
+  widget: BlockWidget
+}
+
+// The doc's drawable blocks, whole lines each. Tables and math blocks sit at the top level or inside a
+// quote or a list, so the walk only goes into those.
+function blocksOf(state: EditorState): Block[] {
+  const blocks: Block[] = []
   const fmEnd = frontmatterEnd(state.sliceDoc(0, Math.min(state.doc.length, 4000)))
   if (fmEnd) {
     const to = state.doc.lineAt(fmEnd - 1).to
-    if (!ranges.some((r) => r.from <= to)) decos.push(Decoration.replace({ widget: new FrontMatterWidget(state.sliceDoc(0, to)), block: true }).range(0, to))
+    blocks.push({ from: 0, to, widget: new FrontMatterWidget(state.sliceDoc(0, to)) })
   }
   syntaxTree(state).iterate({
     enter: (node) => {
-      if (node.name !== "Table" && node.name !== "BlockMath") return
-      const from = state.doc.lineAt(node.from).from
-      const to = state.doc.lineAt(node.to).to
-      if (!ranges.some((r) => r.from <= to && r.to >= from)) {
+      if (node.name === "Table" || node.name === "BlockMath") {
+        const from = state.doc.lineAt(node.from).from
+        const to = state.doc.lineAt(node.to).to
         const source = state.sliceDoc(from, to)
-        const widget = node.name === "Table" ? new TableWidget(source) : new MathBlockWidget(source)
-        decos.push(Decoration.replace({ widget, block: true }).range(from, to))
+        blocks.push({ from, to, widget: node.name === "Table" ? new TableWidget(source) : new MathBlockWidget(source) })
+        return false
       }
-      return false
+      return node.type.isTop || node.type.is("BlockContext")
     },
   })
-  return Decoration.set(decos)
+  return blocks
+}
+
+// Which blocks hold a cursor or touch the selection; those show their Markdown
+const entered = (blocks: Block[], state: EditorState, focused: boolean) =>
+  blocks.map((b) => focused && state.selection.ranges.some((r) => r.from <= b.to && r.to >= b.from))
+
+function decorate(blocks: Block[], open: boolean[]): DecorationSet {
+  return Decoration.set(blocks.flatMap((b, i) => (open[i] ? [] : [Decoration.replace({ widget: b.widget, block: true }).range(b.from, b.to)])))
+}
+
+interface Preview {
+  focused: boolean
+  blocks: Block[]
+  open: boolean[]
+  decos: DecorationSet
+}
+
+function preview(state: EditorState, focused: boolean, blocks = blocksOf(state)): Preview {
+  const open = entered(blocks, state, focused)
+  return { focused, blocks, open, decos: decorate(blocks, open) }
 }
 
 export const blockPreview: Extension = [
-  StateField.define<{ focused: boolean; decos: DecorationSet }>({
-    create: (state) => ({ focused: false, decos: build(state, false) }),
+  StateField.define<Preview>({
+    create: (state) => preview(state, false),
     update: (value, tr) => {
       const focused = tr.effects.reduce((f, e) => (e.is(setFocused) ? e.value : f), value.focused)
-      const changed = focused !== value.focused || tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)
-      return changed ? { focused, decos: build(tr.state, focused) } : value
+      if (tr.docChanged || syntaxTree(tr.startState) !== syntaxTree(tr.state)) return preview(tr.state, focused)
+      if (focused === value.focused && !tr.selection) return value
+      // A cursor moving within a block, or between blocks of plain text, changes nothing drawn
+      const open = entered(value.blocks, tr.state, focused)
+      if (open.every((o, i) => o === value.open[i])) return focused === value.focused ? value : { ...value, focused }
+      return { focused, blocks: value.blocks, open, decos: decorate(value.blocks, open) }
     },
     provide: (f) => EditorView.decorations.from(f, (v) => v.decos),
   }),

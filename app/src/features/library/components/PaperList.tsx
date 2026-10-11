@@ -11,7 +11,7 @@ import { authorsYear, shortAuthors, shortVenue } from "../lib/format"
 import { STATUS_LABEL } from "../lib/status"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 import { PaperRowMenu } from "./PaperMenu"
 import { PaperPeek } from "./PaperPeek"
 import { StarButton, StarMark } from "./StarButton"
@@ -20,7 +20,7 @@ import { TagDot } from "./TagsEditor"
 // Click selects and peeks, ⌘-click toggles, ⇧-click extends, double-click opens. A row reads only whether
 // it is selected, so selecting one re-renders two rows, not the list.
 function useRowHandlers(paper: Paper, order: string[], open: (id: string) => void) {
-  const selected = useUiStore((s) => s.selectedIds.includes(paper.id))
+  const selected = useLibraryUi((s) => s.selectedIds.includes(paper.id))
   return {
     selected,
     handlers: {
@@ -28,21 +28,16 @@ function useRowHandlers(paper: Paper, order: string[], open: (id: string) => voi
       onClick: (e: React.MouseEvent) => {
         if ((e.target as HTMLElement).closest("button")) return
         if (e.detail === 2) return open(paper.id)
-        useUiStore.getState().click(paper.id, e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single", order)
+        useLibraryUi.getState().click(paper.id, e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single", order)
       },
     },
   }
 }
 
-// Right-click on an unselected row acts on that row alone, so it becomes the selection
-function selectForMenu(id: string) {
-  if (!useUiStore.getState().selectedIds.includes(id)) useUiStore.setState({ selectedIds: [id], cursorId: id, anchorId: id })
-}
-
 // The menu's items are built only while it is open (PaperRowMenu), so closed rows run none of its hooks
 function RowMenu({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <ActionsOnRightClick menu={<PaperRowMenu id={id} />} onOpen={() => selectForMenu(id)} className="w-48">
+    <ActionsOnRightClick menu={<PaperRowMenu id={id} />} onOpen={() => useLibraryUi.getState().selectForMenu(id)} className="w-48">
       {children}
     </ActionsOnRightClick>
   )
@@ -52,7 +47,7 @@ function RowMenu({ id, children }: { id: string; children: React.ReactNode }) {
 function RowActions({ paper, className }: { paper: Paper; className?: string }) {
   return (
     <span className={cn("hidden shrink-0 items-center group-hover/row:flex group-has-focus-key/row:flex group-has-data-menu-up/row:flex", className)}>
-      <StarButton size="icon-xs" starred={paper.starred} onToggle={() => useLibraryStore.getState().toggleStar(paper.id)} />
+      <StarButton size="icon-xs" starred={paper.starred} onToggle={() => useLibraryStore.getState().setStarred([paper.id], !paper.starred)} />
       <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label="More actions" menuClassName="w-48" />
     </span>
   )
@@ -97,7 +92,7 @@ function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[
 }
 
 export function PaperList({ groups, order, snippets }: { groups: PaperGroup[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
-  const peekId = useUiStore((s) => s.peekId)
+  const peekId = useLibraryUi((s) => s.peekId)
   const navigate = useNavigate()
   const open = (id: string) => navigate(`/library/${id}`)
   return (
@@ -205,9 +200,9 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
 // Column headers sort; clicking a row peeks in a full-width row beneath it.
 export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
-  const peekId = useUiStore((s) => s.peekId)
-  const sort = useUiStore((s) => s.sort)
-  const sortBy = useUiStore((s) => s.sortBy)
+  const peekId = useLibraryUi((s) => s.peekId)
+  const sort = useLibraryUi((s) => s.sort)
+  const sortBy = useLibraryUi((s) => s.sortBy)
   const navigate = useNavigate()
   const open = (id: string) => navigate(`/library/${id}`)
   const table = useRef<HTMLTableElement>(null)

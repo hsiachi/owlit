@@ -4,13 +4,12 @@ import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
 import { toast } from "sonner"
-import { useAgentWindow } from "@/features/agent/store"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { respondToEdit } from "@/features/chat/lib/respond-edit"
 import { useShowsEditsInPlace } from "@/features/chat/in-place"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { cn } from "@/lib/utils"
-import { paperMentionable } from "@/features/docs/lib/mentions"
+import { askAboutPassage } from "../actions"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import { NoteMention } from "./note-mention"
@@ -138,10 +137,9 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     if (!editor) return
     const { from, to } = editor.state.selection
     const text = editor.state.doc.textBetween(from, to, "\n").trim()
-    const paper = useLibraryStore.getState().papers[paperId]
-    if (!paper || !text) return
+    if (!text) return
     setMenu(null)
-    useAgentWindow.getState().open({ text, source: paperMentionable(paper), notePath: notePathOf(paperId) })
+    askAboutPassage(paperId, { text, notePath: notePathOf(paperId) })
   }
 
   // A right-click on a selected passage starts the system's text menu with "Ask Owlit" too

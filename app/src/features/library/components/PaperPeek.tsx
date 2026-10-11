@@ -1,26 +1,18 @@
-import { EllipsisVerticalIcon } from "lucide-react"
-import { ActionsDropdownContent } from "@/components/action-menu"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { usePaperActions } from "../actions"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
-import { useUiStore } from "../ui-store"
-import { PaperMenu } from "./PaperMenu"
-import { StarButton } from "./StarButton"
-import { StatusMenu } from "./StatusMenu"
+import { useLibraryUi } from "../ui-store"
+import { PaperByline, PaperQuickActions } from "./PaperByline"
 import { TagsEditor } from "./TagsEditor"
 
 // A row opened in place: enough to decide whether to read the paper, without leaving the list.
 // Clicking the card's background folds it again.
 export function PaperPeek({ paper }: { paper: Paper }) {
-  const toggleStar = useLibraryStore((s) => s.toggleStar)
-  const setStatus = useLibraryStore((s) => s.setStatus)
   const setTags = useLibraryStore((s) => s.setTags)
-  const closePeek = useUiStore((s) => s.closePeek)
-  const showTag = useUiStore((s) => s.showTag)
+  const closePeek = useLibraryUi((s) => s.closePeek)
+  const showTag = useLibraryUi((s) => s.showTag)
   const actions = usePaperActions()
-  const published = [paper.venue, paper.year].filter(Boolean).join(" · ")
   const openLabel = !paper.pdf ? "Open" : paper.status === "reading" ? "Continue" : "Read"
 
   return (
@@ -32,15 +24,7 @@ export function PaperPeek({ paper }: { paper: Paper }) {
       className="-mx-1.5 my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 shadow-sm"
     >
       <h3 className="text-body leading-snug font-medium text-balance">{paper.title}</h3>
-      <p className="mt-1 text-detail leading-normal text-muted-foreground">
-        {paper.authors.join(", ") || "Unknown authors"}
-        {published && (
-          <>
-            <br />
-            {published}
-          </>
-        )}
-      </p>
+      <PaperByline paper={paper} className="mt-1" />
       {paper.abstract && <p className="mt-2.5 max-w-[68ch] text-sm leading-relaxed">{paper.abstract}</p>}
       <div className="mt-3.5 flex items-center gap-1">
         <TagsEditor
@@ -49,19 +33,7 @@ export function PaperPeek({ paper }: { paper: Paper }) {
           onOpenTag={showTag}
           className="min-w-0 flex-1"
         />
-        <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} />
-        <StarButton starred={paper.starred} onToggle={() => toggleStar(paper.id)} />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          {/* Focus goes back to the ⋯ on close, as from any button in the peek */}
-          <ActionsDropdownContent align="end" className="w-48" onCloseAutoFocus={() => undefined}>
-            <PaperMenu ids={[paper.id]} />
-          </ActionsDropdownContent>
-        </DropdownMenu>
+        <PaperQuickActions paper={paper} align="end" />
         <Button size="sm" className="ml-1.5" onClick={() => actions.open(paper.id)}>
           {openLabel}
         </Button>

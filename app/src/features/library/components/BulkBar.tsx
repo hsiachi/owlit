@@ -6,13 +6,13 @@ import { Separator } from "@/components/ui/separator"
 import { usePaperActions } from "../actions"
 import { STATUS_OPTIONS } from "../lib/status"
 import { useLibraryStore } from "../store"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 import { TagPicker } from "./TagsEditor"
 
 // Floats at the bottom of the page while two or more papers are selected
 export function BulkBar() {
-  const ids = useUiStore((s) => s.selectedIds)
-  const clearSelection = useUiStore((s) => s.clearSelection)
+  const ids = useLibraryUi((s) => s.selectedIds)
+  const clearSelection = useLibraryUi((s) => s.clearSelection)
   const papers = useLibraryStore((s) => s.papers)
   const addTag = useLibraryStore((s) => s.addTag)
   const actions = usePaperActions()

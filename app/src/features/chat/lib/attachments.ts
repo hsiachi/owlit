@@ -1,43 +1,61 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Mentionable } from "@owlit/protocol"
-import { BorderedList } from "@/components/bordered-list"
-import { DialogHeading } from "@/components/info"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Connector, type FileKind } from "@owlit/protocol"
 import { bridge, isDesktop, rpc } from "@/lib/rpc"
 import { useWorkspace } from "@/lib/workspace"
-import { docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
+import { docMentionable, paperMentionable, type DocMention } from "@/features/docs/lib/mentions"
 import { fileAt } from "@/features/docs/store"
 import { citationLabel } from "@/features/library/lib/format"
 import { displayName, docUri, parentPath } from "@/features/docs/types"
 import { importPdf } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
-import { formatBytes } from "../components/composer/AttachmentList"
 
-// A file on its way into a message: being copied, ready to send, or refused (a folder, a file that can't
-// be read). Refused ones stay as chips that say why, and are never sent.
-export interface DraftFile extends AttachmentFile {
-  state: "adding" | "ready" | "error"
+// A file as a chip shows it: sent with a message, or on its way into one, being copied or refused (a
+// folder, a file that can't be read). Refused ones stay as chips that say why, and are never sent.
+export interface ChipFile extends AttachmentFile {
+  state?: "adding" | "ready" | "error"
   error?: string
   folder?: boolean
 }
 
-// What became of a file that owlit already had: the doc or paper it is, mentioned like an @ pick
-export interface AttachedMention extends Mentionable {
-  label: string
+// A file in the composer, before it is sent
+export interface DraftFile extends ChipFile {
+  state: "adding" | "ready" | "error"
 }
 
-const ABOUT_COPIES = "owlit keeps a copy of each file you attach with the chat, inside the workspace, so the chat still has it when the original moves or changes."
+// The agent the message goes to, when it can't read some kinds of file (Connector.cannotRead)
+export interface Reader {
+  name: string
+  cannotRead: FileKind[]
+}
+
+export function formatBytes(n: number) {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
+
+// An agent as a chip names it: "Owlit engine (Beta)" is the Owlit engine there
+export const agentName = (name: string) => name.replace(/\s*\([^)]*\)$/, "")
+
+// The agent as the chips warn about it, when there are files it can't read
+export const readerOf = (connector?: Connector): Reader | undefined =>
+  connector?.cannotRead?.length ? { name: agentName(connector.name), cannotRead: connector.cannotRead } : undefined
+
+// An attached file's copy, opened in the system's app for it
+export function openAttached(file: { path?: string }) {
+  if (!isDesktop || !file.path) return
+  rpc.chats.openFile({ path: file.path }).catch((error: Error) => toast.error(error.message))
+}
 
 // The files a composer is attaching to a message of `chatId` (a chat that may not exist yet: a new chat's
 // composer names the id it will start it with). Each is copied into the workspace as soon as it is
 // attached (PRODUCT.md §4, Files in chat); one owlit already has turns into a mention instead, through
-// `onMention`.
-export function useAttachments(chatId: string, onMention: (mention: AttachedMention) => void) {
+// `onMention`. Files over LARGE_FILE_BYTES wait in `large` for a yes (LargeFilesDialog) before anything
+// is copied.
+export function useAttachments(chatId: string, onMention: (mention: DocMention) => void) {
   const [files, setFiles] = useState<DraftFile[]>([])
-  // Files over LARGE_FILE_BYTES wait for a yes before anything is copied
-  const [asking, setAsking] = useState<File[] | null>(null)
+  const [large, setLarge] = useState<File[] | null>(null)
   const mentionRef = useRef(onMention)
   mentionRef.current = onMention
   const chatRef = useRef(chatId)
@@ -78,13 +96,25 @@ export function useAttachments(chatId: string, onMention: (mention: AttachedMent
     (list: File[], folders: File[] = []) => {
       if (!list.length && !folders.length) return
       if (list.some((f) => f.size > LARGE_FILE_BYTES)) {
-        setAsking(list)
+        setLarge(list)
         if (folders.length) start([], folders)
         return
       }
       start(list, folders)
     },
     [start],
+  )
+
+  // The question about large files answered: copy them all, only the smaller ones dropped with them
+  // ("skip"), or nothing (the dialog dismissed)
+  const answerLarge = useCallback(
+    (how: "copy" | "skip" | null) => {
+      const list = large ?? []
+      setLarge(null)
+      const chosen = how === "copy" ? list : how === "skip" ? list.filter((f) => f.size <= LARGE_FILE_BYTES) : []
+      if (chosen.length) start(chosen)
+    },
+    [large, start],
   )
 
   // A chip taken off before sending: its copy goes too
@@ -122,47 +152,7 @@ export function useAttachments(chatId: string, onMention: (mention: AttachedMent
     chatRef.current = chatId
   }, [chatId])
 
-  const big = asking?.filter((f) => f.size > LARGE_FILE_BYTES) ?? []
-  const dialog = (
-    <Dialog open={!!asking} onOpenChange={(open) => !open && setAsking(null)}>
-      {/* Focus would land on the title's info icon and open its tooltip */}
-      <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <DialogHeading title={big.length === 1 ? "Copy this large file?" : `Copy ${big.length} large files?`} about={ABOUT_COPIES} />
-        <BorderedList as="ul">
-          {big.map((f, i) => (
-            <li key={i} className="flex h-9 items-center gap-3 px-3.5 text-sm">
-              <span className="min-w-0 flex-1 truncate">{f.name}</span>
-              <span className="shrink-0 text-muted-foreground">{formatBytes(f.size)}</span>
-            </li>
-          ))}
-        </BorderedList>
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              // The smaller ones dropped with them are still attached
-              const rest = asking?.filter((f) => f.size <= LARGE_FILE_BYTES) ?? []
-              setAsking(null)
-              if (rest.length) start(rest)
-            }}
-          >
-            {asking && asking.length > big.length ? "Skip large files" : "Cancel"}
-          </Button>
-          <Button
-            onClick={() => {
-              const all = asking ?? []
-              setAsking(null)
-              start(all)
-            }}
-          >
-            Copy
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-
-  return { files, add, remove, take, addToLibrary, adding: files.some((f) => f.state === "adding"), dialog }
+  return { files, add, remove, take, addToLibrary, adding: files.some((f) => f.state === "adding"), large, answerLarge }
 }
 
 // Splits a drop into files and folders: a folder arrives as a File too, and only its entry tells
@@ -200,13 +190,13 @@ async function base64(file: File): Promise<string> {
   return url.slice(url.indexOf(",") + 1)
 }
 
-function docMention(path: string): AttachedMention {
+function docMention(path: string): DocMention {
   const file = fileAt(path)
   const mention = file ? docMentionable(file) : { id: path, kind: "doc" as const, title: displayName(path), subtitle: parentPath(path) || undefined, uri: docUri(path) }
   return { ...mention, label: displayName(path) }
 }
 
-async function paperMention(id: string, fallback: string): Promise<AttachedMention> {
+async function paperMention(id: string, fallback: string): Promise<DocMention> {
   const paper = useLibraryStore.getState().papers[id]
   // A paper owlit knows no authors of (a local PDF) goes by its title rather than "Unknown"
   if (paper) return { ...paperMentionable(paper), label: paper.authors.length ? citationLabel(paper) : paper.title }

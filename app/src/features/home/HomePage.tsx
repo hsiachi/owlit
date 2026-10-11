@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { keysFor, openShortcuts } from "@/app/shortcuts"
 import { DropOverlay, PdfFileInput } from "@/components/file-drop"
@@ -97,9 +97,10 @@ function LeadCard({ place }: { place: Place }) {
 function Start() {
   const navigate = useNavigate()
   const newDoc = useNewDoc()
-  const fileInput = useRef<HTMLInputElement>(null)
+  // The element itself rather than a ref, since the rows below hand its click out during render
+  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null)
   const rows = [
-    { icon: KIND_ICON.paper, title: "Add papers", detail: "Drop PDFs anywhere here, or choose them from your disk", run: () => fileInput.current?.click() },
+    { icon: KIND_ICON.paper, title: "Add papers", detail: "Drop PDFs anywhere here, or choose them from your disk", run: () => fileInput?.click() },
     { icon: KIND_ICON.doc, title: "New doc", detail: "Notes and drafts are Markdown files in this folder", run: () => newDoc("") },
     { icon: KIND_ICON.chat, title: "Chat with Owlit", detail: "Ask, or hand off work like finding papers", run: () => navigate("/chat") },
   ]
@@ -121,7 +122,7 @@ function Start() {
           {keysFor("shortcuts")} all shortcuts
         </button>
       </p>
-      <PdfFileInput ref={fileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
+      <PdfFileInput ref={setFileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
     </>
   )
 }

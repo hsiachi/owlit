@@ -3,22 +3,12 @@
 // shortcut list. They open over the page, so nothing navigates.
 
 import { parseOwlitUri } from "@owlit/protocol"
-import { openSettings, SECTIONS, type SettingsSection } from "@/features/settings/store"
+import { openSettings, SECTIONS } from "@/features/settings/store"
 import { openShortcuts } from "./shortcuts"
-
-const SECTION_NAMES: Record<SettingsSection, string> = {
-  profile: "Profile",
-  appearance: "Appearance",
-  agents: "Agents",
-  sources: "Paper sources",
-  proxy: "Library proxy",
-  reading: "PDF reading",
-  privacy: "Privacy",
-}
 
 const settingsSection = (href: string) => {
   const u = parseOwlitUri(href)
-  return u?.kind === "settings" ? { section: SECTIONS.find((s) => s === u.section) } : null
+  return u?.kind === "settings" ? { section: SECTIONS.find((s) => s.id === u.section) } : null
 }
 
 const isShortcuts = (href: string) => parseOwlitUri(href)?.kind === "shortcuts"
@@ -26,7 +16,7 @@ const isShortcuts = (href: string) => parseOwlitUri(href)?.kind === "shortcuts"
 // What the link opens, in words; null for anything that isn't one of these links
 export function appLinkTitle(href: string) {
   const settings = settingsSection(href)
-  if (settings) return settings.section ? `Settings › ${SECTION_NAMES[settings.section]}` : "Settings"
+  if (settings) return settings.section ? `Settings › ${settings.section.label}` : "Settings"
   if (isShortcuts(href)) return "Keyboard shortcuts"
   return null
 }
@@ -35,7 +25,7 @@ export function appLinkTitle(href: string) {
 export function openAppLink(href: string) {
   const settings = settingsSection(href)
   if (settings) {
-    openSettings(settings.section)
+    openSettings(settings.section?.id)
     return true
   }
   if (isShortcuts(href)) {

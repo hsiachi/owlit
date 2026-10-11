@@ -1,0 +1,90 @@
+import { memo } from "react"
+import { useNavigate } from "react-router-dom"
+import { cn } from "@/lib/utils"
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller"
+import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
+import { useChatStore } from "../store"
+import { useBrokenReply, useSeenStore } from "../status"
+import { regenerate } from "../lib/regenerate"
+import { modelNameOf } from "../lib/selection"
+import type { Chat, ChatMessage } from "../types"
+import { AssistantMessage, UserMessage } from "./messages/MessageItem"
+
+// A chat's messages, on the Chat page or in the docked agent panel (`panel`): the same conversation at
+// two sizes. `onEdit` puts a sent question back in the composer.
+export function ChatMessages({ chat, streaming, panel = false, onEdit }: { chat: Chat; streaming: boolean; panel?: boolean; onEdit?: (text: string) => void }) {
+  const connectors = useChatStore((s) => s.connectors)
+  const broken = useBrokenReply(chat)
+  return (
+    // One scroller per chat, so switching chats opens the next one at its end
+    <MessageScrollerProvider key={chat.id}>
+      <MessageScroller className={cn("flex-1", panel && "min-h-0")}>
+        <MessageScrollerViewport className="px-4" aria-label="Messages">
+          <MessageScrollerContent className={panel ? "w-full gap-1 py-2 pb-10" : "mx-auto w-full max-w-3xl gap-1 py-6 pb-12"}>
+            {/* Items sit directly in the content: the scroller only sees its direct children, so a wrapper
+                hides new messages from it and a sent question never moves to the top.
+                Items carry the spacing as bottom padding so the hover footers, which hang below each
+                message, stay inside the item's paint containment instead of being clipped. The latest
+                exchange always renders: skipped off screen, a just-sent question would be measured at its
+                placeholder height, and the scroller would anchor it a frame early and then jump */}
+            {chat.messages.map((m, i) => (
+              <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className={cn("pb-7", i >= chat.messages.length - 2 && "[content-visibility:visible]")}>
+                <MessageRow
+                  chatId={chat.id}
+                  message={m}
+                  index={i}
+                  modelName={m.role === "assistant" ? modelNameOf(connectors, m.connectorId, m.modelId) : undefined}
+                  canRegenerate={m.role === "assistant" && !streaming}
+                  broken={broken?.messageId === m.id}
+                  onEdit={onEdit}
+                />
+              </MessageScrollerItem>
+            ))}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+        {/* Floats above the text like a menu would: popover surface and a soft shadow */}
+        <MessageScrollerButton className={cn(panel ? "bottom-4" : "bottom-6", "bg-popover shadow-md")} />
+      </MessageScroller>
+    </MessageScrollerProvider>
+  )
+}
+
+// One message, drawn again only when it changes: a streamed token changes the reply it belongs to, not the
+// answers before it (their Markdown, maths and result rows)
+const MessageRow = memo(function MessageRow({
+  chatId,
+  message,
+  index,
+  modelName,
+  canRegenerate,
+  broken,
+  onEdit,
+}: {
+  chatId: string
+  message: ChatMessage
+  index: number
+  modelName?: string
+  canRegenerate: boolean
+  // The chat's broken reply, which can be dismissed while it still asks for the user
+  broken: boolean
+  onEdit?: (text: string) => void
+}) {
+  const navigate = useNavigate()
+  if (message.role === "user") return <UserMessage message={message} onEdit={onEdit} />
+  return (
+    <AssistantMessage
+      message={message}
+      modelName={modelName}
+      onRegenerate={canRegenerate ? () => regenerate(chatId, index) : undefined}
+      onDismiss={broken ? () => useSeenStore.getState().dismiss(chatId, message.id) : undefined}
+      onSaveAsDoc={(markdown) => saveAnswerAsDoc(useChatStore.getState().chats[chatId]?.title ?? "", markdown, navigate)}
+    />
+  )
+})

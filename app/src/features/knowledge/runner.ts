@@ -1,7 +1,7 @@
 import { docUri, paperUri } from "@owlit/protocol"
 import { useDocsStore } from "@/features/docs/store"
 import { freshId, getTopic, useKnowledgeStore, writeTopic } from "./store"
-import { firstWords, isoDay, paperRef } from "./format"
+import { firstWords, isoDay, oneLine, paperRef } from "./format"
 import { SCRIPT } from "./mocks/script"
 import { capital, plural } from "@/lib/words"
 
@@ -71,8 +71,8 @@ const DISAGREES = /^(?:actually|no\b|not really|not quite|that'?s (?:wrong|not r
 const OPENER = /^(?:actually|no|not really|not quite|that'?s (?:wrong|not right|not it)|i (?:don'?t|do not) think (?:so|that)|i disagree|wrong)[,.:;]?\s*/i
 
 const sentence = (s: string) => {
-  const t = s.trim().replace(/\s+/g, " ")
-  return t ? t.charAt(0).toUpperCase() + t.slice(1) + (/[.!?]$/.test(t) ? "" : ".") : t
+  const t = oneLine(s)
+  return t ? capital(t) + (/[.!?]$/.test(t) ? "" : ".") : t
 }
 
 export interface Revision {

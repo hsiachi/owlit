@@ -2,7 +2,7 @@ import { toast } from "sonner"
 import { useDebouncedQuery } from "@/hooks/use-debounced-query"
 import { libraryClient, useLibraryStore } from "../store"
 import type { Paper, ResolvedPaper } from "../types"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 export type Lookup =
   | { state: "loading" }
@@ -45,7 +45,7 @@ export function useRefLookup(input: string | null) {
     if (lookup?.state !== "found") return
     const paper = addPaper(lookup.resolved)
     // The new paper lands at the top, already peeked, so it can be tagged or read right away
-    useUiStore.setState({ query: "", filter: "all", tags: [], selectedIds: [paper.id], cursorId: paper.id, anchorId: paper.id, peekId: paper.id })
+    useLibraryUi.getState().revealPaper(paper.id)
     toast("Added to library", { description: paper.title })
   }
 

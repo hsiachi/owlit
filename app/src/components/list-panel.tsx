@@ -1,6 +1,6 @@
 import { PlusIcon, SearchIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { usePaletteStore } from "@/app/palette-store"
+import { openPalette } from "@/app/palette-store"
 import { keysFor } from "@/app/shortcuts"
 import { Kbd } from "@/components/ui/kbd"
 import { SidebarHeader } from "@/components/ui/sidebar"
@@ -8,13 +8,12 @@ import { SidebarHeader } from "@/components/ui/sidebar"
 // The top of a list panel (Chat, Docs): the search button, then the panel's New row. Both panels draw it
 // from here, so switching between them moves nothing.
 export function PanelHeader({ children }: { children: React.ReactNode }) {
-  const openPalette = usePaletteStore((s) => s.setOpen)
   return (
     <SidebarHeader className="gap-1.5 px-2.5 pt-2.5 pb-1">
       {/* Looks like a search field and opens the ⌘K palette, which finds papers, docs and message text */}
       <button
         type="button"
-        onClick={() => openPalette(true)}
+        onClick={openPalette}
         className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-key:border-foreground/30 focus-key:text-foreground"
       >
         <SearchIcon className="size-4" />

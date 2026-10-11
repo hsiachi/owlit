@@ -1,7 +1,7 @@
 // What agents can show the user in this window (ui.open, ui.jump, ui.mark, ui.say from core, which
 // owlit-mcp offers agents as tools): a paper, doc or chat opened, a passage ringed or selected, a
 // passage highlighted. Each answers with the title of what it showed, or refuses in a sentence the
-// agent reads.
+// agent reads. The channel they come over is lib/ui-actions.
 
 import { parseOwlitUri } from "@owlit/protocol"
 import { EditorSelection } from "@codemirror/state"
@@ -16,12 +16,10 @@ import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
 import { fileAt } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import type { PassageTarget } from "@/features/library/reader/passages"
-import { useReaderStore } from "@/features/library/reader/reader-store"
+import { whenReaderReady } from "@/features/library/reader/reader-store"
 import { useLibraryStore } from "@/features/library/store"
 import { registerUiHandler, waitFor } from "@/lib/ui-actions"
 
-// Long enough for a PDF to load and lay out; core gives up at 20s
-const READER_WITHIN_MS = 15_000
 const EDITOR_WITHIN_MS = 5_000
 
 type Target = { kind: "paper"; id: string; title: string } | { kind: "doc"; id: string; title: string } | { kind: "other"; title: string }
@@ -59,15 +57,7 @@ function passageOf(quote: string, page?: number): PassageTarget {
 function reader(id: string) {
   const paper = useLibraryStore.getState().papers[id]
   if (!paper.pdf) throw new Error(`${paper.title} has no PDF in owlit yet.`)
-  return waitFor(
-    () => {
-      const { api, ready } = useReaderStore.getState()
-      return api?.paperId === id && ready === id ? api : null
-    },
-    (changed) => useReaderStore.subscribe(changed),
-    READER_WITHIN_MS,
-    "The paper's PDF didn't open in time.",
-  )
+  return whenReaderReady(id)
 }
 
 // Where a quote is in a doc: word for word, else the same words with any Markdown or line breaks
@@ -81,7 +71,7 @@ function findInDoc(text: string, quote: string) {
   return m ? { from: m.index, to: m.index + m[0].length } : null
 }
 
-export function startUiActions(router: typeof appRouter) {
+export function startUiHandlers(router: typeof appRouter) {
   // Leaving the chat whose agent asked would hide its next question and its answer: the chat carries on
   // in the agent window, beside what it showed
   const show = async (uri: string, chatId?: string) => {

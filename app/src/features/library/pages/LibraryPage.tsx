@@ -17,15 +17,15 @@ import { usePaperListKeys } from "../lib/use-list-keys"
 import { useRefLookup } from "../lib/use-ref-lookup"
 import { usePrefsStore } from "../prefs-store"
 import { useLibraryStore } from "../store"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 // All papers: everything in the library, narrowed by search, status and tags
 export function LibraryPage() {
   const papers = useLibraryStore((s) => s.papers)
-  const query = useUiStore((s) => s.query)
-  const filter = useUiStore((s) => s.filter)
-  const tags = useUiStore((s) => s.tags)
-  const sort = useUiStore((s) => s.sort)
+  const query = useLibraryUi((s) => s.query)
+  const filter = useLibraryUi((s) => s.filter)
+  const tags = useLibraryUi((s) => s.tags)
+  const sort = useLibraryUi((s) => s.sort)
   const layout = usePrefsStore((s) => s.layout)
   const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files)))
 

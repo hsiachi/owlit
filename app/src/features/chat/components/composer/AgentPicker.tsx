@@ -1,6 +1,6 @@
 import { Fragment } from "react"
 import { CheckIcon, TriangleAlertIcon } from "lucide-react"
-import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
+import { ROLES } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,35 +19,8 @@ import { Tip } from "@/components/tip"
 import { AgentIcon } from "./agent-icons"
 import { isUnavailable, statusLabel } from "../../lib/connector-status"
 import { ConnectorStatusChip } from "../ConnectorStatusChip"
-import { useChatStore, type Selection } from "../../store"
+import { useResolvedSelection } from "../../use-selection"
 import { openSettings } from "@/features/settings/store"
-import type { Connector } from "../../types"
-
-// Resolves the agent, model, effort and role in effect for a chat (or the global default)
-export function useResolvedSelection(chatId?: string) {
-  const connectors = useChatStore((s) => s.connectors)
-  const globalSelection = useChatStore((s) => s.selection)
-  const chat = useChatStore((s) => (chatId ? s.chats[chatId] : undefined))
-  const setSelection = useChatStore((s) => s.setSelection)
-  const setChatSelection = useChatStore((s) => s.setChatSelection)
-
-  const selection: Selection = chat?.connectorId
-    ? { connectorId: chat.connectorId, modelId: chat.modelId, role: chat.role ?? globalSelection.role, effortId: chat.effortId }
-    : globalSelection
-  const update = (patch: Partial<Selection>) => (chatId ? setChatSelection(chatId, patch) : setSelection(patch))
-
-  const connector: Connector | undefined = connectors.find((c) => c.id === selection.connectorId) ?? connectors[0]
-  const model =
-    connector?.models.find((m) => m.id === selection.modelId) ??
-    connector?.models.find((m) => m.id === connector.defaultModelId) ??
-    connector?.models[0]
-  const role = ROLES.find((r) => r.id === selection.role) ?? ROLES.find((r) => r.id === DEFAULT_ROLE)!
-  const effort =
-    connector?.efforts?.find((e) => e.id === selection.effortId) ??
-    connector?.efforts?.find((e) => e.id === connector.defaultEffortId) ??
-    connector?.efforts?.[0]
-  return { connectors, connector, model, role, effort, update }
-}
 
 // A compact trigger: no chevron (a menu opens from each), a tooltip naming what it sets. Radix needs the
 // tooltip and menu triggers stacked on the same button.
@@ -96,8 +69,6 @@ function RadioItem({
     </DropdownMenuItem>
   )
 }
-
-
 
 // Three triggers: agent · model + effort · Owlit's role. Edits a chat's own
 // selection when chatId is given, the global default otherwise.

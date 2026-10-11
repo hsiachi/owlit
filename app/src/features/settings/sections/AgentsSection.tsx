@@ -1,9 +1,8 @@
 import { useState } from "react"
-import { PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
+import { RefreshCwIcon, Trash2Icon } from "lucide-react"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/copy-button"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
@@ -12,7 +11,7 @@ import { isBroken, isFound as isReady } from "@/features/chat/lib/connector-stat
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
-import { CommitInput, GroupLabel, IconAction, List, Note, onHover, Picker, Row } from "../parts"
+import { CommitInput, FoldedForm, GroupLabel, IconAction, List, Note, onHover, Picker, Row } from "../parts"
 import { EngineSignIns } from "./EngineSignIns"
 import { updateSettings, useSettings } from "../store"
 
@@ -105,26 +104,20 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
     setCommand("")
   }
 
-  if (!open) {
-    return (
-      <Button variant="ghost" size="sm" className="mt-2 -ml-2 font-normal text-muted-foreground" onClick={() => setOpen(true)}>
-        <PlusIcon />
-        Add an agent
-      </Button>
-    )
-  }
-
   return (
-    <form
-      className="mt-3 flex flex-col gap-3.5 rounded-lg border bg-card p-4"
-      onSubmit={(e) => {
-        e.preventDefault()
+    <FoldedForm
+      label="Add an agent"
+      open={open}
+      onOpen={() => setOpen(true)}
+      onCancel={close}
+      onSubmit={() => {
         if (!command.trim()) return
         void addCustom(name, command).then((c) => check(c.id))
         close()
       }}
+      submit="Add agent"
+      submitDisabled={!command.trim()}
     >
-      <div className="text-sm font-medium">Add an agent</div>
       <label className="flex flex-col gap-1.5">
         <span className="text-xs text-muted-foreground">Name</span>
         <Input autoFocus placeholder="My agent" value={name} onChange={(e) => setName(e.target.value)} />
@@ -134,15 +127,7 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
         <Input placeholder="my-agent --acp" value={command} onChange={(e) => setCommand(e.target.value)} className="font-mono text-detail" />
         <span className="text-xs text-muted-foreground">What owlit runs to start the agent. It must speak ACP over stdio.</span>
       </label>
-      <div className="flex justify-end gap-2 pt-0.5">
-        <Button type="button" variant="ghost" className="text-muted-foreground" onClick={close}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={!command.trim()}>
-          Add agent
-        </Button>
-      </div>
-    </form>
+    </FoldedForm>
   )
 }
 

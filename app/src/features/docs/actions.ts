@@ -9,6 +9,7 @@ import { displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from ".
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
 import { useNewDoc } from "./use-new-doc"
 import { toastUndo } from "@/lib/toast"
+import { plural } from "@/lib/words"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -65,7 +66,7 @@ export function useDocActions() {
     if (ui.selectedFolder && isWithin(ui.selectedFolder, path)) ui.selectFolder(null)
     const n = removed.files.length
     const name = path.split("/").pop() ?? path
-    undoToast("Folder deleted", n ? `${name} and ${n} ${n === 1 ? "file" : "files"}` : name, removed)
+    undoToast("Folder deleted", n ? `${name} and ${plural(n, "file")}` : name, removed)
   }
 
   // Several rows at once, as one change with one Undo. What sits inside a picked folder goes with it.

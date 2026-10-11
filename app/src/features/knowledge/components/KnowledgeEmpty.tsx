@@ -9,6 +9,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useLibraryStore } from "@/features/library/store"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { ago } from "@/lib/time"
+import { plural } from "@/lib/words"
 import { useKnowledgeStore } from "../store"
 
 const SHOWN = 5
@@ -30,7 +31,7 @@ export function KnowledgeEmpty() {
     .sort((a, b) => (marks.get(b.id) ?? 0) - (marks.get(a.id) ?? 0))
     .map((p) => {
       const n = marks.get(p.id) ?? 0
-      const what = [n && `${n} highlight${n === 1 ? "" : "s"}`, notes[p.id]?.content.trim() && "a note"].filter(Boolean).join(", ")
+      const what = [n && plural(n, "highlight"), notes[p.id]?.content.trim() && "a note"].filter(Boolean).join(", ")
       return { key: p.id, to: `/library/${p.id}`, icon: KIND_ICON.paper, title: citationLabel(p), what }
     })
   const docs = Object.values(files)
