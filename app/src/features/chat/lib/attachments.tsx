@@ -212,7 +212,8 @@ function docMention(path: string): AttachedMention {
 
 async function paperMention(id: string, fallback: string): Promise<AttachedMention> {
   const paper = useLibraryStore.getState().papers[id]
-  if (paper) return { ...paperMentionable(paper), label: shortCite(paper) }
+  // A paper owlit knows no authors of (a local PDF) goes by its title rather than "Unknown"
+  if (paper) return { ...paperMentionable(paper), label: paper.authors.length ? shortCite(paper) : paper.title }
   return { id, kind: "paper", title: fallback, uri: `owlit://library/${id}`, label: fallback }
 }
 

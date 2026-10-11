@@ -145,7 +145,8 @@ function renderWithMentions(text: string, mentions: ChatMessage["mentions"]) {
   return parts.map((p, i) => {
     const m = /^@\[([^\]]+)\]$/.exec(p)
     if (!m) return p
-    const item = mentions?.find((x) => x.title === m[1])
+    // The marker holds the label the composer showed ("Vaswani et al. 2017"), kept with the mention
+    const item = mentions?.find((x) => (x as { label?: string }).label === m[1] || x.title === m[1])
     return item ? <MentionBadge key={i} item={item} className="mx-px align-baseline" /> : m[1]
   })
 }
