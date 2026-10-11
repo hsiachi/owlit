@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { answerFor, consentFor, guardFor } from "./roles.ts"
+import { guardFor } from "./profiles.ts"
+import { answerFor, consentFor } from "./roles.ts"
 
 describe("roles", () => {
   it("runs Claude Code in auto mode, with edits asked or refused and the workspace closed to its shell", () => {

@@ -12,6 +12,8 @@ export interface PromptContext {
   role: Role
   // A background run: one prompt, no user to ask, the answer is the result
   background: boolean
+  // An agent the chat's agent handed one part of the work to (agents.ts)
+  agent?: boolean
   workspace: string
   userName?: string
   // owlit's rules (owlit-mcp's instructions); absent when owlit-mcp couldn't reach owlit
@@ -55,10 +57,17 @@ You may add papers the user asked for and keep reading notes. Each edit to the u
 You may edit the user's docs without asking; owlit keeps every change so they can undo it. Still change only what the task needs, and say what you changed.`,
 }
 
+const AGENTS = `# Agents of your own
+When the work splits into parts that don't depend on each other (the lines of a literature review, several papers to check one by one), hand each part to an agent with the agent tool, all in one go, so they run at the same time. Give each a short task the user will recognise and full instructions, since an agent doesn't see this conversation. You get each agent's report back: check them against each other, then answer. Don't use agents for a small or quick request.`
+
+const AGENT = `# You are an agent
+Owlit handed you one part of a larger piece of work; the instructions are in the message. Do just that part with your tools. Nobody reads your messages until you finish and nobody can answer questions, so don't ask any. End with your report as your last message: what you found or did, with the citations and page links owlit's rules ask for, and what didn't work.`
+
 const BACKGROUND = `# This is background work
 Nobody is waiting on this answer and nobody can answer questions: do the task with what you have, and make your final message exactly the result asked for, with nothing before or after it.`
 
 export function systemPrompt(ctx: PromptContext) {
   const context = [`# Context`, `- The user's workspace: ${ctx.workspace}`, ...(ctx.userName ? [`- The user's name: ${ctx.userName}. Call them that when you address them.`] : []), `- Today: ${ctx.today}`].join("\n")
-  return [IDENTITY, HOW_TO_WORK, ctx.background ? BACKGROUND : ROLES[ctx.role], context, ...(ctx.rules ? [`# owlit's rules\n\n${ctx.rules}`] : [])].join("\n\n")
+  const situation = ctx.background ? [BACKGROUND] : ctx.agent ? [ROLES[ctx.role], AGENT] : [ROLES[ctx.role], AGENTS]
+  return [IDENTITY, HOW_TO_WORK, ...situation, context, ...(ctx.rules ? [`# owlit's rules\n\n${ctx.rules}`] : [])].join("\n\n")
 }

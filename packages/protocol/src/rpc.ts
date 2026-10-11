@@ -103,6 +103,9 @@ export interface Methods {
   // Every Markdown file with its text, other files without, and every folder
   "docs.list": { params: void; result: DocsListing }
   "docs.read": { params: { path: string }; result: { content: string; modifiedAt: number } }
+  // A PDF in the workspace as text, each page after a <!-- page N --> line (the same reading and page
+  // numbers as a paper in the Library); pages picks some ("3-5,8")
+  "docs.readPdf": { params: { path: string; pages?: string }; result: { text: string; pages: number } }
   // Writes a new file. id carries over one the client already uses; followsFirstLine names the file
   // after its first line now and on later writes, until it is renamed by hand.
   "docs.create": { params: { path: string; content: string; id?: string; followsFirstLine?: boolean }; result: DocStat }

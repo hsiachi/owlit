@@ -1,5 +1,6 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { AgentQuestion, QuestionAnswer, ToolInfo } from "@owlit/protocol"
+import { toolNameOf } from "./profiles.ts"
 
 // An agent's form (ACP elicitation) as questions the chat can show, and the user's answers back as the
 // form's content. Claude Code sends its AskUserQuestion this way: one select field per question
@@ -78,11 +79,11 @@ export function contentFrom(request: { requestedSchema?: { properties?: Record<s
   return content
 }
 
-// What a tool call says about itself beyond its title: Claude Code puts its own tool name in
-// _meta.claudeCode.toolName and its input in rawInput. Only the inputs that name the step are kept.
-export function toolInfoOf(call: { _meta?: Record<string, unknown> | null; rawInput?: unknown }): ToolInfo | undefined {
-  const name = (call._meta?.claudeCode as { toolName?: unknown } | undefined)?.toolName
-  if (typeof name !== "string" || !name) return undefined
+// What a tool call says about itself beyond its title: its tool's name (profiles.ts reads it) and its input
+// in rawInput. Only the inputs that name the step are kept.
+export function toolInfoOf(call: { name?: string | null; _meta?: Record<string, unknown> | null; rawInput?: unknown }): ToolInfo | undefined {
+  const name = toolNameOf(call)
+  if (!name) return undefined
   const input = (call.rawInput ?? {}) as Record<string, unknown>
   const str = (k: string) => (typeof input[k] === "string" && (input[k] as string).trim() ? (input[k] as string).trim() : undefined)
   const info: ToolInfo = { name }

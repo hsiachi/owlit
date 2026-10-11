@@ -102,7 +102,8 @@ const patchSchema = z.object({
     })
     .optional(),
   backgroundAgent: nullable(z.string().min(1)),
-  backgroundModel: z.object({ agent: z.string().min(1), model: nullable(z.string().min(1)) }).optional(),
+  // model is required, as SettingsPatch says; null clears the agent's choice
+  backgroundModel: z.object({ agent: z.string().min(1), model: z.string().min(1).nullable() }).optional(),
 })
 const secretName = z.enum(["s2ApiKey", "openalexApiKey", "mineruToken"])
 const presetName = z.enum(Object.keys(PROXY_PRESETS) as [keyof typeof PROXY_PRESETS])

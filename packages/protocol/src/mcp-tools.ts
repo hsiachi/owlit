@@ -146,8 +146,16 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   },
   {
     name: "docs_read",
-    description: "A doc's text, as it is on disk now.",
-    inputSchema: { type: "object", properties: { path: { type: "string", description: "Workspace-relative path, e.g. 'drafts/Related work.md'" } }, required: ["path"] },
+    description:
+      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers. A PDF in the Library is read with library_read instead.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Workspace-relative path, e.g. 'drafts/Related work.md' or 'reviews/round1.pdf'" },
+        pages: { type: "string", description: "For a PDF: only these pages, e.g. '3-5' or '1,4'" },
+      },
+      required: ["path"],
+    },
   },
   {
     name: "docs_add_note",

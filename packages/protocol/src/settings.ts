@@ -76,3 +76,6 @@ export function proxyFromLink(link: string): ProxySettings | null {
   }
   return null
 }
+
+// The agent owlit picks when nothing says which (background work, the automatic choice in Settings)
+export const FIRST_CHOICE_AGENT = "claude-code"
