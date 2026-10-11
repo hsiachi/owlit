@@ -1,5 +1,6 @@
 import { ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
@@ -15,6 +16,8 @@ import { guide } from "./agents/guide.ts"
 import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
 import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
+import { pickFromText } from "./library/library.ts"
+import { extractText, toMarkdown, UnreadablePdf } from "./library/text/extract.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
@@ -186,6 +189,21 @@ export class Core {
     const rel = z.string()
     this.router.register("docs.list", noParams, () => docs().list())
     this.router.register("docs.read", z.object({ path: rel }), ({ path }) => docs().read(path))
+    // Any agent reads a PDF the user has in the workspace (an attachment, a file that isn't in the Library)
+    // through owlit, with the page numbers it would cite; the Owlit engine has no other way to read one
+    this.router.register("docs.readPdf", z.object({ path: rel, pages: z.string().optional() }), async ({ path: file, pages }) => {
+      const ws = this.requireWorkspace()
+      const relPath = ws.docs.resolve(file)
+      const bytes = await readFile(path.join(ws.root, relPath)).catch(() => {
+        throw new RpcFailure(RpcErrorCode.NotFound, `There is no ${relPath} in the workspace.`, { path: relPath })
+      })
+      const text = await extractText(bytes, { wasmPath: this.options.pdfiumWasm }).catch((error) => {
+        throw error instanceof UnreadablePdf ? new RpcFailure(RpcErrorCode.InvalidParams, `${relPath} isn't a PDF owlit can read.`, { path: relPath }) : error
+      })
+      const markdown = toMarkdown(text)
+      if (!markdown.replace(/<!-- page \d+ -->/g, "").trim()) return { text: `${relPath} has no text to read: its pages are images (a scan).`, pages: text.pages.length }
+      return pickFromText(markdown, { pages })
+    })
     this.router.register(
       "docs.create",
       z.object({ path: rel, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }),
