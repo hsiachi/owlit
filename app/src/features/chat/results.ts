@@ -19,6 +19,8 @@ export interface AgentResult {
   path: string
   label: string
   at: number
+  // A paper the agent took back out of the library
+  removed?: boolean
   undone?: boolean
 }
 
@@ -94,9 +96,9 @@ export function recordResult(chatId: string | undefined, result: AgentResult) {
 }
 
 if (isDesktop) {
-  onNotify("agent.changed", ({ kind, versionId, path, label, chatId }) => {
+  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId }) => {
     if (kind === "knowledge") return
-    recordResult(chatId, { kind, versionId, path, label, at: Date.now() })
+    recordResult(chatId, { kind, versionId, path, label, at: Date.now(), ...(op === "removed" ? { removed: true } : {}) })
   })
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {
     recordResult(chatId, { kind: "file", versionId, path, label: labelOf(path), at: Date.now() })

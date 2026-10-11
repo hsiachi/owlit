@@ -267,8 +267,14 @@ export interface Methods {
   "library.update": { params: { id: string; patch: PaperPatch }; result: Paper }
   // Moves papers, with their highlights and notes, to .owlit/trash/
   "library.remove": { params: { ids: string[] }; result: null }
+  // Papers an agent added and the user hasn't worked with, to .owlit/trash/ as versions (Undo); papers
+  // it may not remove come back in refused, with why
+  "library.removeByAgent": { params: { ids: string[]; chatId?: string }; result: { removed: string[]; refused: { id: string; why: string }[] } }
   // Puts back what library.remove took (Undo)
   "library.restore": { params: { ids: string[] }; result: Paper[] }
+  // Refresh details: asks the services about the paper again now and rewrites its details (the user's
+  // own corrections stay). A paper found to be a copy of another is folded into it: that one comes back.
+  "library.refresh": { params: { id: string }; result: Paper | null }
   // Adds a highlight, or replaces the one with its id
   "library.putHighlight": { params: { highlight: Highlight }; result: null }
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
@@ -374,7 +380,8 @@ export interface Notifications {
   "agent.wrote": { path: string; versionId: string; chatId?: string }
   // An agent in a chat left a note, added a paper or changed a Knowledge topic; versionId undoes it.
   // label names what changed (the doc, the paper's title, the topic).
-  "agent.changed": { kind: "note" | "paper" | "knowledge"; versionId: string; path: string; label: string; chatId?: string }
+  // op "removed": an agent took back a paper it added (absent: an addition or a write)
+  "agent.changed": { kind: "note" | "paper" | "knowledge"; op?: "removed"; versionId: string; path: string; label: string; chatId?: string }
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

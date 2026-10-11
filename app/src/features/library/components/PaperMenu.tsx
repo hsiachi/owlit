@@ -70,6 +70,15 @@ function useMenuSections(papers: Paper[], afterRemove?: () => void): Section[] {
     { key: "bibtex", label: "Copy BibTeX", onSelect: () => actions.copyBibtex(papers) },
   ]
   if (single) copy.push({ key: "edit", label: "Edit details", onSelect: () => actions.editDetails(single.id) })
+  // Asks the paper services again (a title missing its subtitle, a wrong abstract); a paper they can't
+  // know (a local PDF without a DOI) has nobody to ask. The user's own corrections stay.
+  if (isDesktop && single && (single.ids.doi || single.ids.arxiv || single.ids.s2 || single.ids.openalex)) {
+    copy.push({
+      key: "refresh",
+      label: "Refresh details",
+      onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: Error) => toast.error(error.message || "Couldn't refresh the details.")),
+    })
+  }
   // A paper with something to read and no reading note yet; core skips it otherwise anyway
   if (isDesktop && single && !single.hasDigest && (single.pdf || single.text)) {
     copy.push({

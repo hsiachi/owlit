@@ -17,6 +17,7 @@ import {
   type PaperText,
   type ParsingSettings,
   type ResolvedPaper,
+  type Task,
   type TaskPriority,
 } from "@owlit/protocol"
 import { watch, type FSWatcher } from "node:fs"
@@ -32,7 +33,7 @@ import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "..
 import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
-import { keepSources, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
+import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
 import {
   describeFailure,
   downloadPdf,
@@ -206,7 +207,7 @@ export class Library {
         resolution = known.resolution
       }
     }
-    const existingId = await this.index.find(resolution.ids)
+    const existingId = (await this.index.find(resolution.ids)) ?? (await this.index.twin(resolution.title, resolution.ids))
     return { paper: { id: resolution.id, ...pick(resolution) }, existingId }
   }
 
@@ -224,13 +225,20 @@ export class Library {
   // ---- Changing
 
   // Adds a looked-up paper; one the library already has (under any of its ids) is returned as it is
-  add(resolved: ResolvedPaper, addedBy: Paper["addedBy"] = "user", priority: TaskPriority = "asked"): Promise<Paper> {
+  async add(resolved: ResolvedPaper, addedBy: Paper["addedBy"] = "user", priority: TaskPriority = "asked"): Promise<Paper> {
+    return (await this.addNew(resolved, addedBy, priority)).paper
+  }
+
+  // add(), saying whether the paper was there already (under one of its ids, or as the same title
+  // where one of the two has no DOI)
+  addNew(resolved: ResolvedPaper, addedBy: Paper["addedBy"] = "user", priority: TaskPriority = "asked"): Promise<{ paper: Paper; existed: boolean }> {
     return this.serial(async () => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
       if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, "owlit can't tell which paper that is.")
       // A folder already there is that paper even if the index missed it: never written over
-      const existing = (await this.index.find(resolved.ids)) ?? ((await readRecord(this.root, id)) ? id : undefined)
-      if (existing) return (await this.get(existing))!
+      const existing =
+        (await this.index.find(resolved.ids)) ?? ((await readRecord(this.root, id)) ? id : undefined) ?? (await this.index.twin(resolved.title, resolved.ids))
+      if (existing) return { paper: (await this.get(existing))!, existed: true }
       const resolution = this.recent(id)
       const record: PaperRecord = resolution
         ? recordFrom(id, resolution)
@@ -250,11 +258,13 @@ export class Library {
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
       await writeState(this.root, id, freshState(addedBy))
-      this.index.set(id, record.ids)
-      // What a lookup didn't fill, the services fill now; then the steps that follow an add
+      this.index.set(id, record.ids, record.title)
+      // What a lookup didn't fill (or a search result left unchecked: no Crossref title), the services
+      // fill now; then the steps that follow an add
       if (!resolution) this.queue("paper.metadata", id, priority)
+      else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
       for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
-      return (await this.get(id))!
+      return { paper: (await this.get(id))!, existed: false }
     })
   }
 
@@ -289,7 +299,7 @@ export class Library {
     const { ids: _ids, ...rest } = patch
     await writeState(this.root, next, applyPatch(state, record, rest))
     this.index.delete(id)
-    this.index.set(next, ids)
+    this.index.set(next, ids, record.title)
     for (const [sha, paper] of this.pdfHashes ?? []) if (paper === id) this.pdfHashes!.set(sha, next)
     const aliases = await this.aliases()
     for (const [from, to] of Object.entries(aliases)) if (to === id) aliases[from] = next
@@ -316,16 +326,28 @@ export class Library {
   remove(ids: string[]): Promise<null> {
     return this.serial(async () => {
       const stamp = Date.now()
-      for (const id of ids) {
-        if (!isPaperId(id)) continue
-        this.scheduler?.cancelSubject(id)
-        const trash = this.trashDir(stamp, id)
-        await mkdir(trash, { recursive: true })
-        await rename(paperDir(this.root, id), path.join(trash, "paper")).catch(ignoreMissing)
-        await rename(paperStateDir(this.root, id), path.join(trash, "state")).catch(ignoreMissing)
-        this.index.delete(id)
-      }
+      for (const id of ids) if (isPaperId(id)) await this.trash(id, stamp)
       return null
+    })
+  }
+
+  // An agent taking back papers it added: only those, and only while the user hasn't worked with them
+  // (consent follows ownership: what the user has touched is theirs to remove)
+  removeByAgent(ids: string[]): Promise<{ removed: string[]; refused: { id: string; why: string }[] }> {
+    return this.serial(async () => {
+      const removed: string[] = []
+      const refused: { id: string; why: string }[] = []
+      const stamp = Date.now()
+      for (const id of ids) {
+        if (!isPaperId(id) || !(await readRecord(this.root, id))) refused.push({ id, why: "it isn't in the library" })
+        else if ((await readState(this.root, id))?.addedBy !== "agent") refused.push({ id, why: "the user added it; ask them to remove it" })
+        else if (await this.touched(id)) refused.push({ id, why: "the user has starred, tagged, marked, highlighted or written about it; ask them" })
+        else {
+          await this.trash(id, stamp)
+          removed.push(id)
+        }
+      }
+      return { removed, refused }
     })
   }
 
@@ -344,9 +366,10 @@ export class Library {
         await rename(path.join(trash, "paper"), paperDir(this.root, id)).catch(ignoreMissing)
         await rename(path.join(trash, "state"), paperStateDir(this.root, id)).catch(ignoreMissing)
         await rm(trash, { recursive: true, force: true })
-        const paper = await this.get(id)
+        const record = await readRecord(this.root, id)
+        const paper = record && (await this.get(id))
         if (!paper) continue
-        this.index.set(id, paper.ids)
+        this.index.set(id, record.ids, record.title)
         restored.push(paper)
       }
       return restored
@@ -798,9 +821,9 @@ export class Library {
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
       await writeState(this.root, id, freshState("user"))
-      this.index.set(id, record.ids)
+      this.index.set(id, record.ids, record.title)
       // An id the services couldn't be asked about (offline) gets its metadata later
-      if (!resolution && found.ref) this.queue("paper.metadata", id, "asked")
+      if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, "asked")
       await this.placePdf(id, file, sha)
       return { paper: (await this.get(id))!, existed: false }
     })
@@ -856,10 +879,15 @@ export class Library {
   }
 
   // Steps a paper is owed but never got (a PDF put in by hand or by another program, a run that failed
-  // in an older build): its text, read now, in the background
+  // in an older build): its text, read now, in the background; and its details looked up again when
+  // they predate the current round of checks (METADATA_CHECKS)
   private async catchUp() {
     for (const id of await this.ids()) {
       if ((await hasPdfFile(this.root, id)) && !(await readText(this.root, id))) this.queue("paper.text", id, "background")
+      // Only details the services gave: a record written some other way (by hand, by another program)
+      // is left as its author wrote it
+      const record = await readRecord(this.root, id)
+      if (record?.fetchedAt && (record.checked ?? 0) < METADATA_CHECKS && refOfIds(record.ids)) this.queue("paper.metadata", id, "background")
     }
   }
 
@@ -1004,7 +1032,7 @@ export class Library {
                   return false
                 }
                 await writeState(this.root, paper.id, freshState("user", record.fetchedAt ?? Date.now()))
-                this.index.set(paper.id, record.ids)
+                this.index.set(paper.id, record.ids, record.title)
                 if (brought.pdf) this.queue("paper.text", paper.id, "background")
                 return true
               })
@@ -1122,35 +1150,98 @@ export class Library {
       defineTask("paper.metadata", {
         lane: "network",
         run: async (ctx) => {
-          const id = ctx.task.subject
-          const record = await readRecord(this.root, id)
-          if (!record) throw new TaskFailure(`${id} is not in the library.`)
-          const ref = refOfIds(record.ids)
-          // A file nobody has identified: there is nobody to ask
-          if (!ref) return
-          let resolution = this.recent(id)
-          if (!resolution) {
-            try {
-              resolution = await resolve(this.services.http, ref, await this.services.settings(), { signal: ctx.signal })
-            } catch (error) {
-              if (error instanceof NotAPaper) throw new TaskFailure(error.message)
-              throw error
-            }
+          try {
+            await this.refreshRecord(ctx.task.subject, ctx.signal)
+          } catch (error) {
+            if (error instanceof NotAPaper) throw new TaskFailure(error.message)
+            throw error
           }
-          await this.serial(async () => {
-            if (!(await readRecord(this.root, id))) return
-            await keepSources(this.root, id, resolution.records)
-            const next = recordFrom(id, resolution, record)
-            await writeRecord(this.root, next)
-            this.index.set(id, next.ids)
-          })
-          await this.announce([id])
         },
       }),
     ]
   }
 
+  // The user's Refresh details: the services asked again now, whatever was looked up a moment ago
+  async refresh(id: string, signal?: AbortSignal): Promise<Paper | null> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    try {
+      await this.refreshRecord(id, signal ?? new AbortController().signal, true)
+    } catch (error) {
+      throw asRpcFailure(error)
+    }
+    // Folded into the paper it was a copy of: that one is the answer
+    return (await this.get(id)) ?? (await this.get((await this.aliases())[id] ?? "")) ?? null
+  }
+
   // ---- inside
+
+  // Asks the services about a paper and rewrites its paper.json. A record that turns out to be a copy
+  // of another paper in the library (the DOI it was found to have is that paper's, or the titles match
+  // where one has no DOI) is folded into that paper when the user has done nothing with it.
+  private async refreshRecord(id: string, signal: AbortSignal, fresh = false) {
+    const record = await readRecord(this.root, id)
+    if (!record) throw new TaskFailure(`${id} is not in the library.`)
+    const ref = refOfIds(record.ids)
+    // A file nobody has identified: there is nobody to ask
+    if (!ref) return
+    let resolution = fresh ? undefined : this.recent(id)
+    if (!resolution || !fullyChecked(resolution)) resolution = await resolve(this.services.http, ref, await this.services.settings(), { signal })
+    const found = resolution
+    const twin = await this.serial(async () => {
+      const current = await readRecord(this.root, id)
+      if (!current) return undefined
+      // Its DOI is another paper's: writing it here would give two papers one id
+      const holder = found.ids.doi ? await this.index.find({ doi: found.ids.doi }) : undefined
+      if (holder && holder !== id) return holder
+      await keepSources(this.root, id, found.records)
+      const next = recordFrom(id, found, current)
+      await writeRecord(this.root, next)
+      this.index.set(id, next.ids, next.title)
+      return this.index.twin(next.title, next.ids, id)
+    })
+    if (twin) await this.fold(id, twin)
+    await this.announce([id])
+  }
+
+  // Two records of one paper: the one without a DOI goes (to the trash, its id kept as an alias of the
+  // other), unless the user has starred, tagged, marked, highlighted or written about it. Then both stay.
+  private async fold(a: string, b: string) {
+    await this.serial(async () => {
+      const [ra, rb] = await Promise.all([readRecord(this.root, a), readRecord(this.root, b)])
+      if (!ra || !rb) return
+      const [copy, kept] = !ra.ids.doi && rb.ids.doi ? [a, b] : !rb.ids.doi && ra.ids.doi ? [b, a] : [a, b]
+      if (await this.touched(copy)) {
+        console.log(`[core] ${copy} looks like a copy of ${kept}, but the user has worked with it; both stay`)
+        return
+      }
+      // The lookup that found the copy (paper.metadata, running) ends on its own
+      await this.trash(copy, Date.now(), (task) => task.kind === "paper.metadata" && task.state === "running")
+      const aliases = await this.aliases()
+      for (const [from, to] of Object.entries(aliases)) if (to === copy) aliases[from] = kept
+      aliases[copy] = kept
+      await writeJsonAtomic(this.aliasFile(), { version: 1, aliases })
+      const paper = await this.get(kept)
+      this.onChange({ papers: paper ? [paper] : [], removed: [copy], renamed: { [copy]: kept } })
+    })
+  }
+
+  // Whether the user has done anything with a paper beyond having it
+  private async touched(id: string) {
+    const state = await readState(this.root, id)
+    if (state && (state.starred || state.tags.length || state.status !== "unread" || Object.keys(state.overrides ?? {}).length)) return true
+    if ((await readHighlights(this.root, id)).length) return true
+    return !!(await readNote(this.root, id))?.content.trim()
+  }
+
+  // Both halves of a paper to .owlit/trash/, where restore() finds them
+  private async trash(id: string, stamp: number, spare?: (task: Task) => boolean) {
+    this.scheduler?.cancelSubject(id, spare)
+    const trash = this.trashDir(stamp, id)
+    await mkdir(trash, { recursive: true })
+    await rename(paperDir(this.root, id), path.join(trash, "paper")).catch(ignoreMissing)
+    await rename(paperStateDir(this.root, id), path.join(trash, "state")).catch(ignoreMissing)
+    this.index.delete(id)
+  }
 
   // Notes that a run found no PDF, unless another route (the browser, a drop) placed one meanwhile:
   // its record stands. paper.pdf and paper.pdf.browser can run at once for a paper (the user asks
@@ -1199,7 +1290,7 @@ export class Library {
       if (ids.includes("*")) ids = [...new Set([...(await this.ids()), ...this.index.ids()])]
       for (const id of ids) {
         const record = await readRecord(this.root, id)
-        if (record) this.index.set(id, record.ids)
+        if (record) this.index.set(id, record.ids, record.title)
         else this.index.delete(id)
       }
       return ids

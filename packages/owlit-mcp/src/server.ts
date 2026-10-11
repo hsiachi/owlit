@@ -193,6 +193,15 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       if (lines.some((l) => l.startsWith("Added"))) lines.push("PDFs and text arrive by themselves; once you have read a paper, keep a reading note with library_write_digest.")
       return lines.join("\n")
     }
+    case "library_remove": {
+      const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))]
+      if (!ids.length) return "library_remove needs at least one id."
+      // Changing the library either way: the role that may add may take back
+      const refused = await consent(owlit, options, "add_paper", ids.length === 1 ? `Remove ${ids[0]} from the Library` : `Remove ${ids.length} papers from the Library`)
+      if (refused) return refused
+      const done = await owlit.rpc.library.removeByAgent({ ids, ...asker })
+      return [...done.removed.map((id) => `Removed ${id}.`), ...done.refused.map((r) => `Kept ${r.id}: ${r.why}.`)].join("\n")
+    }
     case "library_write_digest": {
       const paper = await owlit.rpc.library.writeDigest({ id: str("id"), text: str("digest"), by: options.chatId ? `chat:${options.chatId}` : "agent" })
       return `Kept the reading note for ${paper.id}.`

@@ -28,9 +28,9 @@ const TITLES: Record<Notifications["agent.changed"]["kind"], string> = {
 // A note, paper or topic an agent in a chat changed over owlit-mcp. An agent's doc edits have their own
 // toast (docs/fs.ts), from the editor when the doc is open.
 if (isDesktop) {
-  onNotify("agent.changed", ({ kind, versionId, label, chatId }) => {
+  onNotify("agent.changed", ({ kind, op, versionId, label, chatId }) => {
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(chatId)) return
-    toast(TITLES[kind], { description: label, action: { label: "Undo", onClick: () => undoChange(versionId, label) } })
+    toast(op === "removed" ? "Paper removed" : TITLES[kind], { description: label, action: { label: "Undo", onClick: () => undoChange(versionId, label) } })
   })
 }

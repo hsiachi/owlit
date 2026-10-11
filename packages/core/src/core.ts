@@ -338,8 +338,9 @@ export class Core {
       "library.add",
       z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional(), chatId: z.string().optional() }),
       async ({ paper, addedBy, chatId }) => {
-        const added = await library().add(paper, addedBy)
-        if (addedBy === "agent") {
+        const { paper: added, existed } = await library().addNew(paper, addedBy)
+        // A paper the library had already isn't the agent's to take back
+        if (addedBy === "agent" && !existed) {
           const version = await this.requireWorkspace().versions.savePaper(added.id, "added", { chatId })
           this.notifier.notify("agent.changed", { kind: "paper", versionId: version.id, path: added.id, label: added.title, ...(chatId ? { chatId } : {}) })
         }
@@ -365,7 +366,27 @@ export class Core {
       .partial()
     this.router.register("library.update", z.object({ id: paperId, patch }), ({ id, patch }) => library().update(id, patch))
     this.router.register("library.remove", z.object({ ids: z.array(paperId) }), ({ ids }) => library().remove(ids))
+    // An agent's own additions, from the chat that added them; each removal is a version the user can undo
+    this.router.register("library.removeByAgent", z.object({ ids: z.array(z.string()), chatId: z.string().optional() }), async ({ ids, chatId }) => {
+      const ws = this.requireWorkspace()
+      const mine: string[] = []
+      const refused: { id: string; why: string }[] = []
+      for (const id of ids) {
+        const added = chatId ? (await ws.versions.list({ path: id })).find((v) => v.kind === "paper" && v.op === "added") : undefined
+        if (chatId && added && added.chatId !== chatId) refused.push({ id, why: "another chat added it; ask the user" })
+        else mine.push(id)
+      }
+      // Named as the user knows them, while they are still there to read
+      const titles = new Map(await Promise.all(mine.map(async (id) => [id, (await ws.library.get(id))?.title ?? id] as const)))
+      const done = await ws.library.removeByAgent(mine)
+      for (const id of done.removed) {
+        const version = await ws.versions.savePaper(id, "removed", { chatId })
+        this.notifier.notify("agent.changed", { kind: "paper", op: "removed", versionId: version.id, path: id, label: titles.get(id) ?? id, ...(chatId ? { chatId } : {}) })
+      }
+      return { removed: done.removed, refused: [...refused, ...done.refused] }
+    })
     this.router.register("library.restore", z.object({ ids: z.array(paperId) }), ({ ids }) => library().restore(ids))
+    this.router.register("library.refresh", z.object({ id: paperId }), ({ id }) => library().refresh(id))
     const rect = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
     const highlight = z.object({
       id: z.string().min(1),

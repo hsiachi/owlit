@@ -115,7 +115,8 @@ describe("turns", () => {
     expect(await call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })).toMatchObject({ allowed: false })
     // During an Assistant's turn a delete is asked in the chat, as a tool call with the card
     const turn = send("slow please", { role: "assistant" })
-    await sleep(300)
+    // The turn is under way once the agent says something (a cold start takes longer than any fixed wait)
+    while (!updates.some((u) => u.type === "agent_message_chunk")) await sleep(20)
     const asked = call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })
     while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>

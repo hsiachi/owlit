@@ -167,6 +167,9 @@ export interface PaperRecord {
   fields: Partial<Record<string, string>>
   // When the services were last asked
   fetchedAt?: number
+  // Which round of metadata checks the record has had (core's METADATA_CHECKS); an older one is
+  // looked up again in the background when the workspace opens
+  checked?: number
 }
 
 // .owlit/papers/<id>/state.json: what the user thinks of a paper and did with it. Kept forever,

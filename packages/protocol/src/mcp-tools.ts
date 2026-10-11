@@ -120,6 +120,16 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     },
   },
   {
+    name: "library_remove",
+    description:
+      "Take back papers you added in this chat with library_add: one added by mistake, or a copy of a paper the library already has. Only those, and only while the user hasn't starred, tagged, highlighted or written about them; any other paper is the user's, so name it in your answer and let them decide. The user can undo each removal.",
+    inputSchema: {
+      type: "object",
+      properties: { ids: { type: "array", items: { type: "string" }, description: "Library ids of papers you added" } },
+      required: ["ids"],
+    },
+  },
+  {
     name: "library_write_digest",
     description:
       "Keep a reading note for a paper you have read (one you just added, say): Markdown starting with '# <title>', then ## Question, ## Method, ## Findings, ## Limitations and ## Why it matters, one to three sentences each. Refused when the paper already has one.",

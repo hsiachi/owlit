@@ -13,6 +13,7 @@ export const OWLIT_TOOLS: Record<string, string> = {
   library_related: "Follow a paper's citations",
   library_journal: "List a journal's papers",
   library_add: "Add papers to your Library",
+  library_remove: "Remove papers from your Library",
   library_write_digest: "Write a reading summary",
   docs_list: "List your docs",
   docs_read: "Read a doc",

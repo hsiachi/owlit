@@ -1,5 +1,5 @@
 import type { Http, RequestOptions } from "../../net/http.ts"
-import type { Years } from "./types.ts"
+import type { SourceRecord, Years } from "./types.ts"
 
 // Crossref: what a publisher registered. For a journal it is the full list, since every article gets
 // its DOI there, so it answers "everything this journal published in 2024" where a search index can
@@ -85,7 +85,7 @@ function parseWork(work: Work): JournalArticle {
   const [year, month, day] = parts.filter((n): n is number => typeof n === "number")
   return {
     doi: work.DOI.toLowerCase(),
-    title: squash(decode(work.title?.[0] ?? "")) ?? "Untitled",
+    title: plainTitle(work.title?.[0]) ?? "Untitled",
     authors: (work.author ?? []).map((a) => squash(decode(a.name ?? [a.given, a.family].filter(Boolean).join(" ")))!).filter(Boolean),
     year,
     date: year ? [year, month, day].filter(Boolean).map((n, i) => (i ? String(n).padStart(2, "0") : String(n))).join("-") : undefined,
@@ -97,6 +97,79 @@ function parseWork(work: Work): JournalArticle {
     citationCount: work["is-referenced-by-count"],
   }
 }
+
+// One DOI's registration, as a source for resolve(). Asked for the title above all: OpenAlex keeps only
+// the part before a subtitle, which ACM and others register separately ("PrefMiner" for "PrefMiner:
+// mining user's preferences for intelligent mobile notification management").
+export async function fetchCrossref(http: Http, doi: string, keys: { contactEmail?: string }, request: RequestOptions = {}): Promise<SourceRecord | undefined> {
+  const params = new URLSearchParams()
+  if (keys.contactEmail) params.set("mailto", keys.contactEmail)
+  const query = params.size ? `?${params}` : ""
+  try {
+    const raw = await http.text(`https://${CROSSREF_HOST}/works/${encodeURIComponent(doi)}${query}`, request)
+    const { message } = JSON.parse(raw) as { message?: Work & { subtitle?: string[]; type?: string } }
+    if (!message?.DOI) return undefined
+    const article = parseWork(message)
+    return {
+      source: "crossref",
+      ids: { doi: article.doi },
+      title: article.title === "Untitled" ? undefined : joinSubtitle(article.title, plainTitle(message.subtitle?.[0])),
+      authors: article.authors.length ? article.authors : undefined,
+      year: article.year,
+      date: article.date,
+      venue: article.journal,
+      abstract: article.abstract,
+      citationCount: article.citationCount,
+      raw,
+    }
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) return undefined
+    throw error
+  }
+}
+
+// The DOI of a paper known only by its title (a Semantic Scholar or OpenAlex record without one), when
+// Crossref's best match is that title and, where both say, the same year give or take one
+export async function findDoiByTitle(
+  http: Http,
+  title: string,
+  hints: { year?: number; author?: string },
+  keys: { contactEmail?: string },
+  request: RequestOptions = {},
+): Promise<string | undefined> {
+  const params = new URLSearchParams({ "query.bibliographic": [title, hints.author].filter(Boolean).join(" "), rows: "3", select: "DOI,title,subtitle,issued" })
+  if (keys.contactEmail) params.set("mailto", keys.contactEmail)
+  const raw = await http.text(`https://${CROSSREF_HOST}/works?${params}`, request)
+  const { message } = JSON.parse(raw) as { message?: { items?: (Work & { subtitle?: string[] })[] } }
+  const wanted = titleKey(title)
+  for (const work of message?.items ?? []) {
+    const found = parseWork(work)
+    const full = joinSubtitle(found.title, plainTitle(work.subtitle?.[0]))
+    if (titleKey(found.title) !== wanted && titleKey(full) !== wanted) continue
+    if (hints.year && found.year && Math.abs(hints.year - found.year) > 1) continue
+    return found.doi
+  }
+  return undefined
+}
+
+// A title as a comparable key: letters and digits only, lower case ("Hindsight != foresight" and
+// "Hindsight ≠ Foresight." match)
+export function titleKey(title: string) {
+  return title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+}
+
+// Title and subtitle as a reader writes them: "A: b", but "Is now a good time? Opportune moments"
+export function joinSubtitle(title: string, subtitle: string | undefined) {
+  if (!subtitle || titleKey(title).endsWith(titleKey(subtitle))) return title
+  return /[?!:.]$/.test(title.trim()) ? `${title.trim()} ${subtitle}` : `${title.trim()}: ${subtitle}`
+}
+
+// Registered titles may carry markup (<i>, <sub>)
+const plainTitle = (text: string | undefined) => (text ? squash(decode(text).replace(/<[^>]+>/g, "")) : undefined)
 
 // Volume, then issue, then first page; articles not yet in an issue go last, newest first among them
 function issueOrder(a: JournalArticle, b: JournalArticle) {
