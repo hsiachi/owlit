@@ -1236,6 +1236,13 @@ export class Library {
   // Both halves of a paper to .owlit/trash/, where restore() finds them
   private async trash(id: string, stamp: number, spare?: (task: Task) => boolean) {
     this.scheduler?.cancelSubject(id, spare)
+    // A paper already gone (undoing an agent's add after it took the paper back) leaves no entry: an empty
+    // one would be the newest, so restore would take it and bring nothing back
+    const present = await Promise.all([paperDir(this.root, id), paperStateDir(this.root, id)].map((dir) => stat(dir).then(() => true, () => false)))
+    if (!present.includes(true)) {
+      this.index.delete(id)
+      return
+    }
     const trash = this.trashDir(stamp, id)
     await mkdir(trash, { recursive: true })
     await rename(paperDir(this.root, id), path.join(trash, "paper")).catch(ignoreMissing)
