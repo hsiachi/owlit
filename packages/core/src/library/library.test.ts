@@ -1,5 +1,5 @@
 import { RpcErrorCode, type PaperRecord } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -298,6 +298,17 @@ describe("library on disk", () => {
     expect(highlights).toHaveLength(1)
     expect(notes[0].content).toBe("kept")
     expect(await call("library.known", { inputs: ["1706.03762"] })).toEqual([id])
+  })
+
+  it("removing a paper that is already in the trash leaves the trash as it was, so Undo still brings it back", async () => {
+    const { root, call } = await setup({})
+    const id = "arxiv-1706.03762"
+    await call("library.add", { paper: resolvedArxiv })
+    await call("library.remove", { ids: [id] })
+    await call("library.remove", { ids: [id] })
+    expect(readdirSync(path.join(root, ".owlit/trash"))).toHaveLength(1)
+    const [back] = await call("library.restore", { ids: [id] })
+    expect(back?.id).toBe(id)
   })
 
   it("hears about a paper folder another program puts in library/papers", async () => {
