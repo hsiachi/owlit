@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } fro
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
+import { makePdf, paragraph } from "../../core/src/library/text/make-pdf.ts"
 import { pdfFact } from "./server.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
@@ -336,4 +337,21 @@ describe("owlit-mcp", () => {
     const { tool } = await setup({ open: false })
     expect(await tool("library_list")).toEqual({ text: "owlit isn't open with ws. Open it in owlit first.", isError: true })
   })
+})
+
+describe("docs_read on a PDF", () => {
+  it("gives the text page by page with the page numbers to cite, or only the pages asked for", async () => {
+    const { root, tool } = await setup()
+    mkdirSync(path.join(root, "reviews"))
+    writeFileSync(path.join(root, "reviews/round1.pdf"), makePdf([paragraph(72, 100, ["Reviewer one asks for a field study."]), paragraph(72, 100, ["Reviewer two likes the method."])]))
+    const all = await tool("docs_read", { path: "reviews/round1.pdf" })
+    expect(all.isError).toBe(false)
+    expect(all.text).toMatch(/<!-- page 1 -->[\s\S]*field study[\s\S]*<!-- page 2 -->[\s\S]*likes the method/)
+    const second = await tool("docs_read", { path: "reviews/round1.pdf", pages: "2" })
+    expect(second.text).not.toMatch(/field study/)
+    expect(second.text).toMatch(/likes the method[\s\S]*\(The PDF has 2 pages\.\)/)
+    // A file that isn't a PDF owlit can read says so
+    writeFileSync(path.join(root, "broken.pdf"), "not a pdf")
+    expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
+  }, 30_000)
 })

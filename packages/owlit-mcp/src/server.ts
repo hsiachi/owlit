@@ -202,8 +202,13 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const docs = files.filter((f) => f.path.toLowerCase().endsWith(".md"))
       return docs.length ? docs.map((f) => f.path).join("\n") : "There are no docs yet."
     }
-    case "docs_read":
+    case "docs_read": {
+      if (/\.pdf$/i.test(str("path"))) {
+        const { text, pages } = await owlit.rpc.docs.readPdf({ path: str("path"), ...(optStr("pages") ? { pages: optStr("pages") } : {}) })
+        return optStr("pages") ? `${text}\n\n(The PDF has ${pages} pages.)` : text
+      }
       return (await owlit.rpc.docs.read({ path: str("path") })).content
+    }
     case "docs_delete": {
       const paths = (args.paths as string[]).filter(Boolean)
       if (!paths.length) return "Name at least one doc or folder to delete."
