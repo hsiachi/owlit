@@ -146,6 +146,22 @@ export async function landingOf(http: Http, doi: string, signal?: AbortSignal) {
   }
 }
 
+// The address a DOI is registered to, from doi.org's handle record: where the paper lives now,
+// learnt without visiting the publisher
+export async function registeredUrl(http: Http, doi: string, signal?: AbortSignal) {
+  try {
+    const record = await http.json<{ values?: { type?: string; data?: { value?: unknown } }[] }>(
+      `https://doi.org/api/handles/${encodeURIComponent(doi)}?type=URL`,
+      { signal, retries: 1 },
+    )
+    const value = record.values?.find((v) => v.type === "URL")?.data?.value
+    return typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined
+  } catch (error) {
+    if (signal?.aborted) throw error
+    return undefined
+  }
+}
+
 // Refused as not being a PDF: an HTML page, a login wall, an empty answer
 export class NotAPdf extends Error {
   constructor(message: string) {

@@ -40,8 +40,9 @@ export function createBrowserHost(): PublisherBrowser {
   app.on("before-quit", () => {
     quitting = true
   })
-  // The hosts the hidden window may visit in the current run
+  // The hosts the hidden window may visit in the current run, and the last one it was kept from
   let allowed: string[] = []
+  let stopped: string | undefined
 
   // The page the user sees during Check now, and where it goes
   let view: WebContentsView | null = null
@@ -77,7 +78,10 @@ export function createBrowserHost(): PublisherBrowser {
     const guard = (event: Electron.Event, url: string) => {
       if (hidden?.isVisible()) return
       const host = hostOf(url)
-      if (host && !allowed.some((h) => host === h || (h.startsWith(".") ? host.endsWith(h) : host.endsWith(`.${h}`)))) event.preventDefault()
+      if (host && !allowed.some((h) => host === h || (h.startsWith(".") ? host.endsWith(h) : host.endsWith(`.${h}`)))) {
+        stopped = host
+        event.preventDefault()
+      }
     }
     hidden.webContents.on("will-navigate", guard)
     hidden.webContents.on("will-redirect", guard)
@@ -131,10 +135,14 @@ export function createBrowserHost(): PublisherBrowser {
       contents = hiddenWindow().webContents
       allowed = request.allowHosts
     }
+    stopped = undefined
     const abort = () => contents.stop()
     request.signal.addEventListener("abort", abort, { once: true })
     try {
-      await load(contents, request.landing, request.signal)
+      // A redirect the guard stopped fails the load with a bare ERR_FAILED; say where it was going
+      await load(contents, request.landing, request.signal).catch((error: Error) => {
+        throw stopped ? new Error(`${hostOf(request.landing)} sent the page on to ${stopped}, which owlit doesn't open unattended.`) : error
+      })
       await waitUntilClear(contents, request)
       const pdfUrl = await pdfAddress(contents, request)
       if (!pdfUrl) throw new Error("The publisher's page doesn't link a PDF.")

@@ -88,8 +88,25 @@ export async function searchSource(
   }
 }
 
-// S2 without a key is shared with everyone and often says "slow down"
+// S2 without a key is shared with everyone and often says "slow down". OpenAlex gives a daily allowance
+// (2026-10: a search costs 10 credits of 1,000 without a key, 10,000 with a free one); once it's used
+// up, "try again in a minute" sends an agent round in circles (seen 2026-10-10: 55 failed searches in
+// one literature review), so it hears when the allowance comes back and what to use meanwhile.
 function busy(error: unknown, name: string, keys: MetadataKeys) {
+  if (error instanceof HttpError && error.status === 429 && error.quotaResetIn !== undefined) {
+    const back = new Date(Date.now() + error.quotaResetIn * 1000)
+    const hours = Math.max(1, Math.round(error.quotaResetIn / 3600))
+    const others = name === NAMES.openalex ? " Until then use library_search with source s2 or arxiv." : ""
+    const key =
+      name === NAMES.openalex && !keys.openalexApiKey
+        ? " A free OpenAlex API key gives ten times as much: the user can add one in [Settings › Paper sources](owlit://settings/sources)."
+        : ""
+    return new RpcFailure(
+      RpcErrorCode.Unavailable,
+      `${name}'s daily allowance is used up; it comes back in about ${hours} hour${hours === 1 ? "" : "s"} (${back.toISOString().slice(11, 16)} UTC). Trying again before then fails the same way.${others}${key}`,
+      { status: 429, quotaResetIn: error.quotaResetIn },
+    )
+  }
   if (error instanceof HttpError && error.status === 429) {
     return new RpcFailure(
       RpcErrorCode.Unavailable,
@@ -126,11 +143,16 @@ export async function relatedOf(
       return { records: records.slice(0, limit), source: "s2" }
     }
     if (ids.doi && !/^10\.48550\//.test(ids.doi)) {
-      const work = ids.openalex ?? (await fetchOpenAlex(http, { doi: ids.doi }, keys, request))?.ids.openalex
-      if (work) {
-        const found = await neighboursOpenAlex(http, work, kind, limit, { years, sort: filters.sort }, keys, request)
-        // OpenAlex may not have the reference list a publisher withheld; S2 sometimes does
-        if (found.records.length || kind === "cited_by" || !s2) return { ...found, source: "openalex" }
+      try {
+        const work = ids.openalex ?? (await fetchOpenAlex(http, { doi: ids.doi }, keys, request))?.ids.openalex
+        if (work) {
+          const found = await neighboursOpenAlex(http, work, kind, limit, { years, sort: filters.sort }, keys, request)
+          // OpenAlex may not have the reference list a publisher withheld; S2 sometimes does
+          if (found.records.length || kind === "cited_by" || !s2) return { ...found, source: "openalex" }
+        }
+      } catch (error) {
+        // OpenAlex's daily allowance used up: Semantic Scholar knows the paper by its DOI too
+        if (!(error instanceof HttpError && error.quotaResetIn !== undefined && s2)) throw error
       }
     }
     if (!s2) throw new RpcFailure(RpcErrorCode.NotFound, "owlit can't follow this paper's citations: it has no DOI or arXiv id.")

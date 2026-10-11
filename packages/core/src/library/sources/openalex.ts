@@ -145,13 +145,19 @@ function filterOf(filters: WorkFilters, extra: string[] = []) {
   // Some records carry dates years ahead; newest first would put them on top
   parts.push(`to_publication_date:${new Date().toISOString().slice(0, 10)}`)
   if (minCitations) parts.push(`cited_by_count:>${minCitations - 1}`)
-  if (author) parts.push(`raw_author_name.search:${author.replace(/[,|]/g, " ")}`)
+  if (author) parts.push(`raw_author_name.search:${searchText(author.replace(/[,|]/g, " "))}`)
   if (sources?.length) parts.push(`primary_location.source.id:${sources.join("|")}`)
   if (openAccess) parts.push("is_oa:true")
   return parts.join(",")
 }
 
 const SORTS = { citations: "cited_by_count:desc", newest: "publication_date:desc" }
+
+// OpenAlex reads ? and * as wildcards and refuses them in its default (stemmed) search with a 400, and
+// agents search by titles like "What brings intentions to mind? …"; other punctuation passes
+export function searchText(query: string) {
+  return query.replace(/[?*]/g, " ").replace(/\s+/g, " ").trim()
+}
 
 // Works matching words in their title and abstract (OpenAlex ranks the relevant, and the cited among
 // them, first); what an agent's library_search finds before it decides what to add
@@ -163,7 +169,7 @@ export async function searchOpenAlex(
   keys: Keys,
   request: RequestOptions = {},
 ): Promise<{ records: SourceRecord[]; total?: number }> {
-  const params = new URLSearchParams({ search: query, filter: filterOf(filters), "per-page": String(limit) })
+  const params = new URLSearchParams({ search: searchText(query), filter: filterOf(filters), "per-page": String(limit) })
   if (filters.sort && filters.sort !== "relevance") params.set("sort", SORTS[filters.sort])
   return listWorks(http, params, keys, request)
 }
@@ -193,7 +199,7 @@ export interface OpenAlexSource {
 
 // Journals and conferences by name, best match first
 export async function findSources(http: Http, name: string, keys: Keys, request: RequestOptions = {}): Promise<OpenAlexSource[]> {
-  const params = new URLSearchParams({ search: name, "per-page": "8", select: "id,display_name,type,issn_l,issn" })
+  const params = new URLSearchParams({ search: searchText(name), "per-page": "8", select: "id,display_name,type,issn_l,issn" })
   if (keys.contactEmail) params.set("mailto", keys.contactEmail)
   if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
   const raw = await http.text(`https://${OPENALEX_HOST}/sources?${params}`, request)

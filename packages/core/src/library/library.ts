@@ -40,6 +40,7 @@ import {
   landingOf,
   pdfFile,
   readAcquisition,
+  registeredUrl,
   routesFor,
   unpaywallRoutes,
   writeAcquisition,
@@ -511,7 +512,8 @@ export class Library {
         const previous = await readAcquisition(this.root, id)
         const tried: Attempt[] = [...(previous?.tried ?? [])]
         let needs: Acquisition["needs"]
-        for (const route of browserRoutes(record.ids.doi, settings.proxy)) {
+        const registered = await registeredUrl(this.services.http, record.ids.doi, ctx.signal)
+        for (const route of browserRoutes(record.ids.doi, settings.proxy, registered)) {
           ctx.progress(0, undefined, route.name)
           try {
             const bytes = await browser.fetchPdf({
