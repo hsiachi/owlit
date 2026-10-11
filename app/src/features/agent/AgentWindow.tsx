@@ -14,7 +14,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import { MessageGroup } from "@/components/ui/message"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { keysFor } from "@/app/shortcuts"
 import { Composer, type ComposerHandle } from "@/features/chat/components/composer/Composer"
@@ -273,28 +272,28 @@ export function AgentPanel() {
         </PanelButton>
       </header>
 
+      {/* One scroller per chat, so switching chats opens the next one at its end */}
       {chat && chat.messages.length > 0 ? (
-        <MessageScrollerProvider>
+        <MessageScrollerProvider key={chat.id}>
           <MessageScroller className="min-h-0 flex-1">
             <MessageScrollerViewport className="px-4" aria-label="Messages">
-              <MessageScrollerContent className="w-full gap-6 py-2 pb-10">
-                <MessageGroup className="gap-1">
-                  {chat.messages.map((m, i) => (
-                    <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className="pb-7">
-                      {m.role === "user" ? (
-                        <UserMessage message={m} />
-                      ) : (
-                        <AssistantMessage
-                          message={m}
-                          modelName={modelName(m.connectorId, m.modelId)}
-                          onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
-                          onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
-                          onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
-                        />
-                      )}
-                    </MessageScrollerItem>
-                  ))}
-                </MessageGroup>
+              <MessageScrollerContent className="w-full gap-1 py-2 pb-10">
+                {/* Spacing and the always-rendered latest exchange as in ChatView */}
+                {chat.messages.map((m, i) => (
+                  <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className={cn("pb-7", i >= chat.messages.length - 2 && "[content-visibility:visible]")}>
+                    {m.role === "user" ? (
+                      <UserMessage message={m} />
+                    ) : (
+                      <AssistantMessage
+                        message={m}
+                        modelName={modelName(m.connectorId, m.modelId)}
+                        onSaveAsDoc={(markdown) => saveAnswerAsDoc(chat.title, markdown, navigate)}
+                        onRegenerate={!streaming ? () => regenerate(chat.id, i) : undefined}
+                        onDismiss={broken?.messageId === m.id ? broken.dismiss : undefined}
+                      />
+                    )}
+                  </MessageScrollerItem>
+                ))}
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton className="bottom-4 bg-popover shadow-md" />
