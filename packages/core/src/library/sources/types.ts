@@ -3,7 +3,7 @@ import type { PaperIds, PaperKind } from "@owlit/protocol"
 // What one metadata service says about a paper. Every field is optional: services disagree and fall
 // silent in different places, and resolve() merges them field by field.
 export interface SourceRecord {
-  source: "openalex" | "s2" | "arxiv"
+  source: "openalex" | "s2" | "arxiv" | "crossref"
   ids: PaperIds
   title?: string
   authors?: string[]

@@ -2,7 +2,7 @@ import { RpcErrorCode, type PaperRecord } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "fixtures", name), "utf8")
@@ -132,6 +132,92 @@ describe("library over RPC", () => {
     const workspace = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
     expect((await workspace.tasks.run("paper.metadata", "local-abc123")).state).toBe("done")
     expect(asked).toEqual([])
+  })
+})
+
+describe("keeping the library clean", () => {
+  const title = "Proactive behavior in voice assistants: A systematic review and conceptual model"
+  const review = { id: "doi-10.1016-j.chbr.2024.100411", title, ids: { doi: "10.1016/j.chbr.2024.100411" }, year: 2024 }
+  // Semantic Scholar's stray copy: no DOI, no year; Crossref knows the DOI by the title
+  const strayRoutes = {
+    "graph/v1/paper/d9b08e17": JSON.stringify({ paperId: "d9b08e17", externalIds: {}, title, authors: [{ name: "C. E." }] }),
+    "api.crossref.org/works?query.bibliographic": JSON.stringify({ message: { items: [{ DOI: "10.1016/j.chbr.2024.100411", title: [title], issued: { "date-parts": [[2024]] } }] } }),
+  }
+  const workspaceOf = (core: Core) => (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+  // Papers written straight to disk reach the library's index a moment later
+  const indexed = (call: (method: string, params?: unknown) => Promise<any>, inputs: string[]) =>
+    vi.waitUntil(async () => ((await call("library.known", { inputs })) as (string | null)[]).every(Boolean))
+
+  it("doesn't add a copy of a paper it has under a DOI, and keeps no version an agent could undo", async () => {
+    const { root, call } = await setup({})
+    putPaper(root, review)
+    await indexed(call, [review.ids.doi])
+    const added = await call("library.add", { paper: { id: "s2-d9b08e17", title, authors: [], ids: { s2: "d9b08e17" } }, addedBy: "agent", chatId: "c1" })
+    expect(added.id).toBe(review.id)
+    expect((await call("library.list")).papers.map((p: { id: string }) => p.id)).toEqual([review.id])
+    expect(await call("versions.list", { path: review.id })).toEqual([])
+  })
+
+  it("folds a stray copy into the paper with the DOI once it is looked up again, its id kept as an alias", async () => {
+    const { root, core, call } = await setup(strayRoutes)
+    putPaper(root, review)
+    putPaper(root, { id: "s2-d9b08e17", title, ids: { s2: "d9b08e17" } })
+    await indexed(call, [review.ids.doi])
+    expect((await workspaceOf(core).tasks.run("paper.metadata", "s2-d9b08e17")).state).toBe("done")
+    const listed = await call("library.list")
+    expect(listed.papers.map((p: { id: string }) => p.id)).toEqual([review.id])
+    expect(listed.aliases).toEqual({ "s2-d9b08e17": review.id })
+    expect(existsSync(path.join(root, "library/papers/s2-d9b08e17"))).toBe(false)
+  })
+
+  it("keeps a copy the user has worked with", async () => {
+    const { root, core, call } = await setup(strayRoutes)
+    putPaper(root, review)
+    putPaper(root, { id: "s2-d9b08e17", title, ids: { s2: "d9b08e17" } })
+    await call("library.update", { id: "s2-d9b08e17", patch: { starred: true } })
+    expect((await workspaceOf(core).tasks.run("paper.metadata", "s2-d9b08e17")).state).toBe("done")
+    expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
+  })
+
+  it("lets an agent take back only papers its chat added that the user hasn't touched, as versions", async () => {
+    const { call } = await setup({})
+    const paper = (id: string) => ({ id, title: `Paper ${id}`, authors: [], ids: { doi: `10.9999/${id}` } })
+    await call("library.add", { paper: paper("doi-10.9999-a"), addedBy: "agent", chatId: "c1" })
+    await call("library.add", { paper: paper("doi-10.9999-b"), addedBy: "agent", chatId: "c1" })
+    await call("library.add", { paper: paper("doi-10.9999-c"), addedBy: "user" })
+    await call("library.update", { id: "doi-10.9999-b", patch: { tags: ["keep"] } })
+    expect(await call("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
+    const done = await call("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
+    expect(done.removed).toEqual(["doi-10.9999-a"])
+    expect(done.refused.map((r: { id: string }) => r.id)).toEqual(["doi-10.9999-b", "doi-10.9999-c"])
+    // The user's Undo puts it back
+    const [removal] = await call("versions.list", { path: "doi-10.9999-a" })
+    expect(removal).toMatchObject({ kind: "paper", op: "removed", chatId: "c1" })
+    await call("versions.restore", { id: removal.id })
+    expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual(["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"])
+  })
+
+  it("looks up papers whose details predate the current checks once, when the workspace opens", async () => {
+    const { root, core } = await setup(published)
+    putPaper(root, { id: "doi-10.1145-3626772.3657891", title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891" }, fetchedAt: 1 })
+    putPaper(root, { id: "local-abc123", title: "Scanned notes", ids: {}, fetchedAt: 1 })
+    // Written by hand: left alone
+    putPaper(root, { id: "doi-10.1145-1", title: "By hand", ids: { doi: "10.1145/1" } })
+    await core.dispose()
+    const routes: Record<string, string> = published
+    const fetch = (async (url: string) => {
+      const match = Object.entries(routes).find(([pattern]) => url.includes(pattern))
+      return match ? new Response(match[1]) : new Response("not found", { status: 404 })
+    }) as unknown as typeof globalThis.fetch
+    const again = new Core({ userDataDir: path.join(path.dirname(root), "userData"), host: { fetch }, retryBaseMs: 1 })
+    cores.push(again)
+    await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const tasks = workspaceOf(again).tasks
+    const queued = await vi.waitUntil(() => tasks.list().find((t) => t.kind === "paper.metadata" && t.subject === "doi-10.1145-3626772.3657891"))
+    expect((await tasks.wait(queued.id)).state).toBe("done")
+    expect(tasks.list().some((t) => t.kind === "paper.metadata" && (t.subject === "local-abc123" || t.subject === "doi-10.1145-1"))).toBe(false)
+    const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
+    expect(record.checked).toBe(1)
   })
 })
 

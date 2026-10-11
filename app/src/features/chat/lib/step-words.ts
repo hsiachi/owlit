@@ -207,6 +207,7 @@ const GROUPS: Record<string, [string, string]> = {
   "owlit:library_related": ["followed a paper's citations", "followed a paper's citations # times"],
   "owlit:library_journal": ["listed a journal's papers", "listed a journal's papers # times"],
   "owlit:library_add": ["added papers to your Library", "added papers # times"],
+  "owlit:library_remove": ["removed papers from your Library", "removed papers # times"],
   "owlit:library_write_digest": ["wrote a reading summary", "wrote # reading summaries"],
   "owlit:docs_list": ["listed your docs", "listed your docs # times"],
   "owlit:docs_read": ["read a doc", "read # docs"],

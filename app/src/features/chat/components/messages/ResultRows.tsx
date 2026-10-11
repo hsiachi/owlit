@@ -30,6 +30,8 @@ export interface ResultRow {
   stats?: EditStats
   // An edited file that is one of the user's Markdown docs
   markdown?: boolean
+  // A paper the agent took back out of the library
+  removed?: boolean
 }
 
 const FOLD_AFTER = 3
@@ -139,12 +141,16 @@ function useResultRows(message: ChatMessage): ResultRow[] {
   }
   // Edits to the user's own docs first: they matter most and must not fold away behind papers
   for (const r of results.filter((r) => r.kind === "paper")) {
-    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: BookOpenIcon, name: r.label, detail: "Added", ...of([r]), view: () => navigate(`/library/${r.path}`) })
+    // A paper the agent took back has nothing to open; Undo puts it back
+    const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
+    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: BookOpenIcon, name: r.label, detail: r.removed ? "Removed" : "Added", ...of([r]), view, removed: r.removed })
   }
   return rows
 }
 
 const count = (n: number, one: string, many: string) => (n === 1 ? one : `${n} ${many}`)
+const added = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && !r.removed).length
+const removed = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && r.removed).length
 
 // "Edited 2 docs and added 3 papers"
 function summary(rows: ResultRow[]) {
@@ -152,7 +158,8 @@ function summary(rows: ResultRow[]) {
   const said = [
     // A doc is a Markdown file of the user's; a script or a paper's .tex is a file
     n("doc") && `edited ${rows.filter((r) => r.kind === "doc").every((r) => r.markdown) ? count(n("doc"), "a doc", "docs") : count(n("doc"), "a file", "files")}`,
-    n("paper") && `added ${count(n("paper"), "a paper", "papers")}`,
+    added(rows) && `added ${count(added(rows), "a paper", "papers")}`,
+    removed(rows) && `removed ${count(removed(rows), "a paper", "papers")}`,
     n("note") && `left notes on ${count(n("note"), "a doc", "docs")}`,
     n("knowledge") && `updated ${count(n("knowledge"), "a topic", "topics")}`,
   ].filter(Boolean) as string[]

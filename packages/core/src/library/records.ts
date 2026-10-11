@@ -4,6 +4,7 @@ import path from "node:path"
 import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { isPaperId, paperDir, PAPERS_DIR } from "./paths.ts"
 import type { Resolution } from "./resolve.ts"
+import { titleKey } from "./sources/crossref.ts"
 import type { SourceRecord } from "./sources/types.ts"
 
 // library/papers/<id>/paper.json and sources/: what the services said about a paper
@@ -17,6 +18,15 @@ export async function readRecord(root: string, id: string): Promise<PaperRecord 
 
 export const writeRecord = (root: string, record: PaperRecord) =>
   writeJsonAtomic(path.join(paperDir(root, record.id), "paper.json"), record)
+
+// The round of checks a record has had. 1 (2026-10-11): titles with their subtitles from Crossref,
+// abstracts that belong to another paper dropped, id-only records given their DOI. Raise it when a new
+// check should reach the papers already in libraries.
+export const METADATA_CHECKS = 1
+
+// Whether a resolution had every check: a published paper's needs Crossref's answer (a search result
+// or a failed request lacks it)
+export const fullyChecked = (resolution: Resolution) => !resolution.ids.doi || !!resolution.crossrefAnswered
 
 // A resolution as the paper's record. The new answer wins field by field; fields it lacks keep what
 // the record had (the services fall silent now and then), and so do ids.
@@ -47,6 +57,13 @@ export function recordFrom(id: string, resolution: Resolution, previous?: PaperR
     if (value === undefined || (Array.isArray(value) && !value.length)) continue
     ;(merged as unknown as Record<string, unknown>)[key] = value
   }
+  // A field found wrong (an abstract of another paper) goes, rather than staying as the record had it
+  for (const field of Object.keys(resolution.dropped ?? {}) as (keyof typeof fresh & keyof PaperRecord["fields"])[]) {
+    if (fresh[field] !== undefined) continue
+    delete (merged as unknown as Record<string, unknown>)[field]
+    delete merged.fields[field]
+  }
+  if (fullyChecked(resolution)) merged.checked = METADATA_CHECKS
   return merged
 }
 
@@ -63,6 +80,9 @@ export async function keepSources(root: string, id: string, records: SourceRecor
 export class PaperIndex {
   private byKey = new Map<string, string>()
   private keysOf = new Map<string, string[]>()
+  // Each paper's title key and ids, for twin()
+  private byTitle = new Map<string, Set<string>>()
+  private known = new Map<string, { title?: string; ids: PaperIds }>
   private loaded: Promise<void> | undefined
   private lastCatchUp = 0
   private readonly root: string
@@ -100,16 +120,41 @@ export class PaperIndex {
     return [...this.keysOf.keys()]
   }
 
-  set(id: string, ids: PaperIds) {
+  // The paper that is this one under another record: the same title, where one of the two has no DOI.
+  // Two DOIs with one title are two works (a full paper and its extended abstract, a preprint server's
+  // and a journal's); a record without one is a stray copy, as an S2 or OpenAlex id-only record often is.
+  // Short titles ("Editorial", "Introduction") say too little to judge by.
+  async twin(title: string, ids: PaperIds, self?: string): Promise<string | undefined> {
+    await this.load()
+    const key = titleKey(title)
+    if (key.length < 20) return undefined
+    for (const other of this.byTitle.get(key) ?? []) {
+      if (other === self) continue
+      const theirs = this.known.get(other)?.ids
+      if (theirs && (!ids.doi || !theirs.doi)) return other
+    }
+    return undefined
+  }
+
+  set(id: string, ids: PaperIds, title?: string) {
     this.delete(id)
     const keys = keysOf(ids)
     this.keysOf.set(id, keys)
     for (const key of keys) this.byKey.set(key, id)
+    this.known.set(id, { ids, title })
+    if (title) {
+      const key = titleKey(title)
+      if (!this.byTitle.has(key)) this.byTitle.set(key, new Set())
+      this.byTitle.get(key)!.add(id)
+    }
   }
 
   delete(id: string) {
     for (const key of this.keysOf.get(id) ?? []) if (this.byKey.get(key) === id) this.byKey.delete(key)
     this.keysOf.delete(id)
+    const title = this.known.get(id)?.title
+    if (title) this.byTitle.get(titleKey(title))?.delete(id)
+    this.known.delete(id)
   }
 
   private async scan(onlyNew = false) {
@@ -122,7 +167,7 @@ export class PaperIndex {
     for (const name of names) {
       if (!isPaperId(name) || (onlyNew && this.keysOf.has(name))) continue
       const record = await readRecord(this.root, name)
-      if (record) this.set(name, record.ids)
+      if (record) this.set(name, record.ids, record.title)
     }
   }
 }

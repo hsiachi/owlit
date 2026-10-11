@@ -64,7 +64,7 @@ describe("owlit-mcp", () => {
   it("lists owlit's tools and tells the agent how to work", async () => {
     const { mcp } = await setup()
     const { tools } = await mcp.listTools()
-    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["library_list", "library_read", "library_search", "library_add", "docs_add_note", "chats_read"]))
+    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["library_list", "library_read", "library_search", "library_add", "library_remove", "docs_add_note", "chats_read"]))
     expect(mcp.getInstructions()).toMatch(/owlit/)
   })
 

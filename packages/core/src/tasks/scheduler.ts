@@ -204,10 +204,11 @@ export class Scheduler {
     return entry.task
   }
 
-  // Everything still to do about a subject (a paper being deleted)
-  cancelSubject(subject: string) {
+  // Everything still to do about a subject (a paper being deleted), but what `spare` keeps (the task
+  // doing the deleting)
+  cancelSubject(subject: string, spare?: (task: Task) => boolean) {
     for (const entry of [...this.entries.values()]) {
-      if (entry.task.subject === subject && !isTaskFinished(entry.task)) this.cancel(entry.task.id)
+      if (entry.task.subject === subject && !isTaskFinished(entry.task) && !spare?.(entry.task)) this.cancel(entry.task.id)
     }
   }
 
