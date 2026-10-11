@@ -82,16 +82,13 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        // While it works the whole row shimmers, one sweep over its task and the step it is at
-        className={cn(
-          "flex min-h-10 w-full items-center gap-1.5 px-3 py-2 text-left text-sm text-foreground/80 outline-none hover:bg-foreground/[0.025] hover:text-foreground focus-key:bg-foreground/[0.04]",
-          working && !waiting && "shimmer",
-        )}
+        className="flex min-h-10 w-full items-center gap-1.5 px-3 py-2 text-left text-sm text-foreground/80 outline-none hover:bg-foreground/[0.025] hover:text-foreground focus-key:bg-foreground/[0.04]"
       >
-        <span className={cn("min-w-0 shrink-0 max-w-[55%]", open ? "break-words" : "truncate")}>{agent.title}</span>
+        {/* While it works its task shimmers; the step it is at stays plain at the right */}
+        <span className={cn("min-w-0 shrink-0 max-w-[55%]", open ? "break-words" : "truncate", working && !waiting && "shimmer")}>{agent.title}</span>
         {agent.status === "failed" && <span className="shrink-0 text-[13px] text-destructive">Failed</span>}
         <ChevronRightIcon className={cn("size-3.5 shrink-0 text-muted-foreground opacity-55 transition-transform", open && "rotate-90 opacity-100")} />
-        {right && <span className={cn("ml-auto flex min-w-0 items-center gap-1.5 pl-3 text-[13px]", !(working && !waiting) && "text-muted-foreground")}>{right}</span>}
+        {right && <span className="ml-auto flex min-w-0 items-center gap-1.5 pl-3 text-[13px] text-muted-foreground">{right}</span>}
       </button>
       {open && (
         <div className="flex flex-col gap-2.5 pr-3 pb-3.5 pl-8">
