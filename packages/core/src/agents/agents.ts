@@ -270,6 +270,7 @@ export class Agents {
       signIn: def.builtIn && !def.launch ? splitCommand(BUILT_IN_SIGN_IN[def.id] ?? def.command)[0] : undefined,
       signInMethods: live.signInMethods,
       signIns: live.signIns,
+      ...(def.launch ? { signsInHere: true } : {}),
       builtIn: def.builtIn,
       // Checked before: ready unless something since says otherwise
       status: live.status ?? (probed ? "available" : "unknown"),

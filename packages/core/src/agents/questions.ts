@@ -1,5 +1,6 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { AgentQuestion, QuestionAnswer, ToolInfo } from "@owlit/protocol"
+import { toolNameOf } from "./profiles.ts"
 
 // An agent's form (ACP elicitation) as questions the chat can show, and the user's answers back as the
 // form's content. Claude Code sends its AskUserQuestion this way: one select field per question
@@ -78,11 +79,11 @@ export function contentFrom(request: { requestedSchema?: { properties?: Record<s
   return content
 }
 
-// What a tool call says about itself beyond its title: Claude Code puts its own tool name in
-// _meta.claudeCode.toolName and its input in rawInput. Only the inputs that name the step are kept.
-export function toolInfoOf(call: { _meta?: Record<string, unknown> | null; rawInput?: unknown }): ToolInfo | undefined {
-  const name = (call._meta?.claudeCode as { toolName?: unknown } | undefined)?.toolName
-  if (typeof name !== "string" || !name) return undefined
+// What a tool call says about itself beyond its title: its tool's name (profiles.ts reads it) and its input
+// in rawInput. Only the inputs that name the step are kept.
+export function toolInfoOf(call: { name?: string | null; _meta?: Record<string, unknown> | null; rawInput?: unknown }): ToolInfo | undefined {
+  const name = toolNameOf(call)
+  if (!name) return undefined
   const input = (call.rawInput ?? {}) as Record<string, unknown>
   const str = (k: string) => (typeof input[k] === "string" && (input[k] as string).trim() ? (input[k] as string).trim() : undefined)
   const info: ToolInfo = { name }
@@ -101,12 +102,3 @@ export function toolInfoOf(call: { _meta?: Record<string, unknown> | null; rawIn
 // A form's request, when it can be shown in a chat: one of a session's forms (not a URL to open)
 export const isSessionForm = (r: acp.CreateElicitationRequest): r is acp.CreateElicitationRequest & { mode: "form"; sessionId: string; requestedSchema: { properties?: Record<string, unknown> } } =>
   r.mode === "form" && typeof (r as { sessionId?: unknown }).sessionId === "string"
-
-// The report an agent's own agent hands back, when this step is how it does: Claude Code's agents end with
-// a SubagentHandback call whose input is the report (checked 2026-10-11, claude-agent-acp 0.88); the step
-// itself only says "Report delivered"
-export function handbackOf(call: { _meta?: Record<string, unknown> | null; rawInput?: unknown }): string | undefined {
-  if ((call._meta?.claudeCode as { toolName?: unknown } | undefined)?.toolName !== "SubagentHandback") return undefined
-  const message = (call.rawInput as { message?: unknown } | undefined)?.message
-  return typeof message === "string" && message.trim() ? message.trim() : undefined
-}

@@ -269,6 +269,8 @@ export interface Connector {
   signInMethods?: SignInMethod[]
   // The ones it is signed in with now
   signIns?: SignIn[]
+  // It signs in inside owlit (Settings), not in a terminal (the Owlit engine)
+  signsInHere?: boolean
   builtIn: boolean
   status: ConnectorStatus
   version?: string
