@@ -24,11 +24,14 @@ export function WaitingDock({ chat, compact = false }: { chat: Chat; compact?: b
   const streaming = useChatStore((s) => !!s.streaming[chat.id])
   const ask = streaming ? pendingAsk(chat) : undefined
   if (!ask) return null
-  const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
+  const parts = chat.messages.at(-1)?.parts ?? []
+  const call = parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
+  // Asked by one of the agent's own agents: the card says which, so it is found among several at work
+  const agent = ask.agentId ? parts.find((p): p is Part<"agent"> => p.type === "agent" && p.agentId === ask.agentId)?.title : undefined
   return ask.type === "permission" ? (
-    <PermissionCard key={ask.requestId} chatId={chat.id} ask={ask} call={call} compact={compact} />
+    <PermissionCard key={ask.requestId} chatId={chat.id} ask={ask} call={call} agent={agent} compact={compact} />
   ) : (
-    <QuestionCard key={ask.requestId} chatId={chat.id} ask={ask} compact={compact} />
+    <QuestionCard key={ask.requestId} chatId={chat.id} ask={ask} agent={agent} compact={compact} />
   )
 }
 
@@ -44,7 +47,7 @@ const OPTION_WORDS: Record<PermissionKind, string> = {
 }
 const ORDER: PermissionKind[] = ["allow_once", "allow_always", "reject_once", "reject_always"]
 
-function PermissionCard({ chatId, ask, call, compact }: { chatId: string; ask: Part<"permission">; call?: ToolCall; compact: boolean }) {
+function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string; ask: Part<"permission">; call?: ToolCall; agent?: string; compact: boolean }) {
   const editPath = call?.diff?.path
   const inPlace = useInPlace((s) => !!editPath && !!s.shown[editPath])
   const [answerHere, setAnswerHere] = useState(false)
@@ -82,6 +85,7 @@ function PermissionCard({ chatId, ask, call, compact }: { chatId: string; ask: P
         : [stats.added && `Adds ${of(stats.added)}`, stats.removed && `removes ${of(stats.removed)}`]
     summary = [...said, folder && `in ${folder}`].filter(Boolean).join(" · ")
   } else if (call?.tool?.description) summary = call.tool.description
+  if (agent) summary = [`For the agent “${agent}”`, summary].filter(Boolean).join(" · ")
 
   const options = [...ask.options].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind))
   return (
@@ -126,7 +130,7 @@ function PermissionCard({ chatId, ask, call, compact }: { chatId: string; ask: P
 
 const editable = (el: Element | null) => !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable)
 
-function QuestionCard({ chatId, ask, compact }: { chatId: string; ask: Part<"question">; compact: boolean }) {
+function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Part<"question">; agent?: string; compact: boolean }) {
   const draft = useAskDraft((s) => (s.drafts[chatId]?.requestId === ask.requestId ? s.drafts[chatId] : undefined))
   const index = draft?.index ?? 0
   const q = ask.questions[index]
@@ -154,7 +158,9 @@ function QuestionCard({ chatId, ask, compact }: { chatId: string; ask: Part<"que
       <div className="flex items-start gap-2.5">
         <MessageCircleQuestionIcon className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="min-w-0 flex-1">
-          <div className="text-xs text-muted-foreground">{q.header && q.header !== q.question ? `Owlit asks · ${q.header}` : "Owlit asks"}</div>
+          <div className="text-xs text-muted-foreground">
+            {[agent ? `Owlit asks for the agent “${agent}”` : "Owlit asks", q.header && q.header !== q.question ? q.header : undefined].filter(Boolean).join(" · ")}
+          </div>
           <div className="mt-0.5 text-[15px] font-medium break-words">{q.question}</div>
         </div>
         {ask.questions.length > 1 && (

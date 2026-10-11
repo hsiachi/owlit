@@ -5,6 +5,9 @@
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
 //   "silent <path> <t>" writes t into the file itself without any tool call naming it, as a shell command does
+//   "agents"           hands work to two agents of its own in sessions of their own, as Claude Code does once
+//                      owlit says it understands subagents: one reads and hands a report back, the other asks
+//                      to edit (on its own session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
@@ -146,6 +149,32 @@ class FakeAgent implements acp.Agent {
         })
         await say(`answer ${JSON.stringify(answer)}`)
         return { stopReason: answer.action === "cancel" ? "cancelled" : "end_turn" }
+      }
+      if (text.includes("agents")) {
+        // The announcements go under the names the adapters use, which the SDK doesn't type yet
+        const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
+        const step = (sessionId: string, update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId, update } as unknown as acp.SessionNotification)
+        const meta = (toolName: string, parent: string) => ({ claudeCode: { toolName, parentToolUseId: parent } })
+        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-a", name: "Read the notes", task: "Read notes.md", capabilities: {} })
+        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-b", name: "Fix the title", task: "Edit notes.md", capabilities: {} })
+        await step("agent-a", { sessionUpdate: "tool_call", toolCallId: "a1", title: "Read notes.md", kind: "read", status: "completed", rawInput: { file_path: "notes.md" }, _meta: meta("Read", "toolu_a") })
+        await step("agent-a", { sessionUpdate: "tool_call", toolCallId: "a2", title: "SubagentHandback", kind: "other", status: "pending", rawInput: { message: "The notes say twelve chars." }, _meta: meta("SubagentHandback", "toolu_a") })
+        await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-a", state: "completed" })
+        await step("agent-b", { sessionUpdate: "tool_call", toolCallId: "b1", title: "Edit notes.md", kind: "edit", status: "pending", rawInput: { file_path: "notes.md" }, _meta: meta("Edit", "toolu_b") })
+        const answer = await this.conn.requestPermission({
+          sessionId: "agent-b",
+          toolCall: { toolCallId: "b1", title: "Edit notes.md", kind: "edit" },
+          options: [
+            { optionId: "yes", name: "Allow", kind: "allow_once" },
+            { optionId: "no", name: "Reject", kind: "reject_once" },
+          ],
+        })
+        const chose = answer.outcome.outcome === "selected" ? answer.outcome.optionId : "cancelled"
+        await step("agent-b", { sessionUpdate: "tool_call_update", toolCallId: "b1", status: chose === "yes" ? "completed" : "failed" })
+        await step("agent-b", { sessionUpdate: "tool_call", toolCallId: "b2", title: "SubagentHandback", kind: "other", status: "pending", rawInput: { message: `The user chose ${chose}.` }, _meta: meta("SubagentHandback", "toolu_b") })
+        await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-b", state: "completed" })
+        await say("both agents are done")
+        return { stopReason: "end_turn" }
       }
       if (text.includes("permission")) {
         await this.conn.sessionUpdate({

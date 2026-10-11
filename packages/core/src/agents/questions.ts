@@ -101,3 +101,12 @@ export function toolInfoOf(call: { _meta?: Record<string, unknown> | null; rawIn
 // A form's request, when it can be shown in a chat: one of a session's forms (not a URL to open)
 export const isSessionForm = (r: acp.CreateElicitationRequest): r is acp.CreateElicitationRequest & { mode: "form"; sessionId: string; requestedSchema: { properties?: Record<string, unknown> } } =>
   r.mode === "form" && typeof (r as { sessionId?: unknown }).sessionId === "string"
+
+// The report an agent's own agent hands back, when this step is how it does: Claude Code's agents end with
+// a SubagentHandback call whose input is the report (checked 2026-10-11, claude-agent-acp 0.88); the step
+// itself only says "Report delivered"
+export function handbackOf(call: { _meta?: Record<string, unknown> | null; rawInput?: unknown }): string | undefined {
+  if ((call._meta?.claudeCode as { toolName?: unknown } | undefined)?.toolName !== "SubagentHandback") return undefined
+  const message = (call.rawInput as { message?: unknown } | undefined)?.message
+  return typeof message === "string" && message.trim() ? message.trim() : undefined
+}

@@ -539,19 +539,7 @@
   -webkit-app-region: no-drag;
 }
 
-/* Shimmer used for in-progress labels */
-@keyframes shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
-}
-.shimmer {
-  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--foreground) 50%, var(--muted-foreground) 100%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer 2s linear infinite;
-}
+/* In-progress labels shimmer with shadcn's `shimmer` utility (shadcn/tailwind.css, imported above) */
 
 /* ---- Assistant markdown ---- */
 .markdown > :first-child { margin-top: 0; }
