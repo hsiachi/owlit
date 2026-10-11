@@ -186,15 +186,15 @@ export function createBrowserHost(): PublisherBrowser {
       if (!request.withUser) {
         await untilClear(contents, request.signal, SETTLE_MS).catch((error) => {
           if (request.signal.aborted) throw error
-          throw new NeedsUser(state)
+          throw new NeedsUser(state, hostOf(contents.getURL()))
         })
         await settle(contents, request.signal)
         continue
       }
       // The page out of sight too long ends the run; core keeps the note for the next Check now
-      if (wentAway) throw new NeedsUser(state)
+      if (wentAway) throw new NeedsUser(state, hostOf(contents.getURL()))
       let left: () => void = () => {}
-      const gone = new Promise<never>((_, reject) => (left = () => reject(new NeedsUser(state))))
+      const gone = new Promise<never>((_, reject) => (left = () => reject(new NeedsUser(state, hostOf(contents.getURL())))))
       away.add(left)
       try {
         await request.needUser(
@@ -210,7 +210,7 @@ export function createBrowserHost(): PublisherBrowser {
       await settle(contents, request.signal)
     }
     const state = await pageState(contents)
-    if (state !== "ok") throw request.withUser ? new Error("The publisher kept asking for a check.") : new NeedsUser(state)
+    if (state !== "ok") throw request.withUser ? new Error("The publisher kept asking for a check.") : new NeedsUser(state, hostOf(contents.getURL()))
   }
 
   return {

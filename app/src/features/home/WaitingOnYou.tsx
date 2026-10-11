@@ -9,7 +9,9 @@ import { brokenReply, pendingAsk, useSeenStore } from "@/features/chat/status"
 import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useLibraryStore } from "@/features/library/store"
+import { useCheckQueue } from "@/features/library/check-queue"
 import { citationLabel } from "@/features/library/lib/format"
+import type { Paper } from "@/features/library/types"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { useTasksStore } from "@/features/tasks/store"
 
@@ -17,6 +19,8 @@ import { useTasksStore } from "@/features/tasks/store"
 // check, handed-off work that broke, an agent that can't run, a library sign-in. Each line is the thing
 // and its fix; it leaves once answered, and nothing is counted. Shown only while something waits. The
 // places these come from keep their own marks (a chat's status ring, the rail's dots).
+// What holds up work comes first: a chat or an agent stopped on the user. A publisher's check only
+// keeps a PDF away, so papers come last, and three or more of one kind share a line.
 interface Waiting {
   key: string
   icon: typeof MessageSquareIcon
@@ -69,17 +73,6 @@ function useWaiting(): Waiting[] {
         })
       }
     }
-    for (const paper of Object.values(papers)) {
-      const needs = paper.noPdf?.needs
-      if (!needs) continue
-      out.push({
-        key: `paper:${paper.id}`,
-        icon: BookOpenIcon,
-        what: needs === "sign-in" ? "The publisher wants you to sign in" : "The publisher wants a quick check",
-        where: `for ${citationLabel(paper)}`,
-        fix: { label: needs === "sign-in" ? "Sign in" : "Check now", run: () => navigate(`/library/${paper.id}?check=1`) },
-      })
-    }
     // Only agents owlit would run: the one picked for chats and the one doing background work
     const used = new Set([selected, background].filter(Boolean))
     for (const c of connectors) {
@@ -96,8 +89,44 @@ function useWaiting(): Waiting[] {
     if (loginTask) {
       out.push({ key: "login", icon: LibraryIcon, what: "Your library wants you to sign in", where: "to fetch PDFs", fix: { label: "Library proxy…", run: () => openSettings("proxy"), quiet: true } })
     }
+    const waitingPapers = Object.values(papers)
+      .filter((p) => p.noPdf?.needs && !p.pdf)
+      .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
+    for (const needs of ["check", "sign-in"] as const) {
+      const group = waitingPapers.filter((p) => p.noPdf?.needs === needs)
+      const what = (several: boolean) =>
+        needs === "sign-in" ? `${several ? "Publishers want" : "The publisher wants"} you to sign in` : `${several ? "Publishers want" : "The publisher wants"} a quick check`
+      const label = needs === "sign-in" ? "Sign in" : "Check now"
+      if (group.length <= 2) {
+        for (const paper of group) {
+          out.push({ key: `paper:${paper.id}`, icon: BookOpenIcon, what: what(false), where: `for ${citationLabel(paper)}`, fix: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })
+        }
+        continue
+      }
+      // One line for many: the first two by name, then each publisher's page in turn
+      out.push({
+        key: `papers:${needs}`,
+        icon: BookOpenIcon,
+        what: what(true),
+        where: `for ${namesOf(group)}`,
+        detail: group.map(citationLabel).join("\n"),
+        fix: {
+          label,
+          run: () => {
+            useCheckQueue.getState().start(group.map((p) => p.id))
+            navigate(`/library/${group[0].id}?check=1&queue=1`)
+          },
+        },
+      })
+    }
     return out
   }, [chats, streaming, connectors, selected, background, dismissed, papers, loginTask, navigate])
+}
+
+// "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"
+function namesOf(papers: Paper[]) {
+  const named = papers.slice(0, 2).map(citationLabel).join(", ")
+  return papers.length > 2 ? `${named} and ${papers.length - 2} more` : named
 }
 
 export function WaitingOnYou() {

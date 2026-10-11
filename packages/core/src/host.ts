@@ -55,9 +55,13 @@ export type PublisherNeed = "login" | "challenge"
 // The publisher's page wants a person (a check, a sign-in) and nobody was looking
 export class NeedsUser extends Error {
   readonly reason: PublisherNeed
-  constructor(reason: PublisherNeed) {
+  // The host whose page wanted them: the browser's session is shared, so getting past it once is
+  // getting past it for every paper it holds
+  readonly host?: string
+  constructor(reason: PublisherNeed, host?: string) {
     super(reason === "login" ? "The publisher wants you to sign in." : "The publisher wants to check this is a person.")
     this.name = "NeedsUser"
     this.reason = reason
+    this.host = host
   }
 }
