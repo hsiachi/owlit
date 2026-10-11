@@ -91,7 +91,9 @@ export function pageTitle(content?: string) {
 // Words for the tool's own name, for an agent's MCP tool owlit has no words for ("snippet_search" → "Snippet search")
 const words = (name: string) => capital(name.replace(/[_-]+/g, " ").trim())
 
-const HIDDEN = new Set(["ToolSearch", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "TaskOutput"])
+// SubagentHandback is how an agent the step handed work to gives its report back; the report reaches the
+// user through Owlit's answer, and the step itself only says "Report delivered"
+const HIDDEN = new Set(["ToolSearch", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "TaskOutput", "SubagentHandback"])
 
 // ---- One step ----
 
@@ -149,7 +151,7 @@ export function stepWords(call: ToolCall, questions = 1): StepWords {
     case "Agent":
     case "Task": {
       const d = tool?.description
-      return d ? { now: capital(d), done: capital(pastTense(d)), group: "agent" } : { now: "Hand a task to a helper", done: "Handed a task to a helper", group: "agent" }
+      return d ? { now: capital(d), done: capital(pastTense(d)), group: "agent" } : { now: "Hand a task to an agent", done: "Handed a task to an agent", group: "agent" }
     }
     case "AskUserQuestion":
       return questions > 1
