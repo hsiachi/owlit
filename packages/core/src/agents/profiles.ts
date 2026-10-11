@@ -3,6 +3,7 @@
 // it can do. An agent owlit knows nothing about gets the defaults: its own mode, owlit's refusals, the
 // standard parts of ACP. (Rule: README of the tasks folder, "引擎能力"; 2026-10-11.)
 
+import type * as acp from "@agentclientprotocol/sdk"
 import type { Role } from "@owlit/protocol"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
 
@@ -133,6 +134,19 @@ export function handbackOf(call: { name?: string | null; _meta?: Record<string, 
   if (toolNameOf(call) !== "SubagentHandback") return undefined
   const message = (call.rawInput as { message?: unknown } | undefined)?.message
   return typeof message === "string" && message.trim() ? message.trim() : undefined
+}
+
+// ---- When an agent's own turn is over ----
+
+// Whether this update closes a turn of the agent's own, one no prompt waits for. Claude Code goes on after
+// its prompt has returned: when a background agent reports back after end_turn, the report starts a turn of
+// its own, and its answer streams in with no prompt open (checked 2026-10-11, claude-agent-acp 0.88: two
+// parallel agents, end_turn at 18.1s, the real answer from 19.9s). Each of its turns, those included, ends
+// with a usage_update that carries the session's cost, sent right after the turn's last words (its
+// `result` message; also sent once more for each finished background task, which says nothing new). An
+// agent this says nothing for is waited out instead (turns.ts, LATE_QUIET_MS).
+export function ownTurnOver(connectorId: string, u: acp.SessionUpdate): boolean {
+  return connectorId === "claude-code" && u.sessionUpdate === "usage_update" && !!u.cost
 }
 
 // A tool call to owlit's own MCP server: Codex says so in rawInput (and titles it mcp.owlit.<tool>),

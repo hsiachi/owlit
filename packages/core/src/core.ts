@@ -53,6 +53,8 @@ export interface CoreOptions {
   engine?: { command: string; args: string[]; env?: Record<string, string> }
   // How long Knowledge waits after the user's activity before a run (tests shorten it)
   knowledgeTimings?: KnowledgeTimings
+  // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
+  lateQuietMs?: number
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -119,7 +121,9 @@ export class Core {
       agents: this.agents,
       fs: this.fs,
       workspace: () => this.workspace,
-      notify: (chatId, update) => this.notifier.notify("chat.update", { chatId, update }),
+      notify: (chatId, update, messageId) => this.notifier.notify("chat.update", { chatId, messageId, update }),
+      lateReply: (chatId, message) => this.notifier.notify("chat.lateReply", { chatId, message }),
+      lateQuietMs: options.lateQuietMs,
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
     })

@@ -27,7 +27,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { AgentEnded, type AcpProcess, type SessionHandler } from "./process.ts"
-import { guardFor, handbackOf, isOwlitCall } from "./profiles.ts"
+import { guardFor, handbackOf, isOwlitCall, ownTurnOver } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
@@ -49,7 +49,12 @@ interface TurnsOptions {
   agents: Agents
   fs: AgentFs
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
-  notify: (chatId: string, update: SessionUpdate) => void
+  // An update of the reply messageId, as it streams
+  notify: (chatId: string, update: SessionUpdate, messageId: string) => void
+  // A reply that had ended was opened again for what the agent sent after its turn, or it ended again
+  lateReply?: (chatId: string, message: ChatMessage) => void
+  // How long a reply opened again waits for more before it ends (tests shorten it)
+  lateQuietMs?: number
   // The MCP servers a chat's session gets (owlit-mcp, for that chat)
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
   // What the user asked Owlit to call them, read when a session starts
@@ -74,6 +79,8 @@ interface Live {
 
 interface Turn {
   chatId: string
+  // The chat's session it runs on: chat/connector, as Turns.live is keyed
+  key: string
   role: Role
   // Updates taken so far; lets the end of a turn wait until no more are in flight
   heard: number
@@ -87,6 +94,21 @@ interface Turn {
   // What each of the agent's own agents said as text, and the ones that handed a report back
   agentText: Map<string, string>
   handedBack: Set<string>
+  // Ends the reply with this status and saves it; set once the turn runs
+  finish?: (status: ChatMessage["status"], error?: string, errorDetail?: string) => Promise<void>
+  // Set while the reply is open again after its turn ended (see Turns.reopen)
+  late?: Late
+}
+
+interface Late {
+  // Ends the reply once nothing more has come for a while
+  timer?: ReturnType<typeof setTimeout>
+  // Tool calls the agent started or changed since: one still running keeps the reply open longer
+  calls: Set<string>
+  // Lets the agent's process idle out again
+  release: () => void
+  // Set once the reply is ending
+  ending?: Promise<void>
 }
 
 // Chat turns on local agents. Each chat has one ACP session per agent, recorded in the chat so it can be
@@ -102,6 +124,9 @@ export class Turns {
   private claims = new Map<string, { chatId: string; until: number }>()
   // Chats whose Co-author turn is running (or just finished): chat → until when
   private coauthors = new Map<string, number>()
+  // Each chat's last reply, while it is the last and its turn ended normally: what the agent sends on that
+  // session with no turn running is added to it (see reopen)
+  private ended = new Map<string, Turn>()
 
   constructor(options: TurnsOptions) {
     this.options = options
@@ -110,7 +135,12 @@ export class Turns {
   async prompt(req: TurnRequest): Promise<StopReason> {
     const ws = this.options.workspace()
     if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
+    // A reply the agent took up again gives way to the user's next message: it ends here, and whatever the
+    // agent still sends belongs to the new turn, which is the live one
+    const running = this.turns.get(req.chatId)
+    if (running?.late) await this.endLate(running, "done")
     if (this.turns.has(req.chatId)) throw new RpcFailure(RpcErrorCode.Conflict, "This chat is still answering.")
+    this.ended.delete(req.chatId)
 
     const message: ChatMessage = {
       id: req.assistantMessageId,
@@ -121,7 +151,7 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    const turn: Turn = { chatId: req.chatId, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, agentText: new Map(), handedBack: new Set() }
+    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, agentText: new Map(), handedBack: new Set() }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -136,8 +166,9 @@ export class Turns {
     const emit = (update: SessionUpdate) => {
       turn.heard++
       turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
-      this.options.notify(req.chatId, update)
+      this.options.notify(req.chatId, update, turn.message.id)
       void ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
+      if (turn.late) this.lateTick(turn, update)
     }
     turn.emit = emit
     if (turn.role === "coauthor") this.coauthors.set(req.chatId, Infinity)
@@ -149,6 +180,7 @@ export class Turns {
       turn.message = withoutAgentError({ ...turn.message, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}) })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
     }
+    turn.finish = finish
 
     let live: Live | undefined
     const t0 = Date.now()
@@ -174,6 +206,8 @@ export class Turns {
       await quiet(turn)
       const stop: StopReason = turn.cancelled || response.stopReason === "cancelled" ? "cancelled" : response.stopReason === "refusal" ? "refusal" : "end_turn"
       await finish(stop === "cancelled" ? "cancelled" : "done")
+      // The agent may still go on (see reopen)
+      if (stop !== "cancelled") this.ended.set(req.chatId, turn)
       return stop
     } catch (error) {
       if (turn.cancelled) {
@@ -201,11 +235,9 @@ export class Turns {
       await finish("error", text)
       throw new RpcFailure(RpcErrorCode.InternalError, text)
     } finally {
-      this.closePermissions(turn, emit)
+      this.closePermissions(turn)
       if (live) live.turn = null
-      // The watcher hears about the last writes a moment after the turn ends
-      for (const claim of this.claims.values()) if (claim.chatId === req.chatId && claim.until === Infinity) claim.until = Date.now() + CLAIM_AFTER_MS
-      if (this.coauthors.get(req.chatId) === Infinity) this.coauthors.set(req.chatId, Date.now() + CLAIM_AFTER_MS)
+      this.letGo(req.chatId)
     }
   }
 
@@ -220,6 +252,9 @@ export class Turns {
     for (const live of this.live.values()) {
       if (live.turn === turn) await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
     }
+    // A reply taken up again has no prompt to come back cancelled: it ends here, and nothing the agent
+    // sends after it is added
+    if (turn.late) await this.endLate(turn, "cancelled")
     return null
   }
 
@@ -247,6 +282,7 @@ export class Turns {
     this.live.clear()
     this.claims.clear()
     this.coauthors.clear()
+    this.ended.clear()
   }
 
   // The chat whose agent is changing this file, if one is (a change on disk is then the agent's). Besides
@@ -296,7 +332,7 @@ export class Turns {
     const known = this.live.get(key)
     if (known && known.proc === proc && proc.running && proc.hasSession(known.sessionId) && known.meta === meta) return { live: known, history: null, created: false, guard, rulesInSystemPrompt }
 
-    const handler = this.handler(key, req.chatId, ws.root)
+    const handler = this.handler(key, req.chatId, req.connectorId, ws.root)
     const chat = await ws.chats.get(req.chatId)
     const recorded = chat.sessions?.[req.connectorId]
     const init = await proc.initialized()
@@ -348,8 +384,23 @@ export class Turns {
   }
 
   // The session's handler outlives the turn it was made in: what the agent sends goes to the turn running
-  // now (its emit), never to the one that opened the session
-  private handler(key: string, chatId: string, root: string): SessionHandler {
+  // now (its emit), never to the one that opened the session. With no turn running it goes to the chat's
+  // last reply, opened again (see reopen).
+  private handler(key: string, chatId: string, connectorId: string, root: string): SessionHandler {
+    const deliver = (make: (turn: Turn) => SessionUpdate[], over = false) => {
+      const live = this.live.get(key)
+      if (!live) return
+      const running = this.running(key, chatId)
+      if (running?.late) this.lateHeard(running, over)
+      const turn = running ?? this.reopenable(key, chatId)
+      if (!turn) return
+      const updates = make(turn)
+      if (!running && !this.reopen(live, turn, updates)) return
+      for (const update of updates) {
+        turn.emit?.(update)
+        this.claim(turn, update)
+      }
+    }
     return {
       update: (n, agentId) => {
         // A loaded session replays its history first; the chat already has it
@@ -357,27 +408,27 @@ export class Turns {
         const live = this.live.get(key)
         if (!agentId && n.update.sessionUpdate === "config_option_update" && live) live.options = n.update.configOptions
         if (!agentId && n.update.sessionUpdate === "current_mode_update" && live?.modes) live.modes = { ...live.modes, currentModeId: n.update.currentModeId }
-        if (!live?.turn) return
-        if (n.update.sessionUpdate === "tool_call" && isOwlitCall(n.update)) live.owlitCalls.add(n.update.toolCallId)
-        if (agentId) return this.agentWork(live.turn, agentId, n.update, root)
-        const update = toUpdate(n.update, root)
-        if (!update) return
-        live.turn.emit?.(update)
-        this.claim(live.turn, update)
+        if (n.update.sessionUpdate === "tool_call" && isOwlitCall(n.update)) live?.owlitCalls.add(n.update.toolCallId)
+        deliver((turn) => {
+          if (agentId) return this.agentWork(turn, agentId, n.update, root)
+          const update = toUpdate(n.update, root)
+          return update ? [update] : []
+        }, !agentId && ownTurnOver(connectorId, n.update))
       },
       // One of the agent's own agents started or changed state
       agent: (notice) => {
         if (loading.has(key)) return
-        const emit = this.live.get(key)?.turn?.emit
-        if (!emit) return
-        if (notice.kind === "started") emit({ type: "agent_started", agentId: notice.agentId, title: notice.title })
-        else {
-          const status = agentStatus(notice.state)
-          if (status) emit({ type: "agent_update", agentId: notice.agentId, status })
-        }
+        const status = notice.kind === "state" ? agentStatus(notice.state) : undefined
+        deliver(() =>
+          notice.kind === "started"
+            ? [{ type: "agent_started", agentId: notice.agentId, title: notice.title }]
+            : status
+              ? [{ type: "agent_update", agentId: notice.agentId, status }]
+              : [],
+        )
       },
       requestPermission: (r, agentId) => {
-        const turn = this.live.get(key)?.turn
+        const turn = this.asking(key, chatId)
         const emit = turn?.emit
         if (!turn || !emit || turn.cancelled) return Promise.resolve({ outcome: { outcome: "cancelled" } })
         // A call to owlit's own tools asks owlit, not the user: owlit-mcp decides consent by the role
@@ -424,7 +475,7 @@ export class Turns {
       },
       // The agent's questions, shown in the chat until the user answers or skips them
       createElicitation: async (r, agentId) => {
-        const turn = this.live.get(key)?.turn
+        const turn = this.asking(key, chatId)
         const emit = turn?.emit
         if (!turn || !emit || turn.cancelled) return { action: "cancel" }
         if (!isSessionForm(r)) return { action: "decline" }
@@ -459,27 +510,137 @@ export class Turns {
 
   // What one of the agent's own agents sent: its steps, marked as its own, and its report. Its report is
   // the call it hands back with, or else what it said as text (an agent may tell its findings that way).
-  private agentWork(turn: Turn, agentId: string, u: acp.SessionUpdate, root: string) {
-    const emit = turn.emit
-    if (!emit) return
+  private agentWork(turn: Turn, agentId: string, u: acp.SessionUpdate, root: string): SessionUpdate[] {
+    const out: SessionUpdate[] = []
     if (u.sessionUpdate === "tool_call" || u.sessionUpdate === "tool_call_update") {
       const report = handbackOf(u)
       if (report) {
         turn.handedBack.add(agentId)
-        emit({ type: "agent_update", agentId, report })
+        out.push({ type: "agent_update", agentId, report })
       }
     }
     if (u.sessionUpdate === "agent_message_chunk" && u.content.type === "text") {
       const text = (turn.agentText.get(agentId) ?? "") + u.content.text
       turn.agentText.set(agentId, text)
-      if (!turn.handedBack.has(agentId)) emit({ type: "agent_update", agentId, report: text })
-      return
+      if (!turn.handedBack.has(agentId)) out.push({ type: "agent_update", agentId, report: text })
+      return out
     }
     const update = toUpdate(u, root)
-    if (update?.type === "tool_call") emit({ ...update, agentId })
-    else if (update?.type === "tool_call_update") emit(update)
-    else return
-    this.claim(turn, update)
+    if (update?.type === "tool_call") out.push({ ...update, agentId })
+    else if (update?.type === "tool_call_update") out.push(update)
+    return out
+  }
+
+  // ---- A reply the agent takes up again ----
+  //
+  // An agent may go on after its turn has ended: Claude Code's prompt can come back end_turn while a
+  // report from one of its background agents is still on its way, and the answer that report leads to
+  // streams in a moment later with no prompt open (2026-10-11; profiles.ts, ownTurnOver). That belongs to
+  // the reply it continues, so the chat's last reply is opened again: it streams, is saved and can be
+  // stopped like a running turn, and ends again when the agent is done. Only a reply whose turn ended
+  // normally, and that is still the chat's last, is opened again; a reply the user stopped stays stopped.
+  //
+  // When it ends: at the agent's own sign that its turn is over, where profiles.ts knows one, with no
+  // question open and none of its agents at work; otherwise once LATE_QUIET_MS pass with nothing new. A
+  // tool call or agent still running stretches that to LATE_STALLED_MS (a command can run silently for
+  // minutes), and a question waits for the user as in any turn. Stop ends it at once and cancels the
+  // session, and the user's next message ends it too (see prompt).
+
+  // The turn that is running on this session, or starting on it (a new message whose session is still
+  // being got ready: what the agent sends meanwhile is already the new turn's)
+  private running(key: string, chatId: string): Turn | null {
+    const live = this.live.get(key)
+    if (live?.turn) return live.turn
+    const starting = this.turns.get(chatId)
+    return starting?.key === key && starting.emit ? starting : null
+  }
+
+  private reopenable(key: string, chatId: string): Turn | null {
+    const turn = this.ended.get(chatId)
+    return turn?.key === key && !this.turns.has(chatId) ? turn : null
+  }
+
+  // Where a permission request or a question goes: the running turn, or the last reply opened again
+  private asking(key: string, chatId: string): Turn | null {
+    const running = this.running(key, chatId)
+    if (running) return running
+    const live = this.live.get(key)
+    const turn = this.reopenable(key, chatId)
+    return live && turn && this.reopen(live, turn, null) ? turn : null
+  }
+
+  // Opens the reply again for what the agent sent, unless that changes nothing in it (the agent's own
+  // bookkeeping, a step already finished). updates null: a question for the user, which always does.
+  private reopen(live: Live, turn: Turn, updates: SessionUpdate[] | null) {
+    if (updates && !updates.some((u) => changes(turn.message.parts, u))) return false
+    this.ended.delete(turn.chatId)
+    const { finishedAt: _finished, ...message } = turn.message
+    turn.message = { ...message, status: "streaming" }
+    turn.cancelled = false
+    turn.late = { calls: new Set(), release: live.proc.hold() }
+    live.turn = turn
+    this.turns.set(turn.chatId, turn)
+    if (turn.role === "coauthor") this.coauthors.set(turn.chatId, Infinity)
+    if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${turn.chatId.slice(0, 8)}] reply ${turn.message.id.slice(0, 8)} taken up again`)
+    this.options.lateReply?.(turn.chatId, turn.message)
+    this.lateTick(turn)
+    return true
+  }
+
+  // Something came on the session of a reply open again; over: the agent's sign that its turn is over
+  private lateHeard(turn: Turn, over: boolean) {
+    if (over && !this.lateBusy(turn)) void this.endLate(turn, "done")
+    else this.lateTick(turn)
+  }
+
+  // What keeps a reply open again from ending: a question waiting for the user, or work still running
+  private lateBusy(turn: Turn): "asking" | "running" | null {
+    if (turn.permissions.size || turn.questions.size) return "asking"
+    const calls = turn.late?.calls
+    const running = turn.message.parts.some(
+      (p) => (p.type === "agent" && p.status === "working") || (p.type === "tool_call" && !!calls?.has(p.toolCallId) && (p.status === "pending" || p.status === "in_progress")),
+    )
+    return running ? "running" : null
+  }
+
+  // Starts the wait for the reply's end again
+  private lateTick(turn: Turn, update?: SessionUpdate) {
+    const late = turn.late
+    if (!late || late.ending) return
+    if (update?.type === "tool_call" || update?.type === "tool_call_update") late.calls.add(update.toolCallId)
+    clearTimeout(late.timer)
+    const wait = this.lateBusy(turn) === "running" ? LATE_STALLED_MS : (this.options.lateQuietMs ?? LATE_QUIET_MS)
+    // A question the user hasn't answered yet keeps it open; the answer starts the wait again
+    late.timer = setTimeout(() => this.lateBusy(turn) !== "asking" && void this.endLate(turn, "done"), wait)
+  }
+
+  private endLate(turn: Turn, status: "done" | "cancelled"): Promise<void> {
+    const late = turn.late
+    if (!late) return Promise.resolve()
+    late.ending ??= (async () => {
+      clearTimeout(late.timer)
+      // Updates the SDK hasn't handed over yet are still the reply's
+      if (status === "done") await quiet(turn)
+      this.closePermissions(turn)
+      await turn.finish?.(status)
+      for (const live of this.live.values()) if (live.turn === turn) live.turn = null
+      if (this.turns.get(turn.chatId) === turn) this.turns.delete(turn.chatId)
+      turn.late = undefined
+      late.release()
+      this.letGo(turn.chatId)
+      // It may be taken up again, as it was the first time
+      if (status === "done") this.ended.set(turn.chatId, turn)
+      if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${turn.chatId.slice(0, 8)}] reply ${turn.message.id.slice(0, 8)} ended again (${status})`)
+      this.options.lateReply?.(turn.chatId, turn.message)
+    })()
+    return late.ending
+  }
+
+  // A turn's hold on the files it changed ends a moment after the turn (the watcher hears about the last
+  // writes a little later)
+  private letGo(chatId: string) {
+    for (const claim of this.claims.values()) if (claim.chatId === chatId && claim.until === Infinity) claim.until = Date.now() + CLAIM_AFTER_MS
+    if (this.coauthors.get(chatId) === Infinity) this.coauthors.set(chatId, Date.now() + CLAIM_AFTER_MS)
   }
 
   // A tool call that edits, moves or deletes workspace files claims them for this chat while it runs
@@ -520,7 +681,7 @@ export class Turns {
     })
   }
 
-  private closePermissions(turn: Turn, _emit: (u: SessionUpdate) => void) {
+  private closePermissions(turn: Turn) {
     for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
     for (const [, answer] of turn.questions) answer("cancel")
   }
@@ -540,6 +701,20 @@ async function quiet(turn: Turn) {
 }
 
 const CLAIM_AFTER_MS = 5000
+
+// How long a reply taken up again waits for more before it ends, for an agent with no sign of its own that
+// its turn is over; within one turn Claude Code's longest silence was a couple of seconds (2026-10-11)
+const LATE_QUIET_MS = 15_000
+// The same while a tool call or one of its agents is still running, as long as the agent's process would
+// stay up with nothing to do
+const LATE_STALLED_MS = 10 * 60_000
+
+// Whether an update would change a reply's parts (an update for a step it doesn't have, or that says what
+// the step already says, doesn't)
+function changes(parts: ChatMessage["parts"], u: SessionUpdate) {
+  const next = applyUpdate(parts, u)
+  return next.length !== parts.length || next.some((p, i) => p !== parts[i] && JSON.stringify(p) !== JSON.stringify(parts[i]))
+}
 
 // The workspace as the agent may see it: as given and as the disk resolves it (/tmp is /private/tmp)
 function roots(root: string) {

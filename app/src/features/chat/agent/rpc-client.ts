@@ -18,8 +18,10 @@ export class RpcAgentClient implements AgentClient {
 
   async prompt(req: PromptRequest, onUpdate: (update: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
     if (!req.userMessage || !req.assistantMessageId) throw new Error("A turn needs its messages.")
-    const stopListening = onNotify("chat.update", ({ chatId, update }) => {
-      if (chatId === req.chatId) onUpdate(update)
+    // Only this turn's reply: the chat's previous one may still be getting what its agent sent after its
+    // turn (store.ts, lateReply)
+    const stopListening = onNotify("chat.update", ({ chatId, messageId, update }) => {
+      if (chatId === req.chatId && messageId === req.assistantMessageId) onUpdate(update)
     })
     const cancel = () => void rpc.agents.cancel({ chatId: req.chatId }).catch(() => undefined)
     signal.addEventListener("abort", cancel)
