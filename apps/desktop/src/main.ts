@@ -15,6 +15,11 @@ const devUrl = process.env.OWLIT_DEV_URL
 // Another app data directory, for trying a first launch without touching the real one
 if (process.env.OWLIT_USER_DATA) app.setPath("userData", path.resolve(process.env.OWLIT_USER_DATA))
 
+// Chromium stops drawing a window macOS reports as covered, and after the lid opens again macOS may never
+// say it is uncovered: the page stayed still while a reply ran on behind it, until the user switched away
+// and back. owlit has one window, so it keeps drawing while covered; a hidden or minimised one still stops.
+app.commandLine.appendSwitch("disable-backgrounding-occluded-windows")
+
 // A packaged build serves the renderer from app://owlit/. A real origin (not file://) lets the router
 // use ordinary paths; a route (a path without an extension) falls back to index.html.
 const RENDERER_SCHEME = "app"
