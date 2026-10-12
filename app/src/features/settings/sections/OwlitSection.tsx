@@ -30,7 +30,6 @@ function NameRow() {
     <List>
       <Row
         name="Your name"
-        help="What Owlit calls you, in the Chat greeting and in chats."
         control={
           <CommitInput
             value={name}
@@ -55,35 +54,38 @@ function BackgroundWork() {
   // Unset means the first agent that is ready, owlit's first choice first (core's own choice)
   const fallback = ready.find((c) => c.id === FIRST_CHOICE_AGENT) ?? ready[0]
   const chosen = view?.backgroundAgent ?? ""
-  const options = [{ value: "", label: fallback ? `Automatic (${fallback.name})` : "Automatic" }, ...connectors.filter((c) => isReady(c) || c.id === chosen).map((c) => ({ value: c.id, label: c.name }))]
+  const options = [
+    { value: "", label: fallback ? `Automatic (${fallback.name})` : "Automatic" },
+    ...connectors.filter((c) => isReady(c) || c.id === chosen).map((c) => ({ value: c.id, label: c.name })),
+  ]
   // The agent doing the work, and the models it offers (an agent's own "Default" is not a real choice)
   const agent = connectors.find((c) => c.id === (chosen || fallback?.id))
   const models = agent?.models.filter((m) => m.id !== "default") ?? []
   const defaultModel = models.find((m) => m.id === agent?.defaultModelId) ?? models[0]
   const groups = new Set(models.map((m) => m.group).filter(Boolean)).size
-  const modelOptions = [
-    { value: "", label: defaultModel ? `Its default (${defaultModel.name})` : "Its default" },
-    // Models from more than one sign-in say whose they are, as the composer's headings do
-    ...models.map((m) => ({ value: m.id, label: groups > 1 && m.group ? `${m.group} · ${m.name}` : m.name })),
-  ]
-  const chosenModel = (agent && view?.backgroundModels?.[agent.id]) ?? ""
+  // Only real models, as in the composer: unset shows the agent's default by name, and picking that
+  // model goes back to unset, so it keeps following the agent's default if that changes. Models from more
+  // than one sign-in say whose they are, as the composer's headings do.
+  const modelOptions = models.map((m) => ({ value: m.id, label: groups > 1 && m.group ? `${m.group} · ${m.name}` : m.name }))
+  const saved = agent && view?.backgroundModels?.[agent.id]
+  const chosenModel = (saved && models.some((m) => m.id === saved) ? saved : defaultModel?.id) ?? ""
   return (
     <List>
       <Row
         name="Agent"
-        help="For reading notes and Knowledge. Automatic picks the first agent that is ready."
+        help="Writes reading notes and keeps Knowledge up to date."
         control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (
         <Row
           name="Model"
-          help="A smaller one costs less; reading notes rarely need the strongest."
-          control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model || null } })} />}
+          info="A smaller one costs less; reading notes rarely need the strongest."
+          control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
         />
       )}
       <Row
         name="Reading notes in"
-        help="Papers keep their own language."
+        info="Papers keep their own language."
         // Unset is English (core's default), shown as the value rather than a placeholder that looks like one
         control={
           <CommitInput
@@ -97,7 +99,8 @@ function BackgroundWork() {
       />
       <Row
         name="Reading notes for every paper"
-        help="Off, only for papers you open or star. On, a big import keeps the agent busy."
+        help="Otherwise only for papers you open or star."
+        info="On, a big import keeps the agent busy for a while."
         control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label="Reading notes for every paper" />}
       />
     </List>
@@ -110,7 +113,7 @@ function MemoryRow() {
     <List>
       <Row
         name="Remember what I do in owlit"
-        help="Keeps Knowledge and Home up to date with what you open, highlight and write."
+        help="What you open, highlight and write keeps Knowledge and Home current."
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label="Remember what I do in owlit" />}
       />
     </List>

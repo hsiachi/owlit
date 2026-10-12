@@ -10,7 +10,7 @@ export function SourcesGroup() {
       <List>
         <Row
           name="Contact email"
-          help="OpenAlex and Unpaywall answer faster, and Unpaywall can find open copies."
+          info="With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies."
           control={
             <CommitInput
               type="email"
@@ -26,14 +26,14 @@ export function SourcesGroup() {
           name="s2ApiKey"
           label="Semantic Scholar API key"
           service="Semantic Scholar"
-          help="Without one, lookups often wait their turn."
+          info="Without one, lookups often wait their turn."
           getFrom={{ label: "semanticscholar.org", href: "https://www.semanticscholar.org/product/api#api-key-form" }}
         />
         <SecretRow
           name="openalexApiKey"
           label="OpenAlex API key"
           service="OpenAlex"
-          help="Only needed past the free daily allowance."
+          info="Only needed past the free daily allowance."
           getFrom={{ label: "openalex.org", href: "https://openalex.org/settings/api" }}
         />
       </List>

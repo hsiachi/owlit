@@ -20,7 +20,7 @@ export function ReadingGroup() {
       <List>
         <Row
           name="Read PDFs with"
-          help="Built-in is instant. MinerU is slower but gets tables, formulas and scans right."
+          help="MinerU is slower but gets tables, formulas and scans right."
           control={<Picker label="Read PDFs with" value={reader} options={OPTIONS} onChange={(next) => void updateSettings({ parsing: { service: next === "builtin" ? null : next } })} />}
         />
         {reader === "cloud" && (
@@ -36,7 +36,7 @@ export function ReadingGroup() {
         {reader !== "builtin" && (
           <Row
             name="Read new PDFs with MinerU automatically"
-            help="Off, MinerU reads a paper only when you ask on its page."
+            info="Off means MinerU reads a paper only when you ask on its page."
             control={<Switch checked={parsing?.auto ?? true} onCheckedChange={(auto) => void updateSettings({ parsing: { auto } })} aria-label="Read new PDFs with MinerU automatically" />}
           />
         )}
