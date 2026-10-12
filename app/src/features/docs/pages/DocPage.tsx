@@ -1,7 +1,8 @@
-import { Fragment, useEffect } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useEffect } from "react"
+import { useParams } from "react-router-dom"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { ActionsDropdownContent } from "@/components/action-menu"
+import { NotFound, PageHeader } from "@/components/page"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useDocActions } from "../actions"
@@ -12,11 +13,11 @@ import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
+import { plural } from "@/lib/words"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
 export function DocPage() {
   const { docId = "" } = useParams()
-  const navigate = useNavigate()
   const file = useDocsStore((s) => s.files[docId])
   const loaded = useDocsStore((s) => s.loaded)
   const folder = file ? parentPath(file.path) : ""
@@ -33,47 +34,27 @@ export function DocPage() {
   }, [docId, folder])
 
   if (!file && !loaded) return null
-  if (!file || !isMarkdown(file.path)) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-[15px] font-medium">This doc is not in the workspace</p>
-        <p className="text-sm text-muted-foreground">It may have been moved or deleted.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/docs")}>
-          Back to docs
-        </Button>
-      </div>
-    )
-  }
+  if (!file || !isMarkdown(file.path))
+    return <NotFound title="This doc is not in the workspace" detail="It may have been moved or deleted." back={{ label: "Back to docs", to: "/docs" }} />
+
+  // A folder shows itself in the list, selected, so a new doc lands there
+  const trail = folder
+    .split("/")
+    .filter(Boolean)
+    .map((part, i, parts) => {
+      const path = parts.slice(0, i + 1).join("/")
+      return {
+        label: part,
+        onClick: () => {
+          useDocsUiStore.getState().expandTo(path)
+          useDocsUiStore.getState().selectFolder(path)
+        },
+      }
+    })
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Starts at the sheet's edge, as the paper page's breadcrumb does, rather than at the text column */}
-      <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-[13px]">
-        <nav aria-label="Location" className="flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
-          {folder
-            .split("/")
-            .filter(Boolean)
-            .map((part, i, parts) => {
-              const path = parts.slice(0, i + 1).join("/")
-              return (
-                <Fragment key={path}>
-                  {/* A folder shows itself in the list, selected, so a new doc lands there */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      useDocsUiStore.getState().expandTo(path)
-                      useDocsUiStore.getState().selectFolder(path)
-                    }}
-                    className="-mx-1 shrink-0 rounded-md px-1 py-0.5 outline-hidden transition-colors hover:bg-accent hover:text-foreground focus-key:bg-accent"
-                  >
-                    {part}
-                  </button>
-                  <span className="shrink-0 px-0.5">/</span>
-                </Fragment>
-              )
-            })}
-          <span className="truncate text-foreground">{displayName(file.path)}</span>
-        </nav>
+      <PageHeader trail={trail} current={displayName(file.path)}>
         <DeletedOnDisk docId={file.id} />
         <NoteCount docId={file.id} />
         <DropdownMenu>
@@ -85,7 +66,7 @@ export function DocPage() {
           {/* The same actions as the doc's row in the list */}
           <ActionsDropdownContent groups={fileGroups(file)} align="end" />
         </DropdownMenu>
-      </header>
+      </PageHeader>
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 pt-6">
           <DocEditor key={file.id} file={file} />
@@ -126,7 +107,7 @@ function NoteCount({ docId }: { docId: string }) {
 
   return (
     <Button variant="ghost" size="sm" onClick={next} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-      {notes.length} {notes.length === 1 ? "note" : "notes"}
+      {plural(notes.length, "note")}
     </Button>
   )
 }

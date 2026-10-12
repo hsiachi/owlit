@@ -1,22 +1,18 @@
+import { DAY } from "@/lib/time"
+import { hasAllWords, plural, queryWords } from "@/lib/words"
 import type { Paper } from "../types"
+import { surname } from "./format"
 import type { Sort, StatusFilter } from "../ui-store"
 
-const firstSurname = (p: Paper) => p.authors[0]?.trim().split(/\s+/).at(-1) ?? ""
+const firstSurname = (p: Paper) => (p.authors[0] ? surname(p.authors[0]) : "")
 
 export function matchesQuery(p: Paper, q: string): boolean {
   if (!q) return true
-  const hay = [p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags]
-    .join(" ")
-    .toLowerCase()
   // Every word must appear somewhere
-  return q
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((w) => hay.includes(w))
+  return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
 
-export function matchesFilter(p: Paper, f: StatusFilter): boolean {
+function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {
     case "all":
       return true
@@ -52,7 +48,7 @@ export function compare(a: Paper, b: Paper, sort: Sort): number {
   return sort.desc ? -r : r
 }
 
-export interface ListParams {
+interface ListParams {
   query: string
   filter: StatusFilter
   tags: string[]
@@ -89,7 +85,6 @@ export interface PaperGroup {
   papers: Paper[]
 }
 
-const DAY = 86_400_000
 const AGE_BANDS: [string, number][] = [
   ["Today", DAY],
   ["Previous 7 days", 7 * DAY],
@@ -100,7 +95,7 @@ const AGE_BANDS: [string, number][] = [
 // The list layout's groups, in the spirit of the chat history: by age when sorted by date added,
 // by year when sorted by year, one count while searching, and none for the alphabetical sorts
 export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now()): PaperGroup[] {
-  if (searching) return [{ label: `${papers.length} ${papers.length === 1 ? "paper" : "papers"}`, papers }]
+  if (searching) return [{ label: plural(papers.length, "paper"), papers }]
   if (sort.key === "addedAt") {
     const groups = AGE_BANDS.map(([label]) => ({ label, papers: [] as Paper[] }))
     for (const p of papers) groups[AGE_BANDS.findIndex(([, max]) => now - p.addedAt < max)].papers.push(p)

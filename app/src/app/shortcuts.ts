@@ -1,9 +1,9 @@
 // Every keyboard shortcut owlit has, in one table: tooltips show a key from here and Help › Keyboard
-// Shortcuts lists them all, so the two can't disagree. The keys themselves are handled where they act
-// (useAgentShortcut, CommandPalette, ReaderControls, …); a new shortcut is added here too.
+// Shortcuts lists them all, so the two can't disagree. The keys themselves are handled where they act,
+// window-wide ones through useShortcut; a new shortcut is added here too.
 
-import { useEffect } from "react"
 import { create } from "zustand"
+import { useWindowKeydown } from "@/hooks/use-window-keydown"
 
 export interface Shortcut {
   id: string
@@ -18,6 +18,7 @@ export const SHORTCUT_GROUPS: { title: string; shortcuts: Shortcut[] }[] = [
     title: "Everywhere",
     shortcuts: [
       { id: "palette", label: "Find anything", keys: ["⌘", "K"] },
+      { id: "find", label: "Find on this page", where: "in the Library and Knowledge", keys: ["/"] },
       { id: "owlit", label: "Ask Owlit", where: "outside Chat", keys: ["⌘", "J"] },
       { id: "owlit-panel", label: "Show or hide the current chat", where: "outside Chat", keys: ["⇧", "⌘", "J"] },
       { id: "settings", label: "Settings", keys: ["⌘", ","] },
@@ -54,28 +55,39 @@ export const SHORTCUT_GROUPS: { title: string; shortcuts: Shortcut[] }[] = [
 
 const byId = new Map(SHORTCUT_GROUPS.flatMap((g) => g.shortcuts).map((s) => [s.id, s]))
 
+function shortcut(id: string) {
+  const found = byId.get(id)
+  if (!found) throw new Error(`No shortcut ${id}`)
+  return found
+}
+
 // The key as a tooltip shows it: "⌘J"
-export function keysFor(id: string) {
-  const shortcut = byId.get(id)
-  if (!shortcut) throw new Error(`No shortcut ${id}`)
-  return shortcut.keys.join("")
+export const keysFor = (id: string) => shortcut(id).keys.join("")
+
+// Whether a key press is the table's keys. ⌘ is Ctrl outside macOS. A letter needs Shift exactly when
+// the table has ⇧; a symbol may come with Shift, which some keyboards need to type it.
+function pressed(e: KeyboardEvent, keys: string[]) {
+  const key = keys[keys.length - 1].toLowerCase()
+  if (e.key.toLowerCase() !== key) return false
+  if ((e.metaKey || e.ctrlKey) !== keys.includes("⌘") || e.altKey !== keys.includes("⌥")) return false
+  return keys.includes("⇧") ? e.shiftKey : !e.shiftKey || !/^[a-z]$/.test(key)
+}
+
+// Runs `handler` when the shortcut's keys are pressed anywhere in the window
+export function useShortcut(id: string, handler: () => void, { enabled = true }: { enabled?: boolean } = {}) {
+  const { keys } = shortcut(id)
+  useWindowKeydown((e) => {
+    if (!pressed(e, keys)) return
+    e.preventDefault()
+    handler()
+  }, enabled)
 }
 
 // Help › Keyboard Shortcuts (⌘/)
 export const useShortcutsSheet = create<{ open: boolean }>(() => ({ open: false }))
 export const openShortcuts = () => useShortcutsSheet.setState({ open: true })
+export const closeShortcuts = () => useShortcutsSheet.setState({ open: false })
 
 // ⌘/ opens the list. In the desktop app the Help menu's accelerator usually gets there first and sends
 // the same command; this covers a plain browser.
-export function useShortcutsShortcut() {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key === "/") {
-        e.preventDefault()
-        useShortcutsSheet.setState((s) => ({ open: !s.open }))
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [])
-}
+export const useShortcutsShortcut = () => useShortcut("shortcuts", () => (useShortcutsSheet.getState().open ? closeShortcuts() : openShortcuts()))

@@ -1,5 +1,5 @@
-import { useEffect } from "react"
 import { Outlet } from "react-router-dom"
+import { useShortcut } from "@/app/shortcuts"
 import { isDesktop } from "@/lib/rpc"
 import { VersionsDialog } from "./components/VersionsDialog"
 import { useDocsStore } from "./store"
@@ -13,16 +13,7 @@ export function DocsLayout() {
   const versionsId = useDocsUiStore((s) => s.versionsOf)
   const versionsFile = useDocsStore((s) => (versionsId ? s.files[versionsId] : undefined))
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "n") {
-        e.preventDefault()
-        newDoc()
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [newDoc])
+  useShortcut("new", () => newDoc())
 
   return (
     <>

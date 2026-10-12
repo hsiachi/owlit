@@ -2,8 +2,7 @@
 // desktop app reports it: room for them in a normal window, none in full screen or in a browser.
 
 import { create } from "zustand"
-
-const bridge = typeof window === "undefined" ? undefined : window.owlit
+import { bridge } from "./rpc"
 
 export const useControlsRoom = create<{ room: number }>(() => ({ room: bridge?.controlsRoom ?? 0 }))
 

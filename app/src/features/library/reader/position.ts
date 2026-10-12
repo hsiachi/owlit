@@ -9,8 +9,9 @@ export function usePositionMemory(documentId: string, paper: Paper) {
   // The capability, not useScroll's per-document scope, which is a new object on every render
   const { provides: scrollCap } = useScrollCapability()
   const setPosition = useLibraryStore((s) => s.setPosition)
-  // Read once: the saved position is where to start, not something to follow while reading
-  const initial = useRef(paper.position)
+  // Read once, from the store: the saved position is where to start, not something to follow while
+  // reading, and the paper page hands the reader a paper that doesn't follow it either
+  const initial = useRef(useLibraryStore.getState().papers[paper.id]?.position)
   // Saving waits for the restore, or the first layout (page 1) would overwrite the saved place
   const restored = useRef(false)
   const pending = useRef<ReadingPosition | null>(null)

@@ -2,7 +2,9 @@ import { Extension } from "@tiptap/core"
 import type { Node as PmNode } from "@tiptap/pm/model"
 import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state"
 import { Decoration, DecorationSet } from "@tiptap/pm/view"
-import { hunk, type PendingEdit } from "@/features/docs/editor/suggestions"
+import { suggestionBar, type PendingEdit } from "@/features/chat/pending-edits"
+import { markdownPlain } from "@/lib/markdown-plain"
+import { hunk } from "@/lib/text-diff"
 
 // An edit Owlit proposed to the paper's note, drawn in the note before anything changes, as Docs draws
 // one: the words it removes struck through, the new words in Owlit's colour, a rule beside the paragraphs
@@ -11,14 +13,8 @@ import { hunk, type PendingEdit } from "@/features/docs/editor/suggestions"
 
 export const noteSuggestionsKey = new PluginKey<DecorationSet>("note-suggestions")
 
-// Markdown to the text the editor shows: marks, link targets and line markers go
-function plain(md: string) {
-  return md
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+|\d+\.\s+)/gm, "")
-    .replace(/(\*\*|__|\*|_|`)/g, "")
-    .replace(/\n{2,}/g, "\n")
-}
+// Markdown to the text the editor shows
+const plain = (md: string) => markdownPlain(md, { lines: true })
 
 // The note's text block by block, joined with "\n", and the document position of each character
 function flatten(doc: PmNode) {
@@ -68,29 +64,9 @@ function locate(doc: PmNode, edit: PendingEdit): Spot | null {
 
 function addedWidget(text: string) {
   const span = document.createElement("span")
-  span.className = "note-suggest-ins"
+  span.className = "suggest-ins suggest-ins-after"
   span.textContent = text
   return span
-}
-
-function barWidget(edit: PendingEdit, respond: (edit: PendingEdit, apply: boolean) => void) {
-  const bar = document.createElement("div")
-  bar.className = "note-suggest-bar"
-  bar.contentEditable = "false"
-  const label = document.createElement("span")
-  label.textContent = "Suggested by Owlit"
-  const discard = document.createElement("button")
-  discard.type = "button"
-  discard.className = "note-suggest-discard"
-  discard.textContent = "Discard"
-  discard.onclick = () => respond(edit, false)
-  const apply = document.createElement("button")
-  apply.type = "button"
-  apply.className = "note-suggest-apply"
-  apply.textContent = "Apply"
-  apply.onclick = () => respond(edit, true)
-  bar.append(label, discard, apply)
-  return bar
 }
 
 function build(state: EditorState, edits: PendingEdit[], respond: (edit: PendingEdit, apply: boolean) => void) {
@@ -98,7 +74,7 @@ function build(state: EditorState, edits: PendingEdit[], respond: (edit: Pending
   for (const edit of edits) {
     const spot = locate(state.doc, edit)
     const bar = (pos: number, side: number) =>
-      Decoration.widget(pos, () => barWidget(edit, respond), { side, key: `bar:${edit.requestId}`, stopEvent: () => true, ignoreSelection: true })
+      Decoration.widget(pos, () => suggestionBar((apply) => respond(edit, apply)), { side, key: `bar:${edit.requestId}`, stopEvent: () => true, ignoreSelection: true })
     if (!spot) {
       // Where it lands can't be found in what the note shows now: the new words and the bar go at the end
       const end = state.doc.content.size
@@ -106,16 +82,16 @@ function build(state: EditorState, edits: PendingEdit[], respond: (edit: Pending
       decos.push(bar(end, 2))
       continue
     }
-    if (spot.to > spot.from) decos.push(Decoration.inline(spot.from, spot.to, { class: "note-suggest-del" }))
+    if (spot.to > spot.from) decos.push(Decoration.inline(spot.from, spot.to, { class: "suggest-del" }))
     const $from = state.doc.resolve(spot.from)
     if (spot.to > spot.from)
       state.doc.nodesBetween(spot.from, spot.to, (node, pos) => {
         if (!node.isTextblock) return true
-        decos.push(Decoration.node(pos, pos + node.nodeSize, { class: "note-suggest-block" }))
+        decos.push(Decoration.node(pos, pos + node.nodeSize, { class: "suggest-block" }))
         return false
       })
     else if ($from.parent.isTextblock && $from.depth > 0)
-      decos.push(Decoration.node($from.before(), $from.after(), { class: "note-suggest-block" }))
+      decos.push(Decoration.node($from.before(), $from.after(), { class: "suggest-block" }))
     if (spot.added) decos.push(Decoration.widget(spot.to, () => addedWidget(spot.added), { side: 1, key: `ins:${edit.requestId}:${spot.added}` }))
     // Under the paragraph the change ends in
     const $end = state.doc.resolve(spot.to)

@@ -7,8 +7,17 @@ import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
 
-export const SECTIONS = ["profile", "appearance", "agents", "sources", "proxy", "reading", "privacy"] as const
-export type SettingsSection = (typeof SECTIONS)[number]
+// The dialog's sections in order, by the names its list and owlit:// links show
+export const SECTIONS = [
+  { id: "profile", label: "Profile" },
+  { id: "appearance", label: "Appearance" },
+  { id: "agents", label: "Agents" },
+  { id: "sources", label: "Paper sources" },
+  { id: "proxy", label: "Library proxy" },
+  { id: "reading", label: "PDF reading" },
+  { id: "privacy", label: "Privacy" },
+] as const
+export type SettingsSection = (typeof SECTIONS)[number]["id"]
 
 interface SettingsState {
   view: SettingsView | null

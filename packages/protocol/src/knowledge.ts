@@ -294,6 +294,19 @@ export function serializeTopic(t: Omit<Topic, "path" | "updatedAt">): string {
   return out.join("\n")
 }
 
+export const KNOWLEDGE_DIR = "knowledge"
+
+// A topic's file follows its name, made safe for a file name: "knowledge/When to call a tool.md"
+export const topicPath = (name: string) => `${KNOWLEDGE_DIR}/${name.replace(/[\\/:*?"<>|#^[\]]/g, " ").replace(/\s+/g, " ").trim() || "Topic"}.md`
+
+// A topic's id, from its name: "when-to-call-a-tool"
+export const topicSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "topic"
+
 // ---- Runs ----
 
 // The most recent run that changed something, for "Updated 3 min ago · 2 topics"

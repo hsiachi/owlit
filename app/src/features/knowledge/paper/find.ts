@@ -1,5 +1,6 @@
 import { useLibraryStore } from "@/features/library/store"
 import { useReaderStore } from "@/features/library/reader/reader-store"
+import { lineKey } from "../format"
 import { addPassage, useKnowledgeStore } from "../store"
 
 // "Find it in the paper" for a line taken from the abstract alone: the reader selects the likeliest passage
@@ -11,7 +12,7 @@ let pending: { paperId: string; topicId: string; lineId: string } | null = null
 export async function findInPaper(paperId: string, topicId: string, lineId: string) {
   pending = { paperId, topicId, lineId }
   const k = useKnowledgeStore.getState().paper(paperId)
-  const likely = k.likely?.[`${topicId}/${lineId}`]
+  const likely = k.likely?.[lineKey(topicId, lineId)]
   const passage = likely ? k.passages[likely] : undefined
   const api = useReaderStore.getState().api
   if (!passage || !api) return false
@@ -31,9 +32,9 @@ useLibraryStore.subscribe((state, prev) => {
   pending = null
   // Highlighting the passage Owlit suggested keeps that passage's section name
   const k = useKnowledgeStore.getState().paper(paperId)
-  const likely = k.passages[k.likely?.[`${topicId}/${lineId}`] ?? ""]
+  const likely = k.passages[k.likely?.[lineKey(topicId, lineId)] ?? ""]
   const same = likely && fresh.text.toLowerCase().includes(words(likely.start, 3, true).toLowerCase())
   const passageId = `hl-${fresh.id}`
   addPassage(paperId, { id: passageId, section: same ? likely.section : `p. ${fresh.page + 1}`, text: fresh.text, start: words(fresh.text, 5, false), end: words(fresh.text, 5, true), page: fresh.page })
-  useKnowledgeStore.getState().patchPaper(paperId, (p) => ({ found: { ...p.found, [`${topicId}/${lineId}`]: { topicId, passageId } } }))
+  useKnowledgeStore.getState().patchPaper(paperId, (p) => ({ found: { ...p.found, [lineKey(topicId, lineId)]: { topicId, passageId } } }))
 })

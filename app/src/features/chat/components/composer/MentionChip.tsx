@@ -1,6 +1,6 @@
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react"
-import { cn } from "cn"
-import { MentionToken } from "./MentionToken"
+import { cn } from "@/lib/utils"
+import { MentionToken } from "@/components/mention/mention-token"
 
 // Inline token rendered for a mention node inside the editor
 export function MentionChip({ node, selected }: NodeViewProps) {

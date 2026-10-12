@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from "react"
-import { EllipsisVerticalIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { GroupLabel } from "@/components/group-label"
 import { Button } from "@/components/ui/button"
-import { ActionsDropdownContent, ActionsOnRightClick, type MenuGroups } from "@/components/action-menu"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown, paperHighlights } from "../lib/highlights"
-import { copyText } from "../lib/clipboard"
+import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
+import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown } from "../lib/highlights"
+import { usePaperHighlights } from "../lib/use-highlights"
+import { deleteHighlight } from "../actions"
+import { copyText } from "@/lib/clipboard"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import type { Highlight } from "../types"
@@ -17,8 +18,7 @@ async function copy(text: string, done: string) {
 
 // Sits at the right end of the tab line while Highlights is open
 export function CopyAllHighlights({ paperId }: { paperId: string }) {
-  const all = useLibraryStore((s) => s.highlights)
-  const highlights = useMemo(() => paperHighlights(all, paperId), [all, paperId])
+  const highlights = usePaperHighlights(paperId)
   if (highlights.length === 0) return null
   return (
     <Button variant="ghost" size="sm" className="-mr-2 font-normal text-muted-foreground" onClick={() => copy(highlightsMarkdown(highlights), "Highlights copied as Markdown")}>
@@ -27,15 +27,10 @@ export function CopyAllHighlights({ paperId }: { paperId: string }) {
   )
 }
 
-export function useHighlightCount(paperId: string) {
-  return useLibraryStore((s) => Object.values(s.highlights).filter((h) => h.paperId === paperId).length)
-}
-
 // A paper's highlights in reading order, grouped by page. A click jumps the reader to the passage;
 // a highlight clicked in the PDF scrolls into view here.
 export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAddToNote: (h: Highlight) => void }) {
-  const all = useLibraryStore((s) => s.highlights)
-  const highlights = useMemo(() => paperHighlights(all, paperId), [all, paperId])
+  const highlights = usePaperHighlights(paperId)
   const pages = useMemo(() => {
     const groups = new Map<number, Highlight[]>()
     for (const h of highlights) groups.set(h.page, [...(groups.get(h.page) ?? []), h])
@@ -43,7 +38,7 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
   }, [highlights])
 
   if (highlights.length === 0) {
-    return <p className="text-[13px] text-muted-foreground">Select text in the PDF to highlight it.</p>
+    return <p className="text-detail text-muted-foreground">Select text in the PDF to highlight it.</p>
   }
 
   return (
@@ -51,7 +46,9 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
       <div className="flex flex-col gap-6">
         {pages.map(([page, hs]) => (
           <section key={page}>
-            <h3 className="mb-1.5 text-xs text-muted-foreground">Page {page + 1}</h3>
+            <GroupLabel as="h3" flush>
+              Page {page + 1}
+            </GroupLabel>
             <ul className="-mx-2 flex flex-col gap-0.5">
               {hs.map((h) => (
                 <HighlightItem key={h.id} highlight={h} onAddToNote={() => onAddToNote(h)} />
@@ -68,8 +65,6 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
   const active = useReaderStore((s) => s.activeId === h.id)
   const focused = useReaderStore((s) => s.focusId === h.id)
   const updateHighlight = useLibraryStore((s) => s.updateHighlight)
-  const removeHighlight = useLibraryStore((s) => s.removeHighlight)
-  const restoreHighlight = useLibraryStore((s) => s.restoreHighlight)
   const ref = useRef<HTMLLIElement>(null)
 
   // Clicked in the PDF: bring it into view here
@@ -106,17 +101,14 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
       {
         label: "Delete",
         destructive: true,
-        onSelect: () => {
-          const removed = removeHighlight(h.id)
-          if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
-        },
+        onSelect: () => deleteHighlight(h.id),
       },
     ],
   ]
 
   return (
     <ActionsOnRightClick groups={menu}>
-      <li ref={ref} className={cn("group/hl relative rounded-md hover:bg-accent has-[[data-state=open]]:bg-accent data-[state=open]:bg-accent", active && "bg-accent")}>
+      <li ref={ref} className={cn("group/row relative rounded-md hover:bg-accent has-[[data-state=open]]:bg-accent data-[state=open]:bg-accent", active && "bg-accent")}>
         <button type="button" onClick={jump} className="block w-full rounded-md px-2 py-1.5 pr-9 text-left outline-none focus-key:bg-accent">
           <span className="flex gap-2.5">
             <span aria-hidden className="w-[3px] shrink-0 rounded-full" style={{ background: HIGHLIGHT_MARK[h.color] }} />
@@ -125,19 +117,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
           {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
           {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">Added by Owlit</span>}
         </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Highlight actions"
-              className="absolute top-1 right-1 text-muted-foreground opacity-0 group-hover/hl:opacity-100 focus-key:opacity-100 data-[state=open]:opacity-100"
-            >
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <ActionsDropdownContent groups={menu} align="end" />
-        </DropdownMenu>
+        <RowMenuButton groups={menu} label="Highlight actions" className="absolute top-1.5 right-1.5" />
       </li>
     </ActionsOnRightClick>
   )

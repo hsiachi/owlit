@@ -37,7 +37,7 @@ export function cleanPdfText(lines: string[]): string {
 }
 
 // Reading order: by page, then top to bottom, then left to right
-export function compareHighlights(a: Highlight, b: Highlight): number {
+function compareHighlights(a: Highlight, b: Highlight): number {
   const ra = a.rects[0]
   const rb = b.rects[0]
   return a.page - b.page || (ra?.y ?? 0) - (rb?.y ?? 0) || (ra?.x ?? 0) - (rb?.x ?? 0)
@@ -50,7 +50,7 @@ export function paperHighlights(all: Record<string, Highlight>, paperId: string)
 }
 
 // One highlight as a Markdown quote with its page, and the comment under it
-export function highlightMarkdown(h: Highlight): string {
+function highlightMarkdown(h: Highlight): string {
   const quote = `> ${h.text} (p. ${h.page + 1})`
   return h.comment ? `${quote}\n\n${h.comment}` : quote
 }

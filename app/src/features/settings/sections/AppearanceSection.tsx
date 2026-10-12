@@ -1,5 +1,5 @@
 import type { PaperTone, ThemeChoice } from "@owlit/protocol"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { List, Row } from "../parts"
 import { appearanceOf, updateSettings, useSettings } from "../store"
 
@@ -32,7 +32,7 @@ export function AppearanceSection() {
                 aria-checked={theme === t.value}
                 onClick={() => void updateSettings({ appearance: { theme: t.value } })}
                 className={cn(
-                  "h-6 rounded-md px-3 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
+                  "h-6 rounded-md px-3 text-detail text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
                   theme === t.value && "bg-card text-foreground shadow-xs",
                 )}
               >
@@ -52,7 +52,7 @@ export function AppearanceSection() {
               role="radio"
               aria-checked={tone === t.value}
               onClick={() => void updateSettings({ appearance: { tone: t.value } })}
-              className={cn("group/tone flex flex-col items-center gap-2 text-[13px] text-muted-foreground outline-none", tone === t.value && "font-medium text-foreground")}
+              className={cn("group/tone flex flex-col items-center gap-2 text-detail text-muted-foreground outline-none", tone === t.value && "font-medium text-foreground")}
             >
               <TonePreview tone={t.value} selected={tone === t.value} />
               {t.label}
@@ -71,7 +71,7 @@ function TonePreview({ tone, selected }: { tone: PaperTone; selected: boolean })
     <span
       data-tone={tone}
       className={cn(
-        "grid aspect-[4/3] w-full grid-cols-[16%_30%_1fr] gap-[3px] overflow-hidden rounded-lg bg-sidebar p-[3px] ring-1 ring-border transition-shadow group-hover/tone:ring-foreground/25 group-focus-visible/tone:ring-2 group-focus-visible/tone:ring-ring",
+        "grid aspect-[4/3] w-full grid-cols-[16%_30%_1fr] gap-[3px] overflow-hidden rounded-lg bg-sidebar p-[3px] ring-1 ring-border transition-shadow group-hover/tone:ring-foreground/25 group-focus-key/tone:ring-2 group-focus-key/tone:ring-ring",
         selected && "ring-2 ring-foreground group-hover/tone:ring-foreground",
       )}
     >

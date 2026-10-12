@@ -8,21 +8,28 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
-import { cn } from "cn"
+import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { BorderedList } from "@/components/bordered-list"
+import { ChoiceMenu } from "@/components/choice-menu"
+import { GroupLabel as SharedGroupLabel } from "@/components/group-label"
+import { IconButton } from "@/components/icon-button"
+import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tip } from "@/components/tip"
 import { useFoldWhile, useCheck } from "./form-state"
 import { setSecret, useSettings } from "./store"
 
-export function List({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("divide-y rounded-lg border bg-card", className)}>{children}</div>
-}
+export const List = BorderedList
 
-export function GroupLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mt-6 mb-1.5 px-0.5 text-xs text-muted-foreground">{children}</div>
+// A second group in a section; its rows start at the list's edge, so the label does too
+export function GroupLabel({ info, children }: { info?: string; children: React.ReactNode }) {
+  return (
+    <SharedGroupLabel as="div" flush info={info} className="mt-6">
+      {children}
+    </SharedGroupLabel>
+  )
 }
 
 export function Row({
@@ -46,7 +53,7 @@ export function Row({
       <div className="flex min-h-7 items-center gap-3">
         <span className="flex shrink-0 items-center gap-1">
           {name}
-          {info && <Info text={info} />}
+          {info && <Info>{info}</Info>}
         </span>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-1">{control}</div>
       </div>
@@ -55,79 +62,28 @@ export function Row({
   )
 }
 
-export function Info({ text, label = "About this" }: { text: string; label?: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
-          aria-label={label}
-        >
-          <InfoIcon className="size-3.5" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-72">
-        {text}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
-
 // A second line under a row. Red only for something broken.
 export function Note({ tone = "muted", children }: { tone?: "muted" | "bad"; children: React.ReactNode }) {
-  return <div className={cn("mt-1 text-[13px] leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
+  return <div className={cn("mt-1 text-detail leading-5", tone === "bad" ? "text-destructive" : "text-muted-foreground")}>{children}</div>
 }
 
 // An action in a row: a small icon button whose label lives in a tooltip. All are one width, so the
 // status text before them lines up from row to row.
 export function IconAction({ label, onClick, disabled, className, children }: { label: string; onClick: () => void; disabled?: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground last:-mr-1.5 hover:text-foreground", className)} onClick={onClick} disabled={disabled} aria-label={label}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <IconButton label={label} className={cn("last:-mr-1.5", className)} onClick={onClick} disabled={disabled}>
+      {children}
+    </IconButton>
   )
 }
 
 // For controls shown only on hover or focus; they go before the ones that always show
-export const onHover = "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+export const onHover = "opacity-0 group-hover/row:opacity-100 focus-key:opacity-100"
 
-// A plain-text trigger that opens a words-only menu; the chosen item carries the check on the right
-export function Picker<T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T
-  options: { value: T; label: string }[]
-  onChange: (value: T) => void
-  label: string
-}) {
-  const current = options.find((o) => o.value === value) ?? options[0]
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={label} className="h-7 gap-1 px-2 font-normal last:-mr-2 data-open:bg-muted">
-          {current.label}
-          <ChevronsUpDownIcon className="text-muted-foreground" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-48">
-        {options.map((o) => (
-          <DropdownMenuItem key={o.value} onSelect={() => onChange(o.value)} className="gap-3">
-            <span className="flex-1">{o.label}</span>
-            {o.value === value && <CheckIcon className="size-4" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+// A row's choice: the shared text menu with the value in body tone and up-down chevrons, pulled out by its
+// padding when it comes last
+export function Picker<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (value: T) => void; label: string }) {
+  return <ChoiceMenu {...props} icon={<ChevronsUpDownIcon className="text-muted-foreground" />} className="h-7 gap-1 px-2 text-foreground last:-mr-2" />
 }
 
 // A text field that keeps its value when it loses focus or on Enter; Esc puts the saved value back.
@@ -165,7 +121,7 @@ export function CommitInput({
         {...props}
         value={draft}
         aria-invalid={!!error || undefined}
-        className={cn("h-8 w-64 text-[13px]", className)}
+        className={cn("h-8 w-64 text-detail", className)}
         onChange={(e) => {
           editing.current = true
           setDraft(e.target.value)
@@ -182,7 +138,7 @@ export function CommitInput({
 
 function ErrorLine({ error }: { error: string | null }) {
   if (!error) return null
-  return <div className="mt-1 w-64 text-[13px] leading-5 text-destructive">{error}</div>
+  return <div className="mt-1 w-64 text-detail leading-5 text-destructive">{error}</div>
 }
 
 type Check = { checking: boolean; result?: SettingsCheck }
@@ -203,12 +159,9 @@ export function CheckMark({ checking, result, service, accepted = `${service} ac
   return (
     <>
       {mark && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-grid size-6 shrink-0 place-items-center">{mark}</span>
-          </TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
-        </Tooltip>
+        <Tip label={label}>
+          <span className="inline-grid size-6 shrink-0 place-items-center">{mark}</span>
+        </Tip>
       )}
       <span role="status" className="sr-only">
         {label}
@@ -229,17 +182,11 @@ export function CheckNote({ checking, result }: Check) {
 export function SecretRow({ name, label, info, getFrom, service }: { name: SecretName; label: string; info: string; getFrom?: { label: string; href: string }; service: string }) {
   const last4 = useSettings((s) => s.view?.secrets[name])
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState("")
   const check = useCheck()
-  const fold = () => {
-    setEditing(false)
-    setDraft("")
-  }
+  const fold = () => setEditing(false)
   useFoldWhile(editing, fold)
 
-  const save = async () => {
-    const value = draft.trim()
-    if (!value) return
+  const save = async (value: string) => {
     fold()
     check.reset()
     await setSecret(name, value)
@@ -248,52 +195,24 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
 
   let control: React.ReactNode
   if (editing) {
-    control = (
-      <>
-        <Input
-          autoFocus
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="Paste the key"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void save()
-          }}
-          className="h-8 w-56 font-mono text-[13px]"
-        />
-        <IconAction label="Cancel" onClick={fold}>
-          <XIcon />
-        </IconAction>
-      </>
-    )
+    control = <KeyInput onSave={(value) => void save(value)} onCancel={fold} />
   } else if (last4) {
     control = (
-      <>
-        <IconAction
-          label="Remove key"
-          className={onHover}
-          onClick={() => {
-            check.reset()
-            void setSecret(name, null)
-          }}
-        >
-          <Trash2Icon />
-        </IconAction>
+      <MaskedKey
+        last4={last4}
+        onChange={() => setEditing(true)}
+        onRemove={() => {
+          check.reset()
+          void setSecret(name, null)
+        }}
+      >
         <CheckMark {...check} service={service} />
-        <span className="font-mono text-[13px] text-muted-foreground" aria-label={`Key ending in ${last4}`}>
-          ••••{last4}
-        </span>
-        <IconAction label="Change key" onClick={() => setEditing(true)}>
-          <PencilIcon />
-        </IconAction>
-      </>
+      </MaskedKey>
     )
   } else {
     control = (
       <>
-        <span className="text-[13px] text-muted-foreground">Not set</span>
+        <span className="text-detail text-muted-foreground">Not set</span>
         <IconAction label="Add key" onClick={() => setEditing(true)}>
           <PlusIcon />
         </IconAction>
@@ -314,5 +233,113 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
       )}
       {!editing && <CheckNote {...check} />}
     </Row>
+  )
+}
+
+// A key being added or changed, in place of the row's value: Enter keeps it, Cancel (or Esc) folds it
+// and forgets what was typed
+export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void; onCancel: () => void }) {
+  const [draft, setDraft] = useState("")
+  return (
+    <>
+      <Input
+        autoFocus
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        placeholder="Paste the key"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && draft.trim()) onSave(draft.trim())
+        }}
+        className="h-8 w-56 font-mono text-detail"
+      />
+      <IconAction label="Cancel" onClick={onCancel}>
+        <XIcon />
+      </IconAction>
+    </>
+  )
+}
+
+// A key that is set, by its last four characters, with Change; Remove shows on hover. children sit
+// between the two (a check mark).
+export function MaskedKey({ last4, onChange, onRemove, children }: { last4?: string; onChange: () => void; onRemove: () => void; children?: React.ReactNode }) {
+  return (
+    <>
+      <IconAction label="Remove key" className={onHover} onClick={onRemove}>
+        <Trash2Icon />
+      </IconAction>
+      {children}
+      <span className="font-mono text-detail text-muted-foreground" aria-label={last4 ? `Key ending in ${last4}` : "Key set"}>
+        ••••{last4}
+      </span>
+      <IconAction label="Change key" onClick={onChange}>
+        <PencilIcon />
+      </IconAction>
+    </>
+  )
+}
+
+// A form under a list, folded behind a quiet "Add …" button until asked for ("Add an agent", "Add a
+// sign-in"); the button's label is the form's title once open
+export function FoldedForm({
+  label,
+  open,
+  onOpen,
+  onCancel,
+  onSubmit,
+  aside,
+  submit,
+  submitDisabled,
+  children,
+}: {
+  label: string
+  open: boolean
+  onOpen: () => void
+  onCancel: () => void
+  onSubmit: () => void
+  // At the right of the title
+  aside?: React.ReactNode
+  // What the submit button says
+  submit: React.ReactNode
+  submitDisabled?: boolean
+  children: React.ReactNode
+}) {
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" className="mt-2 -ml-2 font-normal text-muted-foreground" onClick={onOpen}>
+        <PlusIcon />
+        {label}
+      </Button>
+    )
+  }
+  const title = <div className="text-sm font-medium">{label}</div>
+  return (
+    <form
+      className="mt-3 flex flex-col gap-3.5 rounded-lg border bg-card p-4"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSubmit()
+      }}
+    >
+      {aside ? (
+        <div className="flex items-center justify-between gap-3">
+          {title}
+          {aside}
+        </div>
+      ) : (
+        title
+      )}
+      {children}
+      <div className="flex justify-end gap-2 pt-0.5">
+        <Button type="button" variant="ghost" className="text-muted-foreground" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={submitDisabled}>
+          {submit}
+        </Button>
+      </div>
+    </form>
   )
 }

@@ -1,4 +1,4 @@
-import type { Chat, PaletteResults, SearchHit, SearchStatus, LinkSource } from "@owlit/protocol"
+import { paperUri, parseOwlitUri, type Chat, type PaletteResults, type SearchHit, type SearchStatus, type LinkSource } from "@owlit/protocol"
 import { rmSync } from "node:fs"
 import { readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
@@ -61,8 +61,8 @@ export class SearchIndex {
   // What mentions a paper or doc (under any id it has had)
   async linksTo(uri: string): Promise<LinkSource[]> {
     const uris = [uri]
-    const id = uri.match(/^owlit:\/\/library\/(.+)$/)?.[1]
-    if (id) for (const [from, to] of Object.entries(await this.library.aliases())) if (to === id) uris.push(`owlit://library/${from}`)
+    const u = parseOwlitUri(uri)
+    if (u?.kind === "paper") for (const [from, to] of Object.entries(await this.library.aliases())) if (to === u.id) uris.push(paperUri(from))
     return this.db.linksTo(uris)
   }
 

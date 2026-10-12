@@ -11,7 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { tagColorVar } from "../lib/tags"
+import { normalizeTag, tagColorVar } from "../lib/tags"
 import { collectTags, useLibraryStore } from "../store"
 
 // A tag's colour: the one mark that tells tags apart at a glance
@@ -22,7 +22,7 @@ export function TagDot({ tag, className }: { tag: string; className?: string }) 
 // A tag on a translucent fill, used where a tag can be acted on (the peek, About): clicking it
 // shows every paper with that tag; with onRemove it also carries a remove button on hover, whose
 // hit area reaches 24px past the small glyph. Read-only places show just the dot and the name.
-export function TagChip({
+function TagChip({
   tag,
   onClick,
   onRemove,
@@ -74,8 +74,8 @@ export function TagPicker({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const papers = useLibraryStore((s) => s.papers)
-  const allTags = useMemo(() => collectTags(papers), [papers])
-  const q = query.trim().toLowerCase().replace(/\s+/g, "-")
+  const allTags = useMemo(() => collectTags(papers).map(([t]) => t), [papers])
+  const q = normalizeTag(query)
   const canCreate = q.length > 0 && !allTags.includes(q)
 
   const pick = (tag: string) => {

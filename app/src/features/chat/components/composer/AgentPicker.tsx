@@ -1,7 +1,7 @@
 import { Fragment } from "react"
 import { CheckIcon, TriangleAlertIcon } from "lucide-react"
-import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
-import { cn } from "cn"
+import { ROLES } from "@owlit/protocol"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,69 +15,29 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tip } from "@/components/tip"
 import { AgentIcon } from "./agent-icons"
-import { needsSignIn } from "../../lib/sign-in"
-import { useChatStore, type Selection } from "../../store"
+import { isUnavailable, statusLabel } from "../../lib/connector-status"
+import { ConnectorStatusChip } from "../ConnectorStatusChip"
+import { useResolvedSelection } from "../../use-selection"
 import { openSettings } from "@/features/settings/store"
-import type { Connector, ConnectorStatus } from "../../types"
-
-export const statusLabel: Record<ConnectorStatus, string> = {
-  unknown: "Not checked",
-  checking: "Checking…",
-  not_installed: "Not installed",
-  available: "Ready",
-  connected: "Connected",
-  error: "Error",
-}
-
-export const isUnavailable = (c?: Connector) => !!c && (c.status === "not_installed" || c.status === "error")
-
-// Resolves the agent, model, effort and role in effect for a chat (or the global default)
-export function useResolvedSelection(chatId?: string) {
-  const connectors = useChatStore((s) => s.connectors)
-  const globalSelection = useChatStore((s) => s.selection)
-  const chat = useChatStore((s) => (chatId ? s.chats[chatId] : undefined))
-  const setSelection = useChatStore((s) => s.setSelection)
-  const setChatSelection = useChatStore((s) => s.setChatSelection)
-
-  const selection: Selection = chat?.connectorId
-    ? { connectorId: chat.connectorId, modelId: chat.modelId, role: chat.role ?? globalSelection.role, effortId: chat.effortId }
-    : globalSelection
-  const update = (patch: Partial<Selection>) => (chatId ? setChatSelection(chatId, patch) : setSelection(patch))
-
-  const connector: Connector | undefined = connectors.find((c) => c.id === selection.connectorId) ?? connectors[0]
-  const model =
-    connector?.models.find((m) => m.id === selection.modelId) ??
-    connector?.models.find((m) => m.id === connector.defaultModelId) ??
-    connector?.models[0]
-  const role = ROLES.find((r) => r.id === selection.role) ?? ROLES.find((r) => r.id === DEFAULT_ROLE)!
-  const effort =
-    connector?.efforts?.find((e) => e.id === selection.effortId) ??
-    connector?.efforts?.find((e) => e.id === connector.defaultEffortId) ??
-    connector?.efforts?.[0]
-  return { connectors, connector, model, role, effort, update }
-}
 
 // A compact trigger: no chevron (a menu opens from each), a tooltip naming what it sets. Radix needs the
 // tooltip and menu triggers stacked on the same button.
 function PickerButton({ tip, children, className, ...props }: React.ComponentProps<typeof Button> & { tip: React.ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn("h-7 min-w-0 gap-1 rounded-md px-1.5 font-normal text-muted-foreground hover:text-foreground data-open:bg-muted data-open:text-foreground", className)}
-            {...props}
-          >
-            {children}
-          </Button>
-        </DropdownMenuTrigger>
-      </TooltipTrigger>
-      <TooltipContent>{tip}</TooltipContent>
-    </Tooltip>
+    <Tip label={tip}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn("h-7 min-w-0 gap-1 rounded-md px-1.5 font-normal text-muted-foreground hover:text-foreground data-open:bg-muted data-open:text-foreground", className)}
+          {...props}
+        >
+          {children}
+        </Button>
+      </DropdownMenuTrigger>
+    </Tip>
   )
 }
 
@@ -110,27 +70,6 @@ function RadioItem({
   )
 }
 
-// Only states that need attention get a chip; a working agent stays quiet
-function StatusChip({ c }: { c: Connector }) {
-  if (c.status === "checking") return <Spinner className="size-3.5 shrink-0 text-muted-foreground" />
-  if (needsSignIn(c)) return <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs leading-4 text-muted-foreground">Not signed in</span>
-  if (c.status === "not_installed" || c.status === "error") {
-    return (
-      <span
-        title={c.status === "error" ? c.error : undefined}
-        className={cn(
-          "shrink-0 rounded-md px-1.5 py-0.5 text-xs leading-4",
-          c.status === "error" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
-        )}
-      >
-        {c.status === "error" ? "Error" : "Not installed"}
-      </span>
-    )
-  }
-  return null
-}
-
-
 // Three triggers: agent · model + effort · Owlit's role. Edits a chat's own
 // selection when chatId is given, the global default otherwise.
 export function AgentPicker({ chatId, className }: { chatId?: string; className?: string }) {
@@ -161,7 +100,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
                   {c.name}
                 </>
               }
-              trailing={<StatusChip c={c} />}
+              trailing={c.status === "checking" ? <Spinner className="size-3.5 shrink-0 text-muted-foreground" /> : <ConnectorStatusChip c={c} />}
               muted={isUnavailable(c)}
             />
           ))}

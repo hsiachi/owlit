@@ -2,30 +2,22 @@
 // use owlit (owlit_help): owlit://settings/<section> opens Settings there, owlit://shortcuts opens the
 // shortcut list. They open over the page, so nothing navigates.
 
-import { openSettings, SECTIONS, type SettingsSection } from "@/features/settings/store"
+import { parseOwlitUri } from "@owlit/protocol"
+import { openSettings, SECTIONS } from "@/features/settings/store"
 import { openShortcuts } from "./shortcuts"
 
-const SECTION_NAMES: Record<SettingsSection, string> = {
-  profile: "Profile",
-  appearance: "Appearance",
-  agents: "Agents",
-  sources: "Paper sources",
-  proxy: "Library proxy",
-  reading: "PDF reading",
-  privacy: "Privacy",
+const settingsSection = (href: string) => {
+  const u = parseOwlitUri(href)
+  return u?.kind === "settings" ? { section: SECTIONS.find((s) => s.id === u.section) } : null
 }
 
-const settingsSection = (href: string) => {
-  const m = /^owlit:\/\/settings(?:\/([a-z]+))?\/?$/.exec(href)
-  if (!m) return null
-  return { section: SECTIONS.find((s) => s === m[1]) }
-}
+const isShortcuts = (href: string) => parseOwlitUri(href)?.kind === "shortcuts"
 
 // What the link opens, in words; null for anything that isn't one of these links
 export function appLinkTitle(href: string) {
   const settings = settingsSection(href)
-  if (settings) return settings.section ? `Settings › ${SECTION_NAMES[settings.section]}` : "Settings"
-  if (href === "owlit://shortcuts") return "Keyboard shortcuts"
+  if (settings) return settings.section ? `Settings › ${settings.section.label}` : "Settings"
+  if (isShortcuts(href)) return "Keyboard shortcuts"
   return null
 }
 
@@ -33,10 +25,10 @@ export function appLinkTitle(href: string) {
 export function openAppLink(href: string) {
   const settings = settingsSection(href)
   if (settings) {
-    openSettings(settings.section)
+    openSettings(settings.section?.id)
     return true
   }
-  if (href === "owlit://shortcuts") {
+  if (isShortcuts(href)) {
     openShortcuts()
     return true
   }

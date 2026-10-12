@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { BookOpenIcon, FilePlusIcon, FileTextIcon, MessageSquareIcon, SquarePenIcon } from "lucide-react"
+import { FilePlusIcon, SquarePenIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { KindIcon } from "@/components/kind-icon"
 import {
   Command,
   CommandDialog,
@@ -13,7 +14,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { Kbd } from "@/components/ui/kbd"
-import { keysFor } from "@/app/shortcuts"
+import { keysFor, useShortcut } from "@/app/shortcuts"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { isHidden } from "@/features/docs/lib/tree"
@@ -22,7 +23,10 @@ import { useNewDoc } from "@/features/docs/use-new-doc"
 import { paperMeta } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { useFullText } from "@/features/search/full-text"
-import { usePaletteStore } from "./palette-store"
+import { messageText } from "@/features/chat/lib/message-text"
+import type { Kind } from "@/lib/kinds"
+import { hasAllWords, queryWords } from "@/lib/words"
+import { closePalette, openPalette, usePaletteStore } from "./palette-store"
 
 // Before anything is typed, each group shows its most recent few
 const RECENT = 6
@@ -31,18 +35,42 @@ const RECENT = 6
 // long value finds letters scattered over authors and venues, so it is not used. A match in the
 // title (passed as the first keyword) ranks above one in the details.
 function filter(value: string, search: string, keywords?: string[]): number {
-  const words = search.toLowerCase().split(/\s+/).filter(Boolean)
+  const words = queryWords(search)
   if (words.length === 0) return 1
-  const hay = value.toLowerCase()
-  if (!words.every((w) => hay.includes(w))) return 0
-  const title = keywords?.[0]?.toLowerCase() ?? ""
-  return words.every((w) => title.includes(w)) ? 1 : 0.5
+  if (!hasAllWords(value, words)) return 0
+  return hasAllWords(keywords?.[0] ?? "", words) ? 1 : 0.5
 }
 
 // ⌘K from anywhere: jump to a paper, a doc or a chat. The place you are in comes first.
 export function CommandPalette() {
   const open = usePaletteStore((s) => s.open)
-  const setOpen = usePaletteStore((s) => s.setOpen)
+  useShortcut("palette", () => (usePaletteStore.getState().open ? closePalette() : openPalette()))
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={(o) => !o && closePalette()}
+      title="Search"
+      description="Jump to a paper, a doc or a chat"
+      className="top-[18%] sm:max-w-2xl"
+    >
+      {/* Mounted only while the palette shows, so a streamed reply or a doc write doesn't rebuild its lists */}
+      <PaletteBody />
+    </CommandDialog>
+  )
+}
+
+interface Item {
+  id: string
+  // cmdk's key; it changes when what the row shows does
+  key: string
+  title: string
+  // Muted text after the title
+  detail?: string
+  // Everything the filter matches against
+  value: string
+}
+
+function PaletteBody() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const chats = useChatStore((s) => s.chats)
@@ -51,36 +79,29 @@ export function CommandPalette() {
   const newDoc = useNewDoc()
   const [query, setQuery] = useState("")
   // Papers whose text (not just their details) has every word typed
-  const fullText = useFullText(open ? query : "")
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setOpen(!usePaletteStore.getState().open)
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [setOpen])
+  const fullText = useFullText(query)
 
   const paperItems = useMemo(
     () =>
       Object.values(papers)
         // Recently opened first, then recently added
         .sort((a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0) || b.addedAt - a.addedAt)
-        .map((p) => ({
-          id: p.id,
-          title: p.title,
-          meta: paperMeta(p),
+        .map((p) => {
           // Everything one might remember a paper by
-          value: [p.title, p.authors.join(" "), p.year, p.venue, p.tags.join(" "), p.ids.doi, p.ids.arxiv, p.abstract, p.id].filter(Boolean).join(" "),
-        }))
-        // A paper found by its text carries the words around the match, which the filter reads and the
-        // row shows in place of its details
-        .map((item) => {
-          const snippet = fullText.papers[item.id]
-          return { ...item, details: item.value, value: snippet ? `${item.value} ${snippet}` : item.value, snippet }
+          const details = [p.title, p.authors.join(" "), p.year, p.venue, p.tags.join(" "), p.ids.doi, p.ids.arxiv, p.abstract, p.id].filter(Boolean).join(" ")
+          // A paper found by its text carries the words around the match, which the filter reads and the
+          // row shows in place of its details. A new key once a text match arrives: cmdk works out its
+          // groups when an item comes, not when an item's value changes.
+          const snippet = fullText.papers[p.id]
+          return {
+            id: p.id,
+            key: snippet ? `${p.id}:text` : p.id,
+            title: p.title,
+            detail: paperMeta(p),
+            details,
+            snippet,
+            value: snippet ? `${details} ${snippet}` : details,
+          }
         }),
     [papers, fullText],
   )
@@ -89,16 +110,15 @@ export function CommandPalette() {
     () =>
       Object.values(chats)
         .sort((a, b) => b.updatedAt - a.updatedAt)
-        .map((c) => {
+        .map((c): Item => {
           // Searchable body: what the user wrote
           const preview = c.messages
             .filter((m) => m.role === "user")
-            .flatMap((m) => m.parts)
-            .filter((p) => p.type === "text")
-            .map((p) => p.text)
+            .map((m) => messageText(m, " "))
+            .filter(Boolean)
             .join(" ")
             .slice(0, 200)
-          return { id: c.id, title: c.title, preview, value: `${c.title} ${preview} ${c.id}` }
+          return { id: c.id, key: c.id, title: c.title, detail: preview, value: `${c.title} ${preview} ${c.id}` }
         }),
     [chats],
   )
@@ -108,67 +128,29 @@ export function CommandPalette() {
       Object.values(files)
         .filter((f) => isMarkdown(f.path) && !isHidden(f.path))
         .sort((a, b) => b.modifiedAt - a.modifiedAt)
-        .map((f) => {
+        .map((f): Item => {
           const title = displayName(f.path)
           // Found by its name, its folder, or anything written in it
-          return { id: f.id, title, folder: parentPath(f.path), value: `${title} ${f.path} ${f.content ?? ""}` }
+          return { id: f.id, key: f.id, title, detail: parentPath(f.path), value: `${title} ${f.path} ${f.content ?? ""}` }
         }),
     [files],
   )
 
   const go = (to: string) => {
-    setOpen(false)
+    closePalette()
     navigate(to)
   }
 
   const typing = query.trim() !== ""
+  const shown = <T,>(items: T[]) => (typing ? items : items.slice(0, RECENT))
   const inChat = pathname.startsWith("/chat")
   const inDocs = pathname.startsWith("/docs")
+  // The words around a text match, unless what was typed is already in the paper's details
+  const paperRows = shown(paperItems).map((p) => (p.snippet && !inDetails(p.details, query) ? { ...p, detail: p.snippet } : p))
 
-  const paperGroup = (
-    <CommandGroup key="papers" heading="Papers" className="p-0">
-      {(typing ? paperItems : paperItems.slice(0, RECENT)).map((p) => (
-        // A new key once a text match arrives: cmdk works out its groups when an item comes, not when
-        // an item's value changes
-        <CommandItem key={p.snippet ? `${p.id}:text` : p.id} value={p.value} keywords={[p.title]} onSelect={() => go(`/library/${p.id}`)} className={itemClass}>
-          <BookOpenIcon />
-          <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
-            <span className="max-w-[70%] shrink-0 truncate">{p.title}</span>
-            <span className="min-w-0 truncate text-sm text-muted-foreground">{p.snippet && !inDetails(p.details, query) ? p.snippet : p.meta}</span>
-          </span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
-  )
-
-  const chatGroup = (
-    <CommandGroup key="chats" heading="Chats" className="p-0">
-      {(typing ? chatItems : chatItems.slice(0, RECENT)).map((c) => (
-        <CommandItem key={c.id} value={c.value} keywords={[c.title]} onSelect={() => go(`/chat/${c.id}`)} className={itemClass}>
-          <MessageSquareIcon />
-          {/* The title keeps its width; the preview takes what's left */}
-          <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
-            <span className="max-w-[70%] shrink-0 truncate">{c.title}</span>
-            {c.preview && <span className="min-w-0 truncate text-sm text-muted-foreground">{c.preview}</span>}
-          </span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
-  )
-
-  const docGroup = (
-    <CommandGroup key="docs" heading="Docs" className="p-0">
-      {(typing ? docItems : docItems.slice(0, RECENT)).map((d) => (
-        <CommandItem key={d.id} value={d.value} keywords={[d.title]} onSelect={() => go(`/docs/${d.id}`)} className={itemClass}>
-          <FileTextIcon />
-          <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
-            <span className="max-w-[70%] shrink-0 truncate">{d.title}</span>
-            {d.folder && <span className="min-w-0 truncate text-sm text-muted-foreground">{d.folder}</span>}
-          </span>
-        </CommandItem>
-      ))}
-    </CommandGroup>
-  )
+  const paperGroup = <PaletteGroup key="papers" heading="Papers" kind="paper" to="/library" items={paperRows} go={go} />
+  const chatGroup = <PaletteGroup key="chats" heading="Chats" kind="chat" to="/chat" items={shown(chatItems)} go={go} />
+  const docGroup = <PaletteGroup key="docs" heading="Docs" kind="doc" to="/docs" items={shown(docItems)} go={go} />
 
   // ⌘N makes whatever belongs to the place you are in
   const newChat = (
@@ -182,7 +164,7 @@ export function CommandPalette() {
     <CommandItem
       key="new-doc"
       onSelect={() => {
-        setOpen(false)
+        closePalette()
         newDoc()
       }}
       value="new doc"
@@ -200,61 +182,60 @@ export function CommandPalette() {
   )
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o)
-        if (!o) setQuery("")
-      }}
-      title="Search"
-      description="Jump to a paper, a doc or a chat"
-      className="top-[18%] sm:max-w-2xl"
+    // Overrides open up the stock palette: a plain, large input and roomy rows
+    <Command
+      filter={filter}
+      className={cn(
+        "p-0",
+        "**:data-[slot=command-input-wrapper]:border-b **:data-[slot=command-input-wrapper]:px-3 **:data-[slot=command-input-wrapper]:py-2",
+        "**:data-[slot=input-group]:h-11! **:data-[slot=input-group]:border-transparent **:data-[slot=input-group]:bg-transparent **:data-[slot=input-group]:px-1",
+        "**:data-[slot=command-input]:text-base",
+        "**:[[cmdk-group-heading]]:px-3! **:[[cmdk-group-heading]]:pt-2.5! **:[[cmdk-group-heading]]:pb-1.5! **:[[cmdk-group-heading]]:font-normal!",
+      )}
     >
-      {/* Overrides open up the stock palette: a plain, large input and roomy rows */}
-      <Command
-        filter={filter}
-        className={cn(
-          "p-0",
-          "**:data-[slot=command-input-wrapper]:border-b **:data-[slot=command-input-wrapper]:px-3 **:data-[slot=command-input-wrapper]:py-2",
-          "**:data-[slot=input-group]:h-11! **:data-[slot=input-group]:border-transparent **:data-[slot=input-group]:bg-transparent **:data-[slot=input-group]:px-1",
-          "**:data-[slot=command-input]:text-base",
-          "**:[[cmdk-group-heading]]:px-3! **:[[cmdk-group-heading]]:pt-2.5! **:[[cmdk-group-heading]]:pb-1.5! **:[[cmdk-group-heading]]:font-normal!",
-        )}
-      >
-        <CommandInput placeholder="Search papers, docs and chats…" value={query} onValueChange={setQuery} autoFocus />
-        <CommandList className="max-h-[26rem] p-2">
-          <CommandEmpty className="py-10 text-muted-foreground">{fullText.indexing ? "Nothing found yet. Still indexing…" : "Nothing found."}</CommandEmpty>
-          {inChat
-            ? [actions, chatGroup, paperGroup, docGroup]
-            : inDocs
-              ? [actions, docGroup, paperGroup, chatGroup]
-              : [paperGroup, docGroup, chatGroup, actions]}
-        </CommandList>
-        <div className="flex items-center gap-5 border-t px-4 py-2.5 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            Open <Kbd>↵</Kbd>
-          </span>
-          <span className="flex items-center gap-1.5">
-            Navigate <Kbd>↑</Kbd>
-            <Kbd>↓</Kbd>
-          </span>
-          <span className="ml-auto flex items-center gap-1.5">
-            Close <Kbd>Esc</Kbd>
-          </span>
-        </div>
-      </Command>
-    </CommandDialog>
+      <CommandInput placeholder="Search papers, docs and chats…" value={query} onValueChange={setQuery} autoFocus />
+      <CommandList className="max-h-[26rem] p-2">
+        <CommandEmpty className="py-10 text-muted-foreground">{fullText.indexing ? "Nothing found yet. Still indexing…" : "Nothing found."}</CommandEmpty>
+        {inChat
+          ? [actions, chatGroup, paperGroup, docGroup]
+          : inDocs
+            ? [actions, docGroup, paperGroup, chatGroup]
+            : [paperGroup, docGroup, chatGroup, actions]}
+      </CommandList>
+      <div className="flex items-center gap-5 border-t px-4 py-2.5 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          Open <Kbd>↵</Kbd>
+        </span>
+        <span className="flex items-center gap-1.5">
+          Navigate <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd>
+        </span>
+        <span className="ml-auto flex items-center gap-1.5">
+          Close <Kbd>Esc</Kbd>
+        </span>
+      </div>
+    </Command>
   )
 }
 
-const itemClass = "gap-3 rounded-md px-3 py-2 text-[15px] [&_svg]:text-muted-foreground"
+// Papers, chats or docs: the kind's icon, the title keeping its width, the detail taking what's left
+function PaletteGroup({ heading, kind, to, items, go }: { heading: string; kind: Kind; to: string; items: Item[]; go: (to: string) => void }) {
+  return (
+    <CommandGroup heading={heading} className="p-0">
+      {items.map((item) => (
+        <CommandItem key={item.key} value={item.value} keywords={[item.title]} onSelect={() => go(`${to}/${item.id}`)} className={itemClass}>
+          <KindIcon kind={kind} />
+          <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
+            <span className="max-w-[70%] shrink-0 truncate">{item.title}</span>
+            {item.detail && <span className="min-w-0 truncate text-sm text-muted-foreground">{item.detail}</span>}
+          </span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  )
+}
+
+const itemClass = "gap-3 rounded-md px-3 py-2 text-body [&_svg]:text-muted-foreground"
 
 // Whether every word typed is in what the row shows besides the text (title, authors, venue, …)
-function inDetails(value: string, query: string) {
-  const details = value.toLowerCase()
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((w) => details.includes(w))
-}
+const inDetails = (value: string, query: string) => hasAllWords(value, queryWords(query))

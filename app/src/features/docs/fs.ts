@@ -1,27 +1,31 @@
 import { undo } from "@codemirror/commands"
-import { toast } from "sonner"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
-import { docUri } from "./lib/mentions"
 import { isDiskChange } from "./disk"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { clientId, registerUiHandler } from "@/lib/ui-actions"
 import { undoChange } from "@/lib/versions"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
-import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor, spanChange } from "./editors"
-import { useDocsStore } from "./store"
-import { displayName, isMarkdown, type WorkspaceFile } from "./types"
+import { spanChange } from "@/lib/text-diff"
+import { noteAnchor } from "./editor/agent-notes"
+import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor } from "./editors"
+import { fileAt, perFiles, useDocsStore } from "./store"
+import { displayName, docUri, isMarkdown, type WorkspaceFile } from "./types"
 import { chatOnScreen, labelOf } from "@/features/chat/results"
+import { toastUndo } from "@/lib/toast"
 
-const fileAt = (path: string) => Object.values(useDocsStore.getState().files).find((f) => f.path === path)
+// What [[wikilinks]] can name: each doc by its name and by its path, the first doc keeping a name
+const linkNames = perFiles((files) => {
+  const names = new Map<string, WorkspaceFile>()
+  for (const f of Object.values(files)) {
+    if (!isMarkdown(f.path)) continue
+    for (const key of [displayName(f.path).toLowerCase(), f.path.toLowerCase().replace(/\.md$/, "")]) if (!names.has(key)) names.set(key, f)
+  }
+  return names
+})
 
 // The doc a [[wikilink]] names: the first called Name, or the one at that path
-export function wikilinkFile(files: Record<string, WorkspaceFile>, name: string) {
-  const want = name.toLowerCase().replace(/\.md$/, "")
-  return Object.values(files).find(
-    (f) => isMarkdown(f.path) && (displayName(f.path).toLowerCase() === want || f.path.toLowerCase().replace(/\.md$/, "") === want),
-  )
-}
+export const wikilinkFile = (files: Record<string, WorkspaceFile>, name: string) => linkNames(files).get(name.toLowerCase().replace(/\.md$/, ""))
 
 // The text of a doc as it is now: the open editor's, else the stored file's
 const currentText = (id: string) => openEditor(id)?.state.doc.toString() ?? useDocsStore.getState().files[id]?.content ?? ""
@@ -93,17 +97,15 @@ function applyAgentEdit(file: WorkspaceFile, content: string, versionId?: string
   if (change.from === change.to && !change.insert) return true
   view.dispatch({ changes: change, userEvent: "input.agent" })
   const after = view.state.doc.toString()
-  toast("Edit applied", {
-    description: displayName(file.path),
-    action: {
-      label: "Undo",
-      onClick: () => {
-        if (openEditor(file.id) === view) undo(view)
-        else if (versionId) restoreVersion(versionId, file.path)
-        else if (currentText(file.id) === after) rewrite(file.id, before)
-      },
+  toastUndo(
+    "Edit applied",
+    () => {
+      if (openEditor(file.id) === view) undo(view)
+      else if (versionId) restoreVersion(versionId, file.path)
+      else if (currentText(file.id) === after) rewrite(file.id, before)
     },
-  })
+    { description: displayName(file.path) },
+  )
   return true
 }
 
@@ -160,15 +162,12 @@ if (isDesktop) {
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(chatId)) return
-    toast("Edit applied", {
+    toastUndo("Edit applied", () => restoreVersion(versionId, path), {
       // A paper's note is named by its paper
       description: path.startsWith(".owlit/") ? `Your note on ${labelOf(path)}` : displayName(path),
-      action: { label: "Undo", onClick: () => restoreVersion(versionId, path) },
     })
   })
 }
-
-const CONTEXT = 32
 
 // Agents' notes land beside the doc, anchored by the quoted passage and a little text either side of it
 setWorkspaceNotes({
@@ -180,9 +179,7 @@ setWorkspaceNotes({
     if (at < 0 || !quote.trim()) return false
     useDocsStore.getState().addNote(file.id, {
       id: newId(),
-      quote,
-      prefix: doc.slice(Math.max(0, at - CONTEXT), at),
-      suffix: doc.slice(at + quote.length, at + quote.length + CONTEXT),
+      ...noteAnchor(doc, at, at + quote.length),
       text,
       by,
       chatId,

@@ -69,7 +69,6 @@ export const getWorkspaceKnowledge = () => workspaceKnowledge
 export interface AgentClient {
   // Saves the turn's messages itself (core does, in the desktop app), so the store doesn't
   readonly persistsMessages?: boolean
-  listConnectors(): Promise<Connector[]>
   // Probe whether the agent's command is installed and signed in
   check(connector: Connector): Promise<Connector>
   prompt(

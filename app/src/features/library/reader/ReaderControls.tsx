@@ -5,29 +5,26 @@ import { useSearch, useSearchCapability } from "@embedpdf/plugin-search/react"
 import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react"
 import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { keysFor } from "@/app/shortcuts"
-import { Kbd } from "@/components/ui/kbd"
+import { Tip } from "@/components/tip"
+import { Separator } from "@/components/ui/separator"
+import { useShortcut } from "@/app/shortcuts"
 import type { ReturnMark } from "./LinkLayer"
 
 // Zoom and find float over the page instead of sitting in a toolbar above it: no band of chrome
 // before the document starts, and the controls rest on the thing they act on.
 
-// Floating material, the same as menus (popover surface, hairline ring, soft shadow), fully rounded. z-30 keeps it above
-// the selection layer and the interaction overlay (z 10) and the link layer (z 20).
-const PILL = "z-30 flex h-8 items-center gap-0.5 rounded-full bg-popover p-1 text-xs text-muted-foreground shadow-md ring-1 ring-foreground/8 dark:ring-foreground/14"
+// The floating material of menus, fully rounded. z-30 keeps it above the selection layer and the
+// interaction overlay (z 10) and the link layer (z 20).
+const PILL = "menu-surface z-30 flex h-8 items-center gap-0.5 rounded-full p-1 text-xs text-muted-foreground"
 const ITEM = "flex h-6 items-center rounded-full transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
 const ICON = cn(ITEM, "w-6 justify-center [&_svg]:size-3.5")
 
-function Tip({ label, keys, children }: { label: string; keys?: string; children: React.ReactNode }) {
+// An icon in a pill, its label the tooltip
+function PillIcon({ label, shortcut, ...props }: React.ComponentProps<"button"> & { label: string; shortcut?: string }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>
-        {label}
-        {keys && <Kbd>{keys}</Kbd>}
-      </TooltipContent>
-    </Tooltip>
+    <Tip label={label} shortcut={shortcut}>
+      <button type="button" aria-label={label} className={ICON} {...props} />
+    </Tip>
   )
 }
 
@@ -35,16 +32,7 @@ export function ReaderControls({ documentId, back, onBack }: { documentId: strin
   const [searching, setSearching] = useState(false)
 
   // ⌘F finds in the paper rather than in the page around it
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault()
-        setSearching(true)
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [])
+  useShortcut("find-in-paper", () => setSearching(true))
 
   return (
     <>
@@ -55,11 +43,9 @@ export function ReaderControls({ documentId, back, onBack }: { documentId: strin
           ) : (
             <div className={PILL}>
               <ZoomReadout documentId={documentId} />
-              <Tip label="Find in paper" keys={keysFor("find-in-paper")}>
-                <button type="button" aria-label="Find in paper" onClick={() => setSearching(true)} className={ICON}>
-                  <SearchIcon />
-                </button>
-              </Tip>
+              <PillIcon label="Find in paper" shortcut="find-in-paper" onClick={() => setSearching(true)}>
+                <SearchIcon />
+              </PillIcon>
             </div>
           )}
         </div>
@@ -90,7 +76,6 @@ function SearchPill({ documentId, onClose }: { documentId: string; onClose: () =
   const { state, provides } = useSearch(documentId)
   const [query, setQuery] = useState("")
   const input = useRef<HTMLInputElement>(null)
-
 
   useEffect(() => {
     input.current?.focus()
@@ -159,25 +144,19 @@ function SearchPill({ documentId, onClose }: { documentId: string; onClose: () =
           }
         }}
         placeholder="Find in paper"
-        className="h-6 w-40 bg-transparent px-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+        className="h-6 w-40 bg-transparent px-1.5 text-detail text-foreground outline-none placeholder:text-muted-foreground"
       />
       {/* No "0/0" before anything is typed; it reads as a failed search */}
       {query.trim() !== "" && <span className="shrink-0 px-1 tabular-nums">{total === 0 ? "None" : `${active} of ${total}`}</span>}
-      <Tip label="Previous match">
-        <button type="button" aria-label="Previous match" onClick={() => provides?.previousResult()} disabled={total === 0} className={ICON}>
-          <ChevronUpIcon />
-        </button>
-      </Tip>
-      <Tip label="Next match">
-        <button type="button" aria-label="Next match" onClick={() => provides?.nextResult()} disabled={total === 0} className={ICON}>
-          <ChevronDownIcon />
-        </button>
-      </Tip>
-      <Tip label="Close">
-        <button type="button" aria-label="Close find" onClick={onClose} className={ICON}>
-          <XIcon />
-        </button>
-      </Tip>
+      <PillIcon label="Previous match" onClick={() => provides?.previousResult()} disabled={total === 0}>
+        <ChevronUpIcon />
+      </PillIcon>
+      <PillIcon label="Next match" onClick={() => provides?.nextResult()} disabled={total === 0}>
+        <ChevronDownIcon />
+      </PillIcon>
+      <PillIcon label="Close" aria-label="Close find" onClick={onClose}>
+        <XIcon />
+      </PillIcon>
     </div>
   )
 }
@@ -236,7 +215,7 @@ function PageIndicator({ documentId, back, onBack }: { documentId: string; back:
               {back.pageNumber}
             </button>
           </Tip>
-          <span className="h-3.5 w-px bg-border" />
+          <Separator orientation="vertical" className="h-3.5" />
         </>
       )}
       <span className="px-2 tabular-nums">

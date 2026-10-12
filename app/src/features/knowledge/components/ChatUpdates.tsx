@@ -1,12 +1,11 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { NetworkIcon } from "lucide-react"
-import type { MessagePart } from "@/features/chat/types"
+import { KIND_ICON } from "@/lib/kinds"
+import type { MessagePart, ToolCall } from "@/features/chat/types"
 import type { ResultRow } from "@/features/chat/components/messages/ResultRows"
 import { canUndoRevision, undoRevision } from "../agent"
 import { allTopics } from "../store"
 
-type ToolCall = Extract<MessagePart, { type: "tool_call" }>
 
 const isKnowledgeEdit = (p: MessagePart): p is ToolCall =>
   p.type === "tool_call" && p.kind === "edit" && p.status === "completed" && !!p.locations?.[0]?.path.startsWith("knowledge/")
@@ -22,7 +21,7 @@ export function useKnowledgeRows(parts: MessagePart[]): ResultRow[] {
     return {
       key: `knowledge:${part.toolCallId}`,
       kind: "knowledge",
-      icon: NetworkIcon,
+      icon: KIND_ICON.knowledge,
       name: topic?.name ?? part.title,
       detail: "Updated",
       undone: !!undone[part.toolCallId],

@@ -1,15 +1,16 @@
-import type { KnowledgeRun } from "@owlit/protocol"
+import { parseOwlitUri, type KnowledgeRun } from "@owlit/protocol"
 import { useMemo } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
-import { reportKnowledgeEdited } from "@/lib/activity"
+import { reportKnowledgeEdited } from "@/app/activity"
 import { isDesktop } from "@/lib/rpc"
-import { useDocsStore } from "@/features/docs/store"
+import { perFiles, useDocsStore } from "@/features/docs/store"
 import type { WorkspaceFile } from "@/features/docs/types"
-import { parseTopic, serializeTopic, slugify, topicPath } from "./format"
+import { oneLine, parseTopic, serializeTopic, topicPath, topicSlug } from "./format"
 import { seedLoose, seedPapers, seedSidecars, seedTopicFiles } from "./mocks/seed"
 import type { Change, Connection, Line, PaperKnowledge, Passage, Ref, Topic, TopicSidecar } from "./types"
+import { joinAnd, plural } from "@/lib/words"
 
 // Topics are the Markdown files in `knowledge/`; the Docs store stands in for the disk until the desktop
 // shell exists. This store is the sidecar beside them (`.owlit/knowledge/`): what the user did to each
@@ -27,21 +28,19 @@ function parse(f: WorkspaceFile): Topic {
   return topic
 }
 
-export function topicsOf(files: Record<string, WorkspaceFile>): Topic[] {
-  return Object.values(files)
+// Newest first; built once per change to the files and shared by every reader
+export const topicsOf = perFiles((files): Topic[] =>
+  Object.values(files)
     .filter(isTopicFile)
     .map(parse)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-}
+    .sort((a, b) => b.updatedAt - a.updatedAt),
+)
 
 export const allTopics = () => topicsOf(useDocsStore.getState().files)
 export const getTopic = (id: string) => allTopics().find((t) => t.id === id)
 const fileOf = (id: string) => Object.values(useDocsStore.getState().files).find((f) => isTopicFile(f) && parse(f).id === id)
 
-export function useTopics(): Topic[] {
-  const files = useDocsStore((s) => s.files)
-  return useMemo(() => topicsOf(files), [files])
-}
+export const useTopics = (): Topic[] => topicsOf(useDocsStore((s) => s.files))
 
 export function useTopic(id: string): Topic | undefined {
   const topics = useTopics()
@@ -57,8 +56,6 @@ export function writeTopic(topic: Topic) {
 }
 
 const blankSidecar = (): TopicSidecar => ({ seenAt: Date.now(), history: [], edits: {}, removed: {}, said: {}, changedAt: {} })
-
-export const lineKey = (topicId: string, lineId: string) => `${topicId}/${lineId}`
 
 // The most recent run, for "Updated 3 min ago · 2 topics" on the Knowledge page
 export type Run = KnowledgeRun
@@ -167,7 +164,8 @@ export function changedSince(topic: Topic, side: TopicSidecar, seenAt = side.see
 export function provenance(topic: Topic) {
   const kinds = { doc: new Set<string>(), paper: new Set<string>(), chat: new Set<string>() }
   for (const s of topic.sources) {
-    const k = s.ref.uri.startsWith("owlit://library/") ? "paper" : s.ref.uri.startsWith("owlit://chat/") ? "chat" : "doc"
+    const kind = parseOwlitUri(s.ref.uri)?.kind
+    const k = kind === "paper" || kind === "chat" ? kind : "doc"
     kinds[k].add(s.ref.uri.replace(/#.*$/, ""))
   }
   const parts = (
@@ -178,8 +176,8 @@ export function provenance(topic: Topic) {
     ] as const
   )
     .filter(([, n]) => n > 0)
-    .map(([k, n]) => `${n} ${k}${n === 1 ? "" : "s"}`)
-  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "nothing yet")
+    .map(([k, n]) => plural(n, k))
+  return parts.length ? joinAnd(parts) : "nothing yet"
 }
 
 // ---- Acting on lines (the user's own edits go straight to the file and are guarded by the sidecar) ----
@@ -193,7 +191,7 @@ function mutate(topicId: string, fn: (t: Topic) => Topic | null) {
 }
 
 export function editLine(topicId: string, lineId: string, text: string) {
-  const clean = text.replace(/\s+/g, " ").trim()
+  const clean = oneLine(text)
   if (!clean) return
   const before = mutate(topicId, (t) => {
     const l = t.lines.find((x) => x.id === lineId)
@@ -209,17 +207,6 @@ export function editLine(topicId: string, lineId: string, text: string) {
   k.patchSidecar(topicId, (s) => ({ edits: { ...s.edits, [lineId]: { text: clean, at: Date.now() } } }))
   k.record(topicId, { lineId, what: "You rewrote it", why: "edited on the topic page", by: "you", before: was.text })
   reportKnowledgeEdited(topicId, lineId)
-}
-
-export function editQuestion(topicId: string, questionId: string, text: string) {
-  const clean = text.replace(/\s+/g, " ").trim()
-  if (!clean) return
-  mutate(topicId, (t) => {
-    const q = t.questions.find((x) => x.id === questionId)
-    if (!q || q.text === clean) return null
-    q.text = clean
-    return t
-  })
 }
 
 // Removes a line for good: no update brings it back. Returns an undo.
@@ -254,7 +241,7 @@ export function removeLine(topicId: string, lineId: string): (() => void) | null
 // ---- Topics ----
 
 export function renameTopic(topicId: string, name: string) {
-  const clean = name.replace(/\s+/g, " ").trim()
+  const clean = oneLine(name)
   const file = fileOf(topicId)
   const t = getTopic(topicId)
   if (!clean || !file || !t || clean === t.name) return
@@ -311,11 +298,11 @@ export function mergeTopic(fromId: string, intoId: string): (() => void) | null 
 // Moves the chosen lines into a new topic
 export function splitTopic(topicId: string, lineIds: string[], name: string): string | null {
   const t = getTopic(topicId)
-  const clean = name.replace(/\s+/g, " ").trim()
+  const clean = oneLine(name)
   if (!t || !clean || !lineIds.length) return null
   const taken = new Set(allTopics().map((x) => x.id))
-  let id = slugify(clean)
-  for (let n = 2; taken.has(id); n++) id = `${slugify(clean)}-${n}`
+  let id = topicSlug(clean)
+  for (let n = 2; taken.has(id); n++) id = `${topicSlug(clean)}-${n}`
   const moving = t.lines.filter((l) => lineIds.includes(l.id))
   const uris = new Set(moving.flatMap((l) => l.sources.map((r) => r.uri.replace(/#.*$/, ""))))
   const fresh: Topic = {
@@ -334,7 +321,7 @@ export function splitTopic(topicId: string, lineIds: string[], name: string): st
   const k = useKnowledgeStore.getState()
   k.patchSidecar(id, () => ({ seenAt: Date.now() }))
   k.record(id, { what: `Split from “${t.name}”`, why: "you split the topic", by: "you" })
-  k.record(topicId, { what: `${moving.length} line${moving.length === 1 ? "" : "s"} moved to “${clean}”`, why: "you split the topic", by: "you" })
+  k.record(topicId, { what: `${plural(moving.length, "line")} moved to “${clean}”`, why: "you split the topic", by: "you" })
   return id
 }
 

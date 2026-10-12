@@ -1,53 +1,46 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { BookOpenIcon, FileTextIcon, FileUpIcon, MessageSquareIcon } from "lucide-react"
 import { keysFor, openShortcuts } from "@/app/shortcuts"
+import { DropOverlay, PdfFileInput } from "@/components/file-drop"
+import { GroupLabel } from "@/components/group-label"
+import { KindIcon } from "@/components/kind-icon"
+import { ListRow } from "@/components/list-row"
+import { PageTitle } from "@/components/page"
+import { useFileDrop } from "@/hooks/use-file-drop"
+import { Quote } from "@/components/quote"
+import { KIND_ICON } from "@/lib/kinds"
 import { useNewDoc } from "@/features/docs/use-new-doc"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
 import { WaitingOnYou } from "./WaitingOnYou"
 import { AWAY_FOR, SinceYouLeft } from "./SinceYouLeft"
 import { useTrail, workspaceKey } from "./trail"
-import { type Kind, type Place, usePlaces, when } from "./where"
+import { ago } from "@/lib/time"
+import { type Place, usePlaces } from "./where"
 
 // Home answers, in this order: where was I (every launch), what is waiting for me (only while something
 // waits) and what changed while I was away (only after three days or more). There is no composer: asking
 // happens in Chat and the agent window. PDFs dropped anywhere on it go to the Library.
 
-const ICON: Record<Kind, typeof FileTextIcon> = { doc: FileTextIcon, chat: MessageSquareIcon, paper: BookOpenIcon }
 const RECENT = 8
 
 export function HomePage() {
   const places = usePlaces()
   const workspace = useWorkspace((s) => s.current)
   const awayFrom = useTrail((s) => s.awayFrom[workspaceKey()])
-  const [dragging, setDragging] = useState(0)
+  const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files)))
   const [lead, ...rest] = places
   const [openedAt] = useState(() => Date.now())
   const since = awayFrom && openedAt - awayFrom >= AWAY_FOR ? awayFrom : null
 
-  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files")
-
   return (
-    <div
-      className="relative flex min-h-0 flex-1 flex-col"
-      // Counting enter/leave pairs keeps the overlay from flickering over child elements
-      onDragEnter={(e) => hasFiles(e) && setDragging((n) => n + 1)}
-      onDragLeave={(e) => hasFiles(e) && setDragging((n) => Math.max(0, n - 1))}
-      onDragOver={(e) => hasFiles(e) && e.preventDefault()}
-      onDrop={(e) => {
-        if (!hasFiles(e)) return
-        e.preventDefault()
-        setDragging(0)
-        void addPdfFiles(Array.from(e.dataTransfer.files))
-      }}
-    >
+    <div className="relative flex min-h-0 flex-1 flex-col" {...dropProps}>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-4 pt-10 pb-24">
           {/* The workspace folder is what this desk is about; its full path on hover */}
-          <h1 className="px-2.5 text-[22px] leading-tight font-medium tracking-tight" title={workspace?.path}>
+          <PageTitle className="px-2.5" title={workspace?.path}>
             {workspace?.name ?? "Home"}
-          </h1>
+          </PageTitle>
           {lead ? (
             <>
               <div className="mt-5 empty:hidden">
@@ -57,10 +50,10 @@ export function HomePage() {
               {since && <SinceYouLeft since={since} />}
               {rest.length > 0 && (
                 <section className="mt-8">
-                  <h2 className="mb-1 px-2.5 text-xs text-muted-foreground">Recent</h2>
+                  <GroupLabel>Recent</GroupLabel>
                   <div className="flex flex-col gap-0.5">
                     {rest.slice(0, RECENT).map((p) => (
-                      <PlaceRow key={p.key} place={p} />
+                      <ListRow key={p.key} to={p.to} icon={KIND_ICON[p.kind]} title={p.title} detail={p.detail} end={ago(p.at)} />
                     ))}
                   </div>
                 </section>
@@ -71,48 +64,31 @@ export function HomePage() {
           )}
         </div>
       </div>
-      {dragging > 0 && (
-        <div className="pointer-events-none absolute inset-3 z-30 flex items-center justify-center rounded-xl border-2 border-dashed border-foreground/20 bg-background/80 backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <FileUpIcon className="size-4" />
-            Drop PDFs to add them to your Library
-          </div>
-        </div>
-      )}
+      {dragging && <DropOverlay label="Drop PDFs to add them to your Library" />}
     </div>
   )
 }
 
 // The last thing worked on, with the user's own last words in it
 function LeadCard({ place }: { place: Place }) {
-  const Icon = ICON[place.kind]
   // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday"
-  const time = when(place.at)
-  const did = place.did ? `${place.did} ${/^(Just now|Yesterday)$/.test(time) ? time.toLowerCase() : time}` : time
+  const did = place.did ? `${place.did} ${ago(place.at, { inSentence: true })}` : ago(place.at)
   const meta = [place.detail, did].filter(Boolean).join(" · ")
   return (
     <Link
       to={place.to}
-      className="mt-5 block rounded-[10px] border bg-card px-4 pt-3.5 pb-4 outline-none transition-colors hover:border-foreground/20 focus-key:border-foreground/30"
+      className="mt-5 block rounded-lg border bg-card px-4 pt-3.5 pb-4 outline-none transition-colors hover:border-foreground/20 focus-key:border-foreground/30"
     >
       <div className="flex min-w-0 items-center gap-2">
-        <Icon className="size-4 shrink-0 text-muted-foreground" />
+        <KindIcon kind={place.kind} className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate text-sm font-medium">{place.title}</span>
-        <span className="shrink-0 text-[13px] whitespace-nowrap text-muted-foreground">{meta}</span>
+        <span className="shrink-0 text-detail whitespace-nowrap text-muted-foreground">{meta}</span>
       </div>
-      {place.words && <p className="mt-2.5 line-clamp-3 border-l-2 pl-3 text-sm leading-relaxed text-muted-foreground">{place.words}</p>}
-    </Link>
-  )
-}
-
-function PlaceRow({ place }: { place: Place }) {
-  const Icon = ICON[place.kind]
-  return (
-    <Link to={place.to} className="flex h-9 min-w-0 items-center gap-2.5 rounded-md px-2.5 text-sm outline-none hover:bg-muted focus-key:bg-muted">
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="max-w-[62%] shrink-0 truncate">{place.title}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{place.detail}</span>
-      <span className="shrink-0 text-[13px] text-muted-foreground">{when(place.at)}</span>
+      {place.words && (
+        <Quote size="sm" clamp={3} className="mt-2.5">
+          {place.words}
+        </Quote>
+      )}
     </Link>
   )
 }
@@ -121,11 +97,12 @@ function PlaceRow({ place }: { place: Place }) {
 function Start() {
   const navigate = useNavigate()
   const newDoc = useNewDoc()
-  const fileInput = useRef<HTMLInputElement>(null)
+  // The element itself rather than a ref, since the rows below hand its click out during render
+  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null)
   const rows = [
-    { icon: BookOpenIcon, title: "Add papers", detail: "Drop PDFs anywhere here, or choose them from your disk", run: () => fileInput.current?.click() },
-    { icon: FileTextIcon, title: "New doc", detail: "Notes and drafts are Markdown files in this folder", run: () => newDoc("") },
-    { icon: MessageSquareIcon, title: "Chat with Owlit", detail: "Ask, or hand off work like finding papers", run: () => navigate("/chat") },
+    { icon: KIND_ICON.paper, title: "Add papers", detail: "Drop PDFs anywhere here, or choose them from your disk", run: () => fileInput?.click() },
+    { icon: KIND_ICON.doc, title: "New doc", detail: "Notes and drafts are Markdown files in this folder", run: () => newDoc("") },
+    { icon: KIND_ICON.chat, title: "Chat with Owlit", detail: "Ask, or hand off work like finding papers", run: () => navigate("/chat") },
   ]
   return (
     <>
@@ -135,36 +112,17 @@ function Start() {
       </div>
       <div className="mt-5 flex flex-col gap-0.5">
         {rows.map((r) => (
-          <button
-            key={r.title}
-            type="button"
-            onClick={r.run}
-            className="flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm outline-none hover:bg-muted focus-key:bg-muted"
-          >
-            <r.icon className="size-4 shrink-0 text-muted-foreground" />
-            <span className="shrink-0 font-medium">{r.title}</span>
-            <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{r.detail}</span>
-          </button>
+          <ListRow key={r.title} icon={r.icon} title={r.title} titleClassName="font-medium" detail={r.detail} onClick={r.run} className="h-11" />
         ))}
       </div>
       {/* The few keys worth knowing from the first day; gone with the rest once the workspace has things in it */}
-      <p className="mt-7 px-2.5 text-[13px] text-muted-foreground">
+      <p className="mt-7 px-2.5 text-detail text-muted-foreground">
         {keysFor("palette")} find anything · {keysFor("owlit")} ask Owlit ·{" "}
         <button type="button" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground" onClick={openShortcuts}>
           {keysFor("shortcuts")} all shortcuts
         </button>
       </p>
-      <input
-        ref={fileInput}
-        type="file"
-        accept="application/pdf"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          void addPdfFiles(Array.from(e.target.files ?? []))
-          e.target.value = ""
-        }}
-      />
+      <PdfFileInput ref={setFileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
     </>
   )
 }

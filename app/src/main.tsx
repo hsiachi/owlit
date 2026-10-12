@@ -2,48 +2,42 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
+import { startActivity } from "@/app/activity"
+import { startAgentChanges } from "@/app/agent-changes"
 import { startMenu } from "@/app/menu"
+import { startModality } from "@/app/modality"
 import { startTextMenu } from "@/app/text-menu"
-import { startUiActions } from "@/app/ui-actions"
-import { startActivity } from "@/lib/activity"
+import { startUiHandlers } from "@/app/ui-handlers"
 import { startTrail } from "@/features/home/trail"
-import { onNotify } from "@/lib/rpc"
 import { startAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
-import "@/lib/workspace"
-import "@/features/tasks/store"
+import { startTasks } from "@/features/tasks/store"
+import { onNotify } from "@/lib/rpc"
+import { startUiActions } from "@/lib/ui-actions"
+import { startWorkspace } from "@/lib/workspace"
+// These keep their stores in step with the workspace from the moment they load
 import "@/features/library/disk"
 import "@/features/knowledge/disk"
-import "@/lib/versions"
 import "./index.css"
 
 // The chosen theme and paper tone (Settings › Appearance), before anything is drawn
 startAppearance()
 startSettings()
 
-// Focus rings are for keyboard navigation (index.css, focus-key). A press of the pointer, or typing
-// inside a field, does not count; Tab, arrows, Esc and the like do.
-const setModality = (m: "pointer" | "keyboard") => {
-  if (document.documentElement.dataset.modality !== m) document.documentElement.dataset.modality = m
-}
-window.addEventListener("pointerdown", () => setModality("pointer"), true)
-window.addEventListener(
-  "keydown",
-  (e) => {
-    if (e.metaKey || e.ctrlKey || ["Shift", "Meta", "Control", "Alt"].includes(e.key)) return
-    const t = e.target
-    const typing = t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
-    if (typing && e.key !== "Tab") return
-    setModality("keyboard")
-  },
-  true,
-)
+// Listening to core: the open workspace, its background tasks, what it asks this window to do, and
+// what agents changed
+startWorkspace()
+startTasks()
+startUiActions()
+startAgentChanges()
+
+startModality()
 
 onNotify("core.hello", ({ version, node }) => console.info(`[owlit] core ${version} ready (Node ${node})`))
 
 startActivity(router)
 startTrail()
-startUiActions(router)
+startUiHandlers(router)
 startMenu(router)
 startTextMenu()
 

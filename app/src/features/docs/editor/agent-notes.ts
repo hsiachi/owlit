@@ -1,5 +1,7 @@
+import { shortDate } from "@/lib/time"
 import { Facet, StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
+import { sharedEnd, sharedStart } from "@/lib/text-diff"
 import type { AgentNote } from "../types"
 
 // Agents' notes on a doc. The words a note is on carry an underline in the note colour; clicking them opens
@@ -25,16 +27,15 @@ interface NotesState {
   decos: DecorationSet
 }
 
-const sharedEnd = (a: string, b: string) => {
-  let n = 0
-  while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n++
-  return n
-}
-const sharedStart = (a: string, b: string) => {
-  let n = 0
-  while (n < a.length && n < b.length && a[n] === b[n]) n++
-  return n
-}
+// How much text either side of a note's passage it keeps, to find the passage again
+const CONTEXT = 32
+
+// A note's anchor on the passage from..to of a doc: its words and a little text either side
+export const noteAnchor = (doc: string, from: number, to: number): Pick<AgentNote, "quote" | "prefix" | "suffix"> => ({
+  quote: doc.slice(from, to),
+  prefix: doc.slice(Math.max(0, from - CONTEXT), from),
+  suffix: doc.slice(to, to + CONTEXT),
+})
 
 // Where the note's passage starts in this text, or null when the words are no longer there
 export function anchor(doc: string, note: AgentNote): number | null {
@@ -69,8 +70,6 @@ interface Actions {
   // `next` is the note to open after this one goes, if any
   onDismiss: (note: AgentNote, next: string | null) => void
 }
-
-const day = (t: number) => new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
 const chevron = (d: string) =>
   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`
@@ -113,7 +112,7 @@ class NoteWidget extends WidgetType {
     const head = document.createElement("div")
     head.className = "cm-note-head"
     const meta = document.createElement("span")
-    meta.textContent = `${note.by} · ${day(note.createdAt)}`
+    meta.textContent = `${note.by} · ${shortDate(note.createdAt)}`
     head.append(meta)
     if (n > 1) {
       const nav = document.createElement("span")

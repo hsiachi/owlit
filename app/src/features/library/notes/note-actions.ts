@@ -4,8 +4,11 @@ import type { Highlight } from "../types"
 // Where a paper's note is kept in the workspace; an agent edits the note by writing this file
 export const notePathOf = (paperId: string) => `.owlit/papers/${paperId}/note.md`
 
+// The paper whose note is at this path, if it is one
+export const paperOfNotePath = (path: string) => /^\.owlit\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
+
 // A highlight as a quote in the note, its page a link back to the passage
-export function highlightQuote(h: Highlight): string {
+function highlightQuote(h: Highlight): string {
   const quote = `> ${h.text.replace(/\n+/g, " ")} [p. ${h.page + 1}](owlit://highlight/${h.id})`
   return h.comment ? `${quote}\n\n${h.comment}` : quote
 }

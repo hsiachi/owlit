@@ -1,22 +1,23 @@
 import type { ComponentType } from "react"
-import { BookOpen, FileText, House, MessageSquare, Network } from "lucide-react"
+import { HouseIcon, type LucideIcon } from "lucide-react"
 import { ChatListPanel } from "@/features/chat/components/ChatListPanel"
 import { DocsListPanel } from "@/features/docs/components/DocsListPanel"
+import { KIND_ICON } from "@/lib/kinds"
 
 export interface NavItem {
   to: string
   label: string
-  icon: typeof House
+  icon: LucideIcon
   // Content of the second-column list panel, when this place has one
   panel?: ComponentType
 }
 
 export const nav: NavItem[] = [
-  { to: "/", label: "Home", icon: House },
-  { to: "/chat", label: "Chat", icon: MessageSquare, panel: ChatListPanel },
-  { to: "/docs", label: "Docs", icon: FileText, panel: DocsListPanel },
-  { to: "/knowledge", label: "Knowledge", icon: Network },
-  { to: "/library", label: "Library", icon: BookOpen },
+  { to: "/", label: "Home", icon: HouseIcon },
+  { to: "/chat", label: "Chat", icon: KIND_ICON.chat, panel: ChatListPanel },
+  { to: "/docs", label: "Docs", icon: KIND_ICON.doc, panel: DocsListPanel },
+  { to: "/knowledge", label: "Knowledge", icon: KIND_ICON.knowledge },
+  { to: "/library", label: "Library", icon: KIND_ICON.paper },
 ]
 
 export function matchNav(pathname: string) {

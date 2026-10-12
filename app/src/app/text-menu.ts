@@ -2,6 +2,12 @@
 // drawn by the app. A place where a selection can be handed to Owlit registers here, so that menu starts
 // with "Ask Owlit" whenever the right-click lands in it with a passage selected.
 
+import { bridge } from "@/lib/rpc"
+
+// A selection shorter than this is a stray click-drag, not a passage to ask about
+export const MIN_PASSAGE = 3
+export const isPassage = (text: string) => text.trim().length >= MIN_PASSAGE
+
 // Given at the moment of the right-click: what "Ask Owlit" will do, or null when there is nothing to ask
 type AskFor = () => (() => void) | null
 
@@ -18,8 +24,8 @@ export function askOwlitOnRightClick(place: Element, askFor: AskFor) {
 }
 
 export function startTextMenu() {
-  const bridge = window.owlit
-  if (!bridge) return
+  const shell = bridge
+  if (!shell) return
   // In the capture phase, so it is told even when something inside stops the event; a right-click the
   // page answers with its own menu never shows the system's, and the next right-click tells afresh
   window.addEventListener(
@@ -33,11 +39,11 @@ export function startTextMenu() {
           break
         }
       }
-      bridge.textMenuAsk(pending !== null)
+      shell.textMenuAsk(pending !== null)
     },
     true,
   )
-  bridge.onTextMenuAsk(() => {
+  shell.onTextMenuAsk(() => {
     pending?.()
     pending = null
   })

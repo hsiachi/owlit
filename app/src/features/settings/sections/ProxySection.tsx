@@ -1,10 +1,10 @@
+import { shortDate } from "@/lib/time"
 import { useState } from "react"
 import { PencilIcon } from "lucide-react"
-import { useShallow } from "zustand/react/shallow"
 import { PROXY_PRESETS, proxyFromLink, type ProxyPreset, type ProxySettings } from "@owlit/protocol"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { resumeTask, useTasksStore } from "@/features/tasks/store"
+import { resumeTask, useLoginTasks } from "@/features/tasks/store"
 import { RpcError } from "@/lib/rpc"
 import { useFoldWhile } from "../form-state"
 import { IconAction, List, Note, Picker, Row } from "../parts"
@@ -14,7 +14,6 @@ type Choice = "none" | ProxyPreset | "other"
 
 const hostOf = (base: string) => base.replace(/^https?:\/\//, "").replace(/\/.*$/, "")
 const describe = (proxy: ProxySettings) => `${hostOf(proxy.base)} · ${proxy.scheme === "host-rewrite" ? "rewrites addresses" : "sign-in link"}`
-const when = (at: number) => new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
 export function ProxySection() {
   const proxy = useSettings((s) => s.view?.library.proxy)
@@ -39,7 +38,7 @@ export function ProxySection() {
   return (
     <List>
       <Row name="Your library" control={<Picker label="Your library" value={choice} options={options} onChange={pick} />} />
-      {choice === "other" && (linkOpen || !proxy ? <LinkForm onDone={() => setLinkOpen(false)} /> : <Row name="Proxy" control={<><span className="text-[13px] text-muted-foreground">{describe(proxy)}</span><IconAction label="Change proxy" onClick={() => setLinkOpen(true)}><PencilIcon /></IconAction></>} />)}
+      {choice === "other" && (linkOpen || !proxy ? <LinkForm onDone={() => setLinkOpen(false)} /> : <Row name="Proxy" control={<><span className="text-detail text-muted-foreground">{describe(proxy)}</span><IconAction label="Change proxy" onClick={() => setLinkOpen(true)}><PencilIcon /></IconAction></>} />)}
       {proxy && !linkOpen && <SignIn signedInAt={signedInAt} />}
     </List>
   )
@@ -79,7 +78,7 @@ function LinkForm({ onDone }: { onDone: () => void }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") void use()
           }}
-          className="h-8 flex-1 font-mono text-[13px]"
+          className="h-8 flex-1 font-mono text-detail"
         />
         <Button size="sm" disabled={!found} onClick={() => void use()}>
           Use this proxy
@@ -104,7 +103,7 @@ function LinkForm({ onDone }: { onDone: () => void }) {
 function SignIn({ signedInAt }: { signedInAt?: number }) {
   const [busy, setBusy] = useState(false)
   // Fetches stopped at the library's sign-in page; they go on once the user has signed in
-  const waiting = useTasksStore(useShallow((s) => Object.values(s.byId).filter((t) => t.state === "waiting_for_you" && t.waiting?.reason === "login")))
+  const waiting = useLoginTasks()
   const signIn = async () => {
     setBusy(true)
     try {
@@ -120,7 +119,7 @@ function SignIn({ signedInAt }: { signedInAt?: number }) {
       info="owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
       control={
         <>
-          <span className="mr-1 text-[13px] text-muted-foreground">{busy ? "Waiting for the sign-in window…" : signedInAt && !waiting.length ? `Signed in ${when(signedInAt)}` : "Not signed in"}</span>
+          <span className="mr-1 text-detail text-muted-foreground">{busy ? "Waiting for the sign-in window…" : signedInAt && !waiting.length ? `Signed in ${shortDate(signedInAt)}` : "Not signed in"}</span>
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void signIn()}>
             {signedInAt && !waiting.length ? "Sign in again…" : "Sign in…"}
           </Button>

@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { Highlight, HighlightColor, Rect } from "../types"
+import { waitFor } from "@/lib/ui-actions"
 import type { PassageTarget } from "./passages"
 
 // What the open reader and the details panel say to each other. Lives outside both so the
@@ -21,7 +22,7 @@ export interface ReaderApi {
 }
 
 // A passage outlined in the PDF: the box around its lines. `pulse` rings it twice and lets it go.
-export interface Ring {
+interface Ring {
   passageId: string
   page: number
   box: Rect
@@ -44,8 +45,6 @@ interface ReaderState {
   // Under the pointer, for showing its comment
   hoverId: string | null
   ring: Ring | null
-  // A passage to jump to once the reader is ready (opening a paper from a passage link)
-  pendingPassage: PassageTarget | null
 
   setApi: (api: ReaderApi | null) => void
   open: (id: string, opts?: { commenting?: boolean }) => void
@@ -68,7 +67,6 @@ export const useReaderStore = create<ReaderState>()((set) => ({
   focusId: null,
   hoverId: null,
   ring: null,
-  pendingPassage: null,
 
   setApi: (api) => set((s) => ({ api, ready: api && s.ready === api.paperId ? s.ready : null })),
   open: (id, opts) => set({ activeId: id, commenting: !!opts?.commenting, focusId: id }),
@@ -85,3 +83,19 @@ export const useReaderStore = create<ReaderState>()((set) => ({
   },
   clearHoverRing: (passageId) => set((s) => (s.ring && !s.ring.pulse && (!passageId || s.ring.passageId === passageId) ? { ring: null } : s)),
 }))
+
+// Long enough for a PDF to load and lay out; core gives up on an agent's jump at 20s
+const READY_WITHIN_MS = 15_000
+
+// The paper's reader once it has laid out its pages and gone back to where the user was
+export function whenReaderReady(paperId: string): Promise<ReaderApi> {
+  return waitFor(
+    () => {
+      const { api, ready } = useReaderStore.getState()
+      return api?.paperId === paperId && ready === paperId ? api : null
+    },
+    (changed) => useReaderStore.subscribe(changed),
+    READY_WITHIN_MS,
+    "The paper's PDF didn't open in time.",
+  )
+}

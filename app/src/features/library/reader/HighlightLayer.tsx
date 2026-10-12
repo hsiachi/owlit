@@ -1,49 +1,35 @@
 import { useEffect, useMemo, useRef } from "react"
 import { useDocumentState } from "@embedpdf/core/react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { copyText } from "../lib/clipboard"
+import { copyText } from "@/lib/clipboard"
+import { askAboutPassage, deleteHighlight } from "../actions"
 import { HIGHLIGHT_MARK, HIGHLIGHT_VAR } from "../lib/highlights"
 import { useLibraryStore } from "../store"
-import type { Highlight, PageRect } from "../types"
+import type { Highlight } from "../types"
+import { floatOn } from "./float"
 import { HighlightToolbar } from "./HighlightToolbar"
+import { boundsOf } from "./passages"
 import { useReaderStore } from "./reader-store"
 import { useAgentWindow } from "@/features/agent/store"
-import { paperMentionable } from "@/features/docs/lib/mentions"
 
 // Highlights are drawn with multiply, so they tint the page like a marker and the glyphs under
 // them stay black. The layer has no z-index on purpose: a stacking context of its own would
 // isolate the blend from the page it is meant to tint.
 
-const GAP = 8
-
-function usePageHighlights(paperId: string, pageIndex: number) {
-  const all = useLibraryStore((s) => s.highlights)
-  return useMemo(
-    () =>
-      Object.values(all)
-        .filter((h) => h.paperId === paperId && h.rects.some((r) => r.page === pageIndex))
-        .sort((a, b) => a.createdAt - b.createdAt),
-    [all, paperId, pageIndex],
-  )
-}
-
-function bounds(rects: PageRect[]) {
-  const x = Math.min(...rects.map((r) => r.x))
-  const y = Math.min(...rects.map((r) => r.y))
-  return { x, y, w: Math.max(...rects.map((r) => r.x + r.w)) - x, h: Math.max(...rects.map((r) => r.y + r.h)) - y }
-}
-
-export function HighlightLayer({ documentId, paperId, pageIndex }: { documentId: string; paperId: string; pageIndex: number }) {
+// `highlights` are the ones that cover this page. Each page follows the open, flashing and hovered
+// highlight only while it is one of its own, so moving the pointer redraws one page, not every page.
+export function HighlightLayer({ documentId, paperId, pageIndex, highlights }: { documentId: string; paperId: string; pageIndex: number; highlights: Highlight[] }) {
   const scale = useDocumentState(documentId)?.scale ?? 1
-  const highlights = usePageHighlights(paperId, pageIndex)
-  const activeId = useReaderStore((s) => s.activeId)
-  const flashId = useReaderStore((s) => s.flashId)
-  const hoverId = useReaderStore((s) => s.hoverId)
+  const ids = useMemo(() => new Set(highlights.map((h) => h.id)), [highlights])
+  const own = (id: string | null) => (id && ids.has(id) ? id : null)
+  const activeId = useReaderStore((s) => own(s.activeId))
+  const flashId = useReaderStore((s) => own(s.flashId))
+  const hoverId = useReaderStore((s) => own(s.hoverId))
+  const anyActive = useReaderStore((s) => !!s.activeId)
 
   // The popover and the comment preview sit on the page where the highlight starts
   const active = highlights.find((h) => h.id === activeId && h.page === pageIndex)
-  const hovered = !activeId ? highlights.find((h) => h.id === hoverId && h.page === pageIndex && h.comment) : undefined
+  const hovered = !anyActive ? highlights.find((h) => h.id === hoverId && h.page === pageIndex && h.comment) : undefined
   // A passage sent to Owlit and not asked about yet stays drawn as the selection it was
   const asking = useAgentWindow((s) =>
     s.stage !== "closed" && s.selection && s.selectionRects?.paperId === paperId ? s.selectionRects.rects : undefined,
@@ -92,18 +78,10 @@ export function HighlightLayer({ documentId, paperId, pageIndex }: { documentId:
 
 // Above the page's own layers: selection (1), the interaction overlay (10) and links (20)
 function Anchor({ highlight, pageIndex, scale, children }: { highlight: Highlight; pageIndex: number; scale: number; children: React.ReactNode }) {
-  const b = bounds(highlight.rects.filter((r) => r.page === pageIndex))
+  const b = boundsOf(highlight.rects.filter((r) => r.page === pageIndex))
   // Above the highlight when there is room on the page, else below it
-  const above = b.y * scale > 64
   return (
-    <div
-      className="absolute z-30"
-      style={{
-        left: (b.x + b.w / 2) * scale,
-        top: above ? b.y * scale - GAP : (b.y + b.h) * scale + GAP,
-        transform: `translate(-50%, ${above ? "-100%" : "0"})`,
-      }}
-    >
+    <div className="absolute z-30" style={floatOn((b.x + b.w / 2) * scale, b.y * scale, (b.y + b.h) * scale, b.y * scale > 64)}>
       {children}
     </div>
   )
@@ -113,8 +91,6 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
   const commenting = useReaderStore((s) => s.commenting)
   const { open, close } = useReaderStore.getState()
   const updateHighlight = useLibraryStore((s) => s.updateHighlight)
-  const removeHighlight = useLibraryStore((s) => s.removeHighlight)
-  const restoreHighlight = useLibraryStore((s) => s.restoreHighlight)
   const ref = useRef<HTMLDivElement>(null)
 
   // A press anywhere outside closes it; a press on another highlight then opens that one
@@ -140,15 +116,12 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
           commenting={commenting}
           onCommentChange={(text) => updateHighlight(highlight.id, { comment: text.trim() ? text : undefined })}
           onDelete={() => {
-            const removed = removeHighlight(highlight.id)
             close()
-            if (removed) toast("Highlight deleted", { action: { label: "Undo", onClick: () => restoreHighlight(removed) } })
+            deleteHighlight(highlight.id)
           }}
           onAsk={() => {
-            const paper = useLibraryStore.getState().papers[highlight.paperId]
-            if (!paper) return
             close()
-            useAgentWindow.getState().open({ text: highlight.text, source: paperMentionable(paper), page: highlight.page + 1 })
+            askAboutPassage(highlight.paperId, { text: highlight.text, page: highlight.page + 1 })
           }}
           onClose={close}
         />
@@ -161,53 +134,9 @@ function ActivePopover({ highlight, pageIndex, scale }: { highlight: Highlight; 
 function CommentPreview({ highlight, pageIndex, scale }: { highlight: Highlight; pageIndex: number; scale: number }) {
   return (
     <Anchor highlight={highlight} pageIndex={pageIndex} scale={scale}>
-      <div data-reader-ui className="pointer-events-none w-max max-w-72 rounded-xl bg-popover px-3 py-2 text-[13px] leading-normal whitespace-pre-wrap text-popover-foreground shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14">
+      <div data-reader-ui className="menu-surface pointer-events-none w-max max-w-72 rounded-xl px-3 py-2 text-detail leading-normal whitespace-pre-wrap text-popover-foreground">
         {highlight.comment}
       </div>
     </Anchor>
   )
-}
-
-// Clicks and hovers on highlights, read off the page itself so a drag that starts on a highlight
-// still selects text. A press that does not move is a click.
-export function useHighlightHitTest(documentId: string, paperId: string, pageIndex: number) {
-  const scale = useDocumentState(documentId)?.scale ?? 1
-  const highlights = usePageHighlights(paperId, pageIndex)
-  const down = useRef<{ x: number; y: number } | null>(null)
-
-  const hitAt = (e: React.PointerEvent<HTMLDivElement>) => {
-    const box = e.currentTarget.getBoundingClientRect()
-    const x = (e.clientX - box.left) / scale
-    const y = (e.clientY - box.top) / scale
-    const pad = 1.5
-    // Newest first, so overlapping highlights resolve to the one drawn last
-    for (let i = highlights.length - 1; i >= 0; i--) {
-      const h = highlights[i]
-      if (h.rects.some((r) => r.page === pageIndex && x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad)) return h
-    }
-    return null
-  }
-
-  const onReaderUi = (e: React.PointerEvent) => e.target instanceof HTMLElement && !!e.target.closest("[data-reader-ui], button")
-
-  return {
-    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
-      down.current = e.button === 0 && !onReaderUi(e) ? { x: e.clientX, y: e.clientY } : null
-    },
-    onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
-      const start = down.current
-      down.current = null
-      if (!start || Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) return
-      const h = hitAt(e)
-      if (h) useReaderStore.getState().open(h.id)
-    },
-    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.buttons !== 0 || onReaderUi(e)) return
-      const id = hitAt(e)?.id ?? null
-      if (useReaderStore.getState().hoverId !== id) useReaderStore.setState({ hoverId: id })
-    },
-    onPointerLeave: () => {
-      if (useReaderStore.getState().hoverId) useReaderStore.setState({ hoverId: null })
-    },
-  }
 }

@@ -1,20 +1,18 @@
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import type { MenuGroups } from "@/components/action-menu"
-import { copyText } from "@/features/library/lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
 import { useDocsStore, type Removed } from "./store"
 import { displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
 import { useNewDoc } from "./use-new-doc"
+import { toastUndo } from "@/lib/toast"
+import { plural } from "@/lib/words"
 
-function undoToast(title: string, description: string | undefined, removed: Removed) {
-  toast(title, {
-    description,
-    action: { label: "Undo", onClick: () => useDocsStore.getState().restore(removed) },
-  })
-}
+const undoToast = (title: string, description: string | undefined, removed: Removed) =>
+  toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
 
 // Renaming waits a tick, so a closing menu doesn't take the focus back from the input
 const startRenaming = (key: string) => setTimeout(() => useDocsUiStore.getState().setRenaming(key), 0)
@@ -68,7 +66,7 @@ export function useDocActions() {
     if (ui.selectedFolder && isWithin(ui.selectedFolder, path)) ui.selectFolder(null)
     const n = removed.files.length
     const name = path.split("/").pop() ?? path
-    undoToast("Folder deleted", n ? `${name} and ${n} ${n === 1 ? "file" : "files"}` : name, removed)
+    undoToast("Folder deleted", n ? `${name} and ${plural(n, "file")}` : name, removed)
   }
 
   // Several rows at once, as one change with one Undo. What sits inside a picked folder goes with it.

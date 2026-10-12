@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { BookPlusIcon, FileIcon, FileTextIcon, FolderIcon, ImageIcon, Loader2Icon, TriangleAlertIcon, XIcon } from "lucide-react"
-import { FILE_KIND_NAMES, fileKindOf, type FileKind } from "@owlit/protocol"
+import { FILE_KIND_NAMES, fileKindOf } from "@owlit/protocol"
 import {
   Attachment,
   AttachmentAction,
@@ -12,15 +12,10 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@/components/ui/attachment"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tip } from "@/components/tip"
 import { isDesktop } from "@/lib/rpc"
 import type { AttachmentFile } from "../../types"
-
-export function formatBytes(n: number) {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / 1024 / 1024).toFixed(1)} MB`
-}
+import { formatBytes, type ChipFile, type Reader } from "../../lib/attachments"
 
 function iconFor(mime: string) {
   if (mime.startsWith("image/")) return <ImageIcon />
@@ -33,19 +28,6 @@ function pictureOf(f: AttachmentFile) {
   if (f.previewUrl) return f.previewUrl
   if (!isDesktop || !f.path || !f.mimeType.startsWith("image/")) return undefined
   return `owlit-file://workspace/${f.path.split("/").map(encodeURIComponent).join("/")}`
-}
-
-export interface ChipFile extends AttachmentFile {
-  // Set while it is in the composer: being copied, or refused (with why)
-  state?: "adding" | "ready" | "error"
-  error?: string
-  folder?: boolean
-}
-
-// The agent the message goes to, when it can't read some kinds of file (Connector.cannotRead)
-export interface Reader {
-  name: string
-  cannotRead: FileKind[]
 }
 
 export function AttachmentList({
@@ -127,21 +109,18 @@ function FileChip({
       {(offerLibrary || onRemove) && (
         <AttachmentActions>
           {offerLibrary && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AttachmentAction
-                  aria-label="Add to Library"
-                  disabled={adding}
-                  onClick={() => {
-                    setAdding(true)
-                    void onAddToLibrary?.(f).finally(() => setAdding(false))
-                  }}
-                >
-                  {adding ? <Loader2Icon className="animate-spin" /> : <BookPlusIcon />}
-                </AttachmentAction>
-              </TooltipTrigger>
-              <TooltipContent>Add to Library</TooltipContent>
-            </Tooltip>
+            <Tip label="Add to Library">
+              <AttachmentAction
+                aria-label="Add to Library"
+                disabled={adding}
+                onClick={() => {
+                  setAdding(true)
+                  void onAddToLibrary?.(f).finally(() => setAdding(false))
+                }}
+              >
+                {adding ? <Loader2Icon className="animate-spin" /> : <BookPlusIcon />}
+              </AttachmentAction>
+            </Tip>
           )}
           {onRemove && (
             <AttachmentAction onClick={() => onRemove(f.id)} aria-label={`Remove ${f.name}`}>

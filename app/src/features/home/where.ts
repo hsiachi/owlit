@@ -3,18 +3,18 @@ import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
-import { shortAuthors } from "@/features/library/lib/format"
-import { shortDate } from "@/features/knowledge/lib/when"
+import { authorsYear } from "@/features/library/lib/format"
 import { useTrail, workspaceKey } from "./trail"
+import type { Kind } from "@/lib/kinds"
+import { markdownPlain } from "@/lib/markdown-plain"
+import { messageText } from "@/features/chat/lib/message-text"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
 // highlighted or noted. Topic files are Owlit's, so they belong to Knowledge, not here.
 
-export type Kind = "doc" | "chat" | "paper"
-
 export interface Place {
-  kind: Kind
+  kind: Extract<Kind, "doc" | "chat" | "paper">
   key: string
   title: string
   // Muted text after the title: the doc's folder, the paper's authors and year
@@ -28,28 +28,16 @@ export interface Place {
   did: string
 }
 
-// Markdown read as plain words: links and mentions keep their label, marks go
-export function plain(text: string) {
-  return text
-    .replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, name, label) => label ?? name)
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ x]\]\s+)?|\d+[.)]\s+)/gm, "")
-    .replace(/(\*\*|__|~~|==|`)/g, "")
-    .replace(/(^|\W)[*_](\S[^*_]*)[*_](?=\W|$)/g, "$1$2")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
 // The paragraph around an offset: the run of non-blank lines that holds it
 function paragraphAt(text: string, head: number) {
   const at = Math.min(Math.max(head, 0), text.length)
   const start = text.lastIndexOf("\n\n", Math.max(at - 1, 0))
   const end = text.indexOf("\n\n", at)
-  const words = plain(text.slice(start < 0 ? 0 : start + 2, end < 0 ? text.length : end))
+  const words = markdownPlain(text.slice(start < 0 ? 0 : start + 2, end < 0 ? text.length : end))
   return words || undefined
 }
 
-const lastParagraph = (text: string) => plain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
+const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
 
 export function usePlaces(): Place[] {
   const files = useDocsStore((s) => s.files)
@@ -59,10 +47,10 @@ export function usePlaces(): Place[] {
   const notes = useLibraryStore((s) => s.notes)
   const marks = useTrail((s) => s.docs[workspaceKey()])
 
-  return useMemo(() => {
+  // One list per kind, so a streamed reply doesn't requote every doc
+  const docPlaces = useMemo(() => {
     const out: Place[] = []
     const markByPath = new Map((marks ?? []).map((m) => [m.path, m]))
-
     for (const f of Object.values(files)) {
       if (!isMarkdown(f.path) || f.path.startsWith("knowledge/")) continue
       const mark = markByPath.get(f.path)
@@ -78,18 +66,26 @@ export function usePlaces(): Place[] {
         did: "edited",
       })
     }
+    return out
+  }, [files, marks])
 
+  const chatPlaces = useMemo(() => {
+    const out: Place[] = []
     for (const c of Object.values(chats)) {
       const mine = c.messages.findLast((m) => m.role === "user")
       if (!mine) continue
-      const text = mine.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ")
-      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: plain(text) || undefined, did: "" })
+      const text = messageText(mine, " ")
+      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: markdownPlain(text) || undefined, did: "" })
     }
+    return out
+  }, [chats])
 
+  const paperPlaces = useMemo(() => {
+    const out: Place[] = []
     const lastMark = new Map<string, { at: number; words: string }>()
     for (const h of Object.values(highlights)) {
       if (h.addedBy === "agent") continue
-      const words = h.comment ? `“${plain(h.text)}” ${h.comment}` : `“${plain(h.text)}”`
+      const words = h.comment ? `“${markdownPlain(h.text)}” ${h.comment}` : `“${markdownPlain(h.text)}”`
       if ((lastMark.get(h.paperId)?.at ?? 0) < h.createdAt) lastMark.set(h.paperId, { at: h.createdAt, words })
     }
     for (const n of Object.values(notes)) {
@@ -104,25 +100,15 @@ export function usePlaces(): Place[] {
         kind: "paper",
         key: `paper:${p.id}`,
         title: p.title,
-        detail: [shortAuthors(p.authors), p.year].filter(Boolean).join(" · "),
+        detail: authorsYear(p),
         at,
         to: `/library/${p.id}`,
         words: mark?.words,
         did: "read",
       })
     }
+    return out
+  }, [papers, highlights, notes])
 
-    return out.sort((a, b) => b.at - a.at)
-  }, [files, chats, papers, highlights, notes, marks])
-}
-
-// "Just now", "12 min ago", "3 h ago", "Yesterday", then the date
-export function when(t: number, now = Date.now()) {
-  const d = now - t
-  if (d < 60_000) return "Just now"
-  if (d < 3_600_000) return `${Math.floor(d / 60_000)} min ago`
-  const today = new Date(now).setHours(0, 0, 0, 0)
-  if (t >= today || d < 12 * 3_600_000) return `${Math.floor(d / 3_600_000)} h ago`
-  if (t >= today - 86_400_000) return "Yesterday"
-  return shortDate(t)
+  return useMemo(() => [...docPlaces, ...chatPlaces, ...paperPlaces].sort((a, b) => b.at - a.at), [docPlaces, chatPlaces, paperPlaces])
 }

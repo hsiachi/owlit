@@ -1,16 +1,13 @@
 import { useSelectionCapability } from "@embedpdf/plugin-selection/react"
 import type { SelectionSelectionMenuProps } from "@embedpdf/plugin-selection/react"
-import { copyText } from "../lib/clipboard"
+import { copyText } from "@/lib/clipboard"
 import { cleanPdfText } from "../lib/highlights"
 import { useLibraryStore } from "../store"
 import type { HighlightColor, PageRect } from "../types"
 import { HighlightToolbar } from "./HighlightToolbar"
 import { useReaderStore } from "./reader-store"
-import { useAgentWindow } from "@/features/agent/store"
-import { paperMentionable } from "@/features/docs/lib/mentions"
-
-// Space between the selection and the popover
-const GAP = 8
+import { askAboutPassage } from "../actions"
+import { floatOn } from "./float"
 
 // Floats over a fresh selection. A colour keeps it as a highlight; Comment keeps it in the last
 // colour used and opens the comment field on it.
@@ -37,17 +34,9 @@ export function SelectionMenu({ rect, menuWrapperProps, placement, documentId, p
     return h
   }
 
-  const above = placement.suggestTop
   return (
     <div {...menuWrapperProps}>
-      <div
-        className="pointer-events-auto absolute"
-        style={{
-          left: rect.size.width / 2,
-          top: above ? -GAP : rect.size.height + GAP,
-          transform: `translate(-50%, ${above ? "-100%" : "0"})`,
-        }}
-      >
+      <div className="pointer-events-auto absolute" style={floatOn(rect.size.width / 2, 0, rect.size.height, placement.suggestTop)}>
         <HighlightToolbar
           onColor={(c) => void keep(c)}
           onCopy={async () => copyText(await selectedText())}
@@ -56,13 +45,12 @@ export function SelectionMenu({ rect, menuWrapperProps, placement, documentId, p
             if (h) useReaderStore.getState().open(h.id, { commenting: true })
           }}
           onAsk={async () => {
-            const paper = useLibraryStore.getState().papers[paperId]
             const text = await selectedText()
-            if (!paper || !text) return
+            if (!text) return
             const page = Math.min(...(sel?.getFormattedSelection() ?? []).map((p) => p.pageIndex)) + 1
             const rects = selectedRects()
             sel?.clear()
-            useAgentWindow.getState().open({ text, source: paperMentionable(paper), ...(Number.isFinite(page) ? { page } : {}) }, rects.length ? { paperId, rects } : undefined)
+            askAboutPassage(paperId, { text, ...(Number.isFinite(page) ? { page } : {}) }, rects)
           }}
           onClose={() => sel?.clear()}
         />

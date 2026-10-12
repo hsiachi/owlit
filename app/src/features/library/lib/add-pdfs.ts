@@ -1,8 +1,8 @@
 import { toast } from "sonner"
-import { isDesktop, rpc } from "@/lib/rpc"
-import { takePaper } from "../disk"
+import { filePath, isDesktop } from "@/lib/rpc"
+import { importPdf } from "../disk"
 import { libraryClient, useLibraryStore } from "../store"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 // Adds the papers in `files` and peeks the last one. Shared with the page-wide drop target. In the
 // desktop app core recognises each file (arXiv's stamp, a DOI) and keeps it in the workspace; one that
@@ -14,7 +14,7 @@ export async function addPdfFiles(files: File[]) {
     return
   }
   const last = isDesktop ? await importInCore(pdfs) : await addInBrowser(pdfs)
-  if (last) useUiStore.setState({ selectedIds: [last], cursorId: last, anchorId: last, peekId: last, query: "", filter: "all", tags: [] })
+  if (last) useLibraryUi.getState().revealPaper(last)
 }
 
 async function importInCore(pdfs: File[]) {
@@ -28,10 +28,7 @@ async function importInCore(pdfs: File[]) {
   for (const [i, file] of pdfs.entries()) {
     if (pdfs.length > 1) toast.loading(`Adding ${i + 1} of ${pdfs.length}…`, { id: progress })
     try {
-      const path = window.owlit?.pathForFile(file)
-      if (!path) throw new Error("That file can't be read from here.")
-      const { paper, existed } = await rpc.library.importPdf({ path })
-      takePaper(paper)
+      const { paper, existed } = await importPdf(filePath(file))
       last = paper.id
       lastTitle = paper.title
       if (existed) existing++
@@ -56,8 +53,8 @@ async function addInBrowser(pdfs: File[]) {
   const { addPaper } = useLibraryStore.getState()
   let last: string | null = null
   for (const file of pdfs) {
-    const resolved = await libraryClient.importPdf(file)
-    last = addPaper(resolved).id
+    const resolved = await libraryClient.importPdf?.(file)
+    if (resolved) last = addPaper(resolved).id
   }
   toast(pdfs.length === 1 ? "Added to library" : `Added ${pdfs.length} papers`, {
     description: pdfs.length === 1 ? pdfs[0].name : undefined,

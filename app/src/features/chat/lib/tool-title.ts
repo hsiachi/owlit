@@ -29,11 +29,15 @@ export const OWLIT_TOOLS: Record<string, string> = {
   ui_mark: "Highlight a passage",
 }
 
+// owlit's own tool a name or title calls, by Claude Code (mcp__owlit__x) or Codex (mcp.owlit.x): "x"
+export const owlitToolOf = (name: string) => /^mcp(?:__|\.)owlit(?:__|\.)(\w+)/.exec(name)?.[1]
+
+// A paper's note named inside a title
 const NOTE_PATH = /\.owlit\/papers\/([^/\s]+)\/note\.md/
 
 export function toolTitle(title: string): string {
-  const tool = /^mcp(?:__|\.)owlit(?:__|\.)(\w+)/.exec(title)
-  if (tool) return OWLIT_TOOLS[tool[1]] ?? tool[1].replace(/_/g, " ")
+  const tool = owlitToolOf(title)
+  if (tool) return OWLIT_TOOLS[tool] ?? tool.replace(/_/g, " ")
   const note = NOTE_PATH.exec(title)
   if (note) {
     const paper = useLibraryStore.getState().papers[note[1]]

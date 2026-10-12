@@ -1,21 +1,21 @@
 import { useEffect, useRef } from "react"
 import { usePaperActions } from "../actions"
 import { useLibraryStore } from "../store"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 // Keyboard and scroll behaviour shared by the list and table layouts.
 // ↑↓ move (⇧ extends), Space peeks, Enter opens, S stars, ⌫ removes, ⌘A selects all, Esc folds then clears.
 export function usePaperListKeys(order: string[]) {
   const scroller = useRef<HTMLDivElement>(null)
   const actions = usePaperActions()
-  const cursorId = useUiStore((s) => s.cursorId)
-  const setScrollTop = useUiStore((s) => s.setScrollTop)
+  const cursorId = useLibraryUi((s) => s.cursorId)
+  const setScrollTop = useLibraryUi((s) => s.setScrollTop)
 
   // Restore the scroll position left when a paper was opened, and remember it on the way out
   useEffect(() => {
     const el = scroller.current
     if (!el) return
-    el.scrollTop = useUiStore.getState().scrollTop
+    el.scrollTop = useLibraryUi.getState().scrollTop
     return () => setScrollTop(el.scrollTop)
   }, [setScrollTop])
 
@@ -34,7 +34,7 @@ export function usePaperListKeys(order: string[]) {
     // layout toggle doesn't leave the keyboard stranded in the toolbar
     const onControl = !!target.closest("button, a")
     if (onControl && e.key !== "ArrowDown" && e.key !== "ArrowUp") return
-    const ui = useUiStore.getState()
+    const ui = useLibraryUi.getState()
     const idx = ui.cursorId ? order.indexOf(ui.cursorId) : -1
     const mod = e.metaKey || e.ctrlKey
     switch (e.key) {

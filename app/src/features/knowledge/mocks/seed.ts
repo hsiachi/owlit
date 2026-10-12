@@ -1,4 +1,4 @@
-import { docUri } from "@/features/docs/types"
+import { docUri, paperUri } from "@owlit/protocol"
 import { isoDay, serializeTopic } from "../format"
 import type { Change, Line, PaperKnowledge, Question, Ref, SourceEntry, TopicSidecar } from "../types"
 
@@ -13,9 +13,9 @@ const ago = (ms: number) => now - ms
 const day = (d: number) => isoDay(ago(d * DAY))
 
 const doc = (path: string, label = path.replace(/^.*\//, "").replace(/\.md$/, "")): Ref => ({ label, uri: docUri(path) })
-const passage = (paperId: string, id: string, label: string): Ref => ({ label, uri: `owlit://library/${paperId}#passage=${id}` })
-const abstract = (paperId: string): Ref => ({ label: "abstract", uri: `owlit://library/${paperId}#abstract` })
-const paper = (paperId: string, label: string): Ref => ({ label, uri: `owlit://library/${paperId}` })
+const passage = (paperId: string, id: string, label: string): Ref => ({ label, uri: paperUri(paperId, id) })
+const abstract = (paperId: string): Ref => ({ label: "abstract", uri: `${paperUri(paperId)}#abstract` })
+const paper = (paperId: string, label: string): Ref => ({ label, uri: paperUri(paperId) })
 
 const HUNCH = "notes/Maybe retrieval and tool use are the same problem.md"
 const ADVISOR = "meetings/Advisor meeting 10-02.md"

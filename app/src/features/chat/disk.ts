@@ -2,6 +2,7 @@ import type { Chat, ChatMessage, ChatSummary } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { useChatStore } from "./store"
 
 // The chat store's link to .owlit/chats/. The store changes at once; each change then goes to core in
@@ -12,49 +13,29 @@ export const onDisk = isDesktop
 
 const SEND_EVERY_MS = 250
 
-let chain: Promise<void> = Promise.resolve()
-let generation = 0
+const queue = createWorkspaceQueue({ onError: (error) => toast.error(error instanceof Error ? error.message : "Couldn't save the chat.") })
+const enqueue = (op: () => Promise<unknown>) => queue.enqueue(op)
 
-function enqueue(op: () => Promise<unknown>) {
-  const gen = generation
-  chain = chain.then(async () => {
-    if (gen !== generation) return
-    try {
-      await op()
-    } catch (error) {
-      if (gen === generation) toast.error(error instanceof Error ? error.message : "Couldn't save the chat.")
-    }
-  })
-}
-
-// True while the store takes chats read from disk, so nothing mistakes them for messages just sent
-let loadingFromDisk = false
-export const isChatsFromDisk = () => loadingFromDisk
-
-function fromDisk(update: () => void) {
-  loadingFromDisk = true
-  try {
-    update()
-  } finally {
-    loadingFromDisk = false
-  }
-}
+// Up while the store takes chats read from disk, so nothing mistakes them for messages just sent
+const diskFlag = createDiskFlag()
+export const isChatsFromDisk = diskFlag.isOn
+const fromDisk = diskFlag.apply
 
 // The list first, then every chat's messages: the list shows at once, and Knowledge, ⌘K and docs'
 // pending edits see whole chats
 async function load() {
-  const gen = generation
+  const sameWorkspace = queue.tracker()
   const list = await rpc.chats.list()
-  if (gen !== generation) return
+  if (!sameWorkspace()) return
   fromDisk(() => useChatStore.setState({ chats: Object.fromEntries(list.map((c) => [c.id, { ...c, messages: [] }])), chatsLoaded: true }))
   // Outside the queue, so sending a message doesn't wait for every old chat to be read
-  void loadMessages(list, gen)
+  void loadMessages(list, sameWorkspace)
 }
 
-async function loadMessages(list: ChatSummary[], gen: number) {
+async function loadMessages(list: ChatSummary[], sameWorkspace: () => boolean) {
   for (const summary of list) {
     const chat = await rpc.chats.get({ id: summary.id }).catch(() => null)
-    if (!chat || gen !== generation) continue
+    if (!chat || !sameWorkspace()) continue
     fromDisk(() =>
       useChatStore.setState((s) => {
         const mine = s.chats[chat.id]
@@ -67,7 +48,7 @@ async function loadMessages(list: ChatSummary[], gen: number) {
 }
 
 // Resolves once every change queued so far has reached core (a turn needs its chat to exist there)
-export const settled = () => chain
+export const settled = queue.settled
 
 export const createChatOnDisk = (chat: ChatSummary) => enqueue(() => rpc.chats.create({ chat }))
 
@@ -124,7 +105,7 @@ function dropPending(chatId: string) {
 
 if (onDisk) {
   onWorkspaceOpened(() => {
-    generation++
+    queue.reset()
     for (const entry of pending.values()) clearTimeout(entry.timer)
     pending.clear()
     useChatStore.setState({ chats: {}, streaming: {}, chatsLoaded: false })

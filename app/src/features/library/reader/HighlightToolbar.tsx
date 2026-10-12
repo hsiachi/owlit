@@ -1,30 +1,17 @@
 import { useEffect, useRef, useState } from "react"
 import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-react"
+import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
+import { Tip } from "@/components/tip"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { keysFor } from "@/app/shortcuts"
-import { Kbd } from "@/components/ui/kbd"
+import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_VAR } from "../lib/highlights"
 import type { HighlightColor } from "../types"
 
 // The one popover for text in the PDF, whether it is a fresh selection or an existing highlight:
 // four colours, copy, comment, Ask Owlit, and for a highlight, delete. The same look for both, so a
 // highlight is just a selection that was kept.
-
-const BUTTON = "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4"
-
-function Tip({ label, keys, children }: { label: string; keys?: string; children: React.ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>
-        {label}
-        {keys && <Kbd>{keys}</Kbd>}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
 
 export function HighlightToolbar({
   color,
@@ -62,28 +49,24 @@ export function HighlightToolbar({
   }
 
   // 1–4 pick a colour, ⌘C copies, Esc closes; not while typing a comment
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && e.target.closest("input, textarea, [contenteditable=true]")
-      if (e.key === "Escape") {
-        e.preventDefault()
-        onClose()
-        return
-      }
-      if (typing) return
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
-        e.preventDefault()
-        void copy()
-        return
-      }
-      const n = Number(e.key)
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && n >= 1 && n <= HIGHLIGHT_COLORS.length) {
-        e.preventDefault()
-        onColor(HIGHLIGHT_COLORS[n - 1])
-      }
+  useWindowKeydown((e) => {
+    const typing = e.target instanceof HTMLElement && e.target.closest("input, textarea, [contenteditable=true]")
+    if (e.key === "Escape") {
+      e.preventDefault()
+      onClose()
+      return
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    if (typing) return
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+      e.preventDefault()
+      void copy()
+      return
+    }
+    const n = Number(e.key)
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && n >= 1 && n <= HIGHLIGHT_COLORS.length) {
+      e.preventDefault()
+      onColor(HIGHLIGHT_COLORS[n - 1])
+    }
   })
 
   useEffect(() => {
@@ -95,8 +78,8 @@ export function HighlightToolbar({
   }, [commenting])
 
   return (
-    // The menu material: popover surface, hairline ring, soft shadow, 14px corners
-    <div data-reader-ui className={cn("rounded-xl bg-popover p-1.5 text-popover-foreground shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14", commenting && "w-72")}>
+    // The menu material, at a menu's 14px corners
+    <div data-reader-ui className={cn("menu-surface rounded-xl p-1.5 text-popover-foreground", commenting && "w-72")}>
       <div className="flex items-center gap-0.5">
         <div className="flex items-center gap-1 px-1">
           {HIGHLIGHT_COLORS.map((c) => (
@@ -120,31 +103,23 @@ export function HighlightToolbar({
             </Tip>
           ))}
         </div>
-        <span className="mx-1 h-4 w-px bg-border" />
-        <Tip label={copied ? "Copied" : "Copy"} keys={copied ? undefined : keysFor("copy")}>
-          <button type="button" aria-label="Copy" onClick={copy} className={BUTTON}>
-            {copied ? <CheckIcon /> : <CopyIcon />}
-          </button>
-        </Tip>
-        <Tip label={comment ? "Edit comment" : "Comment"}>
-          <button type="button" aria-label="Comment" aria-pressed={commenting} onClick={onComment} className={cn(BUTTON, commenting && "bg-accent text-foreground")}>
-            <MessageSquareTextIcon />
-          </button>
-        </Tip>
+        <Separator orientation="vertical" className="mx-1 h-4" />
+        <IconButton label={copied ? "Copied" : "Copy"} shortcut={copied ? undefined : "copy"} onClick={copy}>
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </IconButton>
+        <IconButton label={comment ? "Edit comment" : "Comment"} aria-pressed={commenting} onClick={onComment} className={cn(commenting && "bg-accent text-foreground")}>
+          <MessageSquareTextIcon />
+        </IconButton>
         {onAsk && (
           // Owlit's own mark, as on every control whose action is Owlit; named "Ask Owlit" as everywhere else
-          <Tip label="Ask Owlit">
-            <button type="button" aria-label="Ask Owlit" onClick={onAsk} className={BUTTON}>
-              <OwlitMark />
-            </button>
-          </Tip>
+          <IconButton label="Ask Owlit" onClick={onAsk}>
+            <OwlitMark />
+          </IconButton>
         )}
         {onDelete && (
-          <Tip label="Delete highlight">
-            <button type="button" aria-label="Delete highlight" onClick={onDelete} className={BUTTON}>
-              <Trash2Icon />
-            </button>
-          </Tip>
+          <IconButton label="Delete highlight" onClick={onDelete}>
+            <Trash2Icon />
+          </IconButton>
         )}
       </div>
       {commenting && (

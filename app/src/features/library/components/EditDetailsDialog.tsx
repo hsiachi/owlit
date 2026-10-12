@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react"
+import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
-import { useUiStore } from "../ui-store"
+import { useLibraryUi } from "../ui-store"
 
 interface Draft {
   title: string
@@ -47,8 +41,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // Mounted once in LibraryLayout; opens for whichever paper the ui-store names
 export function EditDetailsDialog() {
-  const editingId = useUiStore((s) => s.editingId)
-  const setEditingId = useUiStore((s) => s.setEditingId)
+  const editingId = useLibraryUi((s) => s.editingId)
+  const setEditingId = useLibraryUi((s) => s.setEditingId)
   const paper = useLibraryStore((s) => (editingId ? s.papers[editingId] : undefined))
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -85,11 +79,9 @@ export function EditDetailsDialog() {
 
   return (
     <Dialog open={!!paper} onOpenChange={(open) => !open && setEditingId(null)}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit details</DialogTitle>
-          <DialogDescription>Fix what the resolver got wrong, or fill in a PDF-only paper.</DialogDescription>
-        </DialogHeader>
+      {/* The title field takes focus once it mounts; the info icon would otherwise, and open its tooltip */}
+      <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogHeading title="Edit details" about="Fix what the resolver got wrong, or fill in a PDF-only paper." />
         {draft && (
           <form
             className="flex flex-col gap-4"

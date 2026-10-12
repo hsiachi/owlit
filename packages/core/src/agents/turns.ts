@@ -6,6 +6,7 @@ import {
   DEFAULT_ROLE,
   type AgentStatus,
   HUNK_GAP,
+  parseOwlitUri,
   RpcErrorCode,
   type ChatMessage,
   type ConsentAction,
@@ -823,11 +824,8 @@ export async function attachmentBlocks(attachments: AttachmentFile[], root: stri
 }
 
 function linkOf(m: Mentionable, root: string): acp.ContentBlock {
-  const doc = /^owlit:\/\/docs\/(.+)$/.exec(m.uri)
-  if (doc) {
-    const rel = doc[1].split("/").map(decodeURIComponent).join("/")
-    return { type: "resource_link", uri: `file://${path.join(root, rel)}`, name: m.title, title: m.title }
-  }
+  const u = parseOwlitUri(m.uri)
+  if (u?.kind === "doc") return { type: "resource_link", uri: `file://${path.join(root, u.path)}`, name: m.title, title: m.title }
   return { type: "resource_link", uri: m.uri, name: m.title, title: m.title, ...(m.subtitle ? { description: m.subtitle } : {}) }
 }
 

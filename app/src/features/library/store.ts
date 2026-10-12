@@ -7,6 +7,7 @@ import { MockLibraryClient } from "./mock-client"
 import { RpcLibraryClient } from "./rpc-client"
 import { seedPapers } from "./mocks/papers"
 import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "./types"
+import { normalizeTag } from "./lib/tags"
 
 export const libraryClient: LibraryClient = isDesktop ? new RpcLibraryClient() : new MockLibraryClient()
 
@@ -26,7 +27,6 @@ interface LibraryState {
   removePapers: (ids: string[]) => Paper[]
   restorePapers: (papers: Paper[]) => void
 
-  toggleStar: (id: string) => void
   setStarred: (ids: string[], starred: boolean) => void
   setStatus: (ids: string[], status: ReadStatus) => void
   setTags: (id: string, tags: string[]) => void
@@ -47,10 +47,21 @@ interface LibraryState {
   setNote: (paperId: string, content: string) => void
 }
 
+// The papers among ids that exist, each with what patch gives it; undefined leaves that paper as it is
+function patchPapers(s: LibraryState, ids: string[], patch: (p: Paper) => Partial<Omit<Paper, "id">> | undefined): Partial<LibraryState> {
+  let papers: Record<string, Paper> | undefined
+  for (const id of ids) {
+    const p = s.papers[id]
+    const change = p && patch(p)
+    if (!change) continue
+    papers ??= { ...s.papers }
+    papers[id] = { ...p, ...change }
+  }
+  return papers ? { papers } : s
+}
+
 // A removed paper's highlights and note, held until the session ends so Undo brings them back too
 const removedWith = new Map<string, { highlights: Highlight[]; note?: PaperNote }>()
-
-const normalizeTag = (tag: string) => tag.trim().toLowerCase().replace(/\s+/g, "-")
 
 export const useLibraryStore = create<LibraryState>()(
   persist(
@@ -82,12 +93,7 @@ export const useLibraryStore = create<LibraryState>()(
         return paper
       },
 
-      updatePaper: (id, patch) =>
-        set((s) => {
-          const p = s.papers[id]
-          if (!p) return s
-          return { papers: { ...s.papers, [id]: { ...p, ...patch } } }
-        }),
+      updatePaper: (id, patch) => set((s) => patchPapers(s, [id], () => patch)),
 
       removePapers: (ids) => {
         const removed = ids.map((id) => get().papers[id]).filter((p): p is Paper => !!p)
@@ -121,80 +127,24 @@ export const useLibraryStore = create<LibraryState>()(
           return { papers: { ...s.papers, ...Object.fromEntries(papers.map((p) => [p.id, p])) }, highlights, notes }
         }),
 
-      toggleStar: (id) =>
-        set((s) => {
-          const p = s.papers[id]
-          if (!p) return s
-          return { papers: { ...s.papers, [id]: { ...p, starred: !p.starred } } }
-        }),
+      setStarred: (ids, starred) => set((s) => patchPapers(s, ids, () => ({ starred }))),
 
-      setStarred: (ids, starred) =>
-        set((s) => {
-          const papers = { ...s.papers }
-          for (const id of ids) if (papers[id]) papers[id] = { ...papers[id], starred }
-          return { papers }
-        }),
+      setStatus: (ids, status) => set((s) => patchPapers(s, ids, () => ({ status }))),
 
-      setStatus: (ids, status) =>
-        set((s) => {
-          const papers = { ...s.papers }
-          for (const id of ids) if (papers[id]) papers[id] = { ...papers[id], status }
-          return { papers }
-        }),
-
-      setTags: (id, tags) =>
-        set((s) => {
-          const p = s.papers[id]
-          if (!p) return s
-          const clean = Array.from(new Set(tags.map(normalizeTag).filter(Boolean)))
-          return { papers: { ...s.papers, [id]: { ...p, tags: clean } } }
-        }),
+      setTags: (id, tags) => set((s) => patchPapers(s, [id], () => ({ tags: Array.from(new Set(tags.map(normalizeTag).filter(Boolean))) }))),
 
       addTag: (ids, tag) => {
         const t = normalizeTag(tag)
-        if (!t) return
-        set((s) => {
-          const papers = { ...s.papers }
-          for (const id of ids) {
-            const p = papers[id]
-            if (p && !p.tags.includes(t)) papers[id] = { ...p, tags: [...p.tags, t] }
-          }
-          return { papers }
-        })
+        if (t) set((s) => patchPapers(s, ids, (p) => (p.tags.includes(t) ? undefined : { tags: [...p.tags, t] })))
       },
 
-      removeTag: (ids, tag) =>
-        set((s) => {
-          const papers = { ...s.papers }
-          for (const id of ids) {
-            const p = papers[id]
-            if (p && p.tags.includes(tag)) papers[id] = { ...p, tags: p.tags.filter((x) => x !== tag) }
-          }
-          return { papers }
-        }),
+      removeTag: (ids, tag) => set((s) => patchPapers(s, ids, (p) => (p.tags.includes(tag) ? { tags: p.tags.filter((x) => x !== tag) } : undefined))),
 
       markOpened: (id) =>
-        set((s) => {
-          const p = s.papers[id]
-          if (!p) return s
-          return {
-            papers: {
-              ...s.papers,
-              [id]: {
-                ...p,
-                lastOpenedAt: Date.now(),
-                status: p.status === "unread" ? "reading" : p.status,
-              },
-            },
-          }
-        }),
+        set((s) => patchPapers(s, [id], (p) => ({ lastOpenedAt: Date.now(), status: p.status === "unread" ? "reading" : p.status }))),
 
       setPosition: (id, position) =>
-        set((s) => {
-          const p = s.papers[id]
-          if (!p || (p.position?.page === position.page && p.position.y === position.y)) return s
-          return { papers: { ...s.papers, [id]: { ...p, position } } }
-        }),
+        set((s) => patchPapers(s, [id], (p) => (p.position?.page === position.page && p.position.y === position.y ? undefined : { position }))),
 
       addHighlight: (h) => {
         const highlight: Highlight = { ...h, id: newId(), createdAt: Date.now() }
@@ -256,9 +206,9 @@ export const useLibraryStore = create<LibraryState>()(
   ),
 )
 
-// All tags in use, most used first
-export function collectTags(papers: Record<string, Paper>): string[] {
+// All tags in use with how many papers carry each, most used first
+export function collectTags(papers: Record<string, Paper>): [tag: string, count: number][] {
   const counts = new Map<string, number>()
   for (const p of Object.values(papers)) for (const t of p.tags) counts.set(t, (counts.get(t) ?? 0) + 1)
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t)
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 }

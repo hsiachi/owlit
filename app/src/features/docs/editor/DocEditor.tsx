@@ -4,30 +4,30 @@ import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirro
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { Compartment, EditorSelection, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
-import { toast } from "sonner"
 import { useAgentWindow } from "@/features/agent/store"
-import { useChatStore } from "@/features/chat/store"
 import { useShowsEditsInPlace } from "@/features/chat/in-place"
-import { reportDocEdited } from "@/lib/activity"
+import { reportDocEdited } from "@/app/activity"
 import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { docMentionable, docMentionItems, mentionRoute, mentionTitle } from "../lib/mentions"
+import { allDocMentions, docMentionable, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
 import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
-import { agentNotes, noteSpots, setNotes, setOpenNote } from "./agent-notes"
+import { agentNotes, noteAnchor, noteSpots, setNotes, setOpenNote } from "./agent-notes"
 import { selectionMenu } from "./selection-menu"
-import { askOwlitOnRightClick } from "@/app/text-menu"
-import { agentSuggestions, pendingEdits, setPendingEdits, type PendingEdit } from "./suggestions"
+import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
+import { agentSuggestions, setPendingEdits } from "./suggestions"
+import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { blockPreview } from "./block-preview"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
 import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
+import { toastUndo } from "@/lib/toast"
 
 // A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
 // carry no user event at all; neither is the user's edit.
@@ -57,7 +57,7 @@ function chatAbout(fileId: string, text: string, from?: number) {
 function dismissNote(fileId: string, note: AgentNote, next: string | null) {
   useDocsUiStore.getState().setOpenNote(fileId, next)
   const removed = useDocsStore.getState().removeNote(fileId, note.id)
-  if (removed) toast("Note dismissed", { action: { label: "Undo", onClick: () => useDocsStore.getState().restoreNote(fileId, removed) } })
+  if (removed) toastUndo("Note dismissed", () => useDocsStore.getState().restoreNote(fileId, removed))
 }
 
 const SAVE_DELAY = 300
@@ -128,7 +128,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
             onOpenRoute: (route) => navigateRef.current(route),
           }),
-          mentionPopup((query) => docMentionItems(query, id)),
+          mentionPopup(() => allDocMentions(id)),
           selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from)),
           agentSuggestions(respondToEdit),
           agentNotes({
@@ -163,16 +163,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
 
     // Agent writes to this doc go through the editor; edits the agent proposes for it are drawn in place
     const unregister = registerEditor(id, view)
-    let shown: PendingEdit[] = []
-    const syncEdits = () => {
-      const path = useDocsStore.getState().files[id]?.path
-      const edits = path ? pendingEdits(useChatStore.getState().chats, path) : []
-      if (edits.length === shown.length && edits.every((e, i) => e.requestId === shown[i].requestId)) return
-      shown = edits
-      view.dispatch({ effects: setPendingEdits.of(edits) })
-    }
-    syncEdits()
-    const unsubscribe = useChatStore.subscribe(syncEdits)
+    const unsubscribe = subscribePendingEdits(
+      () => useDocsStore.getState().files[id]?.path,
+      (edits) => view.dispatch({ effects: setPendingEdits.of(edits) }),
+    )
 
     const unsubscribeMissing = useDocsStore.subscribe((s) => {
       if (!!s.missing[id] === missing) return
@@ -192,9 +186,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       const doc = view.state.doc
       const moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">> = {}
       for (const s of noteSpots(view.state)) {
-        const quote = doc.sliceString(s.from, s.to)
-        if (s.lost || quote === s.note.quote) continue
-        moved[s.note.id] = { quote, prefix: doc.sliceString(Math.max(0, s.from - 32), s.from), suffix: doc.sliceString(s.to, s.to + 32) }
+        if (s.lost || doc.sliceString(s.from, s.to) === s.note.quote) continue
+        moved[s.note.id] = noteAnchor(doc.toString(), s.from, s.to)
       }
       if (Object.keys(moved).length) useDocsStore.getState().reanchorNotes(id, moved)
     }
@@ -219,7 +212,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     const unregisterAsk = askOwlitOnRightClick(view.dom, () => {
       const { from, to } = view.state.selection.main
       const text = view.state.sliceDoc(from, to)
-      return text.trim().length < 3 ? null : () => chatAbout(id, text, from)
+      return isPassage(text) ? () => chatAbout(id, text, from) : null
     })
 
     window.addEventListener("beforeunload", flush)

@@ -4,10 +4,11 @@
 // scrollbars; the first values come from the preload, so the first frame is already right.
 
 import type { AppearanceSettings } from "@owlit/protocol"
+import { bridge, isDesktop } from "@/lib/rpc"
 
 const KEY = "owlit.appearance"
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)")
-let current: AppearanceSettings = window.owlit?.appearance ?? storedAppearance()
+let current: AppearanceSettings = bridge?.appearance ?? storedAppearance()
 
 export function storedAppearance(): AppearanceSettings {
   try {
@@ -28,7 +29,7 @@ function paint() {
 
 export function applyAppearance(next: AppearanceSettings) {
   current = next
-  if (!window.owlit) {
+  if (!isDesktop) {
     try {
       localStorage.setItem(KEY, JSON.stringify(next))
     } catch {

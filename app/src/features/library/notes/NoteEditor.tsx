@@ -4,14 +4,12 @@ import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
 import { toast } from "sonner"
-import { useAgentWindow } from "@/features/agent/store"
-import { askOwlitOnRightClick } from "@/app/text-menu"
+import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { respondToEdit } from "@/features/chat/lib/respond-edit"
-import { useChatStore } from "@/features/chat/store"
 import { useShowsEditsInPlace } from "@/features/chat/in-place"
-import { pendingEdits, type PendingEdit } from "@/features/docs/editor/suggestions"
+import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { cn } from "@/lib/utils"
-import { paperMentionable } from "@/features/docs/lib/mentions"
+import { askAboutPassage } from "../actions"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import { NoteMention } from "./note-mention"
@@ -51,7 +49,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       contentType: "markdown",
       onUpdate: ({ editor }) => setNote(paperId, editor.isEmpty ? "" : editor.getMarkdown()),
       editorProps: {
-        attributes: { class: "note-editor markdown text-[15px] leading-relaxed outline-none" },
+        attributes: { class: "note-editor markdown text-body leading-relaxed outline-none" },
         handleClick: (_view, _pos, event) => {
           const a = event.target instanceof HTMLElement ? event.target.closest("a") : null
           const href = a?.getAttribute("href") ?? ""
@@ -89,15 +87,10 @@ export function NoteEditor({ paperId }: { paperId: string }) {
   useEffect(() => {
     if (!editor) return
     const path = notePathOf(paperId)
-    let shown: PendingEdit[] = []
-    const sync = () => {
-      const edits = pendingEdits(useChatStore.getState().chats, path)
-      if (edits.length === shown.length && edits.every((e, i) => e.requestId === shown[i].requestId)) return
-      shown = edits
-      editor.view.dispatch(editor.state.tr.setMeta(noteSuggestionsKey, edits))
-    }
-    sync()
-    return useChatStore.subscribe(sync)
+    return subscribePendingEdits(
+      () => path,
+      (edits) => editor.view.dispatch(editor.state.tr.setMeta(noteSuggestionsKey, edits)),
+    )
   }, [editor, paperId])
 
   // A selected passage offers one action above it, "Ask Owlit"; not while the mouse is still choosing
@@ -107,7 +100,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     const place = () => {
       const { from, to, empty } = editor.state.selection
       const text = empty ? "" : editor.state.doc.textBetween(from, to, "\n").trim()
-      if (choosing || !editor.isFocused || text.length < 3 || !box.current) return setMenu(null)
+      if (choosing || !editor.isFocused || !isPassage(text) || !box.current) return setMenu(null)
       const start = editor.view.coordsAtPos(from)
       const outer = box.current.getBoundingClientRect()
       const above = start.top - outer.top - MENU_GAP
@@ -144,10 +137,9 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     if (!editor) return
     const { from, to } = editor.state.selection
     const text = editor.state.doc.textBetween(from, to, "\n").trim()
-    const paper = useLibraryStore.getState().papers[paperId]
-    if (!paper || !text) return
+    if (!text) return
     setMenu(null)
-    useAgentWindow.getState().open({ text, source: paperMentionable(paper), notePath: notePathOf(paperId) })
+    askAboutPassage(paperId, { text, notePath: notePathOf(paperId) })
   }
 
   // A right-click on a selected passage starts the system's text menu with "Ask Owlit" too
@@ -155,7 +147,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     if (!editor) return
     return askOwlitOnRightClick(editor.view.dom, () => {
       const { from, to, empty } = editor.state.selection
-      return empty || editor.state.doc.textBetween(from, to, "\n").trim().length < 3 ? null : chat
+      return empty || !isPassage(editor.state.doc.textBetween(from, to, "\n")) ? null : chat
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, paperId])
@@ -174,17 +166,13 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     >
       <EditorContent editor={editor} />
       {menu && (
-        // The Docs selection menu: one compact row in a thin frame, covering as little text as it can
-        <div
-          className={cn("absolute z-20 flex rounded-[8px] border bg-popover p-0.5 text-[13px] shadow-lg", !menu.below && "-translate-y-full")}
-          style={{ left: menu.left, top: menu.top }}
-        >
+        // The Docs selection menu
+        <div className={cn("selection-menu absolute z-20", !menu.below && "-translate-y-full")} style={{ left: menu.left, top: menu.top }}>
           <button
             type="button"
             // Keep the selection and focus in the note while clicking
             onMouseDown={(e) => e.preventDefault()}
             onClick={chat}
-            className="h-6 rounded-md px-2 hover:bg-accent"
           >
             Ask Owlit
           </button>

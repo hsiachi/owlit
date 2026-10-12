@@ -4,7 +4,7 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
 import { ArrowUpIcon, PlusIcon, SquareIcon, TriangleAlertIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,17 +13,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Kbd } from "@/components/ui/kbd"
-import { docMentionItems } from "@/features/docs/lib/mentions"
+import { Tip } from "@/components/tip"
+import { KIND_PLACE } from "@/lib/kinds"
+import { docMentionItems, type DocMention } from "@/features/docs/lib/mentions"
 import { openSettings } from "@/features/settings/store"
-import { isDesktop, rpc } from "@/lib/rpc"
-import { toast } from "sonner"
-import { fromDrop, useAttachments, type AttachedMention } from "../../lib/attachments"
+import { useFileDrop } from "@/hooks/use-file-drop"
+import { fromDrop, openAttached, readerOf, useAttachments } from "../../lib/attachments"
 import type { Mentionable, PromptInput, SourceKind } from "../../types"
-import { sourceKindLabel } from "../source-icons"
-import { AgentPicker, isUnavailable, useResolvedSelection } from "./AgentPicker"
+import { useResolvedSelection } from "../../use-selection"
+import { AgentPicker } from "./AgentPicker"
+import { isUnavailable, problemSentence } from "../../lib/connector-status"
 import { AttachmentList } from "./AttachmentList"
+import { LargeFilesDialog } from "./LargeFilesDialog"
 import { mentionFilter, mentionPopup, WorkspaceMention } from "./mention-extension"
 
 export interface ComposerHandle {
@@ -33,7 +34,7 @@ export interface ComposerHandle {
   openMention: (kind: SourceKind | "all") => void
 }
 
-interface ComposerProps {
+export interface ComposerProps {
   chatId?: string
   // chatId is the chat sent to; without one (a new chat) the composer names the id the chat is to get,
   // since files attached before sending are already copied into that chat's folder
@@ -100,11 +101,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const [draftId, setDraftId] = useState(() => crypto.randomUUID())
   const target = chatId ?? draftId
   // Mentions that attaching made, for extract() to find again
-  const attachedMentions = useRef<AttachedMention[]>([])
-  const insertRef = useRef<(m: AttachedMention) => void>(() => {})
+  const attachedMentions = useRef<DocMention[]>([])
+  const insertRef = useRef<(m: DocMention) => void>(() => {})
   const attachments = useAttachments(target, (m) => insertRef.current(m))
   const files = attachments.files
-  const [dragging, setDragging] = useState(false)
+  const { dragging, dropProps } = useFileDrop((data) => {
+    const { files: dropped, folders } = fromDrop(data)
+    attachments.add(dropped, folders)
+  })
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
   const { connector } = useResolvedSelection(chatId)
@@ -140,7 +144,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     ],
     autofocus: autoFocus ? "end" : false,
     editorProps: {
-      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-[15px] leading-6 outline-none" },
+      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-body leading-6 outline-none" },
       handlePaste: (_view, event) => {
         const pasted = Array.from(event.clipboardData?.files ?? [])
         if (pasted.length === 0) return false
@@ -221,19 +225,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         dragging && "border-ring ring-2 ring-ring/30",
         className,
       )}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes("Files")) {
-          e.preventDefault()
-          setDragging(true)
-        }
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDragging(false)
-        const { files: dropped, folders } = fromDrop(e.dataTransfer)
-        attachments.add(dropped, folders)
-      }}
+      {...dropProps}
     >
       {/* Only an agent that can't run gets a banner; a working one stays quiet */}
       {connector && blocked && (
@@ -244,7 +236,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         >
           <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" />
           <span className="min-w-0 flex-1 truncate">
-            {connector.name} {connector.status === "not_installed" ? "is not installed" : `can't be reached${connector.error ? ` · ${connector.error}` : ""}`}
+            {problemSentence(connector)}
+            {connector.status === "error" && connector.error && ` · ${connector.error}`}
           </span>
           <span className="shrink-0 font-medium text-foreground">Set up</span>
         </button>
@@ -259,11 +252,11 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             onRemove={attachments.remove}
             onOpen={openAttached}
             onAddToLibrary={(f) => attachments.addToLibrary(f.id)}
-            reader={connector?.cannotRead?.length ? { name: agentName(connector.name), cannotRead: connector.cannotRead } : undefined}
+            reader={readerOf(connector)}
           />
         </div>
       )}
-      {attachments.dialog}
+      <LargeFilesDialog files={attachments.large} onAnswer={attachments.answerLarge} />
 
       {/* Click anywhere in the editor area to focus */}
       <div className="cursor-text" onClick={() => editor?.commands.focus()}>
@@ -272,16 +265,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
       <div className="flex items-center gap-1 px-2.5 pb-2.5">
         <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label="Add attachments or context">
-                  <PlusIcon />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Attach files or mention a paper, doc or note</TooltipContent>
-          </Tooltip>
+          <Tip label="Attach files or mention a paper, doc or note">
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label="Add attachments or context">
+                <PlusIcon />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tip>
           {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
           <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
@@ -290,7 +280,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             <DropdownMenuSeparator />
             {(["paper", "doc", "knowledge"] as SourceKind[]).map((kind) => (
               <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
-                Add from {sourceKindLabel[kind]}
+                Add from {KIND_PLACE[kind]}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -310,40 +300,23 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         <div className="ml-auto flex items-center gap-1">
           <AgentPicker chatId={chatId} />
           {streaming && !(waiting && typed) ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label="Stop generating">
-                  <SquareIcon className="size-3 fill-current" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Stop</TooltipContent>
-            </Tooltip>
+            <Tip label="Stop">
+              <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label="Stop generating">
+                <SquareIcon className="size-3 fill-current" />
+              </Button>
+            </Tip>
           ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label="Send message">
-                  <ArrowUpIcon />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="flex items-center gap-1.5">
-                Send <Kbd>↵</Kbd>
-              </TooltipContent>
-            </Tooltip>
+            <Tip label="Send" shortcut="send">
+              <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label="Send message">
+                <ArrowUpIcon />
+              </Button>
+            </Tip>
           )}
         </div>
       </div>
     </div>
   )
 })
-
-// An attached file's copy, opened in the system's app for it
-export function openAttached(file: { path?: string }) {
-  if (!isDesktop || !file.path) return
-  rpc.chats.openFile({ path: file.path }).catch((error: Error) => toast.error(error.message))
-}
-
-// An agent as a chip names it: "Owlit engine (Beta)" is the Owlit engine there
-export const agentName = (name: string) => name.replace(/\s*\([^)]*\)$/, "")
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")

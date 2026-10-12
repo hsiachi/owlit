@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { type PickMode, range, toggle } from "@/lib/multi-select"
 
 // Transient UI state for the Library pages. Not persisted, but it lives outside the page
 // components so filters, selection, the open peek and scroll survive opening a paper and coming back.
@@ -33,18 +34,22 @@ interface UiState {
   setFilter: (f: StatusFilter) => void
   toggleTag: (tag: string) => void
   showTag: (tag: string) => void
-  clearTags: () => void
   sortBy: (key: SortKey) => void
 
   // A plain click selects the row and opens or folds its peek; ⌘ toggles and ⇧ extends
   // the selection without peeking
-  click: (id: string, mode: "single" | "toggle" | "range", order: string[]) => void
+  click: (id: string, mode: PickMode, order: string[]) => void
   moveCursor: (id: string, extend: boolean, order: string[]) => void
   togglePeek: (id: string) => void
   closePeek: () => void
+  // Right-click on an unselected row acts on that row alone, so it becomes the selection
+  selectForMenu: (id: string) => void
+  // The cursor on a row with nothing selected or peeked: the paper just opened, so ↑↓ carry on from it
+  placeCursor: (id: string) => void
+  // One paper shown whatever narrowed the list: search, filter and tags cleared, its row selected and peeked
+  revealPaper: (id: string) => void
   selectAll: (order: string[]) => void
   clearSelection: () => void
-  setCursor: (id: string | null) => void
   setScrollTop: (top: number) => void
   setEditingId: (id: string | null) => void
 }
@@ -52,15 +57,7 @@ interface UiState {
 // Dates and years read newest first; words read A to Z
 const naturalDesc = (key: SortKey) => key === "addedAt" || key === "year"
 
-function range(order: string[], from: string, to: string): string[] {
-  const a = order.indexOf(from)
-  const b = order.indexOf(to)
-  if (a < 0 || b < 0) return [to]
-  const [lo, hi] = a < b ? [a, b] : [b, a]
-  return order.slice(lo, hi + 1)
-}
-
-export const useUiStore = create<UiState>()((set, get) => ({
+export const useLibraryUi = create<UiState>()((set, get) => ({
   query: "",
   filter: "all",
   tags: [],
@@ -78,7 +75,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set((s) => ({ tags: s.tags.includes(tag) ? s.tags.filter((t) => t !== tag) : [...s.tags, tag], peekId: null })),
   // Clicking a tag chip shows everything carrying that tag
   showTag: (tag) => set({ tags: [tag], filter: "all", query: "", peekId: null, selectedIds: [] }),
-  clearTags: () => set({ tags: [] }),
   // Picking the current key again flips the direction; a new key starts in its natural direction
   sortBy: (key) =>
     set((s) => ({ sort: s.sort.key === key ? { key, desc: !s.sort.desc } : { key, desc: naturalDesc(key) } })),
@@ -90,13 +86,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       return
     }
     if (mode === "toggle") {
-      const has = s.selectedIds.includes(id)
-      set({
-        selectedIds: has ? s.selectedIds.filter((x) => x !== id) : [...s.selectedIds, id],
-        cursorId: id,
-        anchorId: id,
-        peekId: null,
-      })
+      set({ selectedIds: toggle(s.selectedIds, id), cursorId: id, anchorId: id, peekId: null })
       return
     }
     set({ selectedIds: range(order, s.anchorId ?? s.cursorId ?? id, id), cursorId: id, peekId: null })
@@ -112,9 +102,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
   togglePeek: (id) => set((s) => ({ peekId: s.peekId === id ? null : id, selectedIds: [id], cursorId: id, anchorId: id })),
   closePeek: () => set({ peekId: null }),
+  selectForMenu: (id) => set((s) => (s.selectedIds.includes(id) ? s : { selectedIds: [id], cursorId: id, anchorId: id })),
+  placeCursor: (id) => set({ cursorId: id, anchorId: id, selectedIds: [], peekId: null }),
+  revealPaper: (id) => set({ query: "", filter: "all", tags: [], selectedIds: [id], cursorId: id, anchorId: id, peekId: id }),
   selectAll: (order) => set({ selectedIds: order, peekId: null }),
   clearSelection: () => set({ selectedIds: [], anchorId: null, peekId: null }),
-  setCursor: (cursorId) => set({ cursorId }),
   setScrollTop: (scrollTop) => set({ scrollTop }),
   setEditingId: (editingId) => set({ editingId }),
 }))

@@ -2,8 +2,8 @@ import { createRef } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { Prec, type Extension } from "@codemirror/state"
 import { EditorView, keymap, ViewPlugin, type ViewUpdate } from "@codemirror/view"
-import { MentionList, type MentionListHandle, type MentionListProps } from "@/features/chat/components/composer/MentionList"
-import type { DocMention } from "../lib/mentions"
+import { MentionList, type MentionListHandle } from "@/components/mention/mention-list"
+import { filterMentions, type DocMention } from "../lib/mentions"
 
 // "@" opens the composer's own mention popup, so a mention is picked the same way everywhere. On pick the
 // typed "@query" becomes a Markdown link to the item's owlit:// address.
@@ -15,10 +15,12 @@ interface Open {
   from: number
   to: number
   query: string
+  // What @ can reach, read once when the popup opens; typing only narrows it
+  all: DocMention[]
   items: DocMention[]
 }
 
-export function mentionPopup(search: (query: string) => DocMention[]): Extension {
+export function mentionPopup(reachable: () => DocMention[]): Extension {
   const plugin = ViewPlugin.fromClass(
     class {
       open: Open | null = null
@@ -50,7 +52,8 @@ export function mentionPopup(search: (query: string) => DocMention[]): Extension
         const from = m ? sel.head - m[1].length - 1 : -1
         if (from !== this.dismissedAt) this.dismissedAt = -1
         if (!m || from === this.dismissedAt) return this.close()
-        this.open = { from, to: sel.head, query: m[1], items: search(m[1]) }
+        const all = this.open?.from === from ? this.open.all : reachable()
+        this.open = { from, to: sel.head, query: m[1], all, items: filterMentions(all, m[1]) }
         this.render()
         this.view.requestMeasure({
           read: (v) => v.coordsAtPos(from),
@@ -67,8 +70,7 @@ export function mentionPopup(search: (query: string) => DocMention[]): Extension
       }
 
       render() {
-        const props = { items: this.open?.items ?? [], command: ({ id, kind }: { id: string; kind: string }) => this.pick(id, kind) }
-        this.root.render(<MentionList ref={this.list} {...(props as unknown as MentionListProps)} />)
+        this.root.render(<MentionList ref={this.list} items={this.open?.items ?? []} command={({ id, kind }) => this.pick(id, kind)} />)
       }
 
       pick(id: string, kind: string) {
@@ -110,7 +112,7 @@ export function mentionPopup(search: (query: string) => DocMention[]): Extension
       p.dismiss()
       return true
     }
-    return p.list.current?.onKeyDown({ event: { key, shiftKey } as KeyboardEvent } as Parameters<MentionListHandle["onKeyDown"]>[0]) ?? false
+    return p.list.current?.onKeyDown({ event: { key, shiftKey } }) ?? false
   }
 
   return [
