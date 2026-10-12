@@ -35,12 +35,16 @@ export function NoPdf({ paper }: { paper: Paper }) {
   // Check now: the publisher's page takes the card's place
   const [checking, setChecking] = useState(false)
   // Arriving from Home's "Waiting on you" (?check=1) goes straight to the publisher's page
-  useTakeParam("check", (value) => {
-    if (value === "1" && paper.noPdf?.needs && canCheck) setChecking(true)
-  })
-  // Going through several papers' checks in turn (Home's grouped line): taken once, like the check
+  // Going through several papers' checks in turn (Home's grouped line, ?queue=1): taken with the check
   const [inQueue, setInQueue] = useState(false)
-  useTakeParam("queue", (value) => setInQueue(value === "1"))
+  useTakeParam(
+    "check",
+    (value, params) => {
+      if (value === "1" && paper.noPdf?.needs && canCheck) setChecking(true)
+      setInQueue(params.get("queue") === "1")
+    },
+    ["queue"],
+  )
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
   const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
