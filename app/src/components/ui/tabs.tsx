@@ -3,6 +3,10 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Tabs as TabsPrimitive } from "radix-ui"
 
+// Where each line list's underline last was, by its tabs' names: a list drawn anew on a page switch (the
+// Library's) still slides from the tab the person left
+const inkWas = new Map<string, { left: number; width: number }>()
+
 function Tabs({
   className,
   orientation = "horizontal",
@@ -54,20 +58,27 @@ function TabsList({
     const mark = ink.current
     if (variant !== "line" || !el || !mark) return
     const place = () => {
-      const active = el.querySelector<HTMLElement>('[data-slot="tabs-trigger"][data-state="active"]')
+      const triggers = [...el.querySelectorAll<HTMLElement>('[data-slot="tabs-trigger"]')]
+      const active = triggers.find((t) => t.dataset.state === "active")
       if (!active) {
         mark.style.width = "0px"
         return
       }
-      // The first placement is not a move
-      if (!placed.current) mark.style.transition = "none"
-      mark.style.left = `${active.offsetLeft}px`
-      mark.style.width = `${active.offsetWidth}px`
+      const key = triggers.map((t) => t.textContent).join("|")
+      const at = { left: active.offsetLeft, width: active.offsetWidth }
       if (!placed.current) {
+        // The first placement is not a move: the ink starts where this list's ink last was, or in place
+        const from = inkWas.get(key) ?? at
+        mark.style.transition = "none"
+        mark.style.left = `${from.left}px`
+        mark.style.width = `${from.width}px`
         void mark.offsetWidth
         mark.style.transition = ""
         placed.current = true
       }
+      mark.style.left = `${at.left}px`
+      mark.style.width = `${at.width}px`
+      inkWas.set(key, at)
     }
     place()
     // Radix marks the active trigger in the DOM; the list is measured again as it resizes

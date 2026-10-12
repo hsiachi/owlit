@@ -21,7 +21,7 @@ export function NoteDot({
       title={said || undefined}
       {...props}
       className={cn(
-        "note-dot inline-block size-2 shrink-0 rounded-full transition-[opacity,transform] duration-400 ease-(--ease) motion-reduce:transition-opacity",
+        "note-dot inline-block size-2 shrink-0 rounded-full transition-[opacity,scale] duration-400 ease-(--ease) motion-reduce:transition-opacity",
         gone && "scale-[0.6] opacity-0",
         className,
       )}
