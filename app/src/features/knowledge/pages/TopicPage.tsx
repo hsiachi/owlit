@@ -186,7 +186,8 @@ function SoFar({ topic, side, seenBefore, freshIds, onViewed }: { topic: Topic; 
   return (
     <section className="mt-10">
       <GroupLabel flush>So far</GroupLabel>
-      <div className="-mx-2 flex flex-col gap-1">
+      {/* A wider left gutter than right, for the note dot, so the words still line up with the label */}
+      <div className="-mr-2 -ml-5 flex flex-col gap-1">
         {shown.map((l) => (
           <LineRow key={l.id} topic={topic} line={l} side={side} seenBefore={seenBefore} fresh={freshIds.includes(l.id) ? freshness(l.id, side, seenBefore) : null} onViewed={onViewed} />
         ))}

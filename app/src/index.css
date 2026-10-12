@@ -128,8 +128,11 @@
     --warning: oklch(0.66 0.12 70);
     /* An agent's note on a passage: a warm amber underline, and a wash of it while the note is open */
     --note: oklch(0.76 0.15 75);
-    /* The rim of the 8px note dot: the amber alone is too light to hold 3:1 on a light surface */
+    /* The deeper amber for a note's underline and rule, which carry the meaning alone */
     --note-rim: oklch(0.62 0.13 70);
+    /* The 8px note dot: a plain solid amber, a step deeper than the wash so it holds on hovered rows,
+       kept lighter and warmer than `warning` so it never passes for a needs-you dot */
+    --note-dot: oklch(0.72 0.15 72);
     /* A doc's own ==highlights==: the lemon of a yellow PDF highlight, so the two never pass for a note */
     --text-highlight: oklch(0.93 0.11 98);
     --border: oklch(0.905 0.006 80);
@@ -205,6 +208,7 @@
     --warning: oklch(0.78 0.11 75);
     --note: oklch(0.8 0.13 78);
     --note-rim: oklch(0.8 0.13 78);
+    --note-dot: oklch(0.8 0.13 78);
     --text-highlight: oklch(0.4 0.07 100);
     --border: oklch(0.935 0.01 80 / 10%);
     --input: oklch(0.935 0.01 80 / 14%);
@@ -504,7 +508,7 @@
 }
 /* The 8px note dot (something Owlit did since the user last looked), wherever it appears: the amber
    with a deeper rim, so the mark holds 3:1 on the light panels and on a hovered row */
-.note-dot { background: var(--note); box-shadow: inset 0 0 0 1px var(--note-rim); }
+.note-dot { background: var(--note-dot); }
 /* ---- Owlit in a doc or a note ---- */
 /* A selected passage's menu, "Ask Owlit": one compact row in a thin frame, covering as little text as it
    can; 8px corners concentric with the 6px item inside */

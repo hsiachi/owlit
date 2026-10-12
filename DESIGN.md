@@ -32,6 +32,7 @@ colors:
   suggestion: "oklch(0.5 0.11 155)"
   note: "oklch(0.76 0.15 75)"
   note-rim: "oklch(0.62 0.13 70)"
+  note-dot: "oklch(0.72 0.15 72)"
   text-highlight: "oklch(0.93 0.11 98)"
   star: "oklch(0.64 0.13 72)"
   tag-red: "oklch(0.64 0.11 28)"
@@ -201,7 +202,7 @@ components:
   status-ring:
     textColor: "{colors.muted-foreground}"
   note-dot:
-    backgroundColor: "{colors.note}"
+    backgroundColor: "{colors.note-dot}"
   star-mark:
     textColor: "{colors.star}"
   menu:
@@ -476,7 +477,7 @@ Dark mode keeps the warm tint and the steps, lifted off pure black, and lightens
 | `destructive` | Broken, or an action that removes. A removal Owlit proposes, a step you declined and a reply you stopped are not errors and get no red |
 | `success` | Rare: a check beside a value a service accepted |
 | `suggestion` | Owlit's proposed words, drawn as text with an underline, the strike through what they replace, the rule beside the lines, and "+n" in a result card. Never a wash behind text |
-| `note` | Owlit was here: the 8px dot for what it changed since you looked (rimmed in `note-rim`, so it holds 3:1 on light panels and hovered rows), the 2px underline and wash of a note on a passage, the open note's left rule |
+| `note` | Owlit was here: the 8px dot for what it changed since you looked (solid `note-dot`, a step deeper so it holds on hovered rows, still lighter and warmer than `warning`), the 2px underline and wash of a note on a passage, the open note's left rule |
 | `mention` | A thing in the workspace named in text: paper, doc, topic, chat; also link hotspots and the passage ring in a PDF |
 | `star` | Yours: the small filled star after a starred title |
 | `text-highlight` | Your `==highlight==` in a doc, the same lemon as a yellow PDF highlight |
@@ -543,7 +544,7 @@ The shared shapes. Each is one component in code; a place uses it as it is.
 - **Row.** 36px, 8px corners, 10px side padding, 14px text: an optional 20px slot for a mark, the title, one muted 13px detail inline, one at the right (a count, a site, the date). It fills with `muted` on hover and `accent` while selected or while its menu is open, and keeps keyboard focus visible with the same fill; a date at the right gives way to the row's actions on hover. Rows in the rail and panels use the `sidebar-accent` fill, and the open item adds medium weight. A row never fills with a colour of its own. The docs tree's rows are 32px, indented 14px a level, with a chevron-wide slot on every row so names line up.
 - **Row actions.** A 24px ⋯ square at the row's end, visible on hover, focus or while its menu is open, that darkens on its own hover; the title makes room only then. A right-click opens the same menu where the pointer is. Renaming is an input of the row's own height and corners on `card`, the text where the name was.
 - **Status slot.** In a list whose rows can have a state (chats; papers in the Library list, at 16px), every row keeps the slot so a state fills in without moving anything. A paper's slot is empty while unread, a half-filled muted ring while it is read, and the `warning` shield while its publisher waits on you. At rest it holds an 8px hollow ring (a 1.5px muted stroke), there to line titles up; the ladder's marks fill it: a breathing muted fill at work, the `note` dot once finished since you looked, red when broken, the `warning` shield while it waits on you. New chat and New doc put their 18px round plus in the same slot, so switching panels moves nothing.
-- **Note dot.** 8px, `note` with a 1px inset rim of `note-rim`: before a changed topic or line, in a tab's label, on Home's rows, in the status slot. It leaves once the thing has been on screen for a moment.
+- **Note dot.** 8px, solid `note-dot`, no rim or ring: before a changed topic or line, in a tab's label, on Home's rows, in the status slot. In a row with a fill it sits inside the fill, in a wider left gutter (the topic's lines: 20px, the dot 6px from the edge), so the words still line up with the label above and the dot never straddles the fill's edge. It leaves once the thing has been on screen for a moment.
 - **Group label.** 12px `muted-foreground`, regular weight, 4px over its rows, with the rows' side padding. Never a heading, never a count. A **fold** ("Sources · 4 docs", "5 changes", "2 earlier steps", "Show 4 more") is a 13px muted text button with a chevron that turns when open.
 - **Menu.** Floating material, 14px corners, 6px padding, items 32px with 8px corners and 10px side padding on the `accent` fill when highlighted. Words only; the chosen item has a muted check at the right, a state shows as a chip in the same slot; a submenu holds choices; groups are divided by a hairline, in the order what changes the thing, where it is, then Delete or Remove, in red, which fills solid red with white text when highlighted. A menu's width fits its longest item. A plain-text trigger ("Unread ▾", "Recently added ▾", a Settings picker) is a ghost button in regular weight that fills while open.
 - **Search button.** At the top of a list panel: a 36px button drawn like a field (`card`, a 70% border, magnifier, "Search", the ⌘K key) that opens the palette.
