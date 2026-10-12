@@ -39,6 +39,8 @@ export interface BrowserRequest {
   pdf?: string
   // Through a proxy: fetch the PDF's path on the host the page settled on (the proxy's rewrite of it)
   pdfOnPageHost?: boolean
+  // Through a proxy: the proxy's own host, where a page that stays is its sign-in, not the article
+  proxyHost?: string
   // The hosts the page may visit while nobody is looking (publisher, doi.org, the proxy)
   allowHosts: string[]
   signal: AbortSignal

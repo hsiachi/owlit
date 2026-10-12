@@ -147,8 +147,26 @@ describe("paper.pdf.browser", () => {
     await call("library.add", { paper: acm })
     expect((await call("library.fetchPdf", { id: acm.id })).pdf).toBeDefined()
     expect(asked.map((r) => r.pdfOnPageHost)).toEqual([false, true])
+    expect(asked.map((r) => r.proxyHost)).toEqual([undefined, "tlink.lib.tsinghua.edu.cn"])
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
     expect(acquisition.route).toBe("browser:acm:proxied")
+  })
+
+  it("marks the proxy signed out when a run finds its sign-in page, and signed in when a PDF comes through it", async () => {
+    let signedIn = false
+    const { browser } = fakeBrowser(async (request) => {
+      if (!request.proxyHost) throw new Error("The page had no PDF for this reader.")
+      if (!signedIn) throw new NeedsUser("login", request.proxyHost)
+      return new Uint8Array(PDF)
+    })
+    const proxy = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" }
+    const { call } = await setup(browser, { proxy, proxySignedInAt: 1 })
+    await call("library.add", { paper: acm })
+    expect((await call("library.fetchPdf", { id: acm.id })).noPdf).toMatchObject({ needs: "sign-in" })
+    await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeUndefined()
+    signedIn = true
+    expect((await call("library.fetchPdf", { id: acm.id })).pdf).toBeDefined()
+    await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeGreaterThan(1)
   })
 
   it("notes a page that wants a person instead of waiting, while nobody is looking", async () => {

@@ -26,7 +26,7 @@ import { createReadStream } from "node:fs"
 import { appendFile, copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { NeedsUser, type BrowserHost } from "../host.ts"
-import { HttpError, type Http } from "../net/http.ts"
+import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { browserRoutes } from "./browser-routes.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
@@ -93,6 +93,8 @@ export interface LibraryServices {
   pdfiumWasm?: string
   // Read at each use, so a key the user adds applies at once
   settings: () => Promise<LibrarySettings>
+  // A run through the library proxy found its sign-in page (false) or got a PDF through it (true)
+  proxySignedIn?: (signedIn: boolean) => void
 }
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, "That paper is not in the library.", { id })
@@ -538,15 +540,18 @@ export class Library {
         const registered = await registeredUrl(this.services.http, record.ids.doi, ctx.signal)
         for (const route of browserRoutes(record.ids.doi, settings.proxy, registered)) {
           ctx.progress(0, undefined, route.name)
+          const proxied = route.name.endsWith(":proxied")
           try {
             const bytes = await browser.fetchPdf({
               landing: route.landing,
               pdf: route.pdf,
-              pdfOnPageHost: route.name.endsWith(":proxied"),
+              pdfOnPageHost: proxied,
+              proxyHost: proxied && settings.proxy ? hostOf(settings.proxy.base) : undefined,
               allowHosts: route.allowHosts,
               signal: ctx.signal,
               withUser,
               needUser: async (reason, detail, settled) => {
+                if (proxied && reason === "login") this.services.proxySignedIn?.(false)
                 const waiting = ctx.waitForUser(reason, detail)
                 // The page moved on (check passed, signed in): the task goes on
                 settled.then(
@@ -559,6 +564,7 @@ export class Library {
             })
             if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
+            if (proxied) this.services.proxySignedIn?.(true)
             // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
             await this.serial(async () => {
               // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
@@ -575,6 +581,7 @@ export class Library {
             return
           } catch (error) {
             if (ctx.signal.aborted) throw error
+            if (proxied && error instanceof NeedsUser && error.reason === "login") this.services.proxySignedIn?.(false)
             if (error instanceof NeedsUser) needs ??= { reason: error.reason, route: route.name, at: Date.now(), ...(error.host ? { host: error.host } : {}) }
             tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
             // With the user, it means they went away: the next route would only wait for them again
