@@ -1,5 +1,6 @@
 import type { PaperTone, ThemeChoice } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
+import { SegmentedControl } from "@/components/segmented-control"
 import { Switch } from "@/components/ui/switch"
 import { usePrefsStore } from "@/features/library/prefs-store"
 import { List, Row } from "../parts"
@@ -27,23 +28,7 @@ export function AppearanceSection() {
       <Row
         name="Theme"
         control={
-          <div role="radiogroup" aria-label="Theme" className="flex gap-0.5 rounded-lg bg-muted p-0.5">
-            {THEMES.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                role="radio"
-                aria-checked={theme === t.value}
-                onClick={() => void updateSettings({ appearance: { theme: t.value } })}
-                className={cn(
-                  "h-6 rounded-md px-3 text-detail text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
-                  theme === t.value && "bg-card text-foreground shadow-xs",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl label="Theme" value={theme} options={THEMES} onChange={(value) => void updateSettings({ appearance: { theme: value } })} />
         }
       />
       <div className="px-3.5 pt-3 pb-3.5">

@@ -27,7 +27,7 @@ const tabsListVariants = cva(
     variants: {
       variant: {
         default: "bg-muted",
-        line: "gap-1 bg-transparent",
+        line: "relative gap-1 bg-transparent",
       },
     },
     defaultVariants: {
@@ -39,16 +39,64 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  children,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List> &
   VariantProps<typeof tabsListVariants>) {
+  const list = React.useRef<HTMLDivElement>(null)
+  const ink = React.useRef<HTMLSpanElement>(null)
+  const placed = React.useRef(false)
+  // The underline of the line variant: one mark that travels to the active tab over --t-layout rather than
+  // a mark on each tab that switches, so "you are here" moves and the eye follows (DESIGN.md › Motion). It
+  // sits where each tab's own underline did: 2px, 1px below the list.
+  React.useLayoutEffect(() => {
+    const el = list.current
+    const mark = ink.current
+    if (variant !== "line" || !el || !mark) return
+    const place = () => {
+      const active = el.querySelector<HTMLElement>('[data-slot="tabs-trigger"][data-state="active"]')
+      if (!active) {
+        mark.style.width = "0px"
+        return
+      }
+      // The first placement is not a move
+      if (!placed.current) mark.style.transition = "none"
+      mark.style.left = `${active.offsetLeft}px`
+      mark.style.width = `${active.offsetWidth}px`
+      if (!placed.current) {
+        void mark.offsetWidth
+        mark.style.transition = ""
+        placed.current = true
+      }
+    }
+    place()
+    // Radix marks the active trigger in the DOM; the list is measured again as it resizes
+    const mo = new MutationObserver(place)
+    mo.observe(el, { attributes: true, subtree: true, attributeFilter: ["data-state"] })
+    const ro = new ResizeObserver(place)
+    ro.observe(el)
+    return () => {
+      mo.disconnect()
+      ro.disconnect()
+    }
+  }, [variant])
   return (
     <TabsPrimitive.List
+      ref={list}
       data-slot="tabs-list"
       data-variant={variant}
       className={cn(tabsListVariants({ variant }), className)}
       {...props}
-    />
+    >
+      {children}
+      {variant === "line" && (
+        <span
+          ref={ink}
+          aria-hidden
+          className="absolute -bottom-px h-0.5 w-0 bg-foreground transition-[left,width] duration-(--t-layout) ease-(--ease) motion-reduce:transition-none"
+        />
+      )}
+    </TabsPrimitive.List>
   )
 }
 
@@ -63,7 +111,6 @@ function TabsTrigger({
         "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-key:border-ring focus-key:ring-[3px] focus-key:ring-ring/50 focus-key:outline-1 focus-key:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
         "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
-        "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
         className
       )}
       {...props}

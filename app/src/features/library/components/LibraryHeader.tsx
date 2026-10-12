@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { CheckIcon, ChevronDownIcon, ListIcon, PaperclipIcon, Table2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChoiceMenu } from "@/components/choice-menu"
+import { SegmentedControl } from "@/components/segmented-control"
 import { PdfFileInput } from "@/components/file-drop"
 import { FindField } from "@/components/find-field"
 import { PageTitle } from "@/components/page"
@@ -14,7 +15,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IconButton } from "@/components/icon-button"
-import { Tip } from "@/components/tip"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
 import { type Layout, usePrefsStore } from "../prefs-store"
@@ -65,9 +65,9 @@ export function SortMenu() {
   return <ChoiceMenu label="Sort" value={sort.key} options={SORTS} onChange={sortBy} trigger={trigger} />
 }
 
-const LAYOUTS: { id: Layout; label: string; icon: typeof ListIcon }[] = [
-  { id: "list", label: "List", icon: ListIcon },
-  { id: "table", label: "Table", icon: Table2Icon },
+const LAYOUTS: { value: Layout; label: string; icon: typeof ListIcon }[] = [
+  { value: "list", label: "List", icon: ListIcon },
+  { value: "table", label: "Table", icon: Table2Icon },
 ]
 
 export function LayoutToggle() {
@@ -75,28 +75,15 @@ export function LayoutToggle() {
   const setLayout = usePrefsStore((s) => s.setLayout)
   const closePeek = useLibraryUi((s) => s.closePeek)
   return (
-    <div role="radiogroup" aria-label="Layout" className="flex gap-0.5 rounded-lg bg-muted p-0.5">
-      {LAYOUTS.map((l) => (
-        <Tip key={l.id} label={l.label}>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={layout === l.id}
-            aria-label={l.label}
-            onClick={() => {
-              setLayout(l.id)
-              closePeek()
-            }}
-            className={cn(
-              "grid h-6 w-7 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
-              layout === l.id && "bg-card text-foreground shadow-xs",
-            )}
-          >
-            <l.icon className="size-3.5" />
-          </button>
-        </Tip>
-      ))}
-    </div>
+    <SegmentedControl
+      label="Layout"
+      value={layout}
+      options={LAYOUTS}
+      onChange={(l) => {
+        setLayout(l)
+        closePeek()
+      }}
+    />
   )
 }
 
