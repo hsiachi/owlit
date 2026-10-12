@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { resumeTask, useLoginTasks } from "@/features/tasks/store"
 import { RpcError } from "@/lib/rpc"
 import { useFoldWhile } from "../form-state"
-import { IconAction, List, Note, Picker, Row } from "../parts"
+import { Group, IconAction, List, Note, Picker, Row } from "../parts"
 import { setProxy, signInToProxy, useSettings } from "../store"
 
 type Choice = "none" | ProxyPreset | "other"
@@ -15,7 +15,7 @@ type Choice = "none" | ProxyPreset | "other"
 const hostOf = (base: string) => base.replace(/^https?:\/\//, "").replace(/\/.*$/, "")
 const describe = (proxy: ProxySettings) => `${hostOf(proxy.base)} · ${proxy.scheme === "host-rewrite" ? "rewrites addresses" : "sign-in link"}`
 
-export function ProxySection() {
+export function ProxyGroup() {
   const proxy = useSettings((s) => s.view?.library.proxy)
   const signedInAt = useSettings((s) => s.view?.library.proxySignedInAt)
   // "Another library…" picked, link not given yet
@@ -36,11 +36,29 @@ export function ProxySection() {
   }
 
   return (
-    <List>
-      <Row name="Your library" control={<Picker label="Your library" value={choice} options={options} onChange={pick} />} />
-      {choice === "other" && (linkOpen || !proxy ? <LinkForm onDone={() => setLinkOpen(false)} /> : <Row name="Proxy" control={<><span className="text-detail text-muted-foreground">{describe(proxy)}</span><IconAction label="Change proxy" onClick={() => setLinkOpen(true)}><PencilIcon /></IconAction></>} />)}
-      {proxy && !linkOpen && <SignIn signedInAt={signedInAt} />}
-    </List>
+    // What a proxy is for, said only while there is none: once one is set, the rows say enough
+    <Group id="proxy" label="Library proxy" note={!proxy && !linkOpen ? "Gets publisher PDFs through your university's subscription, signed in as you." : undefined}>
+      <List>
+        <Row name="Your library" control={<Picker label="Your library" value={choice} options={options} onChange={pick} />} />
+        {choice === "other" &&
+          (linkOpen || !proxy ? (
+            <LinkForm onDone={() => setLinkOpen(false)} />
+          ) : (
+            <Row
+              name="Proxy"
+              control={
+                <>
+                  <span className="text-detail text-muted-foreground">{describe(proxy)}</span>
+                  <IconAction label="Change proxy" onClick={() => setLinkOpen(true)}>
+                    <PencilIcon />
+                  </IconAction>
+                </>
+              }
+            />
+          ))}
+        {proxy && !linkOpen && <SignIn signedInAt={signedInAt} />}
+      </List>
+    </Group>
   )
 }
 

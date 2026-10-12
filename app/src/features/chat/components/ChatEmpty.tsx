@@ -31,7 +31,7 @@ export function ChatEmpty() {
   const createChat = useChatStore((s) => s.createChat)
   const send = useChatStore((s) => s.send)
   const composer = useRef<ComposerHandle>(null)
-  // Settings › Profile; without a name the greeting stands alone
+  // Settings › Owlit; without a name the greeting stands alone
   const name = useSettings((s) => s.view?.profile.name)
   // A starter handed over from elsewhere (the Library's Ask Owlit to find papers)
   const starter = (useLocation().state as { starter?: string } | null)?.starter

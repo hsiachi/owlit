@@ -144,7 +144,7 @@ export async function parseSelfHosted(http: Http, settings: ParsingSettings, nam
   return list
 }
 
-// Settings › PDF reading tries a token by asking about a batch that doesn't exist: the cloud answers
+// Settings › Papers › Reading PDFs tries a token by asking about a batch that doesn't exist: the cloud answers
 // a bad token with A02xx (or 401/403) before it looks for the batch, and anything else means the token
 // got through. A used-up quota is not a bad token.
 export async function tryToken(http: Http, settings: ParsingSettings): Promise<"works" | "rejected" | "quota" | "unreachable"> {

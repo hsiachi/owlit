@@ -21,7 +21,7 @@ import { AgentCheck } from "./AgentCheck"
 
 // The page the window shows while no workspace is open: on a first launch, or when the last workspace is
 // no longer where it was. It asks where to work, and, until the user has given one, what Owlit should
-// call them (optional; Settings › Profile keeps it). Either workspace choice opens Home at once; there
+// call them (optional; Settings › Owlit keeps it). Either workspace choice opens Home at once; there
 // are no further steps. The window has no rail here, since none of the places exist yet.
 
 // "~/Documents" rather than the whole home path
