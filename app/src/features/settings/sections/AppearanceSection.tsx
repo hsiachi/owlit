@@ -1,5 +1,7 @@
 import type { PaperTone, ThemeChoice } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
+import { usePrefsStore } from "@/features/library/prefs-store"
 import { List, Row } from "../parts"
 import { appearanceOf, updateSettings, useSettings } from "../store"
 
@@ -18,6 +20,8 @@ const TONES: { value: PaperTone; label: string }[] = [
 
 export function AppearanceSection() {
   const { theme, tone } = useSettings((s) => appearanceOf(s.view))
+  const dimPdf = usePrefsStore((s) => s.dimPdf)
+  const setDimPdf = usePrefsStore((s) => s.setDimPdf)
   return (
     <List>
       <Row
@@ -60,6 +64,11 @@ export function AppearanceSection() {
           ))}
         </div>
       </div>
+      <Row
+        name="Dim PDF pages in the dark theme"
+        help="Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
+        control={<Switch checked={dimPdf} onCheckedChange={setDimPdf} aria-label="Dim PDF pages in the dark theme" />}
+      />
     </List>
   )
 }

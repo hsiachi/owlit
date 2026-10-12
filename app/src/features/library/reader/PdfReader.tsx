@@ -20,6 +20,7 @@ import { cleanPdfText } from "../lib/highlights"
 import { useLibraryStore } from "../store"
 import type { Highlight, Paper } from "../types"
 import { useHighlightsByPage } from "../lib/use-highlights"
+import { usePrefsStore } from "../prefs-store"
 import { HighlightLayer } from "./HighlightLayer"
 import { useHighlightHitTest } from "./highlight-hits"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
@@ -249,6 +250,7 @@ function Page({
   onFollow: (mark: ReturnMark) => void
 }) {
   const hit = useHighlightHitTest(documentId, highlights, pageIndex)
+  const dim = usePrefsStore((s) => s.dimPdf)
   return (
     // The rendered page is an <img>: without this the browser starts dragging the picture,
     // cancels the pointer, and a text selection never ends
@@ -260,6 +262,8 @@ function Page({
       <SearchLayer documentId={documentId} pageIndex={pageIndex} highlightColor="var(--pdf-search)" activeHighlightColor="var(--pdf-search-active)" />
       <HighlightLayer documentId={documentId} paperId={paperId} pageIndex={pageIndex} highlights={highlights} />
       <PassageRing documentId={documentId} pageIndex={pageIndex} />
+      {/* Dark theme only: a shade over the page and its marks alike, so their colours keep their relation */}
+      {dim && <div className="pointer-events-none absolute inset-0 hidden bg-black/12 dark:block" />}
       <SelectionLayer
         documentId={documentId}
         pageIndex={pageIndex}

@@ -264,10 +264,11 @@ export function agentNotes(actions: Actions): Extension {
 
   const theme = EditorView.theme({
     // The passage: a 2px underline in the note colour, and a wash of it while the note is open. A doc's own
-    // ==highlights== are a different, lemon yellow, so the two never pass for each other.
+    // ==highlights== are a different, lemon yellow, so the two never pass for each other. The underline and
+    // the card's edge carry the meaning alone, so they take the rim's deeper amber (3:1 on light paper).
     ".cm-note-mark": {
       textDecorationLine: "underline",
-      textDecorationColor: "var(--note)",
+      textDecorationColor: "var(--note-rim)",
       textDecorationThickness: "2px",
       textUnderlineOffset: "5px",
       textDecorationSkipInk: "none",
@@ -280,7 +281,7 @@ export function agentNotes(actions: Actions): Extension {
       padding: "8px 12px 6px 13px",
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--note)",
+      borderLeft: "3px solid var(--note-rim)",
       borderRadius: "4px 10px 10px 4px",
       fontSize: "14px",
       lineHeight: "1.55",
