@@ -86,6 +86,13 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
             <NavLink to={`/chat/${chat.id}`}>
               <StatusRing status={status} />
               <span className="truncate">{chat.title}</span>
+              {/* The two rungs that need the user also say so in a word at the row's end, in the text colour, so
+                  neither rests on the dot's hue; the ring already reads it out */}
+              {(status === "waiting" || status === "failed") && (
+                <span aria-hidden className="ml-auto shrink-0 text-detail text-foreground">
+                  {status === "waiting" ? "Waiting" : "Stopped"}
+                </span>
+              )}
             </NavLink>
           </SidebarMenuButton>
         )}

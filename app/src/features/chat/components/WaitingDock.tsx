@@ -1,8 +1,7 @@
 import { useState } from "react"
-import { ChevronLeftIcon, ChevronRightIcon, MessageCircleQuestionIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { FoldChevron } from "@/components/fold"
-import { WaitingShield } from "@/components/marks"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { editStats, parentPath, type AgentQuestion } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
@@ -70,7 +69,6 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
     const where = editPath && paperOfNotePath(editPath) ? "your note" : "the doc"
     return (
       <div className={cn(CARD, "flex items-center gap-2 py-2 text-muted-foreground")}>
-        <WaitingShield size="md" />
         <span className="min-w-0 truncate">Waiting in {where}: Apply or Discard it there</span>
         <span aria-hidden>·</span>
         <Button variant="text" size="inline" onClick={() => setAnswerHere(true)}>
@@ -98,17 +96,15 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
   if (agent) summary = [`For the agent “${agent}”`, summary].filter(Boolean).join(" · ")
 
   const options = [...ask.options].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind))
+  // The words say what waits ("Owlit wants to edit story.md"); no mark leads them
   return (
     <div className={CARD} role="group" aria-label="Owlit is waiting on you">
-      <div className="flex items-start gap-2.5">
-        <WaitingShield size="md" className="mt-0.5" />
-        <div className="min-w-0 flex-1">
-          <div className="font-medium break-words">{askSentence(ask.title, call)}</div>
-          {summary && <div className="mt-0.5 text-detail text-muted-foreground">{summary}</div>}
-        </div>
+      <div className="min-w-0">
+        <div className="font-medium break-words">{askSentence(ask.title, call)}</div>
+        {summary && <div className="mt-0.5 text-detail text-muted-foreground">{summary}</div>}
       </div>
       {(diff || command || url) && (
-        <FadeClip open={all} long={long} onLong={setLong} max="max-h-36" openMax="max-h-72 overflow-y-auto" surface="card" className="mt-2.5 ml-6.5 rounded-lg border px-3 py-2.5">
+        <FadeClip open={all} long={long} onLong={setLong} max="max-h-36" openMax="max-h-72 overflow-y-auto" surface="card" className="mt-2.5 rounded-lg border px-3 py-2.5">
           {diff ? (
             <DiffPreview oldText={diff.oldText} newText={diff.newText} />
           ) : command ? (
@@ -120,7 +116,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
           )}
         </FadeClip>
       )}
-      <div className="mt-3 ml-6.5 flex flex-wrap items-center gap-1.5">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {options.map((o) => (
           <Button key={o.optionId} size="sm" variant={o.kind === "allow_once" ? "default" : o.kind.startsWith("allow") ? "outline" : "ghost"} onClick={() => respond(o.optionId)}>
             {OPTION_WORDS[o.kind] ?? o.name}
@@ -198,7 +194,6 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
     <div className={CARD} role="group" aria-label="Owlit asks you">
       {/* The header line folds the card to itself and opens it again; the pager and the chevron are the buttons */}
       <div className="flex min-h-6 cursor-default items-center gap-2.5" onClick={() => fold(!folded)}>
-        <MessageCircleQuestionIcon className="size-4 shrink-0 text-warning" />
         <span className={cn("min-w-0 flex-1 truncate text-muted-foreground", folded ? "text-sm" : "text-xs")}>{folded ? foldedLine : header ? `${asks} · ${header}` : asks}</span>
         {/* Several questions: a pager at the line's end, so an answered one can be gone back to */}
         {!folded && several && (
@@ -225,7 +220,7 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
         )}
       </div>
       <Unfold open={!folded}>
-        <div className="ml-6.5 pt-0.5">
+        <div className="pt-0.5">
           <div className="text-body font-medium break-words">{q.question}</div>
           {(q.options.length > 0 || q.allowsText) && (
             <div className="mt-2 -ml-2 flex flex-col" role={q.multiSelect ? "group" : "radiogroup"} aria-label={q.question}>

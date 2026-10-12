@@ -3,7 +3,6 @@ import type { Connector } from "@owlit/protocol"
 import { CopyIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
-import { WaitingShield } from "@/components/marks"
 import { KindIcon } from "@/components/kind-icon"
 import { Button } from "@/components/ui/button"
 import { canRun, connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
@@ -76,7 +75,7 @@ export function AgentCheck() {
   } else if (signedOut) {
     const command = signedOut.signIn ?? signedOut.command
     body = (
-      <Line icon={<WaitingShield size="md" />}>
+      <Line>
         <div className="min-w-0 flex-1">
           <span className="text-foreground">{problemSentence(signedOut)}.</span> Run <code className="font-mono text-xs text-foreground">{command}</code> in Terminal to sign in.
           <div className="mt-1 -ml-1.5 flex gap-0.5">
@@ -93,7 +92,7 @@ export function AgentCheck() {
     )
   } else if (broken) {
     body = (
-      <Line icon={<WaitingShield size="md" />}>
+      <Line>
         <div className="min-w-0 flex-1">
           <span className="text-foreground">{problemSentence(broken)}.</span>
           {broken.error && <div className="mt-0.5 text-xs break-words">{broken.error}</div>}
@@ -110,7 +109,7 @@ export function AgentCheck() {
     )
   } else {
     body = (
-      <Line icon={<WaitingShield size="md" />}>
+      <Line>
         <div className="min-w-0 flex-1">
           <span className="text-foreground">Owlit needs a coding agent on this Mac.</span>
           {first?.installHint && (
@@ -139,7 +138,9 @@ export function AgentCheck() {
   return <div className="mt-9 border-t px-2.5 pt-3.5">{body}</div>
 }
 
-function Line({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+// A problem is told in words, the problem itself in the text colour; only the found agent and the search
+// for one lead with an icon
+function Line({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 text-detail leading-normal text-muted-foreground [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0">
       {icon}

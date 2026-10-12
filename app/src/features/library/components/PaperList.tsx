@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
-import { WaitingShield } from "@/components/marks"
 import { Unfold } from "@/components/unfold"
 import type { PaperGroup } from "../lib/filter"
 import { paperMeta, shortAuthors, shortVenue } from "../lib/format"
@@ -86,18 +85,14 @@ function TextSnippet({ text, className }: { text: string; className?: string }) 
 }
 
 // The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
-// while it is being read, the waiting shield while its publisher wants the user. Every row has the slot,
-// so titles start at one place and a mark comes or goes without moving the row.
+// while it is being read. Every row has the slot, so titles start at one place and the ring comes or goes
+// without moving the row.
 function PaperStatusMark({ paper }: { paper: Paper }) {
-  const label = paper.noPdf?.needs ? "The publisher needs you" : paper.status === "reading" ? "Reading" : undefined
+  const label = paper.status === "reading" ? "Reading" : undefined
   return (
     <span className="grid size-4 shrink-0 place-items-center" title={label}>
-      {paper.noPdf?.needs ? (
-        <WaitingShield />
-      ) : (
-        paper.status === "reading" && (
-          <span className="size-2 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]" />
-        )
+      {paper.status === "reading" && (
+        <span className="size-2 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]" />
       )}
       {label && <span className="sr-only">{label}</span>}
     </span>
@@ -113,7 +108,8 @@ function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[
         className={cn(selected && "bg-accent hover:bg-accent")}
         mark={<PaperStatusMark paper={paper} />}
         title={paper.title}
-        meta={paperMeta(paper)}
+        // A publisher waiting on the user says so in words, first among the row's details
+        meta={[paper.noPdf?.needs && "Needs you", paperMeta(paper)].filter(Boolean).join(" · ")}
         slot={<RowSlot paper={paper} />}
         below={snippet && <TextSnippet text={snippet} className="pr-14 pl-7" />}
       />
@@ -247,12 +243,9 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
         {/* Unread is the default, so it says nothing */}
         {columns.has("status") && (
           <td className={td}>
-            {/* A publisher waiting on the user says so before the reading status, as the list's shield does */}
+            {/* A publisher waiting on the user says so before the reading status, as the list row does */}
             {paper.noPdf?.needs ? (
-              <span className="flex items-center gap-1.5">
-                <WaitingShield />
-                Needs you
-              </span>
+              "Needs you"
             ) : paper.status === "unread" ? (
               ""
             ) : (

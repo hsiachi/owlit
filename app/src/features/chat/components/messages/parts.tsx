@@ -239,7 +239,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
 
   let head: React.ReactNode
   if (waitingHere) {
-    head = <WaitingLabel size="md" />
+    head = <WaitingLabel />
   } else if (active) {
     const thinking = parts.at(-1)?.type === "thought"
     head = (
@@ -341,7 +341,7 @@ export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Par
   if (waiting)
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <WaitingLabel size="md" />
+        <WaitingLabel />
       </div>
     )
   const said =

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { GroupLabel } from "@/components/group-label"
-import { WaitingLabel, WaitingShield } from "@/components/marks"
+import { WaitingLabel } from "@/components/marks"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import type { Part } from "../../types"
@@ -102,7 +102,7 @@ export function AgentsPart({
   if (waiting)
     head = (
       <>
-        <WaitingLabel size="md">{agents.length === 1 ? "The agent is waiting on you" : "An agent is waiting on you"}</WaitingLabel>
+        <WaitingLabel>{agents.length === 1 ? "The agent is waiting on you" : "An agent is waiting on you"}</WaitingLabel>
         {agents.length > 1 && <span className="shrink-0 text-muted-foreground">· {done} of {agents.length} done</span>}
       </>
     )
@@ -144,10 +144,7 @@ export function AgentsWaitLine({ blockId, working, waiting }: { blockId: string;
   return (
     <div className="flex items-center gap-1.5 text-sm text-foreground/80">
       {waiting ? (
-        <>
-          <WaitingShield size="md" />
-          <span>An agent is waiting on you</span>
-        </>
+        <span>An agent is waiting on you</span>
       ) : (
         <span className="shimmer">Waiting for {working === 1 ? "an agent" : `${working} agents`}</span>
       )}

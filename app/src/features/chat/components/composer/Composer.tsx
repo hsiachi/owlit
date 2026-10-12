@@ -3,7 +3,7 @@ import { Extension } from "@tiptap/core"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
-import { ArrowUpIcon, PlusIcon, SquareIcon, TriangleAlertIcon } from "lucide-react"
+import { ArrowUpIcon, PlusIcon, SquareIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -234,7 +234,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           onClick={() => openSettings("agents")}
           className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/70"
         >
-          <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" />
           <span className="min-w-0 flex-1 truncate">
             {problemSentence(connector)}
             {connector.status === "error" && connector.error && ` · ${connector.error}`}

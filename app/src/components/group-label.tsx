@@ -6,7 +6,6 @@ import { Info } from "@/components/info"
 export function GroupLabel({
   as: Tag = "h2",
   flush,
-  icon,
   info,
   infoLabel,
   id,
@@ -15,8 +14,6 @@ export function GroupLabel({
 }: {
   as?: "h2" | "h3" | "div"
   flush?: boolean
-  // A mark before the words (the waiting shield)
-  icon?: React.ReactNode
   // An explanation behind an info icon after the words
   info?: React.ReactNode
   infoLabel?: string
@@ -26,7 +23,6 @@ export function GroupLabel({
 }) {
   return (
     <Tag id={id} className={cn("mb-1 flex items-center gap-1.5 text-xs font-normal text-muted-foreground", !flush && "px-2.5", className)}>
-      {icon}
       {children}
       {info && <Info label={infoLabel}>{info}</Info>}
     </Tag>

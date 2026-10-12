@@ -1,4 +1,3 @@
-import { ShieldAlertIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // The marks of the ladder of states, one look each everywhere (DESIGN.md, rule 3)
@@ -29,19 +28,10 @@ export function NoteDot({
   )
 }
 
-// Waiting on you: a shape, so it never passes for the note dot. 14px beside small text, 16px beside 14px text.
-export function WaitingShield({ size = "sm", className }: { size?: "sm" | "md"; className?: string }) {
-  return <ShieldAlertIcon aria-hidden className={cn("shrink-0 text-warning", size === "sm" ? "size-3.5" : "size-4", className)} />
-}
-
-// The shield and its words, laid out by the line they sit in
-export function WaitingLabel({ size, children = "Waiting on you" }: { size?: "sm" | "md"; children?: React.ReactNode }) {
-  return (
-    <>
-      <WaitingShield size={size} />
-      <span className="truncate">{children}</span>
-    </>
-  )
+// Waiting on you, in words. The words carry it alone: a mark beside them would say it twice, and the
+// `warning` dot is kept for the places with no room for words (the status slot, the rail).
+export function WaitingLabel({ children = "Waiting on you" }: { children?: React.ReactNode }) {
+  return <span className="truncate">{children}</span>
 }
 
 // The "·" between two details in a line, in the line's own colour

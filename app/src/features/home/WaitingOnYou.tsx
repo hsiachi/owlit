@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { LibraryIcon, XIcon, type LucideIcon } from "lucide-react"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
-import { WaitingShield } from "@/components/marks"
 import { Button } from "@/components/ui/button"
 import { KIND_ICON } from "@/lib/kinds"
 import { connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
@@ -138,7 +137,7 @@ export function WaitingOnYou() {
   if (!waiting.length) return null
   return (
     <section aria-labelledby="waiting-label">
-      <GroupLabel id="waiting-label" icon={<WaitingShield />}>
+      <GroupLabel id="waiting-label">
         Waiting on you
       </GroupLabel>
       <ul className="flex flex-col gap-0.5">
