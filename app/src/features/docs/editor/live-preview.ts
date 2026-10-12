@@ -230,8 +230,14 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
             // Markdown counts a lone "#" as an empty heading, but it is usually a heading half typed: it stays
             // body text, marks and all, until the space after the #s
             if (/^\s*#+$/.test(line.text)) return false
-            // Sized by the number of #s, so editing one heading never restyles another: # and ## are 18px, deeper 15px
+            // Sized by the number of #s, so editing one heading never restyles another: # and ## are 18px, deeper 16px
             if (line.number !== title.number) decos.push(lineDeco(Number(ref.name.slice(-1)) <= 2 ? "cm-h1" : "cm-h2").range(line.from))
+            // The blank line Markdown wants under a heading shrinks, so the heading sits with the text it
+            // heads rather than halfway between two paragraphs. Not while the cursor is on it.
+            if (line.number < doc.lines) {
+              const below = doc.line(line.number + 1)
+              if (!below.text.trim() && !lineTouched(below.from)) decos.push(lineDeco("cm-heading-gap").range(below.from))
+            }
             break
           }
           case "HeaderMark":

@@ -3,6 +3,7 @@ import { Facet, StateEffect, StateField, type EditorState, type Extension, type 
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
 import { sharedEnd, sharedStart } from "@/lib/text-diff"
 import type { AgentNote } from "../types"
+import { renderInline } from "./render-inline"
 
 // Agents' notes on a doc. The words a note is on carry an underline in the note colour; clicking them opens
 // the note under the paragraph, pushing the text down rather than covering it, and the words take a wash of
@@ -69,6 +70,34 @@ interface Actions {
   onChat: (note: AgentNote) => void
   // `next` is the note to open after this one goes, if any
   onDismiss: (note: AgentNote, next: string | null) => void
+  // Workspace links in the note's text: their short name, and opening one
+  mentionLabel: (uri: string) => string | undefined
+  onOpenMention: (uri: string) => void
+}
+
+// A bare owlit:// address an agent left in its words, not already a Markdown link's target
+const BARE_URI = /(?<!\]\()owlit:\/\/[^\s)）\]]+/g
+
+// The note's text as the rest of the doc draws Markdown: links, mentions, bold and code. A bare address
+// becomes a mention under its short name ("Chan et al. 2026, p. 13"), never the raw owlit:// text.
+function noteText(text: string, actions: Actions): HTMLElement {
+  const p = document.createElement("p")
+  p.className = "cm-note-text"
+  renderInline(
+    text.replace(BARE_URI, (uri) => {
+      const label = actions.mentionLabel(uri)
+      return label ? `[${label.replace(/[[\]]/g, "")}](${uri})` : uri
+    }),
+    p,
+  )
+  // The note is a widget CodeMirror leaves alone, so its mentions take their own clicks
+  for (const el of p.querySelectorAll<HTMLElement>(".cm-mention[data-uri]")) {
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault()
+      actions.onOpenMention(el.dataset.uri!)
+    })
+  }
+  return p
 }
 
 const chevron = (d: string) =>
@@ -139,9 +168,7 @@ class NoteWidget extends WidgetType {
       gone.textContent = `The passage this note was on has changed: “${q.length > 90 ? `${q.slice(0, 90)}…` : q}”`
       box.append(gone)
     }
-    const text = document.createElement("p")
-    text.className = "cm-note-text"
-    text.textContent = note.text
+    const text = noteText(note.text, this.actions)
 
     const actions = document.createElement("div")
     actions.className = "cm-note-actions"
@@ -237,10 +264,11 @@ export function agentNotes(actions: Actions): Extension {
 
   const theme = EditorView.theme({
     // The passage: a 2px underline in the note colour, and a wash of it while the note is open. A doc's own
-    // ==highlights== are a different, lemon yellow, so the two never pass for each other.
+    // ==highlights== are a different, lemon yellow, so the two never pass for each other. The underline and
+    // the card's edge carry the meaning alone, so they take the rim's deeper amber (3:1 on light paper).
     ".cm-note-mark": {
       textDecorationLine: "underline",
-      textDecorationColor: "var(--note)",
+      textDecorationColor: "var(--note-rim)",
       textDecorationThickness: "2px",
       textUnderlineOffset: "5px",
       textDecorationSkipInk: "none",
@@ -253,7 +281,7 @@ export function agentNotes(actions: Actions): Extension {
       padding: "8px 12px 6px 13px",
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--note)",
+      borderLeft: "3px solid var(--note-rim)",
       borderRadius: "4px 10px 10px 4px",
       fontSize: "14px",
       lineHeight: "1.55",

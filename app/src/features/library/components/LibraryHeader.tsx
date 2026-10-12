@@ -21,7 +21,8 @@ import { type Layout, usePrefsStore } from "../prefs-store"
 import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
 import { TagDot } from "./TagsEditor"
 
-// The Library's two pages, as underline tabs under its title. A third (Feed) can join later.
+// The Library's two pages, as underline tabs on its title's line, so the header is one row above the
+// find field rather than two. A third (Feed) can join later.
 const PAGES = [
   { path: "/library/up-next", label: "Up next" },
   { path: "/library", label: "All papers" },
@@ -32,21 +33,19 @@ export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
   const navigate = useNavigate()
   const current = pathname === "/library/up-next" ? "/library/up-next" : "/library"
   return (
-    <header className="px-0.5">
-      <PageTitle>Library</PageTitle>
-      <div className="mt-3 flex items-center gap-2">
-        <Tabs value={current} onValueChange={(v) => navigate(v)}>
-          <TabsList variant="line" className="-ml-1.5">
-            {PAGES.map((p) => (
-              <TabsTrigger key={p.path} value={p.path} className="px-1.5">
-                {p.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <span className="flex-1" />
-        {actions}
-      </div>
+    <header className="flex items-center gap-2 px-0.5">
+      <PageTitle className="mr-5">Library</PageTitle>
+      <Tabs value={current} onValueChange={(v) => navigate(v)}>
+        <TabsList variant="line">
+          {PAGES.map((p) => (
+            <TabsTrigger key={p.path} value={p.path} className="px-1.5">
+              {p.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      <span className="flex-1" />
+      {actions}
     </header>
   )
 }

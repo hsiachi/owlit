@@ -69,3 +69,16 @@ export function mentionTitle(uri: string): string | undefined {
   if (u?.kind === "knowledge") return knowledgeTitle(u)
   return u?.kind === "paper" ? useLibraryStore.getState().papers[u.id]?.title : undefined
 }
+
+// A short name for a bare owlit:// address in prose an agent wrote (a note's text): how a writer cites
+// it, "Chan et al. 2026, p. 13", or a doc's file name. Undefined when the address names nothing here.
+export function mentionLabel(uri: string): string | undefined {
+  const u = parseOwlitUri(uri)
+  if (u?.kind === "paper") {
+    const paper = useLibraryStore.getState().papers[u.id]
+    return paper ? `${citationLabel(paper)}${u.page ? `, p. ${u.page}` : ""}` : undefined
+  }
+  if (u?.kind === "doc") return u.path.split("/").pop()?.replace(/\.md$/, "")
+  if (u?.kind === "knowledge") return knowledgeTitle(u)
+  return undefined
+}

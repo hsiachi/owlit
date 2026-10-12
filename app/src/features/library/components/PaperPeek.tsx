@@ -13,7 +13,8 @@ export function PaperPeek({ paper }: { paper: Paper }) {
   const closePeek = useLibraryUi((s) => s.closePeek)
   const showTag = useLibraryUi((s) => s.showTag)
   const actions = usePaperActions()
-  const openLabel = !paper.pdf ? "Open" : paper.status === "reading" ? "Continue" : "Read"
+  // Never "Read": beside the status menu it would pass for marking the paper read
+  const openLabel = paper.status === "reading" ? "Continue" : "Open"
 
   return (
     <div
@@ -34,7 +35,7 @@ export function PaperPeek({ paper }: { paper: Paper }) {
           className="min-w-0 flex-1"
         />
         <PaperQuickActions paper={paper} align="end" />
-        <Button size="sm" className="ml-1.5" onClick={() => actions.open(paper.id)}>
+        <Button size="sm" className="ml-3" onClick={() => actions.open(paper.id)}>
           {openLabel}
         </Button>
       </div>

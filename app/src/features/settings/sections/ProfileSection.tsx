@@ -7,7 +7,7 @@ export function ProfileSection() {
     <List>
       <Row
         name="Name"
-        info="What Owlit calls you: in the Chat greeting, and in chats. Leave it empty to be greeted without a name."
+        help="What Owlit calls you, in the Chat greeting and in chats."
         control={<CommitInput value={name} onCommit={(next) => void updateSettings({ profile: { name: next || null } })} placeholder="What Owlit calls you" spellCheck={false} autoComplete="off" maxLength={60} aria-label="Name" />}
       />
     </List>

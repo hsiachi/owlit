@@ -189,6 +189,36 @@ describe("paper.pdf.browser", () => {
     expect(acquisition.needs).toBeUndefined()
   })
 
+  it("after one Check now, gets the same publisher's other papers by itself and leaves the rest noted", async () => {
+    // The session keeps what the user's check left: past it once, the publisher's pages open unattended
+    let passed = false
+    const { browser, asked } = fakeBrowser(async (request) => {
+      const host = new URL(request.landing).hostname
+      if (request.withUser) passed = true
+      else if (!passed || host !== "dl.acm.org") throw new NeedsUser("challenge", host)
+      return new Uint8Array(PDF)
+    })
+    const sibling = { id: "doi-10.1145-1240624.1240656", title: "Same publisher", authors: [], ids: { doi: "10.1145/1240624.1240656" } }
+    const other = { id: "doi-10.1080-09658211.2011.605591", title: "Another publisher", authors: [], ids: { doi: "10.1080/09658211.2011.605591" } }
+    const { root, call } = await setup(browser)
+    for (const paper of [acm, sibling, other]) {
+      await call("library.add", { paper })
+      await call("library.fetchPdf", { id: paper.id })
+    }
+    const needs = (id: string) => JSON.parse(readFileSync(path.join(root, "library/papers", id, "acquisition.json"), "utf8")).needs
+    expect(needs(acm.id)).toMatchObject({ reason: "challenge", host: "dl.acm.org" })
+    expect((await call("library.checkPublisher", { id: acm.id })).pdf).toBeDefined()
+    let papers: Record<string, { pdf?: unknown; noPdf?: unknown }> = {}
+    for (let i = 0; i < 100; i++) {
+      papers = Object.fromEntries((await call("library.list")).papers.map((p: { id: string }) => [p.id, p]))
+      if (papers[sibling.id]?.pdf) break
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    expect(papers[sibling.id].pdf).toBeDefined()
+    expect(papers[other.id]).toMatchObject({ noPdf: { needs: "check" } })
+    expect(asked.filter((r) => r.landing.includes("tandfonline") || r.landing.includes("10.1080"))).toHaveLength(1)
+  })
+
   it("keeps the note when the user cancels Check now", async () => {
     const { browser } = fakeBrowser(async (request) => {
       if (!request.withUser) throw new NeedsUser("challenge")

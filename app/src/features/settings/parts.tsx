@@ -35,6 +35,7 @@ export function GroupLabel({ info, children }: { info?: string; children: React.
 export function Row({
   name,
   info,
+  help,
   control,
   children,
   className,
@@ -42,6 +43,9 @@ export function Row({
   name: React.ReactNode
   // The explanation, behind an info icon
   info?: string
+  // What the choice depends on, in one muted line under the name: for a setting that can't be picked well
+  // without it (which agent does background work, why a key is worth adding)
+  help?: string
   // What sits at the right of the row
   control?: React.ReactNode
   // A second line: a problem, or an open form
@@ -57,6 +61,7 @@ export function Row({
         </span>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-1">{control}</div>
       </div>
+      {help && <p className="-mt-0.5 max-w-[46ch] text-detail leading-5 text-muted-foreground">{help}</p>}
       {children}
     </div>
   )
@@ -179,7 +184,7 @@ export function CheckNote({ checking, result }: Check) {
 // A key: "Not set" with Add, or its last four characters with Change and Remove. The actions are icons
 // of one width, so the status before them lines up from row to row. Adding or changing opens a field in
 // the row; Enter keeps it, and owlit tries it once.
-export function SecretRow({ name, label, info, getFrom, service }: { name: SecretName; label: string; info: string; getFrom?: { label: string; href: string }; service: string }) {
+export function SecretRow({ name, label, info, help, getFrom, service }: { name: SecretName; label: string; info?: string; help?: string; getFrom?: { label: string; href: string }; service: string }) {
   const last4 = useSettings((s) => s.view?.secrets[name])
   const [editing, setEditing] = useState(false)
   const check = useCheck()
@@ -221,7 +226,7 @@ export function SecretRow({ name, label, info, getFrom, service }: { name: Secre
   }
 
   return (
-    <Row name={label} info={info} control={control}>
+    <Row name={label} info={info} help={help} control={control}>
       {editing && getFrom && (
         <Note>
           Get one at{" "}

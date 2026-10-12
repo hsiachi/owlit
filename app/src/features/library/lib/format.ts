@@ -14,26 +14,25 @@ export function shortAuthors(authors: string[]): string {
 // "Pirolli & Card · 2005"
 export const authorsYear = (p: Pick<Paper, "authors" | "year">) => [shortAuthors(p.authors), p.year].filter(Boolean).join(" · ")
 
-// The one-line citation shown after a title: "Pirolli & Card · 2005 · CHI"
+// A paper's details wherever a list names it, after or beside its title: "Pirolli & Card · 2005 · CHI".
+// The venue only by its acronym, so a list's details line up in a column instead of pushing the title
+// aside; a venue without one is left to the table and the paper's page.
 export function paperMeta(p: Paper): string {
-  return [shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(" · ")
+  const venue = p.venue && shortVenue(p.venue)
+  return [shortAuthors(p.authors), p.year, venue !== p.venue?.trim() && venue].filter(Boolean).join(" · ")
 }
 
-// A venue short enough for a table cell. Long names become the initials of their capitalised
-// words, with all-caps words kept whole: "Communications of the ACM" → "CACM",
-// "International Conference on Intelligence Analysis" → "ICIA". A name that opens with its own acronym
-// keeps just that: "CHI Conference on Human Factors…" → "CHI", "ACM SIGIR Conference on…" → "SIGIR".
-// Short names pass through.
+// A venue short enough for a table cell, without making up a name: a name that carries its own acronym
+// keeps just that ("… Human Factors in Computing Systems (CHI)" → "CHI", "CHI Conference on Human
+// Factors…" → "CHI", "ACM SIGIR Conference on…" → "SIGIR"). Anything else stays whole, cut by its cell
+// with the full name on hover; initials ("Applied Cognitive Psychology" → "ACP") read as noise.
 export function shortVenue(venue: string): string {
   const v = venue.trim()
   const acronym = v.match(/\(([A-Z][A-Za-z]*[A-Z])\)/)
   if (acronym) return acronym[1]
   const lead = v.match(/^(?:Proceedings of (?:the )?)?(?:\d{4}\s+)?(?:(?:ACM|IEEE)\s+)?([A-Z][A-Z0-9]*[A-Z0-9])\s+(?:International\s+)?(?:Conference|Symposium|Workshop)\b/)
   if (lead && !/^(ACM|IEEE)$/.test(lead[1])) return lead[1]
-  if (v.length <= 16) return v
-  const words = v.split(/\s+/).filter((w) => /^[A-Z]/.test(w))
-  if (words.length < 2) return v
-  return words.map((w) => (w === w.toUpperCase() ? w : w[0])).join("")
+  return v
 }
 
 // "Pirolli & Card 2005", the way a writer cites it

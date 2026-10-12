@@ -31,7 +31,7 @@ export function AgentsSection() {
       <AddAgent open={adding} setOpen={setAdding} />
       {engine && (
         <>
-          <GroupLabel info="The engine can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer.">{engine.name}</GroupLabel>
+          <GroupLabel info={`${engine.name} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer.`}>Sign-ins</GroupLabel>
           <EngineSignIns connector={engine} />
         </>
       )}
@@ -158,13 +158,13 @@ function BackgroundWork() {
     <List>
       <Row
         name="Agent"
-        info="Owlit uses this agent for work nobody is waiting on, such as reading notes. Automatic picks the first agent that is ready."
+        help="For work nobody is waiting on, such as reading notes. Automatic picks the first agent that is ready."
         control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (
         <Row
           name="Model"
-          info="The model this agent uses for work nobody is waiting on. A smaller one costs less, and reading notes rarely need the strongest."
+          help="A smaller one costs less; reading notes rarely need the strongest."
           control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model || null } })} />}
         />
       )}

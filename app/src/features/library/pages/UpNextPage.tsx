@@ -1,17 +1,27 @@
+import { useMemo } from "react"
 import { EmptyPlace } from "@/components/empty-place"
 import { PageShell } from "@/components/page"
 import { LibraryHeader } from "../components/LibraryHeader"
+import { PaperList } from "../components/PaperList"
+import { upNext } from "../lib/filter"
+import { usePaperListKeys } from "../lib/use-list-keys"
+import { useLibraryStore } from "../store"
 
-// What to read next. Its content gets its own design round; until then it says what it will hold.
 export function UpNextPage() {
+  const papers = useLibraryStore((s) => s.papers)
+  const groups = useMemo(() => upNext(papers), [papers])
+  const order = useMemo(() => groups.flatMap((g) => g.papers.map((p) => p.id)), [groups])
+  const { scroller, onKeyDown } = usePaperListKeys(order)
   return (
-    <PageShell>
+    <PageShell scroller={scroller} onKeyDown={onKeyDown}>
       <LibraryHeader />
-      <EmptyPlace
-        title="Nothing here yet"
-        detail="What to read next will appear here, ordered by what you're reading and what your searches turn up."
-        className="mt-20"
-      />
+      {groups.length ? (
+        <div className="mt-6">
+          <PaperList groups={groups} order={order} />
+        </div>
+      ) : (
+        <EmptyPlace title="Nothing to read next" detail="Papers you start reading, and new ones with a PDF, will show up here." className="mt-20" />
+      )}
     </PageShell>
   )
 }

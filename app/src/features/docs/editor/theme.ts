@@ -15,11 +15,14 @@ export const docTheme = EditorView.theme({
   ".cm-cursor": { borderLeftColor: "var(--foreground)", borderLeftWidth: "1.5px" },
   ".cm-placeholder": { color: "var(--muted-foreground)" },
 
-  ".cm-doc-title": { fontSize: "22px", fontWeight: "500", lineHeight: "1.3", letterSpacing: "-0.015em", paddingBottom: "6px !important" },
-  // Headings are sized by their #s (see live-preview): # and ## 18px, anything deeper 15px. Each sits after a blank
-  // line already; the extra room above it, and none below, ties it to the text it heads.
-  ".cm-h1": { fontSize: "18px", fontWeight: "600", lineHeight: "1.4", paddingTop: "16px !important" },
-  ".cm-h2": { fontSize: "15px", fontWeight: "600", paddingTop: "10px !important" },
+  // The title outweighs every heading under it: the largest size and the headings' weight
+  ".cm-doc-title": { fontSize: "22px", fontWeight: "600", lineHeight: "1.3", letterSpacing: "-0.015em", paddingBottom: "6px !important" },
+  // Headings are sized by their #s (see live-preview): # and ## 18px, anything deeper 16px, a step over body
+  // text so weight isn't all that sets them apart. Each sits after a blank line already; the extra room
+  // above it, and the shrunken blank line below it, tie it to the text it heads.
+  ".cm-h1": { fontSize: "18px", fontWeight: "600", lineHeight: "1.4", paddingTop: "12px !important" },
+  ".cm-h2": { fontSize: "16px", fontWeight: "600", lineHeight: "1.5", paddingTop: "8px !important" },
+  ".cm-heading-gap": { lineHeight: "8px" },
 
   ".cm-mention": {
     color: "var(--mention)",

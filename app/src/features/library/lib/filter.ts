@@ -114,3 +114,21 @@ export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now
   }
   return [{ label: null, papers }]
 }
+
+// How many unread papers to suggest: enough to pick from, few enough to read as a short list
+const UNREAD = 12
+
+// What to read next, in its simple form: the papers being read (last opened first), then the newest
+// unread papers that have a PDF to open. Ranking by searches and chats comes later.
+export function upNext(papers: Record<string, Paper>): PaperGroup[] {
+  const all = Object.values(papers)
+  const reading = all.filter((p) => p.status === "reading").sort((a, b) => (b.lastOpenedAt ?? b.addedAt) - (a.lastOpenedAt ?? a.addedAt))
+  const unread = all
+    .filter((p) => p.status === "unread" && p.pdf)
+    .sort((a, b) => b.addedAt - a.addedAt)
+    .slice(0, UNREAD)
+  return [
+    { label: "Reading", papers: reading },
+    { label: "Not read yet", papers: unread },
+  ].filter((g) => g.papers.length > 0)
+}
