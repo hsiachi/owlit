@@ -4,6 +4,7 @@ import { editStats, type EditStats } from "@owlit/protocol"
 import { toast } from "sonner"
 import { ArrowUpRightIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Unfold } from "@/components/unfold"
 import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
@@ -173,6 +174,8 @@ function summary(rows: ResultRow[]) {
 
 const SHOW_ON_HOVER = "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
 
+// Undo draws the strike across the name from the left (the `strike` rule in index.css), then the row settles
+// into the muted tone; done at once, it would look like a different row had replaced it
 function Row({ row, className }: { row: ResultRow; className?: string }) {
   const Icon = row.icon
   const live = !row.undone
@@ -181,7 +184,12 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
       {/* The whole row opens what it names; Undo sits above that click */}
       {row.view && live && <button type="button" onClick={row.view} aria-label={`Open ${row.name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
       <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span className={`min-w-0 truncate ${live ? "text-foreground" : "text-muted-foreground line-through"}`}>{row.name}</span>
+      <span
+        data-struck={live ? undefined : ""}
+        className={`strike min-w-0 truncate transition-colors duration-(--t-mark) ease-(--ease) ${live ? "text-foreground" : "text-muted-foreground"}`}
+      >
+        {row.name}
+      </span>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
         {live && row.undo && (
           <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
@@ -206,7 +214,8 @@ export function ResultCard({ message }: { message: ChatMessage }) {
     edits.length > 1 && edits.every((e) => e.unit === edits[0].unit)
       ? { unit: edits[0].unit, added: edits.reduce((t, e) => t + e.added, 0), removed: edits.reduce((t, e) => t + e.removed, 0), rewritten: false }
       : undefined
-  const folded = !all && rows.length > FOLD_AFTER + 1 ? rows.length - FOLD_AFTER : 0
+  // The rest unfold where the "Show N more" line was, and that line folds away as they do
+  const rest = rows.length > FOLD_AFTER + 1 ? rows.slice(FOLD_AFTER) : []
   return (
     <div className="flex flex-col rounded-lg border p-1">
       {/* One change says itself; several get a line saying what happened, with Undo for all of them */}
@@ -224,13 +233,22 @@ export function ResultCard({ message }: { message: ChatMessage }) {
           </span>
         </div>
       )}
-      {rows.slice(0, folded ? FOLD_AFTER : undefined).map((row) => (
+      {rows.slice(0, rest.length ? FOLD_AFTER : undefined).map((row) => (
         <Row key={row.key} row={row} />
       ))}
-      {folded > 0 && (
-        <button type="button" onClick={() => setAll(true)} className="flex h-8 items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
-          Show {folded} more
-        </button>
+      {rest.length > 0 && (
+        <>
+          <Unfold open={all}>
+            {rest.map((row) => (
+              <Row key={row.key} row={row} />
+            ))}
+          </Unfold>
+          <Unfold open={!all}>
+            <button type="button" onClick={() => setAll(true)} className="flex h-8 w-full items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+              Show {rest.length} more
+            </button>
+          </Unfold>
+        </>
       )}
     </div>
   )

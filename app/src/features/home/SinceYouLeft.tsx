@@ -5,6 +5,7 @@ import { GroupLabel } from "@/components/group-label"
 import { KindIcon } from "@/components/kind-icon"
 import { ListRow } from "@/components/list-row"
 import { NoteDot } from "@/components/marks"
+import { Unfold } from "@/components/unfold"
 import { Button } from "@/components/ui/button"
 import { useAgentWindow } from "@/features/agent/store"
 import { useLibraryStore } from "@/features/library/store"
@@ -80,12 +81,14 @@ export function SinceYouLeft({ since }: { since: number }) {
                 aria-expanded={isOpen}
                 onClick={() => toggle(c)}
                 className={cn(isOpen && "bg-muted")}
-                mark={<NoteDot className={cn("transition-opacity duration-500", !unseen && "opacity-0")} />}
+                mark={<NoteDot gone={!unseen} />}
                 title={c.topic.name}
                 detail={c.what}
                 end={<FoldChevron open={isOpen} className="size-4" />}
               />
-              {isOpen && <Peek c={c} since={since} />}
+              <Unfold open={isOpen}>
+                <Peek c={c} since={since} />
+              </Unfold>
             </div>
           )
         })}

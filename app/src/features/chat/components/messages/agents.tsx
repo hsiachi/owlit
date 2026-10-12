@@ -4,6 +4,7 @@ import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { GroupLabel } from "@/components/group-label"
 import { WaitingLabel, WaitingShield } from "@/components/marks"
 import { Button } from "@/components/ui/button"
+import { Unfold } from "@/components/unfold"
 import type { Part } from "../../types"
 import { agentDone, agentNow, type ToolCall } from "../../lib/step-words"
 import { Markdown } from "./Markdown"
@@ -51,7 +52,7 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
         <StepChevron open={open} className="text-muted-foreground" />
         {right && <span className="ml-auto flex min-w-0 items-center gap-1.5 pl-3 text-detail text-muted-foreground">{right}</span>}
       </StepRow>
-      {open && (
+      <Unfold open={open}>
         <div className="flex flex-col gap-2.5 pr-3 pb-3.5 pl-8">
           {agent.report ? (
             <div>
@@ -65,7 +66,7 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
           )}
           {steps.length > 0 && <StepsPart parts={steps} active={working && !waiting} streaming={streaming} asks={asks} />}
         </div>
-      )}
+      </Unfold>
     </div>
   )
 }

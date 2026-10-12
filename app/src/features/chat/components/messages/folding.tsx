@@ -1,9 +1,11 @@
+import { useId } from "react"
 import { cn } from "@/lib/utils"
 import { FoldChevron } from "@/components/fold"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Unfold } from "@/components/unfold"
 
 // A block of an answer that folds into one line (steps, a plan, the agents it handed work to): the line in
-// `foreground` at 80% with a chevron after it, opening to what the block holds
+// `foreground` at 80% with a chevron after it, opening to what the block holds. The chevron turns as the
+// list unfolds from the line, so it reads as the same thing opened, not a new thing inserted.
 export function FoldingBlock({
   open,
   onOpenChange,
@@ -19,16 +21,23 @@ export function FoldingBlock({
   className?: string
   children: React.ReactNode
 }) {
+  const contentId = useId()
   return (
-    <Collapsible id={id} open={open} onOpenChange={onOpenChange} className={className}>
-      <CollapsibleTrigger asChild>
-        <button type="button" className="flex max-w-full items-center gap-1.5 text-sm text-foreground/80 outline-none hover:text-foreground focus-key:text-foreground">
-          {head}
-          <FoldChevron open={open} className="text-muted-foreground" />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>{children}</CollapsibleContent>
-    </Collapsible>
+    <div id={id} className={className}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={() => onOpenChange(!open)}
+        className="flex max-w-full items-center gap-1.5 text-sm text-foreground/80 outline-none hover:text-foreground focus-key:text-foreground"
+      >
+        {head}
+        <FoldChevron open={open} className="text-muted-foreground" />
+      </button>
+      <Unfold id={contentId} open={open}>
+        {children}
+      </Unfold>
+    </div>
   )
 }
 

@@ -7,6 +7,7 @@ import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { editStats, parentPath } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Unfold } from "@/components/unfold"
 import type { Chat, Part, PermissionKind } from "../types"
 import { useAskDraft } from "../ask-draft"
 import { useInPlace } from "../in-place"
@@ -21,17 +22,23 @@ import { DiffPreview } from "./messages/step-results"
 // (what Owlit wants to do, in its words, with a preview and owlit's buttons) or a question of the agent's
 // (its choices, or an answer typed in the composer). The step in the chat only says it waits, so one
 // decision has one set of buttons. Nothing shows while nothing waits.
+// The card is seen arriving (the slot grows while it rises into place) and leaving once answered, rather than
+// found already there.
 export function WaitingDock({ chat, compact = false }: { chat: Chat; compact?: boolean }) {
   const streaming = useChatStore((s) => !!s.streaming[chat.id])
   const ask = streaming ? pendingAsk(chat) : undefined
-  if (!ask) return null
-  const call = callOf(chat, ask.toolCallId)
+  const call = ask ? callOf(chat, ask.toolCallId) : undefined
   // Asked by one of the agent's own agents: the card says which, so it is found among several at work
-  const agent = ask.agentId ? chat.messages.at(-1)?.parts.find((p): p is Part<"agent"> => p.type === "agent" && p.agentId === ask.agentId)?.title : undefined
-  return ask.type === "permission" ? (
-    <PermissionCard key={ask.requestId} chatId={chat.id} ask={ask} call={call} agent={agent} compact={compact} />
-  ) : (
-    <QuestionCard key={ask.requestId} chatId={chat.id} ask={ask} agent={agent} compact={compact} />
+  const agent = ask?.agentId ? chat.messages.at(-1)?.parts.find((p): p is Part<"agent"> => p.type === "agent" && p.agentId === ask.agentId)?.title : undefined
+  return (
+    <Unfold open={!!ask} rise>
+      {ask &&
+        (ask.type === "permission" ? (
+          <PermissionCard key={ask.requestId} chatId={chat.id} ask={ask} call={call} agent={agent} compact={compact} />
+        ) : (
+          <QuestionCard key={ask.requestId} chatId={chat.id} ask={ask} agent={agent} compact={compact} />
+        ))}
+    </Unfold>
   )
 }
 

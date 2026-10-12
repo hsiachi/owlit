@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
 import { WaitingShield } from "@/components/marks"
+import { Unfold } from "@/components/unfold"
 import type { PaperGroup } from "../lib/filter"
 import { paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { STATUS_LABEL } from "../lib/status"
@@ -120,6 +121,22 @@ function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[
   )
 }
 
+// A paper in the list: its row, and the peek that opens in its place. The row folds as the peek unfolds, so
+// the rows below move down over the one change and the eye keeps its place; the peek's card overhangs the
+// row by 6px a side, so the fold's clip box is widened by as much.
+function ListItem({ paper, peeked, ...rest }: { paper: Paper; peeked: boolean; order: string[]; open: (id: string) => void; snippet?: string }) {
+  return (
+    <div>
+      <Unfold open={!peeked} keepMounted>
+        <ListRow paper={paper} {...rest} />
+      </Unfold>
+      <Unfold open={peeked} innerClassName="-mx-1.5 px-1.5">
+        <PaperPeek paper={paper} />
+      </Unfold>
+    </div>
+  )
+}
+
 export function PaperList({ groups, order, snippets }: { groups: PaperGroup[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useLibraryUi((s) => s.peekId)
   const navigate = useNavigate()
@@ -129,7 +146,9 @@ export function PaperList({ groups, order, snippets }: { groups: PaperGroup[]; o
       {groups.map((g, i) => (
         <section key={g.label ?? i}>
           {g.label && <GroupLabel>{g.label}</GroupLabel>}
-          {g.papers.map((p) => (p.id === peekId ? <PaperPeek key={p.id} paper={p} /> : <ListRow key={p.id} paper={p} order={order} open={open} snippet={snippets?.get(p.id)} />))}
+          {g.papers.map((p) => (
+            <ListItem key={p.id} paper={p} peeked={p.id === peekId} order={order} open={open} snippet={snippets?.get(p.id)} />
+          ))}
         </section>
       ))}
     </div>
@@ -307,7 +326,10 @@ export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order
           p.id === peekId ? (
             <tr key={p.id}>
               <td colSpan={columns.length} className="px-1.5">
-                <PaperPeek paper={p} />
+                {/* A table row can't fold, so the peek unfolds where the row was, and the row comes back at once */}
+                <Unfold open appear innerClassName="-mx-1.5 px-1.5">
+                  <PaperPeek paper={p} />
+                </Unfold>
               </td>
             </tr>
           ) : (

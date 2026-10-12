@@ -3,6 +3,7 @@ import { CheckIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, XIcon } from "lu
 import { cn } from "@/lib/utils"
 import { WaitingLabel } from "@/components/marks"
 import { Spinner } from "@/components/ui/spinner"
+import { Unfold } from "@/components/unfold"
 import type { Part } from "../../types"
 import { Markdown } from "./Markdown"
 import { toolTitle } from "../../lib/tool-title"
@@ -108,11 +109,11 @@ function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: Step
         }
         right={right}
       />
-      {open && (
+      <Unfold open={open}>
         <ResultBox>
           <StepResult call={call} question={question} />
         </ResultBox>
-      )}
+      </Unfold>
     </div>
   )
 }
@@ -129,13 +130,13 @@ function FoldRow({ steps, group, asks, streaming }: { steps: WordedStep[]; group
         onToggle={() => setOpen((o) => !o)}
         right={group === "fetch" && hosts.length === 1 ? hosts[0] : undefined}
       />
-      {open && (
+      <Unfold open={open}>
         <div className="mb-2 ml-3 border-l">
           {steps.map(({ call, words }) => (
             <ToolRow key={call.toolCallId} call={call} words={words} asks={asks} streaming={streaming} />
           ))}
         </div>
-      )}
+      </Unfold>
     </div>
   )
 }
@@ -145,11 +146,11 @@ function ThoughtRow({ part, live }: { part: Part<"thought">; live: boolean }) {
   return (
     <div className="border-t first:border-t-0">
       <StepLine words={live ? "Thinking" : "Thought"} live={live} open={open} onToggle={!live && part.text.trim() ? () => setOpen((o) => !o) : undefined} />
-      {open && (
+      <Unfold open={open}>
         <ResultBox>
           <div className="leading-relaxed whitespace-pre-wrap text-muted-foreground">{part.text}</div>
         </ResultBox>
-      )}
+      </Unfold>
     </div>
   )
 }
@@ -256,25 +257,31 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
     )
   }
 
-  const hidden = live && !earlier && rows.length > LIVE_ROWS + 1 ? rows.length - LIVE_ROWS : 0
+  // The earlier rows unfold where the "N earlier steps" line was, and the line folds away as they do
+  const hidden = live && rows.length > LIVE_ROWS + 1 ? rows.length - LIVE_ROWS : 0
+  const row = (r: Row) =>
+    r.type === "thought" ? (
+      <ThoughtRow key={r.key} part={r.part} live={r.live} />
+    ) : r.type === "fold" ? (
+      <FoldRow key={r.key} steps={r.steps} group={r.group} asks={asks} streaming={streaming} />
+    ) : (
+      <ToolRow key={r.key} call={r.call} words={r.words} asks={asks} streaming={streaming} />
+    )
   return (
     <FoldingBlock open={open} onOpenChange={setOpen} head={head}>
       {rows.length > 0 && (
         <FoldingList>
           {hidden > 0 && (
-            <div className="border-t first:border-t-0">
-              <StepLine words={plural(hidden, "earlier step")} open={false} onToggle={() => setEarlier(true)} className="text-detail" />
-            </div>
+            <>
+              <Unfold open={!earlier}>
+                <div className="border-t first:border-t-0">
+                  <StepLine words={plural(hidden, "earlier step")} open={false} onToggle={() => setEarlier(true)} className="text-detail" />
+                </div>
+              </Unfold>
+              <Unfold open={earlier}>{rows.slice(0, hidden).map(row)}</Unfold>
+            </>
           )}
-          {rows.slice(hidden).map((r) =>
-            r.type === "thought" ? (
-              <ThoughtRow key={r.key} part={r.part} live={r.live} />
-            ) : r.type === "fold" ? (
-              <FoldRow key={r.key} steps={r.steps} group={r.group} asks={asks} streaming={streaming} />
-            ) : (
-              <ToolRow key={r.key} call={r.call} words={r.words} asks={asks} streaming={streaming} />
-            ),
-          )}
+          {rows.slice(hidden).map(row)}
         </FoldingList>
       )}
     </FoldingBlock>
