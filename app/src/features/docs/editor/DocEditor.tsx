@@ -11,7 +11,7 @@ import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { allDocMentions, docMentionable, mentionRoute, mentionTitle } from "../lib/mentions"
+import { allDocMentions, docMentionable, mentionLabel, mentionRoute, mentionTitle } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
 import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
@@ -138,6 +138,11 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
               chatAbout(id, note.quote, noteSpots(view.state).find((s) => s.note.id === note.id && !s.lost)?.from)
             },
             onDismiss: (note, next) => dismissNote(id, note, next),
+            mentionLabel,
+            onOpenMention: (uri) => {
+              const to = mentionRoute(uri)
+              if (to) navigateRef.current(to)
+            },
           }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
