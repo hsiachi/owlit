@@ -643,6 +643,9 @@ export class Core {
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
+                // Libraries sign you out after a while (Tsinghua's tlink after two hours): Settings says so
+                // once a run finds the sign-in page, and signed in again once a PDF comes through
+                proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
                 agent: async (prompt, signal) =>
                   this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
               },
@@ -733,6 +736,17 @@ export class Core {
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()
+  }
+
+  // What a run through the library proxy found of its sign-in, kept for Settings; only a change is saved
+  private async proxySignedIn(signedIn: boolean) {
+    const { library } = await this.settings.get()
+    if (!library.proxy || !!library.proxySignedInAt === signedIn) return
+    const next = await this.settings.update((s) => {
+      const { proxySignedInAt: _, ...rest } = s.library
+      return { ...s, library: signedIn ? { ...rest, proxySignedInAt: Date.now() } : rest }
+    })
+    this.notifier.notify("settings.changed", settingsView(next))
   }
 
   // The agent (and its model) chosen for background work in Settings

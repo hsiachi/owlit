@@ -145,7 +145,7 @@ export function createBrowserHost(): PublisherBrowser {
     request.signal.addEventListener("abort", abort, { once: true })
     try {
       // A redirect the guard stopped fails the load with a bare ERR_FAILED; say where it was going
-      await load(contents, request.landing, request.signal).catch((error: Error) => {
+      await load(contents, request.landing, request).catch((error: Error) => {
         throw stopped ? new Error(`${hostOf(request.landing)} sent the page on to ${stopped}, which owlit doesn't open unattended.`) : error
       })
       trace("opened")
@@ -157,7 +157,7 @@ export function createBrowserHost(): PublisherBrowser {
       // Some publishers check again at the PDF itself: open it in the page and look once more
       if (!isPdf(bytes)) {
         trace(`no PDF from ${pdfUrl}, opening it`)
-        await load(contents, pdfUrl, request.signal).catch(() => undefined)
+        await load(contents, pdfUrl, request).catch(() => undefined)
         await waitUntilClear(contents, request)
         bytes = await fetchWithSession(pdfUrl, request.signal)
       }
@@ -181,14 +181,14 @@ export function createBrowserHost(): PublisherBrowser {
   async function waitUntilClear(contents: WebContents, request: BrowserRequest) {
     for (let round = 0; round < 3; round++) {
       request.signal.throwIfAborted()
-      const state = await pageState(contents)
+      const state = await pageState(contents, request)
       if (state === "ok") return
       if (!request.withUser) {
-        await untilClear(contents, request.signal, SETTLE_MS).catch((error) => {
+        await untilClear(contents, request, SETTLE_MS).catch((error) => {
           if (request.signal.aborted) throw error
           throw new NeedsUser(state, hostOf(contents.getURL()))
         })
-        await settle(contents, request.signal)
+        await settle(contents, request)
         continue
       }
       // The page out of sight too long ends the run; core keeps the note for the next Check now
@@ -200,16 +200,16 @@ export function createBrowserHost(): PublisherBrowser {
         await request.needUser(
           state,
           state === "login" ? "Sign in to the library or publisher on the page." : "The publisher wants to check this is a person.",
-          Promise.race([untilClear(contents, request.signal), gone]),
+          Promise.race([untilClear(contents, request), gone]),
         )
       } finally {
         away.delete(left)
       }
       // Past the check the page goes on to the article: let it arrive before looking for the PDF
       // (2026-10-11: read the moment the user got through, a SAGE page had no PDF link)
-      await settle(contents, request.signal)
+      await settle(contents, request)
     }
-    const state = await pageState(contents)
+    const state = await pageState(contents, request)
     if (state !== "ok") throw request.withUser ? new Error("The publisher kept asking for a check.") : new NeedsUser(state, hostOf(contents.getURL()))
   }
 
@@ -241,13 +241,14 @@ export function createBrowserHost(): PublisherBrowser {
 
 // Resolves once the page is clear on two checks in a row (past a redirect; not waiting on isLoading(),
 // which some publishers' pages never leave), or rejects after `timeoutMs`
-function untilClear(contents: WebContents, signal: AbortSignal, timeoutMs?: number) {
+function untilClear(contents: WebContents, request: BrowserRequest, timeoutMs?: number) {
+  const { signal } = request
   return new Promise<void>((resolve, reject) => {
     const timer = timeoutMs ? setTimeout(() => finish(new Error("The page didn't move on.")), timeoutMs) : undefined
     let clear = 0
     const poll = setInterval(async () => {
       if (contents.isDestroyed()) return finish(new Error("The page went away."))
-      clear = (await pageState(contents)) === "ok" ? clear + 1 : 0
+      clear = (await pageState(contents, request)) === "ok" ? clear + 1 : 0
       if (clear >= 2) finish()
     }, 1000)
     const aborted = () => finish(signal.reason)
@@ -262,7 +263,7 @@ function untilClear(contents: WebContents, signal: AbortSignal, timeoutMs?: numb
   })
 }
 
-async function load(contents: WebContents, url: string, signal: AbortSignal) {
+async function load(contents: WebContents, url: string, request: BrowserRequest) {
   await Promise.race([
     contents.loadURL(url).catch((error: Error) => {
       // A redirect the guard stopped, or a download, still leaves a page to look at
@@ -270,19 +271,20 @@ async function load(contents: WebContents, url: string, signal: AbortSignal) {
     }),
     new Promise((_, reject) => setTimeout(() => reject(new Error(`${hostOf(url)} took too long to open.`)), LOAD_TIMEOUT_MS)),
   ])
-  await settle(contents, signal)
+  await settle(contents, request)
 }
 
 // Some pages send the reader on by script once loaded (Elsevier's linkinghub to ScienceDirect): wait
 // until the page has stayed put for a moment, ten seconds at most
 // (a cancelled run stops waiting)
-async function settle(contents: WebContents, signal: AbortSignal) {
+async function settle(contents: WebContents, request: BrowserRequest) {
+  const { signal } = request
   const until = Date.now() + 10_000
   let url = contents.getURL()
   while (Date.now() < until && !contents.isDestroyed() && !signal.aborted) {
     // A check or a sign-in won't turn into the article while this waits: hand it to waitUntilClear at
     // once, so the line above the page says what it wants
-    if ((await pageState(contents)) !== "ok") return
+    if ((await pageState(contents, request)) !== "ok") return
     await new Promise((r) => setTimeout(r, 1500))
     if (contents.isDestroyed() || signal.aborted) return
     const now = contents.getURL()
@@ -292,8 +294,9 @@ async function settle(contents: WebContents, signal: AbortSignal) {
   }
 }
 
-async function pageState(contents: WebContents): Promise<PageState> {
+async function pageState(contents: WebContents, request: BrowserRequest): Promise<PageState> {
   if (contents.isDestroyed()) return "ok"
+  if (onProxySignIn(contents.getURL(), request)) return "login"
   const title = contents.getTitle()
   const probe = await contents
     .executeJavaScript(`({ html: document.documentElement.outerHTML.slice(0, 20000), captcha: ${VISIBLE_CAPTCHA}, password: ${VISIBLE_PASSWORD} })`, true)
@@ -301,6 +304,22 @@ async function pageState(contents: WebContents): Promise<PageState> {
   if (CHALLENGE_TITLE.test(title) || CHALLENGE_BODY.test(probe.html) || probe.captcha) return "challenge"
   if (probe.password) return "login"
   return "ok"
+}
+
+// Through the library proxy, a page still on the proxy's own entry (or a login path on its host) is its
+// sign-in, not the article: signed out, Tsinghua's tlink answers /go?url= with a gateway page of
+// sign-in buttons and no password field, and the PDF's path rebased onto it is no PDF (2026-10-12)
+function onProxySignIn(url: string, request: BrowserRequest) {
+  if (!request.proxyHost) return false
+  let at: URL, entry: URL
+  try {
+    at = new URL(url)
+    entry = new URL(request.landing)
+  } catch {
+    return false
+  }
+  if (at.hostname !== request.proxyHost) return false
+  return (entry.hostname === at.hostname && entry.pathname === at.pathname) || /log-?in|sign-?in|sso|\/cas\b/i.test(at.pathname)
 }
 
 // The PDF's address on this page: the one asked for (rebased onto a proxy's host), citation_pdf_url, or
