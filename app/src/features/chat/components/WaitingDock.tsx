@@ -136,7 +136,11 @@ const editable = (el: Element | null) => !!el && (el instanceof HTMLInputElement
 // to the composer. Plain rows, no frame (a card inside the card would stack outlines): the `muted` fill on
 // hover, keyboard focus and once picked is all that draws them. Each row is a label around its control, so
 // the row is the hit area and the control keeps its own keyboard focus.
-const OPTION_ROW = "group/option flex w-full cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 text-left hover:bg-muted has-focus-visible:bg-muted"
+// A choice is a block on the `muted` fill, so the choices read as things to pick rather than lines of text;
+// the picked one is lifted onto `card` with a hairline border, as a chosen segment is. Hover and keyboard
+// focus take the `accent` step.
+const OPTION_ROW = "group/option flex w-full cursor-pointer items-start gap-2.5 rounded-lg border border-transparent bg-muted px-3 py-2 text-left hover:bg-accent has-focus-visible:bg-accent"
+const OPTION_PICKED = "border-border bg-card shadow-xs hover:bg-card"
 
 function Radio({ checked, onPick, className }: { checked: boolean; onPick: () => void; className?: string }) {
   return (
@@ -223,11 +227,11 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
         <div className="pt-0.5">
           <div className="text-body font-medium break-words">{q.question}</div>
           {(q.options.length > 0 || q.allowsText) && (
-            <div className="mt-2 -ml-2 flex flex-col" role={q.multiSelect ? "group" : "radiogroup"} aria-label={q.question}>
+            <div className="mt-2.5 flex flex-col gap-1" role={q.multiSelect ? "group" : "radiogroup"} aria-label={q.question}>
               {q.options.map((o, i) => {
                 const picked = picks.includes(o.label)
                 return (
-                  <label key={o.label} className={cn(OPTION_ROW, picked && "bg-muted")}>
+                  <label key={o.label} className={cn(OPTION_ROW, picked && OPTION_PICKED)}>
                     {q.multiSelect ? (
                       <Checkbox checked={picked} onCheckedChange={() => pick(o.label)} aria-label={o.label} className="mt-0.5" />
                     ) : (
@@ -254,11 +258,11 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
             </div>
           )}
           <div className="mt-2.5 flex items-center gap-1.5">
-            <Button variant="text" size="inline" className="-ml-1.5" onClick={() => store().skip(chatId, ask)}>
+            {!compact && q.allowsText && <span className="min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}
+            <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" onClick={() => store().skip(chatId, ask)}>
               Skip
             </Button>
-            {!compact && q.allowsText && <span className="min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}
-            <Button size="sm" className="ml-auto" disabled={submits ? !done : !here} onClick={() => (submits ? store().submit(chatId, ask) : store().next(chatId, ask))}>
+            <Button size="sm" disabled={submits ? !done : !here} onClick={() => (submits ? store().submit(chatId, ask) : store().next(chatId, ask))}>
               {submits ? "Submit" : "Next"}
             </Button>
           </div>
