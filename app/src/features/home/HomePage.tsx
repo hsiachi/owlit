@@ -43,10 +43,10 @@ export function HomePage() {
           </PageTitle>
           {lead ? (
             <>
-              <div className="mt-5 empty:hidden">
+              <LeadCard place={lead} />
+              <div className="mt-8 empty:hidden">
                 <WaitingOnYou />
               </div>
-              <LeadCard place={lead} />
               {since && <SinceYouLeft since={since} />}
               {rest.length > 0 && (
                 <section className="mt-8">
@@ -69,27 +69,28 @@ export function HomePage() {
   )
 }
 
-// The last thing worked on, with the user's own last words in it
+// The last thing worked on, with the user's own last words in it. First on the page, in the rows' own
+// look (no card): it is where most launches go next.
 function LeadCard({ place }: { place: Place }) {
   // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday"
   const did = place.did ? `${place.did} ${ago(place.at, { inSentence: true })}` : ago(place.at)
   const meta = [place.detail, did].filter(Boolean).join(" · ")
   return (
-    <Link
-      to={place.to}
-      className="mt-5 block rounded-lg border bg-card px-4 pt-3.5 pb-4 outline-none transition-colors hover:border-foreground/20 focus-key:border-foreground/30"
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <KindIcon kind={place.kind} className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate text-sm font-medium">{place.title}</span>
-        <span className="shrink-0 text-detail whitespace-nowrap text-muted-foreground">{meta}</span>
-      </div>
-      {place.words && (
-        <Quote size="sm" clamp={3} className="mt-2.5">
-          {place.words}
-        </Quote>
-      )}
-    </Link>
+    <section className="mt-5">
+      <GroupLabel>Continue</GroupLabel>
+      <Link to={place.to} className="block rounded-md px-2.5 py-2 outline-none hover:bg-muted focus-key:bg-muted">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <KindIcon kind={place.kind} className="size-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-medium">{place.title}</span>
+          <span className="shrink-0 text-detail whitespace-nowrap text-muted-foreground">{meta}</span>
+        </div>
+        {place.words && (
+          <Quote size="sm" clamp={3} className="mt-2 ml-6.5">
+            {place.words}
+          </Quote>
+        )}
+      </Link>
+    </section>
   )
 }
 

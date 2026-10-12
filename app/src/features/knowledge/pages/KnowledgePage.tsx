@@ -47,7 +47,7 @@ export function KnowledgePage() {
   const aside = [archived.length > 0 && `${archived.length} archived`, loose.length > 0 && plural(loose.length, "loose passage")].filter(Boolean)
 
   return (
-    <PageShell>
+    <PageShell width="narrow">
       <header className="px-0.5">
         {/* Questions may join as a second view; until then a lone tab strip would say nothing */}
         <PageTitle>Knowledge</PageTitle>

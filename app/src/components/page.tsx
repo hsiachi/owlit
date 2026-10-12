@@ -5,20 +5,23 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { EmptyPlace } from "@/components/empty-place"
 
-// A list page (the Library, Knowledge): scrolls whole, header included, in one wide column, so switching
-// tabs or layouts never moves the header
+// A list page: scrolls whole, header included, so switching tabs or layouts never moves the header. The
+// Library, which has a table, takes the wide column; a page of rows alone (Knowledge) takes Home's
+// reading column, so one line doesn't run the width of the window.
 export function PageShell({
+  width = "wide",
   scroller,
   onKeyDown,
   children,
 }: {
+  width?: "wide" | "narrow"
   scroller?: React.Ref<HTMLDivElement>
   onKeyDown?: (e: React.KeyboardEvent) => void
   children: React.ReactNode
 }) {
   return (
     <div ref={scroller} tabIndex={-1} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto outline-none">
-      <div className="mx-auto w-full max-w-6xl px-6 pt-10 pb-24">{children}</div>
+      <div className={cn("mx-auto w-full pt-10 pb-24", width === "wide" ? "max-w-6xl px-6" : "max-w-3xl px-4")}>{children}</div>
     </div>
   )
 }

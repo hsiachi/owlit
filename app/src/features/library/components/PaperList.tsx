@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
+import { WaitingShield } from "@/components/marks"
 import type { PaperGroup } from "../lib/filter"
 import { authorsYear, shortAuthors, shortVenue } from "../lib/format"
 import { STATUS_LABEL } from "../lib/status"
@@ -63,6 +64,25 @@ function TextSnippet({ text, className }: { text: string; className?: string }) 
   )
 }
 
+// The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
+// while it is being read, the waiting shield while its publisher wants the user. Every row has the slot,
+// so titles start at one place and a mark comes or goes without moving the row.
+function PaperStatusMark({ paper }: { paper: Paper }) {
+  const label = paper.noPdf?.needs ? "The publisher needs you" : paper.status === "reading" ? "Reading" : undefined
+  return (
+    <span className="grid size-4 shrink-0 place-items-center" title={label}>
+      {paper.noPdf?.needs ? (
+        <WaitingShield />
+      ) : (
+        paper.status === "reading" && (
+          <span className="size-2 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]" />
+        )
+      )}
+      {label && <span className="sr-only">{label}</span>}
+    </span>
+  )
+}
+
 function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[]; open: (id: string) => void; snippet?: string }) {
   const { selected, handlers } = useRowHandlers(paper, order, open)
   return (
@@ -76,6 +96,7 @@ function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[
         )}
       >
         <div className={cn("flex items-center gap-2", snippet ? "h-6" : "h-9")}>
+          <PaperStatusMark paper={paper} />
           {/* Finished papers recede; the star belongs to the title, and the authors take what's left */}
           <span className={cn("min-w-0 truncate", paper.status === "read" && "text-muted-foreground")}>{paper.title}</span>
           {paper.starred && <StarMark />}
@@ -85,7 +106,7 @@ function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[
           <span className="flex-1" />
           <RowActions paper={paper} />
         </div>
-        {snippet && <TextSnippet text={snippet} className="pr-9" />}
+        {snippet && <TextSnippet text={snippet} className="pr-9 pl-6" />}
       </div>
     </RowMenu>
   )
@@ -111,7 +132,7 @@ const COLUMNS = [
   { key: "title", label: "Title", width: undefined, sort: "title" },
   { key: "authors", label: "Authors", width: 136, sort: "authors" },
   { key: "year", label: "Year", width: 64, sort: "year" },
-  { key: "venue", label: "Venue", width: 112, sort: "venue" },
+  { key: "venue", label: "Venue", width: 160, sort: "venue" },
   { key: "tags", label: "Tags", width: 144 },
   { key: "status", label: "Status", width: 80 },
   { key: "added", label: "Added", width: 96, sort: "addedAt" },
@@ -126,7 +147,18 @@ type ColumnKey = Column["key"]
 const TITLE_MIN = 320
 const GIVE_WAY: ColumnKey[] = ["venue", "status", "tags", "authors"]
 
-function useColumns(table: React.RefObject<HTMLTableElement | null>): Column[] {
+// Columns no paper in view fills (no tags yet, every paper unread) are left out rather than shown blank
+const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
+  venue: (p) => !!p.venue,
+  tags: (p) => p.tags.length > 0,
+  status: (p) => p.status !== "unread",
+}
+
+function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[]): Column[] {
+  const kept = useMemo(
+    () => COLUMNS.filter((c) => !FILLED[c.key] || papers.some(FILLED[c.key]!)),
+    [papers],
+  )
   // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
   // before paint, so the table never shows a frame with every column squeezed in; and it only
   // re-renders when a column actually comes or goes.
@@ -137,17 +169,17 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>): Column[] {
     const ro = new ResizeObserver(([entry]) => {
       const width = entry.contentRect.width
       let n = 0
-      let fixed = COLUMNS.reduce((sum, c) => sum + (c.width ?? 0), 0)
+      let fixed = kept.reduce((sum, c) => sum + (c.width ?? 0), 0)
       while (n < GIVE_WAY.length && width - fixed < TITLE_MIN) {
-        fixed -= COLUMNS.find((c) => c.key === GIVE_WAY[n])?.width ?? 0
+        fixed -= kept.find((c) => c.key === GIVE_WAY[n])?.width ?? 0
         n++
       }
       flushSync(() => setHidden(n))
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [table])
-  return useMemo(() => COLUMNS.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [hidden])
+  }, [table, kept])
+  return useMemo(() => kept.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [kept, hidden])
 }
 
 function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; order: string[]; open: (id: string) => void; columns: Set<ColumnKey>; snippet?: string }) {
@@ -170,7 +202,7 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
         {columns.has("authors") && <td className={td}>{shortAuthors(paper.authors)}</td>}
         <td className={cn(td, "tabular-nums")}>{paper.year}</td>
         {columns.has("venue") && (
-          <td className={td} title={venue !== paper.venue ? paper.venue : undefined}>
+          <td className={td} title={paper.venue}>
             {venue}
           </td>
         )}
@@ -206,7 +238,7 @@ export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order
   const navigate = useNavigate()
   const open = (id: string) => navigate(`/library/${id}`)
   const table = useRef<HTMLTableElement>(null)
-  const columns = useColumns(table)
+  const columns = useColumns(table, papers)
   const shown = useMemo(() => new Set(columns.map((c) => c.key)), [columns])
   return (
     <table ref={table} className="w-full table-fixed border-separate border-spacing-0">
