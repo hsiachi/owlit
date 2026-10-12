@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
 import { PdfFileInput } from "@/components/file-drop"
+import { Tip } from "@/components/tip"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useFileDrop } from "@/hooks/use-file-drop"
@@ -9,7 +11,9 @@ import { bridge } from "@/lib/rpc"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
+import { useCheckQueue, useNextCheck } from "../../check-queue"
 import { PublisherNeedsUser } from "../../client"
+import { citationLabel } from "../../lib/format"
 import { useTakeParam } from "../../lib/use-take-param"
 import { libraryClient, useLibraryStore } from "../../store"
 import type { Paper } from "../../types"
@@ -34,6 +38,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
   useTakeParam("check", (value) => {
     if (value === "1" && paper.noPdf?.needs && canCheck) setChecking(true)
   })
+  // Going through several papers' checks in turn (Home's grouped line): taken once, like the check
+  const [inQueue, setInQueue] = useState(false)
+  useTakeParam("queue", (value) => setInQueue(value === "1"))
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
   const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
@@ -71,7 +78,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
-  if (checking) return <PublisherPage paper={paper} onEnd={() => setChecking(false)} />
+  if (checking) return <PublisherPage paper={paper} inQueue={inQueue} onEnd={() => setChecking(false)} />
 
   const state: CardState = looking ? "looking" : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
   const detail = state === "not-found" ? `${triedSentence(paper.noPdf?.tried ?? [])} ${CARD[state].detail}` : CARD[state].detail
@@ -121,9 +128,16 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
 // Check now: the publisher's page fills the reader's place (the desktop app draws it over the box this
 // reserves) under one line saying what it waits for. Through, the reader takes over; Cancel, or
-// leaving the paper, ends the run and the card comes back.
-function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
+// leaving the paper, ends the run and the card comes back. In a run of several, a PDF that arrives
+// opens the next paper's publisher instead, and Skip goes on without this one.
+function PublisherPage({ paper, inQueue, onEnd }: { paper: Paper; inQueue: boolean; onEnd: () => void }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
+  const navigate = useNavigate()
+  const next = useNextCheck(inQueue ? paper.id : "")
+  const nextPaper = useLibraryStore((s) => (next ? s.papers[next] : undefined))
+  const nextRef = useRef(next)
+  nextRef.current = next
+  const goNext = (id: string) => navigate(`/library/${id}?check=1&queue=1`)
   const box = useRef<HTMLDivElement>(null)
   const task = useTasksStore((s) => openCheck(s, paper.id))
   const mounted = useRef(false)
@@ -155,8 +169,12 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
     let live = true
     const run = libraryClient.checkPublisher!(paper)
       .then((found) => {
+        // Before the PDF lands here, so the reader doesn't flash up on the way to the next paper. Only
+        // from the page still showing: StrictMode's first mount also gets an answer.
+        if (live && found.pdf && nextRef.current) goNext(nextRef.current)
+        else if (live && found.pdf && inQueue) useCheckQueue.getState().end()
         updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
-        if (found.pdf) toast("PDF found")
+        if (found.pdf) toast("PDF found", inQueue ? { description: citationLabel(paper) } : undefined)
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : "owlit couldn't open the publisher's page."))
       .finally(() => live && end.current())
@@ -191,6 +209,13 @@ function PublisherPage({ paper, onEnd }: { paper: Paper; onEnd: () => void }) {
       <div className="flex h-10 shrink-0 items-center gap-2 px-4 text-sm text-muted-foreground">
         {task?.state !== "waiting_for_you" && <Spinner />}
         <span className="min-w-0 flex-1 truncate">{line}</span>
+        {next && (
+          <Tip label={`Next: ${nextPaper ? citationLabel(nextPaper) : "the next paper"}`}>
+            <Button variant="ghost" size="sm" onClick={() => goNext(next)}>
+              Skip
+            </Button>
+          </Tip>
+        )}
         <Button variant="ghost" size="sm" onClick={() => task && void cancelTask(task.id)} disabled={!task}>
           Cancel
         </Button>

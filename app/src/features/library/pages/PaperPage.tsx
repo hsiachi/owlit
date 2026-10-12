@@ -101,7 +101,7 @@ export function PaperPage() {
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
         <main className={cn("flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
-          {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf paper={paper} />}
+          {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf key={paper.id} paper={paper} />}
         </main>
         {panelOpen && <DetailsPanel paper={paper} />}
       </div>

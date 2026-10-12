@@ -570,10 +570,12 @@ export class Library {
             })
             for (const next of ["paper.text", "index.paper"]) this.queue(next, id, ctx.task.priority)
             await this.announce([id])
+            // The user got past this publisher: its other papers that wanted them may now come unattended
+            if (withUser && previous?.needs?.host) await this.retryHost(previous.needs.host, id)
             return
           } catch (error) {
             if (ctx.signal.aborted) throw error
-            if (error instanceof NeedsUser) needs ??= { reason: error.reason, route: route.name, at: Date.now() }
+            if (error instanceof NeedsUser) needs ??= { reason: error.reason, route: route.name, at: Date.now(), ...(error.host ? { host: error.host } : {}) }
             tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
             // With the user, it means they went away: the next route would only wait for them again
             if (withUser && error instanceof NeedsUser) break
@@ -1267,6 +1269,17 @@ export class Library {
       await writeAcquisition(this.root, id, acquisition(await readAcquisition(this.root, id)))
       return true
     })
+  }
+
+  // Papers whose publisher's page, at `host`, wanted a person: back to the hidden browser, which now
+  // holds what the user's check or sign-in left in its session. Ones it still can't get stay noted.
+  private async retryHost(host: string, except: string) {
+    for (const id of await this.ids()) {
+      if (id === except) continue
+      const acquisition = await readAcquisition(this.root, id)
+      if (acquisition?.result !== "no_pdf" || acquisition.needs?.host !== host) continue
+      this.queue("paper.pdf.browser", id, "background")
+    }
   }
 
   // Queues a step for a paper when this build knows it (paper.pdf comes with T15, and so on)
