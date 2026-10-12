@@ -51,9 +51,9 @@ export function Row({
   name: React.ReactNode
   // The explanation, behind an info icon
   info?: string
-  // What the choice depends on, in one muted line under the name: for a setting that can't be picked well
-  // without it (which agent does background work, why a key is worth adding). Within a group, prefer it
-  // on every row or on none, so the rows do not jump between heights.
+  // What the choice depends on, in one short muted line under the name, only for a setting that can't be
+  // picked well without it (which agent does background work, how PDFs are read). Anything else goes
+  // behind the info icon, so most rows stay one line.
   help?: string
   // What sits at the right of the row
   control?: React.ReactNode
@@ -63,15 +63,18 @@ export function Row({
 }) {
   return (
     <div className={cn("group/row flex min-h-12 flex-col justify-center px-3.5 py-2.5", className)}>
-      <div className="flex min-h-7 items-center gap-3">
-        <span className="flex shrink-0 items-center gap-1">
-          {name}
-          {info && <Info>{info}</Info>}
-        </span>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-1">{control}</div>
+      {/* The control is centred on the name and its help together, so a switch never floats at the top
+          of a two-line row */}
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="flex min-h-7 items-center gap-1">
+            {name}
+            {info && <Info>{info}</Info>}
+          </span>
+          {help && <p className="-mt-0.5 text-detail leading-5 text-muted-foreground">{help}</p>}
+        </div>
+        {control && <div className="flex shrink-0 items-center justify-end gap-1">{control}</div>}
       </div>
-      {/* As wide as the row, so a short line never leaves one word on a second line */}
-      {help && <p className="-mt-0.5 text-detail leading-5 text-muted-foreground">{help}</p>}
       {children}
     </div>
   )

@@ -30,7 +30,6 @@ function NameRow() {
     <List>
       <Row
         name="Your name"
-        help="What Owlit calls you, in the Chat greeting and in chats."
         control={
           <CommitInput
             value={name}
@@ -71,19 +70,19 @@ function BackgroundWork() {
     <List>
       <Row
         name="Agent"
-        help="For reading notes and Knowledge. Automatic picks the first agent that is ready."
+        help="Writes reading notes and keeps Knowledge up to date."
         control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (
         <Row
           name="Model"
-          help="A smaller one costs less; reading notes rarely need the strongest."
+          info="A smaller one costs less; reading notes rarely need the strongest."
           control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model || null } })} />}
         />
       )}
       <Row
         name="Reading notes in"
-        help="Papers keep their own language."
+        info="Papers keep their own language."
         // Unset is English (core's default), shown as the value rather than a placeholder that looks like one
         control={
           <CommitInput
@@ -97,7 +96,8 @@ function BackgroundWork() {
       />
       <Row
         name="Reading notes for every paper"
-        help="Off, only for papers you open or star. On, a big import keeps the agent busy."
+        help="Otherwise only for papers you open or star."
+        info="On, a big import keeps the agent busy for a while."
         control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label="Reading notes for every paper" />}
       />
     </List>
@@ -110,7 +110,7 @@ function MemoryRow() {
     <List>
       <Row
         name="Remember what I do in owlit"
-        help="Keeps Knowledge and Home up to date with what you open, highlight and write."
+        help="What you open, highlight and write keeps Knowledge and Home current."
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label="Remember what I do in owlit" />}
       />
     </List>
