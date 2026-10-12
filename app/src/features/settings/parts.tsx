@@ -25,18 +25,18 @@ export const List = BorderedList
 
 // A group of rows in a section: an optional label, the rows, and a muted line under them for what the
 // whole group shares (where its keys are kept, what it is for when nothing is set up). A link can open
-// Settings at a group by its id. The label and the note start where the rows' names do, not at the list's
-// rounded edge, so the text down the section shares one left line.
+// Settings at a group by its id. The label and the note follow the list's edge, 4px in: flush, they would
+// sit right against the rounded corner just below and look as if they hang outside it.
 export function Group({ id, label, info, note, children }: { id?: string; label?: string; info?: string; note?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section data-settings-group={id} className="scroll-mt-1 not-first:mt-6">
       {label && (
-        <GroupLabel as="h3" flush info={info} className="px-3.5">
+        <GroupLabel as="h3" flush info={info} className="px-1">
           {label}
         </GroupLabel>
       )}
       {children}
-      {note && <p className="mt-1.5 px-3.5 text-detail leading-5 text-muted-foreground">{note}</p>}
+      {note && <p className="mt-1.5 px-1 text-detail leading-5 text-muted-foreground">{note}</p>}
     </section>
   )
 }
@@ -327,7 +327,7 @@ export function FoldedForm({
 }) {
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" className="mt-2 ml-1 font-normal text-muted-foreground" onClick={onOpen}>
+      <Button variant="ghost" size="sm" className="mt-2 -ml-2 font-normal text-muted-foreground" onClick={onOpen}>
         <PlusIcon />
         {label}
       </Button>
