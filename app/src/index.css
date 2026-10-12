@@ -73,10 +73,9 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
-    --color-success: var(--success);
-    --color-suggestion: var(--suggestion);
+    --color-owlit: var(--owlit);
+    --color-owlit-mark: var(--owlit-mark);
     --color-warning: var(--warning);
-    --color-note: var(--note);
     --color-text-highlight: var(--text-highlight);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
@@ -122,14 +121,12 @@
     --accent: oklch(0.3 0.02 65 / 6%);
     --accent-foreground: oklch(0.25 0.008 60);
     --destructive: oklch(0.55 0.16 25);
-    --success: oklch(0.56 0.1 155);
-    /* Owlit's proposed edits: the new words are drawn in it, so it is deep enough to read as text */
-    --suggestion: oklch(0.5 0.11 155);
+    /* Owlit's hand, one green: its proposed words are drawn in --owlit, deep enough to read as text; its
+       marks (the dot for what it changed, the underline and wash of its note) take --owlit-mark, a step
+       lighter, which still holds 3:1 on paper. Amber (--warning) only ever means the user is needed. */
+    --owlit: oklch(0.5 0.11 155);
+    --owlit-mark: oklch(0.6 0.12 155);
     --warning: oklch(0.66 0.12 70);
-    /* An agent's note on a passage: a warm amber underline, and a wash of it while the note is open */
-    --note: oklch(0.76 0.15 75);
-    /* The rim of the 8px note dot: the amber alone is too light to hold 3:1 on a light surface */
-    --note-rim: oklch(0.62 0.13 70);
     /* A doc's own ==highlights==: the lemon of a yellow PDF highlight, so the two never pass for a note */
     --text-highlight: oklch(0.93 0.11 98);
     --border: oklch(0.905 0.006 80);
@@ -151,12 +148,13 @@
     --sidebar: oklch(0.942 0.007 80);
     --sidebar-panel: oklch(0.976 0.004 85);
     --mention: oklch(0.48 0.09 255);
-    /* Star and tag colours: low-chroma marks that carry meaning, never fills */
-    --star: oklch(0.64 0.13 72);
+    /* Star and tag colours: low-chroma marks that carry meaning, never fills. The star is a gold kept off
+       amber, so it never passes for waiting; the green tag is an olive, so its dot never passes for Owlit's */
+    --star: oklch(0.66 0.13 88);
     --tag-red: oklch(0.64 0.11 28);
     --tag-orange: oklch(0.7 0.11 55);
     --tag-amber: oklch(0.76 0.11 85);
-    --tag-green: oklch(0.66 0.09 145);
+    --tag-green: oklch(0.64 0.08 125);
     --tag-teal: oklch(0.66 0.07 195);
     --tag-blue: oklch(0.62 0.09 250);
     --tag-violet: oklch(0.6 0.1 295);
@@ -207,11 +205,9 @@
     --accent: oklch(0.95 0.01 80 / 8%);
     --accent-foreground: oklch(0.935 0.006 80);
     --destructive: oklch(0.68 0.13 22);
-    --success: oklch(0.72 0.1 155);
-    --suggestion: oklch(0.8 0.11 155);
+    --owlit: oklch(0.8 0.11 155);
+    --owlit-mark: oklch(0.75 0.12 155);
     --warning: oklch(0.78 0.11 75);
-    --note: oklch(0.8 0.13 78);
-    --note-rim: oklch(0.8 0.13 78);
     --text-highlight: oklch(0.4 0.07 100);
     --border: oklch(0.935 0.01 80 / 10%);
     --input: oklch(0.935 0.01 80 / 14%);
@@ -224,11 +220,11 @@
     --sidebar: oklch(0.155 0.004 60);
     --sidebar-panel: oklch(0.19 0.005 60);
     --mention: oklch(0.78 0.07 255);
-    --star: oklch(0.8 0.12 80);
+    --star: oklch(0.82 0.12 90);
     --tag-red: oklch(0.7 0.1 28);
     --tag-orange: oklch(0.75 0.1 55);
     --tag-amber: oklch(0.8 0.1 85);
-    --tag-green: oklch(0.72 0.08 145);
+    --tag-green: oklch(0.72 0.08 125);
     --tag-teal: oklch(0.72 0.07 195);
     --tag-blue: oklch(0.7 0.08 250);
     --tag-violet: oklch(0.7 0.09 295);
@@ -245,7 +241,7 @@
 
 /* Paper tones (Settings › Appearance). Each swaps the neutral family above, surfaces, text, lines and
    state fills, and keeps its steps of lightness, so depth and contrast hold in every tone. Marks that
-   carry meaning (star, note, tags, highlights, mention, warning, destructive) are left alone. Warm is
+   carry meaning (star, Owlit's green, tags, highlights, mention, warning, destructive) are left alone. Warm is
    the :root and .dark blocks themselves. The same blocks apply to an element with data-tone, so the
    tone picker can draw each tone with the real tokens. desktop/src/main.ts keeps each tone's frame
    colour for the window's background. */
@@ -509,10 +505,6 @@
   pointer-events: none;
   color: var(--muted-foreground);
 }
-/* The 8px note dot (something Owlit did since the user last looked), wherever it appears: the amber
-   with a deeper rim, so the mark holds 3:1 on the light panels and on a hovered row */
-.note-dot { background: var(--note); box-shadow: inset 0 0 0 1px var(--note-rim); }
-
 /* ---- Motion ---- */
 /* Unfold (components/unfold.tsx, and the note in a doc): something that opens in place grows from its line
    and pushes what is below it, so the eye can follow, and folds the same way. Grid rows need no measuring;
@@ -553,16 +545,16 @@
    can; 8px corners concentric with the 6px item inside */
 .selection-menu { @apply flex gap-0.5 rounded-[8px] border bg-popover p-0.5 font-sans text-detail shadow-lg; }
 .selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
-/* Owlit's proposed edit, marked as one more editor would, in its own colour. Removed words keep the muted
+/* Owlit's proposed edit, marked as one more editor would, in Owlit's green. Removed words keep the muted
    tone with a strike in that colour (removal is not an error, so never red); new words take the colour,
    with an underline so the two differ in shape too. A rule at the left runs down the lines (a doc) or
    paragraphs (a note) it touches and the bar under them, so each edit reads as one piece with its answer. */
-.suggest-del { color: var(--muted-foreground); text-decoration: line-through 1.5px var(--suggestion); }
-.suggest-ins { color: var(--suggestion); text-decoration: underline 1px var(--suggestion); text-underline-offset: 3px; white-space: pre-wrap; }
+.suggest-del { color: var(--muted-foreground); text-decoration: line-through 1.5px var(--owlit); }
+.suggest-ins { color: var(--owlit); text-decoration: underline 1px var(--owlit); text-underline-offset: 3px; white-space: pre-wrap; }
 /* After struck words a small gap, so the old and new don't run together */
 .suggest-ins-after { margin-left: 0.25em; }
 .suggest-line, .suggest-block, .suggest-bar { position: relative; }
-.suggest-line::before, .suggest-block::before, .suggest-bar::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: var(--suggestion); }
+.suggest-line::before, .suggest-block::before, .suggest-bar::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: var(--owlit); }
 .note-editor .suggest-block::before, .note-editor .suggest-bar::before { left: -12px; }
 /* A note's block rule reaches down over the 0.5rem gap after it; the bar's bridges its own top margin */
 .suggest-block::before { bottom: -0.5rem; }

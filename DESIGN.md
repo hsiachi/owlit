@@ -28,16 +28,14 @@ colors:
   mention: "oklch(0.48 0.09 255)"
   warning: "oklch(0.66 0.12 70)"
   destructive: "oklch(0.55 0.16 25)"
-  success: "oklch(0.56 0.1 155)"
-  suggestion: "oklch(0.5 0.11 155)"
-  note: "oklch(0.76 0.15 75)"
-  note-rim: "oklch(0.62 0.13 70)"
+  owlit: "oklch(0.5 0.11 155)"
+  owlit-mark: "oklch(0.6 0.12 155)"
   text-highlight: "oklch(0.93 0.11 98)"
-  star: "oklch(0.64 0.13 72)"
+  star: "oklch(0.66 0.13 88)"
   tag-red: "oklch(0.64 0.11 28)"
   tag-orange: "oklch(0.7 0.11 55)"
   tag-amber: "oklch(0.76 0.11 85)"
-  tag-green: "oklch(0.66 0.09 145)"
+  tag-green: "oklch(0.64 0.08 125)"
   tag-teal: "oklch(0.66 0.07 195)"
   tag-blue: "oklch(0.62 0.09 250)"
   tag-violet: "oklch(0.6 0.1 295)"
@@ -200,8 +198,8 @@ components:
     rounded: "{rounded.md}"
   status-ring:
     textColor: "{colors.muted-foreground}"
-  note-dot:
-    backgroundColor: "{colors.note}"
+  owlit-dot:
+    backgroundColor: "{colors.owlit-mark}"
   star-mark:
     textColor: "{colors.star}"
   menu:
@@ -340,20 +338,20 @@ components:
   waiting-card:
     backgroundColor: "{colors.card}"
     rounded: "{rounded.xl}"
-  waiting-shield:
-    textColor: "{colors.warning}"
+  waiting-dot:
+    backgroundColor: "{colors.warning}"
   check-mark:
-    textColor: "{colors.success}"
+    textColor: "{colors.owlit}"
   code-block:
     backgroundColor: "{colors.muted}"
     typography: "{typography.code}"
     rounded: "{rounded.lg}"
   owlit-edit-added:
-    textColor: "{colors.suggestion}"
+    textColor: "{colors.owlit}"
   owlit-edit-removed:
     textColor: "{colors.muted-foreground}"
   owlit-note-underline:
-    textColor: "{colors.note-rim}"
+    textColor: "{colors.owlit-mark}"
   owlit-note-card:
     backgroundColor: "{colors.card}"
     rounded: "{rounded.lg}"
@@ -427,9 +425,9 @@ owlit is a Mac app for reading, writing and thinking through papers with an assi
 
 1. **Paper, not steel.** Every neutral carries a faint warm tint (hue 60 to 85, chroma under 0.012), so greys read as paper. Surfaces are opaque and step lighter from the back of the window to the front: frame, list panel, sheet, card, popover. The brightest thing on any screen is what you read or act on: a PDF page, the composer, a card. Depth is told by that lightness, then a hairline, and only what floats gets a shadow.
 2. **Quiet by default.** A row at rest is its name and one line of muted detail. Actions appear on hover, focus or an open menu. Nothing is counted in a badge; a count that earns its place is a muted number at the end of a line. A finished thing goes quiet.
-3. **One ladder of states, one mark per rung.** Everything that can have a state sits on one ladder, each rung with one mark, the same everywhere: *fine* is nothing at all; *working* is a quiet grey (a breathing ring, a shimmer on the words, a muted spinner on the row at work); *changed since you last looked*, only for what Owlit did, is the `note` dot, gone once seen; *waiting on you* is the `warning` shield, a shape, so it never passes for the dot; *broken* is `destructive`, red, and only here.
+3. **One ladder of states, one mark per rung.** Everything that can have a state sits on one ladder, each rung with one mark, the same everywhere: *fine* is nothing at all; *working* is a quiet grey (a breathing ring, a shimmer on the words, a muted spinner on the row at work); *changed since you last looked*, only for what Owlit did, is Owlit's green dot (`owlit-mark`), gone once seen; *waiting on you* is the `warning` amber dot, and where it sits beside a time (the chat list) the word Waiting takes the time's place; *broken* is `destructive`, red, with the word Stopped the same way. Each rung is its own hue, so nothing is told apart by a shade.
 4. **Every colour says one thing.** Neutrals carry the whole interface. Each other colour has a single meaning and draws marks (words, dots, rules, underlines), never washes. Paper tones never touch a mark. Two states that both matter are never told apart by colour alone.
-5. **Three voices stay apart.** What you wrote, what a paper says and what Owlit thinks are drawn differently and signed. Owlit's words are signed "Owlit"; its edits are a second editor's ink (`suggestion`); its notes are an amber line under your words (`note`). The agent underneath is named only where it is picked, and its own output is quoted as a detail, in monospace, never as the answer.
+5. **Three voices stay apart.** What you wrote, what a paper says and what Owlit thinks are drawn differently and signed. Owlit's words are signed "Owlit"; everything its hand leaves on your things is one green (`owlit`): the words it proposes, the line under a passage it noted, the dot on what it changed. The agent underneath is named only where it is picked, and its own output is quoted as a detail, in monospace, never as the answer.
 
 ### Habits
 
@@ -472,11 +470,10 @@ Dark mode keeps the warm tint and the steps, lifted off pure black, and lightens
 
 | Token | Means |
 |---|---|
-| `warning` | Waits on you: the needs-you dot, the shield beside a permission or question, the triangle on an agent that can't run |
+| `warning` | Waits on you, and nothing else: the dot on a rail icon, a Settings section or a chat row, and the triangle where no words can say it (an agent that can't run in the picker, a caution on a file chip) |
 | `destructive` | Broken, or an action that removes. A removal Owlit proposes, a step you declined and a reply you stopped are not errors and get no red |
-| `success` | Rare: a check beside a value a service accepted |
-| `suggestion` | Owlit's proposed words, drawn as text with an underline, the strike through what they replace, the rule beside the lines, and "+n" in a result card. Never a wash behind text |
-| `note` | Owlit was here: the 8px dot for what it changed since you looked (rimmed in `note-rim`, so it holds 3:1 on light panels and hovered rows), the 2px underline and wash of a note on a passage, the open note's left rule |
+| `owlit` | Owlit's hand, at text strength: the words it proposes (underlined), the strike through what they replace, the rule beside the lines, "+n" in a result card, the check beside a value a service accepted. Never a wash behind text |
+| `owlit-mark` | Owlit's hand, at mark strength: the 8px dot for what it changed since you looked, the 2px underline and wash of a note on a passage, the open note's left rule. A step lighter than `owlit`, still 3:1 on paper, so it needs no rim |
 | `mention` | A thing in the workspace named in text: paper, doc, topic, chat; also link hotspots and the passage ring in a PDF |
 | `star` | Yours: the small filled star after a starred title |
 | `text-highlight` | Your `==highlight==` in a doc, the same lemon as a yellow PDF highlight |
@@ -508,7 +505,7 @@ Rows are 36px, 2px apart, so two filled neighbours never merge; the docs tree, m
 
 What each place is made of, in the shapes below; the measures that hold in one place are in its code.
 
-- **Home.** The workspace's name as the page title; first, under "Continue", the last thing worked on as a row with a quoted passage of the person's own last words; then "Waiting on you", only while something waits, under a label with the shield; "Since you left" rows after three days away; "Recent". All of it is plain rows, no cards, so Home has one kind of row; three or more papers waiting for the same thing share one row in the plural, "and 5 more". An empty workspace shows three ways in as rows and the keys worth knowing, not a checklist.
+- **Home.** The workspace's name as the page title; first, under "Continue", the last thing worked on as a row with a quoted passage of the person's own last words; then "Waiting on you", only while something waits, under a plain label; "Since you left" rows after three days away; "Recent". All of it is plain rows, no cards, so Home has one kind of row; three or more papers waiting for the same thing share one row in the plural, "and 5 more". An empty workspace shows three ways in as rows and the keys worth knowing, not a checklist.
 - **Chat.** The list panel: a search button, a New chat row, chats grouped by time, every row with a status slot. The page: messages in the reading column fading into the sheet above the composer; with no chat, the greeting, the composer and starter chips. Waiting cards sit above the composer.
 - **Docs.** The list panel: the workspace folder as a tree. The page: the doc's Markdown in the reading column, marks hidden away from the cursor, Owlit's edits and notes drawn in place. Docs has no landing page; it opens the last doc.
 - **Knowledge.** The reading column: a find field once the list is long, topics as rows with their summary inline, "This week" and "Earlier" only when both exist, archived topics folded away. A topic: its name, "Updated …", the summary quoted, then "Your questions", "So far" as speaker-column lines, "Sources" and "n changes" folded.
@@ -527,7 +524,7 @@ Tone first, then a hairline, then a shadow, and only what floats or is acted on 
 
 **Focus** marks appear only after keyboard navigation (Tab, arrows, Esc): a pointer press, or typing inside a field, does not count, and a control that regains focus after a click shows nothing. Buttons and tabs take a 3px ring of `ring` at 50%; rows and text buttons take their hover fill; fields darken their border to the foreground at 30% however focus arrived, never a ring. An error reddens a field's border. The composer darkens its border to 20%.
 
-**Motion** explains a change and never decorates. Something that changes size or place in front of the person moves there, so the eye can follow: a peek, a folding block, Owlit's note and a waiting card grow from their line and push what is below them, a tab's underline or a segment's thumb travels to the chosen one, Undo draws its strike from the left, all over 180ms (`--t-layout`). A mark on the ladder fills in or leaves rather than popping: a fill grows from the ring's centre and the shield crossfades over 150ms (`--t-mark`), and the `note` dot is the one slower exit, fading and shrinking over 400ms a moment after its row has been seen. What the person summoned appears at once: panels and page switches never slide; menus, popovers and dialogs fade and scale in from 95% over 100ms (`--t-menu`), hover-only controls fade their opacity, and every move shares one easing (`--ease`, with the durations in `index.css`). Three small animations say "alive" without a spinner: a chat at work breathes its status ring over 1.6s, an in-progress sentence shimmers, a highlight or passage reached from a list rings twice and goes quiet; where a load may be fast (the reader), the spinner waits 300ms before it shows. Reduced motion stops the breathing and every move of size or place, and keeps only the fades.
+**Motion** explains a change and never decorates. Something that changes size or place in front of the person moves there, so the eye can follow: a peek, a folding block, Owlit's note and a waiting card grow from their line and push what is below them, a tab's underline or a segment's thumb travels to the chosen one, Undo draws its strike from the left, all over 180ms (`--t-layout`). A mark on the ladder fills in or leaves rather than popping: a fill grows from the ring's centre over 150ms (`--t-mark`), and Owlit's dot is the one slower exit, fading and shrinking over 400ms a moment after its row has been seen. What the person summoned appears at once: panels and page switches never slide; menus, popovers and dialogs fade and scale in from 95% over 100ms (`--t-menu`), hover-only controls fade their opacity, and every move shares one easing (`--ease`, with the durations in `index.css`). Three small animations say "alive" without a spinner: a chat at work breathes its status ring over 1.6s, an in-progress sentence shimmers, a highlight or passage reached from a list rings twice and goes quiet; where a load may be fast (the reader), the spinner waits 300ms before it shows. Reduced motion stops the breathing and every move of size or place, and keeps only the fades.
 
 ## Shapes
 
@@ -542,8 +539,8 @@ The shared shapes. Each is one component in code; a place uses it as it is.
 - **Rail button.** 32px, muted icon, 8px corners; the active place is lifted on `card` with the smallest shadow. A place that needs you carries a 6px `warning` dot at the top right of its icon with the reason in its tooltip, the rail's only mark. The gear sits at the bottom, apart, and never takes the active look.
 - **Row.** 36px, 8px corners, 10px side padding, 14px text: an optional 20px slot for a mark, the title, one muted 13px detail inline, one at the right (a count, a site, the date). It fills with `muted` on hover and `accent` while selected or while its menu is open, and keeps keyboard focus visible with the same fill; a date at the right gives way to the row's actions on hover. Rows in the rail and panels use the `sidebar-accent` fill, and the open item adds medium weight. A row never fills with a colour of its own. The docs tree's rows are 32px, indented 14px a level, with a chevron-wide slot on every row so names line up.
 - **Row actions.** A 24px ⋯ square at the row's end, visible on hover, focus or while its menu is open, that darkens on its own hover; the title makes room only then. A right-click opens the same menu where the pointer is. Renaming is an input of the row's own height and corners on `card`, the text where the name was.
-- **Status slot.** In a list whose rows can have a state (chats; papers in the Library list, at 16px), every row keeps the slot so a state fills in without moving anything. A paper's slot is empty while unread, a half-filled muted ring while it is read, and the `warning` shield while its publisher waits on you. At rest it holds an 8px hollow ring (a 1.5px muted stroke), there to line titles up; the ladder's marks fill it: a breathing muted fill at work, the `note` dot once finished since you looked, red when broken, the `warning` shield while it waits on you. New chat and New doc put their 18px round plus in the same slot, so switching panels moves nothing.
-- **Note dot.** 8px, `note` with a 1px inset rim of `note-rim`: before a changed topic or line, in a tab's label, on Home's rows, in the status slot. It leaves once the thing has been on screen for a moment.
+- **Status slot.** In a list whose rows can have a state (chats; papers in the Library list, at 16px), every row keeps the slot so a state fills in without moving anything. A paper's slot is empty while unread and a half-filled muted ring while it is read; a publisher waiting on you is the word "Needs you" in the row's right-hand detail. At rest it holds an 8px hollow ring (a 1.5px muted stroke), there to line titles up; the ladder's marks fill it: a breathing muted fill at work, Owlit's green dot once finished since you looked, the `warning` dot while it waits on you, red when broken; for the last two the time at the row's end gives way to the word Waiting or Stopped, so the rungs that need the person are never told by colour alone. New chat and New doc put their 18px round plus in the same slot, so switching panels moves nothing.
+- **Owlit's dot.** 8px, a plain `owlit-mark` fill: before a changed topic or line, in a tab's label, on Home's rows, in the status slot. It leaves once the thing has been on screen for a moment.
 - **Group label.** 12px `muted-foreground`, regular weight, 4px over its rows, with the rows' side padding. Never a heading, never a count. A **fold** ("Sources · 4 docs", "5 changes", "2 earlier steps", "Show 4 more") is a 13px muted text button with a chevron that turns when open.
 - **Menu.** Floating material, 14px corners, 6px padding, items 32px with 8px corners and 10px side padding on the `accent` fill when highlighted. Words only; the chosen item has a muted check at the right, a state shows as a chip in the same slot; a submenu holds choices; groups are divided by a hairline, in the order what changes the thing, where it is, then Delete or Remove, in red, which fills solid red with white text when highlighted. A menu's width fits its longest item. A plain-text trigger ("Unread ▾", "Recently added ▾", a Settings picker) is a ghost button in regular weight that fills while open.
 - **Search button.** At the top of a list panel: a 36px button drawn like a field (`card`, a 70% border, magnifier, "Search", the ⌘K key) that opens the palette.
@@ -560,11 +557,11 @@ The shared shapes. Each is one component in code; a place uses it as it is.
 - **Composer.** The only lifted input: `card`, 14px corners, the small shadow; a 15px editor at least 56px tall, attached files above the text as chips, a footer with the round plus at the left and the pickers and round Send at the right. Its pickers are 28px ghost text buttons with no chevrons: the agent as its mark alone (an amber triangle or a spinner takes its place when it needs you), the model at 80% with the effort muted after it, Owlit's role in full; each has a tooltip saying what it holds. A one-line banner inside it is the only place it says something is wrong. The **ask bar** is the same material with the medium shadow, 600px at most, 16px above the page's bottom: one 48px line with a context chip, the input, the name of the chat ⇧⌘J brings back, and Send.
 - **User bubble.** At the right, up to 80% wide, `secondary` fill, 14px corners, 15px text. Owlit's reply is plain Markdown at 15px with no bubble. Each message's actions hang 28px below it as 24px ghost icon buttons, shown on hover, with the model and time in 12px muted before them.
 - **Folding block.** Process that recedes (steps, agents handed work, a plan): one 14px line in `foreground` at 80% with a chevron, saying in a sentence what it holds; it shimmers and stays open while working, closes when the answer starts. Opened, it is a bordered list at 10px of plain muted sentences at least 36px tall, no kind icon, one muted detail at the right, and the ladder's marks for a waiting or broken row ("Failed" in red after the sentence; a declined step says "Not allowed", muted). A row that holds machine output (a command's, a file's, a search's) opens to it in a `muted` 13px box underneath; a thought opens to its words as muted 13px prose set in with the row's, no box. Neighbouring steps of one kind fold into "Read 3 files"; while it runs only the last three show behind a "2 earlier steps" row. A plan is a ruled checklist with "done of total".
-- **Result card.** What Owlit changed outside the chat, under its answer: a hairline border at 10px, 4px inside, 32px rows that sit tight with no dividers. Each row is a muted kind icon, the name, and one muted detail (an edit's "+N −M" with the additions in `suggestion`, "Added", "3 notes"). The whole row goes to the thing, so hover gives it the `muted` fill and a go-to arrow (↗, not a chevron) in a slot kept at its end; Undo is a text button that appears before the detail on hover. Several rows get a summary line with Undo all. An undone row is muted and struck through.
-- **Waiting card.** What waits on you sits above the composer, not among the messages: `card` with the composer's border, radius and shadow, a step less roomy. A permission is the `warning` shield, what Owlit wants in medium weight, a muted summary, a preview in a bordered box cut with a fade, then owlit's own buttons (Allow primary, Always allow outline, Don't allow and Never allow ghost). A question is the `warning` question mark, "Owlit asks" in 12px muted, and the questions' headers as 13px underline tabs after it, a check before one that is answered (a single question shows its header after a dot, no tabs); then the question in body medium and its choices as a bordered list of form controls, not rows: a 16px radio or checkbox, the label in 14px, its description under the label in 13px muted, and the number key that picks it as a fill-less key chip at the end. The pick fills its control and takes medium on `muted`, the fill hover and keyboard focus also take. Where words of your own are taken, a last "Something else…" row in muted text hands over to the composer. Skip is a text button at the left; at the right a small primary button reads Next until the last question and Submit there, so a pick never sends by itself and the tabs lead back to any answer. The chevron at the header's end folds the card to one line ("Owlit asks 2 questions" and Show) and never dismisses it. One decision never shows two sets of buttons; the composer's placeholder says what typing does instead.
+- **Result card.** What Owlit changed outside the chat, under its answer: a hairline border at 10px, 4px inside, 32px rows that sit tight with no dividers. Each row is a muted kind icon, the name, and one muted detail (an edit's "+N −M" with the additions in `owlit`, "Added", "3 notes"). The whole row goes to the thing, so hover gives it the `muted` fill and a go-to arrow (↗, not a chevron) in a slot kept at its end; Undo is a text button that appears before the detail on hover. Several rows get a summary line with Undo all. An undone row is muted and struck through.
+- **Waiting card.** What waits on you sits above the composer, not among the messages: `card` with the composer's border, radius and shadow, a step less roomy. A permission is what Owlit wants in medium weight, a muted summary, a preview in a bordered box cut with a fade, then owlit's own buttons (Allow primary, Always allow outline, Don't allow and Never allow ghost). A question is "Owlit asks · its header" in 12px muted with, among several, a pager at the line's end (‹ 1 / 2 ›), so an answered one can be gone back to; then the question in body medium and its choices as plain rows, not a list: a 16px radio or checkbox, the label in 14px, its description under the label in 13px muted, and the number key that picks it as a fill-less key chip at the end. Only hover, keyboard focus and the pick take the `muted` fill; nothing else draws a row. Where words of your own are taken, a last "Something else…" row in muted text hands over to the composer. Skip is a text button at the left; at the right a small primary button reads Next until the last question and Submit there, so a pick never sends by itself. The chevron at the header's end folds the card to one line ("Owlit asks 2 questions" and Show) and never dismisses it. Neither card carries an icon: the words say what waits. One decision never shows two sets of buttons; the composer's placeholder says what typing does instead.
 - **Broken block.** A reply that broke is a bordered block in the result card's frame, never a wrapping line: a red × and "Owlit stopped" with Details, Dismiss and Retry as text buttons on that line, then why, in owlit's words, muted, under it. The agent's own words are behind Details, in a `muted` monospace box. A reply you stopped keeps its partial answer with "Stopped, partial" under it, muted, at all times.
-- **Owlit's edit.** The same in a doc, a note, a step and a preview: new words in `suggestion` with a 1px underline, removed words muted with a 1.5px strike in `suggestion` (different in shape as well as tone), a 2px `suggestion` rule down the left of every touched line and of the line under them, "Suggested by Owlit" in 13px muted with Discard (ghost) and Apply (filled, 28px). Removal is never red.
-- **Owlit's note.** A 2px underline in `note-rim` (the deeper amber, since it carries the meaning alone) under exactly the words it is about, below and thicker than a link's; no icon, no margin, no column. Open, the words take a `note` wash and the note pushes the text down as a `card` with a hairline border and a 3px `note-rim` rule at its left: who and when in 12px muted (with "2 of 3" and chevrons when there are several), the note in 14px drawn as Markdown, a bare owlit:// address shown as a mention under its short name ("Chan et al. 2026, p. 13"), Dismiss and Chat about this as text buttons at the bottom right.
+- **Owlit's edit.** The same in a doc, a note, a step and a preview: new words in `owlit` with a 1px underline, removed words muted with a 1.5px strike in `owlit` (different in shape as well as tone), a 2px `owlit` rule down the left of every touched line and of the line under them, "Suggested by Owlit" in 13px muted with Discard (ghost) and Apply (filled, 28px). Removal is never red.
+- **Owlit's note.** A 2px underline in `owlit-mark` under exactly the words it is about, below and thicker than a link's; no icon, no margin, no column. Open, the words take an `owlit-mark` wash and the note pushes the text down as a `card` with a hairline border and a 3px `owlit-mark` rule at its left: who and when in 12px muted (with "2 of 3" and chevrons when there are several), the note in 14px drawn as Markdown, a bare owlit:// address shown as a mention under its short name ("Chan et al. 2026, p. 13"), Dismiss and Chat about this as text buttons at the bottom right.
 - **Selection menu.** Over a selection in a doc or a note, one 24px "Ask Owlit" row in a 2px frame with 8px corners on `popover`, 8px off the selection, covering as little text as it can. A right-click gets the system's menu, with Ask Owlit first.
 - **Reader.** Pages on the well with 24px around and 16px between them, each white with a hairline `pdf-page-edge` (under a 12% black shade in the dark theme, marks included, unless Settings › Appearance turns it off), fit to width by default. Nothing sits above the document: zoom and find share one **floating pill** (32px, full radius, 12px muted text, 24px round items) at the top right, the page number sits in another at the bottom centre and fades once scrolling stops, and a "← 4" way back joins it after a link. Highlights tint the page with multiply and deepen one step under the pointer; a commented one shows its comment on hover in a small floating box; nothing else marks it. A passage pointed at from Knowledge gets a 2px `pdf-link` ring 4px out from its text that pulses twice and goes.
 - **Highlight toolbar.** Beside a selection or a clicked highlight, in the floating material at 14px: four 18px colour dots with a check on the current one (in `pdf-ink`, since the page is white), a divider, then 28px ghost icon buttons with tooltips: Copy, Comment, Ask Owlit (the feather), Delete on a highlight. Comment opens a three-line field inside it.
@@ -573,13 +570,13 @@ The shared shapes. Each is one component in code; a place uses it as it is.
 - **Drop card and empty place.** Where something can be added and nothing is: a dashed box (1.5px at 15%, 18px corners) with a 15px medium line, one muted sentence, one or two small buttons (primary first), and the whole page still takes the drop, drawing a dashed overlay inside the sheet while a file is over it. An empty place is the same two lines centred in a narrow column, in the dashed card when there is a way to start, with at most one 13px line under it (the one key worth knowing, or a status that is true now). A missing thing says so the same way with a "Back to …" outline button. No illustration, nothing to dismiss; it goes when content arrives.
 - **Tooltip.** The label, then the shortcut as a key chip; 12px on the inverted material with an arrow. An **info icon** is a 20px round target around a 14px muted icon, its tooltip below and at most 288px wide; a dialog's title carries one instead of a description.
 - **Toast.** Bottom right, floating material at 10px: the message, a muted description, an Undo action. It moves left of a docked agent panel.
-- **Settings row.** 48px in a bordered list: the name with an optional info icon at the left, the control at the right, and a second 13px line only for a problem (red), an open form, or a muted line of help where the choice depends on it (Background work, the contact email and keys, how PDFs are read, the name, the privacy switch). Controls end on one right edge; text and icon buttons that come last pull out by their own padding so their text lines up with a switch or field; hover-only actions sit left of what always shows, so nothing moves. A key shows as "••••ab12" in monospace with Change and Remove; a `success` check sits in the control's slot once a service accepted a value, so the row keeps its height. The tone picker draws each tone as a small picture of the app in that tone's own tokens, with a 2px `foreground` ring on the chosen one.
+- **Settings row.** 48px in a bordered list: the name with an optional info icon at the left, the control at the right, and a second 13px line only for a problem (red), an open form, or a muted line of help where the choice depends on it (Background work, the contact email and keys, how PDFs are read, the name, the privacy switch). Controls end on one right edge; text and icon buttons that come last pull out by their own padding so their text lines up with a switch or field; hover-only actions sit left of what always shows, so nothing moves. A key shows as "••••ab12" in monospace with Change and Remove; an `owlit` check sits in the control's slot once a service accepted a value, so the row keeps its height. The tone picker draws each tone as a small picture of the app in that tone's own tokens, with a 2px `foreground` ring on the chosen one.
 
 ## Do's and Don'ts
 
 Do:
 
-- Reach for tone before lines, words before icons, and a shape before a second colour.
+- Reach for tone before lines, and words before icons.
 - Put the fix next to the problem.
 - Keep a concept's look identical everywhere, and change the component when it must change.
 - Check contrast on hover and selection fills, not just the bare surface.
@@ -588,8 +585,9 @@ Do:
 Don't:
 
 - Mark a healthy state with a dot, a label or "Connected"; the status slot's faint ring is the one exception.
-- Tell two states apart by a shade of one colour, or use red for anything the person chose.
-- Count, group or badge what Owlit did; the `note` dot is the whole mark, and nothing Owlit wrote carries an accept, confirm or triage control.
+- Tell two states apart by a shade of one hue, or use red for anything the person chose.
+- Put a shield or a triangle beside words that already say something waits.
+- Count, group or badge what Owlit did; Owlit's green dot is the whole mark, and nothing Owlit wrote carries an accept, confirm or triage control.
 - Show an agent's or a library's words as the answer or the error; quote them as a detail.
 - Put icons before every menu item, ticks after finished steps, spinners where a fill will do, or coloured cards around process.
 - Name a step by its command line or a tool's internal name, or put a decision's buttons in the middle of the messages.

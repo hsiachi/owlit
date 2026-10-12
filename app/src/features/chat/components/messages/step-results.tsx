@@ -55,13 +55,13 @@ const Pre = ({ children, className }: { children: string; className?: string }) 
   <pre className={cn("font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground", className)}>{children}</pre>
 )
 
-// An edit's marks, as the doc draws them before it is applied: new words in Owlit's colour, underlined;
+// An edit's marks, as the doc draws them before it is applied: new words in Owlit's green, underlined;
 // removed words muted with a strike in it
 const Added = ({ children, className }: { children: string; className?: string }) => (
-  <ins className={cn("text-suggestion underline decoration-suggestion decoration-1 underline-offset-3", className)}>{children}</ins>
+  <ins className={cn("text-owlit underline decoration-owlit decoration-1 underline-offset-3", className)}>{children}</ins>
 )
 const Removed = ({ children }: { children: string }) => (
-  <del className="text-muted-foreground line-through decoration-suggestion decoration-[1.5px]">{children}</del>
+  <del className="text-muted-foreground line-through decoration-owlit decoration-[1.5px]">{children}</del>
 )
 
 // The part of a file an edit changes, read as prose: what it adds and what it takes out, with a line of

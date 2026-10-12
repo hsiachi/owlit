@@ -158,7 +158,7 @@ export function CheckMark({ checking, result, service, accepted = `${service} ac
     mark = <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
     label = `Checking with ${service}…`
   } else if (result?.result === "works") {
-    mark = <CheckIcon className="size-3.5 text-success animate-in fade-in zoom-in-75" />
+    mark = <CheckIcon className="size-3.5 text-owlit animate-in fade-in zoom-in-75" />
     label = accepted
   }
   return (

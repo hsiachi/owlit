@@ -66,14 +66,14 @@ function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | 
   return { unit: all[0].unit, added: all.reduce((t, s) => t + s.added, 0), removed: all.reduce((t, s) => t + s.removed, 0), rewritten: whole && all[0].rewritten }
 }
 
-// "+31 −1": new words in Owlit's suggestion colour, as the doc marks its edits; removals muted, never red.
+// "+31 −1": new words in Owlit's green, as the doc marks its edits; removals muted, never red.
 // A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
 export function EditCounts({ stats }: { stats: EditStats }) {
   if (stats.rewritten) return <span>Rewritten</span>
   const { added, removed, unit } = countParts(stats)
   return (
     <span className="tabular-nums" title={`${stats.unit === "words" ? "Words" : "Lines"} added and removed`}>
-      {added && <span className="text-suggestion">{added}</span>}
+      {added && <span className="text-owlit">{added}</span>}
       {added && removed && " "}
       {removed && <span>{removed}</span>}
       {unit && ` ${unit}`}

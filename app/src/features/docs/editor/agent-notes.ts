@@ -282,20 +282,19 @@ export function agentNotes(actions: Actions): Extension {
   ])
 
   const theme = EditorView.theme({
-    // The passage: a 2px underline in the note colour, and a wash of it while the note is open. A doc's own
-    // ==highlights== are a different, lemon yellow, so the two never pass for each other. The underline and
-    // the card's edge carry the meaning alone, so they take the rim's deeper amber (3:1 on light paper).
+    // The passage: a 2px underline in Owlit's mark green, and a wash of it while the note is open. A doc's
+    // own ==highlights== are a different, lemon yellow, so the two never pass for each other.
     ".cm-note-mark": {
       textDecorationLine: "underline",
-      textDecorationColor: "var(--note-rim)",
+      textDecorationColor: "var(--owlit-mark)",
       textDecorationThickness: "2px",
       textUnderlineOffset: "5px",
       textDecorationSkipInk: "none",
     },
     // The wash fades in over --t-mark (the words are redrawn when the note opens, so a keyframe, in index.css)
-    ".cm-note-mark-open": { backgroundColor: "color-mix(in oklch, var(--note) 24%, transparent)", animation: "note-wash var(--t-mark) var(--ease)" },
-    // The open note is plainly not the doc: a raised card under the paragraph with a rule in the note
-    // colour at its left edge. Who wrote it comes first, the actions sit at the bottom right. The card's
+    ".cm-note-mark-open": { backgroundColor: "color-mix(in oklch, var(--owlit-mark) 22%, transparent)", animation: "note-wash var(--t-mark) var(--ease)" },
+    // The open note is plainly not the doc: a raised card under the paragraph with a rule in Owlit's
+    // green at its left edge. Who wrote it comes first, the actions sit at the bottom right. The card's
     // overhang into the margin is on the fold, so the fold's clip never cuts it.
     ".cm-note-fold": { marginLeft: "-16px" },
     ".cm-note": {
@@ -303,7 +302,7 @@ export function agentNotes(actions: Actions): Extension {
       padding: "8px 12px 6px 13px",
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--note-rim)",
+      borderLeft: "3px solid var(--owlit-mark)",
       borderRadius: "4px 10px 10px 4px",
       fontSize: "14px",
       lineHeight: "1.55",
