@@ -141,6 +141,13 @@
     --chart-4: oklch(0.37 0.01 60);
     --chart-5: oklch(0.27 0.008 60);
     --radius: 0.625rem;
+    /* Motion explains a change, never decorates (DESIGN.md › Motion): one easing and three durations, for
+       what floats in, what changes size or place in front of the user, and a mark on the ladder filling or
+       leaving. Set once; the paper tones never touch them. */
+    --t-menu: 100ms;
+    --t-layout: 180ms;
+    --t-mark: 150ms;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
     --sidebar: oklch(0.942 0.007 80);
     --sidebar-panel: oklch(0.976 0.004 85);
     --mention: oklch(0.48 0.09 255);
@@ -505,6 +512,44 @@
 /* The 8px note dot (something Owlit did since the user last looked), wherever it appears: the amber
    with a deeper rim, so the mark holds 3:1 on the light panels and on a hovered row */
 .note-dot { background: var(--note); box-shadow: inset 0 0 0 1px var(--note-rim); }
+
+/* ---- Motion ---- */
+/* Unfold (components/unfold.tsx, and the note in a doc): something that opens in place grows from its line
+   and pushes what is below it, so the eye can follow, and folds the same way. Grid rows need no measuring;
+   the inner box clips while the height moves and lets go (shadows, focus rings) once it has settled. */
+.unfold { display: grid; grid-template-rows: 0fr; grid-template-columns: minmax(0, 1fr); transition: grid-template-rows var(--t-layout) var(--ease); }
+.unfold > .unfold-inner { min-width: 0; min-height: 0; overflow: hidden; opacity: 0; transition: opacity var(--t-layout) var(--ease), transform var(--t-layout) var(--ease); }
+.unfold[data-state="open"] { grid-template-rows: 1fr; }
+.unfold[data-state="open"] > .unfold-inner { opacity: 1; }
+.unfold[data-state="open"][data-settled] > .unfold-inner { overflow: visible; }
+/* What arrives (a waiting card) also rises 6px into place */
+.unfold[data-rise] > .unfold-inner { transform: translateY(6px); }
+.unfold[data-state="open"][data-rise] > .unfold-inner { transform: none; }
+/* Status slot (components/status-ring.tsx): the ring is always there; a fill grows from its centre, the
+   shield crossfades, and the ring gives way under either */
+.status-slot > * { grid-area: 1 / 1; transition: opacity var(--t-mark) var(--ease), transform var(--t-mark) var(--ease); }
+.status-slot > [data-mark] { opacity: 0; transform: scale(0.6); }
+.status-slot > [data-mark="ring"] { opacity: 1; transform: none; }
+.status-slot > [data-mark="waiting"] { transform: scale(0.7); }
+.status-slot[data-status="working"] > [data-mark="working"],
+.status-slot[data-status="finished"] > [data-mark="finished"],
+.status-slot[data-status="failed"] > [data-mark="failed"],
+.status-slot[data-status="waiting"] > [data-mark="waiting"] { opacity: 1; transform: none; }
+.status-slot:not([data-status="idle"]) > [data-mark="ring"] { opacity: 0; }
+.status-slot[data-status="waiting"] > [data-mark="ring"] { transform: scale(0.6); }
+/* Result card (ResultRows.tsx): Undo draws the strike across the name from the left */
+.strike { position: relative; }
+.strike::after { content: ""; position: absolute; inset-inline: 0; top: 50%; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform var(--t-layout) var(--ease); }
+.strike[data-struck]::after { transform: scaleX(1); }
+/* The wash on a note's words (agent-notes.ts) fades in; the words are redrawn when the note opens, so it is
+   an animation, not a transition */
+@keyframes note-wash { from { background-color: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  /* Nothing changes size or place over time; the fades stay */
+  .unfold, .strike::after { transition: none; }
+  .unfold > .unfold-inner { transition: opacity var(--t-layout) var(--ease); transform: none; }
+  .status-slot > * { transition: opacity var(--t-mark) var(--ease); }
+}
 /* ---- Owlit in a doc or a note ---- */
 /* A selected passage's menu, "Ask Owlit": one compact row in a thin frame, covering as little text as it
    can; 8px corners concentric with the 6px item inside */

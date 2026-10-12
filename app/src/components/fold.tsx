@@ -1,9 +1,13 @@
 import { ChevronRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// The chevron of anything that folds: it points right, and down while open
+// The chevron of anything that folds: it points right, and turns down as the thing unfolds
 export function FoldChevron({ open, className }: { open: boolean; className?: string }) {
-  return <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90", className)} />
+  return (
+    <ChevronRightIcon
+      className={cn("size-3.5 shrink-0 transition-transform duration-(--t-layout) ease-(--ease) motion-reduce:transition-none", open && "rotate-90", className)}
+    />
+  )
 }
 
 // A fold ("Sources · 4 docs", "5 changes", "Show 4 more"): a 13px muted text button with the chevron
