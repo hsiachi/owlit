@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { LibraryIcon, XIcon, type LucideIcon } from "lucide-react"
+import { ChevronRightIcon, LibraryIcon, XIcon, type LucideIcon } from "lucide-react"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { WaitingShield } from "@/components/marks"
@@ -20,7 +20,9 @@ import { useLoginTasks } from "@/features/tasks/store"
 
 // Everything stuck on the user, in one list: a permission a chat waits for, a publisher that wants a
 // check, handed-off work that broke, an agent that can't run, a library sign-in. Each line is the thing
-// and its fix; it leaves once answered. Shown only while something waits, in the rows' own look (Home's
+// and its fix; it leaves once answered. The whole row is the way to the fix, as every row on Home is a
+// link, and its right end says what clicking does ("Check now ›"); a real button is kept only for a fix
+// that does something other than going there (Retry). Shown only while something waits, in the rows' own look (Home's
 // Recent), not a card. The places these come from keep their own marks (a chat's status ring, the rail's
 // dots). What holds up work comes first: a chat or an agent stopped on the user. A publisher's check only
 // keeps a PDF away, so papers come last, and three or more of one kind share a line.
@@ -31,7 +33,10 @@ interface Waiting {
   where?: string
   // The full story when the line is short for it, such as the agent's own error message
   detail?: string
-  fix: { label: string; run: () => void; quiet?: boolean }
+  // Where clicking the row goes, and the words at its right end for it
+  open: { label: string; run: () => void }
+  // A fix that isn't just going there, as a button at the right end instead of the words
+  action?: { label: string; run: () => void }
   // Leave it as it is: only for a broken reply, which otherwise waits until it is run again
   dismiss?: () => void
 }
@@ -56,7 +61,7 @@ function useWaiting(): Waiting[] {
         // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
         const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
         const what = ask.type === "permission" ? askSentence(ask.title, call) : "Owlit has a question"
-        out.push({ key: `ask:${chat.id}`, icon: KIND_ICON.chat, what, where: `in “${chat.title}”`, fix: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
+        out.push({ key: `ask:${chat.id}`, icon: KIND_ICON.chat, what, where: `in “${chat.title}”`, open: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
       } else if (broken) {
         const index = chat.messages.length - 1
         out.push({
@@ -65,7 +70,9 @@ function useWaiting(): Waiting[] {
           what: "Owlit stopped",
           where: `in “${chat.title}”`,
           detail: broken.error || undefined,
-          fix: {
+          // The row only opens the chat, so a stray click never runs anything again
+          open: { label: "Open", run: () => navigate(`/chat/${chat.id}`) },
+          action: {
             label: "Retry",
             run: () => {
               navigate(`/chat/${chat.id}`)
@@ -87,11 +94,11 @@ function useWaiting(): Waiting[] {
         icon: KIND_ICON.agent,
         what: problemSentence(c) ?? "",
         where: problem === "error" && c.error ? `· ${c.error}` : `· ${role}`,
-        fix: { label: "Manage agents…", run: () => openSettings("agents"), quiet: true },
+        open: { label: "Manage agents", run: () => openSettings("agents") },
       })
     }
     if (loginTask) {
-      out.push({ key: "login", icon: LibraryIcon, what: "Your library wants you to sign in", where: "to fetch PDFs", fix: { label: "Library proxy…", run: () => openSettings("proxy"), quiet: true } })
+      out.push({ key: "login", icon: LibraryIcon, what: "Your library wants you to sign in", where: "to fetch PDFs", open: { label: "Library proxy", run: () => openSettings("proxy") } })
     }
     const waitingPapers = Object.values(papers)
       .filter((p) => p.noPdf?.needs && !p.pdf)
@@ -103,7 +110,7 @@ function useWaiting(): Waiting[] {
       const label = needs === "sign-in" ? "Sign in" : "Check now"
       if (group.length <= 2) {
         for (const paper of group) {
-          out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: `for ${citationLabel(paper)}`, fix: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })
+          out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: `for ${citationLabel(paper)}`, open: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })
         }
         continue
       }
@@ -114,7 +121,7 @@ function useWaiting(): Waiting[] {
         what: what(true),
         where: `for ${namesOf(group)}`,
         detail: group.map(citationLabel).join("\n"),
-        fix: {
+        open: {
           label,
           run: () => {
             useCheckQueue.getState().start(group.map((p) => p.id))
@@ -143,21 +150,31 @@ export function WaitingOnYou() {
       </GroupLabel>
       <ul className="flex flex-col gap-0.5">
         {waiting.map((w) => (
-          <li key={w.key} className="group/waiting flex min-h-9 items-center gap-2.5 rounded-md py-1 pr-1 pl-2.5 hover:bg-muted">
-            <w.icon className="size-4 shrink-0 text-muted-foreground" />
-            <p className="min-w-0 flex-1 truncate text-sm" title={w.detail}>
+          <li key={w.key} className="group/waiting relative flex min-h-9 items-center gap-2.5 rounded-md py-1 pr-2.5 pl-2.5 hover:bg-muted has-focus-key:bg-muted">
+            {/* The row's own button lies under its words, so the Retry and Dismiss buttons inside stay
+                buttons of their own rather than buttons in a button */}
+            <button type="button" onClick={w.open.run} title={w.detail} aria-label={`${w.what}${w.where ? ` ${w.where}` : ""}: ${w.open.label}`} className="absolute inset-0 rounded-md outline-none" />
+            <w.icon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
+            <p className="pointer-events-none min-w-0 flex-1 truncate text-sm">
               {w.what}
               {w.where && <span className="text-muted-foreground"> {w.where}</span>}
             </p>
             {w.dismiss && (
               // Leaving a broken reply as it is: a quiet way out, shown where the pointer or focus is
-              <IconButton label="Dismiss" onClick={w.dismiss} className="opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100">
+              <IconButton label="Dismiss" onClick={w.dismiss} className="relative opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100">
                 <XIcon />
               </IconButton>
             )}
-            <Button size="sm" variant={w.fix.quiet ? "ghost" : "outline"} onClick={w.fix.run} className={w.fix.quiet ? "text-muted-foreground" : undefined}>
-              {w.fix.label}
-            </Button>
+            {w.action ? (
+              <Button size="sm" variant="outline" onClick={w.action.run} className="relative -mr-1.5">
+                {w.action.label}
+              </Button>
+            ) : (
+              <span className="pointer-events-none flex shrink-0 items-center gap-0.5 text-detail text-muted-foreground group-hover/waiting:text-foreground">
+                {w.open.label}
+                <ChevronRightIcon className="size-3.5" />
+              </span>
+            )}
           </li>
         ))}
       </ul>
