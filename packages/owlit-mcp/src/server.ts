@@ -354,7 +354,7 @@ export function pdfFact(p: Pick<Paper, "pdf" | "noPdf" | "ids">) {
   if (p.noPdf.needs === "sign-in") return "no PDF: waiting for the user to sign in to the library or publisher; the user can press Check now on the paper"
   const { tried } = p.noPdf
   if (tried.some((r) => r.endsWith(":proxied"))) return "no PDF: no free copy, and the user's library proxy didn't get it either; the user can drop the PDF on the paper"
-  if (tried.some((r) => r.startsWith("browser:"))) return "no PDF: no free copy, and no library proxy is set up ([Settings › Library proxy](owlit://settings/proxy))"
+  if (tried.some((r) => r.startsWith("browser:"))) return "no PDF: no free copy, and no library proxy is set up ([Settings › Papers › Library proxy](owlit://settings/proxy))"
   if (p.ids.doi || p.ids.arxiv) return "no PDF: owlit couldn't download it; the user can drop the PDF on the paper"
   return "no PDF: no free copy, and without a DOI owlit can't ask the publisher; the user can drop the PDF on the paper"
 }

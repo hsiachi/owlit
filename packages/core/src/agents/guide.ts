@@ -3,6 +3,7 @@
 // that one of these paragraphs mentions changes the paragraph in the same commit.
 //
 // Version 1 (2026-10-10): first version.
+// Version 2 (2026-10-12): Settings has four sections (Owlit, Agents, Papers, Appearance).
 
 interface GuideTopic {
   id: string
@@ -24,7 +25,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "pdfs",
     title: "Getting PDFs (library proxy)",
-    text: `owlit fetches a paper's PDF by itself when one is free. For papers the user's library pays for, set up Settings › Library proxy once: pick the library, or paste any link opened through it. The user signs in in owlit's own window, and papers waiting on the sign-in carry on. When a publisher wants a person to pass a check, the paper says so and offers Check now, which shows the publisher's page in place; the Library's "Needs you" filter lists every such paper. A contact email and free API keys in Settings › Paper sources make lookups faster.`,
+    text: `owlit fetches a paper's PDF by itself when one is free. For papers the user's library pays for, set up the library proxy once in Settings › Papers: pick the library, or paste any link opened through it. The user signs in in owlit's own window, and papers waiting on the sign-in carry on. When a publisher wants a person to pass a check, the paper says so and offers Check now, which shows the publisher's page in place; the Library's "Needs you" filter lists every such paper. A contact email and free API keys, also in Settings › Papers, make lookups faster.`,
   },
   {
     id: "reading",
@@ -49,7 +50,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "agents",
     title: "Agents (Claude Code, Codex, Gemini CLI)",
-    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Agents also picks the agent and language for background work such as reading notes.`,
+    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as reading notes.`,
   },
   {
     id: "knowledge",
@@ -64,7 +65,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has seven sections: Profile (the name Owlit calls the user), Appearance (theme and paper tone), Agents, Paper sources (contact email, Semantic Scholar and OpenAlex keys), Library proxy, PDF reading (built-in, or MinerU for better text) and Privacy. Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, the agent and language for background work such as reading notes, and whether owlit remembers what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",
@@ -73,7 +74,7 @@ const TOPICS: GuideTopic[] = [
   },
 ]
 
-const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (profile, appearance, agents, sources, proxy, reading, privacy), for example [Settings › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
+const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (owlit, agents, papers, appearance), or a part of one (background, privacy, sources, proxy, reading), for example [Settings › Papers › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
 
 export function guide(topic?: string) {
   const list = TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")

@@ -7,33 +7,57 @@ import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
 
-// The dialog's sections in order, by the names its list and owlit:// links show
+// The dialog's sections in order, by the names its list and owlit:// links show. They follow what the
+// user came to do (what Owlit does, which agents run it, getting papers, how it looks), not core's modules.
 export const SECTIONS = [
-  { id: "profile", label: "Profile" },
-  { id: "appearance", label: "Appearance" },
+  { id: "owlit", label: "Owlit" },
   { id: "agents", label: "Agents" },
-  { id: "sources", label: "Paper sources" },
-  { id: "proxy", label: "Library proxy" },
-  { id: "reading", label: "PDF reading" },
-  { id: "privacy", label: "Privacy" },
+  { id: "papers", label: "Papers" },
+  { id: "appearance", label: "Appearance" },
 ] as const
 export type SettingsSection = (typeof SECTIONS)[number]["id"]
+
+// Groups inside a section that a link can open at. Before 2026-10-12 most of these were sections of their
+// own, so owlit://settings/proxy in an older chat still lands in the right place.
+export const GROUPS = {
+  profile: { section: "owlit", label: null },
+  background: { section: "owlit", label: "Background work" },
+  privacy: { section: "owlit", label: "Privacy" },
+  sources: { section: "papers", label: "Finding papers" },
+  proxy: { section: "papers", label: "Library proxy" },
+  reading: { section: "papers", label: "Reading PDFs" },
+} as const satisfies Record<string, { section: SettingsSection; label: string | null }>
+export type SettingsGroup = keyof typeof GROUPS
+export type SettingsPlace = SettingsSection | SettingsGroup
+
+// Where an owlit://settings/<id> link goes, with the words it shows ("Papers › Library proxy")
+export function settingsPlace(id: string): { section: SettingsSection; group?: SettingsGroup; label: string } | null {
+  const section = SECTIONS.find((s) => s.id === id)
+  if (section) return { section: section.id, label: section.label }
+  if (!(id in GROUPS)) return null
+  const group = GROUPS[id as SettingsGroup]
+  const sectionLabel = SECTIONS.find((s) => s.id === group.section)!.label
+  return { section: group.section, group: id as SettingsGroup, label: group.label ? `${sectionLabel} › ${group.label}` : sectionLabel }
+}
 
 interface SettingsState {
   view: SettingsView | null
   open: boolean
   section: SettingsSection
+  // The group to bring into view once the section is drawn; cleared once it is
+  group: SettingsGroup | null
 }
 
-export const useSettings = create<SettingsState>(() => ({ view: null, open: false, section: "profile" }))
+export const useSettings = create<SettingsState>(() => ({ view: null, open: false, section: "owlit", group: null }))
 
-// Opens the dialog at a section when the caller knows what needs setting up, otherwise where it was
-// last left
-export function openSettings(section?: SettingsSection) {
-  useSettings.setState((s) => ({ open: true, section: section ?? s.section }))
+// Opens the dialog at a section, or a group in one, when the caller knows what needs setting up;
+// otherwise where it was last left
+export function openSettings(place?: SettingsPlace) {
+  const to = place ? settingsPlace(place) : null
+  useSettings.setState((s) => ({ open: true, section: to?.section ?? s.section, group: to?.group ?? null }))
 }
 export const closeSettings = () => useSettings.setState({ open: false })
-export const showSection = (section: SettingsSection) => useSettings.setState({ section })
+export const showSection = (section: SettingsSection) => useSettings.setState({ section, group: null })
 
 function receive(view: SettingsView) {
   useSettings.setState({ view })
@@ -60,14 +84,7 @@ export async function setActivity(enabled: boolean) {
   await rpc.activity.setEnabled({ enabled })
 }
 
-const webView = (): SettingsView => ({
-  appearance: storedAppearance(),
-  profile: {},
-  library: {},
-  parsing: { auto: true },
-  secrets: {},
-  activity: { enabled: true },
-})
+const webView = (): SettingsView => ({ appearance: storedAppearance(), profile: {}, library: {}, parsing: { auto: true }, secrets: {}, activity: { enabled: true } })
 
 export function startSettings() {
   if (!isDesktop) {

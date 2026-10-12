@@ -9,7 +9,7 @@ describe("guide", () => {
   })
 
   it("gives one topic by its id or by a word in it", () => {
-    expect(guide("pdfs")).toMatch(/^Getting PDFs \(library proxy\)\n\n.*Settings › Library proxy/s)
+    expect(guide("pdfs")).toMatch(/^Getting PDFs \(library proxy\)\n\n.*library proxy once in Settings › Papers/s)
     expect(guide("highlight")).toMatch(/^Reading and highlighting\n/)
     expect(guide("Zotero")).toMatch(/^Adding papers\n/)
   })

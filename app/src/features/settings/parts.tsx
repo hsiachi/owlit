@@ -12,7 +12,7 @@ import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash
 import { cn } from "@/lib/utils"
 import { BorderedList } from "@/components/bordered-list"
 import { ChoiceMenu } from "@/components/choice-menu"
-import { GroupLabel as SharedGroupLabel } from "@/components/group-label"
+import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
@@ -23,12 +23,20 @@ import { setSecret, useSettings } from "./store"
 
 export const List = BorderedList
 
-// A second group in a section; its rows start at the list's edge, so the label does too
-export function GroupLabel({ info, children }: { info?: string; children: React.ReactNode }) {
+// A group of rows in a section: an optional label, the rows, and a muted line under them for what the
+// whole group shares (where its keys are kept, what it is for when nothing is set up). A link can open
+// Settings at a group by its id. The label starts at the list's edge, as the note does.
+export function Group({ id, label, info, note, children }: { id?: string; label?: string; info?: string; note?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <SharedGroupLabel as="div" flush info={info} className="mt-6">
+    <section data-settings-group={id} className="scroll-mt-1 not-first:mt-6">
+      {label && (
+        <GroupLabel as="h3" flush info={info}>
+          {label}
+        </GroupLabel>
+      )}
       {children}
-    </SharedGroupLabel>
+      {note && <p className="mt-1.5 text-detail leading-5 text-muted-foreground">{note}</p>}
+    </section>
   )
 }
 
@@ -44,7 +52,8 @@ export function Row({
   // The explanation, behind an info icon
   info?: string
   // What the choice depends on, in one muted line under the name: for a setting that can't be picked well
-  // without it (which agent does background work, why a key is worth adding)
+  // without it (which agent does background work, why a key is worth adding). Within a group, prefer it
+  // on every row or on none, so the rows do not jump between heights.
   help?: string
   // What sits at the right of the row
   control?: React.ReactNode
@@ -61,7 +70,8 @@ export function Row({
         </span>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-1">{control}</div>
       </div>
-      {help && <p className="-mt-0.5 max-w-[46ch] text-detail leading-5 text-muted-foreground">{help}</p>}
+      {/* As wide as the row, so a short line never leaves one word on a second line */}
+      {help && <p className="-mt-0.5 text-detail leading-5 text-muted-foreground">{help}</p>}
       {children}
     </div>
   )

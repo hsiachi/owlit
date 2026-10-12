@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { Switch } from "@/components/ui/switch"
 import { useCheck } from "../form-state"
-import { CheckMark, CheckNote, CommitInput, List, Picker, Row, SecretRow } from "../parts"
+import { CheckMark, CheckNote, CommitInput, Group, List, Picker, Row, SecretRow } from "../parts"
 import { updateSettings, useSettings } from "../store"
 
 type Reader = "builtin" | "cloud" | "self-hosted"
@@ -12,34 +12,36 @@ const OPTIONS: { value: Reader; label: string }[] = [
   { value: "self-hosted", label: "MinerU on my own server" },
 ]
 
-export function ReadingSection() {
+export function ReadingGroup() {
   const parsing = useSettings((s) => s.view?.parsing)
   const reader: Reader = parsing?.service ?? "builtin"
   return (
-    <List>
-      <Row
-        name="Read PDFs with"
-        help="Built-in is instant. MinerU takes about a minute per paper but gets tables, formulas and scanned pages right."
-        control={<Picker label="Read PDFs with" value={reader} options={OPTIONS} onChange={(next) => void updateSettings({ parsing: { service: next === "builtin" ? null : next } })} />}
-      />
-      {reader === "cloud" && (
-        <SecretRow
-          name="mineruToken"
-          label="Token"
-          service="MinerU"
-          info="MinerU's API token. Kept in the system keychain."
-          getFrom={{ label: "mineru.net", href: "https://mineru.net/apiManage/token" }}
-        />
-      )}
-      {reader === "self-hosted" && <ServerRow url={parsing?.url ?? ""} />}
-      {reader !== "builtin" && (
+    <Group id="reading" label="Reading PDFs">
+      <List>
         <Row
-          name="Read new PDFs with MinerU automatically"
-          info="Off means MinerU reads a paper only when you ask on its page."
-          control={<Switch checked={parsing?.auto ?? true} onCheckedChange={(auto) => void updateSettings({ parsing: { auto } })} aria-label="Read new PDFs with MinerU automatically" />}
+          name="Read PDFs with"
+          help="Built-in is instant. MinerU is slower but gets tables, formulas and scans right."
+          control={<Picker label="Read PDFs with" value={reader} options={OPTIONS} onChange={(next) => void updateSettings({ parsing: { service: next === "builtin" ? null : next } })} />}
         />
-      )}
-    </List>
+        {reader === "cloud" && (
+          <SecretRow
+            name="mineruToken"
+            label="Token"
+            service="MinerU"
+            info="MinerU's API token. Kept in the system keychain."
+            getFrom={{ label: "mineru.net", href: "https://mineru.net/apiManage/token" }}
+          />
+        )}
+        {reader === "self-hosted" && <ServerRow url={parsing?.url ?? ""} />}
+        {reader !== "builtin" && (
+          <Row
+            name="Read new PDFs with MinerU automatically"
+            help="Off, MinerU reads a paper only when you ask on its page."
+            control={<Switch checked={parsing?.auto ?? true} onCheckedChange={(auto) => void updateSettings({ parsing: { auto } })} aria-label="Read new PDFs with MinerU automatically" />}
+          />
+        )}
+      </List>
+    </Group>
   )
 }
 

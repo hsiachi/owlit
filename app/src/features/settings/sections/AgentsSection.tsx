@@ -1,19 +1,16 @@
 import { useState } from "react"
 import { RefreshCwIcon, Trash2Icon } from "lucide-react"
-import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/copy-button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
-import { Switch } from "@/components/ui/switch"
 import { ConnectorStatusChip } from "@/features/chat/components/ConnectorStatusChip"
 import { isBroken, isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
-import { CommitInput, FoldedForm, GroupLabel, IconAction, List, Note, onHover, Picker, Row } from "../parts"
+import { FoldedForm, Group, IconAction, List, Note, onHover, Row } from "../parts"
 import { EngineSignIns } from "./EngineSignIns"
-import { updateSettings, useSettings } from "../store"
 
 export function AgentsSection() {
   const connectors = useChatStore((s) => s.connectors)
@@ -21,22 +18,22 @@ export function AgentsSection() {
   const [adding, setAdding] = useState(false)
   useFoldWhile(adding, () => setAdding(false))
 
+  // Which agent does background work is chosen under Owlit, beside the reading notes it writes
   return (
     <>
-      <List>
-        {connectors.map((c) => (
-          <ConnectorRow key={c.id} connector={c} />
-        ))}
-      </List>
-      <AddAgent open={adding} setOpen={setAdding} />
+      <Group>
+        <List>
+          {connectors.map((c) => (
+            <ConnectorRow key={c.id} connector={c} />
+          ))}
+        </List>
+        <AddAgent open={adding} setOpen={setAdding} />
+      </Group>
       {engine && (
-        <>
-          <GroupLabel info={`${engine.name} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer.`}>Sign-ins</GroupLabel>
+        <Group label="Sign-ins" info={`${engine.name} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer.`}>
           <EngineSignIns connector={engine} />
-        </>
+        </Group>
       )}
-      <GroupLabel>Background work</GroupLabel>
-      <BackgroundWork />
     </>
   )
 }
@@ -128,65 +125,5 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
         <span className="text-xs text-muted-foreground">What owlit runs to start the agent. It must speak ACP over stdio.</span>
       </label>
     </FoldedForm>
-  )
-}
-
-// Work nobody is waiting on: reading notes now, Knowledge later
-function BackgroundWork() {
-  const connectors = useChatStore((s) => s.connectors)
-  const view = useSettings((s) => s.view)
-  const ready = connectors.filter(isReady)
-  // Unset means the first agent that is ready, owlit's first choice first (core's own choice)
-  const fallback = ready.find((c) => c.id === FIRST_CHOICE_AGENT) ?? ready[0]
-  const chosen = view?.backgroundAgent ?? ""
-  const options = [
-    { value: "", label: fallback ? `Automatic (${fallback.name})` : "Automatic" },
-    ...connectors.filter((c) => isReady(c) || c.id === chosen).map((c) => ({ value: c.id, label: c.name })),
-  ]
-  // The agent doing the work, and the models it offers (an agent's own "Default" is not a real choice)
-  const agent = connectors.find((c) => c.id === (chosen || fallback?.id))
-  const models = agent?.models.filter((m) => m.id !== "default") ?? []
-  const defaultModel = models.find((m) => m.id === agent?.defaultModelId) ?? models[0]
-  const groups = new Set(models.map((m) => m.group).filter(Boolean)).size
-  const modelOptions = [
-    { value: "", label: defaultModel ? `Its default (${defaultModel.name})` : "Its default" },
-    // Models from more than one sign-in say whose they are, as the composer's headings do
-    ...models.map((m) => ({ value: m.id, label: groups > 1 && m.group ? `${m.group} · ${m.name}` : m.name })),
-  ]
-  const chosenModel = (agent && view?.backgroundModels?.[agent.id]) ?? ""
-  return (
-    <List>
-      <Row
-        name="Agent"
-        help="For work nobody is waiting on, such as reading notes. Automatic picks the first agent that is ready."
-        control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
-      />
-      {agent && models.length > 1 && (
-        <Row
-          name="Model"
-          help="A smaller one costs less; reading notes rarely need the strongest."
-          control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model || null } })} />}
-        />
-      )}
-      <Row
-        name="Reading notes in"
-        info="The language Owlit writes reading notes in. Papers keep their own language."
-        // Unset is English (core's default), shown as the value rather than a placeholder that looks like one
-        control={
-          <CommitInput
-            aria-label="Reading notes language"
-            placeholder="English"
-            value={view?.library.digestLanguage ?? "English"}
-            onCommit={(language) => void updateSettings({ library: { digestLanguage: language && language !== "English" ? language : null } })}
-            className="w-40"
-          />
-        }
-      />
-      <Row
-        name="Reading notes for every paper"
-        info="Off: Owlit writes a reading note when you open or star a paper. On: for every paper once its text is in, which keeps the agent busy after a big import."
-        control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label="Reading notes for every paper" />}
-      />
-    </List>
   )
 }

@@ -99,7 +99,7 @@ function busy(error: unknown, name: string, keys: MetadataKeys) {
     const others = name === NAMES.openalex ? " Until then use library_search with source s2 or arxiv." : ""
     const key =
       name === NAMES.openalex && !keys.openalexApiKey
-        ? " A free OpenAlex API key gives ten times as much: the user can add one in [Settings › Paper sources](owlit://settings/sources)."
+        ? " A free OpenAlex API key gives ten times as much: the user can add one in [Settings › Papers](owlit://settings/sources)."
         : ""
     return new RpcFailure(
       RpcErrorCode.Unavailable,
@@ -111,7 +111,7 @@ function busy(error: unknown, name: string, keys: MetadataKeys) {
     return new RpcFailure(
       RpcErrorCode.Unavailable,
       name === NAMES.s2 && !keys.s2ApiKey
-        ? `${name} is too busy to answer without an API key (the user can add one in Settings › Paper sources). Try again in a minute, or use source openalex.`
+        ? `${name} is too busy to answer without an API key (the user can add one in Settings › Papers). Try again in a minute, or use source openalex.`
         : `${name} asked owlit to slow down. Try again in a minute.`,
       { status: 429 },
     )

@@ -3,59 +3,44 @@
 // the rail, and links where something could work better ("Set up library proxy", "Manage agents…"),
 // which open it at their section. Closing it leaves you exactly where you were.
 
-import { BotIcon, CircleUserIcon, EyeIcon, GlobeIcon, LandmarkIcon, PaletteIcon, ScanTextIcon, type LucideIcon } from "lucide-react"
+import { useEffect, useRef } from "react"
+import { BotIcon, PaletteIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
+import { OwlitMark } from "@/components/owlit-mark"
 import { isBroken } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { useLoginTasks } from "@/features/tasks/store"
+import { KIND_ICON } from "@/lib/kinds"
 import { useFold } from "./form-state"
 import { Info } from "@/components/info"
 import { AgentsSection } from "./sections/AgentsSection"
 import { AppearanceSection } from "./sections/AppearanceSection"
-import { PrivacySection } from "./sections/PrivacySection"
-import { ProfileSection } from "./sections/ProfileSection"
-import { ProxySection } from "./sections/ProxySection"
-import { ReadingSection } from "./sections/ReadingSection"
-import { SourcesSection } from "./sections/SourcesSection"
+import { OwlitSection } from "./sections/OwlitSection"
+import { PapersSection } from "./sections/PapersSection"
 import { closeSettings, SECTIONS, showSection, useSettings, type SettingsSection } from "./store"
 
 // What each section shows besides its name: its icon in the list, what it is about, and its body
-const PARTS: Record<SettingsSection, { icon: LucideIcon; about: string; body: React.ComponentType }> = {
-  profile: {
-    icon: CircleUserIcon,
-    about: "Who you are to Owlit. It stays on this computer and is told only to the agent you chat with.",
-    body: ProfileSection,
-  },
-  appearance: {
-    icon: PaletteIcon,
-    about: "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean.",
-    body: AppearanceSection,
+const PARTS: Record<SettingsSection, { icon: React.ComponentType; about: string; body: React.ComponentType }> = {
+  owlit: {
+    icon: OwlitMark,
+    about: "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with.",
+    body: OwlitSection,
   },
   agents: {
     icon: BotIcon,
     about: "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them.",
     body: AgentsSection,
   },
-  sources: {
-    icon: GlobeIcon,
-    about: "Where owlit looks papers up. Everything works without these; they make lookups faster and fail less often.",
-    body: SourcesSection,
+  papers: {
+    icon: KIND_ICON.paper,
+    about: "How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better.",
+    body: PapersSection,
   },
-  proxy: {
-    icon: LandmarkIcon,
-    about: "Gets publisher PDFs through your university's subscription. owlit opens publisher pages through the proxy in its own browser window, signed in as you.",
-    body: ProxySection,
-  },
-  reading: {
-    icon: ScanTextIcon,
-    about: "How owlit reads the text of a PDF, for search, highlights and Owlit's reading.",
-    body: ReadingSection,
-  },
-  privacy: {
-    icon: EyeIcon,
-    about: "What owlit keeps about how you work. It stays in this workspace and is never sent anywhere.",
-    body: PrivacySection,
+  appearance: {
+    icon: PaletteIcon,
+    about: "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean.",
+    body: AppearanceSection,
   },
 }
 const LIST = SECTIONS.map((s) => ({ ...s, ...PARTS[s.id] }))
@@ -65,7 +50,7 @@ function useNeedsYou(): Partial<Record<SettingsSection, boolean>> {
   // An agent nobody has signed in to yet (the Owlit engine in Beta) isn't broken
   const agentBroken = useChatStore((s) => s.connectors.some(isBroken))
   const loginWaiting = useLoginTasks().length > 0
-  return { agents: agentBroken, proxy: loginWaiting }
+  return { agents: agentBroken, papers: loginWaiting }
 }
 
 export function SettingsDialog() {
@@ -95,7 +80,7 @@ export function SettingsDialog() {
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">This computer's settings for owlit.</DialogDescription>
-        {/* Seven short names need about 200px; the rest goes to the section */}
+        {/* The list keeps the width it had with seven names, so the section column stays the same */}
         <SidebarProvider className="min-h-0 items-start" style={{ "--sidebar-width": "12.5rem" } as React.CSSProperties}>
           <Sidebar collapsible="none" className="hidden h-[560px] border-r bg-sidebar-panel md:flex">
             <SidebarContent>
@@ -125,10 +110,24 @@ export function SettingsDialog() {
             </header>
             <div className="flex-1 overflow-y-auto px-6 pt-1 pb-7">
               <Body key={section.id} />
+              <ShowGroup />
             </div>
           </main>
         </SidebarProvider>
       </DialogContent>
     </Dialog>
   )
+}
+
+// A link that names a group ("Set up library proxy") brings it to the top. It sits after the section's
+// body, inside the dialog's portal, so the group is on the page by the time its effect runs.
+function ShowGroup() {
+  const group = useSettings((s) => s.group)
+  const mark = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!group) return
+    mark.current?.parentElement?.querySelector(`[data-settings-group="${group}"]`)?.scrollIntoView({ block: "start" })
+    useSettings.setState({ group: null })
+  }, [group])
+  return <span ref={mark} hidden />
 }

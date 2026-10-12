@@ -29,7 +29,7 @@ export interface BackgroundRun {
   connectorId?: string
   // Further tools this run may use (a Knowledge run writes topics)
   allow?: RegExp
-  // The model each agent uses here, when not its default (Settings › Agents › Background work)
+  // The model each agent uses here, when not its default (Settings › Owlit › Background work)
   models?: Record<string, string>
 }
 
