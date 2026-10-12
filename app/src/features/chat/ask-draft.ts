@@ -7,8 +7,8 @@ import { useChatStore } from "./store"
 // they gave so far, and whether the card is folded to its line. Both the card above the composer and the
 // composer itself answer it (typing is an answer of one's own), so the draft lives here rather than in the
 // card. Sent to the agent when the user submits, once every question has an answer; a single pick moves on
-// to the next question still open but never submits by itself, so the questions can be revisited by their
-// tabs.
+// to the next question still open but never submits by itself, so the questions can be revisited with the
+// pager.
 interface Draft {
   requestId: string
   index: number

@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { CheckIcon, MessageCircleQuestionIcon } from "lucide-react"
-import { BorderedList } from "@/components/bordered-list"
+import { ChevronLeftIcon, ChevronRightIcon, MessageCircleQuestionIcon } from "lucide-react"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { FoldChevron } from "@/components/fold"
 import { WaitingShield } from "@/components/marks"
@@ -10,7 +9,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Kbd } from "@/components/ui/kbd"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Unfold } from "@/components/unfold"
 import type { Chat, Part, PermissionKind } from "../types"
 import { allAnswered, answered, nextOpen, useAskDraft } from "../ask-draft"
@@ -139,9 +137,10 @@ const editable = (el: Element | null) => !!el && (el instanceof HTMLInputElement
 
 // A question's choices: a radio (one pick) or a checkbox (several) before the label, its description under
 // it, the key that picks it at the end; and, when words of one's own are taken, a last row that hands over
-// to the composer. Each row is a label around its control, so the row is the hit area and the control
-// keeps its own keyboard focus; the row fills on hover, keyboard focus and once picked.
-const OPTION_ROW = "group/option flex w-full cursor-pointer items-start gap-2.5 px-3 py-2 text-left hover:bg-muted has-focus-visible:bg-muted"
+// to the composer. Plain rows, no frame (a card inside the card would stack outlines): the `muted` fill on
+// hover, keyboard focus and once picked is all that draws them. Each row is a label around its control, so
+// the row is the hit area and the control keeps its own keyboard focus.
+const OPTION_ROW = "group/option flex w-full cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 text-left hover:bg-muted has-focus-visible:bg-muted"
 
 function Radio({ checked, onPick, className }: { checked: boolean; onPick: () => void; className?: string }) {
   return (
@@ -191,28 +190,29 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
   const later = nextOpen(ask, answers, index)
   const submits = done || later === undefined
   const asks = agent ? `Owlit asks for the agent “${agent}”` : "Owlit asks"
-  const foldedLine = several ? `${asks} ${ask.questions.length} questions` : q.header ? `${asks} · ${q.header}` : `${asks} a question`
+  // "Owlit asks · Venue": the question's header after the words, falling back to its number among several
+  const header = several ? headerOf(q, index) : q.header && q.header !== q.question ? q.header : undefined
+  const foldedLine = several ? `${asks} ${ask.questions.length} questions` : header ? `${asks} · ${header}` : `${asks} a question`
+  const goTo = (i: number) => store().goTo(chatId, ask, i)
   return (
-    <Tabs value={String(index)} onValueChange={(v) => store().goTo(chatId, ask, Number(v))} className={cn(CARD, "block")} role="group" aria-label="Owlit asks you">
-      {/* The header line folds the card to itself and opens it again; the tabs and the chevron are the buttons */}
+    <div className={CARD} role="group" aria-label="Owlit asks you">
+      {/* The header line folds the card to itself and opens it again; the pager and the chevron are the buttons */}
       <div className="flex min-h-6 cursor-default items-center gap-2.5" onClick={() => fold(!folded)}>
         <MessageCircleQuestionIcon className="size-4 shrink-0 text-warning" />
-        {folded ? (
-          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{foldedLine}</span>
-        ) : (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-            <span className="shrink-0 text-xs text-muted-foreground">{several ? asks : [asks, q.header && q.header !== q.question ? q.header : undefined].filter(Boolean).join(" · ")}</span>
-            {several && (
-              <TabsList variant="line" aria-label="Questions" className="group-data-horizontal/tabs:h-6 p-0" onClick={(e) => e.stopPropagation()}>
-                {ask.questions.map((question, i) => (
-                  <TabsTrigger key={question.id} value={String(i)} className="h-full px-1 text-detail">
-                    {answered(question, answers) && <CheckIcon aria-label="Answered" className="size-3.5" />}
-                    {headerOf(question, i)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            )}
-          </div>
+        <span className={cn("min-w-0 flex-1 truncate text-muted-foreground", folded ? "text-sm" : "text-xs")}>{folded ? foldedLine : header ? `${asks} · ${header}` : asks}</span>
+        {/* Several questions: a pager at the line's end, so an answered one can be gone back to */}
+        {!folded && several && (
+          <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon-xs" aria-label="Previous question" disabled={index === 0} className="text-muted-foreground" onClick={() => goTo(index - 1)}>
+              <ChevronLeftIcon />
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
+              {index + 1} / {ask.questions.length}
+            </span>
+            <Button variant="ghost" size="icon-xs" aria-label="Next question" disabled={index === ask.questions.length - 1} className="text-muted-foreground" onClick={() => goTo(index + 1)}>
+              <ChevronRightIcon />
+            </Button>
+          </span>
         )}
         {folded ? (
           <Button variant="text" size="inline" className="shrink-0" onClick={(e) => (e.stopPropagation(), fold(false))}>
@@ -225,10 +225,10 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
         )}
       </div>
       <Unfold open={!folded}>
-        <TabsContent value={String(index)} className="ml-6.5 pt-0.5">
+        <div className="ml-6.5 pt-0.5">
           <div className="text-body font-medium break-words">{q.question}</div>
           {(q.options.length > 0 || q.allowsText) && (
-            <BorderedList className="mt-2.5" role={q.multiSelect ? "group" : "radiogroup"} aria-label={q.question}>
+            <div className="mt-2 -ml-2 flex flex-col" role={q.multiSelect ? "group" : "radiogroup"} aria-label={q.question}>
               {q.options.map((o, i) => {
                 const picked = picks.includes(o.label)
                 return (
@@ -256,7 +256,7 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
                   <span className="min-w-0 flex-1">Something else…</span>
                 </button>
               )}
-            </BorderedList>
+            </div>
           )}
           <div className="mt-2.5 flex items-center gap-1.5">
             <Button variant="text" size="inline" className="-ml-1.5" onClick={() => store().skip(chatId, ask)}>
@@ -267,8 +267,8 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
               {submits ? "Submit" : "Next"}
             </Button>
           </div>
-        </TabsContent>
+        </div>
       </Unfold>
-    </Tabs>
+    </div>
   )
 }

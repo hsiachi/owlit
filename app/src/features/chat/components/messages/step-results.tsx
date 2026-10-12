@@ -97,6 +97,7 @@ export function DiffPreview({ oldText, newText, className }: { oldText: string; 
 }
 
 export function StepResult({ call, question }: { call: ToolCall; question?: QuestionPart }) {
+  // The questions and what was answered, as prose: the question muted, the answer in the text colour
   if (question?.answers) {
     return (
       <div className="flex flex-col gap-1.5">

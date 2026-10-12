@@ -78,6 +78,12 @@ const ResultBox = ({ children }: { children: React.ReactNode }) => (
   </div>
 )
 
+// Words, not machine output (a thought, the questions and their answers): 13px prose set in with the row's
+// words, no box
+const Prose = ({ className, children }: { className?: string; children: React.ReactNode }) => (
+  <div className={cn("max-h-60 overflow-auto px-3 pb-3 text-detail leading-relaxed", className)}>{children}</div>
+)
+
 function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: StepWords; asks: StepAsks; streaming: boolean }) {
   const [open, setOpen] = useState(false)
   const outcome = asks.outcomes[call.toolCallId]
@@ -111,9 +117,15 @@ function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: Step
         right={right}
       />
       <Unfold open={open}>
-        <ResultBox>
-          <StepResult call={call} question={question} />
-        </ResultBox>
+        {question?.answers ? (
+          <Prose>
+            <StepResult call={call} question={question} />
+          </Prose>
+        ) : (
+          <ResultBox>
+            <StepResult call={call} question={question} />
+          </ResultBox>
+        )}
       </Unfold>
     </div>
   )
@@ -147,9 +159,8 @@ function ThoughtRow({ part, live }: { part: Part<"thought">; live: boolean }) {
   return (
     <div className="border-t first:border-t-0">
       <StepLine words={live ? "Thinking" : "Thought"} live={live} open={open} onToggle={!live && part.text.trim() ? () => setOpen((o) => !o) : undefined} />
-      {/* Prose the agent wrote, not machine output: muted text set in with the row's words, no box */}
       <Unfold open={open}>
-        <div className="max-h-60 overflow-auto px-3 pb-3 text-detail leading-relaxed whitespace-pre-wrap text-muted-foreground">{part.text}</div>
+        <Prose className="whitespace-pre-wrap text-muted-foreground">{part.text}</Prose>
       </Unfold>
     </div>
   )
