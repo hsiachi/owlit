@@ -19,7 +19,7 @@ export function ReadingSection() {
     <List>
       <Row
         name="Read PDFs with"
-        info="Built-in reading is instant. MinerU takes about a minute per paper, but gets reading order, tables, formulas and scanned pages right. Highlights stay where they are when the text is upgraded."
+        help="Built-in is instant. MinerU takes about a minute per paper but gets tables, formulas and scanned pages right."
         control={<Picker label="Read PDFs with" value={reader} options={OPTIONS} onChange={(next) => void updateSettings({ parsing: { service: next === "builtin" ? null : next } })} />}
       />
       {reader === "cloud" && (

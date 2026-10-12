@@ -8,7 +8,7 @@ export function PrivacySection() {
     <List>
       <Row
         name="Remember what I do in owlit"
-        info="Owlit uses what you open, highlight and write to keep Knowledge and Home up to date. It stays in this workspace. Off means Owlit only knows what you tell it in a chat."
+        help="What you open, highlight and write keeps Knowledge and Home up to date. It stays in this workspace."
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label="Remember what I do in owlit" />}
       />
     </List>

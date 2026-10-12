@@ -9,7 +9,7 @@ export function SourcesSection() {
     <List>
       <Row
         name="Contact email"
-        info="OpenAlex and Unpaywall ask for an address they can write to. With one, they answer faster and more often, and Unpaywall can be asked for open copies. owlit never fills this in for you."
+        help="With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies."
         control={
           <CommitInput
             type="email"
@@ -25,14 +25,14 @@ export function SourcesSection() {
         name="s2ApiKey"
         label="Semantic Scholar API key"
         service="Semantic Scholar"
-        info="Optional. Without one, Semantic Scholar often asks owlit to slow down, and lookups wait. Kept in the system keychain."
+        help="Optional. Without one, lookups often wait. Kept in the system keychain."
         getFrom={{ label: "semanticscholar.org", href: "https://www.semanticscholar.org/product/api#api-key-form" }}
       />
       <SecretRow
         name="openalexApiKey"
         label="OpenAlex API key"
         service="OpenAlex"
-        info="Optional. Only needed past OpenAlex's free daily allowance. Kept in the system keychain."
+        help="Optional. Only needed past the free daily allowance. Kept in the system keychain."
         getFrom={{ label: "openalex.org", href: "https://openalex.org/settings/api" }}
       />
     </List>

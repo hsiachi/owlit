@@ -19,14 +19,15 @@ import { useAgentAllowed } from "./hooks"
 import { KIND_NAME, useVisibleContext } from "./page-context"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
-// At the right end of the top bar: the panel with the current chat, as ⇧⌘J
+// At the right end of the top bar: the panel with the current chat, as ⇧⌘J. The feather is also the brand
+// mark, so its tooltip says what it does, not just the name.
 export function AgentToggle() {
   const allowed = useAgentAllowed()
   const docked = useAgentWindow((s) => s.stage === "open")
   const togglePanel = useAgentWindow((s) => s.togglePanel)
   if (!allowed) return null
   return (
-    <IconButton label="Owlit" shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
+    <IconButton label="Ask Owlit" shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
       <OwlitMark />
     </IconButton>
   )

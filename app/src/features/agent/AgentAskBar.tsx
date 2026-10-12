@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
+import { Tip } from "@/components/tip"
 import { keysFor } from "@/app/shortcuts"
 import { AttachmentList } from "@/features/chat/components/composer/AttachmentList"
 import { LargeFilesDialog } from "@/features/chat/components/composer/LargeFilesDialog"
@@ -23,7 +24,8 @@ export function AgentAskBar() {
   const selection = useAgentWindow((s) => s.selection)
   const focusTick = useAgentWindow((s) => s.focusTick)
   const hint = useAgentWindow((s) => s.hint)
-  // The chat ⇧⌘J would bring back, named while the bar is empty so the way back is never a guess
+  // The chat ⇧⌘J would bring back, offered while the bar is empty so the way back is never a guess. Its
+  // title is in the tooltip, not the bar: an unrelated chat's title read as part of this page's question.
   const chatId = useAgentWindow((s) => s.chatId)
   const current = useChatStore((s) => {
     const chat = chatId ? s.chats[chatId] : undefined
@@ -60,6 +62,9 @@ export function AgentAskBar() {
   const holding = attachments.files.length > 0 || mentions.length > 0
 
   return (
+    <>
+      {/* The page's text fades out under the bar instead of running behind it */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-linear-to-t from-background from-40% to-transparent" />
     <div
       className={cn(
         "absolute bottom-4 left-1/2 z-20 flex w-[min(600px,calc(100%-48px))] -translate-x-1/2 flex-col rounded-xl border bg-card shadow-md transition-[border-color] focus-within:border-foreground/20",
@@ -112,15 +117,17 @@ export function AgentAskBar() {
           aria-label="Ask Owlit"
         />
         {current && !text && !selection && !holding && (
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => useAgentWindow.getState().togglePanel()}
-            className="flex h-7 min-w-0 shrink items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <Kbd>{keysFor("owlit-panel")}</Kbd>
-            <span className="max-w-[200px] truncate">{current}</span>
-          </button>
+          <Tip label={current} side="top">
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => useAgentWindow.getState().togglePanel()}
+              className="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <Kbd>{keysFor("owlit-panel")}</Kbd>
+              Last chat
+            </button>
+          </Tip>
         )}
         <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={send} aria-label="Send">
           <ArrowUpIcon />
@@ -128,5 +135,6 @@ export function AgentAskBar() {
       </div>
       <LargeFilesDialog files={attachments.large} onAnswer={attachments.answerLarge} />
     </div>
+    </>
   )
 }
