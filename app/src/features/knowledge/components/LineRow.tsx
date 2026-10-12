@@ -63,7 +63,8 @@ export function LineRow({
     <ActionsOnRightClick groups={menu}>
       <TopicLine
         line={line}
-        mark={<NoteDot gone={!fresh} className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
+        // The dot sits in the row's own left gutter, inside its hover fill, centred on the cap height of the speaker
+        mark={<NoteDot gone={!fresh} className="absolute top-2 -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
         ref={(el) => {
           ref.current = el
           viewedRef.current = el
@@ -72,7 +73,7 @@ export function LineRow({
         tabIndex={editing ? -1 : 0}
         aria-expanded={open}
         className={cn(
-          "group/row relative rounded-md px-2 py-2 outline-none transition-colors",
+          "group/row relative rounded-md py-2 pr-2 pl-5 outline-none transition-colors",
           !editing && "cursor-pointer hover:bg-muted/60 focus-key:bg-muted/60 has-data-[state=open]:bg-muted/60 data-[state=open]:bg-muted/60",
           open && "bg-muted/60",
           hit && "animate-highlight-flash",
