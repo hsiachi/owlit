@@ -118,7 +118,7 @@ class NoteWidget extends WidgetType {
   eq(other: NoteWidget) {
     return other.spot.note === this.spot.note && other.spot.lost === this.spot.lost && other.order.join() === this.order.join()
   }
-  toDOM() {
+  toDOM(view: EditorView) {
     const { note, lost } = this.spot
     const i = this.order.indexOf(note.id)
     const n = this.order.length
@@ -177,7 +177,26 @@ class NoteWidget extends WidgetType {
       button("Chat about this", () => this.actions.onChat(note)),
     )
     box.append(text, actions)
-    return box
+
+    // The note opens under its paragraph the way a peek does (index.css, Unfold): the fold is laid out closed
+    // once the widget is in the doc, then opens, pushing the text below it over --t-layout. CodeMirror measures
+    // block heights itself, so it is told once the height has stopped moving.
+    const fold = document.createElement("div")
+    fold.className = "unfold cm-note-fold"
+    const inner = document.createElement("div")
+    inner.className = "unfold-inner"
+    inner.append(box)
+    fold.append(inner)
+    requestAnimationFrame(() => {
+      fold.dataset.state = "open"
+    })
+    fold.addEventListener("transitionend", (e) => {
+      if (e.target === fold && e.propertyName === "grid-template-rows") {
+        fold.dataset.settled = ""
+        view.requestMeasure()
+      }
+    })
+    return fold
   }
   ignoreEvent() {
     return true
@@ -273,11 +292,14 @@ export function agentNotes(actions: Actions): Extension {
       textUnderlineOffset: "5px",
       textDecorationSkipInk: "none",
     },
-    ".cm-note-mark-open": { backgroundColor: "color-mix(in oklch, var(--note) 24%, transparent)" },
+    // The wash fades in over --t-mark (the words are redrawn when the note opens, so a keyframe, in index.css)
+    ".cm-note-mark-open": { backgroundColor: "color-mix(in oklch, var(--note) 24%, transparent)", animation: "note-wash var(--t-mark) var(--ease)" },
     // The open note is plainly not the doc: a raised card under the paragraph with a rule in the note
-    // colour at its left edge. Who wrote it comes first, the actions sit at the bottom right.
+    // colour at its left edge. Who wrote it comes first, the actions sit at the bottom right. The card's
+    // overhang into the margin is on the fold, so the fold's clip never cuts it.
+    ".cm-note-fold": { marginLeft: "-16px" },
     ".cm-note": {
-      margin: "4px 0 14px -16px",
+      margin: "4px 0 14px",
       padding: "8px 12px 6px 13px",
       backgroundColor: "var(--card)",
       border: "1px solid var(--border)",
