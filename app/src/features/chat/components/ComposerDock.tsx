@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "../store"
 import { pendingAsk } from "../status"
@@ -21,13 +22,23 @@ export function ComposerDock({
   compact?: boolean
   ref?: React.Ref<ComposerHandle>
 }) {
+  // The dock keeps its own handle on the composer, so a card above it can hand the keyboard over
+  const handle = useRef<ComposerHandle | null>(null)
+  const setHandle = useCallback(
+    (h: ComposerHandle | null) => {
+      handle.current = h
+      if (typeof ref === "function") ref(h)
+      else if (ref) ref.current = h
+    },
+    [ref],
+  )
   return (
     <div className={panel ? "relative shrink-0 px-3 pb-3" : "relative mx-auto w-full max-w-3xl px-4 pb-4"}>
       {/* Messages fade out above the composer instead of running into it */}
       <div aria-hidden className={cn("pointer-events-none absolute inset-x-0 bg-gradient-to-t to-transparent", panel ? "-top-6 h-6 from-sidebar-panel" : "-top-8 h-8 from-background")} />
-      {chat && <WaitingDock chat={chat} compact={compact} />}
+      {chat && <WaitingDock chat={chat} compact={compact} onTypeInstead={() => handle.current?.focus()} />}
       <Composer
-        ref={ref}
+        ref={setHandle}
         chatId={chat?.id}
         streaming={streaming}
         waiting={chat && streaming ? pendingAsk(chat)?.type : undefined}

@@ -71,6 +71,7 @@ function StepLine({
   )
 }
 
+// What a step got, under its row: machine output (a command's, a file's, a search's) in a `muted` box
 const ResultBox = ({ children }: { children: React.ReactNode }) => (
   <div className="px-3 pb-3">
     <div className="max-h-60 overflow-auto rounded-md bg-muted px-2.5 py-2 text-detail">{children}</div>
@@ -146,10 +147,9 @@ function ThoughtRow({ part, live }: { part: Part<"thought">; live: boolean }) {
   return (
     <div className="border-t first:border-t-0">
       <StepLine words={live ? "Thinking" : "Thought"} live={live} open={open} onToggle={!live && part.text.trim() ? () => setOpen((o) => !o) : undefined} />
+      {/* Prose the agent wrote, not machine output: muted text set in with the row's words, no box */}
       <Unfold open={open}>
-        <ResultBox>
-          <div className="leading-relaxed whitespace-pre-wrap text-muted-foreground">{part.text}</div>
-        </ResultBox>
+        <div className="max-h-60 overflow-auto px-3 pb-3 text-detail leading-relaxed whitespace-pre-wrap text-muted-foreground">{part.text}</div>
       </Unfold>
     </div>
   )

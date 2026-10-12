@@ -1,15 +1,19 @@
 import { useState } from "react"
-import { MessageCircleQuestionIcon } from "lucide-react"
+import { CheckIcon, MessageCircleQuestionIcon } from "lucide-react"
 import { BorderedList } from "@/components/bordered-list"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
+import { FoldChevron } from "@/components/fold"
 import { WaitingShield } from "@/components/marks"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
-import { editStats, parentPath } from "@owlit/protocol"
+import { editStats, parentPath, type AgentQuestion } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Kbd } from "@/components/ui/kbd"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Unfold } from "@/components/unfold"
 import type { Chat, Part, PermissionKind } from "../types"
-import { useAskDraft } from "../ask-draft"
+import { allAnswered, answered, nextOpen, useAskDraft } from "../ask-draft"
 import { useInPlace } from "../in-place"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { amount } from "../lib/edit-counts"
@@ -24,7 +28,8 @@ import { DiffPreview } from "./messages/step-results"
 // decision has one set of buttons. Nothing shows while nothing waits.
 // The card is seen arriving (the slot grows while it rises into place) and leaving once answered, rather than
 // found already there.
-export function WaitingDock({ chat, compact = false }: { chat: Chat; compact?: boolean }) {
+// `onTypeInstead` puts the keyboard in the composer, for an answer in the user's own words.
+export function WaitingDock({ chat, compact = false, onTypeInstead }: { chat: Chat; compact?: boolean; onTypeInstead?: () => void }) {
   const streaming = useChatStore((s) => !!s.streaming[chat.id])
   const ask = streaming ? pendingAsk(chat) : undefined
   const call = ask ? callOf(chat, ask.toolCallId) : undefined
@@ -36,7 +41,7 @@ export function WaitingDock({ chat, compact = false }: { chat: Chat; compact?: b
         (ask.type === "permission" ? (
           <PermissionCard key={ask.requestId} chatId={chat.id} ask={ask} call={call} agent={agent} compact={compact} />
         ) : (
-          <QuestionCard key={ask.requestId} chatId={chat.id} ask={ask} agent={agent} compact={compact} />
+          <QuestionCard key={ask.requestId} chatId={chat.id} ask={ask} agent={agent} compact={compact} onTypeInstead={onTypeInstead} />
         ))}
     </Unfold>
   )
@@ -132,12 +137,42 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
 
 const editable = (el: Element | null) => !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable)
 
-function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Part<"question">; agent?: string; compact: boolean }) {
+// A question's choices: a radio (one pick) or a checkbox (several) before the label, its description under
+// it, the key that picks it at the end; and, when words of one's own are taken, a last row that hands over
+// to the composer. Each row is a label around its control, so the row is the hit area and the control
+// keeps its own keyboard focus; the row fills on hover, keyboard focus and once picked.
+const OPTION_ROW = "group/option flex w-full cursor-pointer items-start gap-2.5 px-3 py-2 text-left hover:bg-muted has-focus-visible:bg-muted"
+
+function Radio({ checked, onPick, className }: { checked: boolean; onPick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onPick}
+      className={cn(
+        "relative flex size-4 shrink-0 items-center justify-center rounded-full border border-input transition-colors outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-key:border-ring focus-key:ring-3 focus-key:ring-ring/50 dark:bg-input/30",
+        checked && "border-primary bg-primary text-primary-foreground",
+        className,
+      )}
+    >
+      {checked && <span aria-hidden className="size-1.5 rounded-full bg-current" />}
+    </button>
+  )
+}
+
+function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: string; ask: Part<"question">; agent?: string; compact: boolean; onTypeInstead?: () => void }) {
   const draft = useAskDraft((s) => (s.drafts[chatId]?.requestId === ask.requestId ? s.drafts[chatId] : undefined))
   const index = draft?.index ?? 0
+  const answers = draft?.answers ?? {}
+  const folded = draft?.folded ?? false
   const q = ask.questions[index]
-  const picks = (q && draft?.answers[q.id]?.picks) ?? []
-  const pick = (label: string) => useAskDraft.getState().pick(chatId, ask, label)
+  const picks = (q && answers[q.id]?.picks) ?? []
+  const several = ask.questions.length > 1
+  const store = useAskDraft.getState
+  const pick = (label: string) => store().pick(chatId, ask, label)
+  const fold = (to: boolean) => store().fold(chatId, ask, to)
+  const headerOf = (question: AgentQuestion, i: number) => question.header || `Question ${i + 1}`
 
   // A number picks that option, unless the user is typing somewhere
   useWindowKeydown((e) => {
@@ -147,59 +182,93 @@ function QuestionCard({ chatId, ask, agent, compact }: { chatId: string; ask: Pa
     if (!option) return
     e.preventDefault()
     pick(option.label)
-  }, !!q?.options.length)
+  }, !folded && !!q?.options.length)
 
   if (!q) return null
+  const done = allAnswered(ask, answers)
+  const here = answered(q, answers)
+  // Next while a later question is still open; Submit on the last question or once every question is answered
+  const later = nextOpen(ask, answers, index)
+  const submits = done || later === undefined
+  const asks = agent ? `Owlit asks for the agent “${agent}”` : "Owlit asks"
+  const foldedLine = several ? `${asks} ${ask.questions.length} questions` : q.header ? `${asks} · ${q.header}` : `${asks} a question`
   return (
-    <div className={CARD} role="group" aria-label="Owlit asks you">
-      <div className="flex items-start gap-2.5">
-        <MessageCircleQuestionIcon className="mt-0.5 size-4 shrink-0 text-warning" />
-        <div className="min-w-0 flex-1">
-          <div className="text-xs text-muted-foreground">
-            {[agent ? `Owlit asks for the agent “${agent}”` : "Owlit asks", q.header && q.header !== q.question ? q.header : undefined].filter(Boolean).join(" · ")}
+    <Tabs value={String(index)} onValueChange={(v) => store().goTo(chatId, ask, Number(v))} className={cn(CARD, "block")} role="group" aria-label="Owlit asks you">
+      {/* The header line folds the card to itself and opens it again; the tabs and the chevron are the buttons */}
+      <div className="flex min-h-6 cursor-default items-center gap-2.5" onClick={() => fold(!folded)}>
+        <MessageCircleQuestionIcon className="size-4 shrink-0 text-warning" />
+        {folded ? (
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{foldedLine}</span>
+        ) : (
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="shrink-0 text-xs text-muted-foreground">{several ? asks : [asks, q.header && q.header !== q.question ? q.header : undefined].filter(Boolean).join(" · ")}</span>
+            {several && (
+              <TabsList variant="line" aria-label="Questions" className="group-data-horizontal/tabs:h-6 p-0" onClick={(e) => e.stopPropagation()}>
+                {ask.questions.map((question, i) => (
+                  <TabsTrigger key={question.id} value={String(i)} className="h-full px-1 text-detail">
+                    {answered(question, answers) && <CheckIcon aria-label="Answered" className="size-3.5" />}
+                    {headerOf(question, i)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            )}
           </div>
-          <div className="mt-0.5 text-body font-medium break-words">{q.question}</div>
-        </div>
-        {ask.questions.length > 1 && (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {index + 1} of {ask.questions.length}
-          </span>
         )}
-      </div>
-      {q.options.length > 0 && (
-        <BorderedList className="mt-2.5 ml-6.5">
-          {q.options.map((o, i) => (
-            <button
-              key={o.label}
-              type="button"
-              title={i < 9 ? `Press ${i + 1}` : undefined}
-              aria-pressed={q.multiSelect ? picks.includes(o.label) : undefined}
-              onClick={() => pick(o.label)}
-              className={cn(
-                "flex w-full items-baseline gap-2.5 px-3 py-2 text-left outline-none hover:bg-muted focus-key:bg-muted",
-                picks.includes(o.label) && "bg-muted",
-              )}
-            >
-              <span className="w-3 shrink-0 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
-              <span className="min-w-0">
-                <span className={cn(picks.includes(o.label) && "font-medium")}>{o.label}</span>
-                {o.description && <span className="ml-2 text-detail text-muted-foreground">{o.description}</span>}
-              </span>
-            </button>
-          ))}
-        </BorderedList>
-      )}
-      <div className="mt-2.5 ml-6.5 flex items-center gap-1.5">
-        {q.multiSelect && (
-          <Button size="sm" disabled={!picks.length} onClick={() => useAskDraft.getState().next(chatId, ask)}>
-            {index + 1 < ask.questions.length ? "Next" : "Done"}
+        {folded ? (
+          <Button variant="text" size="inline" className="shrink-0" onClick={(e) => (e.stopPropagation(), fold(false))}>
+            Show
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon-xs" aria-expanded aria-label="Fold" className="-mr-1 shrink-0 text-muted-foreground" onClick={(e) => (e.stopPropagation(), fold(true))}>
+            <FoldChevron open />
           </Button>
         )}
-        <Button variant="text" size="inline" onClick={() => useAskDraft.getState().skip(chatId, ask)}>
-          Skip
-        </Button>
-        {!compact && q.allowsText && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}
       </div>
-    </div>
+      <Unfold open={!folded}>
+        <TabsContent value={String(index)} className="ml-6.5 pt-0.5">
+          <div className="text-body font-medium break-words">{q.question}</div>
+          {(q.options.length > 0 || q.allowsText) && (
+            <BorderedList className="mt-2.5" role={q.multiSelect ? "group" : "radiogroup"} aria-label={q.question}>
+              {q.options.map((o, i) => {
+                const picked = picks.includes(o.label)
+                return (
+                  <label key={o.label} className={cn(OPTION_ROW, picked && "bg-muted")}>
+                    {q.multiSelect ? (
+                      <Checkbox checked={picked} onCheckedChange={() => pick(o.label)} aria-label={o.label} className="mt-0.5" />
+                    ) : (
+                      <Radio checked={picked} onPick={() => pick(o.label)} className="mt-0.5" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("block text-sm", picked && "font-medium")}>{o.label}</span>
+                      {o.description && <span className="block text-detail text-muted-foreground">{o.description}</span>}
+                    </span>
+                    {i < 9 && (
+                      <Kbd aria-hidden className="mt-px bg-transparent">
+                        {i + 1}
+                      </Kbd>
+                    )}
+                  </label>
+                )
+              })}
+              {q.allowsText && (
+                <button type="button" onClick={onTypeInstead} className={cn(OPTION_ROW, "items-center text-sm text-muted-foreground outline-none focus-key:bg-muted")}>
+                  {q.options.length > 0 && <span aria-hidden className="size-4 shrink-0" />}
+                  <span className="min-w-0 flex-1">Something else…</span>
+                </button>
+              )}
+            </BorderedList>
+          )}
+          <div className="mt-2.5 flex items-center gap-1.5">
+            <Button variant="text" size="inline" className="-ml-1.5" onClick={() => store().skip(chatId, ask)}>
+              Skip
+            </Button>
+            {!compact && q.allowsText && <span className="min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}
+            <Button size="sm" className="ml-auto" disabled={submits ? !done : !here} onClick={() => (submits ? store().submit(chatId, ask) : store().next(chatId, ask))}>
+              {submits ? "Submit" : "Next"}
+            </Button>
+          </div>
+        </TabsContent>
+      </Unfold>
+    </Tabs>
   )
 }
