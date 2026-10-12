@@ -63,7 +63,7 @@ export function LineRow({
     <ActionsOnRightClick groups={menu}>
       <TopicLine
         line={line}
-        mark={fresh && <NoteDot className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
+        mark={<NoteDot gone={!fresh} className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
         ref={(el) => {
           ref.current = el
           viewedRef.current = el
