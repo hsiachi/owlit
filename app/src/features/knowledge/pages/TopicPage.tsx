@@ -173,7 +173,7 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
 function MoreButton({ open, hidden, onClick }: { open: boolean; hidden: number; onClick: () => void }) {
   return (
     <FoldButton open={open} onClick={onClick} className="mt-2">
-      {open ? "Show fewer" : `Show ${hidden} more`}
+      {open ? "Show less" : `Show ${hidden} more`}
     </FoldButton>
   )
 }

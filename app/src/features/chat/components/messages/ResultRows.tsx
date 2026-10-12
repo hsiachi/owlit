@@ -214,7 +214,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
     edits.length > 1 && edits.every((e) => e.unit === edits[0].unit)
       ? { unit: edits[0].unit, added: edits.reduce((t, e) => t + e.added, 0), removed: edits.reduce((t, e) => t + e.removed, 0), rewritten: false }
       : undefined
-  // The rest unfold where the "Show N more" line was, and that line folds away as they do
+  // The rest unfold above the "Show N more" line, which stays as "Show less" to fold them back
   const rest = rows.length > FOLD_AFTER + 1 ? rows.slice(FOLD_AFTER) : []
   return (
     <div className="flex flex-col rounded-lg border p-1">
@@ -243,11 +243,9 @@ export function ResultCard({ message }: { message: ChatMessage }) {
               <Row key={row.key} row={row} />
             ))}
           </Unfold>
-          <Unfold open={!all}>
-            <button type="button" onClick={() => setAll(true)} className="flex h-8 w-full items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
-              Show {rest.length} more
-            </button>
-          </Unfold>
+          <button type="button" onClick={() => setAll((a) => !a)} className="flex h-8 w-full items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
+            {all ? "Show less" : `Show ${rest.length} more`}
+          </button>
         </>
       )}
     </div>
