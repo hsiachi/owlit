@@ -14,9 +14,12 @@ export function shortAuthors(authors: string[]): string {
 // "Pirolli & Card · 2005"
 export const authorsYear = (p: Pick<Paper, "authors" | "year">) => [shortAuthors(p.authors), p.year].filter(Boolean).join(" · ")
 
-// The one-line citation shown after a title: "Pirolli & Card · 2005 · CHI"
+// A paper's details wherever a list names it, after or beside its title: "Pirolli & Card · 2005 · CHI".
+// The venue only by its acronym, so a list's details line up in a column instead of pushing the title
+// aside; a venue without one is left to the table and the paper's page.
 export function paperMeta(p: Paper): string {
-  return [shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(" · ")
+  const venue = p.venue && shortVenue(p.venue)
+  return [shortAuthors(p.authors), p.year, venue !== p.venue?.trim() && venue].filter(Boolean).join(" · ")
 }
 
 // A venue short enough for a table cell, without making up a name: a name that carries its own acronym
