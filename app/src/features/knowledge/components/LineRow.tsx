@@ -63,8 +63,8 @@ export function LineRow({
     <ActionsOnRightClick groups={menu}>
       <TopicLine
         line={line}
-        // The dot sits in the row's own left gutter, inside its hover fill
-        mark={fresh && <NoteDot className="absolute top-[9px] -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
+        // The dot sits in the row's own left gutter, inside its hover fill, centred on the cap height of the speaker
+        mark={fresh && <NoteDot className="absolute top-2 -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
         ref={(el) => {
           ref.current = el
           viewedRef.current = el
