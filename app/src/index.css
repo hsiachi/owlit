@@ -541,9 +541,9 @@
   .status-slot > * { transition: opacity var(--t-mark) var(--ease); }
 }
 /* ---- Owlit in a doc or a note ---- */
-/* A selected passage's menu, "Ask Owlit": one compact row in a thin frame, covering as little text as it
-   can; 8px corners concentric with the 6px item inside */
-.selection-menu { @apply flex gap-0.5 rounded-[8px] border bg-popover p-0.5 font-sans text-detail shadow-lg; }
+/* A selected passage's menu, "Ask Owlit": one compact row in a thin frame of the floating material,
+   covering as little text as it can; 8px corners concentric with the 6px item inside */
+.selection-menu { @apply menu-surface flex gap-0.5 rounded-[8px] p-0.5 font-sans text-detail; }
 .selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
 /* Owlit's proposed edit, marked as one more editor would, in Owlit's green. Removed words keep the muted
    tone with a strike in that colour (removal is not an error, so never red); new words take the colour,
@@ -620,10 +620,13 @@
   border-radius: calc(var(--radius) * 0.4);
   padding: 0.1em 0.35em;
 }
+/* A block wraps its long lines rather than running past the column (or the docked panel's edge): Owlit
+   sometimes fences a paragraph of prose, and real code still reads wrapped */
 .markdown pre {
   margin: 0.75rem 0;
   padding: 0.75rem 1rem;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
   border-radius: var(--radius);
   background: var(--muted);
   font-size: 0.85em;
@@ -638,8 +641,12 @@
   border-left: 2px solid var(--border);
   color: var(--muted-foreground);
 }
-/* Tables are ruled, not boxed: a tinted header and a hairline under each row, no outer frame or column lines */
-.markdown table { margin: 0.75rem 0; width: 100%; border-collapse: collapse; font-size: 0.9em; }
+/* Tables are ruled, not boxed: a tinted header and a hairline under each row, no outer frame or column lines.
+   Columns share the width by their content, none narrower than its longest word; a table too wide for the
+   column scrolls sideways in its own box (.table-scroll, Markdown.tsx) rather than squeezing a column */
+.markdown .table-scroll { margin: 0.75rem 0; overflow-x: auto; }
+.markdown table { margin: 0.75rem 0; width: 100%; border-collapse: collapse; font-size: 0.9em; overflow-wrap: break-word; word-break: normal; }
+.markdown .table-scroll > table { margin: 0; }
 .markdown th, .markdown td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
 .markdown th { background: var(--muted); font-weight: 500; border-bottom: 0; }
 .markdown th:first-child { border-radius: calc(var(--radius) * 0.8) 0 0 calc(var(--radius) * 0.8); }

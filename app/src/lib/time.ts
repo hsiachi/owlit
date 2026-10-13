@@ -15,9 +15,18 @@ export function shortDate(t: number) {
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear(t) ? {} : { year: "numeric" }) })
 }
 
+// "3:40 PM"
+const clock = (t: number) => new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+
 // "Oct 15, 3:40 PM"
 export function dateTime(t: number) {
-  return `${shortDate(t)}, ${new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+  return `${shortDate(t)}, ${clock(t)}`
+}
+
+// When a message was sent or answered: "3:40 PM" today, "Oct 15, 3:40 PM" on any other day. A clock time
+// alone reads as today, so a days-old chat showing one misleads.
+export function timeStamp(t: number, now = Date.now()) {
+  return t >= startOfDay(now) ? clock(t) : dateTime(t)
 }
 
 // A file date ("2026-10-03") the way the page shows dates

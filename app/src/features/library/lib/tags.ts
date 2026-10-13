@@ -15,3 +15,8 @@ export const tagColorVar = (tag: string) => `var(--tag-${tagColor(tag)})`
 
 // How a tag is stored: lowercase, spaces as dashes ("Tool use" → "tool-use")
 export const normalizeTag = (tag: string) => tag.trim().toLowerCase().replace(/\s+/g, "-")
+
+// A paper's tags with the ones the list is narrowed to first, so a row that shows one tag and "+n" shows
+// the tag the list is about rather than hiding it behind the count; otherwise in the paper's own order
+export const tagsFirst = (tags: string[], filter: readonly string[]) =>
+  filter.length ? [...tags.filter((t) => filter.includes(t)), ...tags.filter((t) => !filter.includes(t))] : tags

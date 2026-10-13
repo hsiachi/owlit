@@ -87,8 +87,19 @@ export const docTheme = EditorView.theme({
     color: "var(--muted-foreground)",
   },
   ".cm-table": { fontFamily: mono, fontSize: "13px" },
-  // A drawn table keeps the answer tables' ruled look; a little room above and below it
-  ".cm-block-table": { padding: "4px 0 8px", fontSize: "14px", cursor: "text" },
+  // A drawn table keeps the answer tables' ruled look; a little room above and below it. The editor wraps
+  // lines with overflow-wrap: anywhere, which lets a table cell shrink to one letter ("Ben / chm / ark"),
+  // so the table takes ordinary wrapping back: columns share the width by their content, none narrower than
+  // its longest word, and a table that still can't fit scrolls sideways inside the doc
+  ".cm-block-table": {
+    padding: "4px 0 8px",
+    fontSize: "14px",
+    cursor: "text",
+    overflowX: "auto",
+    whiteSpace: "normal",
+    wordBreak: "normal",
+    overflowWrap: "break-word",
+  },
   ".cm-block-table table": { margin: "0" },
   ".cm-block-math": { padding: "6px 0", textAlign: "center", overflowX: "auto", cursor: "text" },
   ".cm-math": { padding: "0 1px" },

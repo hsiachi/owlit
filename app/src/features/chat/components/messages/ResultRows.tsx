@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { create } from "zustand"
+import { useShallow } from "zustand/react/shallow"
 import { editStats, type EditStats } from "@owlit/protocol"
 import { toast } from "sonner"
 import { ArrowUpRightIcon, type LucideIcon } from "lucide-react"
@@ -7,11 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
-import { fileAt } from "@/features/docs/store"
+import { openEditor } from "@/features/docs/editors"
+import { fileAt, filesByPath, useDocsStore } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import type { ChatMessage } from "../../types"
-import { undoResult, useResultsStore, type AgentResult } from "../../results"
+import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
 import { countParts } from "../../lib/edit-counts"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { capital, joinAnd, plural } from "@/lib/words"
@@ -31,6 +33,8 @@ export interface ResultRow {
   undone: boolean
   view?: () => void
   undo?: () => Promise<void> | void
+  // On an undone row, when the change can be put back
+  redo?: () => Promise<void> | void
   // For the summary line: what kind of change, and how much an edit changed
   kind: "doc" | "paper" | "note" | "knowledge"
   stats?: EditStats
@@ -81,25 +85,82 @@ export function EditCounts({ stats }: { stats: EditStats }) {
   )
 }
 
+// A doc's text as the reply left it, kept when the card undoes the reply's edits there (by message and
+// path). The row follows the doc: once it reads that way again, by Redo or by ⌘Z in the doc, the edit is
+// live again, whichever brought it back. `left` waits for the doc to move off that text first, since the
+// undo reaches the doc after its row is marked. Kept for this launch only; Redo itself doesn't need it.
+const appliedText = new Map<string, { text: string; left: boolean }>()
+const appliedKey = (messageId: string, path: string) => `${messageId}|${path}`
+
+function rememberApplied(messageId: string, path: string) {
+  const file = fileAt(path)
+  const text = file ? (openEditor(file.id)?.state.doc.toString() ?? file.content) : undefined
+  if (text !== undefined) appliedText.set(appliedKey(messageId, path), { text, left: false })
+}
+
+const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
+
 // Takes a row's changes back, newest first, so each restore finds the file as the next one left it
 async function undoResults(messageId: string, results: AgentResult[]) {
-  const done: string[] = []
+  const done: Record<string, string | undefined> = {}
+  if (results[0]?.kind === "file") rememberApplied(messageId, results[0].path)
   try {
     for (const r of [...results].reverse()) {
       if (r.undone) continue
-      await undoResult(r.versionId)
+      done[r.versionId] = await undoResult(r.versionId)
+    }
+  } catch (error) {
+    failed(error)
+  } finally {
+    if (Object.keys(done).length) useResultsStore.getState().markUndone(messageId, done)
+  }
+}
+
+// Puts a row's changes back, oldest first: the reverse of the undo, so each finds the file as it left it
+async function redoResults(messageId: string, results: AgentResult[]) {
+  const done: string[] = []
+  try {
+    for (const r of results) {
+      if (!r.undone || !r.redoId) continue
+      await redoResult(r.redoId)
       done.push(r.versionId)
     }
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : String(error))
+    failed(error)
   } finally {
-    if (done.length) useResultsStore.getState().markUndone(messageId, done)
+    if (done.length) {
+      appliedText.delete(appliedKey(messageId, results[0].path))
+      useResultsStore.getState().markRedone(messageId, done)
+    }
   }
+}
+
+// Undone doc edits whose doc reads as the reply left it again come back as live rows
+function useFollowDocs(messageId: string, results: AgentResult[]) {
+  const paths = [...new Set(results.filter((r) => r.kind === "file" && r.undone && appliedText.has(appliedKey(messageId, r.path))).map((r) => r.path))]
+  const texts = useDocsStore(useShallow((s) => paths.map((p) => filesByPath(s.files).get(p)?.content)))
+  useEffect(() => {
+    paths.forEach((path, i) => {
+      const kept = appliedText.get(appliedKey(messageId, path))
+      if (!kept) return
+      if (texts[i] !== kept.text) {
+        kept.left = true
+        return
+      }
+      if (!kept.left) return
+      appliedText.delete(appliedKey(messageId, path))
+      useResultsStore.getState().markRedone(
+        messageId,
+        results.filter((r) => r.kind === "file" && r.path === path).map((r) => r.versionId),
+      )
+    })
+  })
 }
 
 function useResultRows(message: ChatMessage): ResultRow[] {
   const navigate = useOpenFromChat()
   const results = useResultsStore((s) => s.byMessage[message.id]) ?? []
+  useFollowDocs(message.id, results)
   const stats = statsCache((s) => s.byKey)
   // Each file's first and last version from this reply, whose stats core is asked for once
   const spans = isDesktop
@@ -118,7 +179,14 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     return file ? () => navigate(`/docs/${file.id}`) : undefined
   }
   const rows: ResultRow[] = []
-  const of = (list: AgentResult[]) => ({ undone: list.every((r) => r.undone), undo: () => undoResults(message.id, list) })
+  const of = (list: AgentResult[]) => {
+    const undone = list.every((r) => r.undone)
+    return {
+      undone,
+      undo: () => undoResults(message.id, list),
+      ...(undone && list.every((r) => r.redoId) ? { redo: () => redoResults(message.id, list) } : {}),
+    }
+  }
   for (const kind of ["file", "note"] as const) {
     const byPath = new Map<string, AgentResult[]>()
     for (const r of results) if (r.kind === kind) byPath.set(r.path, [...(byPath.get(r.path) ?? []), r])
@@ -175,7 +243,8 @@ function summary(rows: ResultRow[]) {
 const SHOW_ON_HOVER = "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
 
 // Undo draws the strike across the name from the left (the `strike` rule in index.css), then the row settles
-// into the muted tone; done at once, it would look like a different row had replaced it
+// into the muted tone; done at once, it would look like a different row had replaced it. Redo takes the
+// strike back the way it came and the row is live again.
 function Row({ row, className }: { row: ResultRow; className?: string }) {
   const Icon = row.icon
   const live = !row.undone
@@ -194,6 +263,11 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
         {live && row.undo && (
           <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
             Undo
+          </Button>
+        )}
+        {!live && row.redo && (
+          <Button variant="text" size="inline" onClick={() => void row.redo!()} className={`relative ${SHOW_ON_HOVER}`}>
+            Redo
           </Button>
         )}
         {live ? row.detail : "Undone"}

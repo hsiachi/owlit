@@ -78,6 +78,12 @@ export function Markdown({ text, className, components, prepare }: { text: strin
             if (mathClass(props?.className) === "display") return <>{children}</>
             return <pre {...rest}>{children}</pre>
           },
+          // A table too wide for the column scrolls in its own box (.table-scroll in index.css)
+          table: ({ children }) => (
+            <div className="table-scroll">
+              <table>{children}</table>
+            </div>
+          ),
           // Workspace references look the same as the user's @-mentions, which are plain text: an agent
           // may still format inside the link ("[Lam et al., *Concept Induction*](owlit://…)"). The tooltip
           // says what the click does, which the text of a page link ("p5") doesn't

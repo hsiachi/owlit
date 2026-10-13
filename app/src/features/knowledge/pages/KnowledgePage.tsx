@@ -11,6 +11,7 @@ import { PageShell, PageTitle } from "@/components/page"
 import { RenameInput } from "@/components/rename-input"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Prose } from "../components/bits"
 import { KnowledgeEmpty } from "../components/KnowledgeEmpty"
 import { TopicMenuItems } from "../components/TopicMenu"
 import { ago, DAY, shortDate } from "@/lib/time"
@@ -191,7 +192,10 @@ function TopicRow({ topic }: { topic: Topic }) {
       >
         {fresh && <NoteDot className="-ml-0.5" label="Changed since you last looked" />}
         <span className={cn("shrink-0 truncate", topic.archived && "text-muted-foreground")}>{topic.name}</span>
-        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{topic.summary}</span>
+        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">
+          {/* Lines named by id can't be pointed at from a row, so the ids are left out */}
+          <Prose text={topic.summary} />
+        </span>
         {/* The date gives way to the row's actions */}
         <span className="shrink-0 pr-1.5 text-detail text-muted-foreground group-hover/row:hidden group-focus-key/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(topic.updatedAt)}

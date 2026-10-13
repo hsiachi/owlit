@@ -2,6 +2,7 @@ import {
   KNOWLEDGE_DIR,
   parseTopic,
   RpcErrorCode,
+  sameWords,
   serializeTopic,
   topicPath,
   topicSlug,
@@ -11,6 +12,7 @@ import {
   type KnowledgeRun,
   type KnowledgeVersion,
   type KnowledgeWrite,
+  type Line,
   type PaperKnowledge,
   type Passage,
   type Topic,
@@ -282,7 +284,7 @@ export class Knowledge {
       "How to work:",
       "1. knowledge_read lists the topics; read the ones this could touch.",
       "2. Read what the user did. Only material the user touched counts; what they wrote and said is theirs, a paper's findings are the paper's. A You: line says the user's point in their own voice, first person (“I”, “my draft”).",
-      "3. Change topics with knowledge_write, giving the whole file in the format knowledge_read shows, and why in the user's terms (“you highlighted two passages of Lewis et al. 2020”). A line that speaks for a paper cites a passage: quote it word for word from library_read in passages.",
+      "3. Change topics with knowledge_write, giving the whole file in the format knowledge_read shows. Its why is shown to the user under the changes: one plain sentence to them about what they did and what it changed (“You highlighted two passages of Lewis et al. 2020, so the retrieval line now cites them”), never how you worked (caps, merging, ids). A line that speaks for a paper cites a passage: quote it word for word from library_read in passages.",
       "4. Open a new topic only when two separate pieces of the user's material are about the same question. If nothing here belongs in Knowledge, write nothing.",
       "5. When knowledge_write refuses, fix what it says and write again.",
       "",
@@ -466,16 +468,29 @@ export class Knowledge {
   }
 }
 
+type LineChange = Omit<Change, "id" | "at" | "by" | "why">
+
+// How one line changed, the way the history words it. Only a change of words is "Rewritten" and keeps
+// the old words: a line whose sources or condition (its sub-bullet) changed reads the same, so showing
+// “Was: …” under it would repeat the line.
+export function lineChange(was: Line, now: Line): Omit<LineChange, "lineId"> | null {
+  if (!sameWords(was.text, now.text)) return { what: "Rewritten", before: was.text }
+  if (was.speaker !== now.speaker || was.verb !== now.verb) return { what: "Speaker changed" }
+  const refs = (l: Line) => l.sources.map((r) => r.uri).join(" ")
+  if (refs(was) !== refs(now) || !sameWords(was.condition ?? "", now.condition ?? "")) return { what: "Source changed" }
+  return null
+}
+
 // What a write changed, line by line, the way the history words it
-function diff(before: Topic | null, next: Omit<Topic, "path" | "updatedAt">): Omit<Change, "id" | "at" | "by" | "why">[] {
-  const out: Omit<Change, "id" | "at" | "by" | "why">[] = []
+export function diff(before: Topic | null, next: Omit<Topic, "path" | "updatedAt">): LineChange[] {
+  const out: LineChange[] = []
   if (!before) out.push({ what: "Started" })
-  else if (before.summary !== next.summary) out.push({ what: "Summary rewritten", before: before.summary })
+  else if (!sameWords(before.summary, next.summary)) out.push({ what: "Summary rewritten", before: before.summary })
   const old = new Map(before?.lines.map((l) => [l.id, l]))
   for (const l of next.lines) {
     const was = old.get(l.id)
-    if (!was) out.push({ lineId: l.id, what: "Added" })
-    else if (was.text !== l.text || was.speaker !== l.speaker || was.condition !== l.condition) out.push({ lineId: l.id, what: "Rewritten", before: was.text })
+    const change = was ? lineChange(was, l) : { what: "Added" }
+    if (change) out.push({ lineId: l.id, ...change })
   }
   const kept = new Set(next.lines.map((l) => l.id))
   for (const l of before?.lines ?? []) if (!kept.has(l.id)) out.push({ lineId: l.id, what: "Removed", before: l.text })
