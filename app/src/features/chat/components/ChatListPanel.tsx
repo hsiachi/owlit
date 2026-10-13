@@ -19,6 +19,7 @@ import { StatusRing } from "@/components/status-ring"
 import { useChatStatus } from "../use-chat-status"
 import { useChatList, type ChatListItem } from "../use-chat-list"
 import { toastUndo } from "@/lib/toast"
+import { FRESH_CHAT } from "./ChatEmpty"
 
 // Rows are a touch taller than the shadcn default so the list breathes; the left edge is tighter, for the
 // status slot every row starts with
@@ -42,7 +43,7 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
 
   const remove = () => {
     deleteChat(chat.id)
-    if (active) navigate("/chat")
+    if (active) navigate("/chat", { state: FRESH_CHAT })
     toastUndo("Chat deleted", () => useChatStore.getState().restoreChat(chat.id).catch(() => undefined), { description: chat.title })
   }
 
@@ -113,7 +114,7 @@ export function ChatListPanel() {
   return (
     <>
       <PanelHeader>
-        <NewRow label="New chat" onClick={() => navigate("/chat")} />
+        <NewRow label="New chat" onClick={() => navigate("/chat", { state: FRESH_CHAT })} />
       </PanelHeader>
       <SidebarContent className="gap-0 pb-4">
         {/* Placed exactly like Docs' "No docs yet.", so switching places doesn't move the gap under New */}

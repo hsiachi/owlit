@@ -6,6 +6,7 @@ import { useLookAt } from "../status"
 import type { ComposerHandle } from "./composer/Composer"
 import { ChatMessages } from "./ChatMessages"
 import { ComposerDock } from "./ComposerDock"
+import { FRESH_CHAT } from "./ChatEmpty"
 
 // /chat/:chatId — message history with the composer docked at the bottom
 export function ChatView() {
@@ -28,7 +29,7 @@ export function ChatView() {
   const edit = useCallback((text: string) => composer.current?.setText(text), [])
 
   // A chat the workspace hasn't listed yet may still turn up (a reload of this page)
-  if (!chat) return chatsLoaded ? <Navigate to="/chat" replace /> : null
+  if (!chat) return chatsLoaded ? <Navigate to="/chat" state={FRESH_CHAT} replace /> : null
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
