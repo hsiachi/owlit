@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
-import { EditorContent, useEditor } from "@tiptap/react"
+import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
@@ -22,6 +22,11 @@ const HIGHLIGHT_LINK = "owlit://highlight/"
 const MENU_GAP = 8
 // The menu's one 24px row in its 2px frame and hairline border
 const MENU_HEIGHT = 30
+
+// Moving to another paper recreates the editor (useEditor's deps), and useEditor destroys the old one in its
+// own effect. Effects that depend on paperId then run once more in that same commit with the old editor, whose
+// view is gone (view.dom throws). They skip it: the next render brings the new editor and runs them again.
+const live = (editor: Editor | null): editor is Editor => !!editor && !editor.isDestroyed
 
 // One note per paper, kept as Markdown. Markdown shortcuts as you type (#, -, >, **), @ to
 // mention a paper, doc or knowledge item. Saved on every change; nothing says "saved".
@@ -65,14 +70,14 @@ export function NoteEditor({ paperId }: { paperId: string }) {
 
   // Arriving from "Add to note": put the cursor after what was just added
   useEffect(() => {
-    if (!editor || !consumeFocusEnd(paperId)) return
+    if (!live(editor) || !consumeFocusEnd(paperId)) return
     editor.commands.focus("end", { scrollIntoView: true })
   }, [editor, paperId])
 
   // The note changed outside this editor (an applied Owlit edit, another window, another program): it is
   // taken in as one change, so ⌘Z takes it back
   useEffect(() => {
-    if (!editor) return
+    if (!live(editor)) return
     return useLibraryStore.subscribe((state, prev) => {
       const next = state.notes[paperId]?.content ?? ""
       if (next === (prev.notes[paperId]?.content ?? "")) return
@@ -84,7 +89,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
 
   // Edits Owlit is waiting on for this note, from any chat
   useEffect(() => {
-    if (!editor) return
+    if (!live(editor)) return
     const path = notePathOf(paperId)
     // Owlit's proposed edits to this note are answered here, so the chat's card points at the note. The
     // note draws every one: what it can't place goes at its end.
@@ -153,7 +158,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
 
   // A right-click on a selected passage starts the system's text menu with "Ask Owlit" too
   useEffect(() => {
-    if (!editor) return
+    if (!live(editor)) return
     return askOwlitOnRightClick(editor.view.dom, () => {
       const { from, to, empty } = editor.state.selection
       return empty || !isPassage(editor.state.doc.textBetween(from, to, "\n")) ? null : chat
