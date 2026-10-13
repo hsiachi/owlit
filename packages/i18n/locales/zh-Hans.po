@@ -4958,12 +4958,12 @@ msgid "The example's papers"
 msgstr "示例的论文"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Eight papers on hallucination and retrieval are already here. Open one to read it."
-msgstr "八篇关于幻觉与检索的论文已经在这里了。打开一篇读读看。"
+msgid "Eight papers on hallucination and retrieval are already here. Click one to see its summary in place, then Open to read it."
+msgstr "八篇关于幻觉与检索的论文已经在这里了。点一篇就地看摘要，再点“打开”阅读。"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Waiting for you to open a paper…"
-msgstr "等你打开一篇论文…"
+msgid "Try Self-RAG: click it, then Open…"
+msgstr "试试 Self-RAG：点它，再点“打开”…"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Owlit's digest"

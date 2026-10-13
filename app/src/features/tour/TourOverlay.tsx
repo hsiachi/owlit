@@ -20,8 +20,8 @@ interface Stop {
   kicker: () => string
   title: () => string
   body: () => ReactNode
-  // What the spotlight falls on; while it isn't on screen the card waits in the middle
-  target: string
+  // What the spotlight falls on, the first of these on screen; while none is, the card waits in the middle
+  target: string[]
   // Takes the user where the stop is, as it begins
   enter?: (navigate: NavigateFunction, pathname: string) => void
   // The stop moves on by itself once this holds, with a line saying what it waits for
@@ -35,17 +35,17 @@ const STOPS: Stop[] = [
   {
     kicker: () => t`Library`,
     title: () => t`The example's papers`,
-    body: () => t`Eight papers on hallucination and retrieval are already here. Open one to read it.`,
-    target: `[data-paper-id="${PAPER}"], [data-paper-id]`,
+    body: () => t`Eight papers on hallucination and retrieval are already here. Click one to see its summary in place, then Open to read it.`,
+    target: [`[data-paper-id="${PAPER}"]`, "[data-paper-id]"],
     enter: (navigate, pathname) => pathname !== "/library" && navigate("/library"),
     done: (pathname) => pathname.startsWith("/library/"),
-    waiting: () => t`Waiting for you to open a paper…`,
+    waiting: () => t`Try Self-RAG: click it, then Open…`,
   },
   {
     kicker: () => t`Reading`,
     title: () => t`Owlit's digest`,
     body: () => t`A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself.`,
-    target: '[data-tour="digest-switch"] [role="radiogroup"]',
+    target: ['[data-tour="digest-switch"] [role="radiogroup"]'],
     enter: (navigate, pathname) => !pathname.startsWith("/library/") && navigate(`/library/${PAPER}`),
     done: () => radio(2)?.getAttribute("aria-checked") === "true",
     waiting: () => t`Try switching to the PDF…`,
@@ -54,7 +54,7 @@ const STOPS: Stop[] = [
     kicker: () => t`Reading`,
     title: () => t`Select to highlight or ask`,
     body: () => t`Select any sentence: pick a colour to highlight it, comment on it, or ask Owlit about it.`,
-    target: '[data-tour="reader"]',
+    target: ['[data-tour="reader"]'],
     enter: (navigate, pathname) => {
       if (!pathname.startsWith("/library/")) navigate(`/library/${PAPER}`)
       // The PDF, not the digest over it
@@ -69,7 +69,7 @@ const STOPS: Stop[] = [
         The draft cites papers from the Library. Type <Key>@</Key> in any doc to add one.
       </Trans>
     ),
-    target: '[data-tour="doc"]',
+    target: ['[data-tour="doc"]'],
     enter: (navigate, pathname) => {
       if (pathname.startsWith("/docs/")) return
       const files = Object.values(useDocsStore.getState().files)
@@ -85,13 +85,13 @@ const STOPS: Stop[] = [
         Press <Key>⌘J</Key> on any page to ask Owlit about what's on screen. It answers beside the page.
       </Trans>
     ),
-    target: '[data-tour="ask"]',
+    target: ['[data-tour="ask"]'],
   },
   {
     kicker: () => t`That's it`,
     title: () => t`Help is here`,
     body: () => t`Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own.`,
-    target: '[data-tour="help"]',
+    target: ['[data-tour="help"]'],
   },
 ]
 
@@ -134,7 +134,7 @@ function Tour({ index }: { index: number }) {
   useEffect(() => {
     let raf = 0
     const tick = () => {
-      const el = document.querySelector(stop.target)
+      const el = stop.target.map((s) => document.querySelector(s)).find(Boolean)
       const r = el?.getBoundingClientRect()
       setRect((prev) => {
         if (!r || !r.width) return null

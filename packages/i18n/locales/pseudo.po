@@ -4958,11 +4958,11 @@ msgid "The example's papers"
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Eight papers on hallucination and retrieval are already here. Open one to read it."
+msgid "Eight papers on hallucination and retrieval are already here. Click one to see its summary in place, then Open to read it."
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Waiting for you to open a paper…"
+msgid "Try Self-RAG: click it, then Open…"
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx
