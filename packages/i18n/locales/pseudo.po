@@ -5241,8 +5241,62 @@ msgstr ""
 msgid "Sources updated"
 msgstr ""
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr ""
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
 msgstr ""
 
 #: packages/core/src/library/library.ts
@@ -5259,10 +5313,6 @@ msgstr ""
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
 msgstr ""
 
 #: packages/core/src/library/library.ts

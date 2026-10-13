@@ -515,6 +515,21 @@ export class Core {
     )
     this.router.register("library.highlights", z.object({ id: paperId }), ({ id }) => library().highlights(id))
     this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
+    this.router.register(
+      "library.import",
+      z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1), collectionsAsTags: z.boolean().optional(), parse: z.boolean().optional() }),
+      ({ source, path, collectionsAsTags, parse }) => library().imports.start(source, path, { collectionsAsTags, parse }),
+    )
+    this.router.register("library.previewImport", z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1) }), ({ source, path }) =>
+      library().imports.preview(source, path),
+    )
+    this.router.register("library.continueImport", z.object({ id: z.string().min(1) }), ({ id }) => library().imports.continue(id))
+    this.router.register("library.imports", noParams, () => library().imports.list())
+    this.router.register("library.importAnswer", z.object({ id: z.string().min(1), parse: z.boolean() }), ({ id, parse }) => library().imports.answer(id, parse))
+    this.router.register("library.dismissImport", z.object({ id: z.string().min(1) }), async ({ id }) => {
+      await library().imports.dismiss(id)
+      return null
+    })
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.checkPublisher", z.object({ id: paperId }), ({ id }) => library().checkPublisher(id))
