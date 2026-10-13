@@ -26,7 +26,7 @@ export function SourcesGroup() {
           name="s2ApiKey"
           label="Semantic Scholar API key"
           service="Semantic Scholar"
-          info="Without one, lookups often wait their turn."
+          help="Without a key, searches are slow and often refused."
           getFrom={{ label: "semanticscholar.org", href: "https://www.semanticscholar.org/product/api#api-key-form" }}
         />
         <SecretRow

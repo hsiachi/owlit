@@ -36,10 +36,14 @@ export function ProxyGroup() {
   }
 
   return (
-    // What a proxy is for, said only while there is none: once one is set, the rows say enough
-    <Group id="proxy" label="Library proxy" note={!proxy && !linkOpen ? "Gets publisher PDFs through your university's subscription, signed in as you." : undefined}>
+    <Group id="proxy" label="Library proxy">
       <List>
-        <Row name="Your library" control={<Picker label="Your library" value={choice} options={options} onChange={pick} />} />
+        {/* What a proxy is for, under the choice itself: nobody picks a library without knowing why */}
+        <Row
+          name="Your library"
+          help="Reaches paywalled PDFs through your university's proxy, signed in as you."
+          control={<Picker label="Your library" value={choice} options={options} onChange={pick} />}
+        />
         {choice === "other" &&
           (linkOpen || !proxy ? (
             <LinkForm onDone={() => setLinkOpen(false)} />

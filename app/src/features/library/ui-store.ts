@@ -2,7 +2,8 @@ import { create } from "zustand"
 import { type PickMode, range, toggle } from "@/lib/multi-select"
 
 // Transient UI state for the Library pages. Not persisted, but it lives outside the page
-// components so filters, selection, the open peek and scroll survive opening a paper and coming back.
+// components so filters, selection and scroll survive opening a paper and coming back. The open peek
+// does not: the list pages fold it when they are left (LibraryPage, UpNextPage).
 
 // "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF
 export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs"

@@ -4,6 +4,7 @@ import type { Paper } from "@/features/library/types"
 import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
 import { paperUri, parseOwlitUri } from "@owlit/protocol"
+import { whenReaderReady } from "@/features/library/reader/reader-store"
 import { fileAt, useDocsStore } from "../store"
 import { knowledgeMentionables, knowledgeRoute, knowledgeTitle } from "@/features/knowledge/mentions"
 import { isHidden } from "./tree"
@@ -52,10 +53,17 @@ export function filterMentions(items: DocMention[], query: string) {
 
 export const docMentionItems = (query: string, selfId?: string) => filterMentions(allDocMentions(selfId), query)
 
+// The paper a link names, by its id or one of its earlier ids (a paper merged into another keeps answering
+// to the id the agent was given); undefined when it isn't in the library
+function paperOf(id: string) {
+  const { papers, aliases } = useLibraryStore.getState()
+  return papers[id] ?? (aliases[id] ? papers[aliases[id]] : undefined)
+}
+
 // Where a mention leads inside the app
 export function mentionRoute(uri: string): string | null {
   const u = parseOwlitUri(uri)
-  if (u?.kind === "paper") return `/library/${u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
+  if (u?.kind === "paper") return `/library/${paperOf(u.id)?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
   if (u?.kind === "knowledge") return knowledgeRoute(u)
   if (u?.kind === "chat") return `/chat/${u.id}`
   if (u?.kind !== "doc") return null
@@ -67,7 +75,32 @@ export function mentionRoute(uri: string): string | null {
 export function mentionTitle(uri: string): string | undefined {
   const u = parseOwlitUri(uri)
   if (u?.kind === "knowledge") return knowledgeTitle(u)
-  return u?.kind === "paper" ? useLibraryStore.getState().papers[u.id]?.title : undefined
+  return u?.kind === "paper" ? paperOf(u.id)?.title : undefined
+}
+
+// What a mention does when clicked, for its tooltip: a page link says where it goes ("Jacovi et al. 2025,
+// p. 5"), since its own text is often just "p5"; any other link shows the paper's title
+export function mentionTooltip(uri: string): string | undefined {
+  const u = parseOwlitUri(uri)
+  return (u?.kind === "paper" && u.page ? mentionLabel(uri) : undefined) ?? mentionTitle(uri)
+}
+
+// Opens what a mention points at. A page link (owlit://library/<id>#p5) goes to the paper and, once its
+// reader has laid out its pages, scrolls to that page; when the paper is already open beside the chat the
+// route doesn't change, so only the scroll happens. `go` is the caller's navigation (it may also dock the
+// chat the link was in); it is skipped when the page is already the one shown, so a click leaves no extra
+// history entry.
+export function openMention(uri: string, go: (route: string) => void, pathname = window.location.pathname) {
+  const to = mentionRoute(uri)
+  if (!to) return
+  if (to !== pathname) go(to)
+  const u = parseOwlitUri(uri)
+  if (u?.kind !== "paper" || !u.page) return
+  const paper = paperOf(u.id)
+  if (!paper) return
+  const page = u.page
+  // A paper without a PDF never gets ready; the link has still opened it
+  whenReaderReady(paper.id).then((api) => api.showPage(page - 1), () => undefined)
 }
 
 // A short name for a bare owlit:// address in prose an agent wrote (a note's text): how a writer cites
@@ -75,7 +108,7 @@ export function mentionTitle(uri: string): string | undefined {
 export function mentionLabel(uri: string): string | undefined {
   const u = parseOwlitUri(uri)
   if (u?.kind === "paper") {
-    const paper = useLibraryStore.getState().papers[u.id]
+    const paper = paperOf(u.id)
     return paper ? `${citationLabel(paper)}${u.page ? `, p. ${u.page}` : ""}` : undefined
   }
   if (u?.kind === "doc") return u.path.split("/").pop()?.replace(/\.md$/, "")

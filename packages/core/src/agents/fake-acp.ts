@@ -54,9 +54,13 @@ class FakeAgent implements acp.Agent {
   }
 
   async initialize(): Promise<acp.InitializeResponse> {
+    // FAKE_ACP_AUTH=none: as claude-agent-acp when Claude Code is signed out, which still opens sessions
+    // and says so only in its authStatus push, a moment after initialize
+    const reports = process.env.FAKE_ACP_AUTH === "none"
+    if (reports) setTimeout(() => void this.conn.extNotification("_auth/status_update", { authStatus: { kind: "none", label: "Not logged in" } }), 50)
     return {
       protocolVersion: acp.PROTOCOL_VERSION,
-      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} }, promptCapabilities: { image: true } },
+      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} }, promptCapabilities: { image: true }, ...(reports ? { _meta: { authStatus: {} } } : {}) },
       agentInfo: { name: "fake-acp", version: "1.2.3" },
       authMethods: process.env.FAKE_ACP_AUTH ? [{ id: "login", name: "Log in" }] : [],
     }

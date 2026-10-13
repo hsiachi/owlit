@@ -124,7 +124,7 @@ export class SearchIndex {
     const paper = await this.library.get(id)
     if (!paper) return this.db.remove("paper", id)
     const text = await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")
-    const note = await readFile(path.join(paperStateDir(this.root, id), "note.md"), "utf8").catch(() => "")
+    const note = await readFile(path.join(paperDir(this.root, id), "note.md"), "utf8").catch(() => "")
     this.db.putPaper(
       {
         id,
@@ -191,7 +191,7 @@ export class SearchIndex {
       path.join(paperDir(this.root, id), "paper.json"),
       path.join(paperDir(this.root, id), "text.md"),
       path.join(paperStateDir(this.root, id), "state.json"),
-      path.join(paperStateDir(this.root, id), "note.md"),
+      path.join(paperDir(this.root, id), "note.md"),
     ]
     const times = await Promise.all(files.map((f) => stat(f).then((i) => i.mtimeMs, () => 0)))
     return times.join(":")

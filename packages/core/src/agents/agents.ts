@@ -11,6 +11,11 @@ import { cannotRead } from "./profiles.ts"
 
 const IDLE_MS = 10 * 60_000
 
+// How long a check waits for the agent's own report of its sign-in (claude-agent-acp runs `claude auth
+// status` for it, about 0.1 s here, with a 5 s limit of its own). Past this, the check goes by the
+// session alone, as for agents that don't report one.
+const AUTH_STATUS_WAIT_MS = 3000
+
 // A local agent owlit knows how to start
 interface ConnectorDef {
   id: string
@@ -153,6 +158,13 @@ export class Agents {
       await proc.closeSession(session.sessionId)
       const probed = probe(init, session)
       await this.options.settings.update((s) => ({ ...s, connectors: { ...s.connectors, probed: { ...s.connectors.probed, [id]: probed } } }))
+      // A signed-out Claude Code opens a session all the same and only refuses the first prompt (seen
+      // 2026-10-13: the welcome check said "Owlit will use Claude Code", the first message stopped); its
+      // adapter does say so, in a report of its own, so the check asks for that before calling it ready
+      if ((await proc.authStatus(AUTH_STATUS_WAIT_MS))?.kind === "none") {
+        await this.signedOut(id)
+        return this.connectorOf(def)
+      }
       this.setLive(id, { status: proc.running ? "connected" : "available", error: undefined, authenticated: true })
     } catch (error) {
       const auth = isAuthError(error)

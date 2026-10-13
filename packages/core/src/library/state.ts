@@ -1,10 +1,11 @@
 import type { Highlight, Paper, PaperNote, PaperOverrides, PaperPatch, PaperRecord, PaperState } from "@owlit/protocol"
-import { readFile, rm, stat } from "node:fs/promises"
+import { readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { paperDir, paperStateDir } from "./paths.ts"
 
-// .owlit/papers/<id>/: state.json, highlights.jsonl, note.md — the user's side of a paper
+// The user's side of a paper: .owlit/papers/<id>/ holds state.json and highlights.jsonl (machine state);
+// their note is note.md beside the PDF in library/papers/<id>/, where they find it in Finder
 
 const METADATA_KEYS = ["title", "authors", "year", "venue", "abstract", "kind"] as const
 
@@ -106,10 +107,25 @@ export async function writeHighlights(root: string, id: string, highlights: High
 
 // ---- The note: plain Markdown; mentions are owlit:// links
 
-const noteFile = (root: string, id: string) => path.join(paperStateDir(root, id), "note.md")
+// The note's path from the workspace root, as agents and the activity journal name it
+export const noteRelPath = (id: string) => path.posix.join("library/papers", id, "note.md")
+
+const noteFile = (root: string, id: string) => path.join(paperDir(root, id), "note.md")
+
+// Until 2026-10-13 the note was kept in .owlit/papers/<id>/, hidden with the machine state; the user
+// expected their own words next to the paper (a blind user test). A note still there moves beside the
+// paper the first time it is read or written, so nothing is lost and no second copy appears.
+async function moveOldNote(root: string, id: string) {
+  const old = path.join(paperStateDir(root, id), "note.md")
+  const file = noteFile(root, id)
+  if (await stat(file).then(() => true, () => false)) return
+  if (!(await stat(old).then(() => true, () => false))) return
+  await rename(old, file).catch(() => undefined)
+}
 
 export async function readNote(root: string, id: string): Promise<PaperNote | undefined> {
   try {
+    await moveOldNote(root, id)
     const file = noteFile(root, id)
     const [content, info] = await Promise.all([readFile(file, "utf8"), stat(file)])
     return { paperId: id, content, updatedAt: info.mtimeMs }
@@ -120,6 +136,7 @@ export async function readNote(root: string, id: string): Promise<PaperNote | un
 
 // An empty note is no file
 export async function writeNote(root: string, id: string, content: string): Promise<PaperNote> {
+  await moveOldNote(root, id)
   const file = noteFile(root, id)
   if (!content.trim()) {
     await rm(file, { force: true })

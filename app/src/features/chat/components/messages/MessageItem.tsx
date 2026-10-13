@@ -7,7 +7,6 @@ import { Quote } from "@/components/quote"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
-import { Spinner } from "@/components/ui/spinner"
 import type { AttachmentFile, ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { importCopy, openAttached } from "../../lib/attachments"
@@ -176,6 +175,12 @@ export function AssistantMessage({
   const working = streaming ? message.parts.filter((p) => p.type === "agent" && p.status === "working").length : 0
   const workingBlock = working ? [...segments].reverse().find((s) => s.type === "agents" && s.agents.some((a) => a.status === "working")) : undefined
   const agentWaiting = waiting && message.parts.some((p) => (p.type === "permission" || p.type === "question") && !p.outcome && !!p.agentId)
+  // Something of the reply is on screen: words, a steps block or the agents it handed work to. Until the
+  // first of these arrives (the seconds after Send) the reply would be blank
+  const showing = segments.some((s) => s.type !== "part" || s.part.type !== "text" || s.part.text.trim() !== "")
+  // The last part says nothing about what comes next (a plan, an answered ask, an agent's own step)
+  const quietLast = !!last && (last.type === "plan" || last.type === "permission" || last.type === "question" || last.type === "agent" || (last.type === "tool_call" && !!last.agentId))
+  const blank = streaming && !waiting && !workingBlock && (!showing || quietLast)
   const blockId = (key: string) => `${message.id}-${key}`
   return (
     <Message className="text-body">
@@ -196,10 +201,11 @@ export function AssistantMessage({
           }
         })}
         {workingBlock && <AgentsWaitLine blockId={blockId(workingBlock.key)} working={working} waiting={agentWaiting} />}
-        {!workingBlock && streaming && !waiting && (!last || last.type === "plan" || last.type === "permission" || last.type === "question" || last.type === "agent" || (last.type === "tool_call" && !!last.agentId)) && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner className="size-3.5" />
-            Working…
+        {/* The reply at work before it has anything to show: the steps line's own look (14px at 80%, the
+            words shimmering), no spinner, where the answer will appear */}
+        {blank && (
+          <div className="flex items-center text-sm text-foreground/80">
+            <span className="shimmer">Working…</span>
           </div>
         )}
         {!streaming && <ResultCard message={message} />}

@@ -92,14 +92,19 @@ export async function searchSource(
 // (2026-10: a search costs 10 credits of 1,000 without a key, 10,000 with a free one); once it's used
 // up, "try again in a minute" sends an agent round in circles (seen 2026-10-10: 55 failed searches in
 // one literature review), so it hears when the allowance comes back and what to use meanwhile.
+//
+// These messages are read by two readers: the agent, as its tool's result, and the user, who sees the
+// same text when they open the failed step in the chat (seen 2026-10-13: "the user can add one in
+// Settings" shown to the user). So they speak of Owlit and the user in the third person, and the tool
+// arguments the agent needs stay in brackets.
 function busy(error: unknown, name: string, keys: MetadataKeys) {
   if (error instanceof HttpError && error.status === 429 && error.quotaResetIn !== undefined) {
     const back = new Date(Date.now() + error.quotaResetIn * 1000)
     const hours = Math.max(1, Math.round(error.quotaResetIn / 3600))
-    const others = name === NAMES.openalex ? " Until then use library_search with source s2 or arxiv." : ""
+    const others = name === NAMES.openalex ? " Until then Owlit can search Semantic Scholar or arXiv instead (source s2 or arxiv)." : ""
     const key =
       name === NAMES.openalex && !keys.openalexApiKey
-        ? " A free OpenAlex API key gives ten times as much: the user can add one in [Settings › Papers](owlit://settings/sources)."
+        ? " A free OpenAlex API key gives ten times as much; it goes in [Settings › Papers](owlit://settings/sources)."
         : ""
     return new RpcFailure(
       RpcErrorCode.Unavailable,
@@ -111,8 +116,8 @@ function busy(error: unknown, name: string, keys: MetadataKeys) {
     return new RpcFailure(
       RpcErrorCode.Unavailable,
       name === NAMES.s2 && !keys.s2ApiKey
-        ? `${name} is too busy to answer without an API key (the user can add one in Settings › Papers). Try again in a minute, or use source openalex.`
-        : `${name} asked owlit to slow down. Try again in a minute.`,
+        ? `${name} is busy right now without an API key; Owlit can try again in a minute or search OpenAlex instead (source openalex). A free API key goes in [Settings › Papers](owlit://settings/sources).`
+        : `${name} asked Owlit to slow down; it can try again in a minute.`,
       { status: 429 },
     )
   }

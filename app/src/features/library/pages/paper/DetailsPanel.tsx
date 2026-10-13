@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils"
 import { rpc } from "@/lib/rpc"
 import { GroupLabel } from "@/components/group-label"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
-import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
@@ -14,6 +13,7 @@ import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsLi
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
 import { externalLinks, type ExternalLink } from "../../lib/format"
+import { stripLatex } from "../../lib/latex"
 import { useHighlightCount } from "../../lib/use-highlights"
 import { NoteEditor } from "../../notes/NoteEditor"
 import { addHighlightToNote } from "../../notes/note-actions"
@@ -103,7 +103,7 @@ function About({ paper }: { paper: Paper }) {
   const links = externalLinks(paper)
   return (
     <div>
-      {paper.abstract ? <p className="text-sm leading-relaxed">{paper.abstract}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
+      {paper.abstract ? <p className="text-sm leading-relaxed whitespace-pre-line">{stripLatex(paper.abstract)}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
       <Digest paper={paper} />
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-detail">
         <dt className="text-muted-foreground">Tags</dt>
@@ -145,8 +145,10 @@ function About({ paper }: { paper: Paper }) {
   )
 }
 
-// Reading notes an agent wrote for the paper (digest.md), or that one is being written. Here for now;
-// its place is the interface's to settle.
+// The reading note Owlit wrote for the paper (digest.md), or that it is writing: the agent's work on a
+// paper the person never asked about, so the label signs it ("Reading note · Owlit, 2 min ago") and, while
+// the paper.digest task for this paper is queued or running, a muted shimmering sentence holds its place.
+// Here for now; its place is the interface's to settle.
 function Digest({ paper }: { paper: Paper }) {
   const [text, setText] = useState<string | null>(null)
   const writing = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.digest"))
@@ -167,14 +169,13 @@ function Digest({ paper }: { paper: Paper }) {
   return (
     <section className="mt-5">
       <GroupLabel as="h3" flush>
-        Digest
+        {shown && paper.digestAt ? `Reading note · Owlit, ${ago(paper.digestAt, { inSentence: true })}` : "Reading note · Owlit"}
       </GroupLabel>
       {shown ? (
         <Markdown text={shown} className="text-sm" />
       ) : (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner />
-          Owlit is writing a reading note…
+        <p className="text-sm text-muted-foreground">
+          <span className="shimmer">Owlit is reading this paper…</span>
         </p>
       )}
     </section>

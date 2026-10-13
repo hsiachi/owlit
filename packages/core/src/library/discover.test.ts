@@ -34,11 +34,24 @@ describe("OpenAlex's daily allowance", () => {
   it("tells the agent when it comes back and what to use meanwhile, without trying again", async () => {
     const { http, asked } = quotaGone()
     const error = await searchSource(http, "proactive reminders", 10, "openalex", {}, {}).catch((e) => e)
-    expect(error.message).toMatch(/^OpenAlex's daily allowance is used up; it comes back in about 5 hours \(\d\d:\d\d UTC\)\. Trying again before then fails the same way\. Until then use library_search with source s2 or arxiv\. A free OpenAlex API key gives ten times as much/)
+    expect(error.message).toMatch(/^OpenAlex's daily allowance is used up; it comes back in about 5 hours \(\d\d:\d\d UTC\)\. Trying again before then fails the same way\. Until then Owlit can search Semantic Scholar or arXiv instead \(source s2 or arxiv\)\. A free OpenAlex API key gives ten times as much/)
     expect(asked).toHaveLength(1)
     // With a key, there's no key to suggest
     const keyed = await searchSource(quotaGone().http, "x", 10, "openalex", {}, { openalexApiKey: "k" }).catch((e) => e)
     expect(keyed.message).not.toMatch(/API key/)
+  })
+
+  // The same text reaches the user when they open the failed step, so it must read right to them too
+  it("says a busy Semantic Scholar in words the user can read as well", async () => {
+    const fetch = (async () => new Response("", { status: 429 })) as unknown as typeof globalThis.fetch
+    const http = new Http({ fetch, userAgent: "t", retryBaseMs: 1 })
+    const error = await searchSource(http, "x", 10, "s2", {}, {}).catch((e) => e)
+    expect(error.message).toBe(
+      "Semantic Scholar is busy right now without an API key; Owlit can try again in a minute or search OpenAlex instead (source openalex). A free API key goes in [Settings › Papers](owlit://settings/sources).",
+    )
+    expect(error.message).not.toMatch(/the user/)
+    const keyed = await searchSource(http, "x", 10, "s2", {}, { s2ApiKey: "k" }).catch((e) => e)
+    expect(keyed.message).toBe("Semantic Scholar asked Owlit to slow down; it can try again in a minute.")
   })
 
   it("follows a published paper's citations through Semantic Scholar instead", async () => {

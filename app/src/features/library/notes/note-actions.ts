@@ -2,10 +2,11 @@ import { useLibraryStore } from "../store"
 import type { Highlight } from "../types"
 
 // Where a paper's note is kept in the workspace; an agent edits the note by writing this file
-export const notePathOf = (paperId: string) => `.owlit/papers/${paperId}/note.md`
+export const notePathOf = (paperId: string) => `library/papers/${paperId}/note.md`
 
-// The paper whose note is at this path, if it is one
-export const paperOfNotePath = (path: string) => /^\.owlit\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
+// The paper whose note is at this path, if it is one. Chats from before 2026-10-13 name the note where it
+// was then kept (.owlit/papers/<id>/note.md), so their results still read as the note.
+export const paperOfNotePath = (path: string) => /^(?:\.owlit|library)\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
 
 // A highlight as a quote in the note, its page a link back to the passage
 function highlightQuote(h: Highlight): string {

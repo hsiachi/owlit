@@ -11,7 +11,7 @@ import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { allDocMentions, docMentionable, mentionLabel, mentionRoute, mentionTitle } from "../lib/mentions"
+import { allDocMentions, docMentionable, mentionLabel, mentionTooltip, openMention } from "../lib/mentions"
 import { freshDocIds, useDocsStore } from "../store"
 import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
@@ -120,12 +120,9 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           docTheme,
           docHighlight,
           livePreview({
-            describe: mentionTitle,
+            describe: mentionTooltip,
             wikilink: wikilinkRoute,
-            onOpenMention: (uri) => {
-              const to = mentionRoute(uri)
-              if (to) navigateRef.current(to)
-            },
+            onOpenMention: (uri) => openMention(uri, (to) => navigateRef.current(to)),
             onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup(() => allDocMentions(id)),
@@ -139,10 +136,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
             onDismiss: (note, next) => dismissNote(id, note, next),
             mentionLabel,
-            onOpenMention: (uri) => {
-              const to = mentionRoute(uri)
-              if (to) navigateRef.current(to)
-            },
+            onOpenMention: (uri) => openMention(uri, (to) => navigateRef.current(to)),
           }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)

@@ -16,6 +16,7 @@ import { guide } from "./agents/guide.ts"
 import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
 import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
+import { noteRelPath } from "./library/state.ts"
 import { pickFromText } from "./library/library.ts"
 import { extractText, toMarkdown, UnreadablePdf } from "./library/text/extract.ts"
 import { serveWorkspaceFile } from "./files/serve.ts"
@@ -694,7 +695,7 @@ export class Core {
               next.search.touch()
               // An agent that writes the disk itself (Claude Code does) changed the note while one of its tool
               // calls names the file: kept and journaled as the agent's, so the chat offers Undo, as for a doc
-              const rel = `${OWLIT_DIR}/papers/${paperId}/note.md`
+              const rel = noteRelPath(paperId)
               const chatId = this.turns.claimant(rel)
               if (chatId) void this.fs.recordDirect(rel, before || null, note?.content ?? null, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
             },

@@ -259,9 +259,23 @@ describe("library on disk", () => {
     expect(papers[0]).toMatchObject({ starred: true, status: "reading", tags: ["attention"], position: { page: 3, y: 120 }, lastOpenedAt: 5 })
     expect(highlights).toMatchObject([{ id: "h1", color: "green", comment: "key idea" }])
     expect(notes[0].content).toMatch(/^# Notes/)
-    expect(readFileSync(path.join(root, ".owlit/papers", id, "note.md"), "utf8")).toBe("# Notes\n\nSee [Vaswani 2017](owlit://library/arxiv-1706.03762).\n")
+    // The note is the user's words, so it sits beside the paper where Finder shows it, not in .owlit
+    expect(readFileSync(path.join(root, "library/papers", id, "note.md"), "utf8")).toBe("# Notes\n\nSee [Vaswani 2017](owlit://library/arxiv-1706.03762).\n")
+    expect(existsSync(path.join(root, ".owlit/papers", id, "note.md"))).toBe(false)
     expect(await call("library.removeHighlight", { paperId: id, id: "h1" })).toMatchObject({ id: "h1" })
     expect((await call("library.list")).highlights).toEqual([])
+  })
+
+  it("moves a note kept in .owlit (before 2026-10-13) beside its paper when it is next read", async () => {
+    const { root, call } = await setup({})
+    await call("library.add", { paper: resolvedArxiv })
+    const id = "arxiv-1706.03762"
+    mkdirSync(path.join(root, ".owlit/papers", id), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/papers", id, "note.md"), "Old words.\n")
+    const { notes } = await call("library.list")
+    expect(notes).toMatchObject([{ paperId: id, content: "Old words.\n" }])
+    expect(readFileSync(path.join(root, "library/papers", id, "note.md"), "utf8")).toBe("Old words.\n")
+    expect(existsSync(path.join(root, ".owlit/papers", id, "note.md"))).toBe(false)
   })
 
   it("keeps a title the user corrected when the metadata is fetched again", async () => {
