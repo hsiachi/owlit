@@ -3,6 +3,7 @@
 // in the page and never reach here. Built the way macOS builds it: spelling first, then Look Up, then
 // the edit commands, with "Ask Owlit" on top when the page says the selection can go to Owlit.
 
+import { t } from "@lingui/core/macro"
 import { clipboard, ipcMain, Menu, shell, type BrowserWindow, type ContextMenuParams, type MenuItemConstructorOptions, type WebContents } from "electron"
 
 const isMac = process.platform === "darwin"
@@ -28,34 +29,37 @@ function items(win: BrowserWindow, params: ContextMenuParams, ask: boolean): Men
   const flags = params.editFlags
   const groups: MenuItemConstructorOptions[][] = []
 
-  if (ask) groups.push([{ label: "Ask Owlit", click: () => web.send("text-menu-ask") }])
+  if (ask) groups.push([{ label: t`Ask Owlit`, click: () => web.send("text-menu-ask") }])
 
   if (params.misspelledWord) {
     const guesses = params.dictionarySuggestions.slice(0, 5)
     groups.push([
       ...(guesses.length
         ? guesses.map((word) => ({ label: word, click: () => web.replaceMisspelling(word) }))
-        : [{ label: "No Guesses Found", enabled: false }]),
-      { label: "Learn Spelling", click: () => web.session.addWordToSpellCheckerDictionary(params.misspelledWord) },
+        : [{ label: t`No Guesses Found`, enabled: false }]),
+      { label: t`Learn Spelling`, click: () => web.session.addWordToSpellCheckerDictionary(params.misspelledWord) },
     ])
   }
 
-  if (selected && isMac) groups.push([{ label: `Look Up “${short(selected)}”`, click: () => web.showDefinitionForSelection() }])
+  if (selected && isMac) {
+    const passage = short(selected)
+    groups.push([{ label: t`Look Up “${passage}”`, click: () => web.showDefinitionForSelection() }])
+  }
 
   if (/^https?:\/\//.test(params.linkURL))
     groups.push([
-      { label: "Open Link in Browser", click: () => void shell.openExternal(params.linkURL) },
-      { label: "Copy Link", click: () => clipboard.writeText(params.linkURL) },
+      { label: t`Open Link in Browser`, click: () => void shell.openExternal(params.linkURL) },
+      { label: t`Copy Link`, click: () => clipboard.writeText(params.linkURL) },
     ])
 
   if (params.isEditable)
     groups.push([
-      { role: "cut", enabled: flags.canCut && !!selected },
-      { role: "copy", enabled: flags.canCopy && !!selected },
-      { role: "paste", enabled: flags.canPaste },
-      { role: "selectAll", enabled: flags.canSelectAll },
+      { role: "cut", label: t`Cut`, enabled: flags.canCut && !!selected },
+      { role: "copy", label: t`Copy`, enabled: flags.canCopy && !!selected },
+      { role: "paste", label: t`Paste`, enabled: flags.canPaste },
+      { role: "selectAll", label: t`Select All`, enabled: flags.canSelectAll },
     ])
-  else if (selected) groups.push([{ role: "copy" }])
+  else if (selected) groups.push([{ role: "copy", label: t`Copy` }])
 
   return groups.filter((g) => g.length)
 }

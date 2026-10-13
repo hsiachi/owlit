@@ -12,7 +12,7 @@ export const defaultSettings = (): AppSettings => ({
   parsing: {},
   library: {},
   activity: { enabled: true },
-  appearance: { theme: "system", tone: "warm" },
+  appearance: { theme: "system", tone: "warm", language: "system" },
   profile: {},
 })
 

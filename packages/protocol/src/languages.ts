@@ -80,3 +80,28 @@ export function noteLanguageName(value: string): string {
 export function writesCjk(value: string): boolean {
   return /^(zh|ja|ko)\b/i.test(value) || /[぀-ヿ㐀-鿿가-힯]/.test(value)
 }
+
+// ---- The interface's own language ----
+
+// The languages the interface itself is shown in. "pseudo" is for development only: every word swapped
+// for an accented look-alike, so a string left in English stands out.
+export const LOCALES = ["en", "zh-Hans"] as const
+export type Locale = (typeof LOCALES)[number] | "pseudo"
+// What Settings › Appearance › Language holds: a locale, or "system" to follow the system's languages
+export type InterfaceLanguage = "system" | Locale
+
+// The locale the interface uses: the one chosen, or for "system" the first of the system's preferred
+// languages (BCP 47, most preferred first) that has one. Any Chinese gets Simplified Chinese, the only
+// Chinese there is yet; a language without a locale is passed over for the next, then English.
+export function interfaceLocale(choice: InterfaceLanguage | undefined, preferred: readonly string[]): Locale {
+  if (choice && choice !== "system") return choice
+  for (const tag of preferred) {
+    const lower = tag.toLowerCase()
+    if (lower.startsWith("zh")) return "zh-Hans"
+    if (lower === "en" || lower.startsWith("en-")) return "en"
+  }
+  return "en"
+}
+
+// The note language a locale means, for the digest's default once the interface language is chosen
+export const noteLanguageOfLocale = (locale: Locale) => (locale === "pseudo" ? DEFAULT_NOTE_LANGUAGE : locale)

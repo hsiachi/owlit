@@ -13,9 +13,9 @@ let current: AppearanceSettings = bridge?.appearance ?? storedAppearance()
 export function storedAppearance(): AppearanceSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<AppearanceSettings> | null
-    return { theme: stored?.theme ?? "system", tone: stored?.tone ?? "warm" }
+    return { theme: stored?.theme ?? "system", tone: stored?.tone ?? "warm", language: stored?.language ?? "system" }
   } catch {
-    return { theme: "system", tone: "warm" }
+    return { theme: "system", tone: "warm", language: "system" }
   }
 }
 

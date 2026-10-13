@@ -9,9 +9,14 @@
     "build": "pnpm --filter @owlit/desktop build",
     "test": "vitest run",
     "lint": "pnpm -r --no-bail lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "i18n:extract": "lingui extract --clean"
   },
   "devDependencies": {
+    "@lingui/cli": "6.9.1",
+    "@lingui/conf": "6.9.1",
+    "@lingui/format-po": "6.9.1",
+    "@lingui/native-tools": "0.1.6",
     "vitest": "5.0.2"
   }
 }

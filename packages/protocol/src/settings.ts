@@ -1,12 +1,15 @@
 // Settings as the window sees and changes them. Keys never leave core: a window learns only that one
 // is set and how it ends.
 
+import type { Locale } from "./languages.ts"
 import type { AppearanceSettings, ProfileSettings, ProxySettings } from "./workspace.ts"
 
 export type SecretName = "s2ApiKey" | "openalexApiKey" | "mineruToken"
 
 export interface SettingsView {
   appearance: AppearanceSettings
+  // The locale appearance.language comes to on this machine (interfaceLocale)
+  locale: Locale
   profile: ProfileSettings
   library: {
     contactEmail?: string
@@ -15,7 +18,8 @@ export interface SettingsView {
     proxySignedInAt?: number
     // A code from NOTE_LANGUAGES, or the user's words for another language; unset follows the system
     digestLanguage?: string
-    // The system's language, as the note language it means (what unset gives)
+    // What unset gives: the interface language when one is chosen, otherwise the system's language, as
+    // the note language it means
     digestLanguageSystem: string
     digestEveryPaper?: boolean
   }

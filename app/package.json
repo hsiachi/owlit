@@ -34,6 +34,9 @@
     "@lezer/common": "^1.5.3",
     "@lezer/highlight": "^1.2.5",
     "@lezer/markdown": "^1.8.0",
+    "@lingui/core": "6.9.1",
+    "@lingui/react": "6.9.1",
+    "@owlit/i18n": "workspace:*",
     "@owlit/protocol": "workspace:*",
     "@shadcn/react": "^0.3.1",
     "@tiptap/core": "^3.31.4",
@@ -63,6 +66,9 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@lingui/cli": "6.9.1",
+    "@lingui/format-po": "6.9.1",
+    "@lingui/vite-plugin": "6.9.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/katex": "^0.16.8",
     "@types/node": "^24.13.3",

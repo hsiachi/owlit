@@ -11,10 +11,12 @@
 @custom-variant focus-key (&:focus-visible:where([data-modality="keyboard"] *));
 
 @theme inline {
-    /* Figtree: round, open sans for the whole UI. Dosis 500: the wordmark's face, for the Chat greeting only */
+    /* Figtree: round, open sans for the whole UI. Dosis 500: the wordmark's face, for the Chat greeting only.
+       Neither has Chinese characters: PingFang SC (macOS) or Microsoft YaHei (Windows) draws them, named
+       before the system faces so they never fall to a Japanese face while the page's lang is English */
     --font-heading: var(--font-sans);
-    --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Dosis', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Figtree Variable', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Dosis', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
     /* DESIGN.md's type steps that Tailwind has no name for: page titles, body, and secondary text. No
        line-height of their own, so a line keeps the height it inherits, as the arbitrary sizes did */
     --text-title: 22px;

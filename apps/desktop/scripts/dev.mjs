@@ -52,9 +52,11 @@ async function restartElectron() {
 }
 
 copyMainAssets()
+const options = esbuildOptions({ production: false })
 const ctx = await esbuild.context({
-  ...esbuildOptions({ production: false }),
+  ...options,
   plugins: [
+    ...options.plugins,
     {
       name: "restart-electron",
       setup(build) {

@@ -6,6 +6,8 @@
 // into the row's padding. Controls shown only on hover sit to the left of what always shows, so nothing
 // moves or leaves a gap when they appear.
 
+import { t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
 import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
@@ -165,12 +167,12 @@ type Check = { checking: boolean; result?: SettingsCheck }
 // The check, beside the value it is about: a spinner while owlit asks, then a check mark if the service
 // took it. It sits in the control's slot, so the row never changes height for it. accepted is what the
 // mark says, for a value that isn't a key.
-export function CheckMark({ checking, result, service, accepted = `${service} accepted it` }: Check & { service: string; accepted?: string }) {
+export function CheckMark({ checking, result, service, accepted = t`${service} accepted it` }: Check & { service: string; accepted?: string }) {
   let mark: React.ReactNode = null
   let label = ""
   if (checking) {
     mark = <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
-    label = `Checking with ${service}…`
+    label = t`Checking with ${service}…`
   } else if (result?.result === "works") {
     mark = <CheckIcon className="size-3.5 text-owlit animate-in fade-in zoom-in-75" />
     label = accepted
@@ -231,8 +233,8 @@ export function SecretRow({ name, label, info, help, getFrom, service }: { name:
   } else {
     control = (
       <>
-        <span className="text-detail text-muted-foreground">Not set</span>
-        <IconAction label="Add key" onClick={() => setEditing(true)}>
+        <span className="text-detail text-muted-foreground">{t`Not set`}</span>
+        <IconAction label={t`Add key`} onClick={() => setEditing(true)}>
           <PlusIcon />
         </IconAction>
       </>
@@ -241,17 +243,23 @@ export function SecretRow({ name, label, info, help, getFrom, service }: { name:
 
   return (
     <Row name={label} info={info} help={help} control={control}>
-      {editing && getFrom && (
-        <Note>
-          Get one at{" "}
-          <a href={getFrom.href} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
-            {getFrom.label}
-          </a>
-          . Press Enter to keep it.
-        </Note>
-      )}
+      {editing && getFrom && <GetKeyNote site={getFrom.label} href={getFrom.href} />}
       {!editing && <CheckNote {...check} />}
     </Row>
+  )
+}
+
+function GetKeyNote({ site, href }: { site: string; href: string }) {
+  return (
+    <Note>
+      <Trans>
+        Get one at{" "}
+        <a href={href} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+          {site}
+        </a>
+        . Press Enter to keep it.
+      </Trans>
+    </Note>
   )
 }
 
@@ -266,7 +274,7 @@ export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void
         type="password"
         autoComplete="off"
         spellCheck={false}
-        placeholder="Paste the key"
+        placeholder={t`Paste the key`}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
@@ -274,7 +282,7 @@ export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void
         }}
         className="h-8 w-56 font-mono text-detail"
       />
-      <IconAction label="Cancel" onClick={onCancel}>
+      <IconAction label={t`Cancel`} onClick={onCancel}>
         <XIcon />
       </IconAction>
     </>
@@ -286,14 +294,14 @@ export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void
 export function MaskedKey({ last4, onChange, onRemove, children }: { last4?: string; onChange: () => void; onRemove: () => void; children?: React.ReactNode }) {
   return (
     <>
-      <IconAction label="Remove key" className={onHover} onClick={onRemove}>
+      <IconAction label={t`Remove key`} className={onHover} onClick={onRemove}>
         <Trash2Icon />
       </IconAction>
       {children}
-      <span className="font-mono text-detail text-muted-foreground" aria-label={last4 ? `Key ending in ${last4}` : "Key set"}>
+      <span className="font-mono text-detail text-muted-foreground" aria-label={last4 ? t`Key ending in ${last4}` : t`Key set`}>
         ••••{last4}
       </span>
-      <IconAction label="Change key" onClick={onChange}>
+      <IconAction label={t`Change key`} onClick={onChange}>
         <PencilIcon />
       </IconAction>
     </>
@@ -353,7 +361,7 @@ export function FoldedForm({
       {children}
       <div className="flex justify-end gap-2 pt-0.5">
         <Button type="button" variant="ghost" className="text-muted-foreground" onClick={onCancel}>
-          Cancel
+          {t`Cancel`}
         </Button>
         <Button type="submit" disabled={submitDisabled}>
           {submit}

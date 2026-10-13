@@ -1,3 +1,6 @@
+import { t } from "@lingui/core/macro"
+import { intlLocale } from "@owlit/i18n"
+
 export const MINUTE = 60_000
 export const HOUR = 60 * MINUTE
 export const DAY = 24 * HOUR
@@ -10,17 +13,19 @@ export function startOfDay(t: number) {
 
 const sameYear = (t: number) => new Date(t).getFullYear() === new Date().getFullYear()
 
+// Dates and times are written the interface language's way (Intl): "Oct 15" or "10月15日"
+
 // "Oct 15", or "Oct 15, 2025" in another year
 export function shortDate(t: number) {
-  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear(t) ? {} : { year: "numeric" }) })
+  return new Date(t).toLocaleDateString(intlLocale(), { month: "short", day: "numeric", ...(sameYear(t) ? {} : { year: "numeric" }) })
 }
 
 // "3:40 PM"
-const clock = (t: number) => new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+const clock = (t: number) => new Date(t).toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" })
 
 // "Oct 15, 3:40 PM"
 export function dateTime(t: number) {
-  return `${shortDate(t)}, ${clock(t)}`
+  return new Date(t).toLocaleString(intlLocale(), { month: "short", day: "numeric", ...(sameYear(t) ? {} : { year: "numeric" }), hour: "numeric", minute: "2-digit" })
 }
 
 // When a message was sent or answered: "3:40 PM" today, "Oct 15, 3:40 PM" on any other day. A clock time
@@ -36,14 +41,20 @@ export function dayLabel(iso: string) {
 }
 
 // "Just now", "12 min ago", "3 h ago", "Yesterday", then the date. Inside a sentence ("read yesterday",
-// "Owlit last read your workspace just now") the two words lower their capital.
-export function ago(t: number, { inSentence = false, now = Date.now() } = {}) {
-  const d = now - t
-  const word = (w: string) => (inSentence ? w.toLowerCase() : w)
-  if (d < MINUTE) return word("Just now")
-  if (d < HOUR) return `${Math.floor(d / MINUTE)} min ago`
+// "Owlit last read your workspace just now") the two words lower their capital, as their own messages so
+// a language without capitals, or with other rules for them, writes each form its own way.
+export function ago(time: number, { inSentence = false, now = Date.now() } = {}) {
+  const d = now - time
+  if (d < MINUTE) return inSentence ? t`just now` : t`Just now`
+  if (d < HOUR) {
+    const minutes = Math.floor(d / MINUTE)
+    return t`${minutes} min ago`
+  }
   const today = startOfDay(now)
-  if (t >= today || d < 12 * HOUR) return `${Math.floor(d / HOUR)} h ago`
-  if (t >= today - DAY) return word("Yesterday")
-  return shortDate(t)
+  if (time >= today || d < 12 * HOUR) {
+    const hours = Math.floor(d / HOUR)
+    return t`${hours} h ago`
+  }
+  if (time >= today - DAY) return inSentence ? t`yesterday` : t`Yesterday`
+  return shortDate(time)
 }

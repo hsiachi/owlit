@@ -13,8 +13,13 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@owlit/core": "workspace:*",
+    "@lingui/cli": "6.9.1",
+    "@lingui/conf": "6.9.1",
+    "@lingui/core": "6.9.1",
+    "@lingui/native-tools": "0.1.6",
     "@owlit/agent": "workspace:*",
+    "@owlit/core": "workspace:*",
+    "@owlit/i18n": "workspace:*",
     "@owlit/mcp": "workspace:*",
     "@owlit/protocol": "workspace:*",
     "@types/node": "^24.13.3",

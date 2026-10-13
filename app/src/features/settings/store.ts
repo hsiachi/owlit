@@ -2,42 +2,46 @@
 // dialog's open state. Changes go straight to core: there is no Save, and every window hears the result.
 // Without the desktop app there is no core; appearance is then kept in localStorage so dev:web can try it.
 
-import { noteLanguageFor, type AppearanceSettings, type ProxyPreset, type SecretName, type SettingsCheckTarget, type SettingsPatch, type SettingsView } from "@owlit/protocol"
+import { interfaceLocale, noteLanguageFor, noteLanguageOfLocale, type AppearanceSettings, type ProxyPreset, type SecretName, type SettingsCheckTarget, type SettingsPatch, type SettingsView } from "@owlit/protocol"
+import type { MessageDescriptor } from "@lingui/core"
+import { msg } from "@lingui/core/macro"
 import { create } from "zustand"
+import { applyLocale, i18n } from "@/lib/i18n"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
 
 // The dialog's sections in order, by the names its list and owlit:// links show. They follow what the
 // user came to do (what Owlit does, which agents run it, getting papers, how it looks), not core's modules.
+// Labels are messages, said in the interface's language where they show.
 export const SECTIONS = [
-  { id: "owlit", label: "Owlit" },
-  { id: "agents", label: "Agents" },
-  { id: "papers", label: "Papers" },
-  { id: "appearance", label: "Appearance" },
-] as const
+  { id: "owlit", label: msg`Owlit` },
+  { id: "agents", label: msg`Agents` },
+  { id: "papers", label: msg`Papers` },
+  { id: "appearance", label: msg`Appearance` },
+] as const satisfies readonly { id: string; label: MessageDescriptor }[]
 export type SettingsSection = (typeof SECTIONS)[number]["id"]
 
 // Groups inside a section that a link can open at. Before 2026-10-12 most of these were sections of their
 // own, so owlit://settings/proxy in an older chat still lands in the right place.
 export const GROUPS = {
   profile: { section: "owlit", label: null },
-  background: { section: "owlit", label: "Background work" },
-  privacy: { section: "owlit", label: "Privacy" },
-  sources: { section: "papers", label: "Finding papers" },
-  proxy: { section: "papers", label: "Library proxy" },
-  reading: { section: "papers", label: "Reading PDFs" },
-} as const satisfies Record<string, { section: SettingsSection; label: string | null }>
+  background: { section: "owlit", label: msg`Background work` },
+  privacy: { section: "owlit", label: msg`Privacy` },
+  sources: { section: "papers", label: msg`Finding papers` },
+  proxy: { section: "papers", label: msg`Library proxy` },
+  reading: { section: "papers", label: msg`Reading PDFs` },
+} as const satisfies Record<string, { section: SettingsSection; label: MessageDescriptor | null }>
 export type SettingsGroup = keyof typeof GROUPS
 export type SettingsPlace = SettingsSection | SettingsGroup
 
 // Where an owlit://settings/<id> link goes, with the words it shows ("Papers › Library proxy")
 export function settingsPlace(id: string): { section: SettingsSection; group?: SettingsGroup; label: string } | null {
   const section = SECTIONS.find((s) => s.id === id)
-  if (section) return { section: section.id, label: section.label }
+  if (section) return { section: section.id, label: i18n._(section.label) }
   if (!(id in GROUPS)) return null
   const group = GROUPS[id as SettingsGroup]
-  const sectionLabel = SECTIONS.find((s) => s.id === group.section)!.label
-  return { section: group.section, group: id as SettingsGroup, label: group.label ? `${sectionLabel} › ${group.label}` : sectionLabel }
+  const sectionLabel = i18n._(SECTIONS.find((s) => s.id === group.section)!.label)
+  return { section: group.section, group: id as SettingsGroup, label: group.label ? `${sectionLabel} › ${i18n._(group.label)}` : sectionLabel }
 }
 
 interface SettingsState {
@@ -62,6 +66,7 @@ export const showSection = (section: SettingsSection) => useSettings.setState({ 
 function receive(view: SettingsView) {
   useSettings.setState({ view })
   applyAppearance(view.appearance)
+  applyLocale(view.locale)
 }
 
 export async function updateSettings(patch: SettingsPatch) {
@@ -70,7 +75,7 @@ export async function updateSettings(patch: SettingsPatch) {
     const view = useSettings.getState().view
     const appearance = { ...(view?.appearance ?? storedAppearance()), ...patch.appearance }
     const name = patch.profile?.name === undefined ? view?.profile.name : patch.profile.name || undefined
-    receive({ ...webView(), appearance, profile: name ? { name } : {} })
+    receive({ ...webView(appearance), profile: name ? { name } : {} })
     return
   }
   receive(await rpc.settings.update({ patch }))
@@ -84,7 +89,12 @@ export async function setActivity(enabled: boolean) {
   await rpc.activity.setEnabled({ enabled })
 }
 
-const webView = (): SettingsView => ({ appearance: storedAppearance(), profile: {}, library: { digestLanguageSystem: noteLanguageFor(navigator.languages) }, parsing: { auto: true }, secrets: {}, activity: { enabled: true } })
+// What core would say, for dev:web: the interface and digest languages as core works them out
+function webView(appearance = storedAppearance()): SettingsView {
+  const locale = interfaceLocale(appearance.language, navigator.languages)
+  const digestLanguageSystem = appearance.language === "system" ? noteLanguageFor(navigator.languages) : noteLanguageOfLocale(locale)
+  return { appearance, locale, profile: {}, library: { digestLanguageSystem }, parsing: { auto: true }, secrets: {}, activity: { enabled: true } }
+}
 
 export function startSettings() {
   if (!isDesktop) {

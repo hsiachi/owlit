@@ -3,6 +3,8 @@
 // the rail, and links where something could work better ("Set up library proxy", "Manage agents…"),
 // which open it at their section. Closing it leaves you exactly where you were.
 
+import { msg, t } from "@lingui/core/macro"
+import type { MessageDescriptor } from "@lingui/core"
 import { useEffect, useRef } from "react"
 import { BotIcon, PaletteIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
@@ -11,6 +13,7 @@ import { OwlitMark } from "@/components/owlit-mark"
 import { isBroken } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { useLoginTasks } from "@/features/tasks/store"
+import { i18n } from "@/lib/i18n"
 import { KIND_ICON } from "@/lib/kinds"
 import { useFold } from "./form-state"
 import { Info } from "@/components/info"
@@ -21,25 +24,25 @@ import { PapersSection } from "./sections/PapersSection"
 import { closeSettings, SECTIONS, showSection, useSettings, type SettingsSection } from "./store"
 
 // What each section shows besides its name: its icon in the list, what it is about, and its body
-const PARTS: Record<SettingsSection, { icon: React.ComponentType; about: string; body: React.ComponentType }> = {
+const PARTS: Record<SettingsSection, { icon: React.ComponentType; about: MessageDescriptor; body: React.ComponentType }> = {
   owlit: {
     icon: OwlitMark,
-    about: "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with.",
+    about: msg`What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with.`,
     body: OwlitSection,
   },
   agents: {
     icon: BotIcon,
-    about: "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them.",
+    about: msg`Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them.`,
     body: AgentsSection,
   },
   papers: {
     icon: KIND_ICON.paper,
-    about: "How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better.",
+    about: msg`How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better.`,
     body: PapersSection,
   },
   appearance: {
     icon: PaletteIcon,
-    about: "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean.",
+    about: msg`How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean.`,
     body: AppearanceSection,
   },
 }
@@ -59,6 +62,7 @@ export function SettingsDialog() {
   const needs = useNeedsYou()
   const section = LIST.find((s) => s.id === sectionId) ?? LIST[0]
   const Body = section.body
+  const sectionLabel = i18n._(section.label)
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && closeSettings()}>
@@ -78,8 +82,8 @@ export function SettingsDialog() {
           }
         }}
       >
-        <DialogTitle className="sr-only">Settings</DialogTitle>
-        <DialogDescription className="sr-only">This computer's settings for owlit.</DialogDescription>
+        <DialogTitle className="sr-only">{t`Settings`}</DialogTitle>
+        <DialogDescription className="sr-only">{t`This computer's settings for owlit.`}</DialogDescription>
         {/* The list keeps the width it had with seven names, so the section column stays the same */}
         <SidebarProvider className="min-h-0 items-start" style={{ "--sidebar-width": "12.5rem" } as React.CSSProperties}>
           <Sidebar collapsible="none" className="hidden h-[560px] border-r bg-sidebar-panel md:flex">
@@ -93,8 +97,8 @@ export function SettingsDialog() {
                       <SidebarMenuItem key={s.id}>
                         <SidebarMenuButton isActive={s.id === section.id} onClick={() => showSection(s.id)}>
                           <s.icon />
-                          <span>{s.label}</span>
-                          {needs[s.id] && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-warning" aria-label="Needs you" />}
+                          <span>{i18n._(s.label)}</span>
+                          {needs[s.id] && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-warning" aria-label={t`Needs you`} />}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
@@ -105,8 +109,8 @@ export function SettingsDialog() {
           </Sidebar>
           <main className="flex h-[560px] min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex h-14 shrink-0 items-center gap-1 pr-12 pl-6">
-              <h2 className="text-base font-medium">{section.label}</h2>
-              <Info label={`About ${section.label}`}>{section.about}</Info>
+              <h2 className="text-base font-medium">{sectionLabel}</h2>
+              <Info label={t`About ${sectionLabel}`}>{i18n._(section.about)}</Info>
             </header>
             <div className="flex-1 overflow-y-auto px-6 pt-1 pb-7">
               <Body key={section.id} />

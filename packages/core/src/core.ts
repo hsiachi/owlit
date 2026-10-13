@@ -1,4 +1,4 @@
-import { chatOfFile, normalizeNoteLanguage, noteLanguageFor, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
@@ -23,7 +23,7 @@ import { serveWorkspaceFile } from "./files/serve.ts"
 import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
-import { registerSettings, settingsView } from "./settings-rpc.ts"
+import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -84,13 +84,13 @@ export class Core {
   private readonly http: Http
   private readonly background: Background
   private socket: SocketServer | null = null
-  // The note language the system's own language means: reading notes are written in it until
-  // Settings says otherwise
-  private readonly systemLanguage: string
+  // The system's preferred languages (BCP 47, most preferred first), read once: the interface and digests
+  // follow them until Settings says otherwise
+  private readonly systemLanguages: readonly string[]
 
   constructor(options: CoreOptions) {
     this.options = options
-    this.systemLanguage = noteLanguageFor(options.host?.languages?.() ?? [])
+    this.systemLanguages = options.host?.languages?.() ?? []
     this.settings = new SettingsStore(options.userDataDir, options.host?.secrets)
     this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
     limitMetadataHosts(this.http)
@@ -183,7 +183,7 @@ export class Core {
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), async ({ enabled }) => {
       const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
       this.notifier.notify("activity.status", next.activity)
-      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguage))
+      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages))
       return next.activity
     })
 
@@ -192,7 +192,7 @@ export class Core {
       settings: this.settings,
       http: this.http,
       browser: options.host?.browser,
-      systemLanguage: this.systemLanguage,
+      systemLanguages: this.systemLanguages,
       changed: (view) => this.notifier.notify("settings.changed", view),
     })
 
@@ -655,8 +655,9 @@ export class Core {
                 agent: async (prompt, signal, pictures) =>
                   this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
-                  const chosen = (await this.settings.get()).library.digestLanguage
-                  return chosen ? normalizeNoteLanguage(chosen) : this.systemLanguage
+                  const settings = await this.settings.get()
+                  const chosen = settings.library.digestLanguage
+                  return chosen ? normalizeNoteLanguage(chosen) : defaultNoteLanguage(settings, this.systemLanguages)
                 },
               },
               knowledge: {
@@ -756,7 +757,7 @@ export class Core {
       const { proxySignedInAt: _, ...rest } = s.library
       return { ...s, library: signedIn ? { ...rest, proxySignedInAt: Date.now() } : rest }
     })
-    this.notifier.notify("settings.changed", settingsView(next, this.systemLanguage))
+    this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages))
   }
 
   // The agent (and its model) chosen for background work in Settings

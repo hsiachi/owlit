@@ -1,8 +1,11 @@
 // Electron main process: wiring only. It makes windows, starts core and carries its messages; anything
 // that is owlit's own logic lives in @owlit/core.
 
+import { plural, t } from "@lingui/core/macro"
 import { Core } from "@owlit/core"
-import type { AppearanceSettings, DocsChange, MenuCommand, MethodName, ParamsOf, ResultOf, RpcRequest, SettingsView, WorkspaceInfo } from "@owlit/protocol"
+import { activateLocale } from "@owlit/i18n"
+import { CATALOGS } from "@owlit/i18n/catalogs"
+import { interfaceLocale, type AppearanceSettings, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notification, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
@@ -72,7 +75,16 @@ function followControls(win: BrowserWindow) {
 // prefers-color-scheme both follow it; the renderer reads theme and tone once, synchronously, before its
 // first frame. The window's own background is the frame's colour, so nothing flashes while it loads.
 
-let appearance: AppearanceSettings = { theme: "system", tone: "warm" }
+let appearance: AppearanceSettings = { theme: "system", tone: "warm", language: "system" }
+
+// The interface's language: main's own words (menus, dialogs) and core's messages, which run in this
+// process, follow it; the renderer reads it once, synchronously, before its first frame
+let locale: Locale = interfaceLocale("system", app.getPreferredSystemLanguages())
+activateLocale(locale, CATALOGS[locale])
+
+ipcMain.on("locale", (event) => {
+  event.returnValue = locale
+})
 
 // The system folder picker, for the welcome page's Open a folder you have, Choose… and Locate…
 ipcMain.handle("choose-folder", async (event, options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }) => {
@@ -224,7 +236,7 @@ async function openWorkspace(core: Core, folder: string) {
     await call(core, "workspace.open", { path: folder })
   } catch (error) {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-    const options = { type: "warning" as const, message: "Couldn't open the folder", detail: (error as Error).message }
+    const options = { type: "warning" as const, message: t`Couldn't open the folder`, detail: (error as Error).message }
     await (win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options))
     await updateMenu(core)
   }
@@ -233,9 +245,9 @@ async function openWorkspace(core: Core, folder: string) {
 async function chooseWorkspace(core: Core) {
   const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
   const options: Electron.OpenDialogOptions = {
-    title: "Open Workspace",
-    message: "Choose the folder Owlit works in. Your docs, library and notes live there.",
-    buttonLabel: "Open",
+    title: t`Open Workspace`,
+    message: t`Choose the folder Owlit works in. Your docs, library and notes live there.`,
+    buttonLabel: t`Open`,
     properties: ["openDirectory", "createDirectory"],
   }
   const result = await (win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options))
@@ -246,9 +258,9 @@ async function chooseWorkspace(core: Core) {
 async function importPitta(core: Core) {
   const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
   const options: Electron.OpenDialogOptions = {
-    title: "Import a pitta Library",
-    message: "Choose the pitta library (the folder that holds papers/). It is only read.",
-    buttonLabel: "Import",
+    title: t`Import a pitta Library`,
+    message: t`Choose the pitta library (the folder that holds papers/). It is only read.`,
+    buttonLabel: t`Import`,
     defaultPath: path.join(app.getPath("home"), ".pitta"),
     properties: ["openDirectory", "showHiddenFiles"],
   }
@@ -258,13 +270,20 @@ async function importPitta(core: Core) {
   let detail: string | undefined
   try {
     const { added, skipped, failed } = await call(core, "library.importPitta", { root: chosen.filePaths[0] })
-    message = `${added} ${added === 1 ? "paper" : "papers"} imported`
-    detail = [skipped && `${skipped} were already in the library.`, failed.length && `${failed.length} couldn't be read:\n${failed.join("\n")}`].filter(Boolean).join("\n\n") || undefined
+    message = plural(added, { one: "# paper imported", other: "# papers imported" })
+    const failedCount = failed.length
+    detail =
+      [
+        skipped && plural(skipped, { one: "# was already in the library.", other: "# were already in the library." }),
+        failedCount && `${t`${failedCount} couldn't be read:`}\n${failed.join("\n")}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n") || undefined
   } catch (error) {
-    message = "The pitta library couldn't be imported"
+    message = t`The pitta library couldn't be imported`
     detail = error instanceof Error ? error.message : String(error)
   }
-  const box: Electron.MessageBoxOptions = { message, detail, buttons: ["OK"] }
+  const box: Electron.MessageBoxOptions = { message, detail, buttons: [t`OK`] }
   await (win ? dialog.showMessageBox(win, box) : dialog.showMessageBox(box))
 }
 
@@ -279,37 +298,41 @@ async function updateMenu(core: Core) {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
     win?.webContents.send("menu", command)
   }
-  const settingsItem: MenuItemConstructorOptions = { label: "Settings…", accelerator: "CmdOrCtrl+,", click: () => send("settings") }
+  const settingsItem: MenuItemConstructorOptions = { label: t`Settings…`, accelerator: "CmdOrCtrl+,", click: () => send("settings") }
+  const name = app.name
+  // Electron names its role items in English only, so each one carries its label in the interface's
+  // language; the items and their order are Electron's own defaults
   const template: MenuItemConstructorOptions[] = [
     isMac
       ? {
           role: "appMenu",
+          label: name,
           submenu: [
-            { role: "about" },
+            { role: "about", label: t`About ${name}` },
             { type: "separator" },
             settingsItem,
             { type: "separator" },
-            { role: "services" },
+            { role: "services", label: t`Services` },
             { type: "separator" },
-            { role: "hide" },
-            { role: "hideOthers" },
-            { role: "unhide" },
+            { role: "hide", label: t`Hide ${name}` },
+            { role: "hideOthers", label: t`Hide Others` },
+            { role: "unhide", label: t`Show All` },
             { type: "separator" },
-            { role: "quit" },
+            { role: "quit", label: t`Quit ${name}` },
           ],
         }
       : { role: "appMenu" },
     {
-      label: "File",
+      label: t`File`,
       submenu: [
-        { label: "Open Workspace…", accelerator: "CmdOrCtrl+O", click: () => void chooseWorkspace(core) },
+        { label: t`Open Workspace…`, accelerator: "CmdOrCtrl+O", click: () => void chooseWorkspace(core) },
         {
-          label: "Open Recent",
+          label: t`Open Recent`,
           submenu: [
-            ...(recentItems.length ? recentItems : [{ label: "No Recent Workspaces", enabled: false }]),
+            ...(recentItems.length ? recentItems : [{ label: t`No Recent Workspaces`, enabled: false }]),
             { type: "separator" },
             {
-              label: "Clear Menu",
+              label: t`Clear Menu`,
               enabled: recentItems.length > 0,
               click: async () => {
                 await call(core, "workspace.clearRecent")
@@ -320,22 +343,73 @@ async function updateMenu(core: Core) {
           ],
         },
         { type: "separator" },
-        { label: "Import a pitta Library…", enabled: !!current, click: () => void importPitta(core) },
+        { label: t`Import a pitta Library…`, enabled: !!current, click: () => void importPitta(core) },
         // Elsewhere the convention is File › Settings
         ...(isMac ? [] : [{ type: "separator" as const }, settingsItem]),
         { type: "separator" },
-        { role: "close" },
+        { role: "close", label: t`Close Window` },
       ],
     },
-    { role: "editMenu" },
-    { role: "viewMenu" },
-    { role: "windowMenu" },
+    {
+      role: "editMenu",
+      label: t`Edit`,
+      submenu: [
+        { role: "undo", label: t`Undo` },
+        { role: "redo", label: t`Redo` },
+        { type: "separator" },
+        { role: "cut", label: t`Cut` },
+        { role: "copy", label: t`Copy` },
+        { role: "paste", label: t`Paste` },
+        ...(isMac
+          ? ([
+              { role: "pasteAndMatchStyle", label: t`Paste and Match Style` },
+              { role: "delete", label: t`Delete` },
+              { role: "selectAll", label: t`Select All` },
+              { type: "separator" },
+              {
+                label: t`Speech`,
+                submenu: [
+                  { role: "startSpeaking", label: t`Start Speaking` },
+                  { role: "stopSpeaking", label: t`Stop Speaking` },
+                ],
+              },
+            ] satisfies MenuItemConstructorOptions[])
+          : ([{ role: "delete", label: t`Delete` }, { type: "separator" }, { role: "selectAll", label: t`Select All` }] satisfies MenuItemConstructorOptions[])),
+      ],
+    },
+    {
+      role: "viewMenu",
+      label: t`View`,
+      submenu: [
+        { role: "reload", label: t`Reload` },
+        { role: "forceReload", label: t`Force Reload` },
+        { role: "toggleDevTools", label: t`Toggle Developer Tools` },
+        { type: "separator" },
+        { role: "resetZoom", label: t`Actual Size` },
+        { role: "zoomIn", label: t`Zoom In` },
+        { role: "zoomOut", label: t`Zoom Out` },
+        { type: "separator" },
+        { role: "togglefullscreen", label: t`Toggle Full Screen` },
+      ],
+    },
+    {
+      role: "windowMenu",
+      label: t`Window`,
+      submenu: [
+        { role: "minimize", label: t`Minimize` },
+        { role: "zoom", label: t`Zoom` },
+        ...(isMac
+          ? ([{ type: "separator" }, { role: "front", label: t`Bring All to Front` }] satisfies MenuItemConstructorOptions[])
+          : ([{ role: "close", label: t`Close` }] satisfies MenuItemConstructorOptions[])),
+      ],
+    },
     {
       role: "help",
+      label: t`Help`,
       submenu: [
-        { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => send("shortcuts") },
+        { label: t`Keyboard Shortcuts`, accelerator: "CmdOrCtrl+/", click: () => send("shortcuts") },
         // Owlit answers questions about owlit itself; it needs a workspace to run in
-        { label: "Ask Owlit How To…", enabled: !!current, click: () => send("how-to") },
+        { label: t`Ask Owlit How To…`, enabled: !!current, click: () => send("how-to") },
       ],
     },
   ]
@@ -424,10 +498,17 @@ if (!app.requestSingleInstanceLock()) {
       app.addRecentDocument(current.path)
       void updateMenu(core)
     })
+    const applySettings = (view: SettingsView) => {
+      applyAppearance(view.appearance)
+      if (view.locale === locale) return false
+      locale = view.locale
+      activateLocale(locale, CATALOGS[locale])
+      return true
+    }
     core.onNotify((notification) => {
-      if (notification.method === "settings.changed") applyAppearance((notification.params as SettingsView).appearance)
+      if (notification.method === "settings.changed" && applySettings(notification.params as SettingsView)) void updateMenu(core)
     })
-    applyAppearance((await core.settings.get()).appearance)
+    applySettings(await call(core, "settings.get"))
     await updateMenu(core)
 
     // Reopen the last workspace. It starts opening before the window loads, so the window waits for it

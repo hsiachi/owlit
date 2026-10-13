@@ -15,13 +15,13 @@ const box: SecretBox = {
   },
 }
 
-function setup(options: { fetch?: typeof fetch; browser?: BrowserHost; secrets?: SecretBox | null } = {}) {
+function setup(options: { fetch?: typeof fetch; browser?: BrowserHost; secrets?: SecretBox | null; languages?: string[] } = {}) {
   const userDataDir = mkdtempSync(path.join(tmpdir(), "owlit-settings-"))
   const make = () =>
     new Core({
       userDataDir,
       retryBaseMs: 1,
-      host: { fetch: options.fetch, browser: options.browser, secrets: options.secrets === null ? undefined : (options.secrets ?? box) },
+      host: { fetch: options.fetch, browser: options.browser, secrets: options.secrets === null ? undefined : (options.secrets ?? box), languages: () => options.languages ?? [] },
     })
   const core = make()
   const heard: RpcNotification[] = []
@@ -40,13 +40,26 @@ describe("settings", () => {
   it("starts from defaults: follow the system, warm paper, MinerU automatic", async () => {
     const { call } = setup()
     expect(await call("settings.get")).toEqual({
-      appearance: { theme: "system", tone: "warm" },
+      appearance: { theme: "system", tone: "warm", language: "system" },
+      locale: "en",
       profile: {},
       library: { digestLanguageSystem: "en" },
       parsing: { auto: true },
       secrets: {},
       activity: { enabled: true },
     })
+  })
+
+  it("shows the interface in the system's language until one is chosen, and writes digests in the chosen one", async () => {
+    const { call } = setup({ languages: ["ja-JP", "zh-Hant-TW", "en-US"] })
+    // Japanese has no locale yet; any Chinese gets Simplified Chinese. Digests follow the system's first.
+    expect(await call("settings.get")).toMatchObject({ locale: "zh-Hans", library: { digestLanguageSystem: "ja" } })
+    expect(await call("settings.update", { patch: { appearance: { language: "en" } } })).toMatchObject({ locale: "en", library: { digestLanguageSystem: "en" } })
+    expect(await call("settings.update", { patch: { appearance: { language: "zh-Hans" } } })).toMatchObject({ locale: "zh-Hans", library: { digestLanguageSystem: "zh-Hans" } })
+    // A language picked for digests still wins
+    const view = await call("settings.update", { patch: { library: { digestLanguage: "de" } } })
+    expect(view.library).toMatchObject({ digestLanguage: "de", digestLanguageSystem: "zh-Hans" })
+    await expect(call("settings.update", { patch: { appearance: { language: "fr" } } })).rejects.toThrow()
   })
 
   it("changes what the patch names, clears what it nulls, and tells every window", async () => {

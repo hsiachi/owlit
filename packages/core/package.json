@@ -13,10 +13,13 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "1.7.0",
     "@embedpdf/pdfium": "2.15.1",
+    "@lingui/core": "6.9.1",
+    "@owlit/i18n": "workspace:*",
     "@owlit/protocol": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@lingui/vite-plugin": "6.9.1",
     "@types/node": "^24.13.3",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",

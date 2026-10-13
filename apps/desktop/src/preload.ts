@@ -31,6 +31,8 @@ const bridge: OwlitBridge = {
   },
   // Asked once, synchronously, so the first frame is drawn in the chosen theme and tone
   appearance: ipcRenderer.sendSync("appearance"),
+  // And the interface's language, so the first frame already speaks it
+  locale: ipcRenderer.sendSync("locale"),
   textMenuAsk: (ask) => ipcRenderer.sendSync("text-menu-ask", ask),
   onTextMenuAsk(listener) {
     const forward = () => listener()

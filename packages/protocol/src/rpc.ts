@@ -8,6 +8,7 @@ import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, To
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
+import type { Locale } from "./languages.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -455,6 +456,8 @@ export interface OwlitBridge {
   onControlsRoom(listener: (room: number) => void): () => void
   // The theme and paper tone, asked once synchronously so the first frame is already drawn in them
   appearance: AppearanceSettings
+  // The interface's locale, asked the same way so the first frame is already in its language
+  locale: Locale
   // A command from the app's own menu (Settings…, Help › Keyboard Shortcuts, Help › Ask Owlit How To…)
   onMenu(listener: (command: MenuCommand) => void): () => void
   // The system's folder picker; the chosen folder, or null when cancelled

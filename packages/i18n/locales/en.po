@@ -1,0 +1,436 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
+msgstr "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them."
+msgstr "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them."
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better."
+msgstr "How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better."
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean."
+msgstr "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean."
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Settings"
+msgstr "Settings"
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "This computer's settings for owlit."
+msgstr "This computer's settings for owlit."
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Needs you"
+msgstr "Needs you"
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "About {sectionLabel}"
+msgstr "About {sectionLabel}"
+
+#: app/src/features/settings/parts.tsx
+msgid "{service} accepted it"
+msgstr "{service} accepted it"
+
+#: app/src/features/settings/parts.tsx
+msgid "Checking with {service}…"
+msgstr "Checking with {service}…"
+
+#: app/src/features/settings/parts.tsx
+msgid "Not set"
+msgstr "Not set"
+
+#: app/src/features/settings/parts.tsx
+msgid "Add key"
+msgstr "Add key"
+
+#: app/src/features/settings/parts.tsx
+msgid "Get one at <0>{site}</0>. Press Enter to keep it."
+msgstr "Get one at <0>{site}</0>. Press Enter to keep it."
+
+#: app/src/features/settings/parts.tsx
+msgid "Paste the key"
+msgstr "Paste the key"
+
+#: app/src/features/settings/parts.tsx
+msgid "Cancel"
+msgstr "Cancel"
+
+#: app/src/features/settings/parts.tsx
+msgid "Remove key"
+msgstr "Remove key"
+
+#: app/src/features/settings/parts.tsx
+msgid "Key ending in {last4}"
+msgstr "Key ending in {last4}"
+
+#: app/src/features/settings/parts.tsx
+msgid "Key set"
+msgstr "Key set"
+
+#: app/src/features/settings/parts.tsx
+msgid "Change key"
+msgstr "Change key"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "System"
+msgstr "System"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Light"
+msgstr "Light"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Dark"
+msgstr "Dark"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Warm"
+msgstr "Warm"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Neutral"
+msgstr "Neutral"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Slate"
+msgstr "Slate"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Sepia"
+msgstr "Sepia"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Language"
+msgstr "Language"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Theme"
+msgstr "Theme"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Paper tone"
+msgstr "Paper tone"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Dim PDF pages in the dark theme"
+msgstr "Dim PDF pages in the dark theme"
+
+#: app/src/features/settings/sections/AppearanceSection.tsx
+msgid "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
+msgstr "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
+
+#: app/src/features/settings/store.ts
+msgid "Owlit"
+msgstr "Owlit"
+
+#: app/src/features/settings/store.ts
+msgid "Agents"
+msgstr "Agents"
+
+#: app/src/features/settings/store.ts
+msgid "Papers"
+msgstr "Papers"
+
+#: app/src/features/settings/store.ts
+msgid "Appearance"
+msgstr "Appearance"
+
+#: app/src/features/settings/store.ts
+msgid "Background work"
+msgstr "Background work"
+
+#: app/src/features/settings/store.ts
+msgid "Privacy"
+msgstr "Privacy"
+
+#: app/src/features/settings/store.ts
+msgid "Finding papers"
+msgstr "Finding papers"
+
+#: app/src/features/settings/store.ts
+msgid "Library proxy"
+msgstr "Library proxy"
+
+#: app/src/features/settings/store.ts
+msgid "Reading PDFs"
+msgstr "Reading PDFs"
+
+#: app/src/lib/time.ts
+msgid "just now"
+msgstr "just now"
+
+#: app/src/lib/time.ts
+msgid "Just now"
+msgstr "Just now"
+
+#: app/src/lib/time.ts
+msgid "{minutes} min ago"
+msgstr "{minutes} min ago"
+
+#: app/src/lib/time.ts
+msgid "{hours} h ago"
+msgstr "{hours} h ago"
+
+#: app/src/lib/time.ts
+msgid "yesterday"
+msgstr "yesterday"
+
+#: app/src/lib/time.ts
+msgid "Yesterday"
+msgstr "Yesterday"
+
+#: apps/desktop/src/main.ts
+msgid "Couldn't open the folder"
+msgstr "Couldn't open the folder"
+
+#: apps/desktop/src/main.ts
+msgid "Open Workspace"
+msgstr "Open Workspace"
+
+#: apps/desktop/src/main.ts
+msgid "Choose the folder Owlit works in. Your docs, library and notes live there."
+msgstr "Choose the folder Owlit works in. Your docs, library and notes live there."
+
+#: apps/desktop/src/main.ts
+msgid "Open"
+msgstr "Open"
+
+#: apps/desktop/src/main.ts
+msgid "Import a pitta Library"
+msgstr "Import a pitta Library"
+
+#: apps/desktop/src/main.ts
+msgid "Choose the pitta library (the folder that holds papers/). It is only read."
+msgstr "Choose the pitta library (the folder that holds papers/). It is only read."
+
+#: apps/desktop/src/main.ts
+msgid "Import"
+msgstr "Import"
+
+#: apps/desktop/src/main.ts
+msgid "{added, plural, one {# paper imported} other {# papers imported}}"
+msgstr "{added, plural, one {# paper imported} other {# papers imported}}"
+
+#: apps/desktop/src/main.ts
+msgid "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
+msgstr "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
+
+#: apps/desktop/src/main.ts
+msgid "{failedCount} couldn't be read:"
+msgstr "{failedCount} couldn't be read:"
+
+#: apps/desktop/src/main.ts
+msgid "The pitta library couldn't be imported"
+msgstr "The pitta library couldn't be imported"
+
+#: apps/desktop/src/main.ts
+msgid "OK"
+msgstr "OK"
+
+#: apps/desktop/src/main.ts
+msgid "Settings…"
+msgstr "Settings…"
+
+#: apps/desktop/src/main.ts
+msgid "About {name}"
+msgstr "About {name}"
+
+#: apps/desktop/src/main.ts
+msgid "Services"
+msgstr "Services"
+
+#: apps/desktop/src/main.ts
+msgid "Hide {name}"
+msgstr "Hide {name}"
+
+#: apps/desktop/src/main.ts
+msgid "Hide Others"
+msgstr "Hide Others"
+
+#: apps/desktop/src/main.ts
+msgid "Show All"
+msgstr "Show All"
+
+#: apps/desktop/src/main.ts
+msgid "Quit {name}"
+msgstr "Quit {name}"
+
+#: apps/desktop/src/main.ts
+msgid "File"
+msgstr "File"
+
+#: apps/desktop/src/main.ts
+msgid "Open Workspace…"
+msgstr "Open Workspace…"
+
+#: apps/desktop/src/main.ts
+msgid "Open Recent"
+msgstr "Open Recent"
+
+#: apps/desktop/src/main.ts
+msgid "No Recent Workspaces"
+msgstr "No Recent Workspaces"
+
+#: apps/desktop/src/main.ts
+msgid "Clear Menu"
+msgstr "Clear Menu"
+
+#: apps/desktop/src/main.ts
+msgid "Import a pitta Library…"
+msgstr "Import a pitta Library…"
+
+#: apps/desktop/src/main.ts
+msgid "Close Window"
+msgstr "Close Window"
+
+#: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr "Edit"
+
+#: apps/desktop/src/main.ts
+msgid "Undo"
+msgstr "Undo"
+
+#: apps/desktop/src/main.ts
+msgid "Redo"
+msgstr "Redo"
+
+#: apps/desktop/src/main.ts
+#: apps/desktop/src/text-menu.ts
+msgid "Cut"
+msgstr "Cut"
+
+#: apps/desktop/src/main.ts
+#: apps/desktop/src/text-menu.ts
+msgid "Copy"
+msgstr "Copy"
+
+#: apps/desktop/src/main.ts
+#: apps/desktop/src/text-menu.ts
+msgid "Paste"
+msgstr "Paste"
+
+#: apps/desktop/src/main.ts
+msgid "Paste and Match Style"
+msgstr "Paste and Match Style"
+
+#: apps/desktop/src/main.ts
+msgid "Delete"
+msgstr "Delete"
+
+#: apps/desktop/src/main.ts
+#: apps/desktop/src/text-menu.ts
+msgid "Select All"
+msgstr "Select All"
+
+#: apps/desktop/src/main.ts
+msgid "Speech"
+msgstr "Speech"
+
+#: apps/desktop/src/main.ts
+msgid "Start Speaking"
+msgstr "Start Speaking"
+
+#: apps/desktop/src/main.ts
+msgid "Stop Speaking"
+msgstr "Stop Speaking"
+
+#: apps/desktop/src/main.ts
+msgid "View"
+msgstr "View"
+
+#: apps/desktop/src/main.ts
+msgid "Reload"
+msgstr "Reload"
+
+#: apps/desktop/src/main.ts
+msgid "Force Reload"
+msgstr "Force Reload"
+
+#: apps/desktop/src/main.ts
+msgid "Toggle Developer Tools"
+msgstr "Toggle Developer Tools"
+
+#: apps/desktop/src/main.ts
+msgid "Actual Size"
+msgstr "Actual Size"
+
+#: apps/desktop/src/main.ts
+msgid "Zoom In"
+msgstr "Zoom In"
+
+#: apps/desktop/src/main.ts
+msgid "Zoom Out"
+msgstr "Zoom Out"
+
+#: apps/desktop/src/main.ts
+msgid "Toggle Full Screen"
+msgstr "Toggle Full Screen"
+
+#: apps/desktop/src/main.ts
+msgid "Window"
+msgstr "Window"
+
+#: apps/desktop/src/main.ts
+msgid "Minimize"
+msgstr "Minimize"
+
+#: apps/desktop/src/main.ts
+msgid "Zoom"
+msgstr "Zoom"
+
+#: apps/desktop/src/main.ts
+msgid "Bring All to Front"
+msgstr "Bring All to Front"
+
+#: apps/desktop/src/main.ts
+msgid "Close"
+msgstr "Close"
+
+#: apps/desktop/src/main.ts
+msgid "Help"
+msgstr "Help"
+
+#: apps/desktop/src/main.ts
+msgid "Keyboard Shortcuts"
+msgstr "Keyboard Shortcuts"
+
+#: apps/desktop/src/main.ts
+msgid "Ask Owlit How To…"
+msgstr "Ask Owlit How To…"
+
+#: apps/desktop/src/text-menu.ts
+msgid "Ask Owlit"
+msgstr "Ask Owlit"
+
+#: apps/desktop/src/text-menu.ts
+msgid "No Guesses Found"
+msgstr "No Guesses Found"
+
+#: apps/desktop/src/text-menu.ts
+msgid "Learn Spelling"
+msgstr "Learn Spelling"
+
+#: apps/desktop/src/text-menu.ts
+msgid "Look Up “{passage}”"
+msgstr "Look Up “{passage}”"
+
+#: apps/desktop/src/text-menu.ts
+msgid "Open Link in Browser"
+msgstr "Open Link in Browser"
+
+#: apps/desktop/src/text-menu.ts
+msgid "Copy Link"
+msgstr "Copy Link"

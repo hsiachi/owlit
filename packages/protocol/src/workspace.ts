@@ -1,4 +1,5 @@
 import type { HighlightColor } from "./library.ts"
+import type { InterfaceLanguage } from "./languages.ts"
 
 // A workspace is one folder. What lives inside it (docs, library/, knowledge/, .owlit/) travels with
 // it; what is derived or tied to this machine lives in the app data directory instead.
@@ -66,6 +67,8 @@ export type PaperTone = "warm" | "neutral" | "slate" | "sepia"
 export interface AppearanceSettings {
   theme: ThemeChoice
   tone: PaperTone
+  // The interface's language; "system" follows the system's languages
+  language: InterfaceLanguage
 }
 
 export interface ParsingSettings {

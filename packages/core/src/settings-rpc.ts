@@ -1,6 +1,9 @@
 import {
-  DEFAULT_NOTE_LANGUAGE,
+  interfaceLocale,
+  LOCALES,
   normalizeNoteLanguage,
+  noteLanguageFor,
+  noteLanguageOfLocale,
   PROXY_PRESETS,
   proxyFromLink,
   RpcErrorCode,
@@ -28,8 +31,14 @@ const SECRET_FIELDS = {
   mineruToken: ["parsing", "token"],
 } as const satisfies Record<SecretName, readonly [string, string]>
 
-// systemLanguage: the note language the system's own language means (noteLanguageFor)
-export function settingsView(s: AppSettings, systemLanguage = DEFAULT_NOTE_LANGUAGE): SettingsView {
+// The note language a digest is written in when Settings names none: the interface language once one is
+// chosen, otherwise the system's own (systemLanguages: BCP 47, most preferred first)
+export function defaultNoteLanguage(s: AppSettings, systemLanguages: readonly string[]): string {
+  const chosen = s.appearance.language
+  return chosen && chosen !== "system" ? noteLanguageOfLocale(chosen) : noteLanguageFor(systemLanguages)
+}
+
+export function settingsView(s: AppSettings, systemLanguages: readonly string[] = []): SettingsView {
   const secrets: SettingsView["secrets"] = {}
   for (const [name, [group, key]] of Object.entries(SECRET_FIELDS) as [SecretName, readonly [keyof AppSettings, string]][]) {
     const value = (s[group] as Record<string, unknown>)[key]
@@ -38,13 +47,14 @@ export function settingsView(s: AppSettings, systemLanguage = DEFAULT_NOTE_LANGU
   const { library, parsing } = s
   return {
     appearance: s.appearance,
+    locale: interfaceLocale(s.appearance.language, systemLanguages),
     profile: s.profile,
     library: defined({
       contactEmail: library.contactEmail,
       proxy: library.proxy,
       proxySignedInAt: library.proxySignedInAt,
       digestLanguage: library.digestLanguage ? normalizeNoteLanguage(library.digestLanguage) : undefined,
-      digestLanguageSystem: systemLanguage,
+      digestLanguageSystem: defaultNoteLanguage(s, systemLanguages),
       digestEveryPaper: library.digestEveryPaper,
     }),
     parsing: defined({ service: parsing.service, url: parsing.url, auto: parsing.auto ?? true }),
@@ -89,7 +99,13 @@ export function applyPatch(s: AppSettings, patch: SettingsPatch): AppSettings {
 
 const nullable = <T extends z.ZodType>(type: T) => type.nullable().optional()
 const patchSchema = z.object({
-  appearance: z.object({ theme: z.enum(["system", "light", "dark"]).optional(), tone: z.enum(["warm", "neutral", "slate", "sepia"]).optional() }).optional(),
+  appearance: z
+    .object({
+      theme: z.enum(["system", "light", "dark"]).optional(),
+      tone: z.enum(["warm", "neutral", "slate", "sepia"]).optional(),
+      language: z.enum(["system", ...LOCALES, "pseudo"]).optional(),
+    })
+    .optional(),
   profile: z.object({ name: nullable(z.string().trim().max(60)) }).optional(),
   library: z
     .object({
@@ -117,18 +133,18 @@ interface Deps {
   settings: SettingsStore
   http: Http
   browser?: BrowserHost
-  systemLanguage?: string
+  systemLanguages?: readonly string[]
   changed: (view: SettingsView) => void
 }
 
-export function registerSettings({ router, settings, http, browser, systemLanguage, changed }: Deps) {
+export function registerSettings({ router, settings, http, browser, systemLanguages, changed }: Deps) {
   const save = async (change: (s: AppSettings) => AppSettings) => {
-    const view = settingsView(await settings.update(change), systemLanguage)
+    const view = settingsView(await settings.update(change), systemLanguages)
     changed(view)
     return view
   }
 
-  router.register("settings.get", noParams, async () => settingsView(await settings.get(), systemLanguage))
+  router.register("settings.get", noParams, async () => settingsView(await settings.get(), systemLanguages))
   router.register("settings.update", z.object({ patch: patchSchema }), ({ patch }) => save((s) => applyPatch(s, patch)))
   router.register("settings.setSecret", z.object({ name: secretName, value: z.string().trim().max(4096).nullable() }), ({ name, value }) =>
     save((s) => {

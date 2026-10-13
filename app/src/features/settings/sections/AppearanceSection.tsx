@@ -1,58 +1,72 @@
-import type { PaperTone, ThemeChoice } from "@owlit/protocol"
+import { t } from "@lingui/core/macro"
+import type { InterfaceLanguage, PaperTone, ThemeChoice } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { SegmentedControl } from "@/components/segmented-control"
 import { Switch } from "@/components/ui/switch"
 import { usePrefsStore } from "@/features/library/prefs-store"
-import { List, Row } from "../parts"
+import { List, Picker, Row } from "../parts"
 import { appearanceOf, updateSettings, useSettings } from "../store"
 
-const THEMES: { value: ThemeChoice; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+const themes = (): { value: ThemeChoice; label: string }[] => [
+  { value: "system", label: t`System` },
+  { value: "light", label: t`Light` },
+  { value: "dark", label: t`Dark` },
 ]
 
-const TONES: { value: PaperTone; label: string }[] = [
-  { value: "warm", label: "Warm" },
-  { value: "neutral", label: "Neutral" },
-  { value: "slate", label: "Slate" },
-  { value: "sepia", label: "Sepia" },
+const tones = (): { value: PaperTone; label: string }[] => [
+  { value: "warm", label: t`Warm` },
+  { value: "neutral", label: t`Neutral` },
+  { value: "slate", label: t`Slate` },
+  { value: "sepia", label: t`Sepia` },
+]
+
+// Each language by its own name, as every system's language list shows them, so someone who can't read
+// the current one still finds theirs. The pseudo language checks for untranslated words in development.
+const languages = (): { value: InterfaceLanguage; label: string }[] => [
+  { value: "system", label: t`System` },
+  { value: "en", label: "English" },
+  { value: "zh-Hans", label: "简体中文" },
+  ...(import.meta.env.DEV ? [{ value: "pseudo" as const, label: "Pseudo" }] : []),
 ]
 
 export function AppearanceSection() {
-  const { theme, tone } = useSettings((s) => appearanceOf(s.view))
+  const { theme, tone, language } = useSettings((s) => appearanceOf(s.view))
   const dimPdf = usePrefsStore((s) => s.dimPdf)
   const setDimPdf = usePrefsStore((s) => s.setDimPdf)
   return (
     <List>
       <Row
-        name="Theme"
+        name={t`Language`}
+        control={<Picker label={t`Language`} value={language} options={languages()} onChange={(value) => void updateSettings({ appearance: { language: value } })} />}
+      />
+      <Row
+        name={t`Theme`}
         control={
-          <SegmentedControl label="Theme" value={theme} options={THEMES} onChange={(value) => void updateSettings({ appearance: { theme: value } })} />
+          <SegmentedControl label={t`Theme`} value={theme} options={themes()} onChange={(value) => void updateSettings({ appearance: { theme: value } })} />
         }
       />
       <div className="px-3.5 pt-3 pb-3.5">
-        <div className="text-sm">Paper tone</div>
-        <div role="radiogroup" aria-label="Paper tone" className="mt-3 grid grid-cols-4 gap-3">
-          {TONES.map((t) => (
+        <div className="text-sm">{t`Paper tone`}</div>
+        <div role="radiogroup" aria-label={t`Paper tone`} className="mt-3 grid grid-cols-4 gap-3">
+          {tones().map((o) => (
             <button
-              key={t.value}
+              key={o.value}
               type="button"
               role="radio"
-              aria-checked={tone === t.value}
-              onClick={() => void updateSettings({ appearance: { tone: t.value } })}
-              className={cn("group/tone flex flex-col items-center gap-2 text-detail text-muted-foreground outline-none", tone === t.value && "font-medium text-foreground")}
+              aria-checked={tone === o.value}
+              onClick={() => void updateSettings({ appearance: { tone: o.value } })}
+              className={cn("group/tone flex flex-col items-center gap-2 text-detail text-muted-foreground outline-none", tone === o.value && "font-medium text-foreground")}
             >
-              <TonePreview tone={t.value} selected={tone === t.value} />
-              {t.label}
+              <TonePreview tone={o.value} selected={tone === o.value} />
+              {o.label}
             </button>
           ))}
         </div>
       </div>
       <Row
-        name="Dim PDF pages in the dark theme"
-        help="Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
-        control={<Switch checked={dimPdf} onCheckedChange={setDimPdf} aria-label="Dim PDF pages in the dark theme" />}
+        name={t`Dim PDF pages in the dark theme`}
+        help={t`Pages stay white in both themes; dimmed, they don't glare beside the dark panels.`}
+        control={<Switch checked={dimPdf} onCheckedChange={setDimPdf} aria-label={t`Dim PDF pages in the dark theme`} />}
       />
     </List>
   )
