@@ -8,8 +8,10 @@ import path from "node:path"
 
 const NAME = "Owlit Example"
 const HOUR = 3_600_000
-// Epoch milliseconds between 2017 and 2049: a timestamp, not a count or a page number
-const isTime = (key: string, value: unknown): value is number => typeof value === "number" && /(^at|At)$/.test(key) && value > 1.5e12 && value < 2.5e12
+// A field named for a time (at, addedAt), or a map of times named so (a topic's changedAt, by line), holding
+// epoch milliseconds between 2017 and 2049: a timestamp, not a count or a page number
+const timeKey = (key: string) => /(^at|At)$/.test(key)
+const isTime = (value: unknown): value is number => typeof value === "number" && value > 1.5e12 && value < 2.5e12
 
 // The folder for the example in parent, copied from source unless an earlier copy is there to open again
 export async function copyExample(source: string, parent: string, now = Date.now()) {
@@ -30,12 +32,13 @@ async function moveTimes(folder: string, now: number) {
   const records = files.filter((f) => /\.jsonl?$/.test(f) && (f.includes(`${path.sep}.owlit${path.sep}`) || /[/\\]library[/\\]papers[/\\][^/\\]+[/\\](paper|digest)\.json$/.test(f)))
   const texts = await Promise.all(records.map((f) => readFile(f, "utf8")))
   let latest = 0
-  const visit = (value: unknown, change?: (t: number) => number): unknown => {
+  const visit = (value: unknown, change?: (t: number) => number, times = false): unknown => {
     if (Array.isArray(value)) return value.map((v) => visit(v, change))
     if (!value || typeof value !== "object") return value
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => {
-        if (!isTime(k, v)) return [k, visit(v, change)]
+        const named = times || timeKey(k)
+        if (!named || !isTime(v)) return [k, visit(v, change, named && !Array.isArray(v))]
         latest = Math.max(latest, v)
         return [k, change ? change(v) : v]
       }),

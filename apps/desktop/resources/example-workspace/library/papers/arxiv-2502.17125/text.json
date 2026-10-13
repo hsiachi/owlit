@@ -1,0 +1,5525 @@
+{
+  "version": 1,
+  "source": "pdfium",
+  "pages": [
+    {
+      "index": 0,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 104.63,
+            "y": 77.11,
+            "w": 386.03,
+            "h": 34.6
+          },
+          "lines": [
+            {
+              "text": "LettuceDetect: A Hallucination Detection Framework for RAG",
+              "rect": {
+                "x": 104.63,
+                "y": 77.11,
+                "w": 386.03,
+                "h": 18.66
+              }
+            },
+            {
+              "text": "Applications",
+              "rect": {
+                "x": 258.9,
+                "y": 93.05,
+                "w": 76.97,
+                "h": 18.66
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 217.6,
+            "y": 129.47,
+            "w": 162.56,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "Ádám Kovács1, Gábor Recski1,2",
+              "rect": {
+                "x": 217.6,
+                "y": 129.47,
+                "w": 162.56,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 187.95,
+            "y": 143.84,
+            "w": 222.37,
+            "h": 55.73
+          },
+          "lines": [
+            {
+              "text": "1 KR Labs",
+              "rect": {
+                "x": 273.85,
+                "y": 143.84,
+                "w": 50.56,
+                "h": 14.41
+              }
+            },
+            {
+              "text": "2 TU Wien",
+              "rect": {
+                "x": 273.1,
+                "y": 157.79,
+                "w": 52.06,
+                "h": 14.41
+              }
+            },
+            {
+              "text": "lastname@krlabs.eu",
+              "rect": {
+                "x": 234.57,
+                "y": 173.09,
+                "w": 129.12,
+                "h": 12.53
+              }
+            },
+            {
+              "text": "firstname.lastname@tuwien.ac.at",
+              "rect": {
+                "x": 187.95,
+                "y": 187.04,
+                "w": 222.37,
+                "h": 12.53
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 158.32,
+            "y": 231.21,
+            "w": 44.49,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "Abstract",
+              "rect": {
+                "x": 158.32,
+                "y": 231.21,
+                "w": 44.49,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 88.65,
+            "y": 256.26,
+            "w": 185.22,
+            "h": 334.79
+          },
+          "lines": [
+            {
+              "text": "Retrieval-Augmented Generation (RAG) sys­tems remain vulnerable to hallucinated an­swers despite incorporating external knowl­edge sources. We present LettuceDetect,",
+              "rect": {
+                "x": 89.01,
+                "y": 256.26,
+                "w": 184.36,
+                "h": 47.87
+              }
+            },
+            {
+              "text": "a framework that addresses two critical lim­itations in existing hallucination detection",
+              "rect": {
+                "x": 89.01,
+                "y": 304.08,
+                "w": 183.12,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "methods: (1) the context window constraints",
+              "rect": {
+                "x": 89.01,
+                "y": 327.99,
+                "w": 183.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "of traditional encoder-based methods, and",
+              "rect": {
+                "x": 89.01,
+                "y": 339.94,
+                "w": 183.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "(2) the computational inefficiency of LLM­based approaches. Building on Modern­BERT’s extended context capabilities (up to",
+              "rect": {
+                "x": 88.68,
+                "y": 351.9,
+                "w": 183.45,
+                "h": 35.91
+              }
+            },
+            {
+              "text": "8k tokens) and trained on the RAGTruth",
+              "rect": {
+                "x": 89.01,
+                "y": 387.76,
+                "w": 183.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "benchmark dataset, our approach outperforms",
+              "rect": {
+                "x": 89.01,
+                "y": 399.72,
+                "w": 183.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "all previous encoder-based models and most",
+              "rect": {
+                "x": 89.01,
+                "y": 411.67,
+                "w": 183.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "prompt-based models, while being approxi­mately 30 times smaller than the best models.",
+              "rect": {
+                "x": 89.01,
+                "y": 423.63,
+                "w": 184.86,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "LettuceDetect is a token-classification",
+              "rect": {
+                "x": 89.01,
+                "y": 447.54,
+                "w": 183.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "model that processes context-question-answer",
+              "rect": {
+                "x": 89.01,
+                "y": 459.49,
+                "w": 183.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "triples, allowing for the identification of unsup­ported claims at the token level. Evaluations",
+              "rect": {
+                "x": 89.01,
+                "y": 471.45,
+                "w": 183.12,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "on the RAGTruth corpus demonstrate an F1",
+              "rect": {
+                "x": 89.01,
+                "y": 495.36,
+                "w": 183.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "score of 79.22% for example-level detection,",
+              "rect": {
+                "x": 89.01,
+                "y": 507.32,
+                "w": 184.37,
+                "h": 12
+              }
+            },
+            {
+              "text": "which is a 14.8% improvement over Luna, the",
+              "rect": {
+                "x": 88.65,
+                "y": 519.27,
+                "w": 183.48,
+                "h": 12
+              }
+            },
+            {
+              "text": "previous state-of-the-art encoder-based archi­tecture. Additionally, the system can process",
+              "rect": {
+                "x": 89.01,
+                "y": 531.23,
+                "w": 183.12,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "30 to 60 examples per second on a single GPU,",
+              "rect": {
+                "x": 89.01,
+                "y": 555.14,
+                "w": 184.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "making it more practical for real-world RAG",
+              "rect": {
+                "x": 89.01,
+                "y": 567.09,
+                "w": 183.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "applications.",
+              "rect": {
+                "x": 89.01,
+                "y": 579.05,
+                "w": 50.64,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 72,
+            "y": 601.54,
+            "w": 82.81,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "1 Introduction",
+              "rect": {
+                "x": 72,
+                "y": 601.54,
+                "w": 82.81,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 624.32,
+            "w": 218.5,
+            "h": 148.63
+          },
+          "lines": [
+            {
+              "text": "Large Language Models (LLMs) have made sig­nificant progress in recent years in terms of their",
+              "rect": {
+                "x": 72,
+                "y": 624.32,
+                "w": 217.34,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "performance (OpenAI et al., 2024; Grattafiori et al.,",
+              "rect": {
+                "x": 72,
+                "y": 651.42,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2024; Team et al., 2024). However, the biggest ob­stacle to their usage in real-world applications is",
+              "rect": {
+                "x": 72,
+                "y": 664.97,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "their tendency to hallucinate (Kaddour et al., 2023;",
+              "rect": {
+                "x": 72,
+                "y": 692.06,
+                "w": 218.04,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Huang et al., 2025). Retrieval-Augmented Gener­ation (RAG) is a method that enhances LLMs by",
+              "rect": {
+                "x": 72,
+                "y": 705.61,
+                "w": 217.52,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "supporting answers with context documents and re­trieving knowledge from external sources, prompt­ing the LLMs to ground their responses based on",
+              "rect": {
+                "x": 72,
+                "y": 732.71,
+                "w": 217.13,
+                "h": 40.24
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.78,
+            "y": 232.61,
+            "w": 219.41,
+            "h": 67.35
+          },
+          "lines": [
+            {
+              "text": "this information (Gao et al., 2024). This technique",
+              "rect": {
+                "x": 306.14,
+                "y": 232.61,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "is widely used to minimize hallucinations of LLMs.",
+              "rect": {
+                "x": 306.14,
+                "y": 246.16,
+                "w": 219.05,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Despite the incorporation of context documents in",
+              "rect": {
+                "x": 306.14,
+                "y": 259.71,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "RAG, LLMs continue to experience hallucinations",
+              "rect": {
+                "x": 306.14,
+                "y": 273.26,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Niu et al., 2024).",
+              "rect": {
+                "x": 305.78,
+                "y": 286.81,
+                "w": 77.56,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 306.52,
+            "w": 219.55,
+            "h": 257.04
+          },
+          "lines": [
+            {
+              "text": "Hallucinations are defined as outputs that are",
+              "rect": {
+                "x": 317.05,
+                "y": 306.52,
+                "w": 206.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "nonsensical, factually incorrect, or inconsistent",
+              "rect": {
+                "x": 306.14,
+                "y": 320.07,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "with the provided evidence (Ji et al., 2023). Ji",
+              "rect": {
+                "x": 305.75,
+                "y": 333.62,
+                "w": 217.53,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "et al. (2023) categorizes these errors into two types:",
+              "rect": {
+                "x": 306.14,
+                "y": 347.17,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Intrinsic hallucinations, which arise from the",
+              "rect": {
+                "x": 306.14,
+                "y": 360.33,
+                "w": 217.14,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "model’s inherent knowledge, and Extrinsic hal­lucinations, which occur when responses fail to",
+              "rect": {
+                "x": 306.14,
+                "y": 373.88,
+                "w": 217.14,
+                "h": 27.74
+              }
+            },
+            {
+              "text": "be grounded in the provided context, such as in",
+              "rect": {
+                "x": 306.14,
+                "y": 401.37,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the case of RAG hallucinations (Niu et al., 2024).",
+              "rect": {
+                "x": 306.14,
+                "y": 414.92,
+                "w": 219.04,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "While RAG can mitigate intrinsic hallucinations by",
+              "rect": {
+                "x": 305.63,
+                "y": 428.46,
+                "w": 218.03,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "grounding LLMs in external knowledge, extrinsic",
+              "rect": {
+                "x": 306.14,
+                "y": 442.01,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "hallucinations persist due to imperfect retrieval pro­cesses or the model’s tendency to prioritize its in­trinsic knowledge over external context (Sun et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 455.56,
+                "w": 218.5,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "2025), leading to factual contradictions. As LLMs",
+              "rect": {
+                "x": 306.14,
+                "y": 496.21,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "remain prone to hallucinations, their utilization in",
+              "rect": {
+                "x": 306.14,
+                "y": 509.76,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "high-risk settings, such as medical or legal fields,",
+              "rect": {
+                "x": 306.14,
+                "y": 523.31,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "may be jeopardized (Lozano et al., 2023; Magesh",
+              "rect": {
+                "x": 306.14,
+                "y": 536.86,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "et al., 2024).",
+              "rect": {
+                "x": 306.14,
+                "y": 550.41,
+                "w": 54.84,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.75,
+            "y": 570.12,
+            "w": 218.89,
+            "h": 202.84
+          },
+          "lines": [
+            {
+              "text": "We present LettuceDetect, a hallucination",
+              "rect": {
+                "x": 317.05,
+                "y": 570.12,
+                "w": 206.23,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "detection framework that utilizes ModernBERT",
+              "rect": {
+                "x": 306.14,
+                "y": 583.67,
+                "w": 217.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Warner et al., 2024). Our approach trains a token­classification model to predict whether a token is",
+              "rect": {
+                "x": 305.78,
+                "y": 597.22,
+                "w": 217.5,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "supported by context documents and a question,",
+              "rect": {
+                "x": 306.14,
+                "y": 624.32,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "determining if it is hallucinated. We frame this",
+              "rect": {
+                "x": 306.14,
+                "y": 637.87,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "task as predicting tokens in the answers generated",
+              "rect": {
+                "x": 306.14,
+                "y": 651.42,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "by large language models (LLMs), based on the",
+              "rect": {
+                "x": 306.14,
+                "y": 664.97,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "provided context documents and the posed ques­tion. Our models are trained using the RAGTruth",
+              "rect": {
+                "x": 306.14,
+                "y": 678.52,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "dataset (Niu et al., 2024). The architecture we",
+              "rect": {
+                "x": 306.14,
+                "y": 705.61,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "employ is similar to Luna (Belyi et al., 2025), as",
+              "rect": {
+                "x": 306.14,
+                "y": 719.16,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "we train an encoder-based model for this task. A",
+              "rect": {
+                "x": 305.75,
+                "y": 732.71,
+                "w": 217.92,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "demonstration of our web application is displayed",
+              "rect": {
+                "x": 306.14,
+                "y": 746.26,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "in Figure 1.",
+              "rect": {
+                "x": 306.14,
+                "y": 759.81,
+                "w": 50.61,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 14.44,
+            "y": 263.25,
+            "w": 22.54,
+            "h": 346.64
+          },
+          "lines": [
+            {
+              "text": "arXiv:2502.17125v1 [cs.CL] 24 Feb 2025",
+              "rect": {
+                "x": 14.44,
+                "y": 263.25,
+                "w": 22.54,
+                "h": 346.64
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 72.88,
+            "w": 217.34,
+            "h": 53.8
+          },
+          "lines": [
+            {
+              "text": "All components of our system are released under",
+              "rect": {
+                "x": 82.91,
+                "y": 72.88,
+                "w": 206.43,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "an MIT license and can be accessed on GitHub1",
+              "rect": {
+                "x": 72,
+                "y": 85.19,
+                "w": 217.23,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "and via pip by installing the lettucedetect2",
+              "rect": {
+                "x": 72,
+                "y": 98.73,
+                "w": 216.64,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "package.",
+              "rect": {
+                "x": 72,
+                "y": 113.53,
+                "w": 38.47,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 127.68,
+            "w": 217.34,
+            "h": 204.06
+          },
+          "lines": [
+            {
+              "text": "The trained models are published on Hugging",
+              "rect": {
+                "x": 82.91,
+                "y": 127.68,
+                "w": 206.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Face also under MIT licenses. We have made avail­able both a large model 3",
+              "rect": {
+                "x": 72,
+                "y": 141.23,
+                "w": 215.39,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "and a base model 4.",
+              "rect": {
+                "x": 184.14,
+                "y": 153.54,
+                "w": 85.38,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "We believe our contribution will be valuable to",
+              "rect": {
+                "x": 82.91,
+                "y": 168.94,
+                "w": 206.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the community, particularly since many effective",
+              "rect": {
+                "x": 72,
+                "y": 182.49,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "hallucination detection methods are either under",
+              "rect": {
+                "x": 72,
+                "y": 196.04,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "non-permissive licenses or depend on larger LLM­based models.",
+              "rect": {
+                "x": 72,
+                "y": 209.59,
+                "w": 215.35,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "The remainder of this paper is structured as fol­lows: Section 2 reviews recent methods for halluci­nation detection. Section 4 details our method for",
+              "rect": {
+                "x": 72,
+                "y": 237.3,
+                "w": 217.34,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "training an encoder-based hallucination detection",
+              "rect": {
+                "x": 72,
+                "y": 277.94,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "model built on ModernBERT. Section 5 presents",
+              "rect": {
+                "x": 72,
+                "y": 291.49,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "our findings on the example and span-level tasks",
+              "rect": {
+                "x": 72,
+                "y": 305.04,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "using the RAGTruth dataset.",
+              "rect": {
+                "x": 72,
+                "y": 318.59,
+                "w": 124.63,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 72,
+            "y": 343.07,
+            "w": 86.54,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "2 Related work",
+              "rect": {
+                "x": 72,
+                "y": 343.07,
+                "w": 86.54,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.66,
+            "y": 366.5,
+            "w": 218.84,
+            "h": 298.68
+          },
+          "lines": [
+            {
+              "text": "ModernBERT BERT (Devlin et al., 2019) was",
+              "rect": {
+                "x": 72,
+                "y": 366.5,
+                "w": 217.14,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "one of the first major successes of applying the",
+              "rect": {
+                "x": 72,
+                "y": 380.44,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Transformer architecture (Vaswani et al., 2017) to",
+              "rect": {
+                "x": 71.66,
+                "y": 393.99,
+                "w": 217.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "natural language understanding. BERT uses only",
+              "rect": {
+                "x": 72,
+                "y": 407.54,
+                "w": 217.51,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the Transformer’s encoder blocks in a bidirectional",
+              "rect": {
+                "x": 72,
+                "y": 421.09,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "fashion, allowing it to learn context from both di­rections. As a result, BERT quickly became the",
+              "rect": {
+                "x": 72,
+                "y": 434.64,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "backbone of many NLP pipelines for tasks like",
+              "rect": {
+                "x": 72,
+                "y": 461.73,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "classification, question answering, named entity",
+              "rect": {
+                "x": 72,
+                "y": 475.28,
+                "w": 217.52,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "recognition, etc.",
+              "rect": {
+                "x": 72,
+                "y": 488.83,
+                "w": 70.59,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "BERT’s initial design included certain limita­tions, such as a maximum sequence length of 512",
+              "rect": {
+                "x": 72,
+                "y": 502.99,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "tokens and less efficient attention mechanisms,",
+              "rect": {
+                "x": 72,
+                "y": 530.09,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "leaving room for architectural upgrades and larger­scale training. Despite the current rise of popu­larity of LLM-based architectures in NLP, such",
+              "rect": {
+                "x": 72,
+                "y": 543.64,
+                "w": 217.14,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "as GPT-4 (OpenAI et al., 2024), Mistral (Jiang",
+              "rect": {
+                "x": 72,
+                "y": 584.29,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "et al., 2023) or Llama-3 (Grattafiori et al., 2024),",
+              "rect": {
+                "x": 72,
+                "y": 597.84,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "encoder-based models are still widely used in many",
+              "rect": {
+                "x": 72,
+                "y": 611.39,
+                "w": 217.52,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "applications, because of their much smaller size",
+              "rect": {
+                "x": 72,
+                "y": 624.93,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and better-suited inference requirements that make",
+              "rect": {
+                "x": 72,
+                "y": 638.48,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "them suitable for real-world applications.",
+              "rect": {
+                "x": 72,
+                "y": 652.03,
+                "w": 180.16,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 82.91,
+            "y": 666.19,
+            "w": 205,
+            "h": 33.42
+          },
+          "lines": [
+            {
+              "text": "ModernBERT (Warner et al., 2024) is a state-of­1https://github.com/KRLabsOrg/",
+              "rect": {
+                "x": 82.91,
+                "y": 666.19,
+                "w": 205,
+                "h": 33.42
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 700.18,
+            "w": 150.63,
+            "h": 30.21
+          },
+          "lines": [
+            {
+              "text": "LettuceDetect",
+              "rect": {
+                "x": 72,
+                "y": 700.18,
+                "w": 69.94,
+                "h": 9.4
+              }
+            },
+            {
+              "text": "2https://pypi.org/project/",
+              "rect": {
+                "x": 84.65,
+                "y": 708.97,
+                "w": 137.98,
+                "h": 11.46
+              }
+            },
+            {
+              "text": "lettucedetect/",
+              "rect": {
+                "x": 72,
+                "y": 720.99,
+                "w": 75.32,
+                "h": 9.4
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 729.78,
+            "w": 193.67,
+            "h": 42.24
+          },
+          "lines": [
+            {
+              "text": "3https://huggingface.co/KRLabsOrg/",
+              "rect": {
+                "x": 84.65,
+                "y": 729.78,
+                "w": 181.02,
+                "h": 11.46
+              }
+            },
+            {
+              "text": "lettucedect-large-modernbert-en-v1",
+              "rect": {
+                "x": 72,
+                "y": 741.81,
+                "w": 184.91,
+                "h": 9.4
+              }
+            },
+            {
+              "text": "4https://huggingface.co/KRLabsOrg/",
+              "rect": {
+                "x": 84.65,
+                "y": 750.59,
+                "w": 181.02,
+                "h": 11.46
+              }
+            },
+            {
+              "text": "lettucedect-base-modernbert-en-v1",
+              "rect": {
+                "x": 72,
+                "y": 762.62,
+                "w": 179.53,
+                "h": 9.4
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 385.05,
+            "w": 217.14,
+            "h": 47.86
+          },
+          "lines": [
+            {
+              "text": "Figure 1: A web demo of our application built in Stream­lit5",
+              "rect": {
+                "x": 306.14,
+                "y": 385.05,
+                "w": 215.54,
+                "h": 23.96
+              }
+            },
+            {
+              "text": ". It features three input fields: question, context, and",
+              "rect": {
+                "x": 318.29,
+                "y": 397,
+                "w": 204.99,
+                "h": 12
+              }
+            },
+            {
+              "text": "answer. The output shows the highlighted hallucinated",
+              "rect": {
+                "x": 306.14,
+                "y": 408.96,
+                "w": 217.14,
+                "h": 12
+              }
+            },
+            {
+              "text": "spans.",
+              "rect": {
+                "x": 306.14,
+                "y": 420.91,
+                "w": 24.63,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 461.73,
+            "w": 218.5,
+            "h": 311.22
+          },
+          "lines": [
+            {
+              "text": "the-art encoder-only transformer architecture that",
+              "rect": {
+                "x": 306.14,
+                "y": 461.73,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "incorporates several modern design improvements",
+              "rect": {
+                "x": 306.14,
+                "y": 475.28,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "over the original BERT model. It utilizes several",
+              "rect": {
+                "x": 306.14,
+                "y": 488.83,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "enhancements, including rotary positional embed­dings (RoPE) (Su et al., 2024) instead of traditional",
+              "rect": {
+                "x": 306.14,
+                "y": 502.38,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "absolute positional embeddings. Additionally, it",
+              "rect": {
+                "x": 306.14,
+                "y": 529.47,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "features an alternating local-global attention mech­anism as described in (Team et al., 2024), allowing",
+              "rect": {
+                "x": 306.14,
+                "y": 543.02,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "it to efficiently manage sequences of up to 8,192",
+              "rect": {
+                "x": 306.14,
+                "y": 570.12,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "tokens. This makes it significantly more effective",
+              "rect": {
+                "x": 306.14,
+                "y": 583.67,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "for long-context tasks, such as modern informa­tion retrieval (Nussbaum et al., 2025; Zhang et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 597.22,
+                "w": 218.5,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "2024). ModernBERT features a hardware-aware",
+              "rect": {
+                "x": 306.14,
+                "y": 624.32,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "design and an expanded training corpus of 2 tril­lion tokens, including textual and code data. As a",
+              "rect": {
+                "x": 306.14,
+                "y": 637.87,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "result, it achieves superior performance on various",
+              "rect": {
+                "x": 306.14,
+                "y": 664.97,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "downstream benchmarks, such as GLUE for clas­sification and BEIR for retrieval (while also main­taining faster inference speed) (Nussbaum et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 678.52,
+                "w": 218.5,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "2025; Zhang et al., 2024). Based on these findings,",
+              "rect": {
+                "x": 306.14,
+                "y": 719.16,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the main part of our paper is to use the advance­ments of ModernBERT in the hallucination detec­tion of LLMs in an RAG setting. In this domain,",
+              "rect": {
+                "x": 306.14,
+                "y": 732.71,
+                "w": 218.5,
+                "h": 40.24
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.23,
+            "y": 72.88,
+            "w": 219.81,
+            "h": 680.56
+          },
+          "lines": [
+            {
+              "text": "long-context awareness is an inevitable feature.",
+              "rect": {
+                "x": 72,
+                "y": 72.88,
+                "w": 206.51,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Hallucination Detection can vary in granular­ity, ranging from example-based detection (which",
+              "rect": {
+                "x": 72,
+                "y": 93.69,
+                "w": 217.14,
+                "h": 27.09
+              }
+            },
+            {
+              "text": "assesses if an answer contains hallucinations) to",
+              "rect": {
+                "x": 72,
+                "y": 121.18,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "token, span, or sentence-level detection (Niu et al.,",
+              "rect": {
+                "x": 72,
+                "y": 134.73,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2024). The methods for detecting hallucinations",
+              "rect": {
+                "x": 72,
+                "y": 148.28,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "also differ based on the techniques employed.",
+              "rect": {
+                "x": 72,
+                "y": 161.82,
+                "w": 199.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Prompt-based Techniques typically utilize zero",
+              "rect": {
+                "x": 72,
+                "y": 182.63,
+                "w": 217.14,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "or few-shot large language models (LLMs) to iden­tify hallucinations in LLM-generated responses.",
+              "rect": {
+                "x": 72,
+                "y": 196.57,
+                "w": 219.04,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "Few-shot or fine-tuned evaluation frameworks,",
+              "rect": {
+                "x": 72,
+                "y": 223.67,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "such as RAGAS (Es et al., 2024), Trulens6, and",
+              "rect": {
+                "x": 72,
+                "y": 235.98,
+                "w": 217.13,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "ARES (Saad-Falcon et al., 2024), have emerged to",
+              "rect": {
+                "x": 71.61,
+                "y": 250.77,
+                "w": 217.53,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "provide hallucination detection at scale using LLM",
+              "rect": {
+                "x": 72,
+                "y": 264.32,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "judges. However, real-time prediction remains a",
+              "rect": {
+                "x": 71.23,
+                "y": 277.87,
+                "w": 217.91,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "challenge for these methods. Other prompt-based",
+              "rect": {
+                "x": 72,
+                "y": 291.42,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "approaches, like the zero-shot method SelfCheck­GPT (Manakul et al., 2023), employ stochastic",
+              "rect": {
+                "x": 72,
+                "y": 304.97,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "sampling to identify inconsistencies across multi­ple response variants. Rather than relying on a sin­gle prompt, Chainpoll (Friel and Sanyal, 2023) im­plements a series of verification steps to detect hal­lucinations. Cohen et al. (2023) presents a method",
+              "rect": {
+                "x": 72,
+                "y": 332.06,
+                "w": 217.13,
+                "h": 67.34
+              }
+            },
+            {
+              "text": "of cross-examination between two LLMs to un­cover inconsistencies. Chang et al. (2024) utilized",
+              "rect": {
+                "x": 72,
+                "y": 399.81,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "LLM-based classifiers trained on synthetic errors",
+              "rect": {
+                "x": 72,
+                "y": 426.91,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to detect both hallucinations and coverage errors",
+              "rect": {
+                "x": 72,
+                "y": 440.46,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "in LLM-generated responses.",
+              "rect": {
+                "x": 72,
+                "y": 454.01,
+                "w": 128.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Fine-tuned LLM Judges approaches involve",
+              "rect": {
+                "x": 72,
+                "y": 474.81,
+                "w": 217.14,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "training LLMs on hallucination detection tasks us­ing specific training data. Niu et al. (2024) not only",
+              "rect": {
+                "x": 72,
+                "y": 488.76,
+                "w": 217.52,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "introduced the RagTruth data but also presented a",
+              "rect": {
+                "x": 72,
+                "y": 515.85,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "fine-tuned Llama-2-13B LLM, which achieved",
+              "rect": {
+                "x": 72,
+                "y": 529.4,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "state-of-the-art performance on their test set, even",
+              "rect": {
+                "x": 72,
+                "y": 542.95,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "surpassing larger models like GPT-4. RAG-HAT",
+              "rect": {
+                "x": 72,
+                "y": 556.5,
+                "w": 217.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Song et al., 2024) introduced a novel approach",
+              "rect": {
+                "x": 71.64,
+                "y": 570.05,
+                "w": 217.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "called Hallucination Aware Tuning (HAT), which",
+              "rect": {
+                "x": 72,
+                "y": 583.6,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "involves training models to generate detection la­bels and provide detailed descriptions of identified",
+              "rect": {
+                "x": 72,
+                "y": 597.15,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "hallucinations. They created a preference dataset",
+              "rect": {
+                "x": 72,
+                "y": 624.25,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to facilitate Direct Preference Optimization (DPO)",
+              "rect": {
+                "x": 72,
+                "y": 637.8,
+                "w": 217.87,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "training. Fine-tuning through DPO results in SOTA",
+              "rect": {
+                "x": 72,
+                "y": 651.35,
+                "w": 217.53,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "performance on the RAGTruth test set.",
+              "rect": {
+                "x": 72,
+                "y": 664.89,
+                "w": 169.45,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Encoder-based Solutions focus on address­ing computational efficiency constraints through",
+              "rect": {
+                "x": 72,
+                "y": 685.7,
+                "w": 217.14,
+                "h": 27.09
+              }
+            },
+            {
+              "text": "domain-specific adaptations. RAGHalu (Zimmer­man et al., 2024) employs a two-tiered encoder",
+              "rect": {
+                "x": 72,
+                "y": 713.19,
+                "w": 217.34,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "model that utilizes binary classification at each",
+              "rect": {
+                "x": 72,
+                "y": 740.29,
+                "w": 217.14,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 84.65,
+            "y": 760.56,
+            "w": 132.6,
+            "h": 11.46
+          },
+          "lines": [
+            {
+              "text": "6https://www.trulens.org/",
+              "rect": {
+                "x": 84.65,
+                "y": 760.56,
+                "w": 132.6,
+                "h": 11.46
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.78,
+            "y": 72.88,
+            "w": 219.4,
+            "h": 297.68
+          },
+          "lines": [
+            {
+              "text": "layer, fine-tuning a Natural Language Inference",
+              "rect": {
+                "x": 306.14,
+                "y": 72.88,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(NLI) model based on DeBERTa (He et al., 2021).",
+              "rect": {
+                "x": 305.78,
+                "y": 86.43,
+                "w": 219.4,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "The approach most similar to our work is Luna",
+              "rect": {
+                "x": 305.8,
+                "y": 99.98,
+                "w": 217.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Belyi et al., 2025), which also builds on De­BERTa and NLI to create a lightweight long­context hallucination detection system capable of",
+              "rect": {
+                "x": 305.78,
+                "y": 113.53,
+                "w": 218.04,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "managing longer contexts effectively. Luna draws",
+              "rect": {
+                "x": 306.14,
+                "y": 154.17,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "connections between detecting entailment in NLI",
+              "rect": {
+                "x": 306.14,
+                "y": 167.72,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "tasks and identifying hallucinations. They fine­tuned on a large, cross-domain corpus of question­answering-based RAG samples, with annotations",
+              "rect": {
+                "x": 306.14,
+                "y": 181.27,
+                "w": 217.13,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "provided by GPT-4. During the inference phase,",
+              "rect": {
+                "x": 306.14,
+                "y": 221.92,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Luna conducts sentence- or token-level checks on",
+              "rect": {
+                "x": 306.14,
+                "y": 235.47,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "each model’s response against the retrieved pas­sages, effectively flagging unsupported fragments.",
+              "rect": {
+                "x": 306.14,
+                "y": 249.02,
+                "w": 219.04,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "FACTOID (Rawte et al., 2024) introduces a Fac­tual Entailment (FE) framework, which represents",
+              "rect": {
+                "x": 306.14,
+                "y": 276.12,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "a new form of textual entailment aimed at locating",
+              "rect": {
+                "x": 306.14,
+                "y": 303.22,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "hallucinations at the token or span level. Other",
+              "rect": {
+                "x": 306.14,
+                "y": 316.77,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "approaches, such as ReDeEp (Sun et al., 2025), in­troduce techniques to analyze internal model states",
+              "rect": {
+                "x": 306.14,
+                "y": 330.31,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "for hallucination detection.",
+              "rect": {
+                "x": 306.14,
+                "y": 357.41,
+                "w": 117.86,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 306.14,
+            "y": 382.15,
+            "w": 42.5,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "3 Data",
+              "rect": {
+                "x": 306.14,
+                "y": 382.15,
+                "w": 42.5,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 406.16,
+            "w": 219.55,
+            "h": 366.8
+          },
+          "lines": [
+            {
+              "text": "We trained and evaluated our models using the",
+              "rect": {
+                "x": 305.63,
+                "y": 406.16,
+                "w": 217.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "RAGTruth dataset (Niu et al., 2024). RAGTruth",
+              "rect": {
+                "x": 306.14,
+                "y": 419.71,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "is the first large-scale benchmark for evaluating",
+              "rect": {
+                "x": 306.14,
+                "y": 433.26,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "hallucinations in RAG settings. The dataset con­tains 18,000 annotated examples at the span level",
+              "rect": {
+                "x": 306.14,
+                "y": 446.81,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "across three tasks: question answering, data-to-text",
+              "rect": {
+                "x": 306.14,
+                "y": 473.91,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "generation, and news summarization.",
+              "rect": {
+                "x": 306.14,
+                "y": 487.46,
+                "w": 162.43,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "For the question answering task, data was sam­pled from the MS MARCO dataset (Bajaj et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 501.69,
+                "w": 218.5,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "2018), where each question had up to three cor­responding contexts. The authors then prompted",
+              "rect": {
+                "x": 306.14,
+                "y": 528.79,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "LLMs to generate answers based on the retrieved",
+              "rect": {
+                "x": 306.14,
+                "y": 555.89,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "passages. In the data-to-text generation task, LLMs",
+              "rect": {
+                "x": 306.14,
+                "y": 569.44,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "were asked to generate reviews for sampled busi­nesses from the Yelp Open Dataset (Yelp, 2021).",
+              "rect": {
+                "x": 305.75,
+                "y": 582.99,
+                "w": 219.43,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "For the news summarization task, randomly se­lected documents were taken from the training set",
+              "rect": {
+                "x": 306.14,
+                "y": 610.08,
+                "w": 217.15,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "of the CNN/Daily Mail dataset (See et al., 2017),",
+              "rect": {
+                "x": 306.14,
+                "y": 637.18,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and LLMs were prompted to create summaries.",
+              "rect": {
+                "x": 306.14,
+                "y": 650.73,
+                "w": 206.92,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "For response generation, various LLMs were",
+              "rect": {
+                "x": 317.05,
+                "y": 664.97,
+                "w": 206.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "employed, including GPT-4-0613 (OpenAI et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 678.52,
+                "w": 218.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2024), Mistral-7B-Instruct (Jiang et al., 2023), and",
+              "rect": {
+                "x": 306.14,
+                "y": 692.06,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "selections from the Llama models, such as Llama­2-7b-chat and Llama-2-13B-chat (Grattafiori et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 705.61,
+                "w": 218.49,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "2024). Each sample in the dataset includes one re­sponse from each model, resulting in six responses",
+              "rect": {
+                "x": 306.14,
+                "y": 732.71,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "per sample in RAGTruth.",
+              "rect": {
+                "x": 306.14,
+                "y": 759.81,
+                "w": 110.68,
+                "h": 13.15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.61,
+            "y": 72.88,
+            "w": 218.89,
+            "h": 216.39
+          },
+          "lines": [
+            {
+              "text": "The entire dataset was annotated by human eval­uators, who marked annotations in the responses",
+              "rect": {
+                "x": 72,
+                "y": 72.88,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "and provided rationales. RAGTruth categorizes",
+              "rect": {
+                "x": 72,
+                "y": 99.98,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "hallucinations into types such as Evident Conflict,",
+              "rect": {
+                "x": 72,
+                "y": 113.53,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Subtle Conflict, Evident Introduction of Baseless",
+              "rect": {
+                "x": 72,
+                "y": 127.08,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Information, and Subtle Introduction of Baseless",
+              "rect": {
+                "x": 72,
+                "y": 140.63,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Information. For our training, we focused solely",
+              "rect": {
+                "x": 72,
+                "y": 154.17,
+                "w": 217.52,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "on the binary task of recognizing hallucinations",
+              "rect": {
+                "x": 72,
+                "y": 167.72,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "without considering these specific categories. An",
+              "rect": {
+                "x": 71.61,
+                "y": 181.27,
+                "w": 217.53,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "example from the dataset can be seen in Table 1.",
+              "rect": {
+                "x": 72,
+                "y": 194.82,
+                "w": 211.64,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "We tokenized RAGTruth and found that the",
+              "rect": {
+                "x": 82.91,
+                "y": 208.37,
+                "w": 206.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "mean token length is 801 tokens, with a median",
+              "rect": {
+                "x": 72,
+                "y": 221.92,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of 741 tokens, a minimum of 194, and a maxi­mum of 2632 tokens. This highlights the need",
+              "rect": {
+                "x": 72,
+                "y": 235.47,
+                "w": 217.14,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "for long-context models, such as ModernBERT, to",
+              "rect": {
+                "x": 72,
+                "y": 262.57,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "effectively detect hallucinations.",
+              "rect": {
+                "x": 72,
+                "y": 276.12,
+                "w": 141.38,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 73.57,
+            "y": 302.59,
+            "w": 136.15,
+            "h": 8.19
+          },
+          "lines": [
+            {
+              "text": "QUESTION How to explain quartiles?",
+              "rect": {
+                "x": 73.57,
+                "y": 302.59,
+                "w": 136.15,
+                "h": 8.19
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 73.57,
+            "y": 314.73,
+            "w": 215.79,
+            "h": 36.54
+          },
+          "lines": [
+            {
+              "text": "REFERENCE Passage 2: Second quartile (Q2) which is more commonly",
+              "rect": {
+                "x": 73.57,
+                "y": 314.73,
+                "w": 215.79,
+                "h": 8.19
+              }
+            },
+            {
+              "text": "known as median splits the data in half (50%). Median",
+              "rect": {
+                "x": 140.68,
+                "y": 322.16,
+                "w": 148.46,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "divides the data into a lower half and an upper half. Third",
+              "rect": {
+                "x": 140.68,
+                "y": 329.35,
+                "w": 148.46,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "quartile (Q3), also known as upper quartile, splits lowest",
+              "rect": {
+                "x": 140.68,
+                "y": 336.55,
+                "w": 148.58,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "75% (or highest 25%) of data",
+              "rect": {
+                "x": 140.37,
+                "y": 343.75,
+                "w": 75.04,
+                "h": 7.52
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 73.57,
+            "y": 350.95,
+            "w": 216.36,
+            "h": 46.2
+          },
+          "lines": [
+            {
+              "text": ". . .",
+              "rect": {
+                "x": 140.68,
+                "y": 350.95,
+                "w": 6.61,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "RESPONSE The first quartile (Q1) splits the lowest 25% of the data,",
+              "rect": {
+                "x": 73.57,
+                "y": 360.61,
+                "w": 216.36,
+                "h": 8.19
+              }
+            },
+            {
+              "text": "while the second quartile (Q2) splits the data into two equal",
+              "rect": {
+                "x": 140.46,
+                "y": 368.04,
+                "w": 148.69,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "halves, with the median being the middle value of the lower",
+              "rect": {
+                "x": 140.68,
+                "y": 375.23,
+                "w": 148.58,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "half. Finally, the third quartile (Q3) splits the highest 75%",
+              "rect": {
+                "x": 140.68,
+                "y": 382.43,
+                "w": 148.98,
+                "h": 7.59
+              }
+            },
+            {
+              "text": "of the data.",
+              "rect": {
+                "x": 140.68,
+                "y": 389.63,
+                "w": 28.51,
+                "h": 7.52
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 140.68,
+            "y": 396.83,
+            "w": 6.61,
+            "h": 7.59
+          },
+          "lines": [
+            {
+              "text": ". . .",
+              "rect": {
+                "x": 140.68,
+                "y": 396.83,
+                "w": 6.61,
+                "h": 7.59
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 73.57,
+            "y": 406.5,
+            "w": 116.12,
+            "h": 8.19
+          },
+          "lines": [
+            {
+              "text": "ANNOTATION Span: highest 75%",
+              "rect": {
+                "x": 73.57,
+                "y": 406.5,
+                "w": 116.12,
+                "h": 8.19
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 140.68,
+            "y": 413.69,
+            "w": 123.03,
+            "h": 22.21
+          },
+          "lines": [
+            {
+              "text": "Type: Evident Conflict",
+              "rect": {
+                "x": 140.68,
+                "y": 413.69,
+                "w": 58.7,
+                "h": 8.19
+              }
+            },
+            {
+              "text": "Reason: Original: “lowest 75% or highest 25%”",
+              "rect": {
+                "x": 140.68,
+                "y": 420.89,
+                "w": 123.03,
+                "h": 8.19
+              }
+            },
+            {
+              "text": "Generative: “highest 75%”",
+              "rect": {
+                "x": 140.68,
+                "y": 428.31,
+                "w": 67.98,
+                "h": 7.59
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.69,
+            "y": 447.9,
+            "w": 215.85,
+            "h": 23.96
+          },
+          "lines": [
+            {
+              "text": "Table 1: An example of RAGTruth data, including ques­tion, references, response, and annotations.",
+              "rect": {
+                "x": 71.69,
+                "y": 447.9,
+                "w": 215.85,
+                "h": 23.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 72,
+            "y": 493.84,
+            "w": 57.78,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "4 Method",
+              "rect": {
+                "x": 72,
+                "y": 493.84,
+                "w": 57.78,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.49,
+            "y": 515.92,
+            "w": 219.56,
+            "h": 175.75
+          },
+          "lines": [
+            {
+              "text": "We trained ModernBERT-base and -large vari­ants as token classifiers on the RAGTruth dataset.",
+              "rect": {
+                "x": 71.49,
+                "y": 515.92,
+                "w": 219.56,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "Input sequences were constructed by concate­nating context, question, and answer segments",
+              "rect": {
+                "x": 72,
+                "y": 543.02,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "using special tokens ([CLS] for context, [SEP]",
+              "rect": {
+                "x": 72,
+                "y": 570.12,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "for separation) and tokenized to a maximum",
+              "rect": {
+                "x": 72,
+                "y": 583.67,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "length of 4,096 tokens (in the current version we",
+              "rect": {
+                "x": 72,
+                "y": 597.22,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "haven’t utilized ModernBERT’s full 8,192 context",
+              "rect": {
+                "x": 72,
+                "y": 610.77,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "length). For handling tokenization, we’ve used",
+              "rect": {
+                "x": 72,
+                "y": 624.32,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the AutoTokenizer (Wolf et al., 2020). Our",
+              "rect": {
+                "x": 72,
+                "y": 637.87,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "models are based solely on the ModernBERT ar­chitecture and were not pretrained on the NLI task,",
+              "rect": {
+                "x": 72,
+                "y": 651.42,
+                "w": 218.5,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "unlike previous encoder-based architectures.",
+              "rect": {
+                "x": 72,
+                "y": 678.52,
+                "w": 193.89,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.18,
+            "y": 692.06,
+            "w": 219.86,
+            "h": 80.9
+          },
+          "lines": [
+            {
+              "text": "The architecture leveraged Hugging Face’s",
+              "rect": {
+                "x": 82.91,
+                "y": 692.06,
+                "w": 206.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "AutoModelForTokenClassification",
+              "rect": {
+                "x": 71.67,
+                "y": 706.85,
+                "w": 202.91,
+                "h": 11.43
+              }
+            },
+            {
+              "text": "(Wolf et al., 2020) with ModernBERT as the",
+              "rect": {
+                "x": 71.64,
+                "y": 719.16,
+                "w": 217.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "backbone, and a classification head on top.",
+              "rect": {
+                "x": 72,
+                "y": 732.71,
+                "w": 219.04,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Context/question tokens were masked (label=-",
+              "rect": {
+                "x": 72,
+                "y": 746.26,
+                "w": 218.94,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "100), while answer tokens were labeled as",
+              "rect": {
+                "x": 71.18,
+                "y": 759.81,
+                "w": 217.95,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.78,
+            "y": 306.78,
+            "w": 217.98,
+            "h": 119.6
+          },
+          "lines": [
+            {
+              "text": "Figure 2: The architecture of LettuceDetect. The fig­ure illustrates an example of a Question, Context, and",
+              "rect": {
+                "x": 306.14,
+                "y": 306.78,
+                "w": 217.14,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "Answer triplet as input to our architecture. After the tok­enization step, the tokens are fed into LettuceDetect for",
+              "rect": {
+                "x": 305.78,
+                "y": 330.69,
+                "w": 217.68,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "token-level classification. Tokens from both the ques­tion and the context are masked (indicated by the red",
+              "rect": {
+                "x": 306.14,
+                "y": 354.61,
+                "w": 217.13,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "line) for loss calculations. In the output of LettuceDe­tect, we provide probabilities for each answer token. If",
+              "rect": {
+                "x": 306.14,
+                "y": 378.52,
+                "w": 217.62,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "the output type is span-level, we aggregate subsequent",
+              "rect": {
+                "x": 306.14,
+                "y": 402.43,
+                "w": 217.14,
+                "h": 12
+              }
+            },
+            {
+              "text": "tokens that are hallucinated for the span-level output.",
+              "rect": {
+                "x": 306.14,
+                "y": 414.38,
+                "w": 211.45,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.78,
+            "y": 450.15,
+            "w": 222.91,
+            "h": 258.12
+          },
+          "lines": [
+            {
+              "text": "0 (supported) or 1 (hallucinated). Training",
+              "rect": {
+                "x": 306.14,
+                "y": 450.15,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "used AdamW optimization (Loshchilov and",
+              "rect": {
+                "x": 306.14,
+                "y": 463.7,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Hutter, 2019) (learning rate 1 × 10−5, weight",
+              "rect": {
+                "x": 306.14,
+                "y": 477.16,
+                "w": 217.15,
+                "h": 20.64
+              }
+            },
+            {
+              "text": "decay 0.01) for 6 epochs on an NVIDIA A100",
+              "rect": {
+                "x": 306.14,
+                "y": 490.8,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "GPU. For data and batch handling, we’ve used",
+              "rect": {
+                "x": 306.14,
+                "y": 504.35,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "PyTorch DataLoader (Paszke et al., 2019)",
+              "rect": {
+                "x": 306.14,
+                "y": 517.9,
+                "w": 217.87,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(batch size=8, shuffling enabled). We evaluated",
+              "rect": {
+                "x": 305.78,
+                "y": 531.45,
+                "w": 217.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "models using token-level F1 score, saving the",
+              "rect": {
+                "x": 306.14,
+                "y": 545,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "best-performing checkpoint via safetensors.",
+              "rect": {
+                "x": 306.14,
+                "y": 558.54,
+                "w": 219.04,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Dynamic padding was implemented using",
+              "rect": {
+                "x": 306.14,
+                "y": 572.09,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "DataCollatorForTokenClassification",
+              "rect": {
+                "x": 306.14,
+                "y": 586.88,
+                "w": 222.55,
+                "h": 11.43
+              }
+            },
+            {
+              "text": "to process variable-length sequences efficiently.",
+              "rect": {
+                "x": 306.14,
+                "y": 599.19,
+                "w": 208.09,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "The final model predicts hallucination probabil­ities for each answer token, with span-level out­puts generated by aggregating consecutive tokens",
+              "rect": {
+                "x": 306.14,
+                "y": 613.83,
+                "w": 217.13,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "exceeding a 0.5 confidence threshold. The best",
+              "rect": {
+                "x": 306.14,
+                "y": 654.48,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "models are uploaded to huggingface. Our method",
+              "rect": {
+                "x": 306.14,
+                "y": 668.03,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "can be seen in Figure 2. We discuss the results in",
+              "rect": {
+                "x": 306.14,
+                "y": 681.57,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Section 5.",
+              "rect": {
+                "x": 306.14,
+                "y": 695.12,
+                "w": 43.64,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 306.14,
+            "y": 721.26,
+            "w": 73.62,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "5 Evaluation",
+              "rect": {
+                "x": 306.14,
+                "y": 721.26,
+                "w": 73.62,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 746.26,
+            "w": 219.45,
+            "h": 26.7
+          },
+          "lines": [
+            {
+              "text": "We evaluate our models using the RAGTruth test",
+              "rect": {
+                "x": 305.63,
+                "y": 746.26,
+                "w": 217.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "data across all task types, including question an-",
+              "rect": {
+                "x": 306.14,
+                "y": 759.81,
+                "w": 218.94,
+                "h": 13.15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 84.16,
+            "y": 74.81,
+            "w": 422.99,
+            "h": 17.04
+          },
+          "lines": [
+            {
+              "text": "QUESTION ANSWERING DATA-TO-TEXT WRITING SUMMARIZATION OVERALL",
+              "rect": {
+                "x": 163.72,
+                "y": 74.81,
+                "w": 328.97,
+                "h": 9.07
+              }
+            },
+            {
+              "text": "Method Prec. Rec. F1 Prec. Rec. F1 Prec. Rec. F1 Prec. Rec. F1",
+              "rect": {
+                "x": 84.16,
+                "y": 82.78,
+                "w": 422.99,
+                "h": 9.07
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 84.11,
+            "y": 96.48,
+            "w": 427.02,
+            "h": 107.44
+          },
+          "lines": [
+            {
+              "text": "Promptgpt-3.5-turbo 18.8 84.4 30.8 65.1 95.5 77.4 23.4 89.2 37.1 37.1 92.3 52.9",
+              "rect": {
+                "x": 84.16,
+                "y": 96.48,
+                "w": 425.22,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "Promptgpt-4-turbo 33.2 90.6 45.6 64.3 100.0 78.3 31.5 97.6 47.6 46.9 97.9 63.4",
+              "rect": {
+                "x": 84.16,
+                "y": 104.45,
+                "w": 425.22,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "SelCheckGPTgpt-3.5-turbo 35.0 58.0 43.7 68.2 82.8 74.8 31.1 56.5 40.1 49.7 71.9 58.8",
+              "rect": {
+                "x": 84.16,
+                "y": 112.42,
+                "w": 425.22,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "LMvLMgpt-4-turbo 18.7 76.9 30.1 68.0 76.7 72.1 23.2 81.9 36.2 36.2 77.8 49.4",
+              "rect": {
+                "x": 84.16,
+                "y": 120.39,
+                "w": 425.22,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "Finetuned Llama-2-13B 61.6 76.3 68.2 85.4 91.0 88.1 64.0 54.9 59.1 76.9 80.7 78.7",
+              "rect": {
+                "x": 84.16,
+                "y": 128.36,
+                "w": 425.22,
+                "h": 8.4
+              }
+            },
+            {
+              "text": "RAG-HAT 76.5 73.1 74.8 92.9 90.3 91.6 77.7 59.8 67.6 87.3 80.8 83.9",
+              "rect": {
+                "x": 84.16,
+                "y": 136.08,
+                "w": 425.22,
+                "h": 9.07
+              }
+            },
+            {
+              "text": "ChainPollgpt-3.5-turbo 33.5 51.3 40.5 84.6 35.1 49.6 45.8 48.0 46.9 54.8 40.6 46.7",
+              "rect": {
+                "x": 84.16,
+                "y": 149.78,
+                "w": 425.22,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "RAGAS Faithfulness 31.2 41.9 35.7 79.2 50.8 61.9 64.2 29.9 40.8 62.0 44.8 52.0",
+              "rect": {
+                "x": 84.16,
+                "y": 157.75,
+                "w": 425.22,
+                "h": 8.4
+              }
+            },
+            {
+              "text": "Trulens Groundedness 22.8 92.5 36.6 66.9 96.5 79.0 40.2 50.0 44.5 46.5 85.8 60.4",
+              "rect": {
+                "x": 84.16,
+                "y": 165.72,
+                "w": 425.22,
+                "h": 8.4
+              }
+            },
+            {
+              "text": "Luna 37.8 80.0 51.3 64.9 91.2 75.9 40.0 76.5 52.5 52.7 86.1 65.4",
+              "rect": {
+                "x": 84.11,
+                "y": 173.69,
+                "w": 425.27,
+                "h": 8.4
+              }
+            },
+            {
+              "text": "lettucedetect-base-v1 60.64 71.25 65.52 89.30 86.53 87.89 53.89 47.55 50.52 76.64 75.50 76.07",
+              "rect": {
+                "x": 84.16,
+                "y": 186.88,
+                "w": 426.97,
+                "h": 9.07
+              }
+            },
+            {
+              "text": "lettucedetect-large-v1 65.93 75.00 70.18 90.45 86.70 88.54 64.04 55.88 59.69 80.44 78.05 79.22",
+              "rect": {
+                "x": 84.16,
+                "y": 194.85,
+                "w": 426.96,
+                "h": 9.07
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.69,
+            "y": 215.82,
+            "w": 451.58,
+            "h": 35.91
+          },
+          "lines": [
+            {
+              "text": "Table 2: Performance comparison at the example level across various tasks. We compare our results with models",
+              "rect": {
+                "x": 71.69,
+                "y": 215.82,
+                "w": 451.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "presented in Luna (Belyi et al., 2025) and RAGTruth (Niu et al., 2024), as well as evaluation frameworks RAGAS",
+              "rect": {
+                "x": 72,
+                "y": 227.77,
+                "w": 451.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "and Trulens. The evaluation also includes a fine-tuned LLM from the RAG-HAT (Song et al., 2024) paper.",
+              "rect": {
+                "x": 72,
+                "y": 239.73,
+                "w": 424.36,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 81.12,
+            "y": 267.28,
+            "w": 429.07,
+            "h": 17.04
+          },
+          "lines": [
+            {
+              "text": "QUESTION ANSWERING DATA-TO-TEXT WRITING SUMMARIZATION OVERALL",
+              "rect": {
+                "x": 166.76,
+                "y": 267.28,
+                "w": 328.97,
+                "h": 9.07
+              }
+            },
+            {
+              "text": "Method Prec. Rec. F1 Prec. Rec. F1 Prec. Rec. F1 Prec. Rec. F1",
+              "rect": {
+                "x": 81.12,
+                "y": 275.25,
+                "w": 429.07,
+                "h": 9.07
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 81.12,
+            "y": 288.95,
+            "w": 433.04,
+            "h": 46.18
+          },
+          "lines": [
+            {
+              "text": "Prompt Baselinegpt-3.5-turbo 7.9 25.1 12.1 8.7 45.1 14.6 6.1 33.7 10.3 7.8 35.3 12.8",
+              "rect": {
+                "x": 81.12,
+                "y": 288.95,
+                "w": 431.3,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "Prompt Baselinegpt-4-turbo 23.7 52.0 32.6 17.9 66.4 28.2 14.7 65.4 24.3 18.4 60.9 28.3",
+              "rect": {
+                "x": 81.12,
+                "y": 296.92,
+                "w": 431.3,
+                "h": 8.84
+              }
+            },
+            {
+              "text": "Finetuned Llama-2-13B 55.8 60.8 58.2 56.5 50.7 53.5 52.4 30.8 38.6 55.6 50.2 52.7",
+              "rect": {
+                "x": 81.12,
+                "y": 304.89,
+                "w": 431.3,
+                "h": 8.4
+              }
+            },
+            {
+              "text": "lettucedetect-base-v1 62.65 60.40 61.50 58.24 56.57 57.39 52.98 28.08 36.71 59.36 52.01 55.44",
+              "rect": {
+                "x": 81.12,
+                "y": 318.09,
+                "w": 433.04,
+                "h": 9.07
+              }
+            },
+            {
+              "text": "lettucedetect-large-v1 66.85 62.14 64.41 64.71 55.99 60.04 60.17 35.47 44.63 64.92 53.96 58.93",
+              "rect": {
+                "x": 81.12,
+                "y": 326.06,
+                "w": 433.04,
+                "h": 9.07
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.69,
+            "y": 347.02,
+            "w": 451.6,
+            "h": 35.91
+          },
+          "lines": [
+            {
+              "text": "Table 3: Performance comparison at the span level across different tasks. We compare our results with models",
+              "rect": {
+                "x": 71.69,
+                "y": 347.02,
+                "w": 451.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "presented in RAGTruth (Niu et al., 2024). We limit this comparison to these papers, as other studies have not",
+              "rect": {
+                "x": 72,
+                "y": 358.98,
+                "w": 451.29,
+                "h": 12
+              }
+            },
+            {
+              "text": "evaluated their performance on the span level task.",
+              "rect": {
+                "x": 72,
+                "y": 370.93,
+                "w": 201.62,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.62,
+            "y": 404.53,
+            "w": 219.42,
+            "h": 368.43
+          },
+          "lines": [
+            {
+              "text": "swering (QA), data-to-text, and summarization.",
+              "rect": {
+                "x": 72,
+                "y": 404.53,
+                "w": 219.04,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Following the methodology outlined in (Niu et al.,",
+              "rect": {
+                "x": 72,
+                "y": 418.08,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2024), we report both example-level and span-level",
+              "rect": {
+                "x": 72,
+                "y": 431.63,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "detection performance, reporting precision, recall,",
+              "rect": {
+                "x": 72,
+                "y": 445.18,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and F1 score. Our models are compared against",
+              "rect": {
+                "x": 72,
+                "y": 458.73,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "state-of-the-art baselines presented in (Niu et al.,",
+              "rect": {
+                "x": 72,
+                "y": 472.27,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2024; Song et al., 2024; Belyi et al., 2025). This",
+              "rect": {
+                "x": 72,
+                "y": 485.82,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "includes comparisons with prompt-based methods,",
+              "rect": {
+                "x": 72,
+                "y": 499.37,
+                "w": 218.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "such as gpt-4-turbo and gpt-3.5-turbo, as well as",
+              "rect": {
+                "x": 72,
+                "y": 512.92,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "fine-tuned LLMs that have shown state-of-the-art",
+              "rect": {
+                "x": 72,
+                "y": 526.47,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "performance on the RAGTruth data, including the",
+              "rect": {
+                "x": 72,
+                "y": 540.02,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "previously established state-of-the-art model in",
+              "rect": {
+                "x": 72,
+                "y": 553.57,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Niu et al., 2024) (a fine-tuned Llama-2-13B) and",
+              "rect": {
+                "x": 71.64,
+                "y": 567.12,
+                "w": 217.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the current best result from (Song et al., 2024)",
+              "rect": {
+                "x": 72,
+                "y": 580.67,
+                "w": 217.86,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(a fine-tuned LLM based on Llama-3-8B trained",
+              "rect": {
+                "x": 71.64,
+                "y": 594.22,
+                "w": 217.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "through DPO training). We also compare our mod­els with encoder-based approaches, similar to ours,",
+              "rect": {
+                "x": 72,
+                "y": 607.77,
+                "w": 218.5,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "including the token classifier method presented in",
+              "rect": {
+                "x": 72,
+                "y": 634.87,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Belyi et al., 2025), which is based on DeBERTa.",
+              "rect": {
+                "x": 71.64,
+                "y": 648.41,
+                "w": 214.81,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Table 2 illustrates our results on the example­level task. Our large model (lettucedetect-large­v1) outperforms all prompt-based methods (gpt­4-turbo achieved an overall F1 score of 63.4%",
+              "rect": {
+                "x": 71.62,
+                "y": 664.97,
+                "w": 218.42,
+                "h": 53.79
+              }
+            },
+            {
+              "text": "compared to lettucedetect-large-v1’s 79.22%). It",
+              "rect": {
+                "x": 72,
+                "y": 719.16,
+                "w": 217.15,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "also surpasses the previous state-of-the-art encoder­based model, Luna (65.4% vs. 79.22%), and the",
+              "rect": {
+                "x": 72,
+                "y": 732.71,
+                "w": 217.14,
+                "h": 27.35
+              }
+            },
+            {
+              "text": "previously established state-of-the-art fine-tuned",
+              "rect": {
+                "x": 72,
+                "y": 759.81,
+                "w": 217.14,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.78,
+            "y": 404.53,
+            "w": 219.4,
+            "h": 368.43
+          },
+          "lines": [
+            {
+              "text": "LLM presented in (Niu et al., 2024) (fine-tuned",
+              "rect": {
+                "x": 306.14,
+                "y": 404.53,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Llama-2-13B with 78.7% vs. 79.22%). The only",
+              "rect": {
+                "x": 306.14,
+                "y": 418.08,
+                "w": 217.52,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "model that exceeds our large model’s performance",
+              "rect": {
+                "x": 306.14,
+                "y": 431.63,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "is the current state-of-the-art fine-tuned LLM based",
+              "rect": {
+                "x": 306.14,
+                "y": 445.18,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "on Llama-3-8B presented in the RAG-HAT paper",
+              "rect": {
+                "x": 306.14,
+                "y": 458.73,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "(Song et al., 2024) (83.9% vs. 79.22%). Our",
+              "rect": {
+                "x": 305.78,
+                "y": 471.88,
+                "w": 217.7,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "base model (lettucedetect-base-v1) also demon­strates strong performance across tasks while being",
+              "rect": {
+                "x": 306.14,
+                "y": 485.82,
+                "w": 217.13,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "half the size of the large model. Considering our",
+              "rect": {
+                "x": 306.14,
+                "y": 512.92,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "model’s compact size (150M for the base model",
+              "rect": {
+                "x": 306.14,
+                "y": 526.47,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and 396M for the large model) and its optimized",
+              "rect": {
+                "x": 306.14,
+                "y": 540.02,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "architecture based on ModernBERT, it is capable",
+              "rect": {
+                "x": 306.14,
+                "y": 553.57,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of processing approximately 30 to 60 examples",
+              "rect": {
+                "x": 306.14,
+                "y": 567.12,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "per second on a single GPU. Given this optimized",
+              "rect": {
+                "x": 306.14,
+                "y": 580.67,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "inference speed, it only falls short compared to one",
+              "rect": {
+                "x": 306.14,
+                "y": 594.22,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "larger model (8B Llama). Overall, our models are",
+              "rect": {
+                "x": 306.14,
+                "y": 607.77,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "highly efficient while being about 30 times smaller",
+              "rect": {
+                "x": 306.14,
+                "y": 621.32,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "in size.",
+              "rect": {
+                "x": 306.14,
+                "y": 634.87,
+                "w": 30.91,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "In Table 3, we present our results on the span­level task. In this task, we evaluate the overlap",
+              "rect": {
+                "x": 306.14,
+                "y": 651.42,
+                "w": 217.14,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "between the gold spans and the predicted spans.",
+              "rect": {
+                "x": 306.14,
+                "y": 678.52,
+                "w": 219.04,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Following the RAGTruth paper, we measured",
+              "rect": {
+                "x": 306.14,
+                "y": 692.06,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "character-level overlap and calculated precision,",
+              "rect": {
+                "x": 306.14,
+                "y": 705.61,
+                "w": 218.5,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "recall, and F1 score. Our models achieved state-of­the-art performance, with the Llama-2-13B model",
+              "rect": {
+                "x": 306.14,
+                "y": 719.16,
+                "w": 217.13,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "reaching an overall F1 score of 52.7%, while our",
+              "rect": {
+                "x": 306.14,
+                "y": 746.26,
+                "w": 217.34,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "large model achieved 58.93% F1 score. Please",
+              "rect": {
+                "x": 306.14,
+                "y": 759.81,
+                "w": 217.14,
+                "h": 13.15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 71.49,
+            "y": 72.88,
+            "w": 219,
+            "h": 288.16
+          },
+          "lines": [
+            {
+              "text": "note that we were unable to compare our results",
+              "rect": {
+                "x": 72,
+                "y": 72.88,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "with RAG-HAT on this task because they did not",
+              "rect": {
+                "x": 71.61,
+                "y": 86.43,
+                "w": 217.54,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "measure at this level. Additionally, RAGTruth did",
+              "rect": {
+                "x": 72,
+                "y": 99.98,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "not include this evaluation in their published code,",
+              "rect": {
+                "x": 72,
+                "y": 113.53,
+                "w": 218.49,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "so we relied on our own implementation for this",
+              "rect": {
+                "x": 72,
+                "y": 127.08,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "analysis.",
+              "rect": {
+                "x": 72,
+                "y": 140.63,
+                "w": 37.88,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "6 Conclusion",
+              "rect": {
+                "x": 72,
+                "y": 162.99,
+                "w": 75.07,
+                "h": 15.55
+              }
+            },
+            {
+              "text": "We present LettuceDetect, a lightweight and",
+              "rect": {
+                "x": 71.49,
+                "y": 185.3,
+                "w": 217.64,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "efficient framework for hallucination detection in",
+              "rect": {
+                "x": 72,
+                "y": 198.85,
+                "w": 217.13,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "RAG systems. By leveraging ModernBERT’s long­context capabilities, our baseline models achieve",
+              "rect": {
+                "x": 72,
+                "y": 212.4,
+                "w": 217.14,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "strong performance on the RAGTruth benchmark",
+              "rect": {
+                "x": 72,
+                "y": 239.5,
+                "w": 217.46,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "while remaining highly efficient in inference set­tings. This work serves as a foundation for our",
+              "rect": {
+                "x": 71.61,
+                "y": 253.05,
+                "w": 217.73,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "future research, where we plan to expand the",
+              "rect": {
+                "x": 72,
+                "y": 280.15,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "framework to include more datasets, additional",
+              "rect": {
+                "x": 72,
+                "y": 293.7,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "languages, and enhanced architectures. Even in",
+              "rect": {
+                "x": 72,
+                "y": 307.25,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "its current form, LettuceDetect demonstrates that",
+              "rect": {
+                "x": 72,
+                "y": 320.8,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "effective hallucination detection can be achieved",
+              "rect": {
+                "x": 72,
+                "y": 334.35,
+                "w": 217.14,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "with lean, purpose-built models.",
+              "rect": {
+                "x": 71.61,
+                "y": 347.89,
+                "w": 140.68,
+                "h": 13.15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 72,
+            "y": 71.48,
+            "w": 55.54,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "References",
+              "rect": {
+                "x": 72,
+                "y": 71.48,
+                "w": 55.54,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 91.16,
+            "w": 218.88,
+            "h": 681.53
+          },
+          "lines": [
+            {
+              "text": "Payal Bajaj, Daniel Campos, Nick Craswell, Li Deng,",
+              "rect": {
+                "x": 72,
+                "y": 91.16,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jianfeng Gao, Xiaodong Liu, Rangan Majumder,",
+              "rect": {
+                "x": 82.72,
+                "y": 102.12,
+                "w": 207.66,
+                "h": 12
+              }
+            },
+            {
+              "text": "Andrew McNamara, Bhaskar Mitra, Tri Nguyen,",
+              "rect": {
+                "x": 82.55,
+                "y": 113.08,
+                "w": 207.83,
+                "h": 12
+              }
+            },
+            {
+              "text": "Mir Rosenberg, Xia Song, Alina Stoica, Saurabh",
+              "rect": {
+                "x": 82.91,
+                "y": 124.04,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Tiwary, and Tong Wang. 2018. Ms marco: A human",
+              "rect": {
+                "x": 82.6,
+                "y": 134.99,
+                "w": 206.53,
+                "h": 12
+              }
+            },
+            {
+              "text": "generated machine reading comprehension dataset.",
+              "rect": {
+                "x": 82.91,
+                "y": 145.95,
+                "w": 207.97,
+                "h": 12
+              }
+            },
+            {
+              "text": "Preprint, arXiv:1611.09268.",
+              "rect": {
+                "x": 82.6,
+                "y": 156.91,
+                "w": 113.39,
+                "h": 12
+              }
+            },
+            {
+              "text": "Masha Belyi, Robert Friel, Shuai Shao, and Atindriyo",
+              "rect": {
+                "x": 72,
+                "y": 176.22,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sanyal. 2025. Luna: A lightweight evaluation model",
+              "rect": {
+                "x": 82.91,
+                "y": 187.18,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "to catch language model hallucinations with high",
+              "rect": {
+                "x": 82.91,
+                "y": 198.14,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "accuracy and low cost. In Proceedings of the 31st",
+              "rect": {
+                "x": 82.91,
+                "y": 209.1,
+                "w": 206.41,
+                "h": 12
+              }
+            },
+            {
+              "text": "International Conference on Computational Linguis­tics: Industry Track, pages 398–409, Abu Dhabi,",
+              "rect": {
+                "x": 82.67,
+                "y": 220.06,
+                "w": 207.71,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "UAE. Association for Computational Linguistics.",
+              "rect": {
+                "x": 82.91,
+                "y": 241.97,
+                "w": 197.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "Tyler A. Chang, Katrin Tomanek, Jessica Hoffmann,",
+              "rect": {
+                "x": 72,
+                "y": 261.28,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Nithum Thain, Erin MacMurray van Liemt, Kathleen",
+              "rect": {
+                "x": 82.91,
+                "y": 272.24,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Meier-Hellstern, and Lucas Dixon. 2024. Detecting",
+              "rect": {
+                "x": 82.91,
+                "y": 283.2,
+                "w": 206.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "hallucination and coverage errors in retrieval aug­mented generation for controversial topics. In Pro­ceedings of the 2024 Joint International Conference",
+              "rect": {
+                "x": 82.91,
+                "y": 294.16,
+                "w": 206.23,
+                "h": 33.81
+              }
+            },
+            {
+              "text": "on Computational Linguistics, Language Resources",
+              "rect": {
+                "x": 82.91,
+                "y": 327.03,
+                "w": 206.23,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "and Evaluation (LREC-COLING 2024), pages 4729–",
+              "rect": {
+                "x": 82.91,
+                "y": 337.99,
+                "w": 207.72,
+                "h": 12
+              }
+            },
+            {
+              "text": "4743, Torino, Italia. ELRA and ICCL.",
+              "rect": {
+                "x": 82.56,
+                "y": 348.95,
+                "w": 152.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "Roi Cohen, May Hamri, Mor Geva, and Amir Glober­son. 2023. LM vs LM: Detecting factual errors via",
+              "rect": {
+                "x": 72,
+                "y": 368.26,
+                "w": 217.13,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "cross examination. In Proceedings of the 2023 Con­ference on Empirical Methods in Natural Language",
+              "rect": {
+                "x": 81.45,
+                "y": 390.18,
+                "w": 207.68,
+                "h": 22.85
+              }
+            },
+            {
+              "text": "Processing, pages 12621–12640, Singapore. Associ­ation for Computational Linguistics.",
+              "rect": {
+                "x": 82.6,
+                "y": 412.09,
+                "w": 204.9,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and",
+              "rect": {
+                "x": 72,
+                "y": 442.36,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kristina Toutanova. 2019. BERT: Pre-training of",
+              "rect": {
+                "x": 82.91,
+                "y": 453.32,
+                "w": 206.73,
+                "h": 12
+              }
+            },
+            {
+              "text": "deep bidirectional transformers for language under­standing. In Proceedings of the 2019 Conference of",
+              "rect": {
+                "x": 82.91,
+                "y": 464.28,
+                "w": 207.69,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "the North American Chapter of the Association for",
+              "rect": {
+                "x": 82.91,
+                "y": 486.2,
+                "w": 206.46,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Computational Linguistics: Human Language Tech­nologies, Volume 1 (Long and Short Papers), pages",
+              "rect": {
+                "x": 82.58,
+                "y": 497.15,
+                "w": 206.55,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "4171–4186, Minneapolis, Minnesota. Association",
+              "rect": {
+                "x": 82.56,
+                "y": 519.07,
+                "w": 206.57,
+                "h": 12
+              }
+            },
+            {
+              "text": "for Computational Linguistics.",
+              "rect": {
+                "x": 82.91,
+                "y": 530.03,
+                "w": 122.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "Shahul Es, Jithin James, Luis Espinosa Anke, and",
+              "rect": {
+                "x": 72,
+                "y": 549.34,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Steven Schockaert. 2024. RAGAs: Automated evalu­ation of retrieval augmented generation. In Proceed­ings of the 18th Conference of the European Chapter",
+              "rect": {
+                "x": 82.91,
+                "y": 560.3,
+                "w": 206.45,
+                "h": 33.81
+              }
+            },
+            {
+              "text": "of the Association for Computational Linguistics:",
+              "rect": {
+                "x": 82.91,
+                "y": 593.17,
+                "w": 207.88,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "System Demonstrations, pages 150–158, St. Julians,",
+              "rect": {
+                "x": 82.66,
+                "y": 604.13,
+                "w": 207.72,
+                "h": 12
+              }
+            },
+            {
+              "text": "Malta. Association for Computational Linguistics.",
+              "rect": {
+                "x": 82.91,
+                "y": 615.09,
+                "w": 200.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Robert Friel and Atindriyo Sanyal. 2023. Chainpoll: A",
+              "rect": {
+                "x": 72,
+                "y": 634.4,
+                "w": 217.49,
+                "h": 12
+              }
+            },
+            {
+              "text": "high efficacy method for llm hallucination detection.",
+              "rect": {
+                "x": 82.91,
+                "y": 645.36,
+                "w": 207.96,
+                "h": 12
+              }
+            },
+            {
+              "text": "Preprint, arXiv:2310.18344.",
+              "rect": {
+                "x": 82.6,
+                "y": 656.32,
+                "w": 113.39,
+                "h": 12
+              }
+            },
+            {
+              "text": "Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,",
+              "rect": {
+                "x": 72,
+                "y": 675.62,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, Meng Wang,",
+              "rect": {
+                "x": 82.72,
+                "y": 686.58,
+                "w": 207.66,
+                "h": 12
+              }
+            },
+            {
+              "text": "and Haofen Wang. 2024. Retrieval-augmented gener­ation for large language models: A survey. Preprint,",
+              "rect": {
+                "x": 82.91,
+                "y": 697.54,
+                "w": 207.47,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "arXiv:2312.10997.",
+              "rect": {
+                "x": 82.91,
+                "y": 719.46,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri,",
+              "rect": {
+                "x": 72,
+                "y": 738.77,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Abhinav Pandey, Abhishek Kadian, Ahmad Al­Dahle, Aiesha Letman, Akhil Mathur, Alan Schelten,",
+              "rect": {
+                "x": 82.55,
+                "y": 749.73,
+                "w": 207.83,
+                "h": 22.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 73.75,
+            "w": 218.88,
+            "h": 698.93
+          },
+          "lines": [
+            {
+              "text": "Alex Vaughan, Amy Yang, Angela Fan, Anirudh",
+              "rect": {
+                "x": 316.69,
+                "y": 73.75,
+                "w": 206.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "Goyal, Anthony Hartshorn, Aobo Yang, Archi Mi­tra, Archie Sravankumar, Artem Korenev, Arthur",
+              "rect": {
+                "x": 317.05,
+                "y": 84.71,
+                "w": 206.42,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Hinsvark, and 542 others. 2024. The llama 3 herd of",
+              "rect": {
+                "x": 317.05,
+                "y": 106.63,
+                "w": 206.72,
+                "h": 12
+              }
+            },
+            {
+              "text": "models. Preprint, arXiv:2407.21783.",
+              "rect": {
+                "x": 317.05,
+                "y": 117.59,
+                "w": 148.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "Pengcheng He, Xiaodong Liu, Jianfeng Gao, and",
+              "rect": {
+                "x": 306.14,
+                "y": 138.06,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Weizhu Chen. 2021. Deberta: Decoding­enhanced bert with disentangled attention. Preprint,",
+              "rect": {
+                "x": 316.58,
+                "y": 149.02,
+                "w": 207.94,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "arXiv:2006.03654.",
+              "rect": {
+                "x": 317.05,
+                "y": 170.94,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong,",
+              "rect": {
+                "x": 306.14,
+                "y": 191.41,
+                "w": 218.37,
+                "h": 12
+              }
+            },
+            {
+              "text": "Zhangyin Feng, Haotian Wang, Qianglong Chen,",
+              "rect": {
+                "x": 317.05,
+                "y": 202.37,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "Weihua Peng, Xiaocheng Feng, Bing Qin, and Ting",
+              "rect": {
+                "x": 316.58,
+                "y": 213.33,
+                "w": 206.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "Liu. 2025. A survey on hallucination in large lan­guage models: Principles, taxonomy, challenges, and",
+              "rect": {
+                "x": 317.05,
+                "y": 224.29,
+                "w": 206.22,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "open questions. ACM Transactions on Information",
+              "rect": {
+                "x": 317.05,
+                "y": 246.21,
+                "w": 206.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "Systems, 43(2):1–55.",
+              "rect": {
+                "x": 316.8,
+                "y": 257.17,
+                "w": 83.29,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan",
+              "rect": {
+                "x": 306.14,
+                "y": 277.64,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea",
+              "rect": {
+                "x": 317.05,
+                "y": 288.6,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Madotto, and Pascale Fung. 2023. Survey of halluci­nation in natural language generation. ACM Comput.",
+              "rect": {
+                "x": 317.05,
+                "y": 299.56,
+                "w": 207.97,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Surv., 55(12).",
+              "rect": {
+                "x": 316.8,
+                "y": 321.48,
+                "w": 54.05,
+                "h": 12
+              }
+            },
+            {
+              "text": "Albert Q. Jiang, Alexandre Sablayrolles, Arthur Men­sch, Chris Bamford, Devendra Singh Chaplot, Diego",
+              "rect": {
+                "x": 306.14,
+                "y": 341.95,
+                "w": 217.13,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "de las Casas, Florian Bressand, Gianna Lengyel,",
+              "rect": {
+                "x": 317.05,
+                "y": 363.87,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "Guillaume Lample, Lucile Saulnier, Lélio Re­nard Lavaud, Marie-Anne Lachaux, Pierre Stock,",
+              "rect": {
+                "x": 317.05,
+                "y": 374.83,
+                "w": 207.47,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Teven Le Scao, Thibaut Lavril, Thomas Wang, Tim­othée Lacroix, and William El Sayed. 2023. Mistral",
+              "rect": {
+                "x": 316.74,
+                "y": 396.75,
+                "w": 206.53,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "7b. Preprint, arXiv:2310.06825.",
+              "rect": {
+                "x": 316.8,
+                "y": 418.66,
+                "w": 129.43,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jean Kaddour, Joshua Harris, Maximilian Mozes, Her­bie Bradley, Roberta Raileanu, and Robert McHardy.",
+              "rect": {
+                "x": 306.14,
+                "y": 439.14,
+                "w": 218.88,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "2023. Challenges and applications of large language",
+              "rect": {
+                "x": 317.05,
+                "y": 461.05,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "models. Preprint, arXiv:2307.10169.",
+              "rect": {
+                "x": 317.05,
+                "y": 472.01,
+                "w": 148.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ilya Loshchilov and Frank Hutter. 2019. De­coupled weight decay regularization. Preprint,",
+              "rect": {
+                "x": 306.14,
+                "y": 492.49,
+                "w": 218.38,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "arXiv:1711.05101.",
+              "rect": {
+                "x": 317.05,
+                "y": 514.41,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Alejandro Lozano, Scott L Fleming, Chia-Chun Chiang,",
+              "rect": {
+                "x": 306.14,
+                "y": 534.88,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "and Nigam Shah. 2023. Clinfo.ai: An open-source",
+              "rect": {
+                "x": 317.05,
+                "y": 545.84,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "retrieval-augmented large language model system for",
+              "rect": {
+                "x": 317.05,
+                "y": 556.8,
+                "w": 206.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "answering medical questions using scientific litera­ture. Preprint, arXiv:2310.16146.",
+              "rect": {
+                "x": 317.05,
+                "y": 567.76,
+                "w": 204.5,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Varun Magesh, Faiz Surani, Matthew Dahl, Mirac Suz­gun, Christopher D. Manning, and Daniel E. Ho.",
+              "rect": {
+                "x": 306.14,
+                "y": 599.19,
+                "w": 218.88,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "2024. Hallucination-free? assessing the reliabil­ity of leading ai legal research tools. Preprint,",
+              "rect": {
+                "x": 317.05,
+                "y": 621.11,
+                "w": 207.47,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "arXiv:2405.20362.",
+              "rect": {
+                "x": 317.05,
+                "y": 643.02,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Potsawee Manakul, Adian Liusie, and Mark Gales.",
+              "rect": {
+                "x": 306.14,
+                "y": 663.5,
+                "w": 218.88,
+                "h": 12
+              }
+            },
+            {
+              "text": "2023. SelfCheckGPT: Zero-resource black-box hal­lucination detection for generative large language",
+              "rect": {
+                "x": 317.05,
+                "y": 674.46,
+                "w": 206.22,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "models. In Proceedings of the 2023 Conference on",
+              "rect": {
+                "x": 317.05,
+                "y": 696.37,
+                "w": 206.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "Empirical Methods in Natural Language Process­ing, pages 9004–9017, Singapore. Association for",
+              "rect": {
+                "x": 316.74,
+                "y": 707.33,
+                "w": 206.73,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Computational Linguistics.",
+              "rect": {
+                "x": 317.05,
+                "y": 729.25,
+                "w": 108.49,
+                "h": 12
+              }
+            },
+            {
+              "text": "Cheng Niu, Yuanhao Wu, Juno Zhu, Siliang Xu,",
+              "rect": {
+                "x": 306.14,
+                "y": 749.73,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "KaShun Shum, Randy Zhong, Juntong Song, and",
+              "rect": {
+                "x": 317.05,
+                "y": 760.68,
+                "w": 206.22,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 72,
+            "y": 73.75,
+            "w": 218.88,
+            "h": 698.93
+          },
+          "lines": [
+            {
+              "text": "Tong Zhang. 2024. RAGTruth: A hallucination cor­pus for developing trustworthy retrieval-augmented",
+              "rect": {
+                "x": 82.6,
+                "y": 73.75,
+                "w": 206.53,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "language models. In Proceedings of the 62nd An­nual Meeting of the Association for Computational",
+              "rect": {
+                "x": 82.91,
+                "y": 95.67,
+                "w": 206.24,
+                "h": 22.85
+              }
+            },
+            {
+              "text": "Linguistics (Volume 1: Long Papers), pages 10862–",
+              "rect": {
+                "x": 82.56,
+                "y": 117.59,
+                "w": 208.07,
+                "h": 12
+              }
+            },
+            {
+              "text": "10878, Bangkok, Thailand. Association for Compu­tational Linguistics.",
+              "rect": {
+                "x": 82.16,
+                "y": 128.55,
+                "w": 205.29,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Zach Nussbaum, John X. Morris, Brandon Duderstadt,",
+              "rect": {
+                "x": 72,
+                "y": 160.99,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "and Andriy Mulyar. 2025. Nomic embed: Training a",
+              "rect": {
+                "x": 82.91,
+                "y": 171.95,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "reproducible long context text embedder. Preprint,",
+              "rect": {
+                "x": 82.91,
+                "y": 182.91,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "arXiv:2402.01613.",
+              "rect": {
+                "x": 82.91,
+                "y": 193.87,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "OpenAI, Josh Achiam, Steven Adler, Sandhini Agarwal,",
+              "rect": {
+                "x": 72,
+                "y": 215.35,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lama Ahmad, Ilge Akkaya, Florencia Leoni Ale­man, Diogo Almeida, Janko Altenschmidt, Sam Alt­man, Shyamal Anadkat, Red Avila, Igor Babuschkin,",
+              "rect": {
+                "x": 82.91,
+                "y": 226.31,
+                "w": 207.47,
+                "h": 33.92
+              }
+            },
+            {
+              "text": "Suchir Balaji, Valerie Balcom, Paul Baltescu, Haim­ing Bao, Mohammad Bavarian, Jeff Belgum, and",
+              "rect": {
+                "x": 82.91,
+                "y": 259.18,
+                "w": 206.22,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "262 others. 2024. Gpt-4 technical report. Preprint,",
+              "rect": {
+                "x": 82.91,
+                "y": 281.1,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "arXiv:2303.08774.",
+              "rect": {
+                "x": 82.91,
+                "y": 292.06,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Adam Paszke, Sam Gross, Francisco Massa, Adam",
+              "rect": {
+                "x": 72,
+                "y": 313.54,
+                "w": 217.14,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lerer, James Bradbury, Gregory Chanan, Trevor",
+              "rect": {
+                "x": 82.91,
+                "y": 324.5,
+                "w": 206.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "Killeen, Zeming Lin, Natalia Gimelshein, Luca",
+              "rect": {
+                "x": 82.91,
+                "y": 335.46,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Antiga, Alban Desmaison, Andreas Köpf, Edward",
+              "rect": {
+                "x": 82.55,
+                "y": 346.42,
+                "w": 206.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "Yang, Zach DeVito, Martin Raison, Alykhan Te­jani, Sasank Chilamkurthy, Benoit Steiner, Lu Fang,",
+              "rect": {
+                "x": 82.22,
+                "y": 357.38,
+                "w": 208.16,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "and 2 others. 2019. Pytorch: An imperative style,",
+              "rect": {
+                "x": 82.91,
+                "y": 379.3,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "high-performance deep learning library. Preprint,",
+              "rect": {
+                "x": 82.91,
+                "y": 390.26,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "arXiv:1912.01703.",
+              "rect": {
+                "x": 82.91,
+                "y": 401.22,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Vipula Rawte, S. M Towhidul Islam Tonmoy, Krishnav",
+              "rect": {
+                "x": 72,
+                "y": 422.7,
+                "w": 217.39,
+                "h": 12
+              }
+            },
+            {
+              "text": "Rajbangshi, Shravani Nag, Aman Chadha, Amit P.",
+              "rect": {
+                "x": 82.91,
+                "y": 433.66,
+                "w": 207.97,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sheth, and Amitava Das. 2024. Factoid: Factual",
+              "rect": {
+                "x": 82.91,
+                "y": 444.62,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "entailment for hallucination detection. Preprint,",
+              "rect": {
+                "x": 82.91,
+                "y": 455.58,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "arXiv:2403.19113.",
+              "rect": {
+                "x": 82.91,
+                "y": 466.53,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jon Saad-Falcon, Omar Khattab, Christopher Potts, and",
+              "rect": {
+                "x": 72,
+                "y": 488.02,
+                "w": 217.14,
+                "h": 12
+              }
+            },
+            {
+              "text": "Matei Zaharia. 2024. Ares: An automated evalua­tion framework for retrieval-augmented generation",
+              "rect": {
+                "x": 82.91,
+                "y": 498.98,
+                "w": 206.22,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "systems. Preprint, arXiv:2311.09476.",
+              "rect": {
+                "x": 82.91,
+                "y": 520.89,
+                "w": 151.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Abigail See, Peter J. Liu, and Christopher D. Manning.",
+              "rect": {
+                "x": 72,
+                "y": 542.38,
+                "w": 218.88,
+                "h": 12
+              }
+            },
+            {
+              "text": "2017. Get to the point: Summarization with pointer­generator networks. In Proceedings of the 55th An­nual Meeting of the Association for Computational",
+              "rect": {
+                "x": 82.91,
+                "y": 553.34,
+                "w": 206.24,
+                "h": 33.81
+              }
+            },
+            {
+              "text": "Linguistics (Volume 1: Long Papers), pages 1073–",
+              "rect": {
+                "x": 82.56,
+                "y": 586.21,
+                "w": 208.07,
+                "h": 12
+              }
+            },
+            {
+              "text": "1083, Vancouver, Canada. Association for Computa­tional Linguistics.",
+              "rect": {
+                "x": 82.16,
+                "y": 597.17,
+                "w": 205.34,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Juntong Song, Xingguang Wang, Juno Zhu, Yuanhao",
+              "rect": {
+                "x": 72,
+                "y": 629.61,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wu, Xuxin Cheng, Randy Zhong, and Cheng Niu.",
+              "rect": {
+                "x": 82.44,
+                "y": 640.57,
+                "w": 208.44,
+                "h": 12
+              }
+            },
+            {
+              "text": "2024. RAG-HAT: A hallucination-aware tuning",
+              "rect": {
+                "x": 82.91,
+                "y": 651.53,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "pipeline for LLM in retrieval-augmented generation.",
+              "rect": {
+                "x": 82.91,
+                "y": 662.49,
+                "w": 207.97,
+                "h": 12
+              }
+            },
+            {
+              "text": "In Proceedings of the 2024 Conference on Empirical",
+              "rect": {
+                "x": 82.91,
+                "y": 673.45,
+                "w": 206.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "Methods in Natural Language Processing: Indus­try Track, pages 1548–1558, Miami, Florida, US.",
+              "rect": {
+                "x": 82.32,
+                "y": 684.41,
+                "w": 208.56,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Association for Computational Linguistics.",
+              "rect": {
+                "x": 82.55,
+                "y": 706.33,
+                "w": 172.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan,",
+              "rect": {
+                "x": 72,
+                "y": 727.81,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wen Bo, and Yunfeng Liu. 2024. Roformer: En­hanced transformer with rotary position embedding.",
+              "rect": {
+                "x": 82.44,
+                "y": 738.77,
+                "w": 208.43,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Neurocomputing, 568:127063.",
+              "rect": {
+                "x": 82.39,
+                "y": 760.68,
+                "w": 121.78,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 73.75,
+            "w": 218.88,
+            "h": 644.63
+          },
+          "lines": [
+            {
+              "text": "Zhongxiang Sun, Xiaoxue Zang, Kai Zheng, Yang Song,",
+              "rect": {
+                "x": 306.14,
+                "y": 73.75,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jun Xu, Xiao Zhang, Weijie Yu, Yang Song, and",
+              "rect": {
+                "x": 316.86,
+                "y": 84.71,
+                "w": 206.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "Han Li. 2025. Redeep: Detecting hallucination in",
+              "rect": {
+                "x": 317.05,
+                "y": 95.67,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "retrieval-augmented generation via mechanistic in­terpretability. Preprint, arXiv:2410.11414.",
+              "rect": {
+                "x": 317.05,
+                "y": 106.63,
+                "w": 204.5,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Gemma Team, Morgane Riviere, Shreya Pathak,",
+              "rect": {
+                "x": 306.14,
+                "y": 137.51,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Pier Giuseppe Sessa, Cassidy Hardin, Surya Bhupati­raju, Léonard Hussenot, Thomas Mesnard, Bobak",
+              "rect": {
+                "x": 317.05,
+                "y": 148.47,
+                "w": 206.52,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Shahriari, Alexandre Ramé, Johan Ferret, Peter Liu,",
+              "rect": {
+                "x": 317.05,
+                "y": 170.39,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "Pouya Tafti, Abe Friesen, Michelle Casbon, Sabela",
+              "rect": {
+                "x": 317.05,
+                "y": 181.35,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ramos, Ravin Kumar, Charline Le Lan, Sammy",
+              "rect": {
+                "x": 317.05,
+                "y": 192.31,
+                "w": 206.57,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jerome, and 179 others. 2024. Gemma 2: Improving",
+              "rect": {
+                "x": 316.86,
+                "y": 203.27,
+                "w": 206.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "open language models at a practical size. Preprint,",
+              "rect": {
+                "x": 317.05,
+                "y": 214.23,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "arXiv:2408.00118.",
+              "rect": {
+                "x": 317.05,
+                "y": 225.19,
+                "w": 75.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob",
+              "rect": {
+                "x": 306.14,
+                "y": 245.11,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Uszkoreit, Llion Jones, Aidan N Gomez, Ł ukasz",
+              "rect": {
+                "x": 317.05,
+                "y": 256.07,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kaiser, and Illia Polosukhin. 2017. Attention is all",
+              "rect": {
+                "x": 317.05,
+                "y": 267.03,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "you need. In Advances in Neural Information Pro­cessing Systems, volume 30. Curran Associates, Inc.",
+              "rect": {
+                "x": 316.8,
+                "y": 277.99,
+                "w": 208.22,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Benjamin Warner, Antoine Chaffin, Benjamin Clavié,",
+              "rect": {
+                "x": 306.14,
+                "y": 308.87,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Orion Weller, Oskar Hallström, Said Taghadouini,",
+              "rect": {
+                "x": 317.05,
+                "y": 319.83,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "Alexis Gallagher, Raja Biswas, Faisal Ladhak, Tom",
+              "rect": {
+                "x": 316.69,
+                "y": 330.79,
+                "w": 206.59,
+                "h": 12
+              }
+            },
+            {
+              "text": "Aarsen, Nathan Cooper, Griffin Adams, Jeremy",
+              "rect": {
+                "x": 316.69,
+                "y": 341.75,
+                "w": 206.94,
+                "h": 12
+              }
+            },
+            {
+              "text": "Howard, and Iacopo Poli. 2024. Smarter, better,",
+              "rect": {
+                "x": 317.05,
+                "y": 352.71,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "faster, longer: A modern bidirectional encoder for",
+              "rect": {
+                "x": 317.05,
+                "y": 363.67,
+                "w": 206.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "fast, memory efficient, and long context finetuning",
+              "rect": {
+                "x": 317.05,
+                "y": 374.63,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "and inference. Preprint, arXiv:2412.13663.",
+              "rect": {
+                "x": 317.05,
+                "y": 385.58,
+                "w": 173.41,
+                "h": 12
+              }
+            },
+            {
+              "text": "Thomas Wolf, Lysandre Debut, Victor Sanh, Julien",
+              "rect": {
+                "x": 306.14,
+                "y": 405.51,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Chaumond, Clement Delangue, Anthony Moi, Pier­ric Cistac, Tim Rault, Rémi Louf, Morgan Funtowicz,",
+              "rect": {
+                "x": 317.05,
+                "y": 416.47,
+                "w": 207.47,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Joe Davison, Sam Shleifer, Patrick von Platen, Clara",
+              "rect": {
+                "x": 316.86,
+                "y": 438.39,
+                "w": 206.41,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ma, Yacine Jernite, Julien Plu, Canwen Xu, Teven Le",
+              "rect": {
+                "x": 317.05,
+                "y": 449.35,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Scao, Sylvain Gugger, and 3 others. 2020. Hugging­face’s transformers: State-of-the-art natural language",
+              "rect": {
+                "x": 317.05,
+                "y": 460.3,
+                "w": 206.22,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "processing. Preprint, arXiv:1910.03771.",
+              "rect": {
+                "x": 317.05,
+                "y": 482.22,
+                "w": 162.08,
+                "h": 12
+              }
+            },
+            {
+              "text": "Yelp. 2021. Yelp open dataset. Accessed: 2023-11-03.",
+              "rect": {
+                "x": 306.14,
+                "y": 502.15,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Xin Zhang, Yanzhao Zhang, Dingkun Long, Wen Xie,",
+              "rect": {
+                "x": 306.14,
+                "y": 522.07,
+                "w": 218.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ziqi Dai, Jialong Tang, Huan Lin, Baosong Yang,",
+              "rect": {
+                "x": 317.05,
+                "y": 533.03,
+                "w": 207.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "Pengjun Xie, Fei Huang, Meishan Zhang, Wenjie",
+              "rect": {
+                "x": 317.05,
+                "y": 543.99,
+                "w": 206.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Li, and Min Zhang. 2024. mGTE: Generalized long­context text representation and reranking models for",
+              "rect": {
+                "x": 317.05,
+                "y": 554.95,
+                "w": 206.41,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "multilingual text retrieval. In Proceedings of the",
+              "rect": {
+                "x": 317.05,
+                "y": 576.87,
+                "w": 206.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "2024 Conference on Empirical Methods in Natural",
+              "rect": {
+                "x": 316.8,
+                "y": 587.83,
+                "w": 206.48,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Language Processing: Industry Track, pages 1393–",
+              "rect": {
+                "x": 316.7,
+                "y": 598.78,
+                "w": 208.07,
+                "h": 12
+              }
+            },
+            {
+              "text": "1412, Miami, Florida, US. Association for Computa­tional Linguistics.",
+              "rect": {
+                "x": 316.3,
+                "y": 609.74,
+                "w": 205.35,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Ilana Zimmerman, Jadin Tredup, Ethan Selfridge, and",
+              "rect": {
+                "x": 306.14,
+                "y": 640.63,
+                "w": 217.13,
+                "h": 12
+              }
+            },
+            {
+              "text": "Joseph Bradley. 2024. Two-tiered encoder-based hal­lucination detection for retrieval-augmented genera­tion in the wild. In Proceedings of the 2024 Confer­ence on Empirical Methods in Natural Language Pro­cessing: Industry Track, pages 8–22, Miami, Florida,",
+              "rect": {
+                "x": 316.86,
+                "y": 651.59,
+                "w": 207.66,
+                "h": 55.84
+              }
+            },
+            {
+              "text": "US. Association for Computational Linguistics.",
+              "rect": {
+                "x": 317.05,
+                "y": 706.38,
+                "w": 189.85,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

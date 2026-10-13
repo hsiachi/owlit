@@ -1,0 +1,6158 @@
+{
+  "version": 1,
+  "source": "pdfium",
+  "pages": [
+    {
+      "index": 0,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 94.16,
+            "y": 75.65,
+            "w": 406.96,
+            "h": 18.66
+          },
+          "lines": [
+            {
+              "text": "Ragas: Automated Evaluation of Retrieval Augmented Generation",
+              "rect": {
+                "x": 94.16,
+                "y": 75.65,
+                "w": 406.96,
+                "h": 18.66
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 121.74,
+            "y": 105.64,
+            "w": 354.28,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "Shahul Es†, Jithin James†, Luis Espinosa-Anke∗♢, Steven Schockaert∗",
+              "rect": {
+                "x": 121.74,
+                "y": 105.64,
+                "w": 354.28,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 164.64,
+            "y": 120.13,
+            "w": 268.99,
+            "h": 69.06
+          },
+          "lines": [
+            {
+              "text": "†Exploding Gradients",
+              "rect": {
+                "x": 247.36,
+                "y": 120.13,
+                "w": 103.55,
+                "h": 14.41
+              }
+            },
+            {
+              "text": "∗CardiffNLP, Cardiff University, United Kingdom",
+              "rect": {
+                "x": 179.48,
+                "y": 134.07,
+                "w": 239.3,
+                "h": 14.41
+              }
+            },
+            {
+              "text": "♢AMPLYFI, United Kingdom",
+              "rect": {
+                "x": 226.61,
+                "y": 148.13,
+                "w": 145.04,
+                "h": 14.41
+              }
+            },
+            {
+              "text": "shahules786@gmail.com,jamesjithin97@gmail.com",
+              "rect": {
+                "x": 164.64,
+                "y": 163.14,
+                "w": 268.99,
+                "h": 12.1
+              }
+            },
+            {
+              "text": "{espinosa-ankel,schockaerts1}@cardiff.ac.uk",
+              "rect": {
+                "x": 170.61,
+                "y": 177.09,
+                "w": 257.04,
+                "h": 12.1
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 157.76,
+            "y": 212.08,
+            "w": 44.49,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "Abstract",
+              "rect": {
+                "x": 157.76,
+                "y": 212.08,
+                "w": 44.49,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 87.52,
+            "y": 236.9,
+            "w": 186.34,
+            "h": 287.33
+          },
+          "lines": [
+            {
+              "text": "We introduce Ragas (Retrieval Augmented",
+              "rect": {
+                "x": 87.87,
+                "y": 236.9,
+                "w": 184.25,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Generation Assessment), a framework for",
+              "rect": {
+                "x": 87.87,
+                "y": 248.85,
+                "w": 184.45,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "reference-free evaluation of Retrieval Aug­mented Generation (RAG) pipelines. RAG",
+              "rect": {
+                "x": 87.87,
+                "y": 261.17,
+                "w": 184.25,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "systems are composed of a retrieval and an",
+              "rect": {
+                "x": 87.87,
+                "y": 285.08,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "LLM based generation module, and provide",
+              "rect": {
+                "x": 87.87,
+                "y": 297.03,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "LLMs with knowledge from a reference textual",
+              "rect": {
+                "x": 87.87,
+                "y": 308.99,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "database, which enables them to act as a natu­ral language layer between a user and textual",
+              "rect": {
+                "x": 87.87,
+                "y": 320.94,
+                "w": 184.25,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "databases, reducing the risk of hallucinations.",
+              "rect": {
+                "x": 87.87,
+                "y": 344.85,
+                "w": 185.99,
+                "h": 12
+              }
+            },
+            {
+              "text": "Evaluating RAG architectures is, however, chal­lenging because there are several dimensions to",
+              "rect": {
+                "x": 87.87,
+                "y": 356.81,
+                "w": 184.25,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "consider: the ability of the retrieval system to",
+              "rect": {
+                "x": 87.87,
+                "y": 380.72,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "identify relevant and focused context passages,",
+              "rect": {
+                "x": 87.87,
+                "y": 392.67,
+                "w": 185.49,
+                "h": 12
+              }
+            },
+            {
+              "text": "the ability of the LLM to exploit such passages",
+              "rect": {
+                "x": 87.87,
+                "y": 404.63,
+                "w": 184.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "in a faithful way, or the quality of the genera­tion itself. With Ragas, we put forward a suite",
+              "rect": {
+                "x": 87.87,
+                "y": 416.58,
+                "w": 184.25,
+                "h": 23.96
+              }
+            },
+            {
+              "text": "of metrics which can be used to evaluate these",
+              "rect": {
+                "x": 87.87,
+                "y": 440.5,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "different dimensions without having to rely on",
+              "rect": {
+                "x": 87.87,
+                "y": 452.45,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "ground truth human annotations. We posit that",
+              "rect": {
+                "x": 87.87,
+                "y": 464.41,
+                "w": 184.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "such a framework can crucially contribute to",
+              "rect": {
+                "x": 87.87,
+                "y": 476.36,
+                "w": 184.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "faster evaluation cycles of RAG architectures,",
+              "rect": {
+                "x": 87.87,
+                "y": 488.32,
+                "w": 185.5,
+                "h": 12
+              }
+            },
+            {
+              "text": "which is especially important given the fast",
+              "rect": {
+                "x": 87.52,
+                "y": 500.27,
+                "w": 184.62,
+                "h": 12
+              }
+            },
+            {
+              "text": "adoption of LLMs.",
+              "rect": {
+                "x": 87.87,
+                "y": 512.23,
+                "w": 75.55,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 70.87,
+            "y": 534.85,
+            "w": 82.81,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "1 Introduction",
+              "rect": {
+                "x": 70.87,
+                "y": 534.85,
+                "w": 82.81,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 557.71,
+            "w": 218.83,
+            "h": 216.38
+          },
+          "lines": [
+            {
+              "text": "Language Models (LMs) capture a vast amount",
+              "rect": {
+                "x": 70.87,
+                "y": 557.71,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of knowledge about the world, which allows them",
+              "rect": {
+                "x": 70.87,
+                "y": 571.26,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to answer questions without accessing any exter­nal sources. This idea of LMs as repositories of",
+              "rect": {
+                "x": 70.87,
+                "y": 584.8,
+                "w": 218.83,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "knowledge emerged shortly after the introduction",
+              "rect": {
+                "x": 70.87,
+                "y": 611.9,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of BERT (Devlin et al., 2019) and became more",
+              "rect": {
+                "x": 70.87,
+                "y": 625.45,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "firmly established with the introduction of ever",
+              "rect": {
+                "x": 70.87,
+                "y": 639,
+                "w": 218.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "larger LMs (Roberts et al., 2020). While the most",
+              "rect": {
+                "x": 70.87,
+                "y": 652.55,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "recent Large Language Models (LLMs) capture",
+              "rect": {
+                "x": 70.87,
+                "y": 666.1,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "enough knowledge to rival human performance",
+              "rect": {
+                "x": 70.87,
+                "y": 679.65,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "across a wide variety of question answering bench­marks (Bubeck et al., 2023), the idea of using",
+              "rect": {
+                "x": 70.87,
+                "y": 693.2,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "LLMs as knowledge bases still has two fundamen­tal limitations. First, LLMs are not able to answer",
+              "rect": {
+                "x": 70.87,
+                "y": 720.3,
+                "w": 218.47,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "questions about events that have happened after",
+              "rect": {
+                "x": 70.87,
+                "y": 747.4,
+                "w": 218.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "they were trained. Second, even the largest models",
+              "rect": {
+                "x": 70.87,
+                "y": 760.94,
+                "w": 218.27,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.75,
+            "y": 213.48,
+            "w": 220.02,
+            "h": 243.48
+          },
+          "lines": [
+            {
+              "text": "struggle to memorise knowledge that is only rarely",
+              "rect": {
+                "x": 306.14,
+                "y": 213.48,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "mentioned in the training corpus (Kandpal et al.,",
+              "rect": {
+                "x": 306.14,
+                "y": 227.03,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2022; Mallen et al., 2023). The standard solution",
+              "rect": {
+                "x": 306.14,
+                "y": 240.58,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to these issues is to rely on Retrieval Augmented",
+              "rect": {
+                "x": 306.14,
+                "y": 254.13,
+                "w": 218.57,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Generation (RAG) (Lee et al., 2019; Lewis et al.,",
+              "rect": {
+                "x": 305.75,
+                "y": 267.67,
+                "w": 220.02,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2020; Guu et al., 2020). Answering a question",
+              "rect": {
+                "x": 306.14,
+                "y": 281.22,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "then essentially involves retrieving relevant pas­sages from a corpus and feeding these passages,",
+              "rect": {
+                "x": 306.14,
+                "y": 294.77,
+                "w": 219.63,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "along with the original question, to the LM. While",
+              "rect": {
+                "x": 306.14,
+                "y": 321.87,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "initial approaches relied on specialised LMs for",
+              "rect": {
+                "x": 306.14,
+                "y": 335.42,
+                "w": 218.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "retrieval-augmented language modelling (Khandel­wal et al., 2020; Borgeaud et al., 2022), recent work",
+              "rect": {
+                "x": 305.75,
+                "y": 348.97,
+                "w": 218.98,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "has suggested that simply adding retrieved docu­ments to the input of a standard LM can also work",
+              "rect": {
+                "x": 306.14,
+                "y": 376.07,
+                "w": 218.59,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "well (Khattab et al., 2022; Ram et al., 2023; Shi",
+              "rect": {
+                "x": 305.75,
+                "y": 403.17,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "et al., 2023), thus making it possible to use retrieval­augmented strategies in combination with LLMs",
+              "rect": {
+                "x": 306.14,
+                "y": 416.72,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "that are only available through APIs.",
+              "rect": {
+                "x": 306.14,
+                "y": 443.81,
+                "w": 160.09,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 457.94,
+            "w": 220.18,
+            "h": 284.71
+          },
+          "lines": [
+            {
+              "text": "While the usefulness of retrieval-augmented",
+              "rect": {
+                "x": 317.05,
+                "y": 457.94,
+                "w": 207.36,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "strategies is clear, their implementation requires",
+              "rect": {
+                "x": 306.14,
+                "y": 471.49,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "a significant amount of tuning, as the overall per­formance will be affected by the retrieval model,",
+              "rect": {
+                "x": 306.14,
+                "y": 485.04,
+                "w": 219.63,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "the considered corpus, the LM, or the prompt for­mulation, among others. Automated evaluation of",
+              "rect": {
+                "x": 306.14,
+                "y": 512.13,
+                "w": 218.81,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "retrieval-augmented systems is thus paramount. In",
+              "rect": {
+                "x": 306.14,
+                "y": 539.23,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "practice, RAG systems are often evaluated in terms",
+              "rect": {
+                "x": 306.14,
+                "y": 552.78,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of the language modelling task itself, i.e. by mea­suring perplexity on some reference corpus. How­ever, such evaluations are not always predictive",
+              "rect": {
+                "x": 306.14,
+                "y": 566.33,
+                "w": 218.27,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "of downstream performance (Wang et al., 2023c).",
+              "rect": {
+                "x": 306.14,
+                "y": 606.98,
+                "w": 220.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Moreover, this evaluation strategy relies on the LM",
+              "rect": {
+                "x": 306.14,
+                "y": 620.53,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "probabilities, which are not accessible for some",
+              "rect": {
+                "x": 306.14,
+                "y": 634.08,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "closed models (e.g. ChatGPT and GPT-4). Ques­tion answering is another common evaluation task,",
+              "rect": {
+                "x": 306.14,
+                "y": 647.63,
+                "w": 219.63,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "but usually only datasets with short extractive an­swers are considered, which may not be represen­tative of how the system will be used.",
+              "rect": {
+                "x": 306.14,
+                "y": 674.72,
+                "w": 216.4,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "To address these issues, in this paper we present",
+              "rect": {
+                "x": 317.05,
+                "y": 715.95,
+                "w": 207.37,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Ragas1, a framework for the automated assessment",
+              "rect": {
+                "x": 306.14,
+                "y": 728.25,
+                "w": 218.28,
+                "h": 14.4
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 751.73,
+            "w": 219.16,
+            "h": 21.81
+          },
+          "lines": [
+            {
+              "text": "1Ragas is available at https://github.com/",
+              "rect": {
+                "x": 318.79,
+                "y": 751.73,
+                "w": 206.51,
+                "h": 11.85
+              }
+            },
+            {
+              "text": "explodinggradients/ragas.",
+              "rect": {
+                "x": 306.14,
+                "y": 762.74,
+                "w": 109.84,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 14.44,
+            "y": 262.15,
+            "w": 22.54,
+            "h": 347.74
+          },
+          "lines": [
+            {
+              "text": "arXiv:2309.15217v2 [cs.CL] 28 Apr 2025",
+              "rect": {
+                "x": 14.44,
+                "y": 262.15,
+                "w": 22.54,
+                "h": 347.74
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.47,
+            "y": 71.74,
+            "w": 218.93,
+            "h": 135.1
+          },
+          "lines": [
+            {
+              "text": "of retrieval augmented generation systems. We fo­cus on settings where reference answers may not be",
+              "rect": {
+                "x": 70.87,
+                "y": 71.74,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "available, and where we want to estimate different",
+              "rect": {
+                "x": 70.87,
+                "y": 98.84,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "proxies for correctness, in addition to the useful­ness of the retrieved passages. The Ragas frame­work provides an integration with both llama-index",
+              "rect": {
+                "x": 70.47,
+                "y": 112.39,
+                "w": 218.93,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "and Langchain, the most widely used frameworks",
+              "rect": {
+                "x": 70.87,
+                "y": 153.04,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "for building RAG solutions, thus enabling devel­opers to easily integrate Ragas into their standard",
+              "rect": {
+                "x": 70.87,
+                "y": 166.59,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "workflow.",
+              "rect": {
+                "x": 70.47,
+                "y": 193.69,
+                "w": 43.45,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 70.87,
+            "y": 219.42,
+            "w": 89.09,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "2 Related Work",
+              "rect": {
+                "x": 70.87,
+                "y": 219.42,
+                "w": 89.09,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.47,
+            "y": 243.74,
+            "w": 220.03,
+            "h": 461.64
+          },
+          "lines": [
+            {
+              "text": "Estimating faithfulness using LLMs The prob­lem of detecting hallucinations in LLM generated",
+              "rect": {
+                "x": 70.87,
+                "y": 243.74,
+                "w": 218.27,
+                "h": 27.09
+              }
+            },
+            {
+              "text": "responses has been extensively studied (Ji et al.,",
+              "rect": {
+                "x": 70.87,
+                "y": 271.23,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "2023). Several authors have suggested the idea",
+              "rect": {
+                "x": 70.87,
+                "y": 284.78,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of predicting factuality using a few-shot prompt­ing strategy (Zhang et al., 2023). Recent analy­ses, however, suggest that existing models struggle",
+              "rect": {
+                "x": 70.87,
+                "y": 298.33,
+                "w": 218.27,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "with detecting hallucination when using standard",
+              "rect": {
+                "x": 70.47,
+                "y": 338.98,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "prompting strategies (Li et al., 2023; Azaria and",
+              "rect": {
+                "x": 70.87,
+                "y": 352.53,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Mitchell, 2023). Other approaches rely on linking",
+              "rect": {
+                "x": 70.87,
+                "y": 366.08,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the generated responses to facts from an external",
+              "rect": {
+                "x": 70.87,
+                "y": 379.63,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "knowledge base (Min et al., 2023), but this is not",
+              "rect": {
+                "x": 70.87,
+                "y": 393.17,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "always possible.",
+              "rect": {
+                "x": 70.87,
+                "y": 406.72,
+                "w": 71.29,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Yet another strategy is to inspect the probabili­ties assigned to individual tokens, where we would",
+              "rect": {
+                "x": 70.87,
+                "y": 421.24,
+                "w": 218.27,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "expect the model to be less confident in halluci­nated answers than in factual ones. For instance,",
+              "rect": {
+                "x": 70.87,
+                "y": 448.34,
+                "w": 219.63,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "BARTScore (Yuan et al., 2021) estimates factuality",
+              "rect": {
+                "x": 70.87,
+                "y": 475.44,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "by looking at the conditional probability of the gen­erated text given the input. Kadavath et al. (2022)",
+              "rect": {
+                "x": 70.87,
+                "y": 488.99,
+                "w": 219,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "use a variation of this idea. Starting from the ob­servation that LLMs provide well-calibrated proba­bilities when answering multiple-choice questions,",
+              "rect": {
+                "x": 70.87,
+                "y": 516.09,
+                "w": 219.63,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "they essentially convert the problem of validating",
+              "rect": {
+                "x": 70.87,
+                "y": 556.73,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "model generated answers into a multiple-choice",
+              "rect": {
+                "x": 70.87,
+                "y": 570.29,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "question which asks whether the answer is true or",
+              "rect": {
+                "x": 70.87,
+                "y": 583.83,
+                "w": 218.48,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "false. Rather than looking at the output probabil­ities, Azaria and Mitchell (2023) propose to train",
+              "rect": {
+                "x": 70.87,
+                "y": 597.38,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "a supervised classifier on the weights from one of",
+              "rect": {
+                "x": 70.87,
+                "y": 624.48,
+                "w": 218.82,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the hidden layers of the LLM, to predict whether a",
+              "rect": {
+                "x": 70.87,
+                "y": 638.03,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "given statement is true or not. While the approach",
+              "rect": {
+                "x": 70.87,
+                "y": 651.58,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "performs well, the need to access the hidden states",
+              "rect": {
+                "x": 70.87,
+                "y": 665.13,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of the model makes it unsuitable for systems that",
+              "rect": {
+                "x": 70.87,
+                "y": 678.68,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "access LLMs through an API.",
+              "rect": {
+                "x": 70.87,
+                "y": 692.23,
+                "w": 130.58,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 706.75,
+            "w": 218.28,
+            "h": 67.34
+          },
+          "lines": [
+            {
+              "text": "For models that do not provide access to token",
+              "rect": {
+                "x": 81.78,
+                "y": 706.75,
+                "w": 207.36,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "probabilities, such as ChatGPT and GPT-4, differ­ent methods are needed. SelfCheckGPT (Manakul",
+              "rect": {
+                "x": 70.87,
+                "y": 720.3,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "et al., 2023) addresses this problem by instead sam­pling multiple answers. Their core idea is that",
+              "rect": {
+                "x": 70.87,
+                "y": 747.4,
+                "w": 218.28,
+                "h": 26.69
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.75,
+            "y": 71.74,
+            "w": 220.57,
+            "h": 413.56
+          },
+          "lines": [
+            {
+              "text": "factual answers are more stable: when an answer is",
+              "rect": {
+                "x": 306.14,
+                "y": 71.74,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "factual, we can expect that different samples will",
+              "rect": {
+                "x": 306.14,
+                "y": 85.29,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "tend to be semantically similar, whereas this is less",
+              "rect": {
+                "x": 306.14,
+                "y": 98.84,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "likely to be the case for hallucinated answers.",
+              "rect": {
+                "x": 306.14,
+                "y": 112.39,
+                "w": 198.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Automated evaluation of text generation systems",
+              "rect": {
+                "x": 306.14,
+                "y": 133.03,
+                "w": 218.27,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "LLMs have also been leveraged to automatically",
+              "rect": {
+                "x": 306.14,
+                "y": 146.97,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "evaluate other aspects of generated text fragments,",
+              "rect": {
+                "x": 306.14,
+                "y": 160.52,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "beyond factuality. For instance, GPTScore (Fu",
+              "rect": {
+                "x": 306.14,
+                "y": 174.07,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "et al., 2023) uses a prompt that specifies the consid­ered aspect (e.g. fluency) and then scores passages",
+              "rect": {
+                "x": 306.14,
+                "y": 187.62,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "based on the average probability of the generated",
+              "rect": {
+                "x": 306.14,
+                "y": 214.72,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "tokens, according to a given autoregressive LM.",
+              "rect": {
+                "x": 306.14,
+                "y": 228.27,
+                "w": 220.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "This idea of using prompts was previously also",
+              "rect": {
+                "x": 305.8,
+                "y": 241.81,
+                "w": 218.61,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "considered by Yuan et al. (2021), although they",
+              "rect": {
+                "x": 306.14,
+                "y": 255.36,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "used a smaller fine-tuned LM (i.e. BART) and did",
+              "rect": {
+                "x": 306.14,
+                "y": 268.91,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "not observe a clear benefit from using prompts. An­other approach directly asks ChatGPT to evaluate",
+              "rect": {
+                "x": 306.14,
+                "y": 282.46,
+                "w": 218.26,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "a particular aspect of the given answer by provid­ing a score between 0 and 100, or by providing a",
+              "rect": {
+                "x": 306.14,
+                "y": 309.56,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "rating on a 5-star scale (Wang et al., 2023a). Re­markably, strong results can be obtained in this",
+              "rect": {
+                "x": 306.14,
+                "y": 336.66,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "way, although it comes with the limitation of being",
+              "rect": {
+                "x": 305.75,
+                "y": 363.76,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "sensitive to the design of the prompt. Rather than",
+              "rect": {
+                "x": 306.14,
+                "y": 377.31,
+                "w": 218.26,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "scoring individual answers, some authors have also",
+              "rect": {
+                "x": 306.14,
+                "y": 390.86,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "focused on using an LLM to select the best answer",
+              "rect": {
+                "x": 306.14,
+                "y": 404.4,
+                "w": 218.48,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "among a number of candidates (Wang et al., 2023b),",
+              "rect": {
+                "x": 306.14,
+                "y": 417.95,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "typically to compare the performance of different",
+              "rect": {
+                "x": 306.14,
+                "y": 431.5,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "LLMs. However, care is needed with this approach,",
+              "rect": {
+                "x": 306.14,
+                "y": 445.05,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "as the order in which the answers is presented can",
+              "rect": {
+                "x": 306.14,
+                "y": 458.6,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "influence the result (Wang et al., 2023b).",
+              "rect": {
+                "x": 306.14,
+                "y": 472.15,
+                "w": 177.58,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 485.73,
+            "w": 220.69,
+            "h": 288.92
+          },
+          "lines": [
+            {
+              "text": "In terms of how ground truth answers or, more",
+              "rect": {
+                "x": 317.05,
+                "y": 485.73,
+                "w": 207.36,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "generally, generations, have been typically used",
+              "rect": {
+                "x": 306.14,
+                "y": 499.28,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "in the literature, most approaches have relied on",
+              "rect": {
+                "x": 306.14,
+                "y": 512.83,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the availability of one or more reference answers.",
+              "rect": {
+                "x": 306.14,
+                "y": 526.38,
+                "w": 220.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "For instance, BERTScore (Zhang et al., 2020)",
+              "rect": {
+                "x": 306.14,
+                "y": 539.93,
+                "w": 219,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and MoverScore (Zhao et al., 2019) use contex­tualised embeddings, produced by a pre-trained",
+              "rect": {
+                "x": 306.14,
+                "y": 553.48,
+                "w": 218.27,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "BERT model, to compare the similarity between",
+              "rect": {
+                "x": 306.14,
+                "y": 580.58,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the generated answer and the reference answers.",
+              "rect": {
+                "x": 306.14,
+                "y": 594.13,
+                "w": 220.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "BARTScore (Yuan et al., 2021) similarly uses refer­ence answers to compute aspects such as precision",
+              "rect": {
+                "x": 306.14,
+                "y": 607.68,
+                "w": 218.26,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "(estimated as the probability of generating the gen­erated answer given the reference) and recall (esti­mated as the probability of generating the reference",
+              "rect": {
+                "x": 305.78,
+                "y": 634.77,
+                "w": 218.63,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "given the generated answer).",
+              "rect": {
+                "x": 306.14,
+                "y": 675.42,
+                "w": 124.97,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "3 Evaluation Strategies",
+              "rect": {
+                "x": 306.14,
+                "y": 697.91,
+                "w": 127.07,
+                "h": 15.55
+              }
+            },
+            {
+              "text": "We consider a standard RAG setting, where given a",
+              "rect": {
+                "x": 305.63,
+                "y": 720.3,
+                "w": 218.78,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "question q, the system first retrieves some context",
+              "rect": {
+                "x": 306.14,
+                "y": 733.85,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "c(q) and then uses the retrieved context to generate",
+              "rect": {
+                "x": 306.14,
+                "y": 747.4,
+                "w": 218.26,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "an answer as(q). When building a RAG system,",
+              "rect": {
+                "x": 306.14,
+                "y": 760.94,
+                "w": 219.63,
+                "h": 13.71
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.47,
+            "y": 71.74,
+            "w": 220.57,
+            "h": 351.89
+          },
+          "lines": [
+            {
+              "text": "we usually do not have access to human-annotated",
+              "rect": {
+                "x": 70.47,
+                "y": 71.74,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "datasets or reference answers. We therefore fo­cus on metrics that are fully self-contained and",
+              "rect": {
+                "x": 70.87,
+                "y": 85.29,
+                "w": 218.27,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "reference-free. We focus in particular three quality",
+              "rect": {
+                "x": 70.87,
+                "y": 112.39,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "aspects, which we argue are of central importance.",
+              "rect": {
+                "x": 70.87,
+                "y": 125.94,
+                "w": 220.17,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "First, Faithfulness refers to the idea that the an­swer should be grounded in the given context. This",
+              "rect": {
+                "x": 70.87,
+                "y": 139.1,
+                "w": 218.27,
+                "h": 27.09
+              }
+            },
+            {
+              "text": "is important to avoid hallucinations, and to ensure",
+              "rect": {
+                "x": 70.87,
+                "y": 166.59,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "that the retrieved context can act as a justification",
+              "rect": {
+                "x": 70.87,
+                "y": 180.14,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "for the generated answer. Indeed, RAG systems are",
+              "rect": {
+                "x": 70.87,
+                "y": 193.69,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "often used in applications where the factual con­sistency of the generated text w.r.t. the grounded",
+              "rect": {
+                "x": 70.87,
+                "y": 207.24,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "sources is highly important, e.g. in domains such as",
+              "rect": {
+                "x": 70.87,
+                "y": 234.34,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "law, where information is constantly evolving. Sec­ond, Answer Relevance refers to the idea that the",
+              "rect": {
+                "x": 70.87,
+                "y": 247.89,
+                "w": 218.26,
+                "h": 27.35
+              }
+            },
+            {
+              "text": "generated answer should address the actual ques­tion that was provided. Finally, Context Relevance",
+              "rect": {
+                "x": 70.87,
+                "y": 274.98,
+                "w": 218.26,
+                "h": 27.35
+              }
+            },
+            {
+              "text": "refers to the idea that the retrieved context should",
+              "rect": {
+                "x": 70.87,
+                "y": 302.08,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "be focused, containing as little irrelevant informa­tion as possible. This is important given the cost",
+              "rect": {
+                "x": 70.87,
+                "y": 315.63,
+                "w": 218.28,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "associated with feeding long context passages to",
+              "rect": {
+                "x": 70.87,
+                "y": 342.73,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "LLMs. Moreover, when context passages are too",
+              "rect": {
+                "x": 70.87,
+                "y": 356.28,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "long, LLMs are often less effective in exploiting",
+              "rect": {
+                "x": 70.87,
+                "y": 369.83,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "that context, especially for information that is pro­vided in the middle of the context passage (Liu",
+              "rect": {
+                "x": 70.59,
+                "y": 383.38,
+                "w": 218.54,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "et al., 2023).",
+              "rect": {
+                "x": 70.87,
+                "y": 410.48,
+                "w": 54.84,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 424.02,
+            "w": 218.65,
+            "h": 195.95
+          },
+          "lines": [
+            {
+              "text": "We now explain how these three quality aspects",
+              "rect": {
+                "x": 81.78,
+                "y": 424.02,
+                "w": 207.35,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "can be measured in a fully automated way, by",
+              "rect": {
+                "x": 70.87,
+                "y": 437.57,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "prompting an LLM. In our implementation and",
+              "rect": {
+                "x": 70.87,
+                "y": 451.12,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "experiments, all prompts are evaluated using the",
+              "rect": {
+                "x": 70.87,
+                "y": 464.67,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "gpt-3.5-turbo-16k model, which is available",
+              "rect": {
+                "x": 70.87,
+                "y": 478.22,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "through the OpenAI API2.",
+              "rect": {
+                "x": 70.87,
+                "y": 490.53,
+                "w": 115.37,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "Faithfulness We say that the answer as(q) is",
+              "rect": {
+                "x": 70.87,
+                "y": 511.58,
+                "w": 218.27,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "faithful to the context c(q) if the claims that are",
+              "rect": {
+                "x": 70.87,
+                "y": 525.52,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "made in the answer can be inferred from the con­text. To estimate faithfulness, we first use an LLM",
+              "rect": {
+                "x": 70.87,
+                "y": 539.07,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "to extract a set of statements, S(as(q)). The aim",
+              "rect": {
+                "x": 70.87,
+                "y": 566.17,
+                "w": 218.27,
+                "h": 13.71
+              }
+            },
+            {
+              "text": "of this step is to decompose longer sentences into",
+              "rect": {
+                "x": 70.87,
+                "y": 579.72,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "shorter and more focused assertions. We use the",
+              "rect": {
+                "x": 70.87,
+                "y": 593.27,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "following prompt for this step3:",
+              "rect": {
+                "x": 70.87,
+                "y": 605.58,
+                "w": 138.14,
+                "h": 14.39
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.47,
+            "y": 625.74,
+            "w": 218.66,
+            "h": 100.39
+          },
+          "lines": [
+            {
+              "text": "Given a question and answer, create one",
+              "rect": {
+                "x": 92.29,
+                "y": 625.74,
+                "w": 175.02,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "or more statements from each sentence",
+              "rect": {
+                "x": 92.68,
+                "y": 639.29,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "in the given answer.",
+              "rect": {
+                "x": 92.68,
+                "y": 652.84,
+                "w": 86.66,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "question: [question]",
+              "rect": {
+                "x": 92.68,
+                "y": 666.39,
+                "w": 98.53,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "answer: [answer]",
+              "rect": {
+                "x": 92.68,
+                "y": 679.94,
+                "w": 82.17,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "where [question] and [answer] refer to the",
+              "rect": {
+                "x": 70.47,
+                "y": 698.87,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "given question and answer. For each statement si",
+              "rect": {
+                "x": 70.87,
+                "y": 712.42,
+                "w": 217.76,
+                "h": 13.71
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 730.92,
+            "w": 218.27,
+            "h": 42.62
+          },
+          "lines": [
+            {
+              "text": "2https://platform.openai.com",
+              "rect": {
+                "x": 83.52,
+                "y": 730.92,
+                "w": 124.54,
+                "h": 10.91
+              }
+            },
+            {
+              "text": "3To help clarify the task, we include a demonstration as",
+              "rect": {
+                "x": 83.52,
+                "y": 741.77,
+                "w": 205.61,
+                "h": 11.85
+              }
+            },
+            {
+              "text": "part of the prompt. This demonstration is not explicitly shown",
+              "rect": {
+                "x": 70.87,
+                "y": 752.78,
+                "w": 218.27,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "in the listing of the prompts throughout this paper.",
+              "rect": {
+                "x": 70.87,
+                "y": 762.74,
+                "w": 180.08,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.87,
+            "y": 71.74,
+            "w": 218.55,
+            "h": 53.8
+          },
+          "lines": [
+            {
+              "text": "in S, the LLM determines if si can be inferred from",
+              "rect": {
+                "x": 306.14,
+                "y": 71.74,
+                "w": 218.26,
+                "h": 13.71
+              }
+            },
+            {
+              "text": "c(q) using a verification function v(si, c(q)). This",
+              "rect": {
+                "x": 306.14,
+                "y": 85.29,
+                "w": 218.28,
+                "h": 13.71
+              }
+            },
+            {
+              "text": "verification step is carried out using the following",
+              "rect": {
+                "x": 305.87,
+                "y": 98.84,
+                "w": 218.54,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "prompt:",
+              "rect": {
+                "x": 306.14,
+                "y": 112.39,
+                "w": 34.55,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.8,
+            "y": 133.22,
+            "w": 218.61,
+            "h": 197.72
+          },
+          "lines": [
+            {
+              "text": "Consider the given context and following",
+              "rect": {
+                "x": 327.6,
+                "y": 133.22,
+                "w": 174.99,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "statements, then determine whether they",
+              "rect": {
+                "x": 327.96,
+                "y": 146.77,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "are supported by the information present",
+              "rect": {
+                "x": 327.96,
+                "y": 160.32,
+                "w": 174.83,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "in the context. Provide a brief explana­tion for each statement before arriving",
+              "rect": {
+                "x": 327.96,
+                "y": 173.86,
+                "w": 174.63,
+                "h": 26.57
+              }
+            },
+            {
+              "text": "at the verdict (Yes/No). Provide a final",
+              "rect": {
+                "x": 327.96,
+                "y": 200.96,
+                "w": 174.64,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "verdict for each statement in order at the",
+              "rect": {
+                "x": 327.96,
+                "y": 214.51,
+                "w": 174.64,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "end in the given format. Do not deviate",
+              "rect": {
+                "x": 327.96,
+                "y": 228.06,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "from the specified format.",
+              "rect": {
+                "x": 326.37,
+                "y": 241.61,
+                "w": 113.21,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "statement: [statement 1]",
+              "rect": {
+                "x": 327.96,
+                "y": 255.16,
+                "w": 119.74,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "...",
+              "rect": {
+                "x": 327.96,
+                "y": 268.71,
+                "w": 8.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "statement: [statement n]",
+              "rect": {
+                "x": 327.96,
+                "y": 282.26,
+                "w": 120.83,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "The final faithfulness score, F, is then computed",
+              "rect": {
+                "x": 305.8,
+                "y": 303.08,
+                "w": 218.61,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "as F = |V |",
+              "rect": {
+                "x": 306.14,
+                "y": 316.29,
+                "w": 47.43,
+                "h": 14.65
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 317.79,
+            "w": 219.53,
+            "h": 191.45
+          },
+          "lines": [
+            {
+              "text": "|S| , where |V | is the number of statements",
+              "rect": {
+                "x": 342.66,
+                "y": 317.79,
+                "w": 181.75,
+                "h": 21.6
+              }
+            },
+            {
+              "text": "that were supported according to the LLM and |S|",
+              "rect": {
+                "x": 306.14,
+                "y": 332.87,
+                "w": 218.26,
+                "h": 20.55
+              }
+            },
+            {
+              "text": "is the total number of statements.",
+              "rect": {
+                "x": 306.14,
+                "y": 346.42,
+                "w": 144.84,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Answer relevance We say that the answer as(q)",
+              "rect": {
+                "x": 306.14,
+                "y": 366.6,
+                "w": 219.53,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "is relevant if it directly addresses the question in",
+              "rect": {
+                "x": 306.14,
+                "y": 380.55,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "an appropriate way. In particular, our assessment",
+              "rect": {
+                "x": 306.14,
+                "y": 394.1,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of answer relevance does not take into account fac­tuality, but penalises cases where the answer is",
+              "rect": {
+                "x": 306.14,
+                "y": 407.64,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "incomplete or where it contains redundant informa­tion. To estimate answer relevance, for the given",
+              "rect": {
+                "x": 306.14,
+                "y": 434.74,
+                "w": 218.27,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "answer as(q), we prompt the LLM to generate n",
+              "rect": {
+                "x": 306.14,
+                "y": 461.84,
+                "w": 218.26,
+                "h": 13.71
+              }
+            },
+            {
+              "text": "potential questions qi based on as(q), as follows:",
+              "rect": {
+                "x": 306.14,
+                "y": 475.39,
+                "w": 213.71,
+                "h": 13.71
+              }
+            },
+            {
+              "text": "Generate a question for the given answer.",
+              "rect": {
+                "x": 327.57,
+                "y": 496.21,
+                "w": 175.02,
+                "h": 13.03
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 509.76,
+            "w": 220.14,
+            "h": 115.27
+          },
+          "lines": [
+            {
+              "text": "answer: [answer]",
+              "rect": {
+                "x": 327.96,
+                "y": 509.76,
+                "w": 81.82,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "We then obtain embeddings for all questions us­ing the text-embedding-ada-002 model, avail­able from the OpenAI API. For each qi",
+              "rect": {
+                "x": 305.63,
+                "y": 530.59,
+                "w": 216.89,
+                "h": 40.81
+              }
+            },
+            {
+              "text": ", we cal­culate the similarity sim(q, qi) with the original",
+              "rect": {
+                "x": 306.14,
+                "y": 557.69,
+                "w": 218.27,
+                "h": 27.26
+              }
+            },
+            {
+              "text": "question q, as the cosine between the correspond­ing embeddings. The answer relevance score, AR,",
+              "rect": {
+                "x": 306.14,
+                "y": 584.78,
+                "w": 219.63,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "for question q is then computed as:",
+              "rect": {
+                "x": 306.14,
+                "y": 611.88,
+                "w": 152.52,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 364.96,
+            "y": 644.59,
+            "w": 26.66,
+            "h": 13.15
+          },
+          "lines": [
+            {
+              "text": "AR =",
+              "rect": {
+                "x": 364.96,
+                "y": 644.59,
+                "w": 26.66,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 395.85,
+            "y": 635.05,
+            "w": 25.31,
+            "h": 41.54
+          },
+          "lines": [
+            {
+              "text": "1",
+              "rect": {
+                "x": 396.4,
+                "y": 639.11,
+                "w": 5.45,
+                "h": 10.91
+              }
+            },
+            {
+              "text": "n Xn",
+              "rect": {
+                "x": 395.85,
+                "y": 635.05,
+                "w": 25.31,
+                "h": 41.54
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 406.44,
+            "y": 661.78,
+            "w": 13.7,
+            "h": 7.97
+          },
+          "lines": [
+            {
+              "text": "i=1",
+              "rect": {
+                "x": 406.44,
+                "y": 661.78,
+                "w": 13.7,
+                "h": 7.97
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 422.99,
+            "y": 644.59,
+            "w": 102.15,
+            "h": 13.71
+          },
+          "lines": [
+            {
+              "text": "sim(q, qi) (1)",
+              "rect": {
+                "x": 422.99,
+                "y": 644.59,
+                "w": 102.15,
+                "h": 13.71
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 672.62,
+            "w": 218.27,
+            "h": 101.47
+          },
+          "lines": [
+            {
+              "text": "This metric evaluates how closely the generated",
+              "rect": {
+                "x": 317.05,
+                "y": 672.62,
+                "w": 207.36,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answer aligns with the initial question or instruc­tion.",
+              "rect": {
+                "x": 306.14,
+                "y": 686.17,
+                "w": 216.37,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "Context relevance The context c(q) is consid­ered relevant to the extent that it exclusively con­tains information that is needed to answer the ques­tion. In particular, this metric aims to penalise the",
+              "rect": {
+                "x": 306.14,
+                "y": 719.9,
+                "w": 218.27,
+                "h": 54.19
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 71.74,
+            "w": 219.64,
+            "h": 67.35
+          },
+          "lines": [
+            {
+              "text": "inclusion of redundant information. To estimate",
+              "rect": {
+                "x": 70.87,
+                "y": 71.74,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "context relevance, given a question q and its con­text c(q), the LLM extracts a subset of sentences,",
+              "rect": {
+                "x": 70.87,
+                "y": 85.29,
+                "w": 219.64,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "Sext, from c(q) that are crucial to answer q, using",
+              "rect": {
+                "x": 70.87,
+                "y": 112.39,
+                "w": 218.27,
+                "h": 13.71
+              }
+            },
+            {
+              "text": "the following prompt:",
+              "rect": {
+                "x": 70.87,
+                "y": 125.94,
+                "w": 95.49,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.53,
+            "y": 149.03,
+            "w": 213.48,
+            "h": 158.18
+          },
+          "lines": [
+            {
+              "text": "Please extract relevant sentences from",
+              "rect": {
+                "x": 92.35,
+                "y": 149.03,
+                "w": 174.97,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "the provided context that can potentially",
+              "rect": {
+                "x": 92.68,
+                "y": 162.58,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "help answer the following question. If no",
+              "rect": {
+                "x": 92.68,
+                "y": 176.13,
+                "w": 174.64,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "relevant sentences are found, or if you",
+              "rect": {
+                "x": 92.68,
+                "y": 189.68,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "believe the question cannot be answered",
+              "rect": {
+                "x": 92.68,
+                "y": 203.22,
+                "w": 174.92,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "from the given context, return the phrase",
+              "rect": {
+                "x": 91.12,
+                "y": 216.78,
+                "w": 176.2,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "\"Insufficient Information\". While extract­ing candidate sentences you’re not al­lowed to make any changes to sentences",
+              "rect": {
+                "x": 92.68,
+                "y": 230.32,
+                "w": 174.63,
+                "h": 40.12
+              }
+            },
+            {
+              "text": "from given context.",
+              "rect": {
+                "x": 91.09,
+                "y": 270.97,
+                "w": 84.81,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "The context relevance score is then computed as:",
+              "rect": {
+                "x": 70.53,
+                "y": 294.06,
+                "w": 213.48,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 86.34,
+            "y": 323.58,
+            "w": 26.06,
+            "h": 13.15
+          },
+          "lines": [
+            {
+              "text": "CR =",
+              "rect": {
+                "x": 86.34,
+                "y": 323.58,
+                "w": 26.06,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 116.63,
+            "y": 316.2,
+            "w": 144.19,
+            "h": 28.01
+          },
+          "lines": [
+            {
+              "text": "number of extracted sentences",
+              "rect": {
+                "x": 122.63,
+                "y": 316.2,
+                "w": 132.22,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "total number of sentences in c(q)",
+              "rect": {
+                "x": 116.63,
+                "y": 331.06,
+                "w": 144.19,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 277.14,
+            "y": 323.58,
+            "w": 12.72,
+            "h": 13.15
+          },
+          "lines": [
+            {
+              "text": "(2)",
+              "rect": {
+                "x": 277.14,
+                "y": 323.58,
+                "w": 12.72,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 70.87,
+            "y": 353.16,
+            "w": 130.51,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "4 The WikiEval Dataset",
+              "rect": {
+                "x": 70.87,
+                "y": 353.16,
+                "w": 130.51,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.47,
+            "y": 375.82,
+            "w": 220.03,
+            "h": 216.39
+          },
+          "lines": [
+            {
+              "text": "To evaluate the proposed framework, we ideally",
+              "rect": {
+                "x": 70.53,
+                "y": 375.82,
+                "w": 218.98,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "need examples of question-context-answer triples",
+              "rect": {
+                "x": 70.87,
+                "y": 389.37,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "which are annotated with human judgments. We",
+              "rect": {
+                "x": 70.47,
+                "y": 402.92,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "can then verify to what extent our metrics agree",
+              "rect": {
+                "x": 70.87,
+                "y": 416.47,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "with human assessments of faithfulness, answer",
+              "rect": {
+                "x": 70.47,
+                "y": 430.02,
+                "w": 218.87,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "relevance and context relevance. Since we are not",
+              "rect": {
+                "x": 70.87,
+                "y": 443.57,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "aware of any publicly available datasets that could",
+              "rect": {
+                "x": 70.87,
+                "y": 457.11,
+                "w": 218.26,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "be used for this purpose, we created a new dataset,",
+              "rect": {
+                "x": 70.87,
+                "y": 470.66,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "which we refer to as WikiEval4. To construct the",
+              "rect": {
+                "x": 70.47,
+                "y": 482.97,
+                "w": 218.66,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "dataset, we first selected 50 Wikipedia pages cov­ering events that have happened since the start of",
+              "rect": {
+                "x": 70.87,
+                "y": 497.76,
+                "w": 218.83,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "20225. In selecting these pages, we prioritised",
+              "rect": {
+                "x": 70.87,
+                "y": 523.62,
+                "w": 218.26,
+                "h": 14.39
+              }
+            },
+            {
+              "text": "those with recent edits. For each of the 50 pages,",
+              "rect": {
+                "x": 70.87,
+                "y": 538.41,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "we then asked ChatGPT to suggest a question that",
+              "rect": {
+                "x": 70.47,
+                "y": 551.96,
+                "w": 218.67,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "can be answered based on the introductory section",
+              "rect": {
+                "x": 70.87,
+                "y": 565.51,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "of the page, using the following prompt:",
+              "rect": {
+                "x": 70.87,
+                "y": 579.06,
+                "w": 175.78,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 91.09,
+            "y": 602.14,
+            "w": 176.52,
+            "h": 121.43
+          },
+          "lines": [
+            {
+              "text": "Your task is to formulate a question from",
+              "rect": {
+                "x": 92.07,
+                "y": 602.14,
+                "w": 175.25,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "given context satisfying the rules given",
+              "rect": {
+                "x": 92.68,
+                "y": 615.69,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "below:",
+              "rect": {
+                "x": 92.68,
+                "y": 629.24,
+                "w": 29.69,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "1. The question should be fully answered",
+              "rect": {
+                "x": 91.87,
+                "y": 642.79,
+                "w": 175.74,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "from the given context.",
+              "rect": {
+                "x": 91.09,
+                "y": 656.34,
+                "w": 100.87,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "2. The question should be framed from",
+              "rect": {
+                "x": 92.41,
+                "y": 669.89,
+                "w": 174.9,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "a part that contains non-trivial informa­tion.",
+              "rect": {
+                "x": 92.68,
+                "y": 683.44,
+                "w": 172.81,
+                "h": 26.57
+              }
+            },
+            {
+              "text": "3. The answer should not contain any",
+              "rect": {
+                "x": 92.14,
+                "y": 710.54,
+                "w": 175.18,
+                "h": 13.03
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 730.92,
+            "w": 159.6,
+            "h": 20.87
+          },
+          "lines": [
+            {
+              "text": "4https://huggingface.co/datasets/",
+              "rect": {
+                "x": 83.52,
+                "y": 730.92,
+                "w": 146.95,
+                "h": 10.91
+              }
+            },
+            {
+              "text": "explodinggradients/WikiEval",
+              "rect": {
+                "x": 70.87,
+                "y": 742.72,
+                "w": 121.05,
+                "h": 9.07
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.54,
+            "y": 751.73,
+            "w": 218.59,
+            "h": 21.81
+          },
+          "lines": [
+            {
+              "text": "5That is, beyond the reported training cutoff of the model",
+              "rect": {
+                "x": 83.52,
+                "y": 751.73,
+                "w": 205.61,
+                "h": 11.85
+              }
+            },
+            {
+              "text": "we used in our experiments.",
+              "rect": {
+                "x": 70.54,
+                "y": 762.74,
+                "w": 100.72,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 71.75,
+            "w": 220.29,
+            "h": 206.73
+          },
+          "lines": [
+            {
+              "text": "links.",
+              "rect": {
+                "x": 327.96,
+                "y": 71.75,
+                "w": 23.33,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "4. The question should be of moderate",
+              "rect": {
+                "x": 327.69,
+                "y": 85.29,
+                "w": 174.91,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "difficulty.",
+              "rect": {
+                "x": 327.96,
+                "y": 98.84,
+                "w": 40.11,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "5. The question must be reasonable and",
+              "rect": {
+                "x": 327.69,
+                "y": 112.39,
+                "w": 175.2,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "must be understood and responded to by",
+              "rect": {
+                "x": 327.96,
+                "y": 125.94,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "humans.",
+              "rect": {
+                "x": 327.96,
+                "y": 139.49,
+                "w": 36.67,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "6. Do not use phrases that ’provided con­text’, etc in the question",
+              "rect": {
+                "x": 327.96,
+                "y": 153.04,
+                "w": 172.88,
+                "h": 26.58
+              }
+            },
+            {
+              "text": "context:",
+              "rect": {
+                "x": 327.96,
+                "y": 180.14,
+                "w": 34.92,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "We also used ChatGPT to answer the generated",
+              "rect": {
+                "x": 305.63,
+                "y": 202.48,
+                "w": 218.78,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "question, when given the corresponding introduc­tory section as context, using the following prompt:",
+              "rect": {
+                "x": 306.14,
+                "y": 216.03,
+                "w": 219.78,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "Answer the question using the informa­tion from the given context.",
+              "rect": {
+                "x": 326.74,
+                "y": 251.91,
+                "w": 173.95,
+                "h": 26.57
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 279.01,
+            "w": 220.69,
+            "h": 356.89
+          },
+          "lines": [
+            {
+              "text": "question: [question]",
+              "rect": {
+                "x": 327.96,
+                "y": 279.01,
+                "w": 98.53,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "context: [context]",
+              "rect": {
+                "x": 327.96,
+                "y": 292.56,
+                "w": 87.39,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "All questions were annotated along the three con­sidered quality dimensions by two annotators. Both",
+              "rect": {
+                "x": 305.75,
+                "y": 314.9,
+                "w": 218.66,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "annotators were fluent in English and were given",
+              "rect": {
+                "x": 306.14,
+                "y": 342,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "clear instructions about the meaning of the three",
+              "rect": {
+                "x": 306.14,
+                "y": 355.55,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "considered quality dimensions. For faithfulness",
+              "rect": {
+                "x": 306.14,
+                "y": 369.1,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and context relevance, the two annotators agreed in",
+              "rect": {
+                "x": 306.14,
+                "y": 382.65,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "around 95% of cases. For answer relevance, they",
+              "rect": {
+                "x": 306.14,
+                "y": 396.2,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "agreed in around 90% of the cases. Disagreements",
+              "rect": {
+                "x": 306.14,
+                "y": 409.75,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "were resolved after a discussion between the anno­tators.",
+              "rect": {
+                "x": 305.75,
+                "y": 423.29,
+                "w": 216.86,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "Faithfulness To obtain human judgements about",
+              "rect": {
+                "x": 306.14,
+                "y": 457.33,
+                "w": 218.28,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "faithfulness, we first used ChatGPT to answer the",
+              "rect": {
+                "x": 306.14,
+                "y": 471.27,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "question without access to any additional context.",
+              "rect": {
+                "x": 306.14,
+                "y": 484.82,
+                "w": 220.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "We then asked the annotators to judge which of the",
+              "rect": {
+                "x": 305.63,
+                "y": 498.37,
+                "w": 218.78,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "two answers was the most faithful (i.e. the standard",
+              "rect": {
+                "x": 306.14,
+                "y": 511.92,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "one or the one generated without context), given",
+              "rect": {
+                "x": 306.14,
+                "y": 525.47,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the question and corresponding Wikipedia page.",
+              "rect": {
+                "x": 306.14,
+                "y": 539.02,
+                "w": 210.44,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Answer relevance We first used ChatGPT to",
+              "rect": {
+                "x": 306.14,
+                "y": 559.5,
+                "w": 218.27,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "obtain candidate answers with lower answer rel­evance, using the following prompt:",
+              "rect": {
+                "x": 306.14,
+                "y": 573.45,
+                "w": 216.37,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "Answer the given question in an incom­plete manner.",
+              "rect": {
+                "x": 326.74,
+                "y": 609.33,
+                "w": 173.96,
+                "h": 26.57
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.63,
+            "y": 636.43,
+            "w": 219.16,
+            "h": 137.66
+          },
+          "lines": [
+            {
+              "text": "question: [question]",
+              "rect": {
+                "x": 327.96,
+                "y": 636.43,
+                "w": 98.53,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "We then asked human annotators to compare this",
+              "rect": {
+                "x": 305.63,
+                "y": 658.77,
+                "w": 218.78,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answer, and indicate which of the two answers had",
+              "rect": {
+                "x": 306.14,
+                "y": 672.32,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the highest answer relevance.",
+              "rect": {
+                "x": 306.14,
+                "y": 685.87,
+                "w": 127.9,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Context relevance To measure this aspect, we",
+              "rect": {
+                "x": 306.14,
+                "y": 706.35,
+                "w": 218.27,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "first added additional sentences to the context by",
+              "rect": {
+                "x": 306.14,
+                "y": 720.3,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "scraping back-links to the corresponding Wikipedia",
+              "rect": {
+                "x": 306.14,
+                "y": 733.85,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "page. In this way, we were able to add information",
+              "rect": {
+                "x": 306.14,
+                "y": 747.4,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to the context that was related but less relevant for",
+              "rect": {
+                "x": 306.14,
+                "y": 760.94,
+                "w": 218.48,
+                "h": 13.15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 76.84,
+            "y": 73.94,
+            "w": 206.58,
+            "h": 33.44
+          },
+          "lines": [
+            {
+              "text": "Faith. Ans. Rel. Cont. Rel.",
+              "rect": {
+                "x": 147.11,
+                "y": 73.94,
+                "w": 136.31,
+                "h": 14.19
+              }
+            },
+            {
+              "text": "Ragas 0.95 0.78 0.70",
+              "rect": {
+                "x": 76.84,
+                "y": 93.19,
+                "w": 192.64,
+                "h": 14.19
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 76.84,
+            "y": 107.13,
+            "w": 192.64,
+            "h": 26.7
+          },
+          "lines": [
+            {
+              "text": "GPT Score 0.72 0.52 0.63",
+              "rect": {
+                "x": 76.84,
+                "y": 107.13,
+                "w": 192.64,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "GPT Ranking 0.54 0.40 0.52",
+              "rect": {
+                "x": 76.84,
+                "y": 120.68,
+                "w": 192.64,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.56,
+            "y": 146.79,
+            "w": 220.32,
+            "h": 35.91
+          },
+          "lines": [
+            {
+              "text": "Table 1: Agreement with human annotators in pairwise",
+              "rect": {
+                "x": 70.56,
+                "y": 146.79,
+                "w": 218.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "comparisons of faithfulness, answer relevance and con­text relevance, using the WikEval dataset (accuracy).",
+              "rect": {
+                "x": 70.87,
+                "y": 158.74,
+                "w": 220.01,
+                "h": 23.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 214.83,
+            "w": 218.27,
+            "h": 40.24
+          },
+          "lines": [
+            {
+              "text": "answering the question. For the few pages with­out any back-links, we instead used ChatGPT to",
+              "rect": {
+                "x": 70.87,
+                "y": 214.83,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "complete the given context.",
+              "rect": {
+                "x": 70.87,
+                "y": 241.92,
+                "w": 119.99,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 70.87,
+            "y": 263.94,
+            "w": 83.02,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "5 Experiments",
+              "rect": {
+                "x": 70.87,
+                "y": 263.94,
+                "w": 83.02,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.35,
+            "y": 285.9,
+            "w": 218.8,
+            "h": 162.19
+          },
+          "lines": [
+            {
+              "text": "Table 1 analyses the agreement between the met­rics proposed in Section 3 and the human assess­ments from the proposed WikiEval dataset. Each",
+              "rect": {
+                "x": 70.53,
+                "y": 285.9,
+                "w": 218.61,
+                "h": 40.24
+              }
+            },
+            {
+              "text": "WikiEval instance requires the model to compare",
+              "rect": {
+                "x": 70.35,
+                "y": 326.55,
+                "w": 218.78,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "two answers or two context fragments. We count",
+              "rect": {
+                "x": 70.87,
+                "y": 340.1,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "how often the answer/context preferred by the",
+              "rect": {
+                "x": 70.87,
+                "y": 353.65,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "model (i.e. with highest estimated faithfulness, an­swer relevance, or context relevance) coincides",
+              "rect": {
+                "x": 70.87,
+                "y": 367.2,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "with the answer/context preferred by the human",
+              "rect": {
+                "x": 70.47,
+                "y": 394.29,
+                "w": 218.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "annotators. We report the results in terms of ac­curacy (i.e. the fraction of instances on which the",
+              "rect": {
+                "x": 70.87,
+                "y": 407.84,
+                "w": 218.26,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "model agrees with the annotators).",
+              "rect": {
+                "x": 70.87,
+                "y": 434.94,
+                "w": 150.58,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.47,
+            "y": 448.49,
+            "w": 220.58,
+            "h": 135.09
+          },
+          "lines": [
+            {
+              "text": "To put the results in context, we compare our",
+              "rect": {
+                "x": 81.78,
+                "y": 448.49,
+                "w": 207.57,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "proposed metrics (shown as Ragas in Table 1) with",
+              "rect": {
+                "x": 70.87,
+                "y": 462.04,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "two baseline methods. For the first method, shown",
+              "rect": {
+                "x": 70.87,
+                "y": 475.59,
+                "w": 218.26,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "as GPT Score, we ask ChatGPT to assign a score",
+              "rect": {
+                "x": 70.87,
+                "y": 489.14,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "between 0 and 10 for the three quality dimensions.",
+              "rect": {
+                "x": 70.87,
+                "y": 502.69,
+                "w": 220.18,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "To this end, we use a prompt that describes the",
+              "rect": {
+                "x": 70.53,
+                "y": 516.24,
+                "w": 218.61,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "meaning of the quality metric and then asks to",
+              "rect": {
+                "x": 70.87,
+                "y": 529.79,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "score the given answer/context in line with that",
+              "rect": {
+                "x": 70.87,
+                "y": 543.33,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "definition. For instance, for evaluating faithfulness,",
+              "rect": {
+                "x": 70.87,
+                "y": 556.89,
+                "w": 219.63,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "we used the following prompt:",
+              "rect": {
+                "x": 70.47,
+                "y": 570.43,
+                "w": 133.66,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.53,
+            "y": 591.17,
+            "w": 220.51,
+            "h": 182.92
+          },
+          "lines": [
+            {
+              "text": "Faithfulness measures the information",
+              "rect": {
+                "x": 92.02,
+                "y": 591.17,
+                "w": 175.3,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "consistency of the answer against the",
+              "rect": {
+                "x": 92.68,
+                "y": 604.72,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "given context. Any claims that are made",
+              "rect": {
+                "x": 92.68,
+                "y": 618.27,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "in the answer that cannot be deduced",
+              "rect": {
+                "x": 92.68,
+                "y": 631.82,
+                "w": 174.93,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "from context should be penalized.",
+              "rect": {
+                "x": 91.09,
+                "y": 645.37,
+                "w": 147.84,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "Given an answer and context, assign a",
+              "rect": {
+                "x": 92.29,
+                "y": 658.91,
+                "w": 175.02,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "score for faithfulness in the range 0-10.",
+              "rect": {
+                "x": 92.68,
+                "y": 672.46,
+                "w": 172.35,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "context: [context]",
+              "rect": {
+                "x": 92.68,
+                "y": 686.01,
+                "w": 86.99,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answer: [answer]",
+              "rect": {
+                "x": 92.68,
+                "y": 699.56,
+                "w": 81.82,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "Ties, where the same score is assigned by the LLM",
+              "rect": {
+                "x": 70.53,
+                "y": 720.3,
+                "w": 218.61,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to both answer candidates, were broken randomly.",
+              "rect": {
+                "x": 70.87,
+                "y": 733.85,
+                "w": 220.17,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "The second baseline, shown as GPT Ranking, in­stead asks ChatGPT to select the preferred answer/-",
+              "rect": {
+                "x": 70.53,
+                "y": 747.4,
+                "w": 220.42,
+                "h": 26.69
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 71.74,
+            "w": 218.47,
+            "h": 53.8
+          },
+          "lines": [
+            {
+              "text": "context. In this case, the prompt again includes",
+              "rect": {
+                "x": 306.14,
+                "y": 71.74,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "a definition of the considered quality metric. For",
+              "rect": {
+                "x": 306.14,
+                "y": 85.29,
+                "w": 218.47,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "instance, for evaluating answer relevance, we used",
+              "rect": {
+                "x": 306.14,
+                "y": 98.84,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "the following prompt:",
+              "rect": {
+                "x": 306.14,
+                "y": 112.39,
+                "w": 95.49,
+                "h": 13.15
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.24,
+            "y": 135.86,
+            "w": 219.73,
+            "h": 624.69
+          },
+          "lines": [
+            {
+              "text": "Answer Relevancy measures the degree",
+              "rect": {
+                "x": 326.74,
+                "y": 135.86,
+                "w": 175.86,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "to which a response directly addresses",
+              "rect": {
+                "x": 327.96,
+                "y": 149.41,
+                "w": 174.63,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "and is appropriate for a given question.",
+              "rect": {
+                "x": 327.96,
+                "y": 162.96,
+                "w": 176.55,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "It penalizes the present of redundant in­formation or incomplete answers given a",
+              "rect": {
+                "x": 326.4,
+                "y": 176.51,
+                "w": 176.2,
+                "h": 26.57
+              }
+            },
+            {
+              "text": "question. Given an question and answer,",
+              "rect": {
+                "x": 327.96,
+                "y": 203.61,
+                "w": 176.54,
+                "h": 13.03
+              }
+            },
+            {
+              "text": "rank each answer based on Answer Rele­vancy.",
+              "rect": {
+                "x": 327.96,
+                "y": 217.16,
+                "w": 172.88,
+                "h": 26.58
+              }
+            },
+            {
+              "text": "question: [question]",
+              "rect": {
+                "x": 327.96,
+                "y": 244.26,
+                "w": 97.93,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answer 1: [answer 1]",
+              "rect": {
+                "x": 327.96,
+                "y": 257.8,
+                "w": 100.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answer 2: [answer 2]",
+              "rect": {
+                "x": 327.96,
+                "y": 271.35,
+                "w": 100.66,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "The results in Table 1 show that our proposed",
+              "rect": {
+                "x": 317.05,
+                "y": 294.82,
+                "w": 207.36,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "metrics are much closer aligned with the human",
+              "rect": {
+                "x": 306.14,
+                "y": 308.37,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "judgements than the predictions from the two base­lines. For faithfulness, the Ragas prediction are in",
+              "rect": {
+                "x": 305.4,
+                "y": 321.92,
+                "w": 219.01,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "general highly accurate. For answer relevance, the",
+              "rect": {
+                "x": 306.14,
+                "y": 349.02,
+                "w": 218.26,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "agreement is lower, but this is largely due to the",
+              "rect": {
+                "x": 306.14,
+                "y": 362.57,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "fact that the differences between the two candidate",
+              "rect": {
+                "x": 306.14,
+                "y": 376.12,
+                "w": 218.26,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answers are often very subtle. We found context",
+              "rect": {
+                "x": 306.14,
+                "y": 389.67,
+                "w": 218.28,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "relevance to be the hardest quality dimension to",
+              "rect": {
+                "x": 306.14,
+                "y": 403.22,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "evaluate. In particular, we observed that ChatGPT",
+              "rect": {
+                "x": 306.14,
+                "y": 416.77,
+                "w": 218.61,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "often struggles with the task of selecting the sen­tences from the context that are crucial, especially",
+              "rect": {
+                "x": 306.14,
+                "y": 430.32,
+                "w": 218.65,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "for longer contexts.",
+              "rect": {
+                "x": 306.14,
+                "y": 457.41,
+                "w": 84.97,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "6 Conclusions",
+              "rect": {
+                "x": 306.14,
+                "y": 480.61,
+                "w": 79.72,
+                "h": 15.55
+              }
+            },
+            {
+              "text": "We have highlighted the need for automated",
+              "rect": {
+                "x": 305.63,
+                "y": 503.51,
+                "w": 218.78,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "reference-free evaluation of RAG systems. In par­ticular, we have argued the need for an evaluation",
+              "rect": {
+                "x": 306.14,
+                "y": 517.06,
+                "w": 218.27,
+                "h": 26.7
+              }
+            },
+            {
+              "text": "framework that can assess faithfulness (i.e. is the",
+              "rect": {
+                "x": 306.14,
+                "y": 544.16,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "answer grounded in the retrieved context), answer",
+              "rect": {
+                "x": 306.14,
+                "y": 557.71,
+                "w": 218.48,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "relevance (i.e. does the answer address the ques­tion) and context relevance (i.e. is the retrieved",
+              "rect": {
+                "x": 306.14,
+                "y": 571.26,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "context sufficiently focused). To support the devel­opment of such a framework, we have introduced",
+              "rect": {
+                "x": 306.14,
+                "y": 598.35,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "WikiEval, a dataset which human judgements of",
+              "rect": {
+                "x": 305.24,
+                "y": 625.45,
+                "w": 219.73,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "these three different aspects. Finally, we have also",
+              "rect": {
+                "x": 306.14,
+                "y": 639,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "described Ragas, our implementation of the three",
+              "rect": {
+                "x": 306.14,
+                "y": 652.55,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "considered quality aspects. This framework is easy",
+              "rect": {
+                "x": 306.14,
+                "y": 666.1,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "to use and can provide deverlopers of RAG sys­tems with valuable insights, even in the absence",
+              "rect": {
+                "x": 306.14,
+                "y": 679.65,
+                "w": 218.27,
+                "h": 26.69
+              }
+            },
+            {
+              "text": "of any ground truth. Our evaluation on WikiEval",
+              "rect": {
+                "x": 306.14,
+                "y": 706.75,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "has shown that the predictions from Ragas are",
+              "rect": {
+                "x": 306.14,
+                "y": 720.3,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "closely aligned with human predictions, especially",
+              "rect": {
+                "x": 306.14,
+                "y": 733.85,
+                "w": 218.65,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "for faithfulness and answer relevance.",
+              "rect": {
+                "x": 306.14,
+                "y": 747.4,
+                "w": 165.04,
+                "h": 13.15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 70.87,
+            "y": 70.35,
+            "w": 55.54,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "References",
+              "rect": {
+                "x": 70.87,
+                "y": 70.35,
+                "w": 55.54,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 90.77,
+            "w": 220.01,
+            "h": 683.05
+          },
+          "lines": [
+            {
+              "text": "Amos Azaria and Tom M. Mitchell. 2023. The inter­nal state of an LLM knows when its lying. CoRR,",
+              "rect": {
+                "x": 70.87,
+                "y": 90.77,
+                "w": 219.51,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "abs/2304.13734.",
+              "rect": {
+                "x": 81.78,
+                "y": 112.69,
+                "w": 65.86,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sebastian Borgeaud, Arthur Mensch, Jordan Hoffmann,",
+              "rect": {
+                "x": 70.87,
+                "y": 133.4,
+                "w": 219.51,
+                "h": 12
+              }
+            },
+            {
+              "text": "Trevor Cai, Eliza Rutherford, Katie Millican, George",
+              "rect": {
+                "x": 81.47,
+                "y": 144.36,
+                "w": 207.67,
+                "h": 12
+              }
+            },
+            {
+              "text": "van den Driessche, Jean-Baptiste Lespiau, Bogdan",
+              "rect": {
+                "x": 81.53,
+                "y": 155.32,
+                "w": 207.61,
+                "h": 12
+              }
+            },
+            {
+              "text": "Damoc, Aidan Clark, Diego de Las Casas, Aurelia",
+              "rect": {
+                "x": 81.78,
+                "y": 166.28,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Guy, Jacob Menick, Roman Ring, Tom Hennigan,",
+              "rect": {
+                "x": 81.78,
+                "y": 177.24,
+                "w": 208.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "Saffron Huang, Loren Maggiore, Chris Jones, Albin",
+              "rect": {
+                "x": 81.78,
+                "y": 188.2,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Cassirer, Andy Brock, Michela Paganini, Geoffrey",
+              "rect": {
+                "x": 81.78,
+                "y": 199.16,
+                "w": 207.71,
+                "h": 12
+              }
+            },
+            {
+              "text": "Irving, Oriol Vinyals, Simon Osindero, Karen Si­monyan, Jack W. Rae, Erich Elsen, and Laurent Sifre.",
+              "rect": {
+                "x": 81.78,
+                "y": 210.12,
+                "w": 209.1,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "2022. Improving language models by retrieving from",
+              "rect": {
+                "x": 81.78,
+                "y": 232.03,
+                "w": 207.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "trillions of tokens. In International Conference on",
+              "rect": {
+                "x": 81.78,
+                "y": 242.99,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Machine Learning, ICML 2022, 17-23 July 2022, Bal­timore, Maryland, USA, volume 162 of Proceedings",
+              "rect": {
+                "x": 81.19,
+                "y": 253.95,
+                "w": 207.94,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "of Machine Learning Research, pages 2206–2240.",
+              "rect": {
+                "x": 81.78,
+                "y": 275.87,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "PMLR.",
+              "rect": {
+                "x": 81.78,
+                "y": 286.83,
+                "w": 29.62,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sébastien Bubeck, Varun Chandrasekaran, Ronen El­dan, Johannes Gehrke, Eric Horvitz, Ece Kamar,",
+              "rect": {
+                "x": 70.87,
+                "y": 307.55,
+                "w": 219.51,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lund­berg, et al. 2023. Sparks of artificial general intelli­gence: Early experiments with gpt-4. arXiv preprint",
+              "rect": {
+                "x": 81.78,
+                "y": 329.46,
+                "w": 207.53,
+                "h": 33.92
+              }
+            },
+            {
+              "text": "arXiv:2303.12712.",
+              "rect": {
+                "x": 81.78,
+                "y": 362.34,
+                "w": 75.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and",
+              "rect": {
+                "x": 70.87,
+                "y": 383.06,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kristina Toutanova. 2019. BERT: Pre-training of",
+              "rect": {
+                "x": 81.78,
+                "y": 394.02,
+                "w": 207.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "deep bidirectional transformers for language under­standing. In Proceedings of the 2019 Conference of",
+              "rect": {
+                "x": 81.78,
+                "y": 404.98,
+                "w": 208.82,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "the North American Chapter of the Association for",
+              "rect": {
+                "x": 81.78,
+                "y": 426.89,
+                "w": 207.6,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Computational Linguistics: Human Language Tech­nologies, Volume 1 (Long and Short Papers), pages",
+              "rect": {
+                "x": 81.45,
+                "y": 437.85,
+                "w": 207.68,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "4171–4186, Minneapolis, Minnesota. Association for",
+              "rect": {
+                "x": 81.43,
+                "y": 459.77,
+                "w": 207.89,
+                "h": 12
+              }
+            },
+            {
+              "text": "Computational Linguistics.",
+              "rect": {
+                "x": 81.78,
+                "y": 470.73,
+                "w": 108.49,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jinlan Fu, See-Kiong Ng, Zhengbao Jiang, and Pengfei",
+              "rect": {
+                "x": 70.87,
+                "y": 491.45,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Liu. 2023. Gptscore: Evaluate as you desire. CoRR,",
+              "rect": {
+                "x": 81.78,
+                "y": 502.41,
+                "w": 208.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "abs/2302.04166.",
+              "rect": {
+                "x": 81.78,
+                "y": 513.36,
+                "w": 65.86,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasu­pat, and Mingwei Chang. 2020. Retrieval augmented",
+              "rect": {
+                "x": 70.87,
+                "y": 534.08,
+                "w": 218.26,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "language model pre-training. In International confer­ence on machine learning, pages 3929–3938. PMLR.",
+              "rect": {
+                "x": 81.78,
+                "y": 556,
+                "w": 209.08,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan",
+              "rect": {
+                "x": 70.87,
+                "y": 587.68,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea",
+              "rect": {
+                "x": 81.78,
+                "y": 598.64,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Madotto, and Pascale Fung. 2023. Survey of halluci­nation in natural language generation. ACM Comput­ing Surveys, 55(12):1–38.",
+              "rect": {
+                "x": 81.77,
+                "y": 609.59,
+                "w": 205.93,
+                "h": 33.92
+              }
+            },
+            {
+              "text": "Saurav Kadavath, Tom Conerly, Amanda Askell, Tom",
+              "rect": {
+                "x": 70.87,
+                "y": 652.23,
+                "w": 218.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "Henighan, Dawn Drain, Ethan Perez, Nicholas",
+              "rect": {
+                "x": 81.78,
+                "y": 663.19,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Schiefer, Zac Hatfield-Dodds, Nova DasSarma, Eli",
+              "rect": {
+                "x": 81.78,
+                "y": 674.15,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Tran-Johnson, Scott Johnston, Sheer El Showk, Andy",
+              "rect": {
+                "x": 81.47,
+                "y": 685.11,
+                "w": 208.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jones, Nelson Elhage, Tristan Hume, Anna Chen,",
+              "rect": {
+                "x": 81.59,
+                "y": 696.06,
+                "w": 208.8,
+                "h": 12
+              }
+            },
+            {
+              "text": "Yuntao Bai, Sam Bowman, Stanislav Fort, Deep",
+              "rect": {
+                "x": 81.2,
+                "y": 707.02,
+                "w": 207.93,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ganguli, Danny Hernandez, Josh Jacobson, Jack­son Kernion, Shauna Kravec, Liane Lovitt, Ka­mal Ndousse, Catherine Olsson, Sam Ringer, Dario",
+              "rect": {
+                "x": 81.78,
+                "y": 717.98,
+                "w": 207.36,
+                "h": 33.92
+              }
+            },
+            {
+              "text": "Amodei, Tom Brown, Jack Clark, Nicholas Joseph,",
+              "rect": {
+                "x": 81.42,
+                "y": 750.86,
+                "w": 208.96,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ben Mann, Sam McCandlish, Chris Olah, and Jared",
+              "rect": {
+                "x": 81.78,
+                "y": 761.82,
+                "w": 207.36,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 306.14,
+            "y": 72.62,
+            "w": 220.01,
+            "h": 701.2
+          },
+          "lines": [
+            {
+              "text": "Kaplan. 2022. Language models (mostly) know what",
+              "rect": {
+                "x": 317.05,
+                "y": 72.62,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "they know. CoRR, abs/2207.05221.",
+              "rect": {
+                "x": 317.05,
+                "y": 83.58,
+                "w": 142.11,
+                "h": 12
+              }
+            },
+            {
+              "text": "Nikhil Kandpal, Haikang Deng, Adam Roberts, Eric",
+              "rect": {
+                "x": 306.14,
+                "y": 102.09,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wallace, and Colin Raffel. 2022. Large language",
+              "rect": {
+                "x": 316.58,
+                "y": 113.05,
+                "w": 207.83,
+                "h": 12
+              }
+            },
+            {
+              "text": "models struggle to learn long-tail knowledge. CoRR,",
+              "rect": {
+                "x": 317.05,
+                "y": 124.01,
+                "w": 208.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "abs/2211.08411.",
+              "rect": {
+                "x": 317.05,
+                "y": 134.96,
+                "w": 65.86,
+                "h": 12
+              }
+            },
+            {
+              "text": "Urvashi Khandelwal, Omer Levy, Dan Jurafsky, Luke",
+              "rect": {
+                "x": 306.14,
+                "y": 153.47,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Zettlemoyer, and Mike Lewis. 2020. Generalization",
+              "rect": {
+                "x": 317.05,
+                "y": 164.43,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "through memorization: Nearest neighbor language",
+              "rect": {
+                "x": 317.05,
+                "y": 175.39,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "models. In 8th International Conference on Learning",
+              "rect": {
+                "x": 317.05,
+                "y": 186.35,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Representations, ICLR 2020, Addis Ababa, Ethiopia,",
+              "rect": {
+                "x": 316.62,
+                "y": 197.31,
+                "w": 209.53,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "April 26-30, 2020. OpenReview.net.",
+              "rect": {
+                "x": 315.94,
+                "y": 208.27,
+                "w": 144.63,
+                "h": 12
+              }
+            },
+            {
+              "text": "Omar Khattab, Keshav Santhanam, Xiang Lisa Li,",
+              "rect": {
+                "x": 306.14,
+                "y": 226.78,
+                "w": 219.52,
+                "h": 12
+              }
+            },
+            {
+              "text": "David Hall, Percy Liang, Christopher Potts, and",
+              "rect": {
+                "x": 317.05,
+                "y": 237.74,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Matei Zaharia. 2022. Demonstrate-search-predict:",
+              "rect": {
+                "x": 317.05,
+                "y": 248.69,
+                "w": 208.74,
+                "h": 12
+              }
+            },
+            {
+              "text": "Composing retrieval and language models for",
+              "rect": {
+                "x": 317.05,
+                "y": 259.65,
+                "w": 207.55,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge-intensive NLP. CoRR, abs/2212.14024.",
+              "rect": {
+                "x": 317.05,
+                "y": 270.61,
+                "w": 204.39,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kenton Lee, Ming-Wei Chang, and Kristina Toutanova.",
+              "rect": {
+                "x": 306.14,
+                "y": 289.12,
+                "w": 220.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "2019. Latent retrieval for weakly supervised open do­main question answering. In Proceedings of the 57th",
+              "rect": {
+                "x": 317.05,
+                "y": 300.08,
+                "w": 207.36,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Annual Meeting of the Association for Computational",
+              "rect": {
+                "x": 315.95,
+                "y": 322,
+                "w": 208.47,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Linguistics, pages 6086–6096.",
+              "rect": {
+                "x": 316.7,
+                "y": 332.96,
+                "w": 121.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "Patrick S. H. Lewis, Ethan Perez, Aleksandra Pik­tus, Fabio Petroni, Vladimir Karpukhin, Naman",
+              "rect": {
+                "x": 306.14,
+                "y": 351.47,
+                "w": 218.27,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih,",
+              "rect": {
+                "x": 317.05,
+                "y": 373.38,
+                "w": 208.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "Tim Rocktäschel, Sebastian Riedel, and Douwe",
+              "rect": {
+                "x": 316.74,
+                "y": 384.34,
+                "w": 207.67,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kiela. 2020. Retrieval-augmented generation for",
+              "rect": {
+                "x": 317.05,
+                "y": 395.3,
+                "w": 207.55,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge-intensive NLP tasks. In Advances in Neu­ral Information Processing Systems 33: Annual Con­ference on Neural Information Processing Systems",
+              "rect": {
+                "x": 315.57,
+                "y": 406.26,
+                "w": 208.85,
+                "h": 33.81
+              }
+            },
+            {
+              "text": "2020, NeurIPS 2020, December 6-12, 2020, virtual.",
+              "rect": {
+                "x": 316.8,
+                "y": 439.14,
+                "w": 207.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "Junyi Li, Xiaoxue Cheng, Wayne Xin Zhao, Jian-Yun",
+              "rect": {
+                "x": 306.14,
+                "y": 457.65,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Nie, and Ji-Rong Wen. 2023. Halueval: A large­scale hallucination evaluation benchmark for large",
+              "rect": {
+                "x": 317.05,
+                "y": 468.6,
+                "w": 207.36,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "language models. CoRR, abs/2305.11747.",
+              "rect": {
+                "x": 317.05,
+                "y": 490.52,
+                "w": 167.96,
+                "h": 12
+              }
+            },
+            {
+              "text": "Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paran­jape, Michele Bevilacqua, Fabio Petroni, and Percy",
+              "rect": {
+                "x": 306.14,
+                "y": 509.03,
+                "w": 218.61,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Liang. 2023. Lost in the middle: How language",
+              "rect": {
+                "x": 317.05,
+                "y": 530.95,
+                "w": 207.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "models use long contexts.",
+              "rect": {
+                "x": 317.05,
+                "y": 541.91,
+                "w": 102.79,
+                "h": 12
+              }
+            },
+            {
+              "text": "Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,",
+              "rect": {
+                "x": 306.14,
+                "y": 560.42,
+                "w": 219.52,
+                "h": 12
+              }
+            },
+            {
+              "text": "Daniel Khashabi, and Hannaneh Hajishirzi. 2023.",
+              "rect": {
+                "x": 317.05,
+                "y": 571.38,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "When not to trust language models: Investigating",
+              "rect": {
+                "x": 316.58,
+                "y": 582.33,
+                "w": 207.83,
+                "h": 12
+              }
+            },
+            {
+              "text": "effectiveness of parametric and non-parametric mem­ories. In Proceedings of the 61st Annual Meeting of",
+              "rect": {
+                "x": 317.05,
+                "y": 593.29,
+                "w": 208.82,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "the Association for Computational Linguistics (Vol­ume 1: Long Papers), pages 9802–9822, Toronto,",
+              "rect": {
+                "x": 317.05,
+                "y": 615.21,
+                "w": 208.6,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Canada. Association for Computational Linguistics.",
+              "rect": {
+                "x": 317.05,
+                "y": 637.13,
+                "w": 206.99,
+                "h": 12
+              }
+            },
+            {
+              "text": "Potsawee Manakul, Adian Liusie, and Mark J. F. Gales.",
+              "rect": {
+                "x": 306.14,
+                "y": 655.64,
+                "w": 220.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "2023. Selfcheckgpt: Zero-resource black-box hal­lucination detection for generative large language",
+              "rect": {
+                "x": 317.05,
+                "y": 666.6,
+                "w": 207.36,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "models. CoRR, abs/2303.08896.",
+              "rect": {
+                "x": 317.05,
+                "y": 688.51,
+                "w": 129.5,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike",
+              "rect": {
+                "x": 306.14,
+                "y": 707.02,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lewis, Wen-tau Yih, Pang Wei Koh, Mohit Iyyer,",
+              "rect": {
+                "x": 317.05,
+                "y": 717.98,
+                "w": 208.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "Luke Zettlemoyer, and Hannaneh Hajishirzi. 2023.",
+              "rect": {
+                "x": 317.05,
+                "y": 728.94,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "Factscore: Fine-grained atomic evaluation of fac­tual precision in long form text generation. CoRR,",
+              "rect": {
+                "x": 317.05,
+                "y": 739.9,
+                "w": 208.6,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "abs/2305.14251.",
+              "rect": {
+                "x": 317.05,
+                "y": 761.82,
+                "w": 65.86,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 72.62,
+            "w": 220.01,
+            "h": 123.89
+          },
+          "lines": [
+            {
+              "text": "Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,",
+              "rect": {
+                "x": 70.87,
+                "y": 72.62,
+                "w": 219.51,
+                "h": 12
+              }
+            },
+            {
+              "text": "Amnon Shashua, Kevin Leyton-Brown, and Yoav",
+              "rect": {
+                "x": 81.42,
+                "y": 83.58,
+                "w": 207.96,
+                "h": 12
+              }
+            },
+            {
+              "text": "Shoham. 2023. In-context retrieval-augmented lan­guage models. CoRR, abs/2302.00083.",
+              "rect": {
+                "x": 81.78,
+                "y": 94.54,
+                "w": 205.63,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Adam Roberts, Colin Raffel, and Noam Shazeer. 2020.",
+              "rect": {
+                "x": 70.87,
+                "y": 129.71,
+                "w": 220.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "How much knowledge can you pack into the param­eters of a language model? In Proceedings of the",
+              "rect": {
+                "x": 81.77,
+                "y": 140.67,
+                "w": 207.36,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "2020 Conference on Empirical Methods in Natural",
+              "rect": {
+                "x": 81.53,
+                "y": 162.59,
+                "w": 207.62,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Language Processing (EMNLP), pages 5418–5426,",
+              "rect": {
+                "x": 81.42,
+                "y": 173.55,
+                "w": 208.95,
+                "h": 12
+              }
+            },
+            {
+              "text": "Online. Association for Computational Linguistics.",
+              "rect": {
+                "x": 81.78,
+                "y": 184.51,
+                "w": 204.23,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 208.73,
+            "w": 220.01,
+            "h": 44.87
+          },
+          "lines": [
+            {
+              "text": "Weijia Shi, Sewon Min, Michihiro Yasunaga, Minjoon",
+              "rect": {
+                "x": 70.87,
+                "y": 208.73,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Seo, Rich James, Mike Lewis, Luke Zettlemoyer, and",
+              "rect": {
+                "x": 81.78,
+                "y": 219.69,
+                "w": 207.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wen-tau Yih. 2023. REPLUG: retrieval-augmented",
+              "rect": {
+                "x": 81.31,
+                "y": 230.65,
+                "w": 207.83,
+                "h": 12
+              }
+            },
+            {
+              "text": "black-box language models. CoRR, abs/2301.12652.",
+              "rect": {
+                "x": 81.78,
+                "y": 241.6,
+                "w": 209.1,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 265.82,
+            "w": 218.63,
+            "h": 44.88
+          },
+          "lines": [
+            {
+              "text": "Jiaan Wang, Yunlong Liang, Fandong Meng, Haoxi­ang Shi, Zhixu Li, Jinan Xu, Jianfeng Qu, and Jie",
+              "rect": {
+                "x": 70.87,
+                "y": 265.82,
+                "w": 218.27,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Zhou. 2023a. Is chatgpt a good NLG evaluator? A",
+              "rect": {
+                "x": 81.78,
+                "y": 287.74,
+                "w": 207.72,
+                "h": 12
+              }
+            },
+            {
+              "text": "preliminary study. CoRR, abs/2303.04048.",
+              "rect": {
+                "x": 81.78,
+                "y": 298.7,
+                "w": 171.29,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 322.92,
+            "w": 220.01,
+            "h": 44.87
+          },
+          "lines": [
+            {
+              "text": "Peiyi Wang, Lei Li, Liang Chen, Dawei Zhu, Binghuai",
+              "rect": {
+                "x": 70.87,
+                "y": 322.92,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lin, Yunbo Cao, Qi Liu, Tianyu Liu, and Zhifang Sui.",
+              "rect": {
+                "x": 81.78,
+                "y": 333.88,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "2023b. Large language models are not fair evaluators.",
+              "rect": {
+                "x": 81.78,
+                "y": 344.84,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "CoRR, abs/2305.17926.",
+              "rect": {
+                "x": 81.45,
+                "y": 355.79,
+                "w": 94.65,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 380.01,
+            "w": 220.01,
+            "h": 44.88
+          },
+          "lines": [
+            {
+              "text": "Shufan Wang, Yixiao Song, Andrew Drozdov, Aparna",
+              "rect": {
+                "x": 70.87,
+                "y": 380.01,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Garimella, Varun Manjunatha, and Mohit Iyyer.",
+              "rect": {
+                "x": 81.78,
+                "y": 390.97,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "2023c. KNN-LM does not improve open-ended text",
+              "rect": {
+                "x": 81.78,
+                "y": 401.93,
+                "w": 207.37,
+                "h": 12
+              }
+            },
+            {
+              "text": "generation. CoRR, abs/2305.14625.",
+              "rect": {
+                "x": 81.78,
+                "y": 412.89,
+                "w": 142.77,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 437.11,
+            "w": 220.01,
+            "h": 134.85
+          },
+          "lines": [
+            {
+              "text": "Weizhe Yuan, Graham Neubig, and Pengfei Liu. 2021.",
+              "rect": {
+                "x": 70.87,
+                "y": 437.11,
+                "w": 220.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "Bartscore: Evaluating generated text as text genera­tion. In Advances in Neural Information Processing",
+              "rect": {
+                "x": 81.78,
+                "y": 448.07,
+                "w": 207.36,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Systems 34: Annual Conference on Neural Informa­tion Processing Systems 2021, NeurIPS 2021, De­cember 6-14, 2021, virtual, pages 27263–27277.",
+              "rect": {
+                "x": 81.53,
+                "y": 469.99,
+                "w": 205.91,
+                "h": 33.92
+              }
+            },
+            {
+              "text": "Tianhua Zhang, Hongyin Luo, Yung-Sung Chuang, Wei",
+              "rect": {
+                "x": 70.87,
+                "y": 516.12,
+                "w": 218.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "Fang, Luc Gaitskell, Thomas Hartvigsen, Xixin Wu,",
+              "rect": {
+                "x": 81.78,
+                "y": 527.08,
+                "w": 208.61,
+                "h": 12
+              }
+            },
+            {
+              "text": "Danny Fox, Helen Meng, and James R. Glass. 2023.",
+              "rect": {
+                "x": 81.78,
+                "y": 538.04,
+                "w": 209.1,
+                "h": 12
+              }
+            },
+            {
+              "text": "Interpretable unified language checking. CoRR,",
+              "rect": {
+                "x": 81.78,
+                "y": 549,
+                "w": 208.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "abs/2304.03728.",
+              "rect": {
+                "x": 81.78,
+                "y": 559.96,
+                "w": 65.86,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 70.87,
+            "y": 584.18,
+            "w": 220.01,
+            "h": 189.64
+          },
+          "lines": [
+            {
+              "text": "Tianyi Zhang, Varsha Kishore, Felix Wu, Kilian Q.",
+              "rect": {
+                "x": 70.87,
+                "y": 584.18,
+                "w": 220.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "Weinberger, and Yoav Artzi. 2020. Bertscore: Evalu­ating text generation with BERT. In 8th International",
+              "rect": {
+                "x": 81.31,
+                "y": 595.13,
+                "w": 207.84,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Conference on Learning Representations, ICLR 2020,",
+              "rect": {
+                "x": 81.45,
+                "y": 617.05,
+                "w": 209.43,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Addis Ababa, Ethiopia, April 26-30, 2020. OpenRe­view.net.",
+              "rect": {
+                "x": 80.66,
+                "y": 628.01,
+                "w": 206.76,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Wei Zhao, Maxime Peyrard, Fei Liu, Yang Gao, Chris­tian M. Meyer, and Steffen Eger. 2019. MoverScore:",
+              "rect": {
+                "x": 70.87,
+                "y": 663.19,
+                "w": 219.65,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "Text generation evaluating with contextualized em­beddings and earth mover distance. In Proceedings",
+              "rect": {
+                "x": 81.47,
+                "y": 685.11,
+                "w": 207.67,
+                "h": 22.96
+              }
+            },
+            {
+              "text": "of the 2019 Conference on Empirical Methods in",
+              "rect": {
+                "x": 81.78,
+                "y": 707.02,
+                "w": 207.36,
+                "h": 11.9
+              }
+            },
+            {
+              "text": "Natural Language Processing and the 9th Interna­tional Joint Conference on Natural Language Pro­cessing (EMNLP-IJCNLP), pages 563–578, Hong",
+              "rect": {
+                "x": 81.25,
+                "y": 717.98,
+                "w": 207.88,
+                "h": 33.92
+              }
+            },
+            {
+              "text": "Kong, China. Association for Computational Lin­guistics.",
+              "rect": {
+                "x": 81.78,
+                "y": 750.86,
+                "w": 205.63,
+                "h": 22.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 306.14,
+            "y": 70.35,
+            "w": 149.56,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "A Examples from WikiEval",
+              "rect": {
+                "x": 306.14,
+                "y": 70.35,
+                "w": 149.56,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 305.8,
+            "y": 92.66,
+            "w": 218.82,
+            "h": 67.34
+          },
+          "lines": [
+            {
+              "text": "Tables 2, 3 and 4 show examples from the WikiEval",
+              "rect": {
+                "x": 305.8,
+                "y": 92.66,
+                "w": 218.61,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "dataset, focusing in particular on answers with high",
+              "rect": {
+                "x": 306.14,
+                "y": 106.21,
+                "w": 218.27,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "and low faithfulness (Table 2), high and low answer",
+              "rect": {
+                "x": 306.14,
+                "y": 119.76,
+                "w": 218.48,
+                "h": 13.15
+              }
+            },
+            {
+              "text": "relevance (Table 3), and high and low context rele­vance (Table 4).",
+              "rect": {
+                "x": 305.87,
+                "y": 133.31,
+                "w": 216.74,
+                "h": 26.69
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "width": 595.2760009765625,
+      "height": 841.8900146484375,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 81.45,
+            "y": 117.6,
+            "w": 341.89,
+            "h": 11.67
+          },
+          "lines": [
+            {
+              "text": "Question Context Answer",
+              "rect": {
+                "x": 81.45,
+                "y": 117.6,
+                "w": 341.89,
+                "h": 11.67
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 81.03,
+            "y": 133.59,
+            "w": 90.25,
+            "h": 40.69
+          },
+          "lines": [
+            {
+              "text": "Who directed the film Op­penheimer and who stars",
+              "rect": {
+                "x": 81.03,
+                "y": 133.59,
+                "w": 90.09,
+                "h": 20.77
+              }
+            },
+            {
+              "text": "as J. Robert Oppenheimer",
+              "rect": {
+                "x": 81.45,
+                "y": 153.51,
+                "w": 89.83,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "in the film?",
+              "rect": {
+                "x": 81.45,
+                "y": 163.48,
+                "w": 40.85,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 183.07,
+            "y": 133.59,
+            "w": 200.82,
+            "h": 90.5
+          },
+          "lines": [
+            {
+              "text": "Oppenheimer is a 2023 biographical thriller film written",
+              "rect": {
+                "x": 183.07,
+                "y": 133.59,
+                "w": 199.25,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "and directed by Christopher Nolan. Based on the 2005",
+              "rect": {
+                "x": 183.07,
+                "y": 143.55,
+                "w": 199.25,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "biography American Prometheus by Kai Bird and Mar­tin J. Sherwin, the film chronicles the life of J. Robert",
+              "rect": {
+                "x": 183.07,
+                "y": 153.51,
+                "w": 199.27,
+                "h": 20.77
+              }
+            },
+            {
+              "text": "Oppenheimer, a theoretical physicist who was pivotal in",
+              "rect": {
+                "x": 183.07,
+                "y": 173.44,
+                "w": 199.25,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "developing the first nuclear weapons as part of the Man­hattan Project, and thereby ushering in the Atomic Age.",
+              "rect": {
+                "x": 183.07,
+                "y": 183.4,
+                "w": 200.82,
+                "h": 20.77
+              }
+            },
+            {
+              "text": "Cillian Murphy stars as Oppenheimer, with Emily Blunt",
+              "rect": {
+                "x": 183.07,
+                "y": 203.33,
+                "w": 199.26,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "as Oppenheimer’s wife Katherine \"Kitty\" Oppenheimer.",
+              "rect": {
+                "x": 183.07,
+                "y": 213.29,
+                "w": 199.25,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 393.89,
+            "y": 133.59,
+            "w": 121.5,
+            "h": 83.53
+          },
+          "lines": [
+            {
+              "text": "High Faithfulness: Christopher",
+              "rect": {
+                "x": 393.89,
+                "y": 133.59,
+                "w": 120.11,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Nolan directed the film Oppen­heimer. Cillian Murphy stars as J.",
+              "rect": {
+                "x": 394.27,
+                "y": 143.55,
+                "w": 121.12,
+                "h": 20.77
+              }
+            },
+            {
+              "text": "Robert Oppenheimer in the film.",
+              "rect": {
+                "x": 394.27,
+                "y": 163.48,
+                "w": 116.81,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Low Faithfulness: James",
+              "rect": {
+                "x": 393.96,
+                "y": 176.43,
+                "w": 119.87,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Cameron directed the film Op­penheimer. Tom Cruise stars as J.",
+              "rect": {
+                "x": 394.27,
+                "y": 186.39,
+                "w": 121.12,
+                "h": 20.77
+              }
+            },
+            {
+              "text": "Robert Oppenheimer in the film.",
+              "rect": {
+                "x": 394.27,
+                "y": 206.32,
+                "w": 116.81,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 130.22,
+            "y": 236.53,
+            "w": 331.44,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "Table 2: Example from WikiEval, showing answers with high and low faithfulness.",
+              "rect": {
+                "x": 130.22,
+                "y": 236.53,
+                "w": 331.44,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 82.44,
+            "y": 348.33,
+            "w": 130.68,
+            "h": 11.67
+          },
+          "lines": [
+            {
+              "text": "Question Answer",
+              "rect": {
+                "x": 82.44,
+                "y": 348.33,
+                "w": 130.68,
+                "h": 11.67
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 82.02,
+            "y": 364.32,
+            "w": 91.2,
+            "h": 50.65
+          },
+          "lines": [
+            {
+              "text": "When is the scheduled",
+              "rect": {
+                "x": 82.02,
+                "y": 364.32,
+                "w": 90.09,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "launch date and time for",
+              "rect": {
+                "x": 82.44,
+                "y": 374.28,
+                "w": 89.84,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "the PSLV-C56 mission,",
+              "rect": {
+                "x": 82.44,
+                "y": 384.24,
+                "w": 90.78,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "and where will it be",
+              "rect": {
+                "x": 82.44,
+                "y": 394.21,
+                "w": 89.66,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "launched from?",
+              "rect": {
+                "x": 82.44,
+                "y": 404.17,
+                "w": 56.02,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 183.68,
+            "y": 364.32,
+            "w": 329.15,
+            "h": 63.6
+          },
+          "lines": [
+            {
+              "text": "High answer relevance: The PSLV-C56 mission is scheduled to be launched on Sunday, 30",
+              "rect": {
+                "x": 183.68,
+                "y": 364.32,
+                "w": 329.15,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "July 2023 at 06:30 IST / 01:00 UTC. It will be launched from the Satish Dhawan Space",
+              "rect": {
+                "x": 183.89,
+                "y": 374.28,
+                "w": 328.94,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Centre, Sriharikota, Andhra Pradesh, India.",
+              "rect": {
+                "x": 184.06,
+                "y": 384.24,
+                "w": 155.3,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Low answer relevance: The scheduled launch date and time for the PSLV-C56 mission have",
+              "rect": {
+                "x": 183.75,
+                "y": 397.2,
+                "w": 329.08,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "not been provided.The PSLV-C56 mission is an important space mission for India. It aims to",
+              "rect": {
+                "x": 184.06,
+                "y": 407.16,
+                "w": 328.77,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "launch a satellite into orbit to study weather patterns.",
+              "rect": {
+                "x": 184.06,
+                "y": 417.12,
+                "w": 190.02,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 119.23,
+            "y": 440.36,
+            "w": 353.42,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "Table 3: Example from WikiEval, showing answers with high and low answer relevance.",
+              "rect": {
+                "x": 119.23,
+                "y": 440.36,
+                "w": 353.42,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 82.44,
+            "y": 552.16,
+            "w": 131.99,
+            "h": 11.67
+          },
+          "lines": [
+            {
+              "text": "Question Context",
+              "rect": {
+                "x": 82.44,
+                "y": 552.16,
+                "w": 131.99,
+                "h": 11.67
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 82.02,
+            "y": 568.15,
+            "w": 91.2,
+            "h": 40.69
+          },
+          "lines": [
+            {
+              "text": "When was the Chimnabai",
+              "rect": {
+                "x": 82.02,
+                "y": 568.15,
+                "w": 90.09,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Clock Tower completed,",
+              "rect": {
+                "x": 82.44,
+                "y": 578.11,
+                "w": 90.78,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "and who was it named af­ter?",
+              "rect": {
+                "x": 82.44,
+                "y": 588.07,
+                "w": 88.65,
+                "h": 20.77
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 183.68,
+            "y": 568.15,
+            "w": 330.71,
+            "h": 133.34
+          },
+          "lines": [
+            {
+              "text": "High context relevance: The Chimnabai Clock Tower, also known as the Raopura Tower, is",
+              "rect": {
+                "x": 183.68,
+                "y": 568.15,
+                "w": 329.15,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "a clock tower situated in the Raopura area of Vadodara, Gujarat, India. It was completed",
+              "rect": {
+                "x": 184.06,
+                "y": 578.11,
+                "w": 328.77,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "in 1896 and named in memory of Chimnabai I (1864–1885), a queen and the first wife of",
+              "rect": {
+                "x": 184.06,
+                "y": 588.07,
+                "w": 329.23,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Sayajirao Gaekwad III of Baroda State.",
+              "rect": {
+                "x": 184.06,
+                "y": 598.04,
+                "w": 141.34,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Low context relevance: The Chimnabai Clock Tower, also known as the Raopura Tower, is",
+              "rect": {
+                "x": 183.75,
+                "y": 610.99,
+                "w": 329.09,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "a clock tower situated in the Raopura area of Vadodara, Gujarat, India. It was completed",
+              "rect": {
+                "x": 184.06,
+                "y": 620.95,
+                "w": 328.77,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "in 1896 and named in memory of Chimnabai I (1864–1885), a queen and the first wife of",
+              "rect": {
+                "x": 184.06,
+                "y": 630.91,
+                "w": 329.23,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Sayajirao Gaekwad III of Baroda State. It was built in Indo-Saracenic architecture style.",
+              "rect": {
+                "x": 184.06,
+                "y": 640.88,
+                "w": 330.33,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "History. Chimnabai Clock Tower was built in 1896. The tower was named after Chimnabai",
+              "rect": {
+                "x": 184.06,
+                "y": 650.84,
+                "w": 328.77,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "I (1864–1885), a queen and the first wife of Sayajirao Gaekwad III of Baroda State. It was",
+              "rect": {
+                "x": 184.06,
+                "y": 660.8,
+                "w": 328.77,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "inaugurated by Mir Kamaluddin Hussainkhan, the last Nawab of Baroda. During the rule of",
+              "rect": {
+                "x": 184.06,
+                "y": 670.76,
+                "w": 329.21,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "Gaekwad, it was a stoppage for horse drawn trams. The clock tower was erected at the cost",
+              "rect": {
+                "x": 184.06,
+                "y": 680.73,
+                "w": 328.78,
+                "h": 10.8
+              }
+            },
+            {
+              "text": "of 25,000 (equivalent to 9.2 million or USD 120,000 in 2023).",
+              "rect": {
+                "x": 184.06,
+                "y": 690.69,
+                "w": 223.21,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 118.75,
+            "y": 713.92,
+            "w": 354.39,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "Table 4: Example from WikiEval, showing answers with high and low context relevance.",
+              "rect": {
+                "x": 118.75,
+                "y": 713.92,
+                "w": 354.39,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

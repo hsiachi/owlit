@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/s/DxxbTo1CQTsQYjkLsaOYSJg2A</id>
+  <title>arXiv Query: search_query=&amp;id_list=2212.10511&amp;start=0&amp;max_results=10</title>
+  <updated>2026-10-13T13:50:34Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=2212.10511" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2212.10511v4</id>
+    <title>When Not to Trust Language Models: Investigating Effectiveness of Parametric and Non-Parametric Memories</title>
+    <updated>2023-07-02T07:21:59Z</updated>
+    <link href="https://arxiv.org/abs/2212.10511v4" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2212.10511v4" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Despite their impressive performance on diverse tasks, large language models (LMs) still struggle with tasks requiring rich world knowledge, implying the limitations of relying solely on their parameters to encode a wealth of world knowledge. This paper aims to understand LMs' strengths and limitations in memorizing factual knowledge, by conducting large-scale knowledge probing experiments of 10 models and 4 augmentation methods on PopQA, our new open-domain QA dataset with 14k questions. We find that LMs struggle with less popular factual knowledge, and that scaling fails to appreciably improve memorization of factual knowledge in the long tail. We then show that retrieval-augmented LMs largely outperform orders of magnitude larger LMs, while unassisted LMs remain competitive in questions about high-popularity entities. Based on those findings, we devise a simple, yet effective, method for powerful and efficient retrieval-augmented LMs, which retrieves non-parametric memories only when necessary. Experimental results show that this significantly improves models' performance while reducing the inference costs.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-12-20T18:30:15Z</published>
+    <arxiv:comment>ACL 2023; Code and data available at https://github.com/AlexTMallen/adaptive-retrieval</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Alex Mallen</name>
+    </author>
+    <author>
+      <name>Akari Asai</name>
+    </author>
+    <author>
+      <name>Victor Zhong</name>
+    </author>
+    <author>
+      <name>Rajarshi Das</name>
+    </author>
+    <author>
+      <name>Daniel Khashabi</name>
+    </author>
+    <author>
+      <name>Hannaneh Hajishirzi</name>
+    </author>
+  </entry>
+</feed>

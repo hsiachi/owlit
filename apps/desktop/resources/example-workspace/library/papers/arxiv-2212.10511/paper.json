@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "arxiv-2212.10511",
+  "ids": {
+    "arxiv": "2212.10511"
+  },
+  "title": "When Not to Trust Language Models: Investigating Effectiveness of Parametric and Non-Parametric Memories",
+  "authors": [
+    "Alex Mallen",
+    "Akari Asai",
+    "Victor Zhong",
+    "Rajarshi Das",
+    "Daniel Khashabi",
+    "Hannaneh Hajishirzi"
+  ],
+  "fields": {
+    "title": "arxiv",
+    "abstract": "arxiv",
+    "kind": "arxiv",
+    "authors": "arxiv",
+    "year": "arxiv",
+    "date": "arxiv"
+  },
+  "pdfUrls": [
+    "https://arxiv.org/pdf/2212.10511"
+  ],
+  "fetchedAt": 1791899437999,
+  "year": 2022,
+  "date": "2022-12-20",
+  "abstract": "Despite their impressive performance on diverse tasks, large language models (LMs) still struggle with tasks requiring rich world knowledge, implying the limitations of relying solely on their parameters to encode a wealth of world knowledge. This paper aims to understand LMs' strengths and limitations in memorizing factual knowledge, by conducting large-scale knowledge probing experiments of 10 models and 4 augmentation methods on PopQA, our new open-domain QA dataset with 14k questions. We find that LMs struggle with less popular factual knowledge, and that scaling fails to appreciably improve memorization of factual knowledge in the long tail. We then show that retrieval-augmented LMs largely outperform orders of magnitude larger LMs, while unassisted LMs remain competitive in questions about high-popularity entities. Based on those findings, we devise a simple, yet effective, method for powerful and efficient retrieval-augmented LMs, which retrieves non-parametric memories only when necessary. Experimental results show that this significantly improves models' performance while reducing the inference costs.",
+  "kind": "preprint",
+  "checked": 1
+}

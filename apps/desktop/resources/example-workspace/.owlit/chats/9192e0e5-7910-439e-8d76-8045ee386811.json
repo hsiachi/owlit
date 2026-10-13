@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "id": "9192e0e5-7910-439e-8d76-8045ee386811",
+  "title": "In ClashEval, how does the calibrated token-probability method decide between…",
+  "createdAt": 1791900179273,
+  "updatedAt": 1791900179274,
+  "pinned": false,
+  "connectorId": "claude-code",
+  "modelId": "opus",
+  "role": "assistant",
+  "effortId": "medium",
+  "messages": [
+    {
+      "id": "fb41f84c-f63d-40ae-80b9-c8d0da3d333a",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "In ClashEval, how does the calibrated token-probability method decide between the document and the model's own answer, and how much does it help? A short answer is fine."
+        }
+      ],
+      "createdAt": 1791900179273,
+      "mentions": [],
+      "attachments": []
+    },
+    {
+      "id": "8dc2f550-7e16-4416-a6bb-c02bc93c0a48",
+      "role": "assistant",
+      "createdAt": 1791900179274,
+      "parts": [
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01Qr8VsedwGWijLL6ugWZmvx",
+          "title": "ToolSearch",
+          "kind": "other",
+          "status": "completed",
+          "content": "Tool: mcp__owlit__library_list\nTool: mcp__owlit__library_read",
+          "tool": {
+            "name": "ToolSearch",
+            "query": "select:mcp__owlit__library_list,mcp__owlit__library_read"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01L4zVyiDh9b9NCVk87A5ZHp",
+          "title": "mcp__owlit__library_list",
+          "kind": "other",
+          "status": "completed",
+          "content": "- arxiv-2404.10198 · ClashEval: Quantifying the tug-of-war between an LLM's internal prior and external evidence · Wu et al., 2024 · unread, tags: retrieval, digest",
+          "tool": {
+            "name": "mcp__owlit__library_list",
+            "query": "ClashEval"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_019HGKFLHsukSKzxeA8jFkRs",
+          "title": "mcp__owlit__library_read",
+          "kind": "other",
+          "status": "completed",
+          "content": "## 3 Methods\n\n\n(The paper has 15 pages.)",
+          "tool": {
+            "name": "mcp__owlit__library_read",
+            "subject": "arxiv-2404.10198"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01Mv8p8zveVTNZTmEc1nUpGf",
+          "title": "cd \"library/papers/arxiv-2404.10198\" && grep -n -i -E \"calibrat|token probab|percentile|<!-- page\" text.md | head -80",
+          "kind": "execute",
+          "status": "completed",
+          "content": "```console\n1:<!-- page 1 -->\n21:Retrieval augmented generation (RAG) is frequently used to mitigate hallucinations and provide up-to-date knowledge for large language models (LLMs). However, given that document retrieval is an imprecise task and sometimes results in erroneous or even harmful content being presented in context, this raises the question of how LLMs handle retrieved information: If the provided content is incorrect, does the model know to ignore it, or does it recapitulate the error? Conversely, when the model’s initial response is incorrect, does it always know to use the retrieved information to correct itself, or does it insist on its wrong prior response? To answer this, we curate a dataset of over 1200 questions across six domains (e.g., drug dosages, Olympic records, locations) along with content relevant to answering each question. We further apply precise perturbations to the answers in the content that range from subtle to blatant errors. We benchmark six top-performing LLMs, including GPT-4o, on this dataset and find that LLMs are susceptible to adopting incorrect retrieved content, overriding their own correct prior knowledge over 60% of the time. However, the more unrealistic the retrieved content is (i.e. more deviated from truth), the less likely the model is to adopt it. Also, the less confident a model is in its initial response (via measuring token probabilities), the more likely it is to adopt the information in the retrieved content. We exploit this finding and demonstrate simple methods for improving model accuracy where there is conflicting retrieved content. Our results highlight a difficult task and benchmark for LLMs – namely, their ability to correctly discern when it is wrong in light of correct retrieved content and to reject cases when the provided content is incorrect. Our dataset, called ClashEval, and evaluations are open-sourced to allow for future benchmarking on top-performing models at https://github.com/kevinwu23/StanfordClashEval.\n29:<!-- page 2 -->\n35:Most commercial LLMs, like ChatGPT [OpenAI, 2023], Gemini [Gemini Team, 2023], and Perplexity.ai, already employ RAG in their Web interfaces. For example, ChatGPT employs a Bing search, whereas Gemini accesses Google Search results. While this can greatly enhance the model’s ability to answer questions, it also raises concern for when the retrieved documents or webpages contain incorrect or harmful information [Dash et al., 2023, Daws, 2020, Nastasi et al., 2023]. Indeed, examples of this behavior have already surfaced in widely deployed LLMs. For example, recent headlines showed Google’s AI Summary recommending people to \"eat rocks\" or \"put glue on their pizza\" [Hart, 2024, Williams, 2024], presumably due to erroneous or satirical webpages being retrieved. While stricter document filtering or improved retrieval may help reduce this occurrence, it by no means is a cure-all against this problem. At its core, LLMs should not blindly repeat information presented in context but should be able to arbitrate when external information conflicts with its own internal knowledge. While the aforementioned example is one in which the retrieved document is the source of error, the converse is also a significant problem: when the LLM insists on its own incorrect prior answer despite correct external information. Some studies have previously investigated the nature of this tension between a model’s internal prior knowledge and contextual information. Longpre et al. [2021] found that LLMs exhibited a strong preference for information in the training data even when facts in the context were substituted with similar but incorrect information. More recently, Xie et al. [2023] showed that models can either be highly susceptible to context or very biased towards its priors depending on how the context is framed. Our study extends these works in two important ways. First, we present a dataset that contains examples not only when the context is wrong and the model is right but the converse (where the context is right but the model is wrong). This is important since a dataset that only measures the LLM’s ability to reject wrong context can trivially excel at this task by simply always ignoring the context. Instead, our dataset uniquely tests the LLM’s ability to arbitrate between its own parametric knowledge and the contextual information to determine the most accurate response. Second, we elicit a quantitative relationship between the LLM’s preference of prior or context and two important variables: (1) the model’s confidence in its prior response (via measuring the token probabilities of the initial response), and (2) the degree to which the contextual information provided deviates from the reference answer. Measuring these two dynamics is important for understanding how models transition between choosing the prior and the context and their inherent biases towards their priors or the context.\n43:<!-- page 3 -->\n49:• We provide a systematic analysis of context preference rates across three models on (1) varying degrees of perturbation on the contextual information and (2) the token probabilities of the prior responses.\n51:• We propose a simple way to improve performance on ClashEval by incorporating token probabilities.\n71:<!-- page 4 -->\n89:<!-- page 5 -->\n101:<!-- page 6 -->\n133:<!-- page 7 -->\n141:## 4.4 Context Preference Rate vs. Prior Token Probability\n143:In Figure 4, we observe a consistent negative relationship between the token probability of the model’s prior answer and the associated RAG preference rate for all six QA datasets. To visualize an even distribution across probabilities, we bin the probabilities into ten equidistant bins in the range of [0.0, 1.0]. The slope indicates the effect of stronger model confidence on the model’s preference for the information presented in the retrieved context; we observe different slopes (ranging from -0.1 to -0.45), suggesting that the effectiveness of RAG in different QA domains can be characterized as being relatively susceptible (e.g., with Dates questions) or robust (e.g., with News questions) to the model’s internal prior knowledge confidence. Specifically, a slope of -0.45, for instance, can be interpreted as expecting a 4.5% decrease in the likelihood of the LLM preferring the contextual information for every 10% increase in the probability of the model’s prior response.\n147:<!-- page 8 -->\n149:Figure 4: We additionally observe an inverse relationship between the context preference rate (yaxis) and the model’s prior response probability (x-axis). Context preference rate is defined as the proportion of responses that align with the information presented in the prompt as context. The model’s prior response probability is computed from the average log probability of the response tokens queried without context. Each plot visualizes the prior probability (grouped into 10 bins) against the context preference rate, along with the best-fit trend line and slope. Models that allow access to token probabilities are shown.\n153:Based on our observations from the relationship between the token probabilities and the rates of preference for context, we posit that comparing token probabilities between r(q) and r(q|c) can improve the abilities of models to resolve conflicts. In Table 3, Token Probability Correction is done by comparing the mean token probabilities of the model’s response with and without context. If the probability is higher for the prior than the contextual response, then we use the model’s generation without context as its final response. Otherwise, we just use the response with context. We find that this method improves the overall accuracy of all three models with a moderate increase in the prior bias of each model. Next, we observe that the probability distributions between prior responses and context-given responses are uncalibrated, where context-given response probabilities are extremely right-tailed while prior probabilities are nearly uniform. As a simple adjustment, we compare the percentiles rather than raw probability scores of each score, or the Calibrated Token Probability Correction. We find that calibrated token probability correction improves all models’ overall accuracy by 14% and context bias by 20%. At the same time, this introduces more prior bias, from 2% to 8.5%. However, this method outperforms a baseline of randomly replacing the final response with its prior – at the same bias rate of 8.5%, the random baseline has an accuracy of 57.5% as compared to the 75.4% from the method. While this paper focuses on developing the ClashEval benchmark, these results suggest that probability calibration is a promising approach to reduce prior and context bias deserving further investigation. It also is a natural baseline for future methods.\n157:<!-- page 9 -->\n163:No correction (Baseline) 0.615 (0.595, 0.636) 0.304 (0.287, 0.321) 0.021 (0.014, 0.028) Token Probability Correction 0.693 (0.672, 0.714) 0.194 (0.177, 0.210) 0.043 (0.032, 0.053) Calibrated Token Prob. Correction 0.754 (0.733, 0.775) 0.107 (0.093, 0.122) 0.085 (0.072, 0.098)\n167:No correction (Baseline) 0.539 (0.521, 0.557) 0.313 (0.298, 0.328) 0.028 (0.021, 0.036) Token Probability Correction 0.596 (0.575, 0.616) 0.253 (0.237, 0.269) 0.056 (0.046, 0.067) Calibrated Token Prob. Correction 0.701 (0.678, 0.722) 0.110 (0.098, 0.124) 0.147 (0.132, 0.164)\n171:No correction (Baseline) 0.500 (0.483, 0.515) 0.264 (0.250, 0.279) 0.021 (0.015, 0.027) Token Probability Correction 0.556 (0.537, 0.574) 0.235 (0.220, 0.249) 0.046 (0.037, 0.055) Calibrated Token Prob. Correction 0.649 (0.627, 0.669) 0.111 (0.099, 0.122) 0.188 (0.173, 0.204)\n173:Table 3: For models which provide token probabilities, we evaluate the accuracy, context bias, and prior bias under three conditions: (1) No correction, which is the baseline result from this paper, (2) the token probability correction, and (3) the calibrated token probability correction.\n177:The ClashEval benchmark dataset and evaluations provide novel insights into how LLMs arbitrate between their own internal knowledge and contextual information when the two are in conflict. A key finding is that even the most advanced LLMs like GPT-4o exhibit a strong context bias, overriding their own correct prior knowledge over 60% of the time when presented with incorrect information in the retrieved documents. However, this bias is not absolute - the degree to which the retrieved content deviates from truth negatively correlates with the context preference rate. Interestingly, each LLM exhibits a different prior distribution over truthfulness across domains, such that the same perturbation level affects each model differently. For instance, for a given magnitude of deviation, Claude Opus adheres to incorrect contextual information 30% less often than GPT-4o. While GPT-4o achieves state-of-the-art results on general-purpose tasks, it exhibits higher context bias compared to smaller models like Claude Sonnet. This finding suggests that performance on knowledge-based benchmarks may not automatically mean it is most suitable for RAG settings. Additionally, we find that LLMs are calibrated to selectively defer to external evidence when they are less certain about a given query. However, each model differs in how well-calibrated they are. While strong priors are not inherently problematic, the lack of explicit expectations around how models will decide to use contextual information remains a risk. We propose a simple method for improving models under ClashEval, and hope that future work can improve upon this baseline. Our analyses have several key limitations. First, RAG systems can be deployed to many more domains than can be covered by our analyses. Second, to make our experiments tractable, our question-generation process is strictly fact-based and does not require multi-step logic, document synthesis, or other higher-level reasoning. Third, our dataset contains an enriched rate of contextual errors, so the reported metrics are not meant to represent bias rates in the wild. Fourth, our proposed token probability method only applies to models which provide probability outputs. Finally, even though this dataset is intended to improve an LLM’s ability to provide users with accurate information, bad actors could use such information to exploit the shortcomings of certain models described in this paper. As retrieval-augmented AI systems become increasingly prevalent, we hope our dataset and insights spur further research into improving the robustness and calibration of such models. Resolving the tension between parametric priors and retrieved information is a crucial challenge on the path to safe and trustworthy language models.\n185:<!-- page 10 -->\n195:<!-- page 11 -->\n203:<!-- page 12 -->\n213:<!-- page 13 -->\n219:<!-- page 14 -->\n247:<!-- page 15 -->\n```",
+          "tool": {
+            "name": "Bash",
+            "description": "Find calibration passages in paper text",
+            "command": "cd \"library/papers/arxiv-2404.10198\" && grep -n -i -E \"calibrat|token probab|percentile|<!-- page\" text.md | head -80"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_011eSPRudkirHop5wYcV2bqd",
+          "title": "sed -n 157,172p \"library/papers/arxiv-2404.10198/text.md\"",
+          "kind": "execute",
+          "status": "completed",
+          "content": "```console\n<!-- page 9 -->\n\nModel Correction Accuracy ↑ Context Bias ↓ Prior Bias ↓\n\nGPT-4o\n\nNo correction (Baseline) 0.615 (0.595, 0.636) 0.304 (0.287, 0.321) 0.021 (0.014, 0.028) Token Probability Correction 0.693 (0.672, 0.714) 0.194 (0.177, 0.210) 0.043 (0.032, 0.053) Calibrated Token Prob. Correction 0.754 (0.733, 0.775) 0.107 (0.093, 0.122) 0.085 (0.072, 0.098)\n\nGPT-3.5\n\nNo correction (Baseline) 0.539 (0.521, 0.557) 0.313 (0.298, 0.328) 0.028 (0.021, 0.036) Token Probability Correction 0.596 (0.575, 0.616) 0.253 (0.237, 0.269) 0.056 (0.046, 0.067) Calibrated Token Prob. Correction 0.701 (0.678, 0.722) 0.110 (0.098, 0.124) 0.147 (0.132, 0.164)\n\nLlama-3\n\nNo correction (Baseline) 0.500 (0.483, 0.515) 0.264 (0.250, 0.279) 0.021 (0.015, 0.027) Token Probability Correction 0.556 (0.537, 0.574) 0.235 (0.220, 0.249) 0.046 (0.037, 0.055) Calibrated Token Prob. Correction 0.649 (0.627, 0.669) 0.111 (0.099, 0.122) 0.188 (0.173, 0.204)\n```",
+          "tool": {
+            "name": "Bash",
+            "description": "Show Table 3 model labels",
+            "command": "sed -n 157,172p \"library/papers/arxiv-2404.10198/text.md\""
+          }
+        },
+        {
+          "type": "text",
+          "text": "Mei, here's the short version from [Wu et al. 2024](owlit://library/arxiv-2404.10198#p8).\n\n**How it decides:** The model answers each question twice, once without the document (its prior) and once with it. Each answer gets a confidence score, the mean probability of its tokens. The two scores aren't directly comparable: with-document probabilities sit almost all near the top, while prior probabilities are spread nearly evenly. So the calibrated method turns each score into a percentile within its own distribution and compares those. If the prior answer's percentile is higher, the model's own answer wins; otherwise the answer that uses the document wins. The uncalibrated version compares the raw probabilities instead.\n\n**How much it helps** (Table 3, [p. 9](owlit://library/arxiv-2404.10198#p9)):\n\n| Model | Accuracy | Context bias | Prior bias |\n|---|---|---|---|\n| GPT-4o | 0.615 → 0.754 | 0.304 → 0.107 | 0.021 → 0.085 |\n| GPT-3.5 | 0.539 → 0.701 | 0.313 → 0.110 | 0.028 → 0.147 |\n| Llama-3 | 0.500 → 0.649 | 0.264 → 0.111 | 0.021 → 0.188 |\n\nContext bias means following a wrong document; prior bias means keeping a wrong answer of its own. The paper sums this up as about +14% accuracy and about −20% context bias, at the cost of more prior bias. On GPT-4o, prior bias goes from about 2% to 8.5%. The uncalibrated version helps less (GPT-4o: 0.693 accuracy).\n\nIt isn't just the effect of sometimes falling back to the prior. Randomly replacing GPT-4o's answer with its prior, at the same 8.5% prior bias, gives only 57.5% accuracy, against 75.4% for the method. One limit: it only works with models that expose token probabilities.",
+          "messageId": "msg_011CfzMu6KMSr6YYfbA56pvx"
+        }
+      ],
+      "status": "done",
+      "connectorId": "claude-code",
+      "modelId": "opus",
+      "finishedAt": 1791900209603
+    }
+  ]
+}

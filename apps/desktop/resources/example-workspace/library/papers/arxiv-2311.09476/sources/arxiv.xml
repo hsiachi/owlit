@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/YUXw83KZ/nZkJa6aMQJezucNRhk</id>
+  <title>arXiv Query: search_query=&amp;id_list=2311.09476&amp;start=0&amp;max_results=10</title>
+  <updated>2026-10-13T12:55:29Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=2311.09476" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2311.09476v2</id>
+    <title>ARES: An Automated Evaluation Framework for Retrieval-Augmented Generation Systems</title>
+    <updated>2024-03-31T20:58:46Z</updated>
+    <link href="https://arxiv.org/abs/2311.09476v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2311.09476v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Evaluating retrieval-augmented generation (RAG) systems traditionally relies on hand annotations for input queries, passages to retrieve, and responses to generate. We introduce ARES, an Automated RAG Evaluation System, for evaluating RAG systems along the dimensions of context relevance, answer faithfulness, and answer relevance. By creating its own synthetic training data, ARES finetunes lightweight LM judges to assess the quality of individual RAG components. To mitigate potential prediction errors, ARES utilizes a small set of human-annotated datapoints for prediction-powered inference (PPI). Across eight different knowledge-intensive tasks in KILT, SuperGLUE, and AIS, ARES accurately evaluates RAG systems while using only a few hundred human annotations during evaluation. Furthermore, ARES judges remain effective across domain shifts, proving accurate even after changing the type of queries and/or documents used in the evaluated RAG systems. We make our code and datasets publicly available on Github.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-11-16T00:39:39Z</published>
+    <arxiv:comment>NAACL 2024</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Jon Saad-Falcon</name>
+    </author>
+    <author>
+      <name>Omar Khattab</name>
+    </author>
+    <author>
+      <name>Christopher Potts</name>
+    </author>
+    <author>
+      <name>Matei Zaharia</name>
+    </author>
+  </entry>
+</feed>

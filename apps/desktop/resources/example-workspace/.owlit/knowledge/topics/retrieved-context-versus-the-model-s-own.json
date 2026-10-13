@@ -1,0 +1,62 @@
+{
+  "seenAt": 1791901168302,
+  "history": [
+    {
+      "id": "a7907a71",
+      "at": 1791901168302,
+      "by": "owlit",
+      "why": "You asked how ClashEval's calibrated method chooses between the document and the model's own answer, and you highlighted ReDeEP's account of why models override correct documents, so a new topic now sets the two side by side.",
+      "lineId": "s5",
+      "what": "Added"
+    },
+    {
+      "id": "4dfa6b2c",
+      "at": 1791901168302,
+      "by": "owlit",
+      "why": "You asked how ClashEval's calibrated method chooses between the document and the model's own answer, and you highlighted ReDeEP's account of why models override correct documents, so a new topic now sets the two side by side.",
+      "lineId": "s4",
+      "what": "Added"
+    },
+    {
+      "id": "a9411850",
+      "at": 1791901168302,
+      "by": "owlit",
+      "why": "You asked how ClashEval's calibrated method chooses between the document and the model's own answer, and you highlighted ReDeEP's account of why models override correct documents, so a new topic now sets the two side by side.",
+      "lineId": "s3",
+      "what": "Added"
+    },
+    {
+      "id": "703378a8",
+      "at": 1791901168302,
+      "by": "owlit",
+      "why": "You asked how ClashEval's calibrated method chooses between the document and the model's own answer, and you highlighted ReDeEP's account of why models override correct documents, so a new topic now sets the two side by side.",
+      "lineId": "s2",
+      "what": "Added"
+    },
+    {
+      "id": "5cd2e2cf",
+      "at": 1791901168302,
+      "by": "owlit",
+      "why": "You asked how ClashEval's calibrated method chooses between the document and the model's own answer, and you highlighted ReDeEP's account of why models override correct documents, so a new topic now sets the two side by side.",
+      "lineId": "s1",
+      "what": "Added"
+    },
+    {
+      "id": "56176623",
+      "at": 1791901168302,
+      "by": "owlit",
+      "why": "You asked how ClashEval's calibrated method chooses between the document and the model's own answer, and you highlighted ReDeEP's account of why models override correct documents, so a new topic now sets the two side by side.",
+      "what": "Started"
+    }
+  ],
+  "edits": {},
+  "removed": {},
+  "said": {},
+  "changedAt": {
+    "s1": 1791901168302,
+    "s2": 1791901168302,
+    "s3": 1791901168302,
+    "s4": 1791901168302,
+    "s5": 1791901168302
+  }
+}

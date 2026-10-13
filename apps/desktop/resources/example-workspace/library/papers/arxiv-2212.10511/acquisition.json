@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "result": "ok",
+  "route": "arxiv",
+  "tried": [
+    {
+      "route": "arxiv",
+      "url": "https://arxiv.org/pdf/2212.10511",
+      "status": 200,
+      "at": 1791899439350
+    }
+  ],
+  "at": 1791899439351,
+  "dropHere": "library/papers/arxiv-2212.10511/paper.pdf",
+  "sha256": "6de64bcf9b199ae034a09f7e3c407ee6eb0af2bb866335a33445cee95ba1ac38"
+}
