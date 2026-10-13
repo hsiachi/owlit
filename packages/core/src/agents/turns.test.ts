@@ -212,6 +212,22 @@ describe("turns", () => {
     expect(saved.parts[0].tool).toEqual({ name: "Bash", command: "ls", description: "List the folder" })
   })
 
+  it("shows a Write over a file as what it replaces, and a Write of a new file as new", async () => {
+    const { send, updates, call } = await setup()
+    const diffOf = async (text: string) => {
+      updates.length = 0
+      const turn = send(text)
+      while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+      const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
+      const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === ask.toolCallId) as Extract<SessionUpdate, { type: "tool_call" }>
+      await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
+      await turn
+      return asked.diff
+    }
+    expect(await diffOf("rewrite notes.md thirteen chars")).toEqual({ path: "notes.md", oldText: "twelve chars", newText: "thirteen chars" })
+    expect(await diffOf("rewrite fresh.md new words")).toEqual({ path: "fresh.md", oldText: "", newText: "new words" })
+  })
+
   it("shows the agent's questions and passes on the answer, or a skip", async () => {
     const { send, updates, call, text } = await setup()
     let turn = send("a question for you")

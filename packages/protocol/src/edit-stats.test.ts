@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { editStats, HUNK_GAP, words } from "./edit-stats.ts"
+import { diffParts, editStats, HUNK_GAP, words } from "./edit-stats.ts"
 
 describe("edit stats", () => {
   it("reads each CJK character and each run of letters or digits as a word", () => {
@@ -21,6 +21,16 @@ describe("edit stats", () => {
 
   it("counts other files in lines, and the gap between parts of an edit as nothing", () => {
     expect(editStats("a.ts", `a\nb\n${HUNK_GAP}\nc`, `a\nB\n${HUNK_GAP}\nc\nd`)).toEqual({ unit: "lines", added: 2, removed: 1, rewritten: false })
+  })
+
+  it("splits a diff of several parts back into them", () => {
+    expect(diffParts(`a\n${HUNK_GAP}\nc`, `A\n${HUNK_GAP}\nC`)).toEqual([
+      { oldText: "a", newText: "A" },
+      { oldText: "c", newText: "C" },
+    ])
+    expect(diffParts("a", "A")).toEqual([{ oldText: "a", newText: "A" }])
+    // Sides that don't split alike stay one diff
+    expect(diffParts(`a\n${HUNK_GAP}\nc`, "A")).toEqual([{ oldText: `a\n${HUNK_GAP}\nc`, newText: "A" }])
   })
 
   it("calls a doc rewritten once more than half its words went", () => {

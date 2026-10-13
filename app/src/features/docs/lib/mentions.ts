@@ -8,6 +8,7 @@ import { whenReaderReady } from "@/features/library/reader/reader-store"
 import { fileAt, useDocsStore } from "../store"
 import { knowledgeMentionables, knowledgeRoute, knowledgeTitle } from "@/features/knowledge/mentions"
 import { isHidden } from "./tree"
+import { useWorkspace } from "@/lib/workspace"
 import { displayName, docUri, isMarkdown, parentPath, type WorkspaceFile } from "../types"
 
 // What a mention says in prose. A paper is cited the way a writer would: "Vaswani et al. 2017".
@@ -69,6 +70,42 @@ export function mentionRoute(uri: string): string | null {
   if (u?.kind !== "doc") return null
   const file = fileAt(u.path)
   return file ? `/docs/${file.id}` : null
+}
+
+// macOS's /tmp, /var and /etc are links into /private: core holds the real path, an agent may write
+// either
+const macAliases = (root: string) => {
+  const m = /^(?:\/private)?(\/(?:tmp|var|etc)\/.*)$/.exec(root)
+  return m ? [m[1], `/private${m[1]}`] : []
+}
+
+// A link an agent wrote to a file of the workspace by its path (absolute, file://, or from the
+// workspace's folder, maybe with a :line after it), as that file's owlit:// address, so it opens here
+// rather than in the browser; null for a web link or a path that names nothing in the workspace
+export function docUriOfLink(href: string): string | null {
+  let path: string
+  if (/^file:\/\//i.test(href)) {
+    try {
+      path = decodeURIComponent(new URL(href).pathname)
+    } catch {
+      return null
+    }
+  } else if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith("#")) return null
+  else {
+    path = href.replace(/[?#].*$/, "")
+    try {
+      path = decodeURIComponent(path)
+    } catch {
+      // Left as written
+    }
+  }
+  path = path.replace(/:\d+(?::\d+)?$/, "")
+  const root = useWorkspace.getState().current?.path
+  const inside = root && [root, ...macAliases(root)].find((r) => path.startsWith(`${r}/`))
+  if (inside) path = path.slice(inside.length + 1)
+  else if (path.startsWith("/")) return null
+  const file = fileAt(path.replace(/^\.\//, ""))
+  return file ? docUri(file.path) : null
 }
 
 // The name a mention shows when its text is empty

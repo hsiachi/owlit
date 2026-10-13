@@ -8,11 +8,12 @@ import remarkMath from "remark-math"
 import { cn } from "@/lib/utils"
 import { appLinkTitle, openAppLink } from "@/app/app-links"
 import { useOpenFromChat } from "@/features/agent/hooks"
-import { mentionTooltip, openMention } from "@/features/docs/lib/mentions"
+import { docUriOfLink, mentionTooltip, openMention } from "@/features/docs/lib/mentions"
 import { MentionToken } from "@/components/mention/mention-token"
 
-// The default sanitizer drops unknown schemes; keep owlit:// so workspace references survive
-const urlTransform = (url: string) => (url.startsWith("owlit://") ? url : defaultUrlTransform(url))
+// The default sanitizer drops unknown schemes; keep owlit:// so workspace references survive, and file://
+// so a doc linked by its file is found (it is never rendered as a link)
+const urlTransform = (url: string) => (url.startsWith("owlit://") || /^file:\/\//i.test(url) ? url : defaultUrlTransform(url))
 
 // Math as docs draw it: $…$ inline, and $$…$$ as a block, also when it sits alone on one line (which
 // remark-math would read as inline). A $ before a digit stays money ("$5 and $10"). Code is left as it is.
@@ -80,15 +81,20 @@ export function Markdown({ text, className, components, prepare }: { text: strin
           },
           // Workspace references look the same as the user's @-mentions, which are plain text: an agent
           // may still format inside the link ("[Lam et al., *Concept Induction*](owlit://…)"). The tooltip
-          // says what the click does, which the text of a page link ("p5") doesn't
-          a: ({ href, children }) =>
-            href?.startsWith("owlit://") ? (
-              <MentionToken label={textOf(children)} title={appLinkTitle(href) ?? mentionTooltip(href) ?? textOf(children)} onClick={() => open(href)} />
-            ) : (
+          // says what the click does, which the text of a page link ("p5") doesn't. A doc linked by its
+          // file's path (agents are given docs as files) is the same reference. Only web links leave the
+          // app; a path to anything else has nowhere to open, so it reads as words.
+          a: ({ href, children }) => {
+            const uri = href?.startsWith("owlit://") ? href : href ? docUriOfLink(href) : null
+            if (uri) return <MentionToken label={textOf(children)} title={appLinkTitle(uri) ?? mentionTooltip(uri) ?? textOf(children)} onClick={() => open(uri)} />
+            if (href?.startsWith("#")) return <a href={href}>{children}</a>
+            if (!href || !/^https?:/i.test(href)) return <span title={href}>{children}</span>
+            return (
               <a href={href} target="_blank" rel="noreferrer">
                 {children}
               </a>
-            ),
+            )
+          },
           ...components,
         }}
       >

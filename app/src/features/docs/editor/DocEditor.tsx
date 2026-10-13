@@ -5,7 +5,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { Compartment, EditorSelection, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { useAgentWindow } from "@/features/agent/store"
-import { useShowsEditsInPlace } from "@/features/chat/in-place"
+import { drawnEdits } from "@/features/chat/in-place"
 import { reportDocEdited } from "@/app/activity"
 import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
@@ -76,9 +76,6 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   useEffect(() => {
     navigateRef.current = navigate
   }, [navigate])
-  // Owlit's proposed edits to this doc are answered here, so the chat's card points at the doc
-  useShowsEditsInPlace(file.path)
-
   // One editor per doc. Its text is the file's text; every change is written back shortly after typing stops.
   useEffect(() => {
     const id = file.id
@@ -96,6 +93,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     }
     // Passages edited while the doc was open are saved as they read now, so their notes find them next time
     let saveNotePlaces = () => {}
+    // Owlit's proposed edits drawn in the doc are answered here, so the chat's card points at the doc
+    const setDrawn = drawnEdits()
 
     const saved = lastSelection.get(id)
     // A doc deleted on disk while open can still be read and copied, not edited
@@ -127,7 +126,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           }),
           mentionPopup(() => allDocMentions(id)),
           selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from)),
-          agentSuggestions(respondToEdit),
+          agentSuggestions(respondToEdit, setDrawn),
           agentNotes({
             onOpen: (noteId) => useDocsUiStore.getState().setOpenNote(id, noteId),
             onChat: (note) => {
@@ -220,6 +219,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       unregisterAsk()
       flush()
       unsubscribe()
+      setDrawn([])
       unsubscribeNotes()
       unsubscribeOpen()
       unsubscribeMissing()

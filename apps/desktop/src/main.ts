@@ -146,7 +146,8 @@ function createWindow() {
   attachTextMenu(win)
   // A link meant for a new window (a key's sign-up page, a paper's DOI) opens in the user's browser
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+    // A relative link resolves to owlit's own page (the dev server's address is a web one): never the browser's
+    if (/^https?:\/\//.test(url) && !isOwnPage(url)) void shell.openExternal(url)
     return { action: "deny" }
   })
   // The window only ever shows owlit's own page: anything else would get the preload's bridge to core
