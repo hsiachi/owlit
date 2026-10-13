@@ -1,0 +1,22 @@
+{
+  "name": "@owlit/cli",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "bin": { "owlit": "./src/main.ts" },
+  "scripts": {
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@owlit/client": "workspace:*",
+    "@owlit/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@owlit/core": "workspace:*",
+    "@types/node": "^24.13.3",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vitest": "5.0.2"
+  }
+}

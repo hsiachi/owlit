@@ -243,6 +243,9 @@ importers:
       '@owlit/agent':
         specifier: workspace:*
         version: link:../../packages/owlit-agent
+      '@owlit/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@owlit/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -273,6 +276,31 @@ importers:
       typescript:
         specifier: ~6.0.2
         version: 6.0.3
+
+  packages/cli:
+    dependencies:
+      '@owlit/client':
+        specifier: workspace:*
+        version: link:../client
+      '@owlit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+    devDependencies:
+      '@owlit/core':
+        specifier: workspace:*
+        version: link:../core
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.19.1
+      oxlint:
+        specifier: ^1.81.0
+        version: 1.87.0
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: 5.0.2
+        version: 5.0.2(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/client:
     dependencies:
