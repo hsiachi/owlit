@@ -21,6 +21,7 @@ import { WelcomePage } from "@/features/welcome/WelcomePage"
 import { isDesktop } from "@/lib/rpc"
 import { useNeedsWelcome, useWorkspace } from "@/lib/workspace"
 import { useChatNotifications } from "@/features/chat/use-notify"
+import { useDigestNotices } from "@/features/library/digests"
 // Serves workspace files to agents (ACP fs/*), so it is in place before any chat runs
 import "@/features/docs/fs"
 // Serves Knowledge to agents the same way
@@ -52,6 +53,7 @@ function AppShell() {
   useSettingsShortcut()
   useShortcutsShortcut()
   useChatNotifications()
+  useDigestNotices()
   const controlsRoom = useControlsRoom((s) => s.room)
 
   return (

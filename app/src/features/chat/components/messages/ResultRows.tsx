@@ -9,6 +9,7 @@ import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
+import { useDigestRows } from "@/features/library/digest-rows"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import type { ChatMessage } from "../../types"
 import { undoResult, useResultsStore, type AgentResult } from "../../results"
@@ -17,7 +18,7 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { capital, joinAnd, plural } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
+// notes left, Knowledge updated, digests asked for (followed until written). A row goes to what it names, in the main view rather than opening
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
 // of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
@@ -32,7 +33,7 @@ export interface ResultRow {
   view?: () => void
   undo?: () => Promise<void> | void
   // For the summary line: what kind of change, and how much an edit changed
-  kind: "doc" | "paper" | "note" | "knowledge"
+  kind: "doc" | "paper" | "note" | "knowledge" | "digest"
   stats?: EditStats
   // An edited file that is one of the user's Markdown docs
   markdown?: boolean
@@ -168,6 +169,7 @@ function summary(rows: ResultRow[]) {
     removed(rows) && `removed ${count(removed(rows), "a paper", "papers")}`,
     n("note") && `left notes on ${count(n("note"), "a doc", "docs")}`,
     n("knowledge") && `updated ${count(n("knowledge"), "a topic", "topics")}`,
+    n("digest") && `asked for ${count(n("digest"), "a digest", "digests")}`,
   ].filter(Boolean) as string[]
   return capital(joinAnd(said))
 }
@@ -204,7 +206,7 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
 }
 
 export function ResultCard({ message }: { message: ChatMessage }) {
-  const rows = [...useResultRows(message), ...useKnowledgeRows(message.parts)]
+  const rows = [...useResultRows(message), ...useKnowledgeRows(message.parts), ...useDigestRows(message.parts)]
   const [all, setAll] = useState(false)
   if (!rows.length) return null
   const live = rows.filter((r) => !r.undone && r.undo)

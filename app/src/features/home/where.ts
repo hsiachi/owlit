@@ -26,6 +26,8 @@ export interface Place {
   words?: string
   // What the time means for this kind ("edited", "read")
   did: string
+  // A paper's id, for the marks it can carry (a new digest)
+  paperId?: string
 }
 
 // The paragraph around an offset: the run of non-blank lines that holds it
@@ -105,6 +107,7 @@ export function usePlaces(): Place[] {
         to: `/library/${p.id}`,
         words: mark?.words,
         did: "read",
+        paperId: p.id,
       })
     }
     return out

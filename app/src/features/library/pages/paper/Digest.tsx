@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { askAboutPassage } from "../../actions"
+import { retryDigest, showingDigest, useDigestFailed, useDigestMarks, waitForDigest } from "../../digests"
 import type { Paper } from "../../types"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: most of the time
@@ -25,6 +26,7 @@ export function useWritingDigest(paperId: string) {
 
 export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page: number) => void }) {
   const writing = useWritingDigest(paper.id)
+  const failed = useDigestFailed(paper.id)
   const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[] } | null>(null)
 
   // Read again whenever the digest may have changed: written, rewritten, or gone
@@ -41,12 +43,38 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
 
   // A digest fetched for another paper, or for one that has since lost it, isn't shown
   const text = paper.hasDigest && digest?.paperId === paper.id ? digest.text : null
+
+  // Seeing it being written is waiting for it: the user hears when it is done, wherever they went
+  useEffect(() => {
+    if (writing) waitForDigest(paper.id)
+  }, [paper.id, writing])
+  // On screen a moment, the digest has been seen: its mark leaves the paper's row and switch
+  const shown = !!text && !writing
+  useEffect(() => {
+    if (!shown) return
+    const hide = showingDigest(paper.id)
+    const timer = setTimeout(() => useDigestMarks.getState().markSeen(paper.id), SEEN_AFTER_MS)
+    return () => {
+      hide()
+      clearTimeout(timer)
+    }
+  }, [paper.id, shown, paper.digestAt])
+
   if (!text) {
     return (
       <Column paperId={paper.id}>
-        <p className="flex items-center gap-2 text-detail text-muted-foreground">
-          {writing ? <span className="shimmer">Owlit is reading this paper…</span> : paper.hasDigest && <Spinner />}
-        </p>
+        {writing ? (
+          <>
+            <p className="text-detail text-muted-foreground">
+              <span className="shimmer">Owlit is reading this paper…</span>
+            </p>
+            <p className="mt-1 text-detail text-muted-foreground">You can keep reading. Owlit will let you know when it's ready.</p>
+          </>
+        ) : failed ? (
+          <Stopped paper={paper} />
+        ) : (
+          paper.hasDigest && <Spinner />
+        )}
       </Column>
     )
   }
@@ -55,7 +83,7 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
       <p className="text-detail text-muted-foreground">
         {writing ? <span className="shimmer">Owlit is reading this paper again…</span> : <>Digest · Owlit{paper.digestAt ? `, ${ago(paper.digestAt, { inSentence: true })}` : ""}</>}
       </p>
-      {paper.digestOutdated && !writing && <Outdated paper={paper} />}
+      {failed && !writing ? <Stopped paper={paper} again /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown
         text={withoutTitle(text)}
         prepare={linkPages}
@@ -173,6 +201,29 @@ function Column({ paperId, children }: { paperId: string; children: ReactNode })
         )}
       </div>
     </div>
+  )
+}
+
+// How long a digest is on screen before it counts as seen
+const SEEN_AFTER_MS = 1000
+
+// The last run broke: said in words, with Retry. Again when it was a rewrite and the old digest stays.
+function Stopped({ paper, again }: { paper: Paper; again?: boolean }) {
+  const [asked, setAsked] = useState(false)
+  const retry = () => {
+    setAsked(true)
+    void retryDigest(paper).catch(() => {
+      setAsked(false)
+      toast.error("Couldn't ask for the digest again.")
+    })
+  }
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-x-2 text-detail text-muted-foreground">
+      {again ? "Owlit couldn't write this digest again." : "Owlit couldn't write a digest of this paper."}
+      <Button variant="ghost" size="sm" className="-ml-1 h-6 px-1.5 text-detail font-normal text-foreground" disabled={asked} onClick={retry}>
+        Retry
+      </Button>
+    </p>
   )
 }
 

@@ -8,6 +8,7 @@ import { SegmentedControl } from "@/components/segmented-control"
 import { useAgentWindow } from "@/features/agent/store"
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
+import { useDigestState } from "../digests"
 import { visiblePapers } from "../lib/filter"
 import { useTakeParam } from "../lib/use-take-param"
 import { notePathOf } from "../notes/note-actions"
@@ -72,6 +73,7 @@ export function PaperPage() {
   // The digest or the PDF. A paper with a digest opens on it, since most of the time the digest is
   // enough; the choice holds until the next paper.
   const writing = useWritingDigest(paperId)
+  const digestState = useDigestState(paper ?? NO_PAPER)
   const [chosen, setChosen] = useState<{ paperId: string; view: PaperView } | null>(null)
   const hasDigest = !!paper?.hasDigest
   const view: PaperView = chosen?.paperId === paperId ? chosen.view : hasDigest ? "digest" : "pdf"
@@ -111,8 +113,11 @@ export function PaperPage() {
   if (!paper) return <NotFound title="This paper is not in the library" detail="It may have been removed." back={{ label: "Back to library", to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
-  // Only once there is a digest, or one on its way, is there anything to choose
-  const choosing = hasDigest || writing
+  // Only once there is a digest, or one on its way, is there anything to choose; a run that broke keeps
+  // the switch, so its Retry stays where the user looked for the digest
+  const choosing = hasDigest || writing || digestState === "failed"
+  // A digest that arrived while the PDF was being read: Owlit's dot on the switch until it is seen
+  const views = VIEWS.map((v) => (v.value === "digest" && view === "pdf" && digestState === "new" ? { ...v, dot: true } : v))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -120,7 +125,7 @@ export function PaperPage() {
           title too: the header is where the page says where you are, and a trail ending at Library read
           as being on the Library, with the digest under it showing no title of its own */}
       <PageHeader trail={[{ label: "Library", to: "/library" }]} current={paper.title}>
-        {choosing && <SegmentedControl label="Show" value={view} onChange={showView} options={VIEWS} className="mr-2" />}
+        {choosing && <SegmentedControl label="Show" value={view} onChange={showView} options={views} className="mr-2" />}
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">
             {idx + 1} of {order.length}
@@ -158,6 +163,9 @@ export function PaperPage() {
     </div>
   )
 }
+
+// Hooks run before a missing paper's Not found
+const NO_PAPER = { id: "", hasDigest: false } as Paper
 
 type PaperView = "digest" | "pdf"
 const VIEWS: { value: PaperView; label: string }[] = [

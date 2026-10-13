@@ -6,7 +6,9 @@ import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
+import { NoteDot } from "@/components/marks"
 import { Unfold } from "@/components/unfold"
+import { useDigestState, type DigestState } from "../digests"
 import type { PaperGroup } from "../lib/filter"
 import { paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { STATUS_LABEL } from "../lib/status"
@@ -84,11 +86,30 @@ function TextSnippet({ text, className }: { text: string; className?: string }) 
   )
 }
 
+// Where the paper's digest stands, on the ladder of states: breathing while Owlit writes it, Owlit's dot
+// once it is new since the user looked, red when the run broke (the row says so in words too)
+function DigestMark({ state }: { state: DigestState }) {
+  if (state === "writing")
+    return (
+      <span role="img" aria-label="Writing the digest" title="Writing the digest" className="size-2 shrink-0 animate-ring-breathe rounded-full bg-muted-foreground motion-reduce:animate-none" />
+    )
+  if (state === "new") return <NoteDot label="New digest" />
+  if (state === "failed") return <span role="img" aria-label="Digest stopped" title="Digest stopped" className="size-2 shrink-0 rounded-full bg-destructive" />
+  return null
+}
+
 // The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
-// while it is being read. Every row has the slot, so titles start at one place and the ring comes or goes
-// without moving the row.
-function PaperStatusMark({ paper }: { paper: Paper }) {
+// while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
+// one place and the ring comes or goes without moving the row.
+function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState }) {
   const label = paper.status === "reading" ? "Reading" : undefined
+  if (digest) {
+    return (
+      <span className="grid size-4 shrink-0 place-items-center">
+        <DigestMark state={digest} />
+      </span>
+    )
+  }
   return (
     <span className="grid size-4 shrink-0 place-items-center" title={label}>
       {paper.status === "reading" && (
@@ -101,15 +122,17 @@ function PaperStatusMark({ paper }: { paper: Paper }) {
 
 function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[]; open: (id: string) => void; snippet?: string }) {
   const { selected, handlers } = useRowHandlers(paper, order, open)
+  const digest = useDigestState(paper)
   return (
     <RowMenu id={paper.id}>
       <PaperRow
         {...handlers}
         className={cn(selected && "bg-accent hover:bg-accent")}
-        mark={<PaperStatusMark paper={paper} />}
+        mark={<PaperStatusMark paper={paper} digest={digest} />}
         title={paper.title}
-        // A publisher waiting on the user says so in words, first among the row's details
-        meta={[paper.noPdf?.needs && "Needs you", paperMeta(paper)].filter(Boolean).join(" · ")}
+        // A publisher waiting on the user, or a digest that stopped, says so in words, first among the
+        // row's details
+        meta={[paper.noPdf?.needs && "Needs you", digest === "failed" && "Digest stopped", paperMeta(paper)].filter(Boolean).join(" · ")}
         slot={<RowSlot paper={paper} />}
         below={snippet && <TextSnippet text={snippet} className="pr-14 pl-7" />}
       />
@@ -207,6 +230,7 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
 
 function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; order: string[]; open: (id: string) => void; columns: Set<ColumnKey>; snippet?: string }) {
   const { selected, handlers } = useRowHandlers(paper, order, open)
+  const digest = useDigestState(paper)
   // Square cells with a hairline under each row (none under the last), as in answer tables
   const td = cn("h-9 truncate border-b px-2.5 text-detail text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
   const venue = paper.venue && shortVenue(paper.venue)
@@ -218,6 +242,8 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
         <td className={cn(td, "text-sm text-foreground", muted && "text-muted-foreground")}>
           <span className="flex items-center gap-2">
             <span className="truncate">{paper.title}</span>
+            {/* The table has no status slot: the digest's mark follows the title, as the star does */}
+            <DigestMark state={digest} />
             {paper.starred && <StarMark />}
           </span>
           {snippet && <TextSnippet text={snippet} className="max-w-xl pb-1.5" />}
@@ -246,6 +272,8 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
             {/* A publisher waiting on the user says so before the reading status, as the list row does */}
             {paper.noPdf?.needs ? (
               "Needs you"
+            ) : digest === "failed" ? (
+              "Digest stopped"
             ) : paper.status === "unread" ? (
               ""
             ) : (
