@@ -17,7 +17,7 @@ export const OWLIT_TOOLS: Record<string, string> = {
   library_journal: "List a journal's papers",
   library_add: "Add papers to your Library",
   library_remove: "Remove papers from your Library",
-  library_request_digest: "Ask for a reading note",
+  library_request_digest: "Ask for a digest",
   docs_list: "List your docs",
   docs_read: "Read a doc",
   docs_add_note: "Leave a note on a doc",

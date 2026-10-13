@@ -84,7 +84,7 @@ export class Core {
   private readonly http: Http
   private readonly background: Background
   private socket: SocketServer | null = null
-  // The note language the system's own language means: reading notes are written in it until
+  // The note language the system's own language means: digests are written in it until
   // Settings says otherwise
   private readonly systemLanguage: string
 
@@ -134,7 +134,7 @@ export class Core {
       userName: async () => (await this.settings.get()).profile.name,
     })
     this.background = new Background(this.agents)
-    // Opening a paper's page says the user is about to read it: its reading note comes first
+    // Opening a paper's page says the user is about to read it: its digest comes first
     this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
     // What the user does feeds Knowledge: a run once things have been quiet for a while
     this.activity.subscribe(["doc.edited", "chat.sent", "chat.ended", "highlight.added", "note.edited", "paper.closed", "knowledge.edited"], (event) =>

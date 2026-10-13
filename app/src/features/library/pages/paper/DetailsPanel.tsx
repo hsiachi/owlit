@@ -141,7 +141,7 @@ function About({ paper }: { paper: Paper }) {
   )
 }
 
-// The abstract. With a reading note on the page, the note says more, so the abstract folds to its first
+// The abstract. With a digest on the page, the note says more, so the abstract folds to its first
 // lines until asked for.
 function Abstract({ text, folded }: { text: string; folded: boolean }) {
   const [open, setOpen] = useState(false)

@@ -36,7 +36,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "library_read",
     description:
-      "Read a paper. part=text is its full text as Markdown with <!-- page N --> before each page: ask for pages ('3', '3-5', '2,7') or a section (a word from its heading) rather than all of it. part=digest is the reading note an agent wrote; part=note is the user's own note.",
+      "Read a paper. part=text is its full text as Markdown with <!-- page N --> before each page: ask for pages ('3', '3-5', '2,7') or a section (a word from its heading) rather than all of it. part=digest is the digest an agent wrote; part=note is the user's own note.",
     inputSchema: {
       type: "object",
       properties: {
@@ -132,7 +132,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "library_request_digest",
     description:
-      "Have Owlit write a reading note for a paper (one you just added, say): it reads the full text and its figures in the background, in the user's language, and the note appears on the paper's page. Nothing happens when the paper already has one. Read a note with library_read part=digest.",
+      "Have Owlit write a digest for a paper (one you just added, say): it reads the full text and its figures in the background, in the user's language, and the digest appears on the paper's page. Nothing happens when the paper already has one. Read one with library_read part=digest.",
     inputSchema: {
       type: "object",
       properties: { id },

@@ -52,7 +52,7 @@ const ROLES: Record<Role, string> = {
   reviewer: `# Your role in this chat: Reviewer
 Read and answer. Leave comments in a doc's margin with docs_add_note. Don't change the user's files or library; when a change would help, describe it in your answer and say they can pick Assistant or Co-author in the composer to have you make it.`,
   assistant: `# Your role in this chat: Assistant
-You may add papers the user asked for and keep reading notes. Each edit to the user's files is shown to them in place and they apply it themselves, so make edits with edit_file or write_file and expect some to be declined: if one is, don't make the change another way; ask what they want instead. Delete or move docs with docs_delete and docs_move.`,
+You may add papers the user asked for and keep digests. Each edit to the user's files is shown to them in place and they apply it themselves, so make edits with edit_file or write_file and expect some to be declined: if one is, don't make the change another way; ask what they want instead. Delete or move docs with docs_delete and docs_move.`,
   coauthor: `# Your role in this chat: Co-author
 You may edit the user's docs without asking; owlit keeps every change so they can undo it. Still change only what the task needs, and say what you changed.`,
 }

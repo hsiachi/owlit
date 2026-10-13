@@ -7,8 +7,8 @@ import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
 
 // What Owlit calls you, the work it does when nobody is waiting, and what it remembers of how you work.
-// The agent for background work sits here rather than under Agents: people come to change their reading
-// notes, and which agent writes them is part of that.
+// The agent for background work sits here rather than under Agents: people come to change their digests,
+// and which agent writes them is part of that.
 export function OwlitSection() {
   return (
     <>
@@ -47,7 +47,7 @@ function NameRow() {
   )
 }
 
-// Work nobody is waiting on: reading notes, and keeping Knowledge up to date
+// Work nobody is waiting on: digests, and keeping Knowledge up to date
 function BackgroundWork() {
   const connectors = useChatStore((s) => s.connectors)
   const view = useSettings((s) => s.view)
@@ -74,30 +74,30 @@ function BackgroundWork() {
     <List>
       <Row
         name="Agent"
-        help="Writes reading notes and keeps Knowledge up to date."
+        help="Writes digests and keeps Knowledge up to date."
         control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (
         <Row
           name="Model"
-          info="A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
+          info="A smaller one costs less. Digests come out best from the strongest: it catches what a paper doesn't support."
           control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
         />
       )}
       <LanguageRow />
       <Row
-        name="Reading notes for every paper"
+        name="Digests for every paper"
         help="Otherwise only for papers you open or star."
         info="On, a big import keeps the agent busy for a while."
-        control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label="Reading notes for every paper" />}
+        control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label="Digests for every paper" />}
       />
     </List>
   )
 }
 
-// The language of reading notes: a listed one, or Other with the user's own words for it. Unset follows
+// The language of digests: a listed one, or Other with the user's own words for it. Unset follows
 // the system's language, shown as the value; picking the system's language goes back to unset, so it
-// keeps following the system. Terms keeping the paper's wording is the note's rule, not a choice here.
+// keeps following the system. Terms keeping the paper's wording is the digest's rule, not a choice here.
 function LanguageRow() {
   const stored = useSettings((s) => s.view?.library.digestLanguage)
   const system = useSettings((s) => s.view?.library.digestLanguageSystem) ?? "en"
@@ -108,13 +108,13 @@ function LanguageRow() {
   const save = (language: string | null) => void updateSettings({ library: { digestLanguage: language } })
   return (
     <Row
-      name="Reading notes in"
+      name="Digests in"
       info="Technical terms stay as the paper writes them, whatever the language."
       control={
         <div className="flex items-center gap-2">
           {other && (
             <CommitInput
-              aria-label="Language for reading notes"
+              aria-label="Language for digests"
               placeholder="Language"
               value={listed ? "" : (stored ?? "")}
               onCommit={(words) => {
@@ -125,7 +125,7 @@ function LanguageRow() {
             />
           )}
           <Picker
-            label="Language for reading notes"
+            label="Language for digests"
             value={other ? OTHER : (stored ?? system)}
             options={options}
             onChange={(code) => {

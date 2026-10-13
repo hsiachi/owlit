@@ -48,7 +48,7 @@ function textOf(node: ReactNode): string {
 }
 
 // Markdown renderer for assistant text; styles live under `.markdown` in index.css. A place with its own
-// marks (a reading note's figures and pages) adds `components` for them and `prepare` to put them in.
+// marks (a digest's figures and pages) adds `components` for them and `prepare` to put them in.
 export function Markdown({ text, className, components, prepare }: { text: string; className?: string; components?: Components; prepare?: (text: string) => string }) {
   const openPage = useOpenFromChat()
   const { pathname } = useLocation()

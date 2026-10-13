@@ -71,6 +71,8 @@ export interface QuotedSelection {
   // Selected in the paper's note rather than its PDF: the note is the user's, kept at notePath
   // (library/papers/<id>/note.md), and an edit to it is shown in the note before anything changes
   notePath?: string
+  // Selected in Owlit's digest of the paper (digest.md): Owlit's reading of it, not the paper's own words
+  inDigest?: boolean
 }
 
 export interface PlanEntry {

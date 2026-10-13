@@ -92,7 +92,7 @@ export interface LibrarySettings {
   proxy?: ProxySettings
   // When the user last closed the proxy's sign-in window; nothing tells owlit when the login runs out
   proxySignedInAt?: number
-  // Reading notes: the language they are written in (default English), and whether every paper gets
+  // Digests: the language they are written in (default English), and whether every paper gets
   // one once its text is in (default: only papers the user opens or stars)
   digestLanguage?: string
   digestEveryPaper?: boolean
@@ -110,9 +110,9 @@ export interface ProxySettings {
 
 export interface ConnectorSettings {
   custom?: { id: string; name: string; command: string }[]
-  // The agent that writes reading notes and other background work; the first one set up when absent
+  // The agent that writes digests and other background work; the first one set up when absent
   background?: string
-  // The model each agent uses for background work, when not its own default (a cheaper one for reading notes)
+  // The model each agent uses for background work, when not its own default (a cheaper one for digests)
   backgroundModels?: Record<string, string>
   // From the last check: what the agent offers, so the pickers fill without starting it
   probed?: Record<string, ProbedConnector>

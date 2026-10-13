@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { MenuItems, type MenuGroups } from "@/components/action-menu"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { usePaperActions } from "../actions"
+import { useDigestMarks, waitForDigest } from "../digests"
 import { STATUS_LABEL, STATUS_ORDER } from "../lib/status"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
@@ -39,12 +40,17 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
       onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: Error) => toast.error(error.message || "Couldn't refresh the details.")),
     })
   }
-  // A paper with something to read; one with a note can have it written again (a better model, after a
-  // change of language), which only the user ever asks for
+  // A paper with something to read; one with a digest can have it written again (a better model, after a
+  // change of language), which only the user ever asks for. Asked for here, it is waited for: the user
+  // hears when it is done.
   if (isDesktop && single && (single.pdf || single.text)) {
     copy.push({
-      label: single.hasDigest ? "Rewrite reading note" : "Write a reading note",
-      onSelect: () => void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error("Couldn't ask for a reading note.")),
+      label: single.hasDigest ? "Rewrite the digest" : "Write a digest",
+      onSelect: () => {
+        useDigestMarks.getState().markAsked(single.id)
+        waitForDigest(single.id)
+        void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error("Couldn't ask for a digest."))
+      },
     })
   }
 

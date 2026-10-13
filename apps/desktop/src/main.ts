@@ -396,7 +396,7 @@ if (!app.requestSingleInstanceLock()) {
           },
           open: (sealed) => safeStorage.decryptString(Buffer.from(sealed, "base64")),
         },
-        // The order set in System Settings › Language & Region, which reading notes follow by default
+        // The order set in System Settings › Language & Region, which digests follow by default
         languages: () => app.getPreferredSystemLanguages(),
         trash: (file) => shell.trashItem(file),
         openPath: async (file) => {

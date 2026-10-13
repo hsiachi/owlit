@@ -7,7 +7,7 @@ import { takesRules } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
-// whose answer is the result (a reading note, later a Knowledge update). Nobody is there to answer
+// whose answer is the result (a digest, later a Knowledge update). Nobody is there to answer
 // questions, so the only tools it may use are owlit's own read-only ones; anything else is refused, and
 // it can't write files: core writes what the answer says.
 
