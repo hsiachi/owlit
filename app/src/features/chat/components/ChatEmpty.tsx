@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { keysFor } from "@/app/shortcuts"
 import { Button } from "@/components/ui/button"
+import { useAgentWindow } from "@/features/agent/store"
 import { useSettings } from "@/features/settings/store"
 import { useChatStore } from "../store"
 import type { PromptInput } from "../types"
@@ -16,20 +17,42 @@ function greeting() {
   return "Good evening"
 }
 
-// /chat with no conversation selected: greeting, composer, starter prompts
+// What a visit to /chat itself asks for: a starter handed over from elsewhere (the Library's Ask Owlit to
+// find papers), or a fresh page (New chat, ⌘N, a deleted or missing chat)
+interface ChatIndexState {
+  starter?: string
+  fresh?: boolean
+}
+
+export const FRESH_CHAT: ChatIndexState = { fresh: true }
+
+// /chat with no conversation selected: greeting, composer, starter prompts. Reached plainly (the rail's Chat
+// button, a link), it goes back to the chat the person last looked at, as Docs goes back to the doc they
+// were in: in a test, someone who left a running chat for the Library and came back by the rail landed on
+// an empty page and thought the app had lost their chat. New chat and a hand-off say so in the route's state
+// and get the empty page.
 export function ChatEmpty() {
   const navigate = useNavigate()
   const createChat = useChatStore((s) => s.createChat)
   const send = useChatStore((s) => s.send)
+  const chatsLoaded = useChatStore((s) => s.chatsLoaded)
   const composer = useRef<ComposerHandle>(null)
   // Settings › Owlit; without a name the greeting stands alone
   const name = useSettings((s) => s.view?.profile.name)
-  // A starter handed over from elsewhere (the Library's Ask Owlit to find papers)
-  const starter = (useLocation().state as { starter?: string } | null)?.starter
+  const state = useLocation().state as ChatIndexState | null
+  const starter = state?.starter
+  const lastChatId = useAgentWindow((s) => s.chatId)
+  const lastChat = useChatStore((s) => (lastChatId ? s.chats[lastChatId] : undefined))
 
   useEffect(() => {
     if (starter) composer.current?.setText(starter)
   }, [starter])
+
+  if (!starter && !state?.fresh && lastChatId) {
+    if (lastChat) return <Navigate to={`/chat/${lastChat.id}`} replace />
+    // The chats are still being read; a chat that is gone falls through to the empty page
+    if (!chatsLoaded) return null
+  }
 
   // The composer names the new chat's id: files attached before sending are already in its folder
   const start = (input: PromptInput, id: string) => {
