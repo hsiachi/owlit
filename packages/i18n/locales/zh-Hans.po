@@ -5631,9 +5631,63 @@ msgstr "{0, plural, other {删除 # 行}}"
 msgid "Sources updated"
 msgstr "来源已更新"
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr "owlit 在这里无法导入。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr "这次导入的记录不见了。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr "MinerU 会读取 {fresh} 篇新论文的 PDF，每一篇都要付费。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr "它没有标题、标识符或 PDF。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr "没有这次导入。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr "{file} 处什么都没有。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr "{file} 不是文件夹。"
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr "{file} 不是 BibTeX 文件。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr "{input} 处没有 Zotero 文献库。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr "{file} 处没有文件。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr "{file} 不是 Better BibTeX 导出的 JSON。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr "{dir} 处没有文件夹。"
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
 msgstr "那篇论文不在文献库中。"
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
+msgstr "没有找到这个标题的论文。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't tell which paper that is."
@@ -5650,10 +5704,6 @@ msgstr "owlit 在这里无法查找 PDF。"
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
 msgstr "owlit 在这里无法打开出版商页面。"
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
-msgstr "owlit 在这里无法导入。"
 
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."

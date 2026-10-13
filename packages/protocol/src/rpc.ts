@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -336,6 +336,22 @@ export interface Methods {
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
   // here are skipped. Waits until it is done; progress shows as an import.pitta task.
   "library.importPitta": { params: { root: string }; result: { added: number; skipped: number; failed: string[] } }
+  // Brings in a collection: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
+  // export), a BibTeX file, or a folder of PDFs. Returns once it has started; the import.<source> task
+  // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the
+  // library has are skipped; nothing gets a digest. parse answers ahead whether MinerU reads every new PDF.
+  "library.import": { params: { source: ImportSource; path: string; collectionsAsTags?: boolean; parse?: boolean }; result: ImportSummary }
+  // What importing that collection would do, without adding anything
+  "library.previewImport": { params: { source: ImportSource; path: string }; result: ImportPreview }
+  // A cancelled or stopped import goes on, skipping what it did
+  "library.continueImport": { params: { id: string }; result: ImportSummary }
+  // Recent imports, newest first
+  "library.imports": { params: void; result: ImportSummary[] }
+  // The user's answer when an import asks before MinerU reads every PDF (confirm_spend): parse false
+  // imports without MinerU for this import's papers. The import carries on either way.
+  "library.importAnswer": { params: { id: string; parse: boolean }; result: ImportSummary }
+  // The Library's line about a finished import is put away
+  "library.dismissImport": { params: { id: string }; result: null }
   // The paper's full text, line by line with where each sits (text.json), or null before it is read
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The

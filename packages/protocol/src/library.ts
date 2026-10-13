@@ -128,6 +128,43 @@ export interface PaperNote {
   updatedAt: number
 }
 
+// A collection brought in at once: a Zotero library, a BibTeX file, a folder of PDFs
+export type ImportSource = "zotero" | "bibtex" | "folder"
+
+// What an import has done so far. Its task (import.<source>) carries the progress and the state.
+export interface ImportSummary {
+  id: string
+  taskId: string
+  source: ImportSource
+  // The file or folder it reads
+  path: string
+  createdAt: number
+  // How many papers the collection holds, once it has been read
+  total?: number
+  // The papers it added, by id; their PDFs may still be on the way
+  added: string[]
+  // How many the library had already
+  existed: number
+  failed: { key: string; title?: string; error: string }[]
+  finishedAt?: number
+  // Whether MinerU reads the added papers' PDFs; false when the user said not to for this import
+  parse?: boolean
+  // The Library's line about it was put away
+  dismissed?: boolean
+}
+
+// What an import would do, read before it starts
+export interface ImportPreview {
+  total: number
+  withPdf: number
+  // How many the library has already
+  known: number
+  // Zotero's collections that hold any of the papers
+  collections: number
+  // MinerU would read every new PDF unless told not to, and there are enough to ask
+  asksParse: boolean
+}
+
 // What a reference resolves to before it becomes a Paper. id is the one it will have in the library.
 export type ResolvedPaper = Pick<Paper, "title" | "authors" | "ids"> &
   Partial<Pick<Paper, "id" | "year" | "venue" | "abstract" | "pdf" | "kind">>

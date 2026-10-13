@@ -5631,9 +5631,63 @@ msgstr "{0, plural, one {One line removed} other {# lines removed}}"
 msgid "Sources updated"
 msgstr "Sources updated"
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr "owlit can't import here."
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr "This import's record is gone."
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr "It has no title, identifier or PDF."
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr "There is no such import."
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr "There is nothing at {file}."
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr "{file} isn't a folder."
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr "{file} isn't a BibTeX file."
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr "There is no Zotero library at {input}."
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr "There is no file at {file}."
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr "{file} isn't a Better BibTeX JSON export."
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr "There is no folder at {dir}."
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
 msgstr "That paper is not in the library."
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
+msgstr "No paper with this title was found."
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't tell which paper that is."
@@ -5650,10 +5704,6 @@ msgstr "owlit can't look for PDFs here."
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
 msgstr "owlit can't open publishers' pages here."
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
-msgstr "owlit can't import here."
 
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."
