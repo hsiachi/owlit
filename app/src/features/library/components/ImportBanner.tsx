@@ -104,7 +104,7 @@ function Done({ summary }: { summary: ImportSummary }) {
 
   return (
     <div className="mt-4 -mb-1 flex items-center gap-3.5 rounded-xl border bg-card py-3.5 pr-3 pl-4 shadow-sm">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-owlit-mark/15 text-owlit-mark">
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-foreground">
         <CheckIcon className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
