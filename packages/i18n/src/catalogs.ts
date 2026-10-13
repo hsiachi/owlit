@@ -1,3 +1,4 @@
+// oxlint-disable-next-line typescript/triple-slash-reference -- the .po declaration has to reach every package that imports this file
 /// <reference path="./po.d.ts" />
 // Every locale's compiled catalog, for a process that may switch to any of them. Kept out of index.ts:
 // importing a .po needs the bundler's Lingui plugin (Vite's, or main's esbuild one), which a plain test

@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { filePath, isDesktop } from "@/lib/rpc"
 import { importPdf } from "../disk"
@@ -10,7 +11,7 @@ import { useLibraryUi } from "../ui-store"
 export async function addPdfFiles(files: File[]) {
   const pdfs = files.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name))
   if (pdfs.length === 0) {
-    toast.error("Only PDF files can be added this way.")
+    toast.error(t`Only PDF files can be added this way.`)
     return
   }
   const last = isDesktop ? await importInCore(pdfs) : await addInBrowser(pdfs)
@@ -19,14 +20,17 @@ export async function addPdfFiles(files: File[]) {
 
 async function importInCore(pdfs: File[]) {
   // Recognising a file can mean asking the services, which takes a few seconds
-  const progress = toast.loading(pdfs.length > 1 ? `Adding 1 of ${pdfs.length}…` : `Adding ${pdfs[0].name}…`)
+  const total = pdfs.length
+  const name = pdfs[0].name
+  const progress = toast.loading(total > 1 ? t`Adding 1 of ${total}…` : t`Adding ${name}…`)
   let last: string | null = null
   let added = 0
   let existing = 0
   const unread: string[] = []
   let lastTitle = ""
   for (const [i, file] of pdfs.entries()) {
-    if (pdfs.length > 1) toast.loading(`Adding ${i + 1} of ${pdfs.length}…`, { id: progress })
+    const number = i + 1
+    if (total > 1) toast.loading(t`Adding ${number} of ${total}…`, { id: progress })
     try {
       const { paper, existed } = await importPdf(filePath(file))
       last = paper.id
@@ -35,16 +39,18 @@ async function importInCore(pdfs: File[]) {
       else added++
     } catch (error) {
       unread.push(file.name)
-      if (pdfs.length === 1) toast.error(error instanceof Error ? error.message : "Couldn't add that file.")
+      if (pdfs.length === 1) toast.error(error instanceof Error ? error.message : t`Couldn't add that file.`)
     }
   }
   toast.dismiss(progress)
   if (pdfs.length === 1) {
-    if (added) toast("Added to library", { description: lastTitle })
-    else if (existing) toast("Already in your library", { description: lastTitle })
+    if (added) toast(t`Added to library`, { description: lastTitle })
+    else if (existing) toast(t`Already in your library`, { description: lastTitle })
     return last
   }
-  const parts = [`${added} added`, existing && `${existing} already in your library`, unread.length && `${unread.length} couldn't be read`].filter(Boolean)
+  const unreadCount = unread.length
+  // Each count its own message, side by side: "3 added · 1 already in your library"
+  const parts = [t`${added} added`, existing && t`${existing} already in your library`, unreadCount && t`${unreadCount} couldn't be read`].filter(Boolean)
   toast(parts.join(" · "), { description: unread.length ? unread.join(", ") : undefined })
   return last
 }
@@ -56,7 +62,7 @@ async function addInBrowser(pdfs: File[]) {
     const resolved = await libraryClient.importPdf?.(file)
     if (resolved) last = addPaper(resolved).id
   }
-  toast(pdfs.length === 1 ? "Added to library" : `Added ${pdfs.length} papers`, {
+  toast(pdfs.length === 1 ? t`Added to library` : plural(pdfs.length, { one: "Added # paper", other: "Added # papers" }), {
     description: pdfs.length === 1 ? pdfs[0].name : undefined,
   })
   return last

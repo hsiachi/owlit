@@ -1,12 +1,20 @@
+import { t } from "@lingui/core/macro"
 import type { Highlight, HighlightColor } from "../types"
 
 export const HIGHLIGHT_COLORS: HighlightColor[] = ["yellow", "green", "blue", "pink"]
 
-export const HIGHLIGHT_LABEL: Record<HighlightColor, string> = {
-  yellow: "Yellow",
-  green: "Green",
-  blue: "Blue",
-  pink: "Pink",
+// A colour's name where it is shown; the stored value stays the English id
+export function highlightLabel(color: HighlightColor): string {
+  switch (color) {
+    case "yellow":
+      return t({ message: "Yellow", comment: "highlight colour" })
+    case "green":
+      return t({ message: "Green", comment: "highlight colour" })
+    case "blue":
+      return t({ message: "Blue", comment: "highlight colour" })
+    case "pink":
+      return t({ message: "Pink", comment: "highlight colour" })
+  }
 }
 
 export const HIGHLIGHT_VAR: Record<HighlightColor, string> = {

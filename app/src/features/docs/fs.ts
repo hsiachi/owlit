@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { undo } from "@codemirror/commands"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
@@ -101,7 +102,7 @@ function applyAgentEdit(file: WorkspaceFile, content: string, versionId?: string
   view.dispatch({ changes: change, userEvent: "input.agent" })
   const after = view.state.doc.toString()
   toastUndo(
-    "Edit applied",
+    t`Edit applied`,
     () => {
       if (openEditor(file.id) === view) undo(view)
       else if (versionId) restoreVersion(versionId, file.path)
@@ -168,9 +169,10 @@ if (isDesktop) {
     markOwlitEdit(path)
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(chatId)) return
-    toastUndo("Edit applied", () => restoreVersion(versionId, path), {
+    const paper = labelOf(path)
+    toastUndo(t`Edit applied`, () => restoreVersion(versionId, path), {
       // A paper's note is named by its paper
-      description: path.startsWith(".owlit/") ? `Your note on ${labelOf(path)}` : displayName(path),
+      description: path.startsWith(".owlit/") ? t`Your note on ${paper}` : displayName(path),
     })
   })
 }

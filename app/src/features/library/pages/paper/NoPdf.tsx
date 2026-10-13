@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
@@ -20,12 +22,19 @@ import type { Paper } from "../../types"
 
 type CardState = "looking" | "sign-in" | "check" | "not-found" | "not-yet"
 
-const CARD: Record<CardState, { title: string; detail: string }> = {
-  looking: { title: "Looking for a PDF…", detail: "If you already have it, drop it here." },
-  "sign-in": { title: "The publisher wants you to sign in", detail: "Sign in on its page here and owlit fetches the PDF." },
-  check: { title: "The publisher wants a quick check", detail: "It wants to see a person before it hands over the PDF. Open its page here to do that." },
-  "not-found": { title: "No PDF found", detail: "Drop a PDF here if you have it." },
-  "not-yet": { title: "No PDF yet", detail: "Drop a PDF here, or let owlit look for an open-access copy." },
+const card = (state: CardState): { title: string; detail: string } => {
+  switch (state) {
+    case "looking":
+      return { title: t`Looking for a PDF…`, detail: t`If you already have it, drop it here.` }
+    case "sign-in":
+      return { title: t`The publisher wants you to sign in`, detail: t`Sign in on its page here and owlit fetches the PDF.` }
+    case "check":
+      return { title: t`The publisher wants a quick check`, detail: t`It wants to see a person before it hands over the PDF. Open its page here to do that.` }
+    case "not-found":
+      return { title: t`No PDF found`, detail: t`Drop a PDF here if you have it.` }
+    case "not-yet":
+      return { title: t`No PDF yet`, detail: t`Drop a PDF here, or let owlit look for an open-access copy.` }
+  }
 }
 
 export function NoPdf({ paper }: { paper: Paper }) {
@@ -47,7 +56,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   )
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
-  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.pdf" || t.kind === "paper.pdf.browser")) || fetching
+  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((task) => task.kind === "paper.pdf" || task.kind === "paper.pdf.browser")) || fetching
   const needs = paper.noPdf?.needs
 
   const attach = async (files: ArrayLike<File>) => {
@@ -56,9 +65,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
     try {
       const pdf = await libraryClient.attachPdf(paper, file)
       updatePaper(paper.id, { pdf, noPdf: undefined })
-      toast("PDF attached", { description: file.name })
+      toast(t`PDF attached`, { description: file.name })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't attach that file.")
+      toast.error(e instanceof Error ? e.message : t`Couldn't attach that file.`)
     }
   }
 
@@ -67,13 +76,13 @@ export function NoPdf({ paper }: { paper: Paper }) {
     try {
       const pdf = await libraryClient.fetchPdf(paper)
       updatePaper(paper.id, { pdf })
-      toast("PDF found")
+      toast(t`PDF found`)
     } catch (e) {
       if (e instanceof PublisherNeedsUser) {
         // The card now asks for the check; a system notification only if the user went elsewhere
         updatePaper(paper.id, { noPdf: { ...(paper.noPdf ?? { tried: [], at: Date.now() }), needs: e.needs } })
         if (document.hidden) notifyNeeds(paper, e.needs)
-      } else toast.error(e instanceof Error ? e.message : "Could not find a PDF.")
+      } else toast.error(e instanceof Error ? e.message : t`Could not find a PDF.`)
     } finally {
       setFetching(false)
     }
@@ -85,7 +94,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
   if (checking) return <PublisherPage paper={paper} inQueue={inQueue} onEnd={() => setChecking(false)} />
 
   const state: CardState = looking ? "looking" : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
-  const detail = state === "not-found" ? `${triedSentence(paper.noPdf?.tried ?? [])} ${CARD[state].detail}` : CARD[state].detail
+  const { title, detail: plain } = card(state)
+  const tried = triedSentence(paper.noPdf?.tried ?? [])
+  // What was tried and what to do, as one message so a language can join the two sentences its own way
+  const detail = state === "not-found" ? t`${tried} Drop a PDF here if you have it.` : plain
 
   return (
     <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
@@ -94,7 +106,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
         title={
           <>
             {looking && <Spinner />}
-            {CARD[state].title}
+            {title}
           </>
         }
         detail={detail}
@@ -102,15 +114,15 @@ export function NoPdf({ paper }: { paper: Paper }) {
           <>
             {needs && canCheck && !looking ? (
               <Button size="sm" onClick={() => setChecking(true)}>
-                {needs === "sign-in" ? "Sign in" : "Check now"}
+                {needs === "sign-in" ? t`Sign in` : t`Check now`}
               </Button>
             ) : (
               <Button size="sm" onClick={fetchPdf} disabled={looking}>
-                {paper.noPdf ? "Try again" : "Find PDF"}
+                {paper.noPdf ? t`Try again` : t`Find PDF`}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-              Choose file
+              {t`Choose file`}
             </Button>
           </>
         }
@@ -118,10 +130,12 @@ export function NoPdf({ paper }: { paper: Paper }) {
         {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
         {state === "not-found" && paper.ids.doi && proxyMissing && (
           <p className="max-w-72 text-sm text-muted-foreground">
-            Your library may have it.{" "}
-            <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("proxy")}>
-              Set up library proxy
-            </button>
+            <Trans>
+              Your library may have it.{" "}
+              <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("proxy")}>
+                Set up library proxy
+              </button>
+            </Trans>
           </p>
         )}
       </DropCard>
@@ -178,9 +192,9 @@ function PublisherPage({ paper, inQueue, onEnd }: { paper: Paper; inQueue: boole
         if (live && found.pdf && nextRef.current) goNext(nextRef.current)
         else if (live && found.pdf && inQueue) useCheckQueue.getState().end()
         updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
-        if (found.pdf) toast("PDF found", inQueue ? { description: citationLabel(paper) } : undefined)
+        if (found.pdf) toast(t`PDF found`, inQueue ? { description: citationLabel(paper) } : undefined)
       })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "owlit couldn't open the publisher's page."))
+      .catch((e) => toast.error(e instanceof Error ? e.message : t`owlit couldn't open the publisher's page.`))
       .finally(() => live && end.current())
     return () => {
       live = false
@@ -205,8 +219,9 @@ function PublisherPage({ paper, inQueue, onEnd }: { paper: Paper; inQueue: boole
 
   const line =
     task?.state === "waiting_for_you"
-      ? task.waiting?.detail ?? "The publisher wants you on its page."
-      : "Opening the publisher's page…"
+      ? task.waiting?.detail ?? t`The publisher wants you on its page.`
+      : t`Opening the publisher's page…`
+  const nextName = nextPaper ? citationLabel(nextPaper) : t`the next paper`
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -214,14 +229,14 @@ function PublisherPage({ paper, inQueue, onEnd }: { paper: Paper; inQueue: boole
         {task?.state !== "waiting_for_you" && <Spinner />}
         <span className="min-w-0 flex-1 truncate">{line}</span>
         {next && (
-          <Tip label={`Next: ${nextPaper ? citationLabel(nextPaper) : "the next paper"}`}>
+          <Tip label={t`Next: ${nextName}`}>
             <Button variant="ghost" size="sm" onClick={() => goNext(next)}>
-              Skip
+              {t({ message: "Skip", comment: "button: go on to the next paper without this one" })}
             </Button>
           </Tip>
         )}
         <Button variant="ghost" size="sm" onClick={() => task && void cancelTask(task.id)} disabled={!task}>
-          Cancel
+          {t`Cancel`}
         </Button>
       </div>
       {/* The publisher's page is drawn over this box by the desktop app */}
@@ -231,20 +246,21 @@ function PublisherPage({ paper, inQueue, onEnd }: { paper: Paper; inQueue: boole
 }
 
 const openCheck = (s: Parameters<typeof openTasksFor>[0], paperId: string) =>
-  openTasksFor(s, paperId).find((t) => t.kind === "paper.pdf.check")
+  openTasksFor(s, paperId).find((task) => task.kind === "paper.pdf.check")
 
 // The user went elsewhere while owlit looked: a system notification, which brings owlit back
 function notifyNeeds(paper: Paper, needs: "check" | "sign-in") {
   if (typeof Notification === "undefined") return
-  const notification = new Notification(CARD[needs].title, { body: paper.title })
+  const notification = new Notification(card(needs).title, { body: paper.title })
   notification.onclick = () => window.focus()
 }
 
 // "Tried arXiv, Unpaywall and the publisher." from acquisition route names
 function triedSentence(routes: string[]) {
   const nameOf = (r: string) =>
-    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? "the publisher" : r.endsWith(":proxied") ? "the library proxy" : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? "open-access links" : ""
+    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? t`the publisher` : r.endsWith(":proxied") ? t`the library proxy` : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? t`open-access links` : ""
   const names = [...new Set(routes.map(nameOf))].filter(Boolean)
-  if (!names.length) return "owlit knows of no open copy of this paper."
-  return `Tried ${joinAnd(names)}.`
+  if (!names.length) return t`owlit knows of no open copy of this paper.`
+  const list = joinAnd(names)
+  return t`Tried ${list}.`
 }

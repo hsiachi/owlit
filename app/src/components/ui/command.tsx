@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 import { cn } from "@/lib/utils"
@@ -32,8 +33,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title = t`Command Palette`,
+  description = t`Search for a command to run...`,
   children,
   className,
   showCloseButton = false,

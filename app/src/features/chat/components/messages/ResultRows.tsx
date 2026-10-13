@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
@@ -16,7 +17,7 @@ import type { ChatMessage } from "../../types"
 import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
 import { countParts } from "../../lib/edit-counts"
 import { isDesktop, rpc } from "@/lib/rpc"
-import { capital, joinAnd, plural } from "@/lib/words"
+import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
 // notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
@@ -73,10 +74,10 @@ function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | 
 // "+31 −1": new words in Owlit's green, as the doc marks its edits; removals muted, never red.
 // A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
 export function EditCounts({ stats }: { stats: EditStats }) {
-  if (stats.rewritten) return <span>Rewritten</span>
+  if (stats.rewritten) return <span>{t({ message: "Rewritten", comment: "a doc an edit mostly replaced" })}</span>
   const { added, removed, unit } = countParts(stats)
   return (
-    <span className="tabular-nums" title={`${stats.unit === "words" ? "Words" : "Lines"} added and removed`}>
+    <span className="tabular-nums" title={stats.unit === "words" ? t`Words added and removed` : t`Lines added and removed`}>
       {added && <span className="text-owlit">{added}</span>}
       {added && removed && " "}
       {removed && <span>{removed}</span>}
@@ -193,7 +194,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     for (const [path, list] of byPath) {
       const name = list[0].label
       if (kind === "note") {
-        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, "note"), ...of(list), view: openDoc(path) })
+        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, { one: "# note", other: "# notes" }), ...of(list), view: openDoc(path) })
         continue
       }
       const span = spans.find((s) => s.path === path)
@@ -204,7 +205,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
         key: `file:${path}`,
         kind: "doc",
         icon: notePaper ? KIND_ICON.paper : KIND_ICON.doc,
-        name: notePaper ? `Your note on ${name}` : name,
+        name: notePaper ? t`Your note on ${name}` : name,
         detail: edit ? <EditCounts stats={edit} /> : undefined,
         stats: edit,
         markdown: /\.(md|markdown)$/i.test(path),
@@ -217,27 +218,28 @@ function useResultRows(message: ChatMessage): ResultRow[] {
   for (const r of results.filter((r) => r.kind === "paper")) {
     // A paper the agent took back has nothing to open; Undo puts it back
     const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
-    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? "Removed" : "Added", ...of([r]), view, removed: r.removed })
+    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
   }
   return rows
 }
 
-const count = (n: number, one: string, many: string) => (n === 1 ? one : `${n} ${many}`)
 const added = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && !r.removed).length
 const removed = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && r.removed).length
 
 // "Edited 2 docs and added 3 papers"
 function summary(rows: ResultRow[]) {
   const n = (kind: ResultRow["kind"]) => rows.filter((r) => r.kind === kind).length
+  const docs = n("doc")
+  const markdown = rows.filter((r) => r.kind === "doc").every((r) => r.markdown)
   const said = [
     // A doc is a Markdown file of the user's; a script or a paper's .tex is a file
-    n("doc") && `edited ${rows.filter((r) => r.kind === "doc").every((r) => r.markdown) ? count(n("doc"), "a doc", "docs") : count(n("doc"), "a file", "files")}`,
-    added(rows) && `added ${count(added(rows), "a paper", "papers")}`,
-    removed(rows) && `removed ${count(removed(rows), "a paper", "papers")}`,
-    n("note") && `left notes on ${count(n("note"), "a doc", "docs")}`,
-    n("knowledge") && `updated ${count(n("knowledge"), "a topic", "topics")}`,
+    docs && (markdown ? plural(docs, { one: "edited a doc", other: "edited # docs" }) : plural(docs, { one: "edited a file", other: "edited # files" })),
+    added(rows) && plural(added(rows), { one: "added a paper", other: "added # papers" }),
+    removed(rows) && plural(removed(rows), { one: "removed a paper", other: "removed # papers" }),
+    n("note") && plural(n("note"), { one: "left notes on a doc", other: "left notes on # docs" }),
+    n("knowledge") && plural(n("knowledge"), { one: "updated a topic", other: "updated # topics" }),
   ].filter(Boolean) as string[]
-  return capital(joinAnd(said))
+  return capital(joinActions(said))
 }
 
 const SHOW_ON_HOVER = "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
@@ -248,10 +250,11 @@ const SHOW_ON_HOVER = "opacity-0 group-hover/row:opacity-100 group-focus-within/
 function Row({ row, className }: { row: ResultRow; className?: string }) {
   const Icon = row.icon
   const live = !row.undone
+  const name = row.name
   return (
     <div className={`group/row relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm ${row.view && live ? "hover:bg-muted" : ""} ${className ?? ""}`}>
       {/* The whole row opens what it names; Undo sits above that click */}
-      {row.view && live && <button type="button" onClick={row.view} aria-label={`Open ${row.name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
+      {row.view && live && <button type="button" onClick={row.view} aria-label={t`Open ${name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
       <Icon className="size-4 shrink-0 text-muted-foreground" />
       <span
         data-struck={live ? undefined : ""}
@@ -262,15 +265,15 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
         {live && row.undo && (
           <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
-            Undo
+            {t({ message: "Undo", comment: "verb: take back a change the agent made" })}
           </Button>
         )}
         {!live && row.redo && (
           <Button variant="text" size="inline" onClick={() => void row.redo!()} className={`relative ${SHOW_ON_HOVER}`}>
-            Redo
+            {t({ message: "Redo", comment: "verb: put back a change that was undone" })}
           </Button>
         )}
-        {live ? row.detail : "Undone"}
+        {live ? row.detail : t({ message: "Undone", comment: "a change that was taken back" })}
         <ArrowUpRightIcon className={`size-3.5 ${row.view && live ? SHOW_ON_HOVER : "invisible"}`} />
       </span>
     </div>
@@ -299,7 +302,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
           <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
             {live.length > 1 && (
               <Button variant="text" size="inline" onClick={() => void Promise.all(live.map((r) => r.undo!()))} className={SHOW_ON_HOVER}>
-                Undo all
+                {t({ message: "Undo all", comment: "verb: take back every change of the reply" })}
               </Button>
             )}
             {total && (total.added > 0 || total.removed > 0) && <EditCounts stats={total} />}
@@ -318,7 +321,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
             ))}
           </Unfold>
           <button type="button" onClick={() => setAll((a) => !a)} className="flex h-8 w-full items-center rounded-md pr-2.5 pl-[38px] text-left text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-key:bg-muted">
-            {all ? "Show less" : `Show ${rest.length} more`}
+            {all ? t`Show less` : plural(rest.length, { one: "Show # more", other: "Show # more" })}
           </button>
         </>
       )}

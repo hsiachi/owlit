@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useMemo } from "react"
 import { useLocation } from "react-router-dom"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
@@ -9,17 +10,37 @@ import { useLibraryStore } from "@/features/library/store"
 import { useAgentWindow } from "./store"
 
 // A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note
-export const selectionLabel = (s: QuotedSelection) => (s.source.kind === "knowledge" ? "Line" : s.notePath ? "Note" : s.page ? `p. ${s.page}` : "Selection")
+export function selectionLabel(s: QuotedSelection) {
+  if (s.source.kind === "knowledge") return t({ message: "Line", comment: "chip: a passage quoted from a line of a Knowledge topic" })
+  if (s.notePath) return t({ message: "Note", comment: "chip: a passage quoted from the paper's note" })
+  const page = s.page
+  if (page) return t({ message: `p. ${page}`, comment: "chip: a passage quoted from this page of the paper" })
+  return t({ message: "Selection", comment: "chip: a passage the user selected" })
+}
 
-export const KIND_NAME = { paper: "this paper", doc: "this doc", knowledge: "this topic" } as const
+type PageKind = "paper" | "doc" | "knowledge"
+
+// The ask bar's empty field, naming what is on the page
+export function askAboutHint(kind: PageKind) {
+  if (kind === "paper") return t`Ask about this paper…`
+  if (kind === "doc") return t`Ask about this doc…`
+  return t`Ask about this topic…`
+}
+
+// The empty panel, above the composer
+export function askAboutOrAnything(kind: PageKind) {
+  if (kind === "paper") return t`Ask about this paper, or anything else.`
+  if (kind === "doc") return t`Ask about this doc, or anything else.`
+  return t`Ask about this topic, or anything else.`
+}
 
 // Cut at a word boundary, so a chip never ends mid-word ("Scholars need to k…")
 export const shorten = (text: string, n: number) => {
-  const t = text.replace(/\s+/g, " ").trim()
-  if (t.length <= n) return t
-  const cut = t.slice(0, n + 1)
+  const flat = text.replace(/\s+/g, " ").trim()
+  if (flat.length <= n) return flat
+  const cut = flat.slice(0, n + 1)
   const space = cut.lastIndexOf(" ")
-  return `${(space > n / 2 ? cut.slice(0, space) : t.slice(0, n)).replace(/[\s,.;:]+$/, "")}…`
+  return `${(space > n / 2 ? cut.slice(0, space) : flat.slice(0, n)).replace(/[\s,.;:]+$/, "")}…`
 }
 
 // The doc or paper on screen, which the agent is shown along with the question

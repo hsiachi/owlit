@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useMemo, useRef } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { CheckIcon, ChevronDownIcon, ListIcon, PaperclipIcon, Table2Icon, XIcon } from "lucide-react"
@@ -23,9 +24,9 @@ import { TagDot } from "./TagsEditor"
 
 // The Library's two pages, as underline tabs on its title's line, so the header is one row above the
 // find field rather than two. A third (Feed) can join later.
-const PAGES = [
-  { path: "/library/up-next", label: "Up next" },
-  { path: "/library", label: "All papers" },
+const pages = () => [
+  { path: "/library/up-next", label: t({ message: "Up next", comment: "Library tab: the papers to read next" }) },
+  { path: "/library", label: t`All papers` },
 ]
 
 export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
@@ -34,10 +35,10 @@ export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
   const current = pathname === "/library/up-next" ? "/library/up-next" : "/library"
   return (
     <header className="flex items-center gap-2 px-0.5">
-      <PageTitle className="mr-5">Library</PageTitle>
+      <PageTitle className="mr-5">{t`Library`}</PageTitle>
       <Tabs value={current} onValueChange={(v) => navigate(v)}>
         <TabsList variant="line">
-          {PAGES.map((p) => (
+          {pages().map((p) => (
             <TabsTrigger key={p.path} value={p.path} className="px-1.5">
               {p.label}
             </TabsTrigger>
@@ -50,24 +51,24 @@ export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
   )
 }
 
-const SORTS: { value: SortKey; label: string }[] = [
-  { value: "addedAt", label: "Recently added" },
-  { value: "year", label: "Year" },
-  { value: "title", label: "Title" },
-  { value: "authors", label: "Authors" },
+const sorts = (): { value: SortKey; label: string }[] => [
+  { value: "addedAt", label: t`Recently added` },
+  { value: "year", label: t`Year` },
+  { value: "title", label: t`Title` },
+  { value: "authors", label: t`Authors` },
 ]
 
 export function SortMenu() {
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
   // Venue is sorted from the table's header only
-  const trigger = sort.key === "venue" ? "Venue" : undefined
-  return <ChoiceMenu label="Sort" value={sort.key} options={SORTS} onChange={sortBy} trigger={trigger} />
+  const trigger = sort.key === "venue" ? t`Venue` : undefined
+  return <ChoiceMenu label={t({ message: "Sort", comment: "menu: how the papers are ordered" })} value={sort.key} options={sorts()} onChange={sortBy} trigger={trigger} />
 }
 
-const LAYOUTS: { value: Layout; label: string; icon: typeof ListIcon }[] = [
-  { value: "list", label: "List", icon: ListIcon },
-  { value: "table", label: "Table", icon: Table2Icon },
+const layouts = (): { value: Layout; label: string; icon: typeof ListIcon }[] => [
+  { value: "list", label: t`List`, icon: ListIcon },
+  { value: "table", label: t`Table`, icon: Table2Icon },
 ]
 
 export function LayoutToggle() {
@@ -76,9 +77,9 @@ export function LayoutToggle() {
   const closePeek = useLibraryUi((s) => s.closePeek)
   return (
     <SegmentedControl
-      label="Layout"
+      label={t`Layout`}
       value={layout}
-      options={LAYOUTS}
+      options={layouts()}
       onChange={(l) => {
         setLayout(l)
         closePeek()
@@ -97,10 +98,10 @@ export function LibraryFindField({ onSubmit, onPickFiles }: { onSubmit: () => vo
       value={query}
       onChange={setQuery}
       onEnter={onSubmit}
-      placeholder="Search, or paste a DOI, arXiv id or link to add"
-      label="Search or add papers"
+      placeholder={t`Search, or paste a DOI, arXiv id or link to add`}
+      label={t`Search or add papers`}
     >
-      <IconButton label="Add a PDF file" onClick={() => fileInput.current?.click()}>
+      <IconButton label={t`Add a PDF file`} onClick={() => fileInput.current?.click()}>
         <PaperclipIcon />
       </IconButton>
       <PdfFileInput ref={fileInput} multiple onFiles={onPickFiles} />
@@ -108,14 +109,14 @@ export function LibraryFindField({ onSubmit, onPickFiles }: { onSubmit: () => vo
   )
 }
 
-const FILTERS: { id: StatusFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "reading", label: "Reading" },
-  { id: "starred", label: "Starred" },
-  { id: "unread", label: "Unread" },
-  { id: "read", label: "Read" },
+const filters = (): { id: StatusFilter; label: string }[] => [
+  { id: "all", label: t({ message: "All", comment: "filter chip: every paper" }) },
+  { id: "reading", label: t({ message: "Reading", comment: "reading status of a paper: being read now" }) },
+  { id: "starred", label: t({ message: "Starred", comment: "filter chip: starred papers" }) },
+  { id: "unread", label: t({ message: "Unread", comment: "reading status of a paper" }) },
+  { id: "read", label: t({ message: "Read", comment: "reading status of a paper: finished reading (past participle)" }) },
   // Only while a publisher wants the user for some paper (or the chip is picked)
-  { id: "needs", label: "Needs you" },
+  { id: "needs", label: t({ message: "Needs you", comment: "filter chip: papers whose publisher wants the user to check or sign in" }) },
 ]
 
 const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-detail text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
@@ -131,7 +132,7 @@ export function FilterBar() {
 
   return (
     <div className="mt-3.5 flex flex-wrap items-center gap-0.5">
-      {FILTERS.filter((f) => f.id !== "needs" || counts.needs > 0 || filter === "needs").map((f) => (
+      {filters().filter((f) => f.id !== "needs" || counts.needs > 0 || filter === "needs").map((f) => (
         <button
           key={f.id}
           type="button"
@@ -144,10 +145,10 @@ export function FilterBar() {
         </button>
       ))}
       <span className="flex-1" />
-      {tags.map((t) => (
-        <button key={t} type="button" onClick={() => toggleTag(t)} aria-label={`Stop filtering by ${t}`} className={cn(chip, "bg-accent pr-2 pl-2.5 text-foreground hover:bg-accent")}>
-          <TagDot tag={t} />
-          {t}
+      {tags.map((tag) => (
+        <button key={tag} type="button" onClick={() => toggleTag(tag)} aria-label={t`Stop filtering by ${tag}`} className={cn(chip, "bg-accent pr-2 pl-2.5 text-foreground hover:bg-accent")}>
+          <TagDot tag={tag} />
+          {tag}
           <XIcon className="size-3.5 text-muted-foreground" />
         </button>
       ))}
@@ -166,18 +167,18 @@ function TagMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className={cn(chip, "pr-2 data-[state=open]:bg-muted data-[state=open]:text-foreground")}>
-          Tags
+          {t`Tags`}
           <ChevronDownIcon className="size-3.5" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-80 w-52">
-        {tags.length === 0 && <div className="px-2 py-1.5 text-detail text-muted-foreground">No tags yet.</div>}
-        {tags.map(([t, n]) => (
+        {tags.length === 0 && <div className="px-2 py-1.5 text-detail text-muted-foreground">{t`No tags yet.`}</div>}
+        {tags.map(([tag, n]) => (
           // Keep the menu open so several tags can be picked in a row
-          <DropdownMenuItem key={t} onSelect={(e) => { e.preventDefault(); toggleTag(t) }}>
-            <TagDot tag={t} />
-            <span className="flex-1 truncate">{t}</span>
-            {selected.includes(t) ? <CheckIcon className="text-muted-foreground" /> : <span className="text-xs text-muted-foreground tabular-nums">{n}</span>}
+          <DropdownMenuItem key={tag} onSelect={(e) => { e.preventDefault(); toggleTag(tag) }}>
+            <TagDot tag={tag} />
+            <span className="flex-1 truncate">{tag}</span>
+            {selected.includes(tag) ? <CheckIcon className="text-muted-foreground" /> : <span className="text-xs text-muted-foreground tabular-nums">{n}</span>}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

@@ -1,7 +1,8 @@
+import { t } from "@lingui/core/macro"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Connector, type FileKind } from "@owlit/protocol"
-import { bridge, isDesktop, rpc } from "@/lib/rpc"
+import { bridge, isDesktop, rpc, RpcError } from "@/lib/rpc"
 import { useWorkspace } from "@/lib/workspace"
 import { docMentionable, paperMentionable, type DocMention } from "@/features/docs/lib/mentions"
 import { fileAt } from "@/features/docs/store"
@@ -76,15 +77,17 @@ export function useAttachments(chatId: string, onMention: (mention: DocMention) 
       patch(draft.id, null)
       mentionRef.current(result.kind === "doc" ? docMention(result.path) : await paperMention(result.paperId, file.name))
     } catch (error) {
-      const message = error instanceof Error ? error.message : "owlit couldn't read that file."
-      patch(draft.id, { state: "error", error: message, folder: /^Folders/.test(message) || draft.folder })
+      const message = error instanceof Error ? error.message : t`owlit couldn't read that file.`
+      // Core says a folder was refused in its data, the words being in the interface's language
+      const folder = error instanceof RpcError && (error.data as { folder?: boolean } | undefined)?.folder === true
+      patch(draft.id, { state: "error", error: message, folder: folder || draft.folder })
     }
   }, [])
 
   const start = useCallback(
     (list: File[], folders: File[] = []) => {
       const drafts = list.map((file) => ({ file, draft: draftOf(file) }))
-      const refused = folders.map((file) => ({ ...draftOf(file), state: "error" as const, error: "Folders can't be attached yet.", folder: true }))
+      const refused = folders.map((file) => ({ ...draftOf(file), state: "error" as const, error: t`Folders can't be attached yet.`, folder: true }))
       setFiles((f) => [...f, ...drafts.map((d) => d.draft), ...refused])
       for (const { file, draft } of drafts) void copy(file, draft)
     },
@@ -172,7 +175,7 @@ export function fromDrop(data: DataTransfer): { files: File[]; folders: File[] }
 function draftOf(file: File): DraftFile {
   return {
     id: crypto.randomUUID(),
-    name: file.name || "Pasted file",
+    name: file.name || t`Pasted file`,
     size: file.size,
     mimeType: file.type,
     previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
@@ -184,7 +187,7 @@ async function base64(file: File): Promise<string> {
   const url = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error("owlit couldn't read that file."))
+    reader.onerror = () => reject(reader.error ?? new Error(t`owlit couldn't read that file.`))
     reader.readAsDataURL(file)
   })
   return url.slice(url.indexOf(",") + 1)
@@ -209,10 +212,10 @@ export async function importCopy(file: AttachmentFile) {
   if (!file.path || !root) return null
   try {
     const { paper, existed } = await importPdf(`${root}/${file.path}`)
-    toast(existed ? "Already in your library" : "Added to library", { description: paper.title })
+    toast(existed ? t`Already in your library` : t`Added to library`, { description: paper.title })
     return paper
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : "Couldn't add that file.")
+    toast.error(error instanceof Error ? error.message : t`Couldn't add that file.`)
     return null
   }
 }

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { syntaxTree } from "@codemirror/language"
 import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view"
@@ -95,7 +96,7 @@ class FrontMatterWidget extends BlockWidget {
         const shown = value.replace(/^\[(.*)\]$/, "$1").replace(/["']/g, "").trim()
         return shown ? `${key}: ${shown}` : key
       })
-    div.textContent = fields.join(" · ") || "Front matter"
+    div.textContent = fields.join(" · ") || t`Front matter`
     return div
   }
 }

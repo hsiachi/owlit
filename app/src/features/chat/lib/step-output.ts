@@ -1,3 +1,4 @@
+import { plural } from "@lingui/core/macro"
 import { editStats } from "@owlit/protocol"
 import type { QuestionPart } from "../types"
 import { countsText } from "./edit-counts"
@@ -56,7 +57,7 @@ export function stepMeta(call: ToolCall): string | undefined {
   const group = stepGroup(call)
   if (group === "web") {
     const n = hitsOf(call.content).length
-    return n ? `${n} results` : undefined
+    return n ? plural(n, { one: "# result", other: "# results" }) : undefined
   }
   const url = group === "fetch" ? fetchUrlOf(call) : undefined
   if (url) return hostOf(url)

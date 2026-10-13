@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { Fragment } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ChevronRightIcon } from "lucide-react"
@@ -42,7 +43,7 @@ export function PageHeader({ trail, current, children }: { trail: Crumb[]; curre
   const crumb = "shrink-0 rounded-md px-1 py-0.5 outline-none first:-ml-1 hover:bg-muted hover:text-foreground focus-key:bg-muted"
   return (
     <header className="flex h-11 shrink-0 items-center gap-1 pr-2.5 pl-4 text-detail">
-      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
+      <nav aria-label={t`Breadcrumb`} className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
         {trail.map((c, i) => (
           <Fragment key={i}>
             {i > 0 && <ChevronRightIcon className="size-3.5 shrink-0" />}

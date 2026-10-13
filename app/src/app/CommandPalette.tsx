@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { FilePlusIcon, SquarePenIcon } from "lucide-react"
@@ -49,8 +50,8 @@ export function CommandPalette() {
     <CommandDialog
       open={open}
       onOpenChange={(o) => !o && closePalette()}
-      title="Search"
-      description="Jump to a paper, a doc or a chat"
+      title={t`Search`}
+      description={t`Jump to a paper, a doc or a chat`}
       className="top-[18%] sm:max-w-2xl"
     >
       {/* Mounted only while the palette shows, so a streamed reply or a doc write doesn't rebuild its lists */}
@@ -148,15 +149,18 @@ function PaletteBody() {
   // The words around a text match, unless what was typed is already in the paper's details
   const paperRows = shown(paperItems).map((p) => (p.snippet && !inDetails(p.details, query) ? { ...p, detail: p.snippet } : p))
 
-  const paperGroup = <PaletteGroup key="papers" heading="Papers" kind="paper" to="/library" items={paperRows} go={go} />
-  const chatGroup = <PaletteGroup key="chats" heading="Chats" kind="chat" to="/chat" items={shown(chatItems)} go={go} />
-  const docGroup = <PaletteGroup key="docs" heading="Docs" kind="doc" to="/docs" items={shown(docItems)} go={go} />
+  const paperGroup = <PaletteGroup key="papers" heading={t`Papers`} kind="paper" to="/library" items={paperRows} go={go} />
+  const chatGroup = <PaletteGroup key="chats" heading={t`Chats`} kind="chat" to="/chat" items={shown(chatItems)} go={go} />
+  const docGroup = <PaletteGroup key="docs" heading={t`Docs`} kind="doc" to="/docs" items={shown(docItems)} go={go} />
 
-  // ⌘N makes whatever belongs to the place you are in
+  // ⌘N makes whatever belongs to the place you are in. Found by its English name too, as well as by the
+  // name it shows.
+  const newChatLabel = t`New chat`
+  const newDocLabel = t`New doc`
   const newChat = (
-    <CommandItem key="new-chat" onSelect={() => go("/chat")} value="new chat" className={itemClass}>
+    <CommandItem key="new-chat" onSelect={() => go("/chat")} value={`new chat ${newChatLabel}`} className={itemClass}>
       <SquarePenIcon />
-      New chat
+      {newChatLabel}
       {inChat && <CommandShortcut>{keysFor("new")}</CommandShortcut>}
     </CommandItem>
   )
@@ -167,16 +171,16 @@ function PaletteBody() {
         closePalette()
         newDoc()
       }}
-      value="new doc"
+      value={`new doc ${newDocLabel}`}
       className={itemClass}
     >
       <FilePlusIcon />
-      New doc
+      {newDocLabel}
       {inDocs && <CommandShortcut>{keysFor("new")}</CommandShortcut>}
     </CommandItem>
   )
   const actions = (
-    <CommandGroup key="actions" heading="Actions" className="p-0">
+    <CommandGroup key="actions" heading={t`Actions`} className="p-0">
       {inDocs ? [newDocItem, newChat] : [newChat, newDocItem]}
     </CommandGroup>
   )
@@ -193,9 +197,9 @@ function PaletteBody() {
         "**:[[cmdk-group-heading]]:px-3! **:[[cmdk-group-heading]]:pt-2.5! **:[[cmdk-group-heading]]:pb-1.5! **:[[cmdk-group-heading]]:font-normal!",
       )}
     >
-      <CommandInput placeholder="Search papers, docs and chats…" value={query} onValueChange={setQuery} autoFocus />
+      <CommandInput placeholder={t`Search papers, docs and chats…`} value={query} onValueChange={setQuery} autoFocus />
       <CommandList className="max-h-[26rem] p-2">
-        <CommandEmpty className="py-10 text-muted-foreground">{fullText.indexing ? "Nothing found yet. Still indexing…" : "Nothing found."}</CommandEmpty>
+        <CommandEmpty className="py-10 text-muted-foreground">{fullText.indexing ? t`Nothing found yet. Still indexing…` : t`Nothing found.`}</CommandEmpty>
         {inChat
           ? [actions, chatGroup, paperGroup, docGroup]
           : inDocs
@@ -204,14 +208,14 @@ function PaletteBody() {
       </CommandList>
       <div className="flex items-center gap-5 border-t px-4 py-2.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          Open <Kbd>↵</Kbd>
+          {t({ message: "Open", comment: "palette footer, beside the Enter key: opens the selected row" })} <Kbd>↵</Kbd>
         </span>
         <span className="flex items-center gap-1.5">
-          Navigate <Kbd>↑</Kbd>
+          {t({ message: "Navigate", comment: "palette footer, beside the arrow keys: moves between rows" })} <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
         </span>
         <span className="ml-auto flex items-center gap-1.5">
-          Close <Kbd>Esc</Kbd>
+          {t({ message: "Close", comment: "palette footer, beside the Esc key: closes the palette" })} <Kbd>Esc</Kbd>
         </span>
       </div>
     </Command>

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { memo } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
@@ -26,7 +27,7 @@ export function ChatMessages({ chat, streaming, panel = false, onEdit }: { chat:
     // One scroller per chat, so switching chats opens the next one at its end
     <MessageScrollerProvider key={chat.id}>
       <MessageScroller className={cn("flex-1", panel && "min-h-0")}>
-        <MessageScrollerViewport className="px-4" aria-label="Messages">
+        <MessageScrollerViewport className="px-4" aria-label={t`Messages`}>
           <MessageScrollerContent className={panel ? "w-full gap-1 py-2 pb-10" : "mx-auto w-full max-w-3xl gap-1 py-6 pb-12"}>
             {/* Items sit directly in the content: the scroller only sees its direct children, so a wrapper
                 hides new messages from it and a sent question never moves to the top.

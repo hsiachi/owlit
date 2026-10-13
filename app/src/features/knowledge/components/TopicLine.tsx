@@ -1,6 +1,7 @@
+import { t } from "@lingui/core/macro"
 import { cn } from "@/lib/utils"
 import { Dot } from "@/components/marks"
-import { isAbstractOnly, verbOf } from "../format"
+import { isAbstractOnly, speakerName, verbOf, verbWords } from "../format"
 import type { Line, Topic } from "../types"
 import { Prose, Refs } from "./bits"
 
@@ -12,7 +13,7 @@ export function TopicLine({ line, mark, className, children, ...props }: { line:
     <div className={cn("grid grid-cols-[112px_1fr] gap-x-4", className)} {...props}>
       <div className="relative pt-[3px] text-detail leading-snug">
         {mark}
-        <span className="font-medium text-foreground">{line.speaker}</span> <span className="text-muted-foreground">{verbOf(line)}</span>
+        <span className="font-medium text-foreground">{speakerName(line)}</span> <span className="text-muted-foreground">{verbWords(verbOf(line))}</span>
       </div>
       {children}
     </div>
@@ -37,10 +38,10 @@ export function LineBody({ line, was, topic }: { line: Line; was?: string; topic
               <Prose text={line.condition} topic={topic} />
             </>
           )}
-          {abstractOnly && <span className="ml-2 inline-flex h-5 items-center rounded-md bg-muted px-1.5 align-[0.05em] text-xs">abstract only</span>}
+          {abstractOnly && <span className="ml-2 inline-flex h-5 items-center rounded-md bg-muted px-1.5 align-[0.05em] text-xs">{t`abstract only`}</span>}
         </p>
       )}
-      {was && <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">Was: “{was}”</p>}
+      {was && <p className="mt-0.5 text-detail leading-relaxed text-muted-foreground">{t`Was: “${was}”`}</p>}
     </>
   )
 }

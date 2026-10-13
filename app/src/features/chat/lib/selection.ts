@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
 import type { Chat, Connector, Role } from "../types"
 
@@ -28,6 +29,19 @@ export function resolveSelection(connectors: Connector[], selection: Selection) 
     connector?.efforts?.[0]
   const role = ROLES.find((r) => r.id === selection.role) ?? ROLES.find((r) => r.id === DEFAULT_ROLE)!
   return { connector, model, effort, role }
+}
+
+// A role's name and what it does, in the interface's language. ROLES keeps them in English for core,
+// which tells the agent its role in those words.
+export function roleWords(role: Role): { name: string; description: string } {
+  switch (role) {
+    case "reviewer":
+      return { name: t({ message: "Reviewer", comment: "Owlit's role" }), description: t`Reads, answers and leaves comments. Never changes your files or library.` }
+    case "assistant":
+      return { name: t({ message: "Assistant", comment: "Owlit's role" }), description: t`Finds and adds papers, keeps its own notes. Your writing changes only when you apply it.` }
+    case "coauthor":
+      return { name: t({ message: "Co-author", comment: "Owlit's role" }), description: t`Also edits your docs and runs commands in this workspace. Every change can be undone.` }
+  }
 }
 
 // The name of the model a reply came from, while its agent still lists it

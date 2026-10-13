@@ -1,7 +1,11 @@
+import { t } from "@lingui/core/macro"
 import { XIcon } from "lucide-react"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
 import { selectionLabel, shorten } from "./page-context"
 import { useAgentWindow } from "./store"
+
+// A chip's ×, for a doc, paper or topic by its name
+export const dontInclude = (name: string) => t`Don't include ${name}`
 
 // What goes with the question besides its text (the page, a passage, a mention), each with × to leave it out
 export function Chip({ children, onRemove, label }: { children: React.ReactNode; onRemove: () => void; label: string }) {
@@ -24,7 +28,7 @@ export function Chip({ children, onRemove, label }: { children: React.ReactNode;
 // The passage, as its chip says it: where it came from and its first words
 export function SelectionChip({ selection, length }: { selection: QuotedSelection; length: number }) {
   return (
-    <Chip label="Don't include the selection" onRemove={() => useAgentWindow.getState().clearSelection()}>
+    <Chip label={t`Don't include the selection`} onRemove={() => useAgentWindow.getState().clearSelection()}>
       {selectionLabel(selection)} · “{shorten(selection.text, length)}”
     </Chip>
   )
@@ -34,7 +38,7 @@ export function ContextChips({ context, selection }: { context: Mentionable[]; s
   return (
     <>
       {context.map((c) => (
-        <Chip key={c.uri} label={`Don't include ${c.title}`} onRemove={() => useAgentWindow.getState().hideContext(c.uri)}>
+        <Chip key={c.uri} label={dontInclude(c.title)} onRemove={() => useAgentWindow.getState().hideContext(c.uri)}>
           <span className="text-mention">{c.title}</span>
         </Chip>
       ))}

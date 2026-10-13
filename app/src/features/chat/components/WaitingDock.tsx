@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useState } from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
@@ -48,12 +49,13 @@ export function WaitingDock({ chat, compact = false, onTypeInstead }: { chat: Ch
 const CARD = "mb-2 rounded-xl border bg-card px-3.5 py-3 text-sm shadow-sm"
 
 // Owlit's words for the agent's options, by what each does
-const OPTION_WORDS: Record<PermissionKind, string> = {
-  allow_once: "Allow",
-  allow_always: "Always allow",
-  reject_once: "Don't allow",
-  reject_always: "Never allow",
-}
+const optionWords = (kind: PermissionKind): string | undefined =>
+  ({
+    allow_once: t`Allow`,
+    allow_always: t`Always allow`,
+    reject_once: t`Don't allow`,
+    reject_always: t`Never allow`,
+  })[kind]
 const ORDER: PermissionKind[] = ["allow_once", "allow_always", "reject_once", "reject_always"]
 
 function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string; ask: Part<"permission">; call?: ToolCall; agent?: string; compact: boolean }) {
@@ -66,13 +68,13 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
 
   // An edit drawn where it would land, in an editor on screen, is answered there, with Apply and Discard
   if (inPlace && !answerHere) {
-    const where = editPath && paperOfNotePath(editPath) ? "your note" : "the doc"
+    const inNote = !!editPath && !!paperOfNotePath(editPath)
     return (
       <div className={cn(CARD, "flex items-center gap-2 py-2 text-muted-foreground")}>
-        <span className="min-w-0 truncate">Waiting in {where}: Apply or Discard it there</span>
+        <span className="min-w-0 truncate">{inNote ? t`Waiting in your note: Apply or Discard it there` : t`Waiting in the doc: Apply or Discard it there`}</span>
         <span aria-hidden>·</span>
         <Button variant="text" size="inline" onClick={() => setAnswerHere(true)}>
-          Answer here
+          {t`Answer here`}
         </Button>
       </div>
     )
@@ -86,19 +88,21 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
   if (diff) {
     const stats = editStats(diff.path, diff.oldText, diff.newText)
     // A Write carries the whole file, so only it can tell that most of the doc would go
+    const added = amount(stats.added, stats.unit)
+    const removed = amount(stats.removed, stats.unit)
     const said = !diff.oldText
-      ? ["A new file"]
+      ? [t`A new file`]
       : call?.tool?.name === "Write" && stats.rewritten
-        ? ["Rewrites the doc"]
-        : [stats.added && `Adds ${amount(stats.added, stats.unit)}`, stats.removed && `removes ${amount(stats.removed, stats.unit)}`]
-    summary = [...said, folder && `in ${folder}`].filter(Boolean).join(" · ")
+        ? [t`Rewrites the doc`]
+        : [stats.added && t`Adds ${added}`, stats.removed && (stats.added ? t({ message: `removes ${removed}`, comment: "after “Adds …”, hence lowercase" }) : t`Removes ${removed}`)]
+    summary = [...said, folder && t`in ${folder}`].filter(Boolean).join(" · ")
   } else if (call?.tool?.description) summary = call.tool.description
-  if (agent) summary = [`For the agent “${agent}”`, summary].filter(Boolean).join(" · ")
+  if (agent) summary = [t`For the agent “${agent}”`, summary].filter(Boolean).join(" · ")
 
   const options = [...ask.options].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind))
   // The words say what waits ("Owlit wants to edit story.md"); no mark leads them
   return (
-    <div className={CARD} role="group" aria-label="Owlit is waiting on you">
+    <div className={CARD} role="group" aria-label={t`Owlit is waiting on you`}>
       <div className="min-w-0">
         <div className="font-medium break-words">{askSentence(ask.title, call)}</div>
         {summary && <div className="mt-0.5 text-detail text-muted-foreground">{summary}</div>}
@@ -119,11 +123,11 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {options.map((o) => (
           <Button key={o.optionId} size="sm" variant={o.kind === "allow_once" ? "default" : o.kind.startsWith("allow") ? "outline" : "ghost"} onClick={() => respond(o.optionId)}>
-            {OPTION_WORDS[o.kind] ?? o.name}
+            {optionWords(o.kind) ?? o.name}
           </Button>
         ))}
         {(diff || command) && long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} />}
-        {!compact && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">Or type below to say what to do instead</span>}
+        {!compact && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{t`Or type below to say what to do instead`}</span>}
       </div>
     </div>
   )
@@ -171,7 +175,10 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
   const store = useAskDraft.getState
   const pick = (label: string) => store().pick(chatId, ask, label)
   const fold = (to: boolean) => store().fold(chatId, ask, to)
-  const headerOf = (question: AgentQuestion, i: number) => question.header || `Question ${i + 1}`
+  const headerOf = (question: AgentQuestion, i: number) => {
+    const number = i + 1
+    return question.header || t`Question ${number}`
+  }
 
   // A number picks that option, unless the user is typing somewhere
   useWindowKeydown((e) => {
@@ -189,36 +196,46 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
   // Next while a later question is still open; Submit on the last question or once every question is answered
   const later = nextOpen(ask, answers, index)
   const submits = done || later === undefined
-  const asks = agent ? `Owlit asks for the agent “${agent}”` : "Owlit asks"
+  const asks = agent ? t`Owlit asks for the agent “${agent}”` : t`Owlit asks`
   // "Owlit asks · Venue": the question's header after the words, falling back to its number among several
   const header = several ? headerOf(q, index) : q.header && q.header !== q.question ? q.header : undefined
-  const foldedLine = several ? `${asks} ${ask.questions.length} questions` : header ? `${asks} · ${header}` : `${asks} a question`
+  const asksAbout = (header: string) => (agent ? t`Owlit asks for the agent “${agent}” · ${header}` : t`Owlit asks · ${header}`)
+  const count = ask.questions.length
+  const foldedLine = several
+    ? agent
+      ? plural(count, { one: `Owlit asks for the agent “${agent}” # question`, other: `Owlit asks for the agent “${agent}” # questions` })
+      : plural(count, { one: "Owlit asks # question", other: "Owlit asks # questions" })
+    : header
+      ? asksAbout(header)
+      : agent
+        ? t`Owlit asks for the agent “${agent}” a question`
+        : t`Owlit asks a question`
   const goTo = (i: number) => store().goTo(chatId, ask, i)
   return (
-    <div className={CARD} role="group" aria-label="Owlit asks you">
+    <div className={CARD} role="group" aria-label={t`Owlit asks you`}>
       {/* The header line folds the card to itself and opens it again; the pager and the chevron are the buttons */}
       <div className="flex min-h-6 cursor-default items-center gap-2.5" onClick={() => fold(!folded)}>
-        <span className={cn("min-w-0 flex-1 truncate text-muted-foreground", folded ? "text-sm" : "text-xs")}>{folded ? foldedLine : header ? `${asks} · ${header}` : asks}</span>
+        <span className={cn("min-w-0 flex-1 truncate text-muted-foreground", folded ? "text-sm" : "text-xs")}>{folded ? foldedLine : header ? asksAbout(header) : asks}</span>
         {/* Several questions: a pager at the line's end, so an answered one can be gone back to */}
         {!folded && several && (
           <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon-xs" aria-label="Previous question" disabled={index === 0} className="text-muted-foreground" onClick={() => goTo(index - 1)}>
+            <Button variant="ghost" size="icon-xs" aria-label={t`Previous question`} disabled={index === 0} className="text-muted-foreground" onClick={() => goTo(index - 1)}>
               <ChevronLeftIcon />
             </Button>
             <span className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
               {index + 1} / {ask.questions.length}
             </span>
-            <Button variant="ghost" size="icon-xs" aria-label="Next question" disabled={index === ask.questions.length - 1} className="text-muted-foreground" onClick={() => goTo(index + 1)}>
+            <Button variant="ghost" size="icon-xs" aria-label={t`Next question`} disabled={index === ask.questions.length - 1} className="text-muted-foreground" onClick={() => goTo(index + 1)}>
               <ChevronRightIcon />
             </Button>
           </span>
         )}
         {folded ? (
           <Button variant="text" size="inline" className="shrink-0" onClick={(e) => (e.stopPropagation(), fold(false))}>
-            Show
+            {t({ message: "Show", comment: "verb: unfold the card with Owlit's question" })}
           </Button>
         ) : (
-          <Button variant="ghost" size="icon-xs" aria-expanded aria-label="Fold" className="-mr-1 shrink-0 text-muted-foreground" onClick={(e) => (e.stopPropagation(), fold(true))}>
+          <Button variant="ghost" size="icon-xs" aria-expanded aria-label={t({ message: "Fold", comment: "verb: fold the card to one line" })} className="-mr-1 shrink-0 text-muted-foreground" onClick={(e) => (e.stopPropagation(), fold(true))}>
             <FoldChevron open />
           </Button>
         )}
@@ -252,18 +269,18 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
               {q.allowsText && (
                 <button type="button" onClick={onTypeInstead} className={cn(OPTION_ROW, "items-center text-sm text-muted-foreground outline-none focus-key:bg-muted")}>
                   {q.options.length > 0 && <span aria-hidden className="size-4 shrink-0" />}
-                  <span className="min-w-0 flex-1">Something else…</span>
+                  <span className="min-w-0 flex-1">{t`Something else…`}</span>
                 </button>
               )}
             </div>
           )}
           <div className="mt-2.5 flex items-center gap-1.5">
-            {!compact && q.allowsText && <span className="min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? "Or type your own answer below" : "Type your answer below"}</span>}
+            {!compact && q.allowsText && <span className="min-w-0 truncate text-xs text-muted-foreground">{q.options.length ? t`Or type your own answer below` : t`Type your answer below`}</span>}
             <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" onClick={() => store().skip(chatId, ask)}>
-              Skip
+              {t({ message: "Skip", comment: "verb: skip the agent's question" })}
             </Button>
             <Button size="sm" disabled={submits ? !done : !here} onClick={() => (submits ? store().submit(chatId, ask) : store().next(chatId, ask))}>
-              {submits ? "Submit" : "Next"}
+              {submits ? t`Submit` : t({ message: "Next", comment: "button: the next question" })}
             </Button>
           </div>
         </div>

@@ -1,4 +1,6 @@
+import { msg, t } from "@lingui/core/macro"
 import { ago } from "@/lib/time"
+import { i18n } from "@/lib/i18n"
 import { MARK_CLOSE, MARK_OPEN } from "@owlit/protocol"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
@@ -9,7 +11,7 @@ import { GroupLabel } from "@/components/group-label"
 import { Unfold } from "@/components/unfold"
 import type { PaperGroup } from "../lib/filter"
 import { paperMeta, shortAuthors, shortVenue } from "../lib/format"
-import { STATUS_LABEL } from "../lib/status"
+import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
@@ -52,7 +54,7 @@ function RowActions({ paper, className }: { paper: Paper; className?: string }) 
   return (
     <span className={cn("hidden shrink-0 items-center group-hover/row:flex group-has-focus-key/row:flex group-has-data-menu-up/row:flex", className)}>
       <StarButton size="icon-xs" starred={paper.starred} onToggle={() => useLibraryStore.getState().setStarred([paper.id], !paper.starred)} />
-      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label="More actions" menuClassName="w-48" />
+      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label={t`More actions`} menuClassName="w-48" />
     </span>
   )
 }
@@ -64,7 +66,7 @@ const ON_HOVER = "invisible group-hover/row:visible group-has-focus-key/row:visi
 function RowSlot({ paper }: { paper: Paper }) {
   return (
     <span className="flex shrink-0 items-center">
-      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label="More actions" menuClassName="w-48" className={cn("flex", ON_HOVER, "data-menu-up:visible")} />
+      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label={t`More actions`} menuClassName="w-48" className={cn("flex", ON_HOVER, "data-menu-up:visible")} />
       <StarButton
         size="icon-xs"
         starred={paper.starred}
@@ -89,7 +91,7 @@ function TextSnippet({ text, className }: { text: string; className?: string }) 
 // while it is being read. Every row has the slot, so titles start at one place and the ring comes or goes
 // without moving the row.
 function PaperStatusMark({ paper }: { paper: Paper }) {
-  const label = paper.status === "reading" ? "Reading" : undefined
+  const label = paper.status === "reading" ? statusLabel("reading") : undefined
   return (
     <span className="grid size-4 shrink-0 place-items-center" title={label}>
       {paper.status === "reading" && (
@@ -110,7 +112,7 @@ function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[
         mark={<PaperStatusMark paper={paper} />}
         title={paper.title}
         // A publisher waiting on the user says so in words, first among the row's details
-        meta={[paper.noPdf?.needs && "Needs you", paperMeta(paper)].filter(Boolean).join(" · ")}
+        meta={[paper.noPdf?.needs && t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" }), paperMeta(paper)].filter(Boolean).join(" · ")}
         slot={<RowSlot paper={paper} />}
         below={snippet && <TextSnippet text={snippet} className="pr-14 pl-7" />}
       />
@@ -152,14 +154,15 @@ export function PaperList({ groups, order, snippets }: { groups: PaperGroup[]; o
   )
 }
 
+// Labels are said where shown (i18n._), so they follow the interface language
 const COLUMNS = [
-  { key: "title", label: "Title", width: undefined, sort: "title" },
-  { key: "authors", label: "Authors", width: 136, sort: "authors" },
-  { key: "year", label: "Year", width: 64, sort: "year" },
-  { key: "venue", label: "Venue", width: 160, sort: "venue" },
-  { key: "tags", label: "Tags", width: 144 },
-  { key: "status", label: "Status", width: 104 },
-  { key: "added", label: "Added", width: 96, sort: "addedAt" },
+  { key: "title", label: msg`Title`, width: undefined, sort: "title" },
+  { key: "authors", label: msg`Authors`, width: 136, sort: "authors" },
+  { key: "year", label: msg`Year`, width: 64, sort: "year" },
+  { key: "venue", label: msg`Venue`, width: 160, sort: "venue" },
+  { key: "tags", label: msg`Tags`, width: 144 },
+  { key: "status", label: msg`Status`, width: 104 },
+  { key: "added", label: msg({ message: "Added", comment: "table column: when the paper was added" }), width: 96, sort: "addedAt" },
 ] as const
 
 type Column = (typeof COLUMNS)[number]
@@ -252,11 +255,11 @@ function TableRow({ paper, order, open, columns, snippet, tagFilter }: { paper: 
           <td className={td}>
             {/* A publisher waiting on the user says so before the reading status, as the list row does */}
             {paper.noPdf?.needs ? (
-              "Needs you"
+              t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
             ) : paper.status === "unread" ? (
               ""
             ) : (
-              STATUS_LABEL[paper.status]
+              statusLabel(paper.status)
             )}
           </td>
         )}
@@ -314,11 +317,11 @@ export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order
                     onClick={() => sortBy(c.sort)}
                     className={cn("-mx-1 rounded px-1 hover:text-foreground", active && "text-foreground")}
                   >
-                    {c.label}
+                    {i18n._(c.label)}
                     {active && <span className="ml-1">{sort.desc ? "↓" : "↑"}</span>}
                   </button>
                 ) : (
-                  c.label
+                  i18n._(c.label)
                 )}
               </th>
             )

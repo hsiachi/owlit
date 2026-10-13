@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
@@ -6,7 +7,7 @@ import { Tip } from "@/components/tip"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
-import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_VAR } from "../lib/highlights"
+import { HIGHLIGHT_COLORS, HIGHLIGHT_VAR, highlightLabel } from "../lib/highlights"
 import type { HighlightColor } from "../types"
 
 // The one popover for text in the PDF, whether it is a fresh selection or an existing highlight:
@@ -82,10 +83,10 @@ export function HighlightToolbar({
       <div className="flex items-center gap-0.5">
         <div className="flex items-center gap-1 px-1">
           {HIGHLIGHT_COLORS.map((c) => (
-            <Tip key={c} label={HIGHLIGHT_LABEL[c]}>
+            <Tip key={c} label={highlightLabel(c)}>
               <button
                 type="button"
-                aria-label={HIGHLIGHT_LABEL[c]}
+                aria-label={highlightLabel(c)}
                 aria-pressed={color === c}
                 onClick={() => onColor(c)}
                 className="flex size-6 items-center justify-center rounded-full"
@@ -103,20 +104,20 @@ export function HighlightToolbar({
           ))}
         </div>
         <Separator orientation="vertical" className="mx-1 h-4" />
-        <IconButton label={copied ? "Copied" : "Copy"} shortcut={copied ? undefined : "copy"} onClick={copy}>
+        <IconButton label={copied ? t`Copied` : t({ message: "Copy", comment: "verb: copy the text" })} shortcut={copied ? undefined : "copy"} onClick={copy}>
           {copied ? <CheckIcon /> : <CopyIcon />}
         </IconButton>
-        <IconButton label={comment ? "Edit comment" : "Comment"} aria-pressed={commenting} onClick={onComment} className={cn(commenting && "bg-accent text-foreground")}>
+        <IconButton label={comment ? t`Edit comment` : t({ message: "Comment", comment: "verb: add a comment to a highlight" })} aria-pressed={commenting} onClick={onComment} className={cn(commenting && "bg-accent text-foreground")}>
           <MessageSquareTextIcon />
         </IconButton>
         {onAsk && (
           // Owlit's own mark, as on every control whose action is Owlit; named "Ask Owlit" as everywhere else
-          <IconButton label="Ask Owlit" onClick={onAsk}>
+          <IconButton label={t`Ask Owlit`} onClick={onAsk}>
             <OwlitMark />
           </IconButton>
         )}
         {onDelete && (
-          <IconButton label="Delete highlight" onClick={onDelete}>
+          <IconButton label={t`Delete highlight`} onClick={onDelete}>
             <Trash2Icon />
           </IconButton>
         )}
@@ -159,7 +160,7 @@ function CommentField({ comment, onChange, onDone }: { comment?: string; onChang
       }}
       onBlur={() => onChange(draft.trim())}
       rows={3}
-      placeholder="Add a comment"
+      placeholder={t`Add a comment`}
       className="mt-1.5 block max-h-48 min-h-16 w-full resize-none rounded-md border bg-card px-2.5 py-2 text-sm leading-normal outline-none [field-sizing:content] placeholder:text-muted-foreground focus:border-foreground/30"
     />
   )

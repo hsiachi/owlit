@@ -1,11 +1,12 @@
 import { useCallback } from "react"
+import { t } from "@lingui/core/macro"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { NoteDot } from "@/components/marks"
 import { useAgentWindow } from "@/features/agent/store"
 import { shortDate } from "@/lib/time"
 import { toastUndo } from "@/lib/toast"
-import { lineKey, shownChange, topicUri, wasBefore, wordsAfter } from "../format"
+import { changeWords, lineKey, shownChange, topicUri, wasBefore, whyWords, wordsAfter } from "../format"
 import { useTarget, useViewed } from "../hooks"
 import { editLine, removeLine } from "../store"
 import type { Line, Topic, TopicSidecar } from "../types"
@@ -43,7 +44,7 @@ export function LineRow({
 
   const remove = () => {
     const undo = removeLine(topic.id, line.id)
-    if (undo) toastUndo("Line removed", undo, { description: "Updates won’t bring it back." })
+    if (undo) toastUndo(t`Line removed`, undo, { description: t`Updates won’t bring it back.` })
   }
   const ask = () =>
     useAgentWindow.getState().open({ text: line.text, source: { id: key, kind: "knowledge", title: topic.name, uri: topicUri(topic.id, line.id) } })
@@ -52,11 +53,11 @@ export function LineRow({
     ? []
     : [
         [
-          { label: "Edit", onSelect: () => set({ editing: key, open: null }) },
+          { label: t({ message: "Edit", comment: "verb: edit a topic's line" }), onSelect: () => set({ editing: key, open: null }) },
           // Once the menu has closed, so it doesn't take focus back from the agent window
-          { label: "Ask Owlit", afterClose: true, onSelect: ask },
+          { label: t`Ask Owlit`, afterClose: true, onSelect: ask },
         ],
-        [{ label: "Remove", destructive: true, onSelect: remove }],
+        [{ label: t({ message: "Remove", comment: "verb: remove a topic's line" }), destructive: true, onSelect: remove }],
       ]
 
   return (
@@ -64,7 +65,7 @@ export function LineRow({
       <TopicLine
         line={line}
         // The dot sits in the row's own left gutter, inside its hover fill, centred on the cap height of the speaker
-        mark={<NoteDot gone={!fresh} className="absolute top-2 -left-3.5" label={fresh === "changed" ? "Changed since you last looked" : "New since you last looked"} />}
+        mark={<NoteDot gone={!fresh} className="absolute top-2 -left-3.5" label={fresh === "changed" ? t`Changed since you last looked` : t`New since you last looked`} />}
         ref={(el) => {
           ref.current = el
           viewedRef.current = el
@@ -107,7 +108,7 @@ export function LineRow({
           )}
           {open && !editing && <LineHistory topic={topic} line={line} side={side} />}
         </div>
-        {!editing && <RowMenuButton groups={menu} label="Line actions" className="absolute top-2 right-1.5" />}
+        {!editing && <RowMenuButton groups={menu} label={t`Line actions`} className="absolute top-2 right-1.5" />}
       </TopicLine>
     </ActionsOnRightClick>
   )
@@ -125,17 +126,19 @@ function LineHistory({ topic, line, side }: { topic: Topic; line: Line; side: To
       date: shortDate(h.at),
       text: (
         <>
-          {what}{" "}
+          {changeWords(what)}{" "}
           <span className="text-muted-foreground">
-            · <Prose text={h.why} topic={topic} />
+            · <Prose text={whyWords(h)} topic={topic} />
           </span>
-          {was && <span className="block text-muted-foreground">Was: “{was}”</span>}
+          {was && <span className="block text-muted-foreground">{t`Was: “${was}”`}</span>}
         </>
       ),
     }
   })
-  for (const [i, s] of (side.said[line.id] ?? []).entries())
-    rows.push({ key: `said-${i}`, at: s.at, date: shortDate(s.at), text: <span className="text-muted-foreground">You said: “{s.text}”</span> })
+  for (const [i, s] of (side.said[line.id] ?? []).entries()) {
+    const said = s.text
+    rows.push({ key: `said-${i}`, at: s.at, date: shortDate(s.at), text: <span className="text-muted-foreground">{t`You said: “${said}”`}</span> })
+  }
   if (!side.history.some((h) => h.lineId === line.id && h.what === "Added")) {
     const start = side.history.filter((h) => !h.lineId).at(-1)
     const at = start?.at ?? topic.updatedAt
@@ -145,10 +148,10 @@ function LineHistory({ topic, line, side }: { topic: Topic; line: Line; side: To
       date: shortDate(at),
       text: (
         <>
-          In this topic since it began{" "}
+          {t`In this topic since it began`}{" "}
           {start && (
             <span className="text-muted-foreground">
-              · <Prose text={start.why} topic={topic} />
+              · <Prose text={whyWords(start)} topic={topic} />
             </span>
           )}
         </>

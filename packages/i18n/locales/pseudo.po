@@ -7,6 +7,3926 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: pseudo\n"
 
+#: app/src/app/AppSidebar.tsx
+msgid "A paper needs you"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
+msgid "A chat needs you"
+msgstr ""
+
+#. a place in the rail, then what waits there: Library · A paper needs you
+#: app/src/app/AppSidebar.tsx
+msgid "{place} · {needsYou}"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
+#: app/src/app/app-links.ts
+#: app/src/app/shortcuts.ts
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Settings"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+#: app/src/components/list-panel.tsx
+msgid "Search"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+msgid "Jump to a paper, a doc or a chat"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+#: app/src/features/settings/store.ts
+msgid "Papers"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+msgid "Chats"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+#: app/src/app/nav.ts
+#: app/src/lib/kinds.ts
+msgid "Docs"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+#: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/chat/lib/title.ts
+#: app/src/features/chat/store.ts
+msgid "New chat"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+#: app/src/app/shortcuts.ts
+#: app/src/features/docs/actions.ts
+#: app/src/features/docs/components/DocsListPanel.tsx
+#: app/src/features/docs/pages/DocsHome.tsx
+#: app/src/features/home/HomePage.tsx
+msgid "New doc"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+msgid "Actions"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+msgid "Search papers, docs and chats…"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+msgid "Nothing found yet. Still indexing…"
+msgstr ""
+
+#: app/src/app/CommandPalette.tsx
+msgid "Nothing found."
+msgstr ""
+
+#. button of the folder picker
+#. button of the folder picker
+#. button: open a paper to read
+#. button: open a paper to read
+#. menu: open a paper to read
+#. palette footer, beside the Enter key: opens the selected row
+#. verb: open the chat that waits
+#. verb: open the saved doc
+#: app/src/app/CommandPalette.tsx
+#: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/AddCandidate.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/main.ts
+msgid "Open"
+msgstr ""
+
+#. palette footer, beside the arrow keys: moves between rows
+#: app/src/app/CommandPalette.tsx
+msgid "Navigate"
+msgstr ""
+
+#. palette footer, beside the Esc key: closes the palette
+#. verb: close the Owlit panel
+#. verb: close the find field
+#: app/src/app/CommandPalette.tsx
+#: app/src/components/ui/dialog.tsx
+#: app/src/components/ui/sheet.tsx
+#: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/library/reader/ReaderControls.tsx
+#: apps/desktop/src/main.ts
+msgid "Close"
+msgstr ""
+
+#: app/src/app/Shell.tsx
+msgid "Back"
+msgstr ""
+
+#: app/src/app/Shell.tsx
+msgid "Forward"
+msgstr ""
+
+#: app/src/app/ShortcutsDialog.tsx
+#: app/src/app/app-links.ts
+#: app/src/app/shortcuts.ts
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#: app/src/app/ShortcutsDialog.tsx
+msgid "Every keyboard shortcut in owlit"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Note added"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Paper added"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Knowledge updated"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Paper removed"
+msgstr ""
+
+#: app/src/app/app-links.ts
+msgid "Settings › {place}"
+msgstr ""
+
+#: app/src/app/nav.ts
+#: app/src/features/home/HomePage.tsx
+msgid "Home"
+msgstr ""
+
+#: app/src/app/nav.ts
+msgid "Chat"
+msgstr ""
+
+#: app/src/app/nav.ts
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/knowledge/pages/LoosePage.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+#: app/src/lib/kinds.ts
+msgid "Knowledge"
+msgstr ""
+
+#: app/src/app/nav.ts
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/pages/PaperPage.tsx
+#: app/src/lib/kinds.ts
+msgid "Library"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Everywhere"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Find anything"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Find on this page"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in the Library and Knowledge"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "outside Chat"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+#: app/src/features/agent/AgentAskBar.tsx
+#: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/docs/editor/selection-menu.ts
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/paper/ItemRow.tsx
+#: app/src/features/library/notes/NoteEditor.tsx
+#: app/src/features/library/reader/HighlightToolbar.tsx
+#: apps/desktop/src/text-menu.ts
+msgid "Ask Owlit"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Show or hide the current chat"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Open workspace"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Docs and Chat"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in Docs · New chat in Chat"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Mention or cite"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in a doc, note or message"
+msgstr ""
+
+#. verb, in the keyboard shortcut list
+#. verb: send the message
+#: app/src/app/shortcuts.ts
+#: app/src/features/agent/AgentAskBar.tsx
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Send"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in the composer"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "New line"
+msgstr ""
+
+#. verb
+#. verb, in the keyboard shortcut list
+#. verb: rename a topic
+#: app/src/app/shortcuts.ts
+#: app/src/components/rename-input.tsx
+#: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/docs/actions.ts
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Rename"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in the docs list"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in the docs list, with Undo"
+msgstr ""
+
+#. verb, in the keyboard shortcut list
+#. verb: delete a highlight
+#. verb: delete a topic
+#: app/src/app/shortcuts.ts
+#: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/docs/actions.ts
+#: app/src/features/knowledge/components/TopicMenu.tsx
+#: app/src/features/library/components/HighlightsList.tsx
+#: apps/desktop/src/main.ts
+msgid "Delete"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Reading a paper"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Find in paper"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Highlight the selection"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in colour 1 to 4"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Copy the selection"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Save a comment"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Close the popover"
+msgstr ""
+
+#. heading of a group in the keyboard shortcut list
+#. verb, in the keyboard shortcut list
+#. verb: take back a change the agent made
+#. verb: take back what was just done
+#. verb: take back what was just done
+#: app/src/app/shortcuts.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/lib/toast.ts
+#: app/src/lib/versions.ts
+#: apps/desktop/src/main.ts
+msgid "Undo"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Owlit’s last change to your doc or note too"
+msgstr ""
+
+#. a menu's name, then what is chosen in it
+#: app/src/components/choice-menu.tsx
+msgid "{label}: {choice}"
+msgstr ""
+
+#. verb
+#. verb: copy the large files into the workspace
+#. verb: copy the sign-in command
+#. verb: copy the text
+#. verb: copy the text
+#: app/src/components/copy-button.tsx
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/library/reader/HighlightToolbar.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: apps/desktop/src/main.ts
+#: apps/desktop/src/text-menu.ts
+msgid "Copy"
+msgstr ""
+
+#: app/src/components/copy-button.tsx
+#: app/src/features/library/reader/HighlightToolbar.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Copied"
+msgstr ""
+
+#: app/src/components/fade-clip.tsx
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Show less"
+msgstr ""
+
+#: app/src/components/fade-clip.tsx
+msgid "Show all"
+msgstr ""
+
+#. verb: empty the search field
+#: app/src/components/find-field.tsx
+msgid "Clear"
+msgstr ""
+
+#: app/src/components/info.tsx
+msgid "About this"
+msgstr ""
+
+#: app/src/components/marks.tsx
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "Changed since you last looked"
+msgstr ""
+
+#: app/src/components/marks.tsx
+#: app/src/features/chat/status.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Waiting on you"
+msgstr ""
+
+#. filter chip: every paper
+#. filter: every kind of thing
+#: app/src/components/mention/mention-list.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "All"
+msgstr ""
+
+#: app/src/components/mention/mention-list.tsx
+msgid "No matches"
+msgstr ""
+
+#: app/src/components/mention/mention-list.tsx
+msgid "Show all {total}"
+msgstr ""
+
+#: app/src/components/page.tsx
+msgid "Breadcrumb"
+msgstr ""
+
+#: app/src/components/ui/command.tsx
+msgid "Command Palette"
+msgstr ""
+
+#: app/src/components/ui/command.tsx
+msgid "Search for a command to run..."
+msgstr ""
+
+#: app/src/components/ui/message-scroller.tsx
+msgid "Scroll to end"
+msgstr ""
+
+#: app/src/components/ui/message-scroller.tsx
+msgid "Scroll to start"
+msgstr ""
+
+#: app/src/components/ui/sidebar.tsx
+msgid "Sidebar"
+msgstr ""
+
+#: app/src/components/ui/sidebar.tsx
+msgid "Displays the mobile sidebar."
+msgstr ""
+
+#: app/src/components/ui/sidebar.tsx
+msgid "Toggle Sidebar"
+msgstr ""
+
+#: app/src/components/ui/spinner.tsx
+msgid "Loading"
+msgstr ""
+
+#: app/src/features/agent/AgentAskBar.tsx
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Ask Owlit…"
+msgstr ""
+
+#: app/src/features/agent/AgentAskBar.tsx
+msgid "Last chat"
+msgstr ""
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Ask anything."
+msgstr ""
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Ask a follow-up…"
+msgstr ""
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "No chats yet"
+msgstr ""
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Open in Chat"
+msgstr ""
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Resize Owlit"
+msgstr ""
+
+#: app/src/features/agent/ContextChips.tsx
+msgid "Don't include {name}"
+msgstr ""
+
+#: app/src/features/agent/ContextChips.tsx
+msgid "Don't include the selection"
+msgstr ""
+
+#. chip: a passage quoted from a line of a Knowledge topic
+#: app/src/features/agent/page-context.ts
+msgid "Line"
+msgstr ""
+
+#. chip: a passage quoted from the paper's note
+#: app/src/features/agent/page-context.ts
+msgid "Note"
+msgstr ""
+
+#. chip: a passage quoted from this page of the paper
+#: app/src/features/agent/page-context.ts
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "p. {page}"
+msgstr ""
+
+#. chip: a passage the user selected
+#: app/src/features/agent/page-context.ts
+msgid "Selection"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Ask about this paper…"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Ask about this doc…"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Ask about this topic…"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Ask about this paper, or anything else."
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Ask about this doc, or anything else."
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Ask about this topic, or anything else."
+msgstr ""
+
+#: app/src/features/agent/store.ts
+msgid "How do I… (about owlit)"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Up late, {name}"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Good morning, {name}"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Good afternoon, {name}"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Good evening, {name}"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Up late"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Good morning"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Good afternoon"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "Good evening"
+msgstr ""
+
+#: app/src/features/chat/components/ChatEmpty.tsx
+msgid "From anywhere, {keys} asks Owlit about what’s on your screen."
+msgstr ""
+
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Chat deleted"
+msgstr ""
+
+#. verb: unpin a chat
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Unpin"
+msgstr ""
+
+#. verb: pin a chat to the top
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Pin"
+msgstr ""
+
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Rename chat"
+msgstr ""
+
+#. a chat's status: waiting on the user
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Waiting"
+msgstr ""
+
+#. a chat's status: the agent stopped with an error
+#. a helper agent's status: it stopped before it was done
+#. a step the answer stopped in the middle of
+#: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/chat/components/messages/agents.tsx
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Stopped"
+msgstr ""
+
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Chat actions"
+msgstr ""
+
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "No chats yet."
+msgstr ""
+
+#: app/src/features/chat/components/ChatMessages.tsx
+msgid "Messages"
+msgstr ""
+
+#: app/src/features/chat/components/ConnectorStatusChip.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Not signed in"
+msgstr ""
+
+#: app/src/features/chat/components/ConnectorStatusChip.tsx
+#: app/src/features/chat/lib/connector-status.ts
+msgid "Not installed"
+msgstr ""
+
+#. an agent's status
+#. an agent's status
+#: app/src/features/chat/components/ConnectorStatusChip.tsx
+#: app/src/features/chat/lib/connector-status.ts
+msgid "Error"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Allow"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Always allow"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Don't allow"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Never allow"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Waiting in your note: Apply or Discard it there"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Waiting in the doc: Apply or Discard it there"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Answer here"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "A new file"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Rewrites the doc"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Adds {added}"
+msgstr ""
+
+#. after “Adds …”, hence lowercase
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "removes {removed}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Removes {removed}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "in {folder}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "For the agent “{agent}”"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit is waiting on you"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Or type below to say what to do instead"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Question {number}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks for the agent “{agent}”"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks for the agent “{agent}” · {header}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks · {header}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "{count, plural, one {Owlit asks for the agent “{agent}” # question} other {Owlit asks for the agent “{agent}” # questions}}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "{count, plural, one {Owlit asks # question} other {Owlit asks # questions}}"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks for the agent “{agent}” a question"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks a question"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Owlit asks you"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Previous question"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Next question"
+msgstr ""
+
+#. choice between showing the reading note or the PDF
+#. verb: scroll to the helper agents' block and open it
+#. verb: unfold the card with Owlit's question
+#: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/chat/components/messages/agents.tsx
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Show"
+msgstr ""
+
+#. verb: fold the card to one line
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Fold"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Something else…"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Or type your own answer below"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Type your answer below"
+msgstr ""
+
+#. button: go on to the next paper without this one
+#. verb: skip the agent's question
+#: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Skip"
+msgstr ""
+
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Submit"
+msgstr ""
+
+#. button: the next question
+#: app/src/features/chat/components/WaitingDock.tsx
+msgid "Next"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "Agent: {agent}"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "Agent: none"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "No agent"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "Manage agents…"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "Choose model and effort"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "{modelName} · {effortName} effort"
+msgstr ""
+
+#. how hard the model thinks: a menu of effort levels
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "Effort"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "Choose how Owlit works"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "Owlit works as"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+msgid "{agent} can't read text files"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+msgid "{agent} can't read PDFs"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+msgid "{agent} can't read images"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+msgid "{agent} can't read Word files"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+msgid "{agent} can't read this kind of file"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "Adding…"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+msgid "In your Library"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Open {name}"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "Add to Library"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AttachmentList.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Remove {name}"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Ask about your papers, docs or notes…"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Or tell Owlit what to do instead…"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Or type your own answer…"
+msgstr ""
+
+#. verb: set up the agent in Settings
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Set up"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Attach files or mention a paper, doc or note"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Add attachments or context"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Attach files"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Add from {place}"
+msgstr ""
+
+#. verb: stop the agent's reply
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Stop"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Stop generating"
+msgstr ""
+
+#: app/src/features/chat/components/composer/Composer.tsx
+msgid "Send message"
+msgstr ""
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+msgid "owlit keeps a copy of each file you attach with the chat, inside the workspace, so the chat still has it when the original moves or changes."
+msgstr ""
+
+#. placeholder {0}: big.length
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
+msgstr ""
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+msgid "Skip large files"
+msgstr ""
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/knowledge/components/SplitDialog.tsx
+#: app/src/features/knowledge/components/bits.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/settings/parts.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Cancel"
+msgstr ""
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/chat/use-notify.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Owlit stopped"
+msgstr ""
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Details"
+msgstr ""
+
+#. verb: leave a broken reply as it is
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/editor/agent-notes.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Dismiss"
+msgstr ""
+
+#. verb: send the question again
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Retry"
+msgstr ""
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Edit message"
+msgstr ""
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Working…"
+msgstr ""
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Stopped, partial"
+msgstr ""
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Save as doc"
+msgstr ""
+
+#. verb: ask for the answer again
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Regenerate"
+msgstr ""
+
+#. a doc an edit mostly replaced
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/knowledge/format.ts
+msgid "Rewritten"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Words added and removed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Lines added and removed"
+msgstr ""
+
+#. placeholder {0}: list.length
+#. placeholder {0}: notes.length
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "{0, plural, one {# note} other {# notes}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Your note on {name}"
+msgstr ""
+
+#. a paper the agent added to the library
+#. table column: when the paper was added
+#. when the paper was added to the library
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/knowledge/format.ts
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Added"
+msgstr ""
+
+#. a paper the agent took out of the library
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/knowledge/format.ts
+msgid "Removed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{docs, plural, one {edited a doc} other {edited # docs}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{docs, plural, one {edited a file} other {edited # files}}"
+msgstr ""
+
+#. placeholder {0}: added(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {added a paper} other {added # papers}}"
+msgstr ""
+
+#. placeholder {0}: removed(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {removed a paper} other {removed # papers}}"
+msgstr ""
+
+#. placeholder {0}: n("note")
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
+msgstr ""
+
+#. placeholder {0}: n("knowledge")
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {updated a topic} other {updated # topics}}"
+msgstr ""
+
+#. verb
+#. verb: put back a change that was undone
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/lib/versions.ts
+#: apps/desktop/src/main.ts
+msgid "Redo"
+msgstr ""
+
+#. a change that was taken back
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/lib/versions.ts
+msgid "Undone"
+msgstr ""
+
+#. verb: take back every change of the reply
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Undo all"
+msgstr ""
+
+#. placeholder {0}: rest.length
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {Show # more} other {Show # more}}"
+msgstr ""
+
+#. a helper agent's status
+#. a step that failed
+#: app/src/features/chat/components/messages/agents.tsx
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Failed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "What it found"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "Its findings show here when it’s done."
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "The agent is waiting on you"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "An agent is waiting on you"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "{done} of {count} done"
+msgstr ""
+
+#. after a helper agent's task: the task was handed to an agent
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "an agent"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "{count, plural, one {# agent working} other {# agents working}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "{done} done"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "{count, plural, one {Worked with # agent} other {Worked with # agents}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/agents.tsx
+msgid "{working, plural, one {Waiting for an agent} other {Waiting for # agents}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Allowed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Always allowed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Not allowed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Never allowed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Not answered"
+msgstr ""
+
+#. a question the user skipped
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Skipped"
+msgstr ""
+
+#. a block of an answer's steps in which the agent only thought
+#. noun: what the agent thought
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/chat/lib/step-words.ts
+msgid "Thought"
+msgstr ""
+
+#. the agent is thinking
+#. the agent is thinking
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/chat/lib/step-words.ts
+msgid "Thinking"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "{soFar} so far"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Couldn't save {lost}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "{failed} failed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "{refused} not allowed"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "{stopped} stopped"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/lib/words.ts
+msgctxt "between things in a list"
+msgid ", "
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "({counts})"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "{hidden, plural, one {# earlier step} other {# earlier steps}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Plan · {done}/{total}"
+msgstr ""
+
+#. placeholder {0}: part.questions.length
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "{0, plural, one {Answered a question} other {Answered # questions}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "Skipped a question"
+msgstr ""
+
+#: app/src/features/chat/components/messages/parts.tsx
+msgid "A question went unanswered"
+msgstr ""
+
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "Already in your Library"
+msgstr ""
+
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "Added “{title}”"
+msgstr ""
+
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "Couldn't add that paper."
+msgstr ""
+
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "In Library"
+msgstr ""
+
+#: app/src/features/chat/components/messages/step-results.tsx
+msgid "No answer"
+msgstr ""
+
+#: app/src/features/chat/connectors.ts
+#: packages/core/src/agents/agents.ts
+msgid "Custom agent"
+msgstr ""
+
+#: app/src/features/chat/connectors.ts
+msgid "Custom ACP agent"
+msgstr ""
+
+#. the model or mode an agent uses when none is picked
+#. the model or mode an agent uses when none is picked
+#. the model or mode an agent uses when none is picked
+#: app/src/features/chat/connectors.ts
+#: packages/core/src/agents/agents.ts
+msgid "Default"
+msgstr ""
+
+#: app/src/features/chat/disk.ts
+msgid "Couldn't save the chat."
+msgstr ""
+
+#: app/src/features/chat/lib/attachments.ts
+msgid "owlit couldn't read that file."
+msgstr ""
+
+#: app/src/features/chat/lib/attachments.ts
+#: packages/core/src/chats/attach.ts
+msgid "Folders can't be attached yet."
+msgstr ""
+
+#: app/src/features/chat/lib/attachments.ts
+msgid "Pasted file"
+msgstr ""
+
+#: app/src/features/chat/lib/attachments.ts
+#: app/src/features/library/lib/add-pdfs.ts
+#: app/src/features/library/lib/use-ref-lookup.ts
+msgid "Added to library"
+msgstr ""
+
+#: app/src/features/chat/lib/attachments.ts
+#: app/src/features/library/components/AddCandidate.tsx
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Already in your library"
+msgstr ""
+
+#: app/src/features/chat/lib/attachments.ts
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Couldn't add that file."
+msgstr ""
+
+#. an agent's status: not checked yet whether it is installed
+#: app/src/features/chat/lib/connector-status.ts
+msgid "Not checked"
+msgstr ""
+
+#. an agent's status: checking whether it is installed
+#: app/src/features/chat/lib/connector-status.ts
+msgid "Checking…"
+msgstr ""
+
+#. an agent's status
+#: app/src/features/chat/lib/connector-status.ts
+msgid "Ready"
+msgstr ""
+
+#. an agent's status
+#: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Connected"
+msgstr ""
+
+#: app/src/features/chat/lib/connector-status.ts
+msgid "{agent} isn’t installed"
+msgstr ""
+
+#: app/src/features/chat/lib/connector-status.ts
+msgid "{agent} isn’t signed in"
+msgstr ""
+
+#: app/src/features/chat/lib/connector-status.ts
+msgid "{agent} can’t run"
+msgstr ""
+
+#: app/src/features/chat/lib/edit-counts.ts
+msgid "{lines, plural, one {line} other {lines}}"
+msgstr ""
+
+#: app/src/features/chat/lib/edit-counts.ts
+msgid "{n, plural, one {{shown} word} other {{shown} words}}"
+msgstr ""
+
+#: app/src/features/chat/lib/edit-counts.ts
+msgid "{n, plural, one {{shown} line} other {{shown} lines}}"
+msgstr ""
+
+#. heading over pinned chats
+#: app/src/features/chat/lib/group-chats.ts
+msgid "Pinned"
+msgstr ""
+
+#: app/src/features/chat/lib/group-chats.ts
+#: app/src/features/library/lib/filter.ts
+msgid "Today"
+msgstr ""
+
+#: app/src/features/chat/lib/group-chats.ts
+#: app/src/lib/time.ts
+msgid "Yesterday"
+msgstr ""
+
+#: app/src/features/chat/lib/group-chats.ts
+#: app/src/features/library/lib/filter.ts
+msgid "Previous 7 days"
+msgstr ""
+
+#: app/src/features/chat/lib/group-chats.ts
+#: app/src/features/library/lib/filter.ts
+msgid "Previous 30 days"
+msgstr ""
+
+#. heading over chats older than 30 days
+#: app/src/features/chat/lib/group-chats.ts
+msgid "Older"
+msgstr ""
+
+#. Owlit's role
+#: app/src/features/chat/lib/selection.ts
+msgid "Reviewer"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Reads, answers and leaves comments. Never changes your files or library."
+msgstr ""
+
+#. Owlit's role
+#: app/src/features/chat/lib/selection.ts
+msgid "Assistant"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
+msgstr ""
+
+#. Owlit's role
+#: app/src/features/chat/lib/selection.ts
+msgid "Co-author"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
+msgstr ""
+
+#: app/src/features/chat/lib/starters.ts
+msgid "Find papers and add them"
+msgstr ""
+
+#. starts a question the user finishes; keep the trailing space
+#: app/src/features/chat/lib/starters.ts
+msgid "Find recent papers on "
+msgstr ""
+
+#: app/src/features/chat/lib/starters.ts
+msgid "Compare papers"
+msgstr ""
+
+#. starts a question the user finishes with papers; keep the trailing space
+#: app/src/features/chat/lib/starters.ts
+msgid "Compare the methods and findings of "
+msgstr ""
+
+#: app/src/features/chat/lib/starters.ts
+msgid "Review a draft"
+msgstr ""
+
+#. starts a question the user finishes with a doc; keep the trailing space
+#: app/src/features/chat/lib/starters.ts
+msgid "Review where I overstate a finding or misread a paper in "
+msgstr ""
+
+#: app/src/features/chat/lib/starters.ts
+msgid "Ask about your papers"
+msgstr ""
+
+#. starts a question the user finishes; keep the trailing space
+#: app/src/features/chat/lib/starters.ts
+msgid "What do my papers say about "
+msgstr ""
+
+#: app/src/features/chat/lib/step-output.ts
+msgid "{n, plural, one {# result} other {# results}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Use {server}: {action}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Used {server}: {action}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Read {file}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Read a file"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Edit {file}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Edited {file}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Edit a file"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Edited a file"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Write {file}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Wrote {file}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Write a file"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Wrote a file"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Run a command"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Ran a command"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Search the web"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searched the web"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Search the web for {quoted}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searched the web for {quoted}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "a page"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Open {page}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Opened “{title}”"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Opened {page}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Look for files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Looked for files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Look for files matching {pattern}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Looked for files matching {pattern}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Search files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searched files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Search files for {pattern}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searched files for {pattern}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Hand a task to an agent"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Handed a task to an agent"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{questions, plural, one {Asked you a question} other {Asked you # questions}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {ran a command} other {ran # commands}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read a file} other {read # files}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {edited a file} other {edited # files}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {wrote a file} other {wrote # files}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {opened a page} other {opened # pages}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {asked you a question} other {asked you # questions}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {used a tool} other {used # tools}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {looked up a paper} other {looked up # papers}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read a paper} other {read # papers}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {asked for a reading note} other {asked for # reading notes}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read a doc} other {read # docs}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {moved a doc} other {moved # docs}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read a chat} other {read # chats}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {showed a passage} other {showed # passages}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {highlighted a passage} other {highlighted # passages}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Running commands"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Reading files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Editing"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Writing"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Looking for files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searching files"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searching the web"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Opening pages"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Working with a helper"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Searching for papers"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Following citations"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Listing a journal's papers"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Reading papers"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Reading docs"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "done to a file, before its name: read and edited story.md"
+msgid "read"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "done to a file, before its name: read and edited story.md"
+msgid "edited"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "done to a file, before its name: read and wrote story.md"
+msgid "wrote"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Took {count} steps"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "file actions and the file: read and edited story.md"
+msgid "{verbs} {file}"
+msgstr ""
+
+#. a chat's status: its agent is at work
+#. what an answer is doing while it runs
+#: app/src/features/chat/lib/step-words.ts
+#: app/src/features/chat/status.ts
+msgid "Working"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "Owlit wants to …"
+msgid "run a command"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "Owlit wants to …"
+msgid "create a file"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "Owlit wants to …"
+msgid "create {file}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Owlit wants to {action}"
+msgstr ""
+
+#. placeholder {0}: asks.size
+#: app/src/features/chat/lib/step-words.ts
+msgid "{0, plural, one {It was asking to {actions} when it stopped, so that wasn't done.} other {It was asking to {actions} when it stopped, so those weren't done.}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{papers, plural, one {Added a paper} other {Added # papers}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{notes, plural, one {Asked for a reading note} other {Asked for # reading notes}}"
+msgstr ""
+
+#. placeholder {0}: files.length
+#: app/src/features/chat/lib/step-words.ts
+msgid "{0, plural, one {Edited # file} other {Edited # files}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{shown, plural, one {# step} other {# steps}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Starting"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "List your Library"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed your Library"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Look up a paper"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Looked up a paper"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read a paper"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read your highlights"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Search for papers"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Searched for papers"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Follow a paper's citations"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Followed a paper's citations"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "List a journal's papers"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed a journal's papers"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Add papers to your Library"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Added papers to your Library"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Remove papers from your Library"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Removed papers from your Library"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Ask for a reading note"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Asked for a reading note"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "List your docs"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed your docs"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read a doc"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Leave a note on a doc"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Left a note on a doc"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Delete docs"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Deleted docs"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Move a doc"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Moved a doc"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "List your chats"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed your chats"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read a chat"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read Knowledge"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Update Knowledge"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Updated Knowledge"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Open something in owlit"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Opened something in owlit"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Show a passage"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Showed a passage"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Highlight a passage"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Highlighted a passage"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Search for {query}"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Searched for {query}"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "List the papers in {journal}"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed the papers in {journal}"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Follow {paper}'s citations"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Followed {paper}'s citations"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "your note on {paper}"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "a paper's note"
+msgstr ""
+
+#: app/src/features/chat/pending-edits.ts
+msgid "Suggested by Owlit"
+msgstr ""
+
+#. verb: discard an edit Owlit suggested
+#: app/src/features/chat/pending-edits.ts
+msgid "Discard"
+msgstr ""
+
+#. verb: apply an edit Owlit suggested
+#: app/src/features/chat/pending-edits.ts
+msgid "Apply"
+msgstr ""
+
+#: app/src/features/chat/status.ts
+msgid "Finished since you last looked"
+msgstr ""
+
+#: app/src/features/chat/status.ts
+msgid "Stopped with an error"
+msgstr ""
+
+#: app/src/features/chat/use-notify.ts
+msgid "In “{title}”"
+msgstr ""
+
+#: app/src/features/chat/use-notify.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Owlit has a question"
+msgstr ""
+
+#: app/src/features/chat/use-notify.ts
+msgid "In “{title}”: {error}"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Link copied"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Doc deleted"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Folder deleted"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "{n, plural, one {{name} and # file} other {{name} and # files}}"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "{count, plural, one {# item deleted} other {# items deleted}}"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Duplicate"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Versions…"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Copy link"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Show in Finder"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+#: app/src/features/docs/components/DocsListPanel.tsx
+#: app/src/features/docs/store.ts
+msgid "New folder"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "{count, plural, one {Delete # item} other {Delete # items}}"
+msgstr ""
+
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "{name} opens in the system app"
+msgstr ""
+
+#: app/src/features/docs/components/DocsListPanel.tsx
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "Doc actions"
+msgstr ""
+
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Folder actions"
+msgstr ""
+
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "No docs yet."
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Version restored"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Versions of {name}"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Owlit hasn't changed this doc."
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Before an undo"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Before Owlit's edit"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "{when} · from “{title}”"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "{when} · from a chat"
+msgstr ""
+
+#. verb: put this version of the doc back
+#: app/src/features/docs/components/VersionsDialog.tsx
+#: app/src/features/library/components/RecentlyRemoved.tsx
+msgid "Restore"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "Couldn't save the change."
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "{name} was deleted outside owlit"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "It stays open here until you leave it."
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "Save again"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "{name} is no longer on disk"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "It was moved or deleted outside owlit."
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "{name} changed on disk"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "Your latest edits aren't saved yet."
+msgstr ""
+
+#. take the text on disk instead of the unsaved edits
+#: app/src/features/docs/disk.ts
+#: apps/desktop/src/main.ts
+msgid "Reload"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "Keep mine"
+msgstr ""
+
+#: app/src/features/docs/editor/DocEditor.tsx
+msgid "Note dismissed"
+msgstr ""
+
+#: app/src/features/docs/editor/DocEditor.tsx
+msgid "Doc text"
+msgstr ""
+
+#: app/src/features/docs/editor/DocEditor.tsx
+msgid "Start writing"
+msgstr ""
+
+#. which note of the doc's notes is open: 2 of 5
+#: app/src/features/docs/editor/agent-notes.ts
+msgid "{at} of {n}"
+msgstr ""
+
+#: app/src/features/docs/editor/agent-notes.ts
+msgid "Previous note"
+msgstr ""
+
+#: app/src/features/docs/editor/agent-notes.ts
+msgid "Next note"
+msgstr ""
+
+#: app/src/features/docs/editor/agent-notes.ts
+msgid "The passage this note was on has changed: “{passage}”"
+msgstr ""
+
+#: app/src/features/docs/editor/agent-notes.ts
+#: app/src/features/home/SinceYouLeft.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Chat about this"
+msgstr ""
+
+#: app/src/features/docs/editor/block-preview.ts
+msgid "Front matter"
+msgstr ""
+
+#: app/src/features/docs/editor/live-preview.ts
+msgid "No doc with this name"
+msgstr ""
+
+#: app/src/features/docs/fs.ts
+msgid "Edit applied"
+msgstr ""
+
+#: app/src/features/docs/fs.ts
+msgid "Your note on {paper}"
+msgstr ""
+
+#. a paper cited at a page: Chan et al. 2026, p. 13
+#: app/src/features/docs/lib/mentions.ts
+msgid "{cite}, p. {page}"
+msgstr ""
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "This doc is not in the workspace"
+msgstr ""
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "It may have been moved or deleted."
+msgstr ""
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "Back to docs"
+msgstr ""
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "Deleted on disk"
+msgstr ""
+
+#: app/src/features/docs/pages/DocsHome.tsx
+msgid "No docs yet"
+msgstr ""
+
+#: app/src/features/docs/pages/DocsHome.tsx
+msgid "Notes and drafts live here as Markdown files in your workspace. Files you add in Finder show up too."
+msgstr ""
+
+#: app/src/features/docs/pages/DocsHome.tsx
+msgid "In a doc, type @ to cite a paper."
+msgstr ""
+
+#: app/src/features/docs/save-as-doc.ts
+msgid "Answer"
+msgstr ""
+
+#: app/src/features/docs/save-as-doc.ts
+msgid "Saved as doc"
+msgstr ""
+
+#. file name of a duplicated doc: the original name, then copy
+#: app/src/features/docs/store.ts
+msgid "{stem} copy"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Recent"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Drop PDFs to add them to your Library"
+msgstr ""
+
+#. button: go on reading a paper
+#: app/src/features/home/HomePage.tsx
+#: app/src/features/library/components/PaperPeek.tsx
+msgid "Continue"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "edited {when}"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Owlit wrote {when}"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Owlit edited {when}"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "read {when}"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Add papers"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Drop PDFs anywhere here, or choose them from your disk"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Notes and drafts are Markdown files in this folder"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Chat with Owlit"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Ask, or hand off work like finding papers"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "This folder is your workspace. Papers, notes and chats you add live in it as ordinary files."
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
+msgstr ""
+
+#. placeholder {0}: lines.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {New topic, # line} other {New topic, # lines}}"
+msgstr ""
+
+#. placeholder {0}: lines.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# line changed} other {# lines changed}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "Since you left on {left}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "Finished {when}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "Open topic"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "in “{title}”"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "picked for chats"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "picked for background work"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Manage agents"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Your library wants you to sign in"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "to fetch PDFs"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Library proxy"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Publishers want you to sign in"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher wants you to sign in"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Publishers want a quick check"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher wants a quick check"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Sign in"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Check now"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "for {cite}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "for {names}"
+msgstr ""
+
+#. placeholder {0}: papers.length - 2
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "{0, plural, one {{named} and # more} other {{named} and # more}}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "{what} {where}: {label}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "{what}: {label}"
+msgstr ""
+
+#. a topic Owlit changed from a chat
+#: app/src/features/knowledge/components/ChatUpdates.tsx
+msgid "Updated"
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "your doc"
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "No topics yet"
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "Owlit keeps its understanding of your research here, as topics. A topic starts once two things you read, highlighted, wrote or said are about the same question."
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "There’s nothing to do here; it fills in by itself."
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "Topics start from what you’ve touched. None has started from these yet; one will once two of them are about the same question."
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "and {more} more"
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "Owlit can’t read your material while {problem}."
+msgstr ""
+
+#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
+msgid "Owlit last read your workspace {when}."
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+msgid "Line removed"
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+msgid "Updates won’t bring it back."
+msgstr ""
+
+#. verb: edit a topic's line
+#. verb: edit a topic's line
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/paper/ItemRow.tsx
+#: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr ""
+
+#. verb: remove a topic's line
+#. verb: remove the paper from the library
+#. verb: remove the selected papers from the library
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Remove"
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "New since you last looked"
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+msgid "Line actions"
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/components/TopicLine.tsx
+msgid "Was: “{was}”"
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+msgid "You said: “{said}”"
+msgstr ""
+
+#: app/src/features/knowledge/components/LineRow.tsx
+msgid "In this topic since it began"
+msgstr ""
+
+#: app/src/features/knowledge/components/SplitDialog.tsx
+msgid "Split {topicName}"
+msgstr ""
+
+#: app/src/features/knowledge/components/SplitDialog.tsx
+msgid "New topic"
+msgstr ""
+
+#. label: the new workspace folder's name
+#. placeholder: the new topic's name
+#: app/src/features/knowledge/components/SplitDialog.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Name"
+msgstr ""
+
+#. verb: split a topic in two
+#: app/src/features/knowledge/components/SplitDialog.tsx
+msgid "Split"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicLine.tsx
+msgid "abstract only"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicLog.tsx
+msgid "Sources · {from}"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicLog.tsx
+msgid "A line"
+msgstr ""
+
+#. placeholder {0}: history.length
+#: app/src/features/knowledge/components/TopicLog.tsx
+msgid "{0, plural, one {# change} other {# changes}}"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Owlit is updating Knowledge"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "It reads what changed since the last update."
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Updated · {name}"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Nothing new"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Nothing has changed in its sources since {day}."
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Nothing has changed in its sources."
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Merge into"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Merged into {into}"
+msgstr ""
+
+#. verb: split a topic in two
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Split…"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Unarchive"
+msgstr ""
+
+#. verb: archive a topic
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Archive"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Update now"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Resume updates"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Pause updates"
+msgstr ""
+
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Deleted {name}"
+msgstr ""
+
+#: app/src/features/knowledge/components/bits.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Save"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{highlights, plural, one {# highlight and a note} other {# highlights and a note}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{highlights, plural, one {# highlight, a note} other {# highlights, a note}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{highlights, plural, one {# highlight} other {# highlights}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "a note"
+msgstr ""
+
+#. the speaker of a topic's line: You wrote, You said
+#: app/src/features/knowledge/format.ts
+msgid "You"
+msgstr ""
+
+#. after a speaker in a topic: You wrote
+#: app/src/features/knowledge/format.ts
+msgid "wrote"
+msgstr ""
+
+#. after a speaker in a topic: You said (in a chat)
+#: app/src/features/knowledge/format.ts
+msgid "said"
+msgstr ""
+
+#. after a speaker in a topic: Schick 2023 reported
+#: app/src/features/knowledge/format.ts
+msgid "reported"
+msgstr ""
+
+#. after a speaker in a topic: You rewrote (the line)
+#: app/src/features/knowledge/format.ts
+msgid "rewrote"
+msgstr ""
+
+#. after a paper in a topic: Schick 2023 found
+#: app/src/features/knowledge/format.ts
+msgid "found"
+msgstr ""
+
+#. after a paper in a topic: Schick 2023 says (in its abstract)
+#: app/src/features/knowledge/format.ts
+msgid "says"
+msgstr ""
+
+#. after a speaker in a topic: Owlit thinks
+#: app/src/features/knowledge/format.ts
+msgid "thinks"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "added"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "rewritten"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "removed"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "speaker changed"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Speaker changed"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "source changed"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Source changed"
+msgstr ""
+
+#. after a question's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "question added"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Question added"
+msgstr ""
+
+#. after a question's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "question updated"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Question updated"
+msgstr ""
+
+#. after a question's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "question removed"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Question removed"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "you rewrote it"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "You rewrote it"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "you removed it"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "You removed it"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "you added a condition"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "You added a condition"
+msgstr ""
+
+#. after a line's opening words in a topic's change log
+#: app/src/features/knowledge/format.ts
+msgid "anchored to its passage"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Anchored to its passage"
+msgstr ""
+
+#. a topic's first change: it started
+#: app/src/features/knowledge/format.ts
+msgid "Started"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Summary rewritten"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Renamed from “{name}”"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Merged in “{name}”"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "Split from “{name}”"
+msgstr ""
+
+#. placeholder {0}: Number(moved[1])
+#: app/src/features/knowledge/format.ts
+msgid "{0, plural, one {# line moved to “{name}”} other {# lines moved to “{name}”}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "edited on the topic page"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "it won’t come back on an update"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "you renamed it"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "you merged the two topics"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "you split the topic"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "what you said in chat"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "you highlighted it in {paper}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# line added} other {# lines added}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# added} other {# added}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# line rewritten} other {# lines rewritten}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# rewritten} other {# rewritten}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# line removed} other {# lines removed}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# removed} other {# removed}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# line’s source changed} other {# lines’ sources changed}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# source changed} other {# sources changed}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# line’s speaker changed} other {# lines’ speakers changed}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# speaker changed} other {# speakers changed}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# line anchored to its passage} other {# lines anchored to their passages}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# anchored} other {# anchored}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# question added} other {# questions added}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# question updated} other {# questions updated}}"
+msgstr ""
+
+#: app/src/features/knowledge/format.ts
+msgid "{n, plural, one {# question removed} other {# questions removed}}"
+msgstr ""
+
+#: app/src/features/knowledge/mentions.ts
+msgid "Topic"
+msgstr ""
+
+#: app/src/features/knowledge/mentions.ts
+msgid "Question · {name}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "This week"
+msgstr ""
+
+#. group of topics updated more than a week ago
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/library/lib/filter.ts
+msgid "Earlier"
+msgstr ""
+
+#. placeholder {0}: archived.length
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "{0, plural, one {# archived} other {# archived}}"
+msgstr ""
+
+#. placeholder {0}: loose.length
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "{0, plural, one {# loose passage} other {# loose passages}}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "Find a topic, a line or a question"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "Find in Knowledge"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "No topics match."
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "Set aside · {asideList}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "{count, plural, one {Not in a topic yet · # passage} other {Not in a topic yet · # passages}}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+msgid "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Topic name"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Topic actions"
+msgstr ""
+
+#: app/src/features/knowledge/pages/LoosePage.tsx
+msgid "Not in a topic yet"
+msgstr ""
+
+#: app/src/features/knowledge/pages/LoosePage.tsx
+msgid "Passages from your docs and chats that no topic holds. Owlit files them when a topic needs them; nothing here needs doing."
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "This topic is gone"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "It may have been merged, deleted or renamed outside owlit."
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Back to Knowledge"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Updated {updated} · updates paused"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Updated {updated}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Owlit keeps this topic from your notes, papers and chats. Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words."
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Cited in <0/>"
+msgstr ""
+
+#. placeholder {0}: freshIds.length
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "{0, plural, one {# line changed since you last looked on {lastLook}} other {# lines changed since you last looked on {lastLook}}}"
+msgstr ""
+
+#. placeholder {0}: freshIds.length
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "{0, plural, one {# line changed since you last looked} other {# lines changed since you last looked}}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Your questions"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "In {name}"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "Show {hidden} more"
+msgstr ""
+
+#: app/src/features/knowledge/pages/TopicPage.tsx
+msgid "So far"
+msgstr ""
+
+#. a passage of a paper, when it has no section or page
+#. button that shows the paper's passage behind an item
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Passage"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "You wrote in <0/> · {date}"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Your question in <0/>"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "In {at}"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "You {verb} in {at}"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Owlit thinks in {at}"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "You took from {speaker} in {at}"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Hide passage"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Find it in the paper"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Found by you"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "{section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper."
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "From the abstract only."
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Its passage isn’t in this copy of the paper."
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "A passage not in this copy"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "It now sits under Backs what you have."
+msgstr ""
+
+#. verb: accept Owlit's guess that a passage connects to what you have
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Connect"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Marked as not related"
+msgstr ""
+
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "Not related"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Challenges what you have"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Backs what you have"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Might connect"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Taken into your topics"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Each item pairs a passage of this paper with something you already have: your words, a question, a line in a topic. Challenges and Backs say which way it cuts. Might connect holds Owlit’s guesses until you connect them. Taken into your topics are lines that come from this paper; edit one and it stays in your words."
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Owlit found something new"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "About the Knowledge tab"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Nothing connected yet"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "You have {touched} here. Owlit connects them to your other papers, docs and questions once a topic starts, and a topic starts once two of them are about the same question."
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Highlight, cite or talk about this paper, and Owlit connects it to your other papers, docs and questions once two of them are about the same question."
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "Used in"
+msgstr ""
+
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+msgid "chat, {date}"
+msgstr ""
+
+#: app/src/features/knowledge/runner.ts
+msgid "One line anchored to the passage you highlighted"
+msgstr ""
+
+#. placeholder {0}: kinds.doc.size
+#: app/src/features/knowledge/store.ts
+msgid "{0, plural, one {# doc} other {# docs}}"
+msgstr ""
+
+#. placeholder {0}: kinds.paper.size
+#. placeholder {0}: papers.length
+#: app/src/features/knowledge/store.ts
+#: app/src/features/library/lib/filter.ts
+msgid "{0, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#. placeholder {0}: kinds.chat.size
+#: app/src/features/knowledge/store.ts
+msgid "{0, plural, one {# chat} other {# chats}}"
+msgstr ""
+
+#: app/src/features/knowledge/store.ts
+msgid "nothing yet"
+msgstr ""
+
+#. placeholder {0}: papers.length
+#: app/src/features/library/actions.ts
+msgid "{0, plural, one {# citation copied} other {# citations copied}}"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Citation copied"
+msgstr ""
+
+#. placeholder {0}: papers.length
+#: app/src/features/library/actions.ts
+msgid "{0, plural, one {BibTeX for # paper copied} other {BibTeX for # papers copied}}"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "BibTeX copied"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Removed from library"
+msgstr ""
+
+#. placeholder {0}: removed.length
+#: app/src/features/library/actions.ts
+msgid "{0, plural, one {Removed # paper} other {Removed # papers}}"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Highlight deleted"
+msgstr ""
+
+#: app/src/features/library/client.ts
+msgid "The publisher wants you to sign in."
+msgstr ""
+
+#: app/src/features/library/client.ts
+msgid "The publisher wants a quick check."
+msgstr ""
+
+#: app/src/features/library/components/AddCandidate.tsx
+msgid "Looking up {input}…"
+msgstr ""
+
+#: app/src/features/library/components/AddCandidate.tsx
+msgid "Add to library"
+msgstr ""
+
+#: app/src/features/library/components/AddCandidate.tsx
+msgid "PDF available"
+msgstr ""
+
+#. button: add the paper to the library
+#: app/src/features/library/components/AddCandidate.tsx
+msgid "Add"
+msgstr ""
+
+#: app/src/features/library/components/BulkBar.tsx
+msgid "{count} selected"
+msgstr ""
+
+#. verb: unstar a paper
+#. verb: unstar a paper
+#. verb: unstar a paper
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/components/StarButton.tsx
+msgid "Unstar"
+msgstr ""
+
+#. verb: star a paper
+#. verb: star a paper
+#. verb: star a paper
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/components/StarButton.tsx
+msgid "Star"
+msgstr ""
+
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Mark as"
+msgstr ""
+
+#: app/src/features/library/components/BulkBar.tsx
+msgid "Add tag"
+msgstr ""
+
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Copy BibTeX"
+msgstr ""
+
+#: app/src/features/library/components/BulkBar.tsx
+msgid "Clear selection"
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Edit details"
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Fix what the resolver got wrong, or fill in a PDF-only paper."
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Title"
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Authors, one per line"
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Year"
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Venue"
+msgstr ""
+
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Abstract"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Copy all as Markdown"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Page {page}"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Select text in the PDF to highlight it."
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Color"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/library/reader/HighlightToolbar.tsx
+msgid "Edit comment"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Add comment"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Highlight copied"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Add to note"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Added by Owlit"
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "Highlight actions"
+msgstr ""
+
+#. Library tab: the papers to read next
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Up next"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "All papers"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Recently added"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Authors"
+msgstr ""
+
+#. menu: how the papers are ordered
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Sort"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "List"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Table"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Layout"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Search, or paste a DOI, arXiv id or link to add"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Search or add papers"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Add a PDF file"
+msgstr ""
+
+#. group heading: papers being read now
+#. reading status of a paper: being read now
+#. reading status of a paper: being read now
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/filter.ts
+#: app/src/features/library/lib/status.ts
+msgid "Reading"
+msgstr ""
+
+#. filter chip: starred papers
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/StarButton.tsx
+msgid "Starred"
+msgstr ""
+
+#. reading status of a paper
+#. reading status of a paper
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+msgid "Unread"
+msgstr ""
+
+#. reading status of a paper: finished reading (past participle)
+#. reading status of a paper: finished reading (past participle)
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+msgid "Read"
+msgstr ""
+
+#. a paper whose publisher wants the user to check or sign in
+#. a paper whose publisher wants the user to check or sign in
+#. filter chip: papers whose publisher wants the user to check or sign in
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Needs you"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Stop filtering by {tag}"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Tags"
+msgstr ""
+
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/TagsEditor.tsx
+msgid "No tags yet."
+msgstr ""
+
+#: app/src/features/library/components/PaperByline.tsx
+#: app/src/features/library/lib/format.ts
+msgid "Unknown authors"
+msgstr ""
+
+#: app/src/features/library/components/PaperByline.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "More actions"
+msgstr ""
+
+#: app/src/features/library/components/PaperList.tsx
+msgid "Status"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Copy citations"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Copy citation"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Refresh details"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Couldn't refresh the details."
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Rewrite reading note"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Write a reading note"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Couldn't ask for a reading note."
+msgstr ""
+
+#. placeholder {0}: papers.length
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
+msgstr ""
+
+#: app/src/features/library/components/RecentlyRemoved.tsx
+msgid "A paper removed recently"
+msgstr ""
+
+#. placeholder {0}: removed.length
+#: app/src/features/library/components/RecentlyRemoved.tsx
+msgid "{0, plural, one {# paper removed recently} other {# papers removed recently}}"
+msgstr ""
+
+#: app/src/features/library/components/RecentlyRemoved.tsx
+msgid "Removed {when}"
+msgstr ""
+
+#: app/src/features/library/components/StatusMenu.tsx
+msgid "Reading status"
+msgstr ""
+
+#: app/src/features/library/components/TagsEditor.tsx
+msgid "Remove tag {tag}"
+msgstr ""
+
+#: app/src/features/library/components/TagsEditor.tsx
+msgid "Find or create a tag"
+msgstr ""
+
+#: app/src/features/library/components/TagsEditor.tsx
+msgid "Create “{q}”"
+msgstr ""
+
+#. button: add a tag to the paper
+#: app/src/features/library/components/TagsEditor.tsx
+msgid "Tag"
+msgstr ""
+
+#: app/src/features/library/disk.ts
+msgid "Couldn't save the library."
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Only PDF files can be added this way."
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Adding 1 of {total}…"
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Adding {name}…"
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Adding {number} of {total}…"
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "{added} added"
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "{existing} already in your library"
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "{unreadCount} couldn't be read"
+msgstr ""
+
+#. placeholder {0}: pdfs.length
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "{0, plural, one {Added # paper} other {Added # papers}}"
+msgstr ""
+
+#: app/src/features/library/lib/filter.ts
+msgid "No year"
+msgstr ""
+
+#: app/src/features/library/lib/filter.ts
+msgid "Not read yet"
+msgstr ""
+
+#. highlight colour
+#: app/src/features/library/lib/highlights.ts
+msgid "Yellow"
+msgstr ""
+
+#. highlight colour
+#: app/src/features/library/lib/highlights.ts
+msgid "Green"
+msgstr ""
+
+#. highlight colour
+#: app/src/features/library/lib/highlights.ts
+msgid "Blue"
+msgstr ""
+
+#. highlight colour
+#: app/src/features/library/lib/highlights.ts
+msgid "Pink"
+msgstr ""
+
+#: app/src/features/library/lib/use-ref-lookup.ts
+msgid "Could not look that up."
+msgstr ""
+
+#: app/src/features/library/mock-client.ts
+msgid "That does not look like a DOI, an arXiv id or a URL."
+msgstr ""
+
+#: app/src/features/library/mock-client.ts
+msgid "No open-access PDF was found for this paper."
+msgstr ""
+
+#: app/src/features/library/notes/NoteEditor.tsx
+msgid "What do you take from this paper?"
+msgstr ""
+
+#: app/src/features/library/notes/NoteEditor.tsx
+msgid "That highlight was deleted"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers match."
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Drop PDF to add"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers match “{words}”"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Owlit can look for papers on this and add what it finds."
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Ask Owlit to find papers about this"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Add your first papers"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Paste a DOI, arXiv id or link in the field above, or drop PDFs here."
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Choose PDFs"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Ask Owlit to find papers"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "This paper is not in the library"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "It may have been removed."
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Back to library"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "{position} of {total}"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Previous paper"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Next paper"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Hide details"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Show details"
+msgstr ""
+
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Reading note"
+msgstr ""
+
+#: app/src/features/library/pages/UpNextPage.tsx
+msgid "Nothing to read next"
+msgstr ""
+
+#: app/src/features/library/pages/UpNextPage.tsx
+msgid "Papers you start reading, and new ones with a PDF, will show up here."
+msgstr ""
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Resize details"
+msgstr ""
+
+#. tab: the user's notes on a paper
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Notes"
+msgstr ""
+
+#. tab: the passages highlighted in a paper
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Highlights"
+msgstr ""
+
+#. tab: a paper's abstract and details
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "About"
+msgstr ""
+
+#. noun: a web link to the paper
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Link"
+msgstr ""
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "No abstract."
+msgstr ""
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "{when} by Owlit"
+msgstr ""
+
+#. the paper's PDF file
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: apps/desktop/src/main.ts
+msgid "File"
+msgstr ""
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "{pages, plural, one {PDF, # page} other {PDF, # pages}}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "No PDF"
+msgstr ""
+
+#. how much of the paper's text owlit has read
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Text"
+msgstr ""
+
+#. the paper's text: read in full
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Full"
+msgstr ""
+
+#. the paper's text: read plainly, without layout
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Basic"
+msgstr ""
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Show more"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Looking for a PDF…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "If you already have it, drop it here."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Sign in on its page here and owlit fetches the PDF."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It wants to see a person before it hands over the PDF. Open its page here to do that."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No PDF found"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Drop a PDF here if you have it."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No PDF yet"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Drop a PDF here, or let owlit look for an open-access copy."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "PDF attached"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't attach that file."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "PDF found"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Could not find a PDF."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried} Drop a PDF here if you have it."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Try again"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Find PDF"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Choose file"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your library may have it. <0>Set up library proxy</0>"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+#: packages/core/src/library/library.ts
+msgid "owlit couldn't open the publisher's page."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher wants you on its page."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Opening the publisher's page…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "the next paper"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Next: {nextName}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "the publisher"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "the library proxy"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "open-access links"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit knows of no open copy of this paper."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Tried {list}."
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Owlit is reading this paper…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Owlit is reading this paper again…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Reading note · Owlit, {when}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Reading note · Owlit"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Couldn't ask for the note again."
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "This note is in another language than your reading notes now."
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "This note was written the old way."
+msgstr ""
+
+#. button: write the reading note again
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Rewrite"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "{label}, page {page}: go to it in the PDF"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "{label} · p. {page}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/ReadingNote.tsx
+msgid "Page {number}"
+msgstr ""
+
+#. verb: add a comment to a highlight
+#: app/src/features/library/reader/HighlightToolbar.tsx
+msgid "Comment"
+msgstr ""
+
+#: app/src/features/library/reader/HighlightToolbar.tsx
+msgid "Delete highlight"
+msgstr ""
+
+#: app/src/features/library/reader/HighlightToolbar.tsx
+msgid "Add a comment"
+msgstr ""
+
+#: app/src/features/library/reader/LinkLayer.tsx
+msgid "Go to page {page}"
+msgstr ""
+
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "The PDF engine did not start"
+msgstr ""
+
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "This PDF could not be loaded"
+msgstr ""
+
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "The server may not allow owlit to fetch it. It can still be opened in the browser."
+msgstr ""
+
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "Open in browser"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Fit width · click for 100%"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Fit page · click to fit width"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Click to fit the page"
+msgstr ""
+
+#. find in paper: no matches
+#. no library proxy
+#: app/src/features/library/reader/ReaderControls.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "None"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "{active} of {total}"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Previous match"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Next match"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Close find"
+msgstr ""
+
+#: app/src/features/library/reader/ReaderControls.tsx
+msgid "Back to page {backPage}"
+msgstr ""
+
+#: app/src/features/library/rpc-client.ts
+#: packages/core/src/library/library.ts
+msgid "owlit couldn't look for a PDF."
+msgstr ""
+
+#: app/src/features/library/rpc-client.ts
+msgid "No PDF found. Drop one here if you have it."
+msgstr ""
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
 msgstr ""
@@ -24,19 +3944,15 @@ msgid "How owlit looks on this computer. Stars, notes, tags and PDF highlights k
 msgstr ""
 
 #: app/src/features/settings/SettingsDialog.tsx
-msgid "Settings"
-msgstr ""
-
-#: app/src/features/settings/SettingsDialog.tsx
 msgid "This computer's settings for owlit."
 msgstr ""
 
 #: app/src/features/settings/SettingsDialog.tsx
-msgid "Needs you"
+msgid "About {sectionLabel}"
 msgstr ""
 
-#: app/src/features/settings/SettingsDialog.tsx
-msgid "About {sectionLabel}"
+#: app/src/features/settings/form-state.ts
+msgid "Couldn't check it just now."
 msgstr ""
 
 #: app/src/features/settings/parts.tsx
@@ -60,11 +3976,8 @@ msgid "Get one at <0>{site}</0>. Press Enter to keep it."
 msgstr ""
 
 #: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Paste the key"
-msgstr ""
-
-#: app/src/features/settings/parts.tsx
-msgid "Cancel"
 msgstr ""
 
 #: app/src/features/settings/parts.tsx
@@ -81,6 +3994,49 @@ msgstr ""
 
 #: app/src/features/settings/parts.tsx
 msgid "Change key"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Sign-ins"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
+msgstr ""
+
+#. verb
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Check again"
+msgstr ""
+
+#. verb: check whether the agent is installed and works
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Check"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Copy install command"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Add an agent"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Add agent"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "My agent"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Command"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "What owlit runs to start the agent. It must speak ACP over stdio."
 msgstr ""
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
@@ -112,6 +4068,7 @@ msgid "Sepia"
 msgstr ""
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Language"
 msgstr ""
 
@@ -131,6 +4088,317 @@ msgstr ""
 msgid "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
 msgstr ""
 
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Sign out"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Signed in"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Add a sign-in"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Sign in with"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Save key"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Continue in browser"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "API key"
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Kept on this Mac, in owlit's own folder. Model requests are billed to this key."
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Finish signing in in your browser."
+msgstr ""
+
+#: app/src/features/settings/sections/EngineSignIns.tsx
+msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "Background work"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What owlit remembers stays in this workspace and is never sent anywhere."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "Privacy"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Your name"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What Owlit calls you"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Automatic ({fallbackName})"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Automatic"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Agent"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Writes reading notes and keeps Knowledge up to date."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Agent for background work"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Model"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Model for background work"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reading notes for every paper"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Otherwise only for papers you open or star."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "On, a big import keeps the agent busy for a while."
+msgstr ""
+
+#. a language not in the list
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Other…"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reading notes in"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Technical terms stay as the paper writes them, whatever the language."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Language for reading notes"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Remember what I do in owlit"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What you open, highlight and write keeps Knowledge and Home current."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "{host} · rewrites addresses"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "{host} · sign-in link"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Another library…"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Your library"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Reaches paywalled PDFs through your university's proxy, signed in as you."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Proxy"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Change proxy"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Couldn't keep that proxy."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "A link to any paper, opened through your library"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Use this proxy"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Proxy at <0>{where}</0>"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "This link doesn't show a proxy. Open a paper from your library's website and copy the address from the browser."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Open a paper from your library's website and copy the address from the browser."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign-in"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Waiting for the sign-in window…"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Signed in {when}"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign in again…"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign in…"
+msgstr ""
+
+#. placeholder {0}: waiting.length
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "{0, plural, one {The library asked for sign-in while fetching a PDF. It continues once you're signed in.} other {The library asked for sign-in while fetching # PDFs. They continue once you're signed in.}}"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign in in the window that opened, then close it."
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "Built-in only"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "MinerU cloud"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "MinerU on my own server"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Reading PDFs"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "Read PDFs with"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "MinerU is slower but gets tables, formulas and scans right."
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "Token"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "MinerU's API token. Kept in the system keychain."
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "Read new PDFs with MinerU automatically"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "Off means MinerU reads a paper only when you ask on its page."
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "Address"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "MinerU answered"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "MinerU address"
+msgstr ""
+
+#: app/src/features/settings/sections/ReadingGroup.tsx
+msgid "An address starts with http:// or https://."
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "That doesn't look like an email address."
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Finding papers"
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "Contact email"
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies."
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "Semantic Scholar API key"
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "Without a key, searches are slow and often refused."
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "OpenAlex API key"
+msgstr ""
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "Only needed past the free daily allowance."
+msgstr ""
+
 #: app/src/features/settings/store.ts
 msgid "Owlit"
 msgstr ""
@@ -140,31 +4408,123 @@ msgid "Agents"
 msgstr ""
 
 #: app/src/features/settings/store.ts
-msgid "Papers"
-msgstr ""
-
-#: app/src/features/settings/store.ts
 msgid "Appearance"
 msgstr ""
 
-#: app/src/features/settings/store.ts
-msgid "Background work"
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Owlit will use <0>{name}</0>"
 msgstr ""
 
-#: app/src/features/settings/store.ts
-msgid "Privacy"
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Change…"
 msgstr ""
 
-#: app/src/features/settings/store.ts
-msgid "Finding papers"
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Looking for an agent on this Mac…"
 msgstr ""
 
-#: app/src/features/settings/store.ts
-msgid "Library proxy"
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 msgstr ""
 
-#: app/src/features/settings/store.ts
-msgid "Reading PDFs"
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{problem}."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Use another agent…"
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Owlit needs a coding agent on this Mac."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "To use {name}, run this in Terminal:"
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Copy the install command"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Open a Folder"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Where the Workspace Goes"
+msgstr ""
+
+#. button of the folder picker
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Locate {name}"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Read, write and think through papers with Owlit. Everything lives in a folder on your Mac."
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Create a workspace"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Open a folder you have"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Notes, an Obsidian vault, PDFs. Your files stay as they are."
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "isn’t at {where} anymore"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Locate…"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Remove from Recent"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "What should Owlit call you?"
+msgstr ""
+
+#. label: the folder the new workspace goes in
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "In"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose…"
+msgstr ""
+
+#. verb: create the workspace
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Create"
+msgstr ""
+
+#: app/src/lib/clipboard.ts
+msgid "Could not write to the clipboard"
+msgstr ""
+
+#: app/src/lib/rpc.ts
+msgid "That file can't be read from here."
+msgstr ""
+
+#: app/src/lib/rpc.ts
+msgid "This needs the owlit desktop app."
 msgstr ""
 
 #: app/src/lib/time.ts
@@ -187,8 +4547,36 @@ msgstr ""
 msgid "yesterday"
 msgstr ""
 
-#: app/src/lib/time.ts
-msgid "Yesterday"
+#: app/src/lib/versions.ts
+msgid "Redone"
+msgstr ""
+
+#: app/src/lib/words.ts
+msgctxt "the last thing in a list"
+msgid "{rest} and {last}"
+msgstr ""
+
+#: app/src/lib/words.ts
+msgctxt "between actions in a sentence"
+msgid ", "
+msgstr ""
+
+#: app/src/lib/words.ts
+msgctxt "the last action in a sentence"
+msgid "{rest} and {last}"
+msgstr ""
+
+#. title of the window that shows a publisher's or library's sign-in page
+#: apps/desktop/src/browser.ts
+msgid "Owlit · Publisher"
+msgstr ""
+
+#: apps/desktop/src/browser.ts
+msgid "Sign in to the library or publisher on the page."
+msgstr ""
+
+#: apps/desktop/src/browser.ts
+msgid "The publisher wants to check this is a person."
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -201,10 +4589,6 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Choose the folder Owlit works in. Your docs, library and notes live there."
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Open"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -268,10 +4652,6 @@ msgid "Quit {name}"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "File"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 msgid "Open Workspace…"
 msgstr ""
 
@@ -296,25 +4676,8 @@ msgid "Close Window"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "Edit"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Undo"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Redo"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Cut"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-#: apps/desktop/src/text-menu.ts
-msgid "Copy"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -324,10 +4687,6 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Paste and Match Style"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Delete"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -349,10 +4708,6 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "View"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Reload"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -396,10 +4751,6 @@ msgid "Bring All to Front"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "Close"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 msgid "Help"
 msgstr ""
 
@@ -409,10 +4760,6 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
-msgstr ""
-
-#: apps/desktop/src/text-menu.ts
-msgid "Ask Owlit"
 msgstr ""
 
 #: apps/desktop/src/text-menu.ts
@@ -433,4 +4780,411 @@ msgstr ""
 
 #: apps/desktop/src/text-menu.ts
 msgid "Copy Link"
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "The command is empty."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "{agent} is built in and can't be removed."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "`{command}` was not found"
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "{agent} isn't signed in. Sign in under Settings › Agents, then try again."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "{agent} isn't signed in. Run {command} in a terminal to sign in, then try again."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "{agent}'s service refused the request (403). If {agent} is signed in, this is usually the network or a proxy; try again in a moment."
+msgstr ""
+
+#. stands in for an agent's name at the start of a sentence: The agent ran into a problem.
+#: packages/core/src/agents/agents.ts
+msgid "The agent"
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "owlit doesn't know that agent."
+msgstr ""
+
+#: packages/core/src/agents/fs.ts
+msgid "That earlier version is no longer kept."
+msgstr ""
+
+#: packages/core/src/agents/fs.ts
+msgid "That note is already gone."
+msgstr ""
+
+#: packages/core/src/agents/fs.ts
+msgid "The note changed after the agent's edit, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/agents/fs.ts
+msgid "{name} changed after the agent's edit, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/agents/fs.ts
+#: packages/core/src/agents/turns.ts
+#: packages/core/src/core.ts
+#: packages/core/src/knowledge/knowledge.ts
+msgid "Open a folder as the workspace first."
+msgstr ""
+
+#: packages/core/src/agents/process.ts
+msgid "{name} stopped ({signal}). It starts again with the next message."
+msgstr ""
+
+#: packages/core/src/agents/process.ts
+msgid "{name} stopped ({signal})"
+msgstr ""
+
+#: packages/core/src/agents/process.ts
+msgid "{name} exited with code {code}: {last}. It starts again with the next message."
+msgstr ""
+
+#: packages/core/src/agents/process.ts
+msgid "{name} exited with code {code}: {last}"
+msgstr ""
+
+#: packages/core/src/agents/process.ts
+msgid "{name} exited with code {code}. It starts again with the next message."
+msgstr ""
+
+#: packages/core/src/agents/process.ts
+msgid "{name} exited with code {code}"
+msgstr ""
+
+#: packages/core/src/agents/turns.ts
+msgid "This chat is still answering."
+msgstr ""
+
+#: packages/core/src/agents/turns.ts
+msgid "Owlit was closed before it could finish."
+msgstr ""
+
+#: packages/core/src/agents/turns.ts
+msgid "{name} quit unexpectedly. It starts again with the next message."
+msgstr ""
+
+#: packages/core/src/agents/turns.ts
+msgid "{name} ran into a problem."
+msgstr ""
+
+#: packages/core/src/agents/turns.ts
+msgid "That question is no longer waiting for an answer."
+msgstr ""
+
+#. a step in a chat whose tool the agent did not name
+#: packages/core/src/agents/turns.ts
+msgid "Tool"
+msgstr ""
+
+#: packages/core/src/agents/turns.ts
+msgid "The agent asks to go ahead"
+msgstr ""
+
+#: packages/core/src/chats/attach.ts
+msgid "owlit can't read that file."
+msgstr ""
+
+#: packages/core/src/chats/attach.ts
+msgid "owlit couldn't copy that file."
+msgstr ""
+
+#: packages/core/src/chats/attach.ts
+msgid "Give the file's path or its contents."
+msgstr ""
+
+#: packages/core/src/chats/attach.ts
+msgid "That isn't a file attached to a chat."
+msgstr ""
+
+#: packages/core/src/chats/chats.ts
+msgid "That chat is not in the workspace."
+msgstr ""
+
+#: packages/core/src/chats/chats.ts
+msgid "owlit couldn't read that chat just now."
+msgstr ""
+
+#: packages/core/src/chats/chats.ts
+msgid "A chat with that id already exists."
+msgstr ""
+
+#: packages/core/src/chats/chats.ts
+msgid "That chat is already in the workspace."
+msgstr ""
+
+#: packages/core/src/chats/chats.ts
+msgid "That chat is no longer in the trash."
+msgstr ""
+
+#: packages/core/src/chats/chats.ts
+msgid "That isn't a file of this chat."
+msgstr ""
+
+#: packages/core/src/core.ts
+#: packages/core/src/docs/docs.ts
+msgid "owlit can't open files in other apps here."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "owlit no longer has that file."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "There is no {rel} in the workspace."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "There is no folder in the workspace."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{name} is not a Markdown file."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "That name has nothing in it a file name can use."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{name} can't go inside itself."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "owlit can't show files in Finder here."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{rel} is outside what Docs can reach."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "The workspace root is outside what Docs can reach."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{file} is outside the workspace."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{file} leads outside the workspace."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{name} is no longer on disk."
+msgstr ""
+
+#: packages/core/src/docs/docs.ts
+msgid "{name} changed on disk."
+msgstr ""
+
+#: packages/core/src/knowledge/knowledge.ts
+msgid "There is no such version of Knowledge."
+msgstr ""
+
+#. placeholder {0}: n.added
+#: packages/core/src/knowledge/knowledge.ts
+msgid "{0, plural, one {One line added} other {# lines added}}"
+msgstr ""
+
+#. placeholder {0}: n.rewritten
+#: packages/core/src/knowledge/knowledge.ts
+msgid "{0, plural, one {One line rewritten} other {# lines rewritten}}"
+msgstr ""
+
+#. placeholder {0}: n.removed
+#: packages/core/src/knowledge/knowledge.ts
+msgid "{0, plural, one {One line removed} other {# lines removed}}"
+msgstr ""
+
+#: packages/core/src/knowledge/knowledge.ts
+msgid "Sources updated"
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "That paper is not in the library."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "owlit can't tell which paper that is."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Another paper in your library already has that id."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "owlit can't look for PDFs here."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "owlit can't open publishers' pages here."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "The pitta library couldn't be read."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Couldn't reach any source of PDFs."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "That file can't be opened."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "That file isn't a PDF."
+msgstr ""
+
+#: packages/core/src/library/pitta.ts
+msgid "There is no papers folder in {root}."
+msgstr ""
+
+#: packages/core/src/library/resolve.ts
+msgid "That doesn't look like a DOI, an arXiv id or a link to a paper."
+msgstr ""
+
+#: packages/core/src/library/resolve.ts
+msgid "No service owlit asks knows that paper."
+msgstr ""
+
+#: packages/core/src/library/resolve.ts
+msgid "owlit couldn't open that page to see which paper it is."
+msgstr ""
+
+#: packages/core/src/library/resolve.ts
+msgid "That page doesn't say which paper it is."
+msgstr ""
+
+#: packages/core/src/library/text/extract.ts
+msgid "The PDF is password-protected."
+msgstr ""
+
+#: packages/core/src/library/text/extract.ts
+msgid "The PDF can't be read."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "{host}'s allowance is used up for now."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "Couldn't reach {host}."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "{host} has no record of that."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "{host} refused the request."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "{host} is asking owlit to slow down."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "{host} is having trouble right now."
+msgstr ""
+
+#: packages/core/src/net/http.ts
+msgid "{host} answered {status}."
+msgstr ""
+
+#: packages/core/src/rpc/errors.ts
+msgid "Something went wrong inside owlit."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "That link doesn't show which proxy it went through."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "No library proxy is set up."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Signing in needs the owlit desktop app."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Nothing answers at {url}. Is MinerU running?"
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Today's MinerU quota is used up. Papers keep their built-in text until tomorrow."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "MinerU says this token isn't valid. Check it was copied whole."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Couldn't reach MinerU to check the token. It will be tried on the next paper."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "{service} says this key isn't valid. Check it was copied whole."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "{service} is busy; the key will be tried on the next lookup."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Couldn't reach {service} to check the key."
+msgstr ""
+
+#. the suggested folder name for a new workspace
+#: packages/core/src/workspace/welcome.ts
+msgid "Research"
+msgstr ""
+
+#. the suggested folder name for a new workspace when Research is taken
+#: packages/core/src/workspace/welcome.ts
+msgid "Research {n}"
+msgstr ""
+
+#: packages/core/src/workspace/welcome.ts
+msgid "A folder name can't be empty or contain / \\ or :."
+msgstr ""
+
+#: packages/core/src/workspace/welcome.ts
+msgid "A folder name starting with a dot would be hidden in Finder."
+msgstr ""
+
+#: packages/core/src/workspace/welcome.ts
+msgid "There is already a folder called {clean} in {within}."
+msgstr ""
+
+#: packages/core/src/workspace/workspace.ts
+msgid "{name} is already open in another owlit."
+msgstr ""
+
+#: packages/core/src/workspace/workspace.ts
+msgid "workspace.json in .owlit can't be read, so owlit leaves it alone."
+msgstr ""
+
+#: packages/core/src/workspace/workspace.ts
+msgid "There is no folder at {absolute}."
+msgstr ""
+
+#: packages/core/src/workspace/workspace.ts
+msgid "{name} is a file, not a folder."
 msgstr ""

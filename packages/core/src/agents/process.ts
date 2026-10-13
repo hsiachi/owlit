@@ -1,4 +1,5 @@
 import * as acp from "@agentclientprotocol/sdk"
+import { t } from "@lingui/core/macro"
 import { spawn, type ChildProcess } from "node:child_process"
 import { Readable, Writable } from "node:stream"
 
@@ -42,7 +43,7 @@ export interface ProcessOptions {
   idleMs: number
   // The process ended without being asked to (crashed, was killed); the next call starts it again.
   // detail: "stopped (SIGKILL)", "exited with code 1: <its last line on stderr>"
-  onCrash(detail: string): void
+  onCrash(detail: string, ending: Ending): void
   onStart?(): void
   // Any end: idle, stopped, crashed
   onExit?(): void
@@ -56,18 +57,39 @@ const STDERR_KEPT = 20
 export class AgentEnded extends Error {
   readonly stopped: boolean
   readonly detail?: string
+  readonly ending?: Ending
 
-  constructor(stopped: boolean, detail?: string) {
+  constructor(stopped: boolean, ending?: Ending) {
+    const detail = ending && describeEnding(ending)
     super(stopped ? "The agent was stopped." : `The agent ${detail ?? "quit"}.`)
     this.stopped = stopped
     this.detail = detail
+    this.ending = ending
   }
+}
+
+// How a process ended on its own: killed by a signal, or exited with a code (and its last line on stderr)
+export type Ending = { signal: string } | { code: number; last?: string }
+
+// For logs and messages: "stopped (SIGKILL)", "exited with code 1: <its last line on stderr>"
+const describeEnding = (ending: Ending) => ("signal" in ending ? `stopped (${ending.signal})` : `exited with code ${ending.code}${ending.last ? `: ${ending.last}` : ""}`)
+
+// The same as the user reads it, with the agent's name: whole sentences, so each language orders them its
+// own way. `again` adds that the next message starts it again.
+export function endingSentence(name: string, ending: Ending, again = false): string {
+  if ("signal" in ending) {
+    const signal = ending.signal
+    return again ? t`${name} stopped (${signal}). It starts again with the next message.` : t`${name} stopped (${signal})`
+  }
+  const { code, last } = ending
+  if (last) return again ? t`${name} exited with code ${code}: ${last}. It starts again with the next message.` : t`${name} exited with code ${code}: ${last}`
+  return again ? t`${name} exited with code ${code}. It starts again with the next message.` : t`${name} exited with code ${code}`
 }
 
 // One child's life: whether it is being ended on purpose, and how it ended once it has
 interface Life {
   stopping: boolean
-  ended: Promise<string>
+  ended: Promise<Ending>
 }
 
 // One running local agent speaking ACP over stdio. Started by the first call that needs it, ended after
@@ -227,8 +249,8 @@ export class AcpProcess {
         if (!connection.signal.aborted) throw error
         if (life.stopping) throw new AgentEnded(true)
         // The stream closes a moment before the process is seen to exit, and says nothing of why
-        const detail = await Promise.race([life.ended, new Promise<undefined>((r) => setTimeout(() => r(undefined), 2000).unref())])
-        throw new AgentEnded(life.stopping, detail)
+        const ending = await Promise.race([life.ended, new Promise<undefined>((r) => setTimeout(() => r(undefined), 2000).unref())])
+        throw new AgentEnded(life.stopping, ending)
       }
     } finally {
       this.busy--
@@ -239,7 +261,7 @@ export class AcpProcess {
   private start() {
     if (this.started) return this.started
     const { file, args, env, cwd } = this.options
-    let ended!: (detail: string) => void
+    let ended!: (ending: Ending) => void
     const life: Life = { stopping: false, ended: new Promise((resolve) => (ended = resolve)) }
     this.life = life
     this.stderr = []
@@ -260,10 +282,11 @@ export class AcpProcess {
       if (this.child === child) this.reset()
       // A process that exits on its own usually says why last; one killed by a signal says nothing useful
       const last = signal ? undefined : this.stderr.at(-1)
-      const detail = signal ? `stopped (${signal})` : `exited with code ${code}${last ? `: ${last}` : ""}`
-      ended(detail)
+      // Node gives a code whenever there is no signal
+      const ending: Ending = signal ? { signal } : { code: code ?? 0, ...(last ? { last } : {}) }
+      ended(ending)
       if (life.stopping) return
-      this.options.onCrash(detail)
+      this.options.onCrash(describeEnding(ending), ending)
       this.options.onExit?.()
     })
 

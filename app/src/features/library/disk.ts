@@ -1,4 +1,5 @@
 import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owlit/protocol"
+import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -25,7 +26,7 @@ const resting = new Map<string, ReturnType<typeof setTimeout>>()
 
 const queue = createWorkspaceQueue({
   onError: (error) => {
-    toast.error(error instanceof Error ? error.message : "Couldn't save the library.")
+    toast.error(error instanceof Error ? error.message : t`Couldn't save the library.`)
     // Read again once what is queued has gone through: a read sent at once could come back after a
     // restore queued behind the failure, and take the restored paper out of the store again
     enqueue(reload)

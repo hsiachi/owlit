@@ -2,6 +2,7 @@
 // a paper added) is kept as a version; Undo restores it, and the undo is itself kept, so the toast that
 // confirms it offers Redo, and that one Undo again.
 
+import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { rpc } from "@/lib/rpc"
 
@@ -9,9 +10,9 @@ export function undoChange(versionId: string, what: string, redo = false) {
   rpc.versions
     .restore({ id: versionId })
     .then(({ redoId }) =>
-      toast(redo ? "Redone" : "Undone", {
+      toast(redo ? t`Redone` : t`Undone`, {
         description: what,
-        action: { label: redo ? "Undo" : "Redo", onClick: () => undoChange(redoId, what, !redo) },
+        action: { label: redo ? t({ message: "Undo", comment: "verb: take back what was just done" }) : t({ message: "Redo", comment: "verb" }), onClick: () => undoChange(redoId, what, !redo) },
       }),
     )
     .catch((error: Error) => toast.error(error.message))

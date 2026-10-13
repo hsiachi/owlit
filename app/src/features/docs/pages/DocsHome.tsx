@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { Navigate } from "react-router-dom"
 import { DropCard } from "@/components/empty-place"
 import { Button } from "@/components/ui/button"
@@ -28,16 +29,16 @@ export function DocsHome() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-6">
       <DropCard
-        title="No docs yet"
-        detail="Notes and drafts live here as Markdown files in your workspace. Files you add in Finder show up too."
+        title={t`No docs yet`}
+        detail={t`Notes and drafts live here as Markdown files in your workspace. Files you add in Finder show up too.`}
         actions={
           <Button size="sm" onClick={() => newDoc()}>
-            New doc
+            {t`New doc`}
             <Kbd className="bg-transparent text-primary-foreground/60">{keysFor("new")}</Kbd>
           </Button>
         }
       />
-      <p className="mt-4 text-detail text-muted-foreground">In a doc, type @ to cite a paper.</p>
+      <p className="mt-4 text-detail text-muted-foreground">{t`In a doc, type @ to cite a paper.`}</p>
     </div>
   )
 }

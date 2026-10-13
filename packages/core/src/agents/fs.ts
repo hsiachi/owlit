@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { editStats, RpcErrorCode, type AgentNote, type AgentRecord } from "@owlit/protocol"
 import type { Journal } from "../activity/index.ts"
 import { sha1, type Version } from "../docs/versions.ts"
@@ -171,14 +172,14 @@ export class AgentFs {
   async restore(versionId: string, force = false): Promise<{ path: string; kind: Version["kind"]; redoId: string }> {
     const ws = this.workspace()
     const version = await ws.versions.get(versionId)
-    if (!version) throw new RpcFailure(RpcErrorCode.NotFound, "That earlier version is no longer kept.", { versionId })
+    if (!version) throw new RpcFailure(RpcErrorCode.NotFound, t`That earlier version is no longer kept.`, { versionId })
     const meta = { by: "undo" as const, ...(version.chatId ? { chatId: version.chatId } : {}) }
 
     if (version.kind === "note") {
       const note = JSON.parse(version.content) as AgentNote
       if (version.op === "added") {
         const removed = await ws.docs.removeNote(version.path, note.id)
-        if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, "That note is already gone.", { path: version.path })
+        if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, t`That note is already gone.`, { path: version.path })
         this.options.notesChanged({ path: version.path, removed: note.id })
       } else {
         await ws.docs.addNote(version.path, note)
@@ -199,7 +200,7 @@ export class AgentFs {
     if (notePaper) {
       const now = (await ws.library.read(notePaper, "note")).text
       if (sha1(now) !== version.after && !force) {
-        throw new RpcFailure(RpcErrorCode.Conflict, "The note changed after the agent's edit, so owlit left it as it is.", { path: version.path })
+        throw new RpcFailure(RpcErrorCode.Conflict, t`The note changed after the agent's edit, so owlit left it as it is.`, { path: version.path })
       }
       const redo = await ws.versions.saveFile(version.path, now || null, version.existed ? version.content : null, meta)
       this.writing.add(version.path)
@@ -214,7 +215,8 @@ export class AgentFs {
     const now = (await this.fromEditor(version.path)) ?? (await ws.docs.readDisk(version.path))
     const untouched = version.deleted ? now === null : now !== null && sha1(now) === version.after
     if (!untouched && !force) {
-      throw new RpcFailure(RpcErrorCode.Conflict, `${version.path.split("/").pop()} changed after the agent's edit, so owlit left it as it is.`, { path: version.path })
+      const name = version.path.split("/").pop() ?? version.path
+      throw new RpcFailure(RpcErrorCode.Conflict, t`${name} changed after the agent's edit, so owlit left it as it is.`, { path: version.path })
     }
     const redo = await ws.versions.saveFile(version.path, now, version.existed ? version.content : null, meta)
     this.writing.add(version.path)
@@ -229,7 +231,7 @@ export class AgentFs {
 
   private workspace() {
     const ws = this.options.workspace()
-    if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
+    if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     return ws
   }
 

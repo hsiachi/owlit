@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom"
+import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { ActionsDropdownContent, MenuItems, type MenuGroups } from "@/components/action-menu"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -23,49 +24,53 @@ function useTopicMenu(topic: Topic, afterDelete?: () => void): MenuGroups {
     if (isDesktop) {
       rpc.knowledge
         .update()
-        .then(() => toast("Owlit is updating Knowledge", { description: "It reads what changed since the last update." }))
+        .then(() => toast(t`Owlit is updating Knowledge`, { description: t`It reads what changed since the last update.` }))
         .catch((error: Error) => toast.error(error.message))
       return
     }
     const [item] = runUpdates([topic.id])
     const last = topic.sources[0]?.date
-    toast(item ? `Updated · ${topic.name}` : "Nothing new", {
-      description: item ? item.what : `Nothing has changed in its sources${last ? ` since ${dayLabel(last)}` : ""}.`,
+    const name = topic.name
+    const day = last ? dayLabel(last) : ""
+    toast(item ? t`Updated · ${name}` : t`Nothing new`, {
+      description: item ? item.what : last ? t`Nothing has changed in its sources since ${day}.` : t`Nothing has changed in its sources.`,
     })
   }
 
   return [
     [
-      { label: "Rename", afterClose: true, onSelect: () => set({ renaming: topic.id }) },
+      { label: t({ message: "Rename", comment: "verb: rename a topic" }), afterClose: true, onSelect: () => set({ renaming: topic.id }) },
       {
-        label: "Merge into",
+        label: t`Merge into`,
         childrenClassName: "w-56",
-        children: others.map((t) => ({
-          label: t.name,
+        children: others.map((other) => ({
+          label: other.name,
           onSelect: () => {
-            const undo = mergeTopic(topic.id, t.id)
+            const undo = mergeTopic(topic.id, other.id)
             if (!undo) return
-            navigate(`/knowledge/${t.id}`)
-            toastUndo(`Merged into ${t.name}`, () => (undo(), navigate(`/knowledge/${topic.id}`)))
+            navigate(`/knowledge/${other.id}`)
+            const into = other.name
+            toastUndo(t`Merged into ${into}`, () => (undo(), navigate(`/knowledge/${topic.id}`)))
           },
         })),
       },
-      { label: "Split…", disabled: topic.lines.length < 2, onSelect: () => set({ splitting: topic.id }) },
-      { label: topic.archived ? "Unarchive" : "Archive", onSelect: () => setArchived(topic.id, !topic.archived) },
+      { label: t({ message: "Split…", comment: "verb: split a topic in two" }), disabled: topic.lines.length < 2, onSelect: () => set({ splitting: topic.id }) },
+      { label: topic.archived ? t`Unarchive` : t({ message: "Archive", comment: "verb: archive a topic" }), onSelect: () => setArchived(topic.id, !topic.archived) },
     ],
     [
-      { label: "Update now", disabled: paused, onSelect: update },
-      { label: paused ? "Resume updates" : "Pause updates", onSelect: () => setPaused(topic.id, !paused) },
+      { label: t`Update now`, disabled: paused, onSelect: update },
+      { label: paused ? t`Resume updates` : t`Pause updates`, onSelect: () => setPaused(topic.id, !paused) },
     ],
     [
       {
-        label: "Delete",
+        label: t({ message: "Delete", comment: "verb: delete a topic" }),
         destructive: true,
         onSelect: () => {
           const undo = deleteTopic(topic.id)
           if (!undo) return
           afterDelete?.()
-          toastUndo(`Deleted ${topic.name}`, undo)
+          const name = topic.name
+          toastUndo(t`Deleted ${name}`, undo)
         },
       },
     ],

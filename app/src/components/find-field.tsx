@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useRef } from "react"
 import { SearchIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -53,7 +54,7 @@ export function FindField({
         className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted-foreground"
       />
       {value ? (
-        <Button variant="ghost" size="icon-sm" aria-label="Clear" onClick={() => onChange("")} className="text-muted-foreground">
+        <Button variant="ghost" size="icon-sm" aria-label={t({ message: "Clear", comment: "verb: empty the search field" })} onClick={() => onChange("")} className="text-muted-foreground">
           <XIcon />
         </Button>
       ) : (

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { LibraryClient } from "./client"
 import { parseRef } from "./lib/ref"
 import { knownRefs } from "./mocks/refs"
@@ -10,7 +11,7 @@ export class MockLibraryClient implements LibraryClient {
     await delay(500)
     const ref = parseRef(input)
     if (!ref.arxiv && !ref.doi && !ref.url) {
-      throw new Error("That does not look like a DOI, an arXiv id or a URL.")
+      throw new Error(t`That does not look like a DOI, an arXiv id or a URL.`)
     }
     const known = knownRefs.find(
       (k) => (ref.arxiv && k.ids.arxiv === ref.arxiv) || (ref.doi && k.ids.doi?.toLowerCase() === ref.doi.toLowerCase()),
@@ -57,6 +58,6 @@ export class MockLibraryClient implements LibraryClient {
   async fetchPdf(paper: Paper): Promise<Paper["pdf"]> {
     await delay(800)
     if (paper.ids.arxiv) return { url: `https://arxiv.org/pdf/${paper.ids.arxiv}` }
-    throw new Error("No open-access PDF was found for this paper.")
+    throw new Error(t`No open-access PDF was found for this paper.`)
   }
 }

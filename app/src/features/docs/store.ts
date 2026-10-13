@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { isDesktop } from "@/lib/rpc"
 import { newId } from "@/lib/id"
@@ -81,10 +82,10 @@ export const useDocsStore = create<DocsState>()(
       notes: isDesktop ? {} : seedNotes,
 
       createDoc: (folder) => {
-        const t = Date.now()
+        const now = Date.now()
         const { files, folders } = get()
-        const path = uniquePath(folder, timeName(t), ".md", pathTaken(files, folders))
-        const file: WorkspaceFile = { id: newId(), path, content: "", createdAt: t, modifiedAt: t }
+        const path = uniquePath(folder, timeName(now), ".md", pathTaken(files, folders))
+        const file: WorkspaceFile = { id: newId(), path, content: "", createdAt: now, modifiedAt: now }
         set((s) => ({ files: { ...s.files, [file.id]: file } }))
         freshDocIds.add(file.id)
         return file
@@ -93,8 +94,8 @@ export const useDocsStore = create<DocsState>()(
       createDocAt: (path, content) => {
         const { files, folders } = get()
         if (!isMarkdown(path) || pathTaken(files, folders)(path)) return null
-        const t = Date.now()
-        const file: WorkspaceFile = { id: newId(), path, content, createdAt: t, modifiedAt: t, nameLocked: true }
+        const now = Date.now()
+        const file: WorkspaceFile = { id: newId(), path, content, createdAt: now, modifiedAt: now, nameLocked: true }
         set((s) => ({ files: { ...s.files, [file.id]: file } }))
         if (disk.onDisk) disk.saveDoc(file.id)
         return file
@@ -106,7 +107,9 @@ export const useDocsStore = create<DocsState>()(
         if (!f || !isMarkdown(f.path)) return null
         const ext = extOf(f.path)
         const stem = baseName(f.path).slice(0, -ext.length || undefined)
-        return get().createDocAt(uniquePath(parentPath(f.path), `${stem} copy`, ext, pathTaken(s.files, s.folders)), content)
+        // The copy's file name is in the interface language; nothing matches on it
+        const name = t({ message: `${stem} copy`, comment: "file name of a duplicated doc: the original name, then copy" })
+        return get().createDocAt(uniquePath(parentPath(f.path), name, ext, pathTaken(s.files, s.folders)), content)
       },
 
       writeDoc: (id, content, keepTime) => {
@@ -153,7 +156,7 @@ export const useDocsStore = create<DocsState>()(
 
       createFolder: (parent) => {
         const { files, folders } = get()
-        const path = uniquePath(parent, "New folder", "", pathTaken(files, folders))
+        const path = uniquePath(parent, t`New folder`, "", pathTaken(files, folders))
         set((s) => ({ folders: [...s.folders, path] }))
         if (disk.onDisk) disk.createFolderOnDisk(path)
         return path

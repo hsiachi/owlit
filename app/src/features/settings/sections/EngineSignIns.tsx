@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { LogOutIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -73,10 +74,10 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
   } else {
     control = (
       <>
-        <IconAction label="Sign out" className={onHover} onClick={remove}>
+        <IconAction label={t`Sign out`} className={onHover} onClick={remove}>
           <LogOutIcon />
         </IconAction>
-        <span className="text-detail text-muted-foreground">Signed in</span>
+        <span className="text-detail text-muted-foreground">{t`Signed in`}</span>
       </>
     )
   }
@@ -118,7 +119,7 @@ function AddSignIn({ connector: c, methods, open, setOpen }: { connector: Connec
 
   return (
     <FoldedForm
-      label="Add a sign-in"
+      label={t`Add a sign-in`}
       open={open}
       onOpen={() => setOpen(true)}
       onCancel={close}
@@ -129,23 +130,23 @@ function AddSignIn({ connector: c, methods, open, setOpen }: { connector: Connec
           void run()
         }
       }}
-      aside={<Picker label="Sign in with" value={method.id} options={methods.map((m) => ({ value: m.id, label: m.name }))} onChange={setMethodId} />}
+      aside={<Picker label={t`Sign in with`} value={method.id} options={methods.map((m) => ({ value: m.id, label: m.name }))} onChange={setMethodId} />}
       submit={
         <>
           {waiting && <Spinner />}
-          {method.apiKey ? "Save key" : "Continue in browser"}
+          {method.apiKey ? t`Save key` : t`Continue in browser`}
         </>
       }
       submitDisabled={waiting || (method.apiKey && !key.trim())}
     >
       {method.apiKey ? (
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground">API key</span>
-          <Input autoFocus type="password" autoComplete="off" spellCheck={false} placeholder="Paste the key" value={key} onChange={(e) => setKey(e.target.value)} className="font-mono text-detail" />
-          <span className="text-xs text-muted-foreground">Kept on this Mac, in owlit's own folder. Model requests are billed to this key.</span>
+          <span className="text-xs text-muted-foreground">{t`API key`}</span>
+          <Input autoFocus type="password" autoComplete="off" spellCheck={false} placeholder={t`Paste the key`} value={key} onChange={(e) => setKey(e.target.value)} className="font-mono text-detail" />
+          <span className="text-xs text-muted-foreground">{t`Kept on this Mac, in owlit's own folder. Model requests are billed to this key.`}</span>
         </label>
       ) : (
-        <span className="text-xs text-muted-foreground">{waiting ? "Finish signing in in your browser." : "Opens your browser to sign in. Model requests use your ChatGPT plan."}</span>
+        <span className="text-xs text-muted-foreground">{waiting ? t`Finish signing in in your browser.` : t`Opens your browser to sign in. Model requests use your ChatGPT plan.`}</span>
       )}
       {error && <Note tone="bad">{error}</Note>}
     </FoldedForm>

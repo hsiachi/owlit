@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { chatOfFile, withoutAgentError } from "@owlit/protocol"
 import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
@@ -33,21 +34,21 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
     <div className="rounded-lg border py-2 pr-2 pl-3 text-detail text-muted-foreground" role="status">
       <div className="flex items-center gap-1.5">
         <CircleXIcon className="size-3.5 shrink-0 text-destructive" />
-        <span className="text-destructive">Owlit stopped</span>
+        <span className="text-destructive">{t`Owlit stopped`}</span>
         <span className="ml-auto flex shrink-0 items-center gap-0.5">
           {detail && (
             <Button variant="text" size="inline" aria-expanded={details} onClick={() => setDetails((d) => !d)}>
-              Details
+              {t`Details`}
             </Button>
           )}
           {onDismiss && (
             <Button variant="text" size="inline" onClick={onDismiss}>
-              Dismiss
+              {t({ message: "Dismiss", comment: "verb: leave a broken reply as it is" })}
             </Button>
           )}
           {onRetry && (
             <Button variant="text" size="inline" onClick={onRetry}>
-              Retry
+              {t({ message: "Retry", comment: "verb: send the question again" })}
             </Button>
           )}
         </span>
@@ -139,7 +140,7 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
       <MessageFooter className="absolute -bottom-7 right-0 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
         <CopyButton text={text} />
         {onEdit && (
-          <IconButton label="Edit message" size="icon-xs" onClick={() => onEdit(text)}>
+          <IconButton label={t`Edit message`} size="icon-xs" onClick={() => onEdit(text)}>
             <PencilIcon />
           </IconButton>
         )}
@@ -204,7 +205,7 @@ export function AssistantMessage({
             words shimmering), no spinner, where the answer will appear */}
         {blank && (
           <div className="flex items-center text-sm text-foreground/80">
-            <span className="shimmer">Working…</span>
+            <span className="shimmer">{t`Working…`}</span>
           </div>
         )}
         {!streaming && <ResultCard message={message} />}
@@ -214,7 +215,7 @@ export function AssistantMessage({
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
           {/* A partial answer says so at all times, in the same muted tone (stopping was the user's
               choice, never red), since it may read as whole */}
-          {message.status === "cancelled" && <span className="mr-0.5 text-xs font-normal text-muted-foreground">Stopped, partial</span>}
+          {message.status === "cancelled" && <span className="mr-0.5 text-xs font-normal text-muted-foreground">{t`Stopped, partial`}</span>}
           {/* Which model answered and when it ended show with the actions on hover, so a long chat
               reads as the answers alone; they line up with the answer's left edge */}
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
@@ -224,12 +225,12 @@ export function AssistantMessage({
             </span>
             {text && <CopyButton text={text} />}
             {text && onSaveAsDoc && (
-              <IconButton label="Save as doc" size="icon-xs" onClick={() => onSaveAsDoc(text)}>
+              <IconButton label={t`Save as doc`} size="icon-xs" onClick={() => onSaveAsDoc(text)}>
                 <FilePlusIcon />
               </IconButton>
             )}
             {onRegenerate && (
-              <IconButton label="Regenerate" size="icon-xs" onClick={onRegenerate}>
+              <IconButton label={t({ message: "Regenerate", comment: "verb: ask for the answer again" })} size="icon-xs" onClick={onRegenerate}>
                 <RefreshCwIcon />
               </IconButton>
             )}

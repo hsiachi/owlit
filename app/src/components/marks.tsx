@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { cn } from "@/lib/utils"
 
 // The marks of the ladder of states, one look each everywhere (DESIGN.md, rule 3)
@@ -7,7 +8,7 @@ import { cn } from "@/lib/utils"
 // over 400ms, slower than any other mark, so the user catches it going and knows what was new.
 export function NoteDot({
   className,
-  label = "Changed since you last looked",
+  label = t`Changed since you last looked`,
   gone,
   ...props
 }: { className?: string; label?: string | false; gone?: boolean } & Omit<React.ComponentProps<"span">, "className">) {
@@ -30,7 +31,7 @@ export function NoteDot({
 
 // Waiting on you, in words. The words carry it alone: a mark beside them would say it twice, and the
 // `warning` dot is kept for the places with no room for words (the status slot, the rail).
-export function WaitingLabel({ children = "Waiting on you" }: { children?: React.ReactNode }) {
+export function WaitingLabel({ children = t`Waiting on you` }: { children?: React.ReactNode }) {
   return <span className="truncate">{children}</span>
 }
 

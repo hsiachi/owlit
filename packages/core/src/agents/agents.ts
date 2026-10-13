@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type * as acp from "@agentclientprotocol/sdk"
 import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignIn, type SignInMethod } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
@@ -6,7 +7,7 @@ import { homedir } from "node:os"
 import { RpcFailure } from "../rpc/index.ts"
 import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
-import { AcpProcess } from "./process.ts"
+import { AcpProcess, endingSentence } from "./process.ts"
 import { cannotRead } from "./profiles.ts"
 
 const IDLE_MS = 10 * 60_000
@@ -118,15 +119,16 @@ export class Agents {
   }
 
   async add(name: string, command: string): Promise<Connector> {
-    if (!splitCommand(command).length) throw new RpcFailure(RpcErrorCode.InvalidParams, "The command is empty.")
-    const def = { id: `custom-${randomUUID().slice(0, 8)}`, name: name.trim() || "Custom agent", command: command.trim() }
+    if (!splitCommand(command).length) throw new RpcFailure(RpcErrorCode.InvalidParams, t`The command is empty.`)
+    const def = { id: `custom-${randomUUID().slice(0, 8)}`, name: name.trim() || t`Custom agent`, command: command.trim() }
     await this.options.settings.update((s) => ({ ...s, connectors: { ...s.connectors, custom: [...(s.connectors.custom ?? []), def] } }))
     return this.connectorOf({ ...def, description: "Custom ACP agent", builtIn: false })
   }
 
   async remove(id: string) {
     const def = await this.def(id)
-    if (def.builtIn) throw new RpcFailure(RpcErrorCode.InvalidParams, `${def.name} is built in and can't be removed.`)
+    const agent = def.name
+    if (def.builtIn) throw new RpcFailure(RpcErrorCode.InvalidParams, t`${agent} is built in and can't be removed.`)
     this.processes.get(id)?.stop()
     this.processes.delete(id)
     this.live.delete(id)
@@ -147,7 +149,8 @@ export class Agents {
       throw error
     })
     if (!proc) {
-      this.setLive(id, { status: "not_installed", error: `\`${splitCommand(def.command)[0]}\` was not found` })
+      const command = splitCommand(def.command)[0]
+      this.setLive(id, { status: "not_installed", error: t`\`${command}\` was not found` })
       return this.connectorOf(def)
     }
     try {
@@ -177,9 +180,11 @@ export class Agents {
   // The agent said it needs a sign-in (when checked, or in the middle of a turn); returns what to tell the user
   async signedOut(id: string) {
     const def = await this.def(id)
+    const agent = def.name
+    const command = splitCommand(BUILT_IN_SIGN_IN[id] ?? def.command)[0]
     const error = def.launch
-      ? `${def.name} isn't signed in. Sign in under Settings › Agents, then try again.`
-      : `${def.name} isn't signed in. Run ${splitCommand(BUILT_IN_SIGN_IN[id] ?? def.command)[0]} in a terminal to sign in, then try again.`
+      ? t`${agent} isn't signed in. Sign in under Settings › Agents, then try again.`
+      : t`${agent} isn't signed in. Run ${command} in a terminal to sign in, then try again.`
     this.setLive(id, { status: "error", authenticated: false, error })
     return error
   }
@@ -187,12 +192,12 @@ export class Agents {
   // The agent's service refused a request it was signed in for (a 403: the network, a proxy, the region or
   // the account), which signing in again doesn't fix; the agent isn't marked signed out
   async refused(id: string) {
-    const def = await this.def(id)
-    return `${def.name}'s service refused the request (403). If ${def.name} is signed in, this is usually the network or a proxy; try again in a moment.`
+    const agent = (await this.def(id)).name
+    return t`${agent}'s service refused the request (403). If ${agent} is signed in, this is usually the network or a proxy; try again in a moment.`
   }
 
   async nameOf(id: string) {
-    return (await this.def(id).catch(() => null))?.name ?? "The agent"
+    return (await this.def(id).catch(() => null))?.name ?? t({ message: "The agent", comment: "stands in for an agent's name at the start of a sentence: The agent ran into a problem." })
   }
 
   // One of the agent's own sign-ins. A browser sign-in waits for the user to finish there.
@@ -228,8 +233,8 @@ export class Agents {
       env: { ...process.env, PATH: searchPath, ...def.launch?.env },
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
-      onCrash: (detail) => {
-        this.setLive(id, { status: "error", error: `${def.name} ${detail}. It starts again with the next message.` })
+      onCrash: (_detail, ending) => {
+        this.setLive(id, { status: "error", error: endingSentence(def.name, ending, true) })
       },
       onExit: () => {
         if (this.live.get(id)?.status === "connected") this.setLive(id, { status: "available" })
@@ -256,7 +261,7 @@ export class Agents {
 
   private async def(id: string) {
     const def = (await this.defs()).find((d) => d.id === id)
-    if (!def) throw new RpcFailure(RpcErrorCode.NotFound, "owlit doesn't know that agent.", { id })
+    if (!def) throw new RpcFailure(RpcErrorCode.NotFound, t`owlit doesn't know that agent.`, { id })
     return def
   }
 
@@ -273,7 +278,7 @@ export class Agents {
     // Probes saved before the tidying are tidied as they are read
     const probed = stored ? tidy(stored) : undefined
     const live = this.live.get(def.id) ?? {}
-    const fallback = [{ id: "default", name: "Default" }]
+    const fallback = [{ id: "default", name: t({ message: "Default", comment: "the model or mode an agent uses when none is picked" }) }]
     return {
       id: def.id,
       name: def.name,

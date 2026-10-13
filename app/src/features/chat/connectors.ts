@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { StateCreator, StoreApi } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { agentClient } from "./agent"
@@ -50,13 +51,13 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
     }
     const c: Connector = {
       id: `custom-${crypto.randomUUID().slice(0, 8)}`,
-      name: name.trim() || "Custom agent",
-      description: "Custom ACP agent",
+      name: name.trim() || t`Custom agent`,
+      description: t`Custom ACP agent`,
       command: command.trim(),
       builtIn: false,
       status: "unknown",
-      models: [{ id: "default", name: "Default" }],
-      modes: [{ id: "default", name: "Default" }],
+      models: [{ id: "default", name: t({ message: "Default", comment: "the model or mode an agent uses when none is picked" }) }],
+      modes: [{ id: "default", name: t({ message: "Default", comment: "the model or mode an agent uses when none is picked" }) }],
       defaultModelId: "default",
       defaultModeId: "default",
     }

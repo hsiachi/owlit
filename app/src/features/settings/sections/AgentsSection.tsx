@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { RefreshCwIcon, Trash2Icon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -15,6 +16,7 @@ import { EngineSignIns } from "./EngineSignIns"
 export function AgentsSection() {
   const connectors = useChatStore((s) => s.connectors)
   const engine = connectors.find((c) => c.signsInHere)
+  const engineName = engine?.name ?? ""
   const [adding, setAdding] = useState(false)
   useFoldWhile(adding, () => setAdding(false))
 
@@ -30,7 +32,7 @@ export function AgentsSection() {
         <AddAgent open={adding} setOpen={setAdding} />
       </Group>
       {engine && (
-        <Group label="Sign-ins" info={`${engine.name} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer.`}>
+        <Group label={t`Sign-ins`} info={t`${engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer.`}>
           <EngineSignIns connector={engine} />
         </Group>
       )}
@@ -50,10 +52,11 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
   const check = useChatStore((s) => s.checkConnector)
   const remove = useChatStore((s) => s.removeConnector)
   const busy = c.status === "checking"
+  const name = c.name
 
   // A ready agent needs nothing, so its check shows on hover, before the version
   const checkAction = (
-    <IconAction label={c.status === "unknown" ? "Check" : "Check again"} onClick={() => check(c.id)} disabled={busy} className={cn(isReady(c) && !busy && onHover)}>
+    <IconAction label={c.status === "unknown" ? t({ message: "Check", comment: "verb: check whether the agent is installed and works" }) : t({ message: "Check again", comment: "verb" })} onClick={() => check(c.id)} disabled={busy} className={cn(isReady(c) && !busy && onHover)}>
       {busy ? <Spinner /> : <RefreshCwIcon />}
     </IconAction>
   )
@@ -64,13 +67,13 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
       control={
         <>
           {!c.builtIn && (
-            <IconAction label={`Remove ${c.name}`} onClick={() => remove(c.id)} className={onHover}>
+            <IconAction label={t`Remove ${name}`} onClick={() => remove(c.id)} className={onHover}>
               <Trash2Icon />
             </IconAction>
           )}
           {isReady(c) && checkAction}
           <Status c={c} />
-          {c.status === "not_installed" && c.installHint && <CopyButton text={c.installHint} label="Copy install command" size="icon-sm" className="last:-mr-1.5" />}
+          {c.status === "not_installed" && c.installHint && <CopyButton text={c.installHint} label={t`Copy install command`} size="icon-sm" className="last:-mr-1.5" />}
           {!isReady(c) && checkAction}
         </>
       }
@@ -103,7 +106,7 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
 
   return (
     <FoldedForm
-      label="Add an agent"
+      label={t`Add an agent`}
       open={open}
       onOpen={() => setOpen(true)}
       onCancel={close}
@@ -112,17 +115,18 @@ function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
         void addCustom(name, command).then((c) => check(c.id))
         close()
       }}
-      submit="Add agent"
+      submit={t`Add agent`}
       submitDisabled={!command.trim()}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-xs text-muted-foreground">Name</span>
-        <Input autoFocus placeholder="My agent" value={name} onChange={(e) => setName(e.target.value)} />
+        <span className="text-xs text-muted-foreground">{t`Name`}</span>
+        <Input autoFocus placeholder={t`My agent`} value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-xs text-muted-foreground">Command</span>
+        <span className="text-xs text-muted-foreground">{t`Command`}</span>
+        {/* i18n-ignore */}
         <Input placeholder="my-agent --acp" value={command} onChange={(e) => setCommand(e.target.value)} className="font-mono text-detail" />
-        <span className="text-xs text-muted-foreground">What owlit runs to start the agent. It must speak ACP over stdio.</span>
+        <span className="text-xs text-muted-foreground">{t`What owlit runs to start the agent. It must speak ACP over stdio.`}</span>
       </label>
     </FoldedForm>
   )

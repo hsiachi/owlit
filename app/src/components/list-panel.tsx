@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { PlusIcon, SearchIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { openPalette } from "@/app/palette-store"
@@ -17,7 +18,7 @@ export function PanelHeader({ children }: { children: React.ReactNode }) {
         className="flex h-9 w-full items-center gap-2.5 rounded-md border border-border/70 bg-card px-3 text-sm text-muted-foreground outline-none transition-colors hover:border-border hover:text-foreground focus-key:border-foreground/30 focus-key:text-foreground"
       >
         <SearchIcon className="size-4" />
-        <span className="flex-1 text-left">Search</span>
+        <span className="flex-1 text-left">{t`Search`}</span>
         <Kbd className="bg-transparent">{keysFor("palette")}</Kbd>
       </button>
       {children}

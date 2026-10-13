@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -49,7 +50,7 @@ export function FadeClip({
 export function ShowAllButton({ open, onClick, className }: { open: boolean; onClick: () => void; className?: string }) {
   return (
     <Button variant="text" size="inline" onClick={onClick} className={className}>
-      {open ? "Show less" : "Show all"}
+      {open ? t`Show less` : t`Show all`}
     </Button>
   )
 }

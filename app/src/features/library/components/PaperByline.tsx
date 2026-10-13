@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ActionsDropdownContent } from "@/components/action-menu"
@@ -14,7 +15,7 @@ export function PaperByline({ paper, className }: { paper: Paper; className?: st
   const published = [paper.venue, paper.year].filter(Boolean).join(" · ")
   return (
     <p className={cn("text-detail leading-normal text-muted-foreground", className)}>
-      {paper.authors.join(", ") || "Unknown authors"}
+      {paper.authors.join(", ") || t`Unknown authors`}
       {published && (
         <>
           <br />
@@ -35,7 +36,7 @@ export function PaperQuickActions({ paper, align, afterRemove }: { paper: Paper;
       <StarButton starred={paper.starred} onToggle={() => setStarred([paper.id], !paper.starred)} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="More actions" className="text-muted-foreground">
+          <Button variant="ghost" size="icon-sm" aria-label={t`More actions`} className="text-muted-foreground">
             <EllipsisVerticalIcon />
           </Button>
         </DropdownMenuTrigger>

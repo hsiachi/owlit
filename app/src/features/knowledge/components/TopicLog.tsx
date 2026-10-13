@@ -2,8 +2,8 @@ import { useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { MentionToken } from "@/components/mention/mention-token"
 import { dayLabel, shortDate } from "@/lib/time"
-import { plural } from "@/lib/words"
-import { changeGroups, firstWords, shownChange, wordsAfter } from "../format"
+import { plural, t } from "@lingui/core/macro"
+import { changeGroups, changeWords, firstWords, shownChange, whyWords, wordsAfter } from "../format"
 import { ringBlock } from "../lib/ring"
 import { provenance } from "../store"
 import type { Change, Topic } from "../types"
@@ -15,10 +15,11 @@ import { DatedRows } from "./DatedRows"
 export function Sources({ topic }: { topic: Topic }) {
   const [open, setOpen] = useState(false)
   if (!topic.sources.length) return null
+  const from = provenance(topic)
   return (
     <section className="mt-10">
       <FoldButton open={open} onClick={() => setOpen((o) => !o)}>
-        Sources · {provenance(topic)}
+        {t`Sources · ${from}`}
       </FoldButton>
       {open && (
         <DatedRows
@@ -49,7 +50,7 @@ export function Changes({ topic, history }: { topic: Topic; history: Change[] })
     if (!h.lineId) return null
     const block = topic.lines.find((l) => l.id === h.lineId) ?? topic.questions.find((q) => q.id === h.lineId)
     if (block) return <MentionToken label={`“${firstWords(block.text)}”`} title={block.text} onClick={() => ringBlock(block.id)} />
-    return h.before ? <>“{firstWords(h.before)}”</> : "A line"
+    return h.before ? <>“{firstWords(h.before)}”</> : t`A line`
   }
   // "“Retrieval and tool use may…” rewritten", or the change alone when it isn't about one line
   const change = (h: Change) => {
@@ -57,23 +58,23 @@ export function Changes({ topic, history }: { topic: Topic; history: Change[] })
     const { what } = shownChange(h, after.get(h.id))
     return who ? (
       <>
-        {who} {what.charAt(0).toLowerCase() + what.slice(1)}
+        {who} {changeWords(what, true)}
       </>
     ) : (
-      what
+      changeWords(what)
     )
   }
   return (
     <section className="mt-6">
       <FoldButton open={open} onClick={() => setOpen((o) => !o)}>
-        {plural(history.length, "change")}
+        {plural(history.length, { one: "# change", other: "# changes" })}
       </FoldButton>
       {open && (
         <DatedRows
           className="mt-2 text-detail"
           rows={changeGroups(history).map((group) => {
             const [h] = group
-            const why = <Prose text={h.why} topic={topic} />
+            const why = <Prose text={whyWords(h)} topic={topic} />
             return {
               key: h.id,
               date: shortDate(h.at),

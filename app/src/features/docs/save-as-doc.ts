@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { useDocsStore } from "./store"
@@ -9,10 +10,10 @@ import { useDocsUiStore } from "./ui-store"
 export function saveAnswerAsDoc(title: string, markdown: string, navigate: NavigateFunction) {
   const { createDoc, writeDoc } = useDocsStore.getState()
   const doc = createDoc(useDocsUiStore.getState().targetFolder)
-  writeDoc(doc.id, `# ${title.trim() || "Answer"}\n\n${markdown.trim()}\n`)
+  writeDoc(doc.id, `# ${title.trim() || t`Answer`}\n\n${markdown.trim()}\n`)
   const saved = useDocsStore.getState().files[doc.id]
-  toast("Saved as doc", {
+  toast(t`Saved as doc`, {
     description: saved ? displayName(saved.path) : undefined,
-    action: { label: "Open", onClick: () => navigate(`/docs/${doc.id}`) },
+    action: { label: t({ message: "Open", comment: "verb: open the saved doc" }), onClick: () => navigate(`/docs/${doc.id}`) },
   })
 }

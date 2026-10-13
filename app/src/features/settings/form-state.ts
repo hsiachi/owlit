@@ -1,6 +1,7 @@
 // State the Settings forms share: which form is open (so Esc can fold it first), and trying a value
 // with its service.
 
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import type { SettingsCheck } from "@owlit/protocol"
 import { create } from "zustand"
@@ -38,7 +39,7 @@ export function useCheck() {
     try {
       result = await checkSetting(target)
     } catch {
-      result = { result: "unknown", message: "Couldn't check it just now." }
+      result = { result: "unknown", message: t`Couldn't check it just now.` }
     }
     if (id === latest.current) setState({ checking: false, result })
   }

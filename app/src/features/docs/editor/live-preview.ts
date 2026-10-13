@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { syntaxTree } from "@codemirror/language"
 import type { EditorState, Extension, Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view"
@@ -101,7 +102,7 @@ class WikilinkWidget extends WidgetType {
     const span = document.createElement("span")
     span.className = this.route ? "cm-mention" : "cm-wikilink"
     if (this.route) span.dataset.route = this.route
-    else span.title = "No doc with this name"
+    else span.title = t`No doc with this name`
     span.textContent = this.label
     return span
   }

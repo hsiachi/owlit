@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useChatStore } from "./store"
 import { callOf } from "./status"
 import type { Chat } from "./types"
@@ -93,7 +94,7 @@ export function suggestionBar(answer: (apply: boolean) => void) {
   bar.className = "suggest-bar"
   bar.contentEditable = "false"
   const label = document.createElement("span")
-  label.textContent = "Suggested by Owlit"
+  label.textContent = t`Suggested by Owlit`
   const button = (text: string, className: string, apply: boolean) => {
     const b = document.createElement("button")
     b.type = "button"
@@ -102,6 +103,10 @@ export function suggestionBar(answer: (apply: boolean) => void) {
     b.onclick = () => answer(apply)
     return b
   }
-  bar.append(label, button("Discard", "suggest-discard", false), button("Apply", "suggest-apply", true))
+  bar.append(
+    label,
+    button(t({ message: "Discard", comment: "verb: discard an edit Owlit suggested" }), "suggest-discard", false),
+    button(t({ message: "Apply", comment: "verb: apply an edit Owlit suggested" }), "suggest-apply", true),
+  )
   return bar
 }

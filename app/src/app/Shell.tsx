@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
@@ -81,10 +82,10 @@ function AppShell() {
             className="app-drag flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground"
             style={controlsRoom ? { paddingLeft: controlsRoom } : undefined}
           >
-            <IconButton label="Back" onClick={() => navigate(-1)}>
+            <IconButton label={t`Back`} onClick={() => navigate(-1)}>
               <ArrowLeftIcon />
             </IconButton>
-            <IconButton label="Forward" onClick={() => navigate(1)}>
+            <IconButton label={t`Forward`} onClick={() => navigate(1)}>
               <ArrowRightIcon />
             </IconButton>
             {hasPanel && <SidebarTrigger />}

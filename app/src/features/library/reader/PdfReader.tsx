@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPluginRegistration } from "@embedpdf/core"
 import { EmbedPDF, useDocumentState, useRegistry } from "@embedpdf/core/react"
@@ -62,7 +63,7 @@ export function PdfReader({ paper }: { paper: Paper }) {
   // "loading" under the dev server (seen in owlit v4, not root-caused).
   const { engine, isLoading, error } = usePdfiumEngine({ wasmUrl, worker: false, fontFallback: null })
 
-  if (error) return <Message title="The PDF engine did not start" detail={error.message} />
+  if (error) return <Message title={t`The PDF engine did not start`} detail={error.message} />
   if (isLoading || !engine) return <Loading />
   // Remounting per paper is more reliable than swapping documents under a live plugin tree
   return <Document key={paper.id} paper={paper} engine={engine} />
@@ -191,13 +192,13 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
   if (doc?.status === "error") {
     return (
       <Message
-        title="This PDF could not be loaded"
-        detail="The server may not allow owlit to fetch it. It can still be opened in the browser."
+        title={t`This PDF could not be loaded`}
+        detail={t`The server may not allow owlit to fetch it. It can still be opened in the browser.`}
         action={
           <Button variant="outline" size="sm" asChild>
             <a href={paper.pdf?.url} target="_blank" rel="noreferrer">
               <ExternalLinkIcon />
-              Open in browser
+              {t`Open in browser`}
             </a>
           </Button>
         }

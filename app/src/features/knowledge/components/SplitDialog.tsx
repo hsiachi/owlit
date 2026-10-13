@@ -1,9 +1,11 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { t } from "@lingui/core/macro"
 import { BorderedList } from "@/components/bordered-list"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { speakerName } from "../format"
 import { getTopic, splitTopic } from "../store"
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
@@ -34,10 +36,11 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
   const [picked, setPicked] = useState<string[]>([])
   const [name, setName] = useState("")
   const ok = picked.length > 0 && picked.length < topic.lines.length && name.trim().length > 0
+  const topicName = topic.name
   return (
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Split {topic.name}</DialogTitle>
+        <DialogTitle>{t`Split ${topicName}`}</DialogTitle>
       </DialogHeader>
       <form
         className="flex flex-col gap-4"
@@ -56,7 +59,7 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
                   onCheckedChange={(v) => setPicked((p) => (v ? [...p, l.id] : p.filter((x) => x !== l.id)))}
                 />
                 <span>
-                  <span className="text-muted-foreground">{l.speaker} · </span>
+                  <span className="text-muted-foreground">{speakerName(l)} · </span>
                   {l.text}
                 </span>
               </label>
@@ -64,20 +67,20 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
           ))}
         </BorderedList>
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">New topic</span>
+          <span className="text-xs font-medium text-muted-foreground">{t`New topic`}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
+            placeholder={t({ message: "Name", comment: "placeholder: the new topic's name" })}
             className="h-9 rounded-md border bg-card px-3 text-sm outline-none focus-visible:border-foreground/30"
           />
         </label>
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={() => onDone(null)}>
-            Cancel
+            {t`Cancel`}
           </Button>
           <Button type="submit" disabled={!ok}>
-            Split
+            {t({ message: "Split", comment: "verb: split a topic in two" })}
           </Button>
         </DialogFooter>
       </form>

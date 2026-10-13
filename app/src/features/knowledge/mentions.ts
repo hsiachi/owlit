@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { OwlitUri } from "@owlit/protocol"
 import type { Mentionable } from "@/features/chat/types"
 import { lineKey, topicUri } from "./format"
@@ -6,12 +7,13 @@ import { allTopics } from "./store"
 // What @ reaches in Knowledge: topics and the user's questions, never single lines. A question is
 // addressed inside its topic file by its block id: owlit://knowledge/when-to-call#^q1.
 export function knowledgeMentionables(): Mentionable[] {
-  const topics = allTopics().filter((t) => !t.archived)
+  const topics = allTopics().filter((topic) => !topic.archived)
   return [
-    ...topics.map((t): Mentionable => ({ id: t.id, kind: "knowledge", title: t.name, subtitle: "Topic", uri: topicUri(t.id) })),
-    ...topics.flatMap((t) =>
-      t.questions.map((q): Mentionable => ({ id: lineKey(t.id, q.id), kind: "knowledge", title: q.text, subtitle: `Question · ${t.name}`, uri: topicUri(t.id, q.id) })),
-    ),
+    ...topics.map((topic): Mentionable => ({ id: topic.id, kind: "knowledge", title: topic.name, subtitle: t`Topic`, uri: topicUri(topic.id) })),
+    ...topics.flatMap((topic) => {
+      const name = topic.name
+      return topic.questions.map((q): Mentionable => ({ id: lineKey(topic.id, q.id), kind: "knowledge", title: q.text, subtitle: t`Question · ${name}`, uri: topicUri(topic.id, q.id) }))
+    }),
   ]
 }
 

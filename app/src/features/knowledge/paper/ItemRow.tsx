@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { cn } from "@/lib/utils"
 import { NoteDot } from "@/components/marks"
 import { MentionLink, MentionToken } from "@/components/mention/mention-token"
@@ -12,13 +14,18 @@ import type { Paper } from "@/features/library/types"
 import { shortDate } from "@/lib/time"
 import { toastUndo } from "@/lib/toast"
 import { SentenceEditor } from "../components/bits"
-import { isAbstractOnly, isOwlit, isYou, verbOf } from "../format"
+import { isAbstractOnly, isOwlit, isYou, verbOf, verbWords } from "../format"
 import { dismissConnection, editLine, setConnection } from "../store"
 import type { Connection, Passage, Topic } from "../types"
 import { findInPaper } from "./find"
 import type { Item, Who } from "./items"
 
-const sectionOf = (p: Passage) => p.section || (p.page !== undefined ? `p. ${p.page + 1}` : "Passage")
+function sectionOf(p: Passage) {
+  if (p.section) return p.section
+  if (p.page === undefined) return t({ message: "Passage", comment: "a passage of a paper, when it has no section or page" })
+  const page = p.page + 1
+  return t`p. ${page}`
+}
 
 // A topic, opened at one of its lines or questions
 function TopicLink({ topic, block }: { topic: Topic; block?: string }) {
@@ -26,32 +33,29 @@ function TopicLink({ topic, block }: { topic: Topic; block?: string }) {
 }
 
 function WhoLine({ who }: { who: Who }) {
-  if (who.kind === "doc")
+  if (who.kind === "doc") {
+    const date = shortDate(who.at)
     return (
-      <>
-        You wrote in <MentionLink label={displayName(who.file.path)} to={`/docs/${who.file.id}`} /> · {shortDate(who.at)}
-      </>
+      <Trans>
+        You wrote in <MentionLink label={displayName(who.file.path)} to={`/docs/${who.file.id}`} /> · {date}
+      </Trans>
     )
+  }
   if (who.kind === "question")
     return (
-      <>
+      <Trans>
         Your question in <TopicLink topic={who.topic} block={who.questionId} />
-      </>
+      </Trans>
     )
   const at = <TopicLink topic={who.topic} block={who.line.id} />
-  if (who.kind === "taken") return <>In {at}</>
-  if (isYou(who.line))
-    return (
-      <>
-        You {verbOf(who.line)} in {at}
-      </>
-    )
-  if (isOwlit(who.line)) return <>Owlit thinks in {at}</>
-  return (
-    <>
-      You took from {who.line.speaker} in {at}
-    </>
-  )
+  if (who.kind === "taken") return <Trans>In {at}</Trans>
+  if (isYou(who.line)) {
+    const verb = verbWords(verbOf(who.line))
+    return <Trans>You {verb} in {at}</Trans>
+  }
+  if (isOwlit(who.line)) return <Trans>Owlit thinks in {at}</Trans>
+  const speaker = who.line.speaker
+  return <Trans>You took from {speaker} in {at}</Trans>
 }
 
 export function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
@@ -80,7 +84,7 @@ export function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
       }}
     >
       <p className="flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground">
-        {item.fresh && <NoteDot label="New since you last looked" />}
+        {item.fresh && <NoteDot label={t`New since you last looked`} />}
         <span>
           <WhoLine who={item.who} />
         </span>
@@ -103,7 +107,7 @@ export function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
           <p className={cn("mt-0.5 text-sm leading-relaxed text-pretty", item.muted && !item.taken.found && "text-muted-foreground")}>
             {item.words}
             <Button variant="text" size="inline" onClick={() => setEditing(true)} className="ml-1.5 opacity-0 group-hover/item:opacity-100 focus-key:opacity-100">
-              Edit
+              {t({ message: "Edit", comment: "verb: edit a topic's line" })}
             </Button>
           </p>
         )
@@ -119,7 +123,7 @@ export function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
         fold={
           passage && (
             <Button variant="text" size="inline" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={cn("ml-1 focus-key:opacity-100", !open && "opacity-0 group-hover/item:opacity-100")}>
-              {open ? "Hide passage" : "Passage"}
+              {open ? t`Hide passage` : t({ message: "Passage", comment: "button that shows the paper's passage behind an item" })}
             </Button>
           )
         }
@@ -138,15 +142,15 @@ export function ItemRow({ item, paper }: { item: Item; paper: Paper }) {
 // A taken line needs no sentence: the group says what it is, so only its section and passage follow.
 function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?: Passage; onJump: () => void; paper: Paper; fold?: React.ReactNode }) {
   const section = passage && <MentionToken label={sectionOf(passage)} onClick={onJump} />
-  const find = <MentionToken label="Find it in the paper" onClick={() => item.taken && void findInPaper(paper.id, item.taken.topic.id, item.taken.line.id)} />
+  const find = <MentionToken label={t`Find it in the paper`}onClick={() => item.taken && void findInPaper(paper.id, item.taken.topic.id, item.taken.line.id)} />
   if (item.taken) {
     const { line, found } = item.taken
     if (found)
       return (
         <p className="mt-1 flex items-center gap-1.5 text-detail leading-relaxed text-muted-foreground">
-          <NoteDot label="Found by you" />
+          <NoteDot label={t`Found by you`} />
           <span>
-            {section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper.
+            <Trans>{section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper.</Trans>
             {fold}
           </span>
         </p>
@@ -154,13 +158,13 @@ function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?
     if (isAbstractOnly(line))
       return (
         <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
-          From the abstract only. {find}
+          {t`From the abstract only.`} {find}
         </p>
       )
     if (!passage)
       return (
         <p className="mt-1 text-detail leading-relaxed text-muted-foreground">
-          Its passage isn’t in this copy of the paper. {find}
+          {t`Its passage isn’t in this copy of the paper.`} {find}
         </p>
       )
     return (
@@ -173,7 +177,7 @@ function Relation({ item, passage, onJump, paper, fold }: { item: Item; passage?
   if (!passage)
     return (
       <p className="mt-1 text-sm leading-relaxed text-pretty">
-        <span className="text-muted-foreground">A passage not in this copy</span> {item.relation}
+        <span className="text-muted-foreground">{t`A passage not in this copy`}</span> {item.relation}
       </p>
     )
   return (
@@ -191,25 +195,25 @@ function MightActions({ connection, paper, passage }: { connection: Connection; 
     // "may touch it: …" becomes "touches it: …" once the user has said so
     const relation = connection.relation.replace(/^may (\w+) it/, (_, v: string) => `${v}${/(s|sh|ch|x)$/.test(v) ? "es" : "s"} it`)
     setConnection(paper.id, connection.id, { kind: "backs", relation })
-    toastUndo("Connected", () => setConnection(paper.id, connection.id, was), { description: "It now sits under Backs what you have." })
+    toastUndo(t`Connected`, () => setConnection(paper.id, connection.id, was), { description: t`It now sits under Backs what you have.` })
   }
   return (
     <>
       <Button variant="text" size="inline" onClick={connect}>
-        Connect
+        {t({ message: "Connect", comment: "verb: accept Owlit's guess that a passage connects to what you have" })}
       </Button>
       <Button
         variant="text"
         size="inline"
         onClick={() => {
           const undo = dismissConnection(paper.id, connection.id)
-          toastUndo("Marked as not related", undo)
+          toastUndo(t`Marked as not related`, undo)
         }}
       >
-        Not related
+        {t`Not related`}
       </Button>
       <Button variant="text" size="inline" onClick={() => useAgentWindow.getState().open(passage ? { text: passage.text, source: paperMentionable(paper) } : undefined)}>
-        Ask Owlit
+        {t`Ask Owlit`}
       </Button>
     </>
   )

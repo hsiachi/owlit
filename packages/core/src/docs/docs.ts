@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import {
   baseName,
   cleanName,
@@ -51,7 +52,7 @@ const MAX_WAIT_MS = 500
 // More changes than this at once (a branch switch, a sync) and clients list everything again
 const RELOAD_OVER = 200
 
-const notFound = (rel: string) => new RpcFailure(RpcErrorCode.NotFound, `There is no ${rel || "folder"} in the workspace.`, { path: rel })
+const notFound = (rel: string) => new RpcFailure(RpcErrorCode.NotFound, rel ? t`There is no ${rel} in the workspace.` : t`There is no folder in the workspace.`, { path: rel })
 
 // The workspace's files as Docs sees them. Every path in and out is workspace-relative and "/"-separated.
 // What is read is written back as it was: no line endings touched, no final newline added.
@@ -168,7 +169,10 @@ export class Docs {
   create(rel: string, content: string, options: { id?: string; followsFirstLine?: boolean } = {}) {
     return this.serial(async () => {
       this.check(rel)
-      if (!isMarkdown(rel)) throw invalidParams(`${baseName(rel)} is not a Markdown file.`)
+      if (!isMarkdown(rel)) {
+        const name = baseName(rel)
+        throw invalidParams(t`${name} is not a Markdown file.`)
+      }
       const now = Date.now()
       let target = options.followsFirstLine ? followFirstLine(rel, content, now, this.taken()) ?? rel : rel
       if (this.taken()(target)) target = uniquePath(parentPath(target), stemOf(target), ".md", this.taken())
@@ -208,7 +212,7 @@ export class Docs {
       const info = await this.entry(rel)
       const ext = info.isDirectory() ? "" : extOf(rel)
       const stem = cleanName(ext === ".md" ? name.replace(/\.md$/i, "") : name.endsWith(ext) ? name.slice(0, name.length - ext.length) : name)
-      if (!stem) throw invalidParams("That name has nothing in it a file name can use.")
+      if (!stem) throw invalidParams(t`That name has nothing in it a file name can use.`)
       const wanted = joinPath(parentPath(rel), stem + ext)
       if (wanted === rel) return { path: rel }
       // A change of case or of Unicode form only is the same entry on a disk that ignores them, so it
@@ -229,9 +233,9 @@ export class Docs {
         if (!(await stat(this.abs(folder)).catch(() => null))?.isDirectory()) throw notFound(folder)
       }
       if (parentPath(rel) === folder) return { path: rel }
-      if (info.isDirectory() && isWithin(folder, rel)) throw invalidParams(`${baseName(rel)} can't go inside itself.`)
-      const ext = info.isDirectory() ? "" : extOf(rel)
       const name = baseName(rel)
+      if (info.isDirectory() && isWithin(folder, rel)) throw invalidParams(t`${name} can't go inside itself.`)
+      const ext = info.isDirectory() ? "" : extOf(rel)
       const to = uniquePath(folder, ext ? name.slice(0, -ext.length) : name, ext, this.taken())
       await this.moveEntry(rel, to)
       await this.settle([rel, to])
@@ -363,14 +367,14 @@ export class Docs {
 
   async open(rel: string) {
     await this.entry(rel)
-    if (!this.host.openPath) throw new RpcFailure(RpcErrorCode.InternalError, "owlit can't open files in other apps here.")
+    if (!this.host.openPath) throw new RpcFailure(RpcErrorCode.InternalError, t`owlit can't open files in other apps here.`)
     await this.host.openPath(this.abs(rel))
     return null
   }
 
   async reveal(rel: string) {
     await this.entry(rel)
-    if (!this.host.revealPath) throw new RpcFailure(RpcErrorCode.InternalError, "owlit can't show files in Finder here.")
+    if (!this.host.revealPath) throw new RpcFailure(RpcErrorCode.InternalError, t`owlit can't show files in Finder here.`)
     this.host.revealPath(this.abs(rel))
     return null
   }
@@ -541,7 +545,7 @@ export class Docs {
   // A path a client may name: inside the workspace, not under library/ or a dot-folder
   private check(rel: string) {
     if (!isDocsPath(rel) || path.posix.normalize(rel) !== rel || rel.startsWith("/")) {
-      throw invalidParams(`${rel || "The workspace root"} is outside what Docs can reach.`, { path: rel })
+      throw invalidParams(rel ? t`${rel} is outside what Docs can reach.` : t`The workspace root is outside what Docs can reach.`, { path: rel })
     }
     return rel
   }
@@ -551,13 +555,13 @@ export class Docs {
     const resolved = path.resolve(this.root, file)
     const rel = path.relative(this.root, resolved)
     if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
-      throw new RpcFailure(RpcErrorCode.InvalidParams, `${file} is outside the workspace.`, { path: file })
+      throw new RpcFailure(RpcErrorCode.InvalidParams, t`${file} is outside the workspace.`, { path: file })
     }
     // Where it really is, too: a symlink in the folder (notes.md -> ~/.zshrc) doesn't lead outside it
     const target = realOfDeepest(resolved)
     const real = target === null ? ".." : path.relative(realpathSync(this.root), target)
     if (real.startsWith("..") || path.isAbsolute(real)) {
-      throw new RpcFailure(RpcErrorCode.InvalidParams, `${file} leads outside the workspace.`, { path: file })
+      throw new RpcFailure(RpcErrorCode.InvalidParams, t`${file} leads outside the workspace.`, { path: file })
     }
     return rel.split(path.sep).join("/")
   }
@@ -667,12 +671,10 @@ const stemOf = (rel: string) => {
 const dropUnder = (follow: Record<string, number>, rel: string) =>
   Object.fromEntries(Object.entries(follow).filter(([p]) => !isWithin(p, rel)))
 
-const conflict = (data: DocConflict) =>
-  new RpcFailure(
-    RpcErrorCode.Conflict,
-    data.content === null ? `${baseName(data.path)} is no longer on disk.` : `${baseName(data.path)} changed on disk.`,
-    data,
-  )
+const conflict = (data: DocConflict) => {
+  const name = baseName(data.path)
+  return new RpcFailure(RpcErrorCode.Conflict, data.content === null ? t`${name} is no longer on disk.` : t`${name} changed on disk.`, data)
+}
 
 // Files whose text is kept, so a change an agent makes to them on its own can be undone: Markdown, and
 // other small text files a researcher keeps (references, LaTeX, data)

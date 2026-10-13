@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { LibrarySettings, PaperIds, PaperKind } from "@owlit/protocol"
 import type { Http, RequestOptions } from "../net/http.ts"
 import { cleanDoi, paperIdOf, parseRef, type Ref } from "./refs.ts"
@@ -57,7 +58,7 @@ export class NotAPaper extends Error {
 export async function resolve(http: Http, input: string | Ref, keys: MetadataKeys = {}, request: RequestOptions = {}): Promise<Resolution> {
   const { signal } = request
   const ref = typeof input === "string" ? parseRef(input) : input
-  if (!ref) throw new NotAPaper("That doesn't look like a DOI, an arXiv id or a link to a paper.")
+  if (!ref) throw new NotAPaper(t`That doesn't look like a DOI, an arXiv id or a link to a paper.`)
   if (ref.kind === "url") return resolve(http, await refFromPage(http, ref.value, signal), keys, request)
 
   const records: SourceRecord[] = []
@@ -118,7 +119,7 @@ export async function resolve(http: Http, input: string | Ref, keys: MetadataKey
   if (!records.length) {
     // A service that couldn't be asked may still know it; one that answered "not found" returned nothing
     if (failures.length) throw failures[0]
-    throw new NotAPaper("No service owlit asks knows that paper.")
+    throw new NotAPaper(t`No service owlit asks knows that paper.`)
   }
   // Known to one index only (a Semantic Scholar or OpenAlex record with no DOI or arXiv id): such a
   // record is often a stray copy of a published paper (2026-10-10: a review came in twice, once as an
@@ -283,13 +284,13 @@ async function refFromPage(http: Http, url: string, signal?: AbortSignal): Promi
     html = (await http.text(url, { signal, retries: 1, headers: { accept: "text/html" } })).slice(0, 400_000)
   } catch (error) {
     if (signal?.aborted) throw error
-    throw new NotAPaper("owlit couldn't open that page to see which paper it is.")
+    throw new NotAPaper(t`owlit couldn't open that page to see which paper it is.`)
   }
   const meta = (name: string) =>
     html.match(new RegExp(`<meta[^>]+(?:name|property)=["']${name}["'][^>]+content=["']([^"']+)["']`, "i"))?.[1] ??
     html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']${name}["']`, "i"))?.[1]
   const found = meta("citation_doi") ?? meta("dc.identifier") ?? meta("DC.identifier") ?? meta("prism.doi") ?? meta("citation_arxiv_id")
   const ref = found ? parseRef(found.replace(/^(doi|info:doi\/)\s*:?\s*/i, "")) : undefined
-  if (!ref || ref.kind === "url") throw new NotAPaper("That page doesn't say which paper it is.")
+  if (!ref || ref.kind === "url") throw new NotAPaper(t`That page doesn't say which paper it is.`)
   return ref
 }

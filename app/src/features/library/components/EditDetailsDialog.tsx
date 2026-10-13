@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
@@ -81,7 +82,7 @@ export function EditDetailsDialog() {
     <Dialog open={!!paper} onOpenChange={(open) => !open && setEditingId(null)}>
       {/* The title field takes focus once it mounts; the info icon would otherwise, and open its tooltip */}
       <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <DialogHeading title="Edit details" about="Fix what the resolver got wrong, or fill in a PDF-only paper." />
+        <DialogHeading title={t`Edit details`} about={t`Fix what the resolver got wrong, or fill in a PDF-only paper.`} />
         {draft && (
           <form
             className="flex flex-col gap-4"
@@ -90,39 +91,45 @@ export function EditDetailsDialog() {
               save()
             }}
           >
-            <Field label="Title">
+            <Field label={t`Title`}>
               <Input value={draft.title} onChange={set("title")} autoFocus />
             </Field>
-            <Field label="Authors, one per line">
+            <Field label={t`Authors, one per line`}>
               <Textarea value={draft.authors} onChange={set("authors")} rows={3} />
             </Field>
             <div className="grid grid-cols-[6rem_1fr] gap-3">
-              <Field label="Year">
+              <Field label={t`Year`}>
                 <Input value={draft.year} onChange={set("year")} inputMode="numeric" />
               </Field>
-              <Field label="Venue">
+              <Field label={t`Venue`}>
                 <Input value={draft.venue} onChange={set("venue")} />
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              {/* i18n-ignore */}
               <Field label="DOI">
+                {/* i18n-ignore */}
                 <Input value={draft.doi} onChange={set("doi")} placeholder="10.1145/…" />
               </Field>
+              {/* i18n-ignore */}
               <Field label="arXiv">
+                {/* i18n-ignore */}
                 <Input value={draft.arxiv} onChange={set("arxiv")} placeholder="2305.10601" />
               </Field>
             </div>
+            {/* i18n-ignore */}
             <Field label="URL">
+              {/* i18n-ignore */}
               <Input value={draft.url} onChange={set("url")} placeholder="https://" />
             </Field>
-            <Field label="Abstract">
+            <Field label={t`Abstract`}>
               <Textarea value={draft.abstract} onChange={set("abstract")} rows={5} />
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingId(null)}>
-                Cancel
+                {t`Cancel`}
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">{t`Save`}</Button>
             </DialogFooter>
           </form>
         )}

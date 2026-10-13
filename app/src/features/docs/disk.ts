@@ -1,5 +1,6 @@
 import type { AgentNote, DocConflict, DocsChange, DocStat, NoteAnchor, WorkspaceFile } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
+import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { countDown, countUp } from "@/lib/counts"
@@ -53,7 +54,7 @@ const remember = (stat: DocStat, content?: string) => {
 }
 
 async function failed(error: unknown) {
-  toast.error(error instanceof Error ? error.message : "Couldn't save the change.")
+  toast.error(error instanceof Error ? error.message : t`Couldn't save the change.`)
   await load()
 }
 
@@ -154,11 +155,12 @@ async function applyChange(change: DocsChange) {
 function deletedWhileOpen(id: string) {
   const file = useDocsStore.getState().files[id]
   if (!file) return
-  toast.warning(`${displayName(file.path)} was deleted outside owlit`, {
+  const name = displayName(file.path)
+  toast.warning(t`${name} was deleted outside owlit`, {
     id: `conflict-${id}`,
-    description: "It stays open here until you leave it.",
+    description: t`It stays open here until you leave it.`,
     duration: Infinity,
-    action: { label: "Save again", onClick: () => saveAgain(id) },
+    action: { label: t`Save again`, onClick: () => saveAgain(id) },
   })
 }
 
@@ -323,21 +325,21 @@ function conflicted(id: string, disk: DocConflict) {
   if (!file) return
   const name = displayName(file.path)
   if (disk.content === null) {
-    toast.warning(`${name} is no longer on disk`, {
+    toast.warning(t`${name} is no longer on disk`, {
       id: `conflict-${id}`,
-      description: "It was moved or deleted outside owlit.",
+      description: t`It was moved or deleted outside owlit.`,
       duration: Infinity,
-      action: { label: "Save again", onClick: () => saveAgain(id) },
+      action: { label: t`Save again`, onClick: () => saveAgain(id) },
     })
     return
   }
   const theirs = { content: disk.content, modifiedAt: disk.modifiedAt ?? 0 }
-  toast.warning(`${name} changed on disk`, {
+  toast.warning(t`${name} changed on disk`, {
     id: `conflict-${id}`,
-    description: "Your latest edits aren't saved yet.",
+    description: t`Your latest edits aren't saved yet.`,
     duration: Infinity,
     action: {
-      label: "Reload",
+      label: t({ message: "Reload", comment: "take the text on disk instead of the unsaved edits" }),
       onClick: () =>
         enqueue([id], async () => {
           const at = known.get(id)
@@ -349,7 +351,7 @@ function conflicted(id: string, disk: DocConflict) {
         }),
     },
     cancel: {
-      label: "Keep mine",
+      label: t`Keep mine`,
       onClick: () =>
         enqueue([id], async () => {
           const at = known.get(id)

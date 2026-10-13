@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
@@ -25,7 +26,7 @@ function ResizeHandle() {
   const setWidth = usePrefsStore((s) => s.setPanelWidth)
   return (
     <PanelResizeHandle
-      label="Resize details"
+      label={t`Resize details`}
       width={width}
       setWidth={setWidth}
       min={PANEL_MIN}
@@ -61,15 +62,15 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
         <Tabs value={tab} onValueChange={(v) => setTab(v as PanelTab)} className="mt-5 flex-1 gap-4">
           <div className="flex items-center justify-between">
             <TabsList variant="line" className="-ml-1.5">
-              <TabsTrigger value="notes" className="px-1.5">Notes</TabsTrigger>
+              <TabsTrigger value="notes" className="px-1.5">{t({ message: "Notes", comment: "tab: the user's notes on a paper" })}</TabsTrigger>
               <TabsTrigger value="highlights" className="px-1.5">
-                Highlights
+                {t({ message: "Highlights", comment: "tab: the passages highlighted in a paper" })}
                 {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
               </TabsTrigger>
               <TabsTrigger value="knowledge" className="px-1.5">
                 <KnowledgeTabLabel paper={paper} />
               </TabsTrigger>
-              <TabsTrigger value="about" className="px-1.5">About</TabsTrigger>
+              <TabsTrigger value="about" className="px-1.5">{t({ message: "About", comment: "tab: a paper's abstract and details" })}</TabsTrigger>
             </TabsList>
             {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
           </div>
@@ -91,31 +92,34 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
   )
 }
 
-const LINK_NAMES: Record<ExternalLink["kind"], string> = { doi: "DOI", arxiv: "arXiv", url: "Link" }
+// DOI and arXiv are names; only a plain link is a word
+const linkName = (kind: ExternalLink["kind"]) => (kind === "doi" ? "DOI" : kind === "arxiv" ? "arXiv" : t({ message: "Link", comment: "noun: a web link to the paper" }))
 
 function About({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const setTags = useLibraryStore((s) => s.setTags)
   const showTag = useLibraryUi((s) => s.showTag)
   const links = externalLinks(paper)
+  const when = ago(paper.addedAt)
+  const pages = paper.pdf?.pages
   return (
     <div>
-      {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">No abstract.</p>}
+      {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">{t`No abstract.`}</p>}
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-detail">
-        <dt className="text-muted-foreground">Tags</dt>
+        <dt className="text-muted-foreground">{t`Tags`}</dt>
         <dd>
           <TagsEditor
             tags={paper.tags}
             onChange={(tags) => setTags(paper.id, tags)}
-            onOpenTag={(t) => {
-              showTag(t)
+            onOpenTag={(tag) => {
+              showTag(tag)
               navigate("/library")
             }}
           />
         </dd>
         {links.map((l) => (
           <div key={l.href} className="contents">
-            <dt className="text-muted-foreground">{LINK_NAMES[l.kind]}</dt>
+            <dt className="text-muted-foreground">{linkName(l.kind)}</dt>
             <dd className="min-w-0 truncate">
               <a href={l.href} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
                 {l.value}
@@ -123,17 +127,14 @@ function About({ paper }: { paper: Paper }) {
             </dd>
           </div>
         ))}
-        <dt className="text-muted-foreground">Added</dt>
-        <dd>
-          {ago(paper.addedAt)}
-          {paper.addedBy === "agent" && " by Owlit"}
-        </dd>
-        <dt className="text-muted-foreground">File</dt>
-        <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (paper.pdf.pages ? `PDF, ${paper.pdf.pages} pages` : "PDF") : "No PDF"}</dd>
+        <dt className="text-muted-foreground">{t({ message: "Added", comment: "when the paper was added to the library" })}</dt>
+        <dd>{paper.addedBy === "agent" ? t`${when} by Owlit` : when}</dd>
+        <dt className="text-muted-foreground">{t({ message: "File", comment: "the paper's PDF file" })}</dt>
+        <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (pages ? plural(pages, { one: "PDF, # page", other: "PDF, # pages" }) : "PDF") : t`No PDF`}</dd>
         {paper.text && (
           <>
-            <dt className="text-muted-foreground">Text</dt>
-            <dd className={cn(paper.text === "basic" && "text-muted-foreground")}>{paper.text === "full" ? "Full" : "Basic"}</dd>
+            <dt className="text-muted-foreground">{t({ message: "Text", comment: "how much of the paper's text owlit has read" })}</dt>
+            <dd className={cn(paper.text === "basic" && "text-muted-foreground")}>{paper.text === "full" ? t({ message: "Full", comment: "the paper's text: read in full" }) : t({ message: "Basic", comment: "the paper's text: read plainly, without layout" })}</dd>
           </>
         )}
       </dl>
@@ -151,7 +152,7 @@ function Abstract({ text, folded }: { text: string; folded: boolean }) {
       <p className={cn("text-sm leading-relaxed whitespace-pre-line", shut && "line-clamp-4")}>{text}</p>
       {folded && (
         <FoldButton open={open} onClick={() => setOpen(!open)} className="mt-1">
-          {open ? "Show less" : "Show more"}
+          {open ? t`Show less` : t`Show more`}
         </FoldButton>
       )}
     </div>

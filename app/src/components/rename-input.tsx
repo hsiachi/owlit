@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
@@ -7,7 +8,7 @@ import { cn } from "@/lib/utils"
 export function RenameInput({
   initial,
   onDone,
-  label = "Rename",
+  label = t({ message: "Rename", comment: "verb" }),
   className,
   style,
 }: {

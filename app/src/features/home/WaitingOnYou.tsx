@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
+import { plural, t } from "@lingui/core/macro"
 import { ChevronRightIcon, LibraryIcon, XIcon, type LucideIcon } from "lucide-react"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
@@ -56,23 +57,25 @@ function useWaiting(): Waiting[] {
     for (const chat of Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt)) {
       const ask = streaming[chat.id] ? pendingAsk(chat) : undefined
       const broken = streaming[chat.id] ? undefined : brokenReply(chat, dismissed[chat.id])
+      const title = chat.title
+      const open = { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate(`/chat/${chat.id}`) }
       if (ask) {
         // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
         const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
-        const what = ask.type === "permission" ? askSentence(ask.title, call) : "Owlit has a question"
-        out.push({ key: `ask:${chat.id}`, icon: KIND_ICON.chat, what, where: `in “${chat.title}”`, open: { label: "Open", run: () => navigate(`/chat/${chat.id}`) } })
+        const what = ask.type === "permission" ? askSentence(ask.title, call) : t`Owlit has a question`
+        out.push({ key: `ask:${chat.id}`, icon: KIND_ICON.chat, what, where: t`in “${title}”`, open })
       } else if (broken) {
         const index = chat.messages.length - 1
         out.push({
           key: `fail:${chat.id}`,
           icon: KIND_ICON.chat,
-          what: "Owlit stopped",
-          where: `in “${chat.title}”`,
+          what: t`Owlit stopped`,
+          where: t`in “${title}”`,
           detail: broken.error || undefined,
           // The row only opens the chat, so a stray click never runs anything again
-          open: { label: "Open", run: () => navigate(`/chat/${chat.id}`) },
+          open,
           action: {
-            label: "Retry",
+            label: t`Retry`,
             run: () => {
               navigate(`/chat/${chat.id}`)
               regenerate(chat.id, index)
@@ -87,17 +90,17 @@ function useWaiting(): Waiting[] {
     for (const c of connectors) {
       const problem = connectorProblem(c)
       if (!used.has(c.id) || !problem) continue
-      const role = c.id === selected ? "picked for chats" : "picked for background work"
+      const role = c.id === selected ? t`picked for chats` : t`picked for background work`
       out.push({
         key: `agent:${c.id}`,
         icon: KIND_ICON.agent,
         what: problemSentence(c) ?? "",
         where: problem === "error" && c.error ? `· ${c.error}` : `· ${role}`,
-        open: { label: "Manage agents", run: () => openSettings("agents") },
+        open: { label: t`Manage agents`, run: () => openSettings("agents") },
       })
     }
     if (loginTask) {
-      out.push({ key: "login", icon: LibraryIcon, what: "Your library wants you to sign in", where: "to fetch PDFs", open: { label: "Library proxy", run: () => openSettings("proxy") } })
+      out.push({ key: "login", icon: LibraryIcon, what: t`Your library wants you to sign in`, where: t`to fetch PDFs`, open: { label: t`Library proxy`, run: () => openSettings("proxy") } })
     }
     const waitingPapers = Object.values(papers)
       .filter((p) => p.noPdf?.needs && !p.pdf)
@@ -105,20 +108,28 @@ function useWaiting(): Waiting[] {
     for (const needs of ["check", "sign-in"] as const) {
       const group = waitingPapers.filter((p) => p.noPdf?.needs === needs)
       const what = (several: boolean) =>
-        needs === "sign-in" ? `${several ? "Publishers want" : "The publisher wants"} you to sign in` : `${several ? "Publishers want" : "The publisher wants"} a quick check`
-      const label = needs === "sign-in" ? "Sign in" : "Check now"
+        needs === "sign-in"
+          ? several
+            ? t`Publishers want you to sign in`
+            : t`The publisher wants you to sign in`
+          : several
+            ? t`Publishers want a quick check`
+            : t`The publisher wants a quick check`
+      const label = needs === "sign-in" ? t`Sign in` : t`Check now`
       if (group.length <= 2) {
         for (const paper of group) {
-          out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: `for ${citationLabel(paper)}`, open: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })
+          const cite = citationLabel(paper)
+          out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: t`for ${cite}`, open: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })
         }
         continue
       }
       // One line for many: the first two by name, then each publisher's page in turn
+      const names = namesOf(group)
       out.push({
         key: `papers:${needs}`,
         icon: KIND_ICON.paper,
         what: what(true),
-        where: `for ${namesOf(group)}`,
+        where: t`for ${names}`,
         detail: group.map(citationLabel).join("\n"),
         open: {
           label,
@@ -136,7 +147,14 @@ function useWaiting(): Waiting[] {
 // "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"
 function namesOf(papers: Paper[]) {
   const named = papers.slice(0, 2).map(citationLabel).join(", ")
-  return papers.length > 2 ? `${named} and ${papers.length - 2} more` : named
+  return papers.length > 2 ? plural(papers.length - 2, { one: `${named} and # more`, other: `${named} and # more` }) : named
+}
+
+// The row as a screen reader hears it: "Owlit stopped in “Draft”: Open"
+function rowLabel(w: Waiting) {
+  const { what, where } = w
+  const label = w.open.label
+  return where ? t`${what} ${where}: ${label}` : t`${what}: ${label}`
 }
 
 export function WaitingOnYou() {
@@ -144,15 +162,13 @@ export function WaitingOnYou() {
   if (!waiting.length) return null
   return (
     <section aria-labelledby="waiting-label">
-      <GroupLabel id="waiting-label">
-        Waiting on you
-      </GroupLabel>
+      <GroupLabel id="waiting-label">{t`Waiting on you`}</GroupLabel>
       <ul className="flex flex-col gap-0.5">
         {waiting.map((w) => (
           <li key={w.key} className="group/waiting relative flex min-h-9 items-center gap-2.5 rounded-md py-1 pr-2.5 pl-2.5 hover:bg-muted has-focus-key:bg-muted">
             {/* The row's own button lies under its words, so the Retry and Dismiss buttons inside stay
                 buttons of their own rather than buttons in a button */}
-            <button type="button" onClick={w.open.run} title={w.detail} aria-label={`${w.what}${w.where ? ` ${w.where}` : ""}: ${w.open.label}`} className="absolute inset-0 rounded-md outline-none" />
+            <button type="button" onClick={w.open.run} title={w.detail} aria-label={rowLabel(w)} className="absolute inset-0 rounded-md outline-none" />
             <w.icon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
             <p className="pointer-events-none min-w-0 flex-1 truncate text-sm">
               {w.what}
@@ -160,7 +176,7 @@ export function WaitingOnYou() {
             </p>
             {w.dismiss && (
               // Leaving a broken reply as it is: a quiet way out, shown where the pointer or focus is
-              <IconButton label="Dismiss" onClick={w.dismiss} className="relative opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100">
+              <IconButton label={t`Dismiss`}onClick={w.dismiss} className="relative opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100">
                 <XIcon />
               </IconButton>
             )}

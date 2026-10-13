@@ -24,9 +24,11 @@ export interface Place {
   // The user's own last words there: the paragraph the cursor was in, their last message, their last
   // highlight or note. Never reading progress.
   words?: string
-  // What the time means for this kind ("edited", "Owlit edited", "read")
-  did: string
+  // What the time means for this kind ("edited", "Owlit edited", "read"); Home words it, none for a chat
+  did: Did | null
 }
+
+export type Did = "edited" | "owlit-wrote" | "owlit-edited" | "read"
 
 // The paragraph around an offset: the run of non-blank lines that holds it
 function paragraphAt(text: string, head: number) {
@@ -43,9 +45,9 @@ const SAVED_WITHIN = 30_000
 
 // Whether the doc's last edit was Owlit's: "Owlit wrote" a doc it made that nobody has touched since,
 // "Owlit edited" one it changed last; else "edited", the user's own
-function owlitDid(createdAt: number, modifiedAt: number, owlitAt: number, userAt = 0) {
+function owlitDid(createdAt: number, modifiedAt: number, owlitAt: number, userAt = 0): Did {
   if (owlitAt < userAt || modifiedAt > owlitAt + SAVED_WITHIN) return "edited"
-  return !userAt && createdAt >= owlitAt - SAVED_WITHIN ? "Owlit wrote" : "Owlit edited"
+  return !userAt && createdAt >= owlitAt - SAVED_WITHIN ? "owlit-wrote" : "owlit-edited"
 }
 
 const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
@@ -89,7 +91,7 @@ export function usePlaces(): Place[] {
       const mine = c.messages.findLast((m) => m.role === "user")
       if (!mine) continue
       const text = messageText(mine, " ")
-      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: markdownPlain(text) || undefined, did: "" })
+      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: markdownPlain(text) || undefined, did: null })
     }
     return out
   }, [chats])

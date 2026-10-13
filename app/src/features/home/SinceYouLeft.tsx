@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useAgentWindow } from "@/features/agent/store"
 import { useLibraryStore } from "@/features/library/store"
 import { LineBody, TopicLine } from "@/features/knowledge/components/TopicLine"
-import { topicUri, wasBefore } from "@/features/knowledge/format"
+import { changeCounts, topicUri, wasBefore } from "@/features/knowledge/format"
 import { ago, DAY, shortDate } from "@/lib/time"
 import { KIND_ICON } from "@/lib/kinds"
 import { useChatStore } from "@/features/chat/store"
@@ -18,7 +18,7 @@ import { useSeenStore } from "@/features/chat/status"
 import { changedSince, useKnowledgeStore, useTopics } from "@/features/knowledge/store"
 import type { Line, Topic, TopicSidecar } from "@/features/knowledge/types"
 import { cn } from "@/lib/utils"
-import { capital, plural } from "@/lib/words"
+import { plural, t } from "@lingui/core/macro"
 
 // After three days or more away: one row per chat whose work finished meanwhile and that the user hasn't
 // opened since (the jobs they handed off before leaving), one row per topic Owlit changed meanwhile,
@@ -35,22 +35,15 @@ interface Changed {
 }
 
 // "2 lines added, 1 rewritten", "1 question added" or "New topic, 3 lines", from Owlit's history since the
-// user left. The history's words are Owlit's own ("Added", "Question added"); the line is set as a
-// sentence, so it starts with a capital whatever comes first.
+// user left. The history's words are the English ones core writes ("Added", "Question added"); changeCounts
+// says them in the interface language.
 function summary(side: TopicSidecar, since: number, lines: Line[]) {
-  const lineCount = (n: number) => plural(n, "line")
   const recent = side.history.filter((h) => h.by === "owlit" && h.at > since)
   // "Started" is what core writes; "Topic started" is kept for topics from earlier builds
-  if (recent.some((h) => h.what === "Started" || h.what === "Topic started")) return `New topic, ${lineCount(lines.length)}`
+  if (recent.some((h) => h.what === "Started" || h.what === "Topic started")) return plural(lines.length, { one: "New topic, # line", other: "New topic, # lines" })
   const counts = new Map<string, number>()
-  for (const h of recent) if (h.lineId) counts.set(h.what.toLowerCase(), (counts.get(h.what.toLowerCase()) ?? 0) + 1)
-  const parts = [...counts].map(([what, n], i) => {
-    // A question's change counts questions, not lines
-    const question = /^question (.+)$/.exec(what)
-    if (question) return `${plural(n, "question")} ${question[1]}`
-    return i === 0 ? `${lineCount(n)} ${what}` : `${n} ${what}`
-  })
-  return capital(parts.length ? parts.join(", ") : `${lineCount(lines.length)} changed`)
+  for (const h of recent) if (h.lineId) counts.set(h.what, (counts.get(h.what) ?? 0) + 1)
+  return counts.size ? changeCounts([...counts]) : plural(lines.length, { one: "# line changed", other: "# lines changed" })
 }
 
 interface Finished {
@@ -102,13 +95,15 @@ export function SinceYouLeft({ since }: { since: number }) {
     if (opening) useKnowledgeStore.getState().markSeen(c.topic.id)
   }
 
+  const left = shortDate(since)
   return (
     <section className="mt-8">
-      <GroupLabel>Since you left on {shortDate(since)}</GroupLabel>
+      <GroupLabel>{t`Since you left on ${left}`}</GroupLabel>
       <div className="flex flex-col gap-0.5">
-        {finished.map((f) => (
-          <ListRow key={f.id} to={`/chat/${f.id}`} icon={KIND_ICON.chat} title={f.title} end={`Finished ${ago(f.at, { inSentence: true })}`} />
-        ))}
+        {finished.map((f) => {
+          const when = ago(f.at, { inSentence: true })
+          return <ListRow key={f.id} to={`/chat/${f.id}`} icon={KIND_ICON.chat} title={f.title} end={t`Finished ${when}`} />
+        })}
         {changed.map((c) => {
           const isOpen = !!open[c.topic.id]
           const unseen = changedSince(c.topic, c.side).length > 0
@@ -133,7 +128,7 @@ export function SinceYouLeft({ since }: { since: number }) {
           <ListRow
             onClick={() => navigate("/library")}
             mark={<KindIcon kind="paper" className="size-4" />}
-            title={`Owlit added ${plural(added, "paper")} to your Library`}
+            title={plural(added, { one: "Owlit added # paper to your Library", other: "Owlit added # papers to your Library" })}
           />
         )}
       </div>
@@ -155,14 +150,14 @@ function Peek({ c, since }: { c: Changed; since: number }) {
       ))}
       <div className="mt-1 ml-[128px] flex gap-1">
         <Button variant="text" size="inline" className="-ml-1.5" onClick={() => navigate(`/knowledge/${c.topic.id}`)}>
-          Open topic
+          {t`Open topic`}
         </Button>
         <Button
           variant="text"
           size="inline"
           onClick={() => useAgentWindow.getState().open({ text: c.lines.map((l) => l.text).join("\n"), source: { id: c.topic.id, kind: "knowledge", title: c.topic.name, uri: topicUri(c.topic.id) } })}
         >
-          Chat about this
+          {t`Chat about this`}
         </Button>
       </div>
     </div>

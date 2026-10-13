@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { t } from "@lingui/core/macro"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { Dot } from "@/components/marks"
@@ -77,10 +78,10 @@ export function SentenceEditor({ value, onSave, onCancel, className }: { value: 
       />
       <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
+          {t`Cancel`}
         </Button>
         <Button size="sm" onClick={() => onSave(text)}>
-          Save
+          {t`Save`}
         </Button>
       </div>
     </div>

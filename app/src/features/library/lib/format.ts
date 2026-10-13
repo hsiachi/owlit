@@ -1,11 +1,13 @@
+import { t } from "@lingui/core/macro"
 import type { Paper } from "../types"
 
 // An author's family name, taken as the last word: "Aidan N. Gomez" → "Gomez"
 export const surname = (name: string) => name.trim().split(/\s+/).at(-1) ?? name
 
-// "Lewis et al." / "Pirolli & Card" / "Vaswani"
+// "Lewis et al." / "Pirolli & Card" / "Vaswani". "et al." and "&" are how papers are cited in any
+// language, so they stay as they are.
 export function shortAuthors(authors: string[]): string {
-  if (authors.length === 0) return "Unknown authors"
+  if (authors.length === 0) return t`Unknown authors`
   if (authors.length === 1) return surname(authors[0])
   if (authors.length === 2) return `${surname(authors[0])} & ${surname(authors[1])}`
   return `${surname(authors[0])} et al.`

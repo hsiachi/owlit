@@ -10,7 +10,8 @@ import type { WorkspaceFile } from "@/features/docs/types"
 import { oneLine, parseTopic, serializeTopic, topicPath, topicSlug } from "./format"
 import { seedLoose, seedPapers, seedSidecars, seedTopicFiles } from "./mocks/seed"
 import type { Change, Connection, Line, PaperKnowledge, Passage, Ref, Topic, TopicSidecar } from "./types"
-import { joinAnd, plural } from "@/lib/words"
+import { joinAnd } from "@/lib/words"
+import { plural, t } from "@lingui/core/macro"
 
 // Topics are the Markdown files in `knowledge/`; the Docs store stands in for the disk until the desktop
 // shell exists. This store is the sidecar beside them (`.owlit/knowledge/`): what the user did to each
@@ -168,16 +169,12 @@ export function provenance(topic: Topic) {
     const k = kind === "paper" || kind === "chat" ? kind : "doc"
     kinds[k].add(s.ref.uri.replace(/#.*$/, ""))
   }
-  const parts = (
-    [
-      ["doc", kinds.doc.size],
-      ["paper", kinds.paper.size],
-      ["chat", kinds.chat.size],
-    ] as const
-  )
-    .filter(([, n]) => n > 0)
-    .map(([k, n]) => plural(n, k))
-  return parts.length ? joinAnd(parts) : "nothing yet"
+  const parts = [
+    kinds.doc.size > 0 && plural(kinds.doc.size, { one: "# doc", other: "# docs" }),
+    kinds.paper.size > 0 && plural(kinds.paper.size, { one: "# paper", other: "# papers" }),
+    kinds.chat.size > 0 && plural(kinds.chat.size, { one: "# chat", other: "# chats" }),
+  ].filter((p): p is string => !!p)
+  return parts.length ? joinAnd(parts) : t`nothing yet`
 }
 
 // ---- Acting on lines (the user's own edits go straight to the file and are guarded by the sidecar) ----
@@ -321,7 +318,8 @@ export function splitTopic(topicId: string, lineIds: string[], name: string): st
   const k = useKnowledgeStore.getState()
   k.patchSidecar(id, () => ({ seenAt: Date.now() }))
   k.record(id, { what: `Split from “${t.name}”`, why: "you split the topic", by: "you" })
-  k.record(topicId, { what: `${plural(moving.length, "line")} moved to “${clean}”`, why: "you split the topic", by: "you" })
+  // The history keeps English words; format's changeWords says them in the interface language
+  k.record(topicId, { what: `${moving.length} ${moving.length === 1 ? "line" : "lines"} moved to “${clean}”`, why: "you split the topic", by: "you" })
   return id
 }
 

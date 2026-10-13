@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useState } from "react"
 import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronUpIcon, PanelRightIcon } from "lucide-react"
@@ -109,29 +110,31 @@ export function PaperPage() {
   })
 
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
-  if (!paper) return <NotFound title="This paper is not in the library" detail="It may have been removed." back={{ label: "Back to library", to: "/library" }} />
+  if (!paper) return <NotFound title={t`This paper is not in the library`} detail={t`It may have been removed.`} back={{ label: t`Back to library`, to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
   // Only once there is a note, or one on its way, is there anything to choose
   const choosing = hasNote || writing
+  const position = idx + 1
+  const total = order.length
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* With the details open the title is right there in the panel, so the trail stops at Library */}
-      <PageHeader trail={[{ label: "Library", to: "/library" }]} current={panelOpen ? undefined : paper.title}>
-        {choosing && <SegmentedControl label="Show" value={view} onChange={showView} options={VIEWS} className="mr-2" />}
+      <PageHeader trail={[{ label: t`Library`, to: "/library" }]} current={panelOpen ? undefined : paper.title}>
+        {choosing && <SegmentedControl label={t({ message: "Show", comment: "choice between showing the reading note or the PDF" })} value={view} onChange={showView} options={views()} className="mr-2" />}
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">
-            {idx + 1} of {order.length}
+            {t`${position} of ${total}`}
           </span>
         )}
-        <IconButton label="Previous paper" disabled={!prevId} onClick={() => go(prevId)}>
+        <IconButton label={t`Previous paper`} disabled={!prevId} onClick={() => go(prevId)}>
           <ChevronUpIcon />
         </IconButton>
-        <IconButton label="Next paper" disabled={!nextId} onClick={() => go(nextId)}>
+        <IconButton label={t`Next paper`} disabled={!nextId} onClick={() => go(nextId)}>
           <ChevronDownIcon />
         </IconButton>
-        <IconButton label={panelOpen ? "Hide details" : "Show details"} aria-pressed={panelOpen} onClick={togglePanel}>
+        <IconButton label={panelOpen ? t`Hide details` : t`Show details`} aria-pressed={panelOpen} onClick={togglePanel}>
           <PanelRightIcon />
         </IconButton>
       </PageHeader>
@@ -159,8 +162,8 @@ export function PaperPage() {
 }
 
 type PaperView = "note" | "pdf"
-const VIEWS: { value: PaperView; label: string }[] = [
-  { value: "note", label: "Reading note" },
+const views = (): { value: PaperView; label: string }[] => [
+  { value: "note", label: t`Reading note` },
   { value: "pdf", label: "PDF" },
 ]
 

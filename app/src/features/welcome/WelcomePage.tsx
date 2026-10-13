@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { t } from "@lingui/core/macro"
 import type { RecentWorkspace, WelcomeInfo } from "@owlit/protocol"
 import { FolderIcon, FolderOpenIcon, FolderPlusIcon, FolderXIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -55,21 +56,22 @@ export function WelcomePage() {
 
   const openFolder = async () => {
     const folder = await bridge?.chooseFolder({
-      title: "Open a Folder",
-      message: "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit.",
-      buttonLabel: "Open",
+      title: t`Open a Folder`,
+      message: t`Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit.`,
+      buttonLabel: t({ message: "Open", comment: "button of the folder picker" }),
     })
     if (folder) await rpc.workspace.open({ path: folder }).catch(failed)
   }
 
   const chooseParent = async () => {
-    const folder = await bridge?.chooseFolder({ title: "Where the Workspace Goes", buttonLabel: "Choose", defaultPath: parent })
+    const folder = await bridge?.chooseFolder({ title: t`Where the Workspace Goes`, buttonLabel: t({ message: "Choose", comment: "button of the folder picker" }), defaultPath: parent })
     if (folder) setParent(folder)
   }
 
   // A moved workspace, found again: it opens, and its old place leaves the list
   const locate = async (gone: RecentWorkspace) => {
-    const folder = await bridge?.chooseFolder({ title: `Locate ${gone.name}`, buttonLabel: "Open", defaultPath: parentOf(gone.path) })
+    const name = gone.name
+    const folder = await bridge?.chooseFolder({ title: t`Locate ${name}`, buttonLabel: t({ message: "Open", comment: "button of the folder picker" }), defaultPath: parentOf(gone.path) })
     if (!folder) return
     try {
       await rpc.workspace.open({ path: folder })
@@ -94,7 +96,7 @@ export function WelcomePage() {
           <div className="mx-auto w-full max-w-[460px] px-4 pt-[9vh] pb-16">
             <OwlitLockup className="ml-0.5 h-auto w-34 text-foreground" />
             <p className="mt-4.5 text-body leading-normal text-muted-foreground">
-              Read, write and think through papers with Owlit. Everything lives in a folder on your Mac.
+              {t`Read, write and think through papers with Owlit. Everything lives in a folder on your Mac.`}
             </p>
 
             <NameField />
@@ -120,12 +122,12 @@ export function WelcomePage() {
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-3 self-stretch text-left outline-none focus-key:bg-muted" disabled={!info} onClick={create}>
                     <FolderPlusIcon className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium">Create a workspace</span>
+                      <span className="block text-sm font-medium">{t`Create a workspace`}</span>
                       <span className="block truncate text-detail text-muted-foreground">{info ? `${tilde(parent)}/${name}` : " "}</span>
                     </span>
                   </button>
                   <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={!info} onClick={() => setEditing(true)}>
-                    Change…
+                    {t`Change…`}
                   </Button>
                 </div>
               )}
@@ -136,35 +138,36 @@ export function WelcomePage() {
               >
                 <FolderOpenIcon className="size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">Open a folder you have</span>
-                  <span className="block truncate text-detail text-muted-foreground">Notes, an Obsidian vault, PDFs. Your files stay as they are.</span>
+                  <span className="block text-sm font-medium">{t`Open a folder you have`}</span>
+                  <span className="block truncate text-detail text-muted-foreground">{t`Notes, an Obsidian vault, PDFs. Your files stay as they are.`}</span>
                 </span>
               </button>
             </BorderedList>
 
             {!!info?.recent.length && (
               <section className="mt-7">
-                <GroupLabel>Recent</GroupLabel>
+                <GroupLabel>{t`Recent`}</GroupLabel>
                 <div className="flex flex-col gap-0.5">
-                  {info.recent.map((w) =>
-                    w.missing ? (
+                  {info.recent.map((w) => {
+                    const where = tilde(w.path)
+                    return w.missing ? (
                       <div key={w.path} className="group/gone flex h-9 min-w-0 items-center gap-2.5 rounded-md pr-1 pl-2.5 text-sm">
                         <FolderXIcon className="size-4 shrink-0 text-muted-foreground" />
                         <span className="max-w-[60%] shrink-0 truncate text-muted-foreground">{w.name}</span>
                         <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground" title={w.path}>
-                          isn’t at {tilde(w.path)} anymore
+                          {t`isn’t at ${where} anymore`}
                         </span>
                         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => locate(w)}>
-                          Locate…
+                          {t`Locate…`}
                         </Button>
-                        <IconButton label="Remove from Recent" size="icon-xs" className="opacity-0 group-hover/gone:opacity-100 focus-key:opacity-100" onClick={() => forget(w)}>
+                        <IconButton label={t`Remove from Recent`}size="icon-xs" className="opacity-0 group-hover/gone:opacity-100 focus-key:opacity-100" onClick={() => forget(w)}>
                           <XIcon />
                         </IconButton>
                       </div>
                     ) : (
-                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={tilde(w.path)} onClick={() => rpc.workspace.open({ path: w.path }).catch(failed)} />
-                    ),
-                  )}
+                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={where} onClick={() => rpc.workspace.open({ path: w.path }).catch(failed)} />
+                    )
+                  })}
                 </div>
               </section>
             )}
@@ -190,13 +193,13 @@ function NameField() {
   return (
     <div className="mt-7 flex items-center gap-3 rounded-lg border bg-card py-2.5 pr-2.5 pl-3.5">
       <label htmlFor="welcome-name" className="flex-1 text-sm font-medium">
-        What should Owlit call you?
+        {t`What should Owlit call you?`}
       </label>
       <CommitInput
         id="welcome-name"
         value={view?.profile.name ?? ""}
         onCommit={(name) => void updateSettings({ profile: { name: name || null } }).catch(failed)}
-        placeholder="Your name"
+        placeholder={t`Your name`}
         spellCheck={false}
         autoComplete="off"
         maxLength={60}
@@ -238,29 +241,29 @@ function CreateForm({
     >
       <div className="flex items-center gap-3">
         <FolderPlusIcon className="size-4 shrink-0 text-muted-foreground" />
-        <span className="text-sm font-medium">Create a workspace</span>
+        <span className="text-sm font-medium">{t`Create a workspace`}</span>
       </div>
       <div className="mt-3 grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5 pl-7 text-detail">
         <label htmlFor="workspace-name" className="text-muted-foreground">
-          Name
+          {t({ message: "Name", comment: "label: the new workspace folder's name" })}
         </label>
         <Input id="workspace-name" ref={input} value={name} onChange={(e) => onName(e.target.value)} spellCheck={false} autoComplete="off" />
-        <span className="text-muted-foreground">In</span>
+        <span className="text-muted-foreground">{t({ message: "In", comment: "label: the folder the new workspace goes in" })}</span>
         <span className="flex min-w-0 items-center gap-1">
           <span className="truncate" title={parent}>
             {tilde(parent)}
           </span>
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={onChooseParent}>
-            Choose…
+            {t`Choose…`}
           </Button>
         </span>
       </div>
       <div className="mt-3 flex justify-end gap-1.5">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
+          {t`Cancel`}
         </Button>
         <Button type="submit" size="sm" disabled={!name.trim()}>
-          Create
+          {t({ message: "Create", comment: "verb: create the workspace" })}
         </Button>
       </div>
     </form>

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { shortDate } from "@/lib/time"
 import { Facet, StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
@@ -147,15 +148,16 @@ class NoteWidget extends WidgetType {
       const nav = document.createElement("span")
       nav.className = "cm-note-nav"
       const count = document.createElement("span")
-      count.textContent = `${i + 1} of ${n}`
+      const at = i + 1
+      count.textContent = t({ message: `${at} of ${n}`, comment: "which note of the doc's notes is open: 2 of 5" })
       const prev = button("", () => this.actions.onOpen(step(-1)))
       prev.innerHTML = chevron("m15 18-6-6 6-6")
-      prev.setAttribute("aria-label", "Previous note")
-      prev.title = "Previous note"
+      prev.setAttribute("aria-label", t`Previous note`)
+      prev.title = t`Previous note`
       const next = button("", () => this.actions.onOpen(step(1)))
       next.innerHTML = chevron("m9 18 6-6-6-6")
-      next.setAttribute("aria-label", "Next note")
-      next.title = "Next note"
+      next.setAttribute("aria-label", t`Next note`)
+      next.title = t`Next note`
       nav.append(count, prev, next)
       head.append(nav)
     }
@@ -165,7 +167,8 @@ class NoteWidget extends WidgetType {
       const gone = document.createElement("p")
       gone.className = "cm-note-lost"
       const q = note.quote
-      gone.textContent = `The passage this note was on has changed: “${q.length > 90 ? `${q.slice(0, 90)}…` : q}”`
+      const passage = q.length > 90 ? `${q.slice(0, 90)}…` : q
+      gone.textContent = t`The passage this note was on has changed: “${passage}”`
       box.append(gone)
     }
     const text = noteText(note.text, this.actions)
@@ -173,8 +176,8 @@ class NoteWidget extends WidgetType {
     const actions = document.createElement("div")
     actions.className = "cm-note-actions"
     actions.append(
-      button("Dismiss", () => this.actions.onDismiss(note, n > 1 ? step(1) : null)),
-      button("Chat about this", () => this.actions.onChat(note)),
+      button(t`Dismiss`, () => this.actions.onDismiss(note, n > 1 ? step(1) : null)),
+      button(t`Chat about this`, () => this.actions.onChat(note)),
     )
     box.append(text, actions)
 

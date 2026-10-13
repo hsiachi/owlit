@@ -1,9 +1,10 @@
 import { docUri, paperUri } from "@owlit/protocol"
 import { useDocsStore } from "@/features/docs/store"
 import { freshId, getTopic, useKnowledgeStore, writeTopic } from "./store"
-import { firstWords, isoDay, oneLine, paperRef } from "./format"
+import { changeCounts, firstWords, isoDay, oneLine, paperRef } from "./format"
 import { SCRIPT } from "./mocks/script"
-import { capital, plural } from "@/lib/words"
+import { capital } from "@/lib/words"
+import { t } from "@lingui/core/macro"
 
 // Owlit's update runs. The real ones will be background ACP runs of the user's agent, reading the topic
 // files and what changed, and writing back through the app; this mock applies a few scripted steps
@@ -50,7 +51,14 @@ export function runUpdate(topicId: string): string | null {
   for (const h of history) k.record(topicId, { lineId: h.lineId, what: h.before ? "Rewritten" : "Added", why: h.why, by: "owlit", before: h.before })
   const added = history.filter((h) => !h.before).length
   const rewritten = history.length - added
-  return capital([added && `${plural(added, "line")} added`, rewritten && `${rewritten} rewritten`].filter(Boolean).join(", "))
+  return changeCounts(
+    (
+      [
+        ["Added", added],
+        ["Rewritten", rewritten],
+      ] as [string, number][]
+    ).filter(([, n]) => n > 0),
+  )
 }
 
 // One run over several topics, kept as the page's "Updated" line
@@ -71,8 +79,8 @@ const DISAGREES = /^(?:actually|no\b|not really|not quite|that'?s (?:wrong|not r
 const OPENER = /^(?:actually|no|not really|not quite|that'?s (?:wrong|not right|not it)|i (?:don'?t|do not) think (?:so|that)|i disagree|wrong)[,.:;]?\s*/i
 
 const sentence = (s: string) => {
-  const t = oneLine(s)
-  return t ? capital(t) + (/[.!?]$/.test(t) ? "" : ".") : t
+  const text = oneLine(s)
+  return text ? capital(text) + (/[.!?]$/.test(text) ? "" : ".") : text
 }
 
 export interface Revision {
@@ -154,18 +162,18 @@ export function paperClosed(paperId: string) {
   const items: { topicId: string; what: string }[] = []
   for (const [key, { topicId, passageId }] of found) {
     const lineId = key.split("/")[1]
-    const t = getTopic(topicId)
+    const topic = getTopic(topicId)
     const passage = p.passages[passageId]
-    const line = t?.lines.find((l) => l.id === lineId)
-    if (!t || !line || !passage || k.sidecar(topicId).edits[lineId]) continue
-    const next = structuredClone(t)
+    const line = topic?.lines.find((l) => l.id === lineId)
+    if (!topic || !line || !passage || k.sidecar(topicId).edits[lineId]) continue
+    const next = structuredClone(topic)
     const l = next.lines.find((x) => x.id === lineId)!
     l.sources = l.sources.map((r) => (paperRef(r.uri)?.id === paperId && paperRef(r.uri)?.abstract ? { label: passage.section, uri: paperUri(paperId, passageId) } : r))
     writeTopic(next)
     const at = Date.now()
     k.patchSidecar(topicId, (s) => ({ changedAt: { ...s.changedAt, [lineId]: at } }))
     k.record(topicId, { lineId, what: "Anchored to its passage", why: `you highlighted it in ${line.speaker}`, by: "owlit" })
-    items.push({ topicId, what: "One line anchored to the passage you highlighted" })
+    items.push({ topicId, what: t`One line anchored to the passage you highlighted` })
   }
   k.patchPaper(paperId, () => ({ found: {} }))
   if (items.length) k.setLastRun({ at: Date.now(), items })

@@ -1,14 +1,23 @@
+import { t } from "@lingui/core/macro"
 import type { Connector, ConnectorStatus } from "../types"
 
 // Where an agent stands, in the words and rules every place that shows one uses
 
-export const statusLabel: Record<ConnectorStatus, string> = {
-  unknown: "Not checked",
-  checking: "Checking…",
-  not_installed: "Not installed",
-  available: "Ready",
-  connected: "Connected",
-  error: "Error",
+export function statusLabel(status: ConnectorStatus) {
+  switch (status) {
+    case "unknown":
+      return t({ message: "Not checked", comment: "an agent's status: not checked yet whether it is installed" })
+    case "checking":
+      return t({ message: "Checking…", comment: "an agent's status: checking whether it is installed" })
+    case "not_installed":
+      return t`Not installed`
+    case "available":
+      return t({ message: "Ready", comment: "an agent's status" })
+    case "connected":
+      return t({ message: "Connected", comment: "an agent's status" })
+    case "error":
+      return t({ message: "Error", comment: "an agent's status" })
+  }
 }
 
 // Checked and there: owlit can start it, though it may still want a sign-in
@@ -34,10 +43,12 @@ export function connectorProblem(c: Connector): "not_installed" | "signed_out" |
   return c.authenticated === false ? "signed_out" : "error"
 }
 
-const PROBLEMS = { not_installed: "isn’t installed", signed_out: "isn’t signed in", error: "can’t run" }
-
 // "Claude Code isn’t installed", "… isn’t signed in", "… can’t run"; undefined when it can run
 export function problemSentence(c: Connector) {
   const problem = connectorProblem(c)
-  return problem && `${c.name} ${PROBLEMS[problem]}`
+  const agent = c.name
+  if (problem === "not_installed") return t`${agent} isn’t installed`
+  if (problem === "signed_out") return t`${agent} isn’t signed in`
+  if (problem === "error") return t`${agent} can’t run`
+  return undefined
 }

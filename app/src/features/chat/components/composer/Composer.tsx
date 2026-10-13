@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { Extension } from "@tiptap/core"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
@@ -94,7 +95,7 @@ function extract(editor: Editor, known: Mentionable[] = []): { text: string; men
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = "Ask about your papers, docs or notes…", className, header },
+  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header },
   ref,
 ) {
   // A new chat's id, named before it exists so attached files can be copied into its folder
@@ -114,7 +115,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const { connector } = useResolvedSelection(chatId)
   const blocked = isUnavailable(connector)
   // The hint says what typing does while Owlit waits; read through a ref, since the editor is made once
-  const hint = waiting === "permission" ? "Or tell Owlit what to do instead…" : waiting === "question" ? "Or type your own answer…" : placeholder
+  const hint = waiting === "permission" ? t`Or tell Owlit what to do instead…` : waiting === "question" ? t`Or type your own answer…` : placeholder
   const hintRef = useRef(hint)
 
   const editor = useEditor({
@@ -238,7 +239,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             {problemSentence(connector)}
             {connector.status === "error" && connector.error && ` · ${connector.error}`}
           </span>
-          <span className="shrink-0 font-medium text-foreground">Set up</span>
+          <span className="shrink-0 font-medium text-foreground">{t({ message: "Set up", comment: "verb: set up the agent in Settings" })}</span>
         </button>
       )}
 
@@ -264,9 +265,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
       <div className="flex items-center gap-1 px-2.5 pb-2.5">
         <DropdownMenu>
-          <Tip label="Attach files or mention a paper, doc or note">
+          <Tip label={t`Attach files or mention a paper, doc or note`}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label="Add attachments or context">
+              <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label={t`Add attachments or context`}>
                 <PlusIcon />
               </Button>
             </DropdownMenuTrigger>
@@ -274,14 +275,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
           <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
-              Attach files
+              {t`Attach files`}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {(["paper", "doc", "knowledge"] as SourceKind[]).map((kind) => (
-              <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
-                Add from {KIND_PLACE[kind]}
-              </DropdownMenuItem>
-            ))}
+            {(["paper", "doc", "knowledge"] as SourceKind[]).map((kind) => {
+              const place = KIND_PLACE[kind]
+              return (
+                <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
+                  {t`Add from ${place}`}
+                </DropdownMenuItem>
+              )
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -299,14 +303,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         <div className="ml-auto flex items-center gap-1">
           <AgentPicker chatId={chatId} />
           {streaming && !(waiting && typed) ? (
-            <Tip label="Stop">
-              <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label="Stop generating">
+            <Tip label={t({ message: "Stop", comment: "verb: stop the agent's reply" })}>
+              <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label={t`Stop generating`}>
                 <SquareIcon className="size-3 fill-current" />
               </Button>
             </Tip>
           ) : (
-            <Tip label="Send" shortcut="send">
-              <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label="Send message">
+            <Tip label={t({ message: "Send", comment: "verb: send the message" })} shortcut="send">
+              <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label={t`Send message`}>
                 <ArrowUpIcon />
               </Button>
             </Tip>

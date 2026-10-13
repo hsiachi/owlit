@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import {
   KNOWLEDGE_DIR,
   parseTopic,
@@ -19,6 +20,7 @@ import {
   type TopicSidecar,
   type TopicSummary,
 } from "@owlit/protocol"
+import { intlLocale } from "@owlit/i18n"
 import { randomUUID } from "node:crypto"
 import { appendFile, cp, mkdir, readdir, readFile, rm, stat } from "node:fs/promises"
 import path from "node:path"
@@ -179,7 +181,7 @@ export class Knowledge {
 
   // Update now (the topic menu)
   update() {
-    if (!this.scheduler) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
+    if (!this.scheduler) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     // A run already put off for quiet starts now instead
     return this.scheduler.debounce(UPDATE, "workspace", 0, "asked")
   }
@@ -441,7 +443,7 @@ export class Knowledge {
   revert(versionId: string) {
     return this.serial(async () => {
       const version = (await this.versions()).find((v) => v.id === versionId)
-      if (!version) throw new RpcFailure(RpcErrorCode.NotFound, "There is no such version of Knowledge.")
+      if (!version) throw new RpcFailure(RpcErrorCode.NotFound, t`There is no such version of Knowledge.`)
       const now = await this.snapshot("revert")
       for (const rel of now.files) if (!version.files.includes(rel)) await this.docs.removeTold(rel)
       for (const rel of version.files) await this.docs.writeTold(rel, await readFile(path.join(this.dir, "versions", version.id, rel), "utf8"))
@@ -505,10 +507,15 @@ export function diff(before: Topic | null, next: Omit<Topic, "path" | "updatedAt
   return out
 }
 
+// Said in the interface's language when the run ends: it is kept in run.json and shown as it is
 function describe(n: { added: number; rewritten: number; removed: number }) {
-  const count = (k: number, what: string) => (k ? `${k === 1 ? "One" : k} line${k === 1 ? "" : "s"} ${what}` : "")
-  const parts = [count(n.added, "added"), count(n.rewritten, "rewritten"), count(n.removed, "removed")].filter(Boolean)
-  return parts.length ? parts.map((p, i) => (i ? p.charAt(0).toLowerCase() + p.slice(1) : p)).join(", ") : "Sources updated"
+  const parts = [
+    n.added && plural(n.added, { one: "One line added", other: "# lines added" }),
+    n.rewritten && plural(n.rewritten, { one: "One line rewritten", other: "# lines rewritten" }),
+    n.removed && plural(n.removed, { one: "One line removed", other: "# lines removed" }),
+  ].filter((p): p is string => !!p)
+  if (!parts.length) return t`Sources updated`
+  return new Intl.ListFormat(intlLocale(), { type: "conjunction" }).format(parts.map((p, i) => (i ? p.charAt(0).toLowerCase() + p.slice(1) : p)))
 }
 
 function uniqueId(base: string, topics: Topic[]) {

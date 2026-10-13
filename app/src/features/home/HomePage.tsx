@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { keysFor, openShortcuts } from "@/app/shortcuts"
 import { DropOverlay, PdfFileInput } from "@/components/file-drop"
 import { GroupLabel } from "@/components/group-label"
@@ -39,7 +41,7 @@ export function HomePage() {
         <div className="mx-auto w-full max-w-3xl px-4 pt-10 pb-24">
           {/* The workspace folder is what this desk is about; its full path on hover */}
           <PageTitle className="px-2.5" title={workspace?.path}>
-            {workspace?.name ?? "Home"}
+            {workspace?.name ?? t`Home`}
           </PageTitle>
           {lead ? (
             <>
@@ -50,7 +52,7 @@ export function HomePage() {
               {since && <SinceYouLeft since={since} />}
               {rest.length > 0 && (
                 <section className="mt-8">
-                  <GroupLabel>Recent</GroupLabel>
+                  <GroupLabel>{t`Recent`}</GroupLabel>
                   <div className="flex flex-col gap-0.5">
                     {rest.slice(0, RECENT).map((p) => (
                       <ListRow key={p.key} to={p.to} icon={KIND_ICON[p.kind]} title={p.title} detail={p.detail} end={ago(p.at)} />
@@ -64,7 +66,7 @@ export function HomePage() {
           )}
         </div>
       </div>
-      {dragging && <DropOverlay label="Drop PDFs to add them to your Library" />}
+      {dragging && <DropOverlay label={t`Drop PDFs to add them to your Library`} />}
     </div>
   )
 }
@@ -73,11 +75,10 @@ export function HomePage() {
 // look (no card): it is where most launches go next.
 function LeadCard({ place }: { place: Place }) {
   // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday"
-  const did = place.did ? `${place.did} ${ago(place.at, { inSentence: true })}` : ago(place.at)
-  const meta = [place.detail, did].filter(Boolean).join(" · ")
+  const meta = [place.detail, didWords(place)].filter(Boolean).join(" · ")
   return (
     <section className="mt-5">
-      <GroupLabel>Continue</GroupLabel>
+      <GroupLabel>{t`Continue`}</GroupLabel>
       <Link to={place.to} className="block rounded-md px-2.5 py-2 outline-none hover:bg-muted focus-key:bg-muted">
         <div className="flex min-w-0 items-center gap-2.5">
           <KindIcon kind={place.kind} className="size-4 shrink-0 text-muted-foreground" />
@@ -94,6 +95,22 @@ function LeadCard({ place }: { place: Place }) {
   )
 }
 
+// What was done there and when, as one phrase: "edited 2 h ago", "Owlit wrote yesterday", "read Oct 9"
+function didWords(place: Place) {
+  const when = ago(place.at, { inSentence: true })
+  switch (place.did) {
+    case "edited":
+      return t`edited ${when}`
+    case "owlit-wrote":
+      return t`Owlit wrote ${when}`
+    case "owlit-edited":
+      return t`Owlit edited ${when}`
+    case "read":
+      return t`read ${when}`
+  }
+  return ago(place.at)
+}
+
 // A workspace with nothing in it yet: three ways in, no checklist
 function Start() {
   const navigate = useNavigate()
@@ -101,27 +118,34 @@ function Start() {
   // The element itself rather than a ref, since the rows below hand its click out during render
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null)
   const rows = [
-    { icon: KIND_ICON.paper, title: "Add papers", detail: "Drop PDFs anywhere here, or choose them from your disk", run: () => fileInput?.click() },
-    { icon: KIND_ICON.doc, title: "New doc", detail: "Notes and drafts are Markdown files in this folder", run: () => newDoc("") },
-    { icon: KIND_ICON.chat, title: "Chat with Owlit", detail: "Ask, or hand off work like finding papers", run: () => navigate("/chat") },
+    { key: "papers", icon: KIND_ICON.paper, title: t`Add papers`, detail: t`Drop PDFs anywhere here, or choose them from your disk`, run: () => fileInput?.click() },
+    { key: "doc", icon: KIND_ICON.doc, title: t`New doc`, detail: t`Notes and drafts are Markdown files in this folder`, run: () => newDoc("") },
+    { key: "chat", icon: KIND_ICON.chat, title: t`Chat with Owlit`, detail: t`Ask, or hand off work like finding papers`, run: () => navigate("/chat") },
   ]
+  const palette = keysFor("palette")
+  const owlit = keysFor("owlit")
+  const shortcuts = keysFor("shortcuts")
   return (
     <>
-      <p className="mt-1.5 px-2.5 text-sm leading-normal text-muted-foreground">This folder is your workspace. Papers, notes and chats you add live in it as ordinary files.</p>
+      <p className="mt-1.5 px-2.5 text-sm leading-normal text-muted-foreground">
+        {t`This folder is your workspace. Papers, notes and chats you add live in it as ordinary files.`}
+      </p>
       <div className="mt-5 empty:hidden">
         <WaitingOnYou />
       </div>
       <div className="mt-5 flex flex-col gap-0.5">
         {rows.map((r) => (
-          <ListRow key={r.title} icon={r.icon} title={r.title} titleClassName="font-medium" detail={r.detail} onClick={r.run} className="h-11" />
+          <ListRow key={r.key} icon={r.icon} title={r.title} titleClassName="font-medium" detail={r.detail} onClick={r.run} className="h-11" />
         ))}
       </div>
       {/* The few keys worth knowing from the first day; gone with the rest once the workspace has things in it */}
       <p className="mt-7 px-2.5 text-detail text-muted-foreground">
-        {keysFor("palette")} find anything · {keysFor("owlit")} ask Owlit ·{" "}
-        <button type="button" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground" onClick={openShortcuts}>
-          {keysFor("shortcuts")} all shortcuts
-        </button>
+        <Trans>
+          {palette} find anything · {owlit} ask Owlit ·{" "}
+          <button type="button" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground" onClick={openShortcuts}>
+            {shortcuts} all shortcuts
+          </button>
+        </Trans>
       </p>
       <PdfFileInput ref={setFileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
     </>

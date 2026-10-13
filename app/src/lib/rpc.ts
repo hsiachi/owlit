@@ -2,6 +2,7 @@
 // in a plain browser (pnpm dev:web) there is no core, calls fail with a readable error and the
 // feature stores keep running on their mock data.
 
+import { t } from "@lingui/core/macro"
 import type {
   MethodName,
   NotificationName,
@@ -26,7 +27,7 @@ export const isDesktop = bridge !== undefined
 // Where a dropped or picked file is on disk, for core to read it
 export function filePath(file: File) {
   const path = bridge?.pathForFile(file)
-  if (!path) throw new Error("That file can't be read from here.")
+  if (!path) throw new Error(t`That file can't be read from here.`)
   return path
 }
 
@@ -49,7 +50,7 @@ const NO_CORE = -32099
 type Args<M extends MethodName> = ParamsOf<M> extends void ? [] : [params: ParamsOf<M>]
 
 export async function call<M extends MethodName>(method: M, ...args: Args<M>): Promise<ResultOf<M>> {
-  if (!bridge) throw new RpcError(NO_CORE, "This needs the owlit desktop app.")
+  if (!bridge) throw new RpcError(NO_CORE, t`This needs the owlit desktop app.`)
   const response = await bridge.rpc(method, args[0])
   if ("error" in response) throw new RpcError(response.error.code, response.error.message, response.error.data)
   return response.result as ResultOf<M>

@@ -1,6 +1,7 @@
+import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { BookPlusIcon, FileIcon, FileTextIcon, FolderIcon, ImageIcon, Loader2Icon, TriangleAlertIcon, XIcon } from "lucide-react"
-import { FILE_KIND_NAMES, fileKindOf } from "@owlit/protocol"
+import { fileKindOf, type FileKind } from "@owlit/protocol"
 import {
   Attachment,
   AttachmentAction,
@@ -21,6 +22,22 @@ function iconFor(mime: string) {
   if (mime.startsWith("image/")) return <ImageIcon />
   if (mime.startsWith("text/") || mime.includes("pdf") || mime.includes("markdown")) return <FileTextIcon />
   return <FileIcon />
+}
+
+// "Codex can't read PDFs": one sentence per kind, as the kind's words and their place vary by language
+function cantRead(agent: string, kind: FileKind) {
+  switch (kind) {
+    case "text":
+      return t`${agent} can't read text files`
+    case "pdf":
+      return t`${agent} can't read PDFs`
+    case "image":
+      return t`${agent} can't read images`
+    case "word":
+      return t`${agent} can't read Word files`
+    case "other":
+      return t`${agent} can't read this kind of file`
+  }
 }
 
 // An attached image's picture: the one the window made while attaching, else owlit's copy
@@ -76,10 +93,11 @@ function FileChip({
   const picture = pictureOf(f)
   const kind = fileKindOf(f.name, f.mimeType)
   // Said before sending, while the composer holds it; a sent message doesn't repeat it
-  const unread = f.state === "ready" && reader?.cannotRead.includes(kind) ? `${reader.name} can't read ${FILE_KIND_NAMES[kind]}` : null
+  const unread = f.state === "ready" && reader?.cannotRead.includes(kind) ? cantRead(reader.name, kind) : null
   const canOpen = !!onOpen && !!f.path && f.state !== "adding" && f.state !== "error"
   const offerLibrary = !!onAddToLibrary && kind === "pdf" && !!f.path && !f.paperId && f.state !== "adding" && f.state !== "error"
   const state = f.state === "adding" ? "uploading" : f.state === "error" ? "error" : "done"
+  const name = f.name
 
   return (
     <Attachment size={size} state={state} title={unread ?? f.error ?? f.name}>
@@ -90,7 +108,7 @@ function FileChip({
         <AttachmentTitle>{f.name}</AttachmentTitle>
         <AttachmentDescription className={unread ? "flex items-center gap-1" : undefined}>
           {f.state === "adding" ? (
-            "Adding…"
+            t`Adding…`
           ) : f.state === "error" ? (
             f.error
           ) : unread ? (
@@ -99,19 +117,19 @@ function FileChip({
               <span className="truncate">{unread}</span>
             </>
           ) : f.paperId ? (
-            "In your Library"
+            t`In your Library`
           ) : (
             formatBytes(f.size)
           )}
         </AttachmentDescription>
       </AttachmentContent>
-      {canOpen && <AttachmentTrigger aria-label={`Open ${f.name}`} onClick={() => onOpen?.(f)} />}
+      {canOpen && <AttachmentTrigger aria-label={t`Open ${name}`} onClick={() => onOpen?.(f)} />}
       {(offerLibrary || onRemove) && (
         <AttachmentActions>
           {offerLibrary && (
-            <Tip label="Add to Library">
+            <Tip label={t`Add to Library`}>
               <AttachmentAction
-                aria-label="Add to Library"
+                aria-label={t`Add to Library`}
                 disabled={adding}
                 onClick={() => {
                   setAdding(true)
@@ -123,7 +141,7 @@ function FileChip({
             </Tip>
           )}
           {onRemove && (
-            <AttachmentAction onClick={() => onRemove(f.id)} aria-label={`Remove ${f.name}`}>
+            <AttachmentAction onClick={() => onRemove(f.id)} aria-label={t`Remove ${name}`}>
               <XIcon />
             </AttachmentAction>
           )}

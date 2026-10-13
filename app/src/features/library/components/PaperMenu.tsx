@@ -1,9 +1,10 @@
+import { plural, t } from "@lingui/core/macro"
 import { useLocation } from "react-router-dom"
 import { toast } from "sonner"
 import { MenuItems, type MenuGroups } from "@/components/action-menu"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { usePaperActions } from "../actions"
-import { STATUS_LABEL, STATUS_ORDER } from "../lib/status"
+import { STATUS_ORDER, statusLabel } from "../lib/status"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
@@ -19,38 +20,38 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
   const onPaperPage = single !== null && pathname === `/library/${single.id}`
 
   const first: MenuGroups[number] = []
-  if (single && !onPaperPage) first.push({ label: "Open", onSelect: () => actions.open(single.id) })
-  first.push({ label: allStarred ? "Unstar" : "Star", onSelect: () => actions.setStarred(ids, !allStarred) })
+  if (single && !onPaperPage) first.push({ label: t({ message: "Open", comment: "menu: open a paper to read" }), onSelect: () => actions.open(single.id) })
+  first.push({ label: allStarred ? t({ message: "Unstar", comment: "verb: unstar a paper" }) : t({ message: "Star", comment: "verb: star a paper" }), onSelect: () => actions.setStarred(ids, !allStarred) })
   first.push({
-    label: "Mark as",
-    children: STATUS_ORDER.map((s) => ({ label: STATUS_LABEL[s], checked: single?.status === s, onSelect: () => actions.setStatus(ids, s) })),
+    label: t`Mark as`,
+    children: STATUS_ORDER.map((s) => ({ label: statusLabel(s), checked: single?.status === s, onSelect: () => actions.setStatus(ids, s) })),
   })
 
   const copy: MenuGroups[number] = [
-    { label: papers.length > 1 ? "Copy citations" : "Copy citation", onSelect: () => actions.copyCitation(papers) },
-    { label: "Copy BibTeX", onSelect: () => actions.copyBibtex(papers) },
+    { label: papers.length > 1 ? t`Copy citations` : t`Copy citation`, onSelect: () => actions.copyCitation(papers) },
+    { label: t`Copy BibTeX`, onSelect: () => actions.copyBibtex(papers) },
   ]
-  if (single) copy.push({ label: "Edit details", onSelect: () => actions.editDetails(single.id) })
+  if (single) copy.push({ label: t`Edit details`, onSelect: () => actions.editDetails(single.id) })
   // Asks the paper services again (a title missing its subtitle, a wrong abstract); a paper they can't
   // know (a local PDF without a DOI) has nobody to ask. The user's own corrections stay.
   if (isDesktop && single && (single.ids.doi || single.ids.arxiv || single.ids.s2 || single.ids.openalex)) {
     copy.push({
-      label: "Refresh details",
-      onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: Error) => toast.error(error.message || "Couldn't refresh the details.")),
+      label: t`Refresh details`,
+      onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: Error) => toast.error(error.message || t`Couldn't refresh the details.`)),
     })
   }
   // A paper with something to read; one with a note can have it written again (a better model, after a
   // change of language), which only the user ever asks for
   if (isDesktop && single && (single.pdf || single.text)) {
     copy.push({
-      label: single.hasDigest ? "Rewrite reading note" : "Write a reading note",
-      onSelect: () => void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error("Couldn't ask for a reading note.")),
+      label: single.hasDigest ? t`Rewrite reading note` : t`Write a reading note`,
+      onSelect: () => void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error(t`Couldn't ask for a reading note.`)),
     })
   }
 
   const remove = [
     {
-      label: papers.length > 1 ? `Remove ${papers.length} papers` : "Remove",
+      label: papers.length > 1 ? plural(papers.length, { one: "Remove # paper", other: "Remove # papers" }) : t({ message: "Remove", comment: "verb: remove the paper from the library" }),
       destructive: true,
       onSelect: () => actions.remove(ids, { afterRemove }),
     },

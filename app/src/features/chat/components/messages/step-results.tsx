@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -19,21 +20,22 @@ function AddToLibrary({ url }: { url: string }) {
     try {
       const resolved = await libraryClient.resolve(url)
       if (resolved.existingId) {
-        toast("Already in your Library")
+        toast(t`Already in your Library`)
       } else {
         useLibraryStore.getState().addPaper(resolved)
-        toast(`Added “${resolved.title}”`)
+        const title = resolved.title
+        toast(t`Added “${title}”`)
       }
       setState("added")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't add that paper.")
+      toast.error(error instanceof Error ? error.message : t`Couldn't add that paper.`)
       setState("idle")
     }
   }
-  if (state === "added") return <span className="shrink-0 text-xs text-muted-foreground">In Library</span>
+  if (state === "added") return <span className="shrink-0 text-xs text-muted-foreground">{t`In Library`}</span>
   return (
     <Button variant="text" size="inline" onClick={add} disabled={state === "adding"} className="opacity-0 group-hover/hit:opacity-100 focus-visible:opacity-100">
-      {state === "adding" ? "Adding…" : "Add to Library"}
+      {state === "adding" ? t`Adding…` : t`Add to Library`}
     </Button>
   )
 }
@@ -107,7 +109,7 @@ export function StepResult({ call, question }: { call: ToolCall; question?: Ques
           return (
             <div key={q.id}>
               <div className="text-muted-foreground">{q.question}</div>
-              <div>{said || "No answer"}</div>
+              <div>{said || t`No answer`}</div>
             </div>
           )
         })}

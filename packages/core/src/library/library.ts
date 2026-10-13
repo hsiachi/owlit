@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import {
   DEFAULT_NOTE_LANGUAGE,
   isTaskFinished,
@@ -124,7 +125,7 @@ export interface LibraryServices {
   proxySignedIn?: (signedIn: boolean) => void
 }
 
-const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, "That paper is not in the library.", { id })
+const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
 
 // The workspace's papers: library/papers/<id>/ (what each paper is, and the user's note.md beside it) and
 // .owlit/papers/<id>/ (the rest of what the user thinks of it: state, highlights). Changes from the app
@@ -267,7 +268,7 @@ export class Library {
   addNew(resolved: ResolvedPaper, addedBy: Paper["addedBy"] = "user", priority: TaskPriority = "asked"): Promise<{ paper: Paper; existed: boolean }> {
     return this.serial(async () => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
-      if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, "owlit can't tell which paper that is.")
+      if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit can't tell which paper that is.`)
       // A folder already there is that paper even if the index missed it: never written over
       const existing =
         (await this.index.find(resolved.ids)) ?? ((await readRecord(this.root, id)) ? id : undefined) ?? (await this.index.twin(resolved.title, resolved.ids))
@@ -322,7 +323,7 @@ export class Library {
     const next = paperIdOf(ids)!
     const other = await this.index.find(ids)
     if (other && other !== id) {
-      throw new RpcFailure(RpcErrorCode.Conflict, "Another paper in your library already has that id.", { id: other })
+      throw new RpcFailure(RpcErrorCode.Conflict, t`Another paper in your library already has that id.`, { id: other })
     }
     this.scheduler?.cancelSubject(id)
     await mkdir(path.dirname(paperStateDir(this.root, next)), { recursive: true })
@@ -529,7 +530,7 @@ export class Library {
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
   async fetchPdf(id: string): Promise<Paper> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
-    if (!this.scheduler?.knows("paper.pdf")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't look for PDFs here.")
+    if (!this.scheduler?.knows("paper.pdf")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't look for PDFs here.`)
     let task = await this.scheduler.run("paper.pdf", id, "waiting")
     // Not after a failure (offline): the browser would only fail too, and its answer would hide why
     if (task.state !== "failed" && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
@@ -537,7 +538,7 @@ export class Library {
     // writing what it did (acquisition.json)
     const paper = await this.serial(() => this.get(id))
     if (!paper) throw notFound(id)
-    if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't look for a PDF.")
+    if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? t`owlit couldn't look for a PDF.`)
     return paper
   }
 
@@ -545,12 +546,12 @@ export class Library {
   // passing the check, signing in, or cancelling its task
   async checkPublisher(id: string): Promise<Paper> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
-    if (!this.scheduler?.knows("paper.pdf.check")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't open publishers' pages here.")
+    if (!this.scheduler?.knows("paper.pdf.check")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't open publishers' pages here.`)
     const task = await this.scheduler.run("paper.pdf.check", id, "asked")
     // Under the library's lock, as in fetchPdf
     const paper = await this.serial(() => this.get(id))
     if (!paper) throw notFound(id)
-    if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? "owlit couldn't open the publisher's page.")
+    if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? t`owlit couldn't open the publisher's page.`)
     return paper
   }
 
@@ -785,11 +786,11 @@ export class Library {
   // Brings a pitta library (~/.pitta) into the workspace once, as a task with progress; papers the
   // library already has are left as they are
   async importPitta(root: string): Promise<{ added: number; skipped: number; failed: string[] }> {
-    if (!this.scheduler?.knows("import.pitta")) throw new RpcFailure(RpcErrorCode.Unavailable, "owlit can't import here.")
+    if (!this.scheduler?.knows("import.pitta")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't import here.`)
     const subject = path.resolve(root)
     const task = await this.scheduler.run("import.pitta", subject, "asked")
     const summary = this.pittaSummaries.get(task.id)
-    if (task.state !== "done" || !summary) throw new RpcFailure(RpcErrorCode.InvalidParams, task.error ?? "The pitta library couldn't be read.")
+    if (task.state !== "done" || !summary) throw new RpcFailure(RpcErrorCode.InvalidParams, task.error ?? t`The pitta library couldn't be read.`)
     return summary
   }
 
@@ -1307,7 +1308,7 @@ export class Library {
           }
           // No server answered at all (doi.org, Unpaywall, the routes): the machine is offline, which
           // passes. One dead host among ones that answered is just a route that failed.
-          if (heard.asked && !heard.answered) throw new HttpError(0, tried[0]?.url ?? "", "Couldn't reach any source of PDFs.")
+          if (heard.asked && !heard.answered) throw new HttpError(0, tried[0]?.url ?? "", t`Couldn't reach any source of PDFs.`)
           const noted = await this.noPdf(id, (previous) => ({
             version: 1,
             result: "no_pdf",
@@ -1602,12 +1603,12 @@ async function sha256Of(file: string) {
 
 async function assertPdf(file: string) {
   const handle = await open(file, "r").catch(() => {
-    throw new RpcFailure(RpcErrorCode.NotFound, "That file can't be opened.", { file })
+    throw new RpcFailure(RpcErrorCode.NotFound, t`That file can't be opened.`, { file })
   })
   const head = Buffer.alloc(5)
   await handle.read(head, 0, 5, 0)
   await handle.close()
-  if (head.toString("latin1") !== "%PDF-") throw new RpcFailure(RpcErrorCode.InvalidParams, "That file isn't a PDF.")
+  if (head.toString("latin1") !== "%PDF-") throw new RpcFailure(RpcErrorCode.InvalidParams, t`That file isn't a PDF.`)
 }
 
 // Ids as the user typed them, as the library keeps them: a DOI lowercased and without a doi.org prefix

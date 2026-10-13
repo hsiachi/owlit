@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import type { MenuGroups } from "@/components/action-menu"
@@ -9,7 +10,6 @@ import { displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from ".
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
 import { useNewDoc } from "./use-new-doc"
 import { toastUndo } from "@/lib/toast"
-import { plural } from "@/lib/words"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -50,13 +50,13 @@ export function useDocActions() {
   // A link to the doc, the same one @ writes, so pasted into another doc it reads as a mention and
   // follows the doc through renames and moves
   const copyLink = async (file: WorkspaceFile) => {
-    if (await copyText(`[${displayName(file.path)}](${docUri(file.path)})`)) toast("Link copied")
+    if (await copyText(`[${displayName(file.path)}](${docUri(file.path)})`)) toast(t`Link copied`)
   }
 
   const deleteFile = (file: WorkspaceFile) => {
     const removed = useDocsStore.getState().deleteFile(file.id)
     leaveIfRemoved(removed)
-    undoToast("Doc deleted", displayName(file.path), removed)
+    undoToast(t`Doc deleted`, displayName(file.path), removed)
   }
 
   const deleteFolder = (path: string) => {
@@ -66,7 +66,7 @@ export function useDocActions() {
     if (ui.selectedFolder && isWithin(ui.selectedFolder, path)) ui.selectFolder(null)
     const n = removed.files.length
     const name = path.split("/").pop() ?? path
-    undoToast("Folder deleted", n ? `${name} and ${plural(n, "file")}` : name, removed)
+    undoToast(t`Folder deleted`, n ? plural(n, { one: `${name} and # file`, other: `${name} and # files` }) : name, removed)
   }
 
   // Several rows at once, as one change with one Undo. What sits inside a picked folder goes with it.
@@ -86,22 +86,22 @@ export function useDocActions() {
     useDocsUiStore.getState().setPicked([], null)
     const ui = useDocsUiStore.getState()
     if (ui.selectedFolder && top.some((f) => isWithin(ui.selectedFolder!, f))) ui.selectFolder(null)
-    undoToast(`${count} items deleted`, undefined, removed)
+    undoToast(plural(count, { one: "# item deleted", other: "# items deleted" }), undefined, removed)
   }
 
   const fileGroups = (file: WorkspaceFile): MenuGroups => {
     const md = isMarkdown(file.path)
     return [
       [
-        { label: "Rename", onSelect: () => startRenaming(rowKey.file(file.id)) },
-        ...(md ? [{ label: "Duplicate", onSelect: () => duplicate(file) }] : []),
-        ...(md && isDesktop ? [{ label: "Versions…", onSelect: () => useDocsUiStore.getState().showVersions(file.id) }] : []),
+        { label: t`Rename`, onSelect: () => startRenaming(rowKey.file(file.id)) },
+        ...(md ? [{ label: t`Duplicate`, onSelect: () => duplicate(file) }] : []),
+        ...(md && isDesktop ? [{ label: t`Versions…`, onSelect: () => useDocsUiStore.getState().showVersions(file.id) }] : []),
       ],
       [
-        ...(md ? [{ label: "Copy link", onSelect: () => void copyLink(file) }] : []),
-        ...(isDesktop ? [{ label: "Show in Finder", onSelect: () => reveal(file.path) }] : []),
+        ...(md ? [{ label: t`Copy link`, onSelect: () => void copyLink(file) }] : []),
+        ...(isDesktop ? [{ label: t`Show in Finder`, onSelect: () => reveal(file.path) }] : []),
       ],
-      [{ label: "Delete", destructive: true, onSelect: () => deleteFile(file) }],
+      [{ label: t`Delete`, destructive: true, onSelect: () => deleteFile(file) }],
     ]
   }
 
@@ -110,30 +110,30 @@ export function useDocActions() {
     return [
       [
         {
-          label: "New doc",
+          label: t`New doc`,
           onSelect: () => {
             ui.expandTo(path)
             newDoc(path)
           },
         },
         {
-          label: "New folder",
+          label: t`New folder`,
           onSelect: () => {
             const made = useDocsStore.getState().createFolder(path)
             ui.expandTo(path)
             startRenaming(rowKey.folder(made))
           },
         },
-        { label: "Rename", onSelect: () => startRenaming(rowKey.folder(path)) },
+        { label: t`Rename`, onSelect: () => startRenaming(rowKey.folder(path)) },
       ],
-      isDesktop ? [{ label: "Show in Finder", onSelect: () => reveal(path) }] : [],
-      [{ label: "Delete", destructive: true, onSelect: () => deleteFolder(path) }],
+      isDesktop ? [{ label: t`Show in Finder`, onSelect: () => reveal(path) }] : [],
+      [{ label: t`Delete`, destructive: true, onSelect: () => deleteFolder(path) }],
     ]
   }
 
   const pickedGroups = (keys: string[]): MenuGroups => {
     const { count } = topLevel(keys)
-    return [[{ label: count === 1 ? "Delete" : `Delete ${count} items`, destructive: true, onSelect: () => deleteKeys(keys) }]]
+    return [[{ label: count === 1 ? t`Delete` : plural(count, { one: "Delete # item", other: "Delete # items" }), destructive: true, onSelect: () => deleteKeys(keys) }]]
   }
 
   return { fileGroups, folderGroups, pickedGroups, deleteKeys, startRenaming }

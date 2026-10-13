@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type * as acp from "@agentclientprotocol/sdk"
 import { RequestError } from "@agentclientprotocol/sdk"
 import {
@@ -30,7 +31,7 @@ import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { AgentEnded, type AcpProcess, type SessionHandler } from "./process.ts"
+import { AgentEnded, endingSentence, type AcpProcess, type SessionHandler } from "./process.ts"
 import { guardFor, handbackOf, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
@@ -138,12 +139,12 @@ export class Turns {
 
   async prompt(req: TurnRequest): Promise<StopReason> {
     const ws = this.options.workspace()
-    if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
+    if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     // A reply the agent took up again gives way to the user's next message: it ends here, and whatever the
     // agent still sends belongs to the new turn, which is the live one
     const running = this.turns.get(req.chatId)
     if (running?.late) await this.endLate(running, "done")
-    if (this.turns.has(req.chatId)) throw new RpcFailure(RpcErrorCode.Conflict, "This chat is still answering.")
+    if (this.turns.has(req.chatId)) throw new RpcFailure(RpcErrorCode.Conflict, t`This chat is still answering.`)
     this.ended.delete(req.chatId)
 
     const message: ChatMessage = {
@@ -226,8 +227,8 @@ export class Turns {
       if (error instanceof AgentEnded) {
         // The agent's process went away mid-turn; the library only says its connection closed
         const name = await agents.nameOf(req.connectorId)
-        const text = error.stopped ? "Owlit was closed before it could finish." : `${name} quit unexpectedly. It starts again with the next message.`
-        const detail = error.detail ? `${name} ${error.detail}` : undefined
+        const text = error.stopped ? t`Owlit was closed before it could finish.` : t`${name} quit unexpectedly. It starts again with the next message.`
+        const detail = error.ending ? endingSentence(name, error.ending) : undefined
         await finish("error", text, detail)
         throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
       }
@@ -236,7 +237,7 @@ export class Turns {
           ? await agents.refused(req.connectorId)
           : await agents.signedOut(req.connectorId)
         : GENERIC.test(messageOf(error)) && said
-          ? `${await agents.nameOf(req.connectorId)} ran into a problem.`
+          ? await agents.nameOf(req.connectorId).then((name) => t`${name} ran into a problem.`)
           : messageOf(error)
       await finish("error", text)
       throw new RpcFailure(RpcErrorCode.InternalError, text)
@@ -271,12 +272,12 @@ export class Turns {
       pending.resolve({ outcome: { outcome: "selected", optionId } })
       return null
     }
-    throw new RpcFailure(RpcErrorCode.NotFound, "That question is no longer waiting for an answer.")
+    throw new RpcFailure(RpcErrorCode.NotFound, t`That question is no longer waiting for an answer.`)
   }
 
   answerQuestion(chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) {
     const answer = this.turns.get(chatId)?.questions.get(requestId)
-    if (!answer) throw new RpcFailure(RpcErrorCode.NotFound, "That question is no longer waiting for an answer.")
+    if (!answer) throw new RpcFailure(RpcErrorCode.NotFound, t`That question is no longer waiting for an answer.`)
     answer(answers)
     return null
   }
@@ -458,12 +459,12 @@ export class Turns {
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
         const by = agentId ? { agentId } : {}
-        emit({ type: "tool_call", toolCallId, title: title ?? "Tool", kind: toKind(toolCall.kind), status: "pending", ...toolContent(toolCall, root), ...by })
+        emit({ type: "tool_call", toolCallId, title: title ?? t({ message: "Tool", comment: "a step in a chat whose tool the agent did not name" }), kind: toKind(toolCall.kind), status: "pending", ...toolContent(toolCall, root), ...by })
         emit({
           type: "permission_request",
           requestId,
           toolCallId,
-          title: title ?? "The agent asks to go ahead",
+          title: title ?? t`The agent asks to go ahead`,
           kind: toKind(toolCall.kind),
           options: r.options.map((o) => ({ optionId: o.optionId, name: o.name, kind: o.kind as PermissionKind })),
           ...by,

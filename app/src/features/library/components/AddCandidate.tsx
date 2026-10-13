@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { CheckIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -15,24 +16,24 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
       {lookup.state === "loading" && (
         <div className="flex items-center gap-2 text-detail text-muted-foreground">
           <Spinner className="size-3.5" />
-          Looking up {input}…
+          {t`Looking up ${input}…`}
         </div>
       )}
       {lookup.state === "error" && <div className="text-detail text-muted-foreground">{lookup.message}</div>}
       {lookup.state === "found" && (
         <>
           <div className="min-w-0 flex-1">
-            <div className="text-xs text-muted-foreground">Add to library</div>
+            <div className="text-xs text-muted-foreground">{t`Add to library`}</div>
             <div className="mt-0.5 truncate text-sm font-medium">{lookup.resolved.title}</div>
             <div className="mt-0.5 truncate text-detail text-muted-foreground">
-              {[shortAuthors(lookup.resolved.authors), lookup.resolved.year, lookup.resolved.venue, lookup.resolved.pdf && "PDF available"]
+              {[shortAuthors(lookup.resolved.authors), lookup.resolved.year, lookup.resolved.venue, lookup.resolved.pdf && t`PDF available`]
                 .filter(Boolean)
                 .join(" · ")}
             </div>
           </div>
           <Kbd className="bg-transparent">↵</Kbd>
           <Button size="sm" onClick={onAdd}>
-            Add
+            {t({ message: "Add", comment: "button: add the paper to the library" })}
           </Button>
         </>
       )}
@@ -41,7 +42,7 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <CheckIcon className="size-3.5" />
-              Already in your library
+              {t`Already in your library`}
             </div>
             <div className="mt-0.5 truncate text-sm font-medium">{lookup.paper.title}</div>
             <div className="mt-0.5 text-detail text-muted-foreground">
@@ -49,7 +50,7 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => actions.open(lookup.paper.id)}>
-            Open
+            {t({ message: "Open", comment: "button: open a paper to read" })}
           </Button>
         </>
       )}

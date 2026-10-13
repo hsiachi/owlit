@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import { NavLink, useNavigate, useParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
@@ -43,16 +44,16 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
   const remove = () => {
     deleteChat(chat.id)
     if (active) navigate("/chat")
-    toastUndo("Chat deleted", () => useChatStore.getState().restoreChat(chat.id).catch(() => undefined), { description: chat.title })
+    toastUndo(t`Chat deleted`, () => useChatStore.getState().restoreChat(chat.id).catch(() => undefined), { description: chat.title })
   }
 
   // The same actions from the row's ⋯ and from a right-click
   const groups: MenuGroups = [
     [
-      { label: chat.pinned ? "Unpin" : "Pin", onSelect: () => togglePin(chat.id) },
-      { label: "Rename", afterClose: true, onSelect: () => setRenaming(true) },
+      { label: chat.pinned ? t({ message: "Unpin", comment: "verb: unpin a chat" }) : t({ message: "Pin", comment: "verb: pin a chat to the top" }), onSelect: () => togglePin(chat.id) },
+      { label: t`Rename`, afterClose: true, onSelect: () => setRenaming(true) },
     ],
-    [{ label: "Delete", destructive: true, onSelect: remove }],
+    [{ label: t`Delete`, destructive: true, onSelect: remove }],
   ]
 
   return (
@@ -61,7 +62,7 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
         {renaming ? (
           <RenameInput
             initial={chat.title}
-            label="Rename chat"
+            label={t`Rename chat`}
             onDone={(name) => {
               if (name !== null) renameChat(chat.id, name)
               setRenaming(false)
@@ -90,13 +91,13 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
                   neither rests on the dot's hue; the ring already reads it out */}
               {(status === "waiting" || status === "failed") && (
                 <span aria-hidden className="ml-auto shrink-0 text-detail text-foreground">
-                  {status === "waiting" ? "Waiting" : "Stopped"}
+                  {status === "waiting" ? t({ message: "Waiting", comment: "a chat's status: waiting on the user" }) : t({ message: "Stopped", comment: "a chat's status: the agent stopped with an error" })}
                 </span>
               )}
             </NavLink>
           </SidebarMenuButton>
         )}
-        {!renaming && <RowMenuButton groups={groups} label="Chat actions" side="right" align="start" className="absolute top-1/2 right-1.5 -translate-y-1/2" />}
+        {!renaming && <RowMenuButton groups={groups} label={t`Chat actions`} side="right" align="start" className="absolute top-1/2 right-1.5 -translate-y-1/2" />}
       </SidebarMenuItem>
     </ActionsOnRightClick>
   )
@@ -113,14 +114,14 @@ export function ChatListPanel() {
   return (
     <>
       <PanelHeader>
-        <NewRow label="New chat" onClick={() => navigate("/chat")} />
+        <NewRow label={t`New chat`} onClick={() => navigate("/chat")} />
       </PanelHeader>
       <SidebarContent className="gap-0 pb-4">
         {/* Placed exactly like Docs' "No docs yet.", so switching places doesn't move the gap under New */}
-        {groups.length === 0 && <PanelEmpty className="mx-2.5 mt-3">No chats yet.</PanelEmpty>}
+        {groups.length === 0 && <PanelEmpty className="mx-2.5 mt-3">{t`No chats yet.`}</PanelEmpty>}
         {groups.map((g) => (
           // Spacing ladder: label to its rows (tight) < row to row < group to group (wide)
-          <SidebarGroup key={g.label} className="px-2.5 pt-5 pb-0 first:pt-2">
+          <SidebarGroup key={g.id} className="px-2.5 pt-5 pb-0 first:pt-2">
             <SidebarGroupLabel className={cn(keepLabelInIconMode, "h-6 items-end px-2.5 pb-1.5 text-xs font-normal text-muted-foreground")}>{g.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               {/* 2px between rows, so the open chat's fill and a hovered neighbour stay apart */}

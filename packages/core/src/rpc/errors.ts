@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { RpcErrorCode, type RpcError } from "@owlit/protocol"
 
 // Thrown by a handler to answer with a specific error. Anything else a handler throws becomes an
@@ -26,5 +27,5 @@ export const invalidParams = (message: string, data?: unknown) =>
 export function toRpcError(error: unknown): RpcError {
   if (error instanceof RpcFailure) return error.toJSON()
   const detail = error instanceof Error ? error.message : String(error)
-  return { code: RpcErrorCode.InternalError, message: "Something went wrong inside owlit.", data: { detail } }
+  return { code: RpcErrorCode.InternalError, message: t`Something went wrong inside owlit.`, data: { detail } }
 }

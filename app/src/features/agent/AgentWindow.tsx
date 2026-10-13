@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { ChevronDownIcon, Maximize2Icon, SquarePenIcon, XIcon } from "lucide-react"
@@ -16,7 +17,7 @@ import { useLookAt } from "@/features/chat/status"
 import { useChatStore } from "@/features/chat/store"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
-import { KIND_NAME, useVisibleContext } from "./page-context"
+import { askAboutOrAnything, useVisibleContext } from "./page-context"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
 // At the right end of the top bar: the panel with the current chat, as ⇧⌘J. The feather is also the brand
@@ -27,7 +28,7 @@ export function AgentToggle() {
   const togglePanel = useAgentWindow((s) => s.togglePanel)
   if (!allowed) return null
   return (
-    <IconButton label="Ask Owlit" shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
+    <IconButton label={t`Ask Owlit`} shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
       <OwlitMark />
     </IconButton>
   )
@@ -55,7 +56,7 @@ export function AgentPanel() {
       className="relative flex shrink-0 flex-col border-l-[0.5px] bg-sidebar-panel"
       // A narrower window narrows the panel before the page, down to the panel's least width
       style={{ width: `clamp(320px, ${panelWidth}px, max(320px, calc(100vw - ${PAGE_MIN}px)))` }}
-      aria-label="Owlit"
+      aria-label="Owlit" // i18n-ignore
       onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}
     >
       <ResizeEdge />
@@ -64,7 +65,7 @@ export function AgentPanel() {
         <ChatMessages chat={chat} streaming={streaming} panel />
       ) : (
         <div className="flex flex-1 items-end px-4 pb-3 text-body text-muted-foreground">
-          {context[0] ? `Ask about ${KIND_NAME[context[0].kind]}, or anything else.` : "Ask anything."}
+          {context[0] ? askAboutOrAnything(context[0].kind) : t`Ask anything.`}
         </div>
       )}
       <ComposerDock
@@ -74,7 +75,7 @@ export function AgentPanel() {
         panel
         compact={panelWidth < 440}
         onSubmit={(input, id) => send(input, context, id)}
-        placeholder={chat?.messages.length ? "Ask a follow-up…" : "Ask Owlit…"}
+        placeholder={chat?.messages.length ? t`Ask a follow-up…` : t`Ask Owlit…`}
         header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
       />
     </aside>
@@ -92,7 +93,7 @@ function PanelHeader({ chatId, title }: { chatId?: string; title?: string }) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className="-ml-1.5 flex h-7 min-w-0 items-center gap-1 rounded-md px-1.5 text-sm font-medium outline-hidden hover:bg-accent focus-visible:bg-accent">
-            <span className="truncate">{title ?? "New chat"}</span>
+            <span className="truncate">{title ?? t`New chat`}</span>
             <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
@@ -103,15 +104,15 @@ function PanelHeader({ chatId, title }: { chatId?: string; title?: string }) {
               <span className="truncate">{c.title}</span>
             </DropdownMenuItem>
           ))}
-          {recent.length === 0 && <div className="px-2 py-1.5 text-sm text-muted-foreground">No chats yet</div>}
+          {recent.length === 0 && <div className="px-2 py-1.5 text-sm text-muted-foreground">{t`No chats yet`}</div>}
         </DropdownMenuContent>
       </DropdownMenu>
       <div className="flex-1" />
-      <IconButton label="New chat" onClick={newChat}>
+      <IconButton label={t`New chat`} onClick={newChat}>
         <SquarePenIcon />
       </IconButton>
       <IconButton
-        label="Open in Chat"
+        label={t`Open in Chat`}
         disabled={!chatId}
         onClick={() => {
           if (!chatId) return
@@ -121,7 +122,7 @@ function PanelHeader({ chatId, title }: { chatId?: string; title?: string }) {
       >
         <Maximize2Icon />
       </IconButton>
-      <IconButton label="Close" onClick={close}>
+      <IconButton label={t({ message: "Close", comment: "verb: close the Owlit panel" })} onClick={close}>
         <XIcon />
       </IconButton>
     </header>
@@ -132,7 +133,7 @@ function PanelHeader({ chatId, title }: { chatId?: string; title?: string }) {
 function ResizeEdge() {
   const width = useAgentWindow((s) => s.panelWidth)
   const setWidth = useAgentWindow((s) => s.setPanelWidth)
-  return <PanelResizeHandle label="Resize Owlit" width={width} setWidth={setWidth} defaultWidth={PANEL_WIDTH} />
+  return <PanelResizeHandle label={t`Resize Owlit`} width={width} setWidth={setWidth} defaultWidth={PANEL_WIDTH} />
 }
 
 // The chat list's status ring, so a chat at work reads the same in the switcher

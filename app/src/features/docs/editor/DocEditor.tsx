@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
@@ -57,7 +58,7 @@ function chatAbout(fileId: string, text: string, from?: number) {
 function dismissNote(fileId: string, note: AgentNote, next: string | null) {
   useDocsUiStore.getState().setOpenNote(fileId, next)
   const removed = useDocsStore.getState().removeNote(fileId, note.id)
-  if (removed) toastUndo("Note dismissed", () => useDocsStore.getState().restoreNote(fileId, removed))
+  if (removed) toastUndo(t`Note dismissed`, () => useDocsStore.getState().restoreNote(fileId, removed))
 }
 
 const SAVE_DELAY = 300
@@ -114,8 +115,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           markdown({ base: markdownLanguage, extensions: [Highlight, Wikilinks, MathSyntax] }),
           blockPreview,
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ spellcheck: "true", "aria-label": "Doc text" }),
-          placeholder("Start writing"),
+          EditorView.contentAttributes.of({ spellcheck: "true", "aria-label": t`Doc text` }),
+          placeholder(t`Start writing`),
           docTheme,
           docHighlight,
           livePreview({

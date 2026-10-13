@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useState } from "react"
 import { CheckIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -12,7 +13,7 @@ import { hasResult, stepMeta } from "../../lib/step-output"
 import { StepResult } from "./step-results"
 import { FoldingBlock, FoldingList, StepChevron, StepRow } from "./folding"
 import { useOpenWhile } from "./use-open-while"
-import { capital, plural } from "@/lib/words"
+import { capital } from "@/lib/words"
 
 // The outcome of a permission request, keyed by the tool call it was asked for
 export type PermissionOutcome = NonNullable<Part<"permission">["outcome"]>
@@ -27,13 +28,14 @@ export interface StepAsks {
 }
 
 // Owlit's words for each answer, the same whichever agent asked
-const outcomeLabel: Record<PermissionOutcome, string> = {
-  allow_once: "Allowed",
-  allow_always: "Always allowed",
-  reject_once: "Not allowed",
-  reject_always: "Never allowed",
-  cancelled: "Not answered",
-}
+const outcomeLabel = (outcome: PermissionOutcome): string =>
+  ({
+    allow_once: t`Allowed`,
+    allow_always: t`Always allowed`,
+    reject_once: t`Not allowed`,
+    reject_always: t`Never allowed`,
+    cancelled: t`Not answered`,
+  })[outcome]
 
 const isRejection = (o?: PermissionOutcome) => !!o && !o.startsWith("allow")
 
@@ -95,11 +97,11 @@ function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: Step
   const failed = call.status === "failed" && !isRejection(outcome) && question?.outcome !== "skipped"
   const text = (call.status === "completed" || question?.outcome === "answered") && !isRejection(outcome) ? words.done : words.now
   const canOpen = !running && !waiting && hasResult(call, question)
-  const answered = question?.outcome === "skipped" ? "Skipped" : question?.outcome === "cancelled" ? "Not answered" : undefined
+  const answered = question?.outcome === "skipped" ? t({ message: "Skipped", comment: "a question the user skipped" }) : question?.outcome === "cancelled" ? t`Not answered` : undefined
   let right: React.ReactNode = stepMeta(call)
   if (waiting) right = <WaitingLabel />
   else if (running) right = call.status === "in_progress" ? <Spinner className="size-3.5" /> : undefined
-  else if (unfinished && !streaming) right = "Stopped"
+  else if (unfinished && !streaming) right = t({ message: "Stopped", comment: "a step the answer stopped in the middle of" })
   return (
     <div className="border-t first:border-t-0">
       <StepLine
@@ -109,9 +111,9 @@ function ToolRow({ call, words, asks, streaming }: { call: ToolCall; words: Step
         onToggle={canOpen ? () => setOpen((o) => !o) : undefined}
         after={
           failed ? (
-            <span className="shrink-0 text-detail text-destructive">Failed</span>
+            <span className="shrink-0 text-detail text-destructive">{t({ message: "Failed", comment: "a step that failed" })}</span>
           ) : outcome || answered ? (
-            <span className="shrink-0 text-detail text-muted-foreground">{answered ?? outcomeLabel[outcome!]}</span>
+            <span className="shrink-0 text-detail text-muted-foreground">{answered ?? outcomeLabel(outcome!)}</span>
           ) : undefined
         }
         right={right}
@@ -158,7 +160,7 @@ function ThoughtRow({ part, live }: { part: Part<"thought">; live: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="border-t first:border-t-0">
-      <StepLine words={live ? "Thinking" : "Thought"} live={live} open={open} onToggle={!live && part.text.trim() ? () => setOpen((o) => !o) : undefined} />
+      <StepLine words={live ? t({ message: "Thinking", comment: "the agent is thinking" }) : t({ message: "Thought", comment: "noun: what the agent thought" })} live={live} open={open} onToggle={!live && part.text.trim() ? () => setOpen((o) => !o) : undefined} />
       <Unfold open={open}>
         <Prose className="whitespace-pre-wrap text-muted-foreground">{part.text}</Prose>
       </Unfold>
@@ -237,6 +239,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
   const stopped = streaming ? 0 : shown.filter(({ call: c }) => (c.status === "pending" || c.status === "in_progress") && !isRejection(asks.outcomes[c.toolCallId])).length
   const lost = !live ? unsaved(calls, asks.outcomes) : undefined
 
+  const soFar = shown.length
   let head: React.ReactNode
   if (waitingHere) {
     head = <WaitingLabel />
@@ -244,24 +247,27 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
     const thinking = parts.at(-1)?.type === "thought"
     head = (
       <>
-        <span className="truncate shimmer">{thinking ? "Thinking" : liveSentence(steps)}</span>
-        {shown.length > 1 && <span className="shrink-0 text-muted-foreground">· {shown.length} so far</span>}
+        <span className="truncate shimmer">{thinking ? t({ message: "Thinking", comment: "the agent is thinking" }) : liveSentence(steps)}</span>
+        {shown.length > 1 && <span className="shrink-0 text-muted-foreground">· {t`${soFar} so far`}</span>}
       </>
     )
   } else if (lost) {
     head = (
       <>
         <CircleAlertIcon className="size-4 shrink-0 text-warning" />
-        <span className="truncate text-foreground">Couldn't save {lost}</span>
+        <span className="truncate text-foreground">{t`Couldn't save ${lost}`}</span>
       </>
     )
   } else {
+    const counts = [failed && t`${failed} failed`, refused && t`${refused} not allowed`, stopped && t`${stopped} stopped`]
+      .filter(Boolean)
+      .join(t({ message: ", ", context: "between things in a list" }))
     head = (
       <>
         <span className="truncate">{blockSentence(steps)}</span>
         {(failed > 0 || refused > 0 || stopped > 0) && (
           <span className="shrink-0 text-muted-foreground">
-            ({[failed && `${failed} failed`, refused && `${refused} not allowed`, stopped && `${stopped} stopped`].filter(Boolean).join(", ")})
+            {t`(${counts})`}
           </span>
         )}
       </>
@@ -286,7 +292,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
             <>
               <Unfold open={!earlier}>
                 <div className="border-t first:border-t-0">
-                  <StepLine words={plural(hidden, "earlier step")} open={false} onToggle={() => setEarlier(true)} className="text-detail" />
+                  <StepLine words={plural(hidden, { one: "# earlier step", other: "# earlier steps" })} open={false} onToggle={() => setEarlier(true)} className="text-detail" />
                 </div>
               </Unfold>
               <Unfold open={earlier}>{rows.slice(0, hidden).map(row)}</Unfold>
@@ -305,6 +311,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
 export function PlanPart({ part }: { part: Part<"plan"> }) {
   const done = part.entries.filter((e) => e.status === "completed").length
   const finished = part.entries.length > 0 && done === part.entries.length
+  const total = part.entries.length
   const [open, setOpen] = useOpenWhile(!finished)
   return (
     <FoldingBlock
@@ -312,9 +319,7 @@ export function PlanPart({ part }: { part: Part<"plan"> }) {
       onOpenChange={setOpen}
       className="text-sm"
       head={
-        <span>
-          Plan · {done}/{part.entries.length}
-        </span>
+        <span>{t`Plan · ${done}/${total}`}</span>
       }
     >
       <ol className="mt-1.5 ml-1.5 flex flex-col gap-1 border-l-2 pl-3">
@@ -346,12 +351,12 @@ export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Par
     )
   const said =
     part.type === "permission"
-      ? `${outcomeLabel[part.outcome ?? "cancelled"]} · ${toolTitle(part.title)}`
+      ? `${outcomeLabel(part.outcome ?? "cancelled")} · ${toolTitle(part.title)}`
       : part.outcome === "answered"
-        ? `Answered ${part.questions.length === 1 ? "a question" : `${part.questions.length} questions`}`
+        ? plural(part.questions.length, { one: "Answered a question", other: "Answered # questions" })
         : part.outcome === "skipped"
-          ? "Skipped a question"
-          : "A question went unanswered"
+          ? t`Skipped a question`
+          : t`A question went unanswered`
   const allowed = part.type === "permission" ? !isRejection(part.outcome) : part.outcome === "answered"
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">

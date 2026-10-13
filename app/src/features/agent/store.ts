@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { useChatStore } from "@/features/chat/store"
@@ -96,7 +97,7 @@ export const useAgentWindow = create<AgentWindowState>()(
       newChat: () =>
         set((s) => ({ stage: "open", chatId: null, selection: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
       askHowTo: () =>
-        set((s) => ({ stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: "How do I… (about owlit)", focusTick: s.focusTick + 1 })),
+        set((s) => ({ stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: t`How do I… (about owlit)`, focusTick: s.focusTick + 1 })),
       showChat: (chatId) => set((s) => ({ chatId, stage: "open", fromNote: chatId === s.chatId ? s.fromNote : null, focusTick: s.focusTick + 1 })),
       hideContext: (uri) => set({ hiddenContext: uri }),
       clearSelection: () => set({ selection: null }),

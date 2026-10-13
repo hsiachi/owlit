@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { PaperIds, PaperKind, PaperRecord } from "@owlit/protocol"
 import { cp, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
@@ -44,7 +45,7 @@ export interface PittaPaper {
 export async function pittaPapers(root: string): Promise<PittaPaper[]> {
   const papers = path.join(root, "papers")
   const names = await readdir(papers).catch(() => {
-    throw new Error(`There is no papers folder in ${root}.`)
+    throw new Error(t`There is no papers folder in ${root}.`)
   })
   const found: PittaPaper[] = []
   for (const name of names.sort()) {

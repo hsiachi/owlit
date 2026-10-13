@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { ArrowUpIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -12,9 +13,9 @@ import { fromDrop, openAttached, readerOf, useAttachments } from "@/features/cha
 import { useResolvedSelection } from "@/features/chat/use-selection"
 import { useChatStore } from "@/features/chat/store"
 import type { Mentionable } from "@/features/chat/types"
-import { Chip, SelectionChip } from "./ContextChips"
+import { Chip, dontInclude, SelectionChip } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
-import { KIND_NAME, useVisibleContext } from "./page-context"
+import { askAboutHint, useVisibleContext } from "./page-context"
 import { useAgentWindow } from "./store"
 
 // A small bar at the bottom of the page for the first question; sending it opens the panel
@@ -75,7 +76,7 @@ export function AgentAskBar() {
       {holding && (
         <div className="flex min-w-0 items-center gap-1.5 px-2.5 pt-2">
           {mentions.map((m) => (
-            <Chip key={m.uri} label={`Don't include ${m.title}`} onRemove={() => setMentions((list) => list.filter((x) => x.uri !== m.uri))}>
+            <Chip key={m.uri} label={dontInclude(m.title)} onRemove={() => setMentions((list) => list.filter((x) => x.uri !== m.uri))}>
               <span className="text-mention">{m.title}</span>
             </Chip>
           ))}
@@ -112,9 +113,9 @@ export function AgentAskBar() {
             }
             if (e.key === "Escape") useAgentWindow.getState().close()
           }}
-          placeholder={hint ?? (context[0] ? `Ask about ${KIND_NAME[context[0].kind]}…` : "Ask Owlit…")}
+          placeholder={hint ?? (context[0] ? askAboutHint(context[0].kind) : t`Ask Owlit…`)}
           className="min-w-0 flex-1 bg-transparent pl-1.5 text-body outline-none placeholder:text-muted-foreground"
-          aria-label="Ask Owlit"
+          aria-label={t`Ask Owlit`}
         />
         {current && !text && !selection && !holding && (
           <Tip label={current} side="top">
@@ -125,11 +126,11 @@ export function AgentAskBar() {
               className="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               <Kbd>{keysFor("owlit-panel")}</Kbd>
-              Last chat
+              {t`Last chat`}
             </button>
           </Tip>
         )}
-        <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={send} aria-label="Send">
+        <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={send} aria-label={t`Send`}>
           <ArrowUpIcon />
         </Button>
       </div>

@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
@@ -41,14 +42,14 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
   let right: React.ReactNode
   if (waiting) right = <WaitingLabel />
   else if (working) right = <span className="truncate">{agentNow(calls, steps.at(-1)?.type === "thought")}</span>
-  else if (agent.status === "stopped" || (agent.status === "working" && !streaming)) right = "Stopped"
+  else if (agent.status === "stopped" || (agent.status === "working" && !streaming)) right = t({ message: "Stopped", comment: "a helper agent's status: it stopped before it was done" })
   else if (agent.status === "done") right = agentDone(calls)
   return (
     <div className="border-t first:border-t-0">
       <StepRow open={open} onToggle={() => setOpen((o) => !o)} className="min-h-10 text-foreground/80">
         {/* While it works its task shimmers; the step it is at stays plain at the right */}
         <span className={cn("min-w-0 shrink-0 max-w-[55%]", open ? "break-words" : "truncate", working && !waiting && "shimmer")}>{agent.title}</span>
-        {agent.status === "failed" && <span className="shrink-0 text-detail text-destructive">Failed</span>}
+        {agent.status === "failed" && <span className="shrink-0 text-detail text-destructive">{t({ message: "Failed", comment: "a helper agent's status" })}</span>}
         <StepChevron open={open} className="text-muted-foreground" />
         {right && <span className="ml-auto flex min-w-0 items-center gap-1.5 pl-3 text-detail text-muted-foreground">{right}</span>}
       </StepRow>
@@ -57,12 +58,12 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
           {agent.report ? (
             <div>
               <GroupLabel as="div" flush>
-                What it found
+                {t`What it found`}
               </GroupLabel>
               <Report text={agent.report} />
             </div>
           ) : (
-            agent.status === "working" && streaming && <div className="text-detail text-muted-foreground">Its findings show here when it’s done.</div>
+            agent.status === "working" && streaming && <div className="text-detail text-muted-foreground">{t`Its findings show here when it’s done.`}</div>
           )}
           {steps.length > 0 && <StepsPart parts={steps} active={working && !waiting} streaming={streaming} asks={asks} />}
         </div>
@@ -98,29 +99,30 @@ export function AgentsPart({
   }, [id, setOpen])
 
   const done = agents.length - working.length
+  const count = agents.length
   let head: React.ReactNode
   if (waiting)
     head = (
       <>
-        <WaitingLabel>{agents.length === 1 ? "The agent is waiting on you" : "An agent is waiting on you"}</WaitingLabel>
-        {agents.length > 1 && <span className="shrink-0 text-muted-foreground">· {done} of {agents.length} done</span>}
+        <WaitingLabel>{count === 1 ? t`The agent is waiting on you` : t`An agent is waiting on you`}</WaitingLabel>
+        {count > 1 && <span className="shrink-0 text-muted-foreground">· {t`${done} of ${count} done`}</span>}
       </>
     )
   else if (agents.length === 1)
     head = (
       <>
         <span className={cn("truncate", live && "shimmer")}>{agents[0].title}</span>
-        <span className="shrink-0 text-muted-foreground">· an agent</span>
+        <span className="shrink-0 text-muted-foreground">· {t({ message: "an agent", comment: "after a helper agent's task: the task was handed to an agent" })}</span>
       </>
     )
   else if (live)
     head = (
       <>
-        <span className="truncate shimmer">{agents.length} agents working</span>
-        {done > 0 && <span className="shrink-0 text-muted-foreground">· {done} done</span>}
+        <span className="truncate shimmer">{plural(count, { one: "# agent working", other: "# agents working" })}</span>
+        {done > 0 && <span className="shrink-0 text-muted-foreground">· {t`${done} done`}</span>}
       </>
     )
-  else head = <span className="truncate">Worked with {agents.length} agents</span>
+  else head = <span className="truncate">{plural(count, { one: "Worked with # agent", other: "Worked with # agents" })}</span>
 
   return (
     <FoldingBlock id={id} open={open} onOpenChange={setOpen} head={head} className="scroll-mt-4">
@@ -144,12 +146,12 @@ export function AgentsWaitLine({ blockId, working, waiting }: { blockId: string;
   return (
     <div className="flex items-center gap-1.5 text-sm text-foreground/80">
       {waiting ? (
-        <span>An agent is waiting on you</span>
+        <span>{t`An agent is waiting on you`}</span>
       ) : (
-        <span className="shimmer">Waiting for {working === 1 ? "an agent" : `${working} agents`}</span>
+        <span className="shimmer">{plural(working, { one: "Waiting for an agent", other: "Waiting for # agents" })}</span>
       )}
       <Button variant="text" size="inline" onClick={show}>
-        Show
+        {t({ message: "Show", comment: "verb: scroll to the helper agents' block and open it" })}
       </Button>
     </div>
   )

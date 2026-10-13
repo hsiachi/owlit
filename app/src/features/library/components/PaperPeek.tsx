@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { Button } from "@/components/ui/button"
 import { usePaperActions } from "../actions"
 import { stripLatex } from "../lib/latex"
@@ -15,7 +16,7 @@ export function PaperPeek({ paper }: { paper: Paper }) {
   const showTag = useLibraryUi((s) => s.showTag)
   const actions = usePaperActions()
   // Never "Read": beside the status menu it would pass for marking the paper read
-  const openLabel = paper.status === "reading" ? "Continue" : "Open"
+  const openLabel = paper.status === "reading" ? t({ message: "Continue", comment: "button: go on reading a paper" }) : t({ message: "Open", comment: "button: open a paper to read" })
 
   return (
     <div

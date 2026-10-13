@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { init, type WrappedPdfiumModule } from "@embedpdf/pdfium"
 import type { PaperText, Rect, TextBlock, TextLine, TextPage } from "@owlit/protocol"
 import { readFile } from "node:fs/promises"
@@ -78,7 +79,7 @@ export async function readPdf(bytes: Uint8Array, options: ReadOptions = {}): Pro
   const doc = m.FPDF_LoadMemDocument(ptr, bytes.length, "")
   if (!doc) {
     m.pdfium.wasmExports.free(ptr)
-    throw new UnreadablePdf(m.FPDF_GetLastError() === 4 ? "The PDF is password-protected." : "The PDF can't be read.")
+    throw new UnreadablePdf(m.FPDF_GetLastError() === 4 ? t`The PDF is password-protected.` : t`The PDF can't be read.`)
   }
   const box = m.pdfium.wasmExports.malloc(16)
   const nameBuffer = m.pdfium.wasmExports.malloc(128)
@@ -350,7 +351,7 @@ export async function pageSizes(bytes: Uint8Array, wasmPath?: string): Promise<{
   const doc = m.FPDF_LoadMemDocument(ptr, bytes.length, "")
   if (!doc) {
     m.pdfium.wasmExports.free(ptr)
-    throw new UnreadablePdf("The PDF can't be read.")
+    throw new UnreadablePdf(t`The PDF can't be read.`)
   }
   try {
     const sizes: { width: number; height: number }[] = []

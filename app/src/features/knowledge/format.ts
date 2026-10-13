@@ -1,5 +1,6 @@
+import { plural, t } from "@lingui/core/macro"
+import { intlLocale } from "@owlit/i18n"
 import { isHiddenFromDocs, paperUri, parseOwlitUri, sameWords, type WorkspaceFile } from "@owlit/protocol"
-import { plural } from "@/lib/words"
 import type { Change, Line, TopicSidecar, Verb } from "./types"
 
 // Topic files are read and written by @owlit/protocol's parseTopic and serializeTopic, shared with core
@@ -12,8 +13,16 @@ export const oneLine = (text: string) => text.replace(/\s+/g, " ").trim()
 export const lineKey = (topicId: string, lineId: string) => `${topicId}/${lineId}`
 
 // What the person has left on a paper, as the Knowledge page and a paper's Knowledge tab both say it:
-// "1 highlight, a note", "3 highlights", "a note"; "" when nothing
-export const touchedWords = (highlights: number, hasNote: boolean) => [highlights > 0 && plural(highlights, "highlight"), hasNote && "a note"].filter(Boolean).join(", ")
+// "1 highlight, a note", "3 highlights", "a note"; "" when nothing. Inside a sentence ("You have 1 highlight
+// and a note here") the two are joined with "and".
+export function touchedWords(highlights: number, hasNote: boolean, { inSentence = false } = {}) {
+  if (highlights > 0 && hasNote)
+    return inSentence
+      ? plural(highlights, { one: "# highlight and a note", other: "# highlights and a note" })
+      : plural(highlights, { one: "# highlight, a note", other: "# highlights, a note" })
+  if (highlights > 0) return plural(highlights, { one: "# highlight", other: "# highlights" })
+  return hasNote ? t`a note` : ""
+}
 
 // ---- Reading a line ----
 
@@ -27,6 +36,30 @@ export const isAbstractOnly = (l: Line) => !isYou(l) && !isOwlit(l) && l.sources
 export function firstWords(text: string, n = 5) {
   const words = oneLine(text).split(" ")
   return words.length > n ? `${words.slice(0, n).join(" ")}…` : words.join(" ")
+}
+
+// The speaker as the page names it: "You" in the interface language, anyone else by the name the file gives
+export const speakerName = (l: Pick<Line, "speaker">) => (isYou(l) ? t({ message: "You", comment: "the speaker of a topic's line: You wrote, You said" }) : l.speaker)
+
+// A line's verb as the page says it after the speaker: "You wrote", "Schick 2023 found", "Owlit thinks".
+// The file keeps the English verb.
+export function verbWords(verb: Verb) {
+  switch (verb) {
+    case "wrote":
+      return t({ message: "wrote", comment: "after a speaker in a topic: You wrote" })
+    case "said":
+      return t({ message: "said", comment: "after a speaker in a topic: You said (in a chat)" })
+    case "reported":
+      return t({ message: "reported", comment: "after a speaker in a topic: Schick 2023 reported" })
+    case "rewrote":
+      return t({ message: "rewrote", comment: "after a speaker in a topic: You rewrote (the line)" })
+    case "found":
+      return t({ message: "found", comment: "after a paper in a topic: Schick 2023 found" })
+    case "says":
+      return t({ message: "says", comment: "after a paper in a topic: Schick 2023 says (in its abstract)" })
+    case "thinks":
+      return t({ message: "thinks", comment: "after a speaker in a topic: Owlit thinks" })
+  }
 }
 
 // The verb the line reads with, when the file doesn't name one
@@ -51,6 +84,117 @@ export function wasBefore(lineId: string, side: TopicSidecar, since: number, now
 export function shownChange(h: Change, after: string | undefined): { what: string; was?: string } {
   if (!h.before || after === undefined || !h.lineId || !sameWords(h.before, after)) return { what: h.what, was: h.before }
   return { what: h.what === "Rewritten" ? "Source changed" : h.what }
+}
+
+// ---- A change in the interface language ----
+
+// The history keeps its words in English, as core and the app write them ("Added", "You rewrote it",
+// "Renamed from “Drafts”"), and the code matches on them; they are said in the interface language only
+// where they are shown. `after` is the form that follows a line's opening words in the change log
+// ("“Retrieval and tool use may…” rewritten"). A change this doesn't know is shown as written.
+export function changeWords(what: string, after = false): string {
+  switch (what) {
+    case "Added":
+      return after ? t({ message: "added", comment: "after a line's opening words in a topic's change log" }) : t`Added`
+    case "Rewritten":
+      return after ? t({ message: "rewritten", comment: "after a line's opening words in a topic's change log" }) : t`Rewritten`
+    case "Removed":
+      return after ? t({ message: "removed", comment: "after a line's opening words in a topic's change log" }) : t`Removed`
+    case "Speaker changed":
+      return after ? t({ message: "speaker changed", comment: "after a line's opening words in a topic's change log" }) : t`Speaker changed`
+    case "Source changed":
+      return after ? t({ message: "source changed", comment: "after a line's opening words in a topic's change log" }) : t`Source changed`
+    case "Question added":
+      return after ? t({ message: "question added", comment: "after a question's opening words in a topic's change log" }) : t`Question added`
+    case "Question updated":
+      return after ? t({ message: "question updated", comment: "after a question's opening words in a topic's change log" }) : t`Question updated`
+    case "Question removed":
+      return after ? t({ message: "question removed", comment: "after a question's opening words in a topic's change log" }) : t`Question removed`
+    case "You rewrote it":
+      return after ? t({ message: "you rewrote it", comment: "after a line's opening words in a topic's change log" }) : t`You rewrote it`
+    case "You removed it":
+      return after ? t({ message: "you removed it", comment: "after a line's opening words in a topic's change log" }) : t`You removed it`
+    case "You added a condition":
+      return after ? t({ message: "you added a condition", comment: "after a line's opening words in a topic's change log" }) : t`You added a condition`
+    case "Anchored to its passage":
+      return after ? t({ message: "anchored to its passage", comment: "after a line's opening words in a topic's change log" }) : t`Anchored to its passage`
+    case "Started":
+    case "Topic started":
+      return t({ message: "Started", comment: "a topic's first change: it started" })
+    case "Summary rewritten":
+      return t`Summary rewritten`
+  }
+  const named = /^(Renamed from|Merged in|Split from) “(.*)”$/.exec(what)
+  if (named) {
+    const name = named[2]
+    if (named[1] === "Renamed from") return t`Renamed from “${name}”`
+    if (named[1] === "Merged in") return t`Merged in “${name}”`
+    return t`Split from “${name}”`
+  }
+  const moved = /^(\d+) lines? moved to “(.*)”$/.exec(what)
+  if (moved) {
+    const name = moved[2]
+    return plural(Number(moved[1]), { one: `# line moved to “${name}”`, other: `# lines moved to “${name}”` })
+  }
+  return after ? what.charAt(0).toLowerCase() + what.slice(1) : what
+}
+
+// Why a change was made. Owlit's reasons are its own words and stay as written; the few the app writes for
+// the user's own changes are said in the interface language.
+export function whyWords(h: Pick<Change, "why">): string {
+  switch (h.why) {
+    case "edited on the topic page":
+      return t`edited on the topic page`
+    case "it won’t come back on an update":
+      return t`it won’t come back on an update`
+    case "you renamed it":
+      return t`you renamed it`
+    case "you merged the two topics":
+      return t`you merged the two topics`
+    case "you split the topic":
+      return t`you split the topic`
+    case "what you said in chat":
+      return t`what you said in chat`
+  }
+  const highlighted = /^you highlighted it in (.+)$/.exec(h.why)
+  if (highlighted) {
+    const paper = highlighted[1]
+    return t`you highlighted it in ${paper}`
+  }
+  return h.why
+}
+
+// Owlit's changes to a topic counted, as a run and Home's "Since you left" say them: "2 lines added, 1
+// rewritten", "1 question added". The first count names what it counts; the rest follow it.
+export function changeCounts(counts: [what: string, n: number][]) {
+  const parts = counts.map(([what, n], i) => {
+    const first = i === 0
+    switch (what) {
+      case "Added":
+        return first ? plural(n, { one: "# line added", other: "# lines added" }) : plural(n, { one: "# added", other: "# added" })
+      case "Rewritten":
+        return first ? plural(n, { one: "# line rewritten", other: "# lines rewritten" }) : plural(n, { one: "# rewritten", other: "# rewritten" })
+      case "Removed":
+        return first ? plural(n, { one: "# line removed", other: "# lines removed" }) : plural(n, { one: "# removed", other: "# removed" })
+      case "Source changed":
+        return first ? plural(n, { one: "# line’s source changed", other: "# lines’ sources changed" }) : plural(n, { one: "# source changed", other: "# sources changed" })
+      case "Speaker changed":
+        return first ? plural(n, { one: "# line’s speaker changed", other: "# lines’ speakers changed" }) : plural(n, { one: "# speaker changed", other: "# speakers changed" })
+      case "Anchored to its passage":
+        return first ? plural(n, { one: "# line anchored to its passage", other: "# lines anchored to their passages" }) : plural(n, { one: "# anchored", other: "# anchored" })
+      // A question's change counts questions, not lines
+      case "Question added":
+        return plural(n, { one: "# question added", other: "# questions added" })
+      case "Question updated":
+        return plural(n, { one: "# question updated", other: "# questions updated" })
+      case "Question removed":
+        return plural(n, { one: "# question removed", other: "# questions removed" })
+    }
+    // A change this doesn't know, as written
+    return `${n} ${changeWords(what, true)}`
+  })
+  // "a, b, c" the interface language's way
+  return new Intl.ListFormat(intlLocale(), { type: "conjunction", style: "narrow" }).format(parts)
 }
 
 // Each change's line as it read right after the change, by change id: the words the next change to that

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { CheckIcon, ChevronDownIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -30,13 +31,14 @@ export function ChoiceMenu<T extends string>({
 }) {
   // A value the options don't hold (a model gone from its agent) shows as the first
   const current = value === undefined ? undefined : (options.find((o) => o.value === value) ?? options[0])
+  const choice = current?.label
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          aria-label={current ? `${label}: ${current.label}` : label}
+          aria-label={choice ? t({ message: `${label}: ${choice}`, comment: "a menu's name, then what is chosen in it" }) : label}
           className={cn("font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground", className)}
         >
           {trigger ?? current?.label ?? label}

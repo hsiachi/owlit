@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { PageHeader, PageTitle } from "@/components/page"
 import { RefToken } from "../components/bits"
 import { useKnowledgeStore } from "../store"
@@ -7,11 +8,13 @@ export function LoosePage() {
   const loose = useKnowledgeStore((s) => s.loose)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader trail={[{ label: "Knowledge", to: "/knowledge" }]} current="Not in a topic yet" />
+      <PageHeader trail={[{ label: t`Knowledge`, to: "/knowledge" }]} current={t`Not in a topic yet`} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-4 pt-8 pb-32">
-          <PageTitle>Not in a topic yet</PageTitle>
-          <p className="mt-2 text-detail text-muted-foreground">Passages from your docs and chats that no topic holds. Owlit files them when a topic needs them; nothing here needs doing.</p>
+          <PageTitle>{t`Not in a topic yet`}</PageTitle>
+          <p className="mt-2 text-detail text-muted-foreground">
+            {t`Passages from your docs and chats that no topic holds. Owlit files them when a topic needs them; nothing here needs doing.`}
+          </p>
           <div className="mt-8 flex flex-col gap-4">
             {loose.map((l, i) => (
               <div key={i}>

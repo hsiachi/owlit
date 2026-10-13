@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react"
+import { t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import type { Connector } from "@owlit/protocol"
 import { CopyIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -47,7 +49,7 @@ export function AgentCheck() {
   const first = connectors.find((c) => c.builtIn && c.installHint)
 
   const copy = (text: string) => {
-    void copyText(text).then((ok) => ok && toast("Copied", { description: text }))
+    void copyText(text).then((ok) => ok && toast(t`Copied`, { description: text }))
   }
   const recheck = () => {
     for (const c of useChatStore.getState().connectors) if (!isChecking(c)) void check(c.id)
@@ -55,79 +57,87 @@ export function AgentCheck() {
 
   let body: React.ReactNode
   if (ready) {
+    const name = ready.name
     body = (
       <Line icon={<KindIcon kind="agent" />}>
         <span className="flex-1">
-          Owlit will use <span className="font-medium text-foreground">{ready.name}</span>
+          <Trans>
+            Owlit will use <span className="font-medium text-foreground">{name}</span>
+          </Trans>
           {ready.version && ready.version !== "unknown" && ` · ${ready.version}`}
         </span>
         <Button variant="text" size="inline" className="-my-1 -mr-1.5" onClick={() => openSettings("agents")}>
-          Change…
+          {t`Change…`}
         </Button>
       </Line>
     )
   } else if (checking) {
     body = (
       <Line icon={<LoaderCircleIcon className="animate-spin" />}>
-        <span>Looking for an agent on this Mac…</span>
+        <span>{t`Looking for an agent on this Mac…`}</span>
       </Line>
     )
   } else if (signedOut) {
     const command = signedOut.signIn ?? signedOut.command
+    const problem = problemSentence(signedOut)
     body = (
       <Line>
         <div className="min-w-0 flex-1">
-          <span className="text-foreground">{problemSentence(signedOut)}.</span> Run <code className="font-mono text-xs text-foreground">{command}</code> in Terminal to sign in.
+          <Trans>
+            <span className="text-foreground">{problem}.</span> Run <code className="font-mono text-xs text-foreground">{command}</code> in Terminal to sign in.
+          </Trans>
           <div className="mt-1 -ml-1.5 flex gap-0.5">
             <Button variant="text" size="inline" onClick={() => copy(command)}>
               <CopyIcon />
-              Copy
+              {t({ message: "Copy", comment: "verb: copy the sign-in command" })}
             </Button>
             <Button variant="text" size="inline" onClick={recheck}>
-              Check again
+              {t`Check again`}
             </Button>
           </div>
         </div>
       </Line>
     )
   } else if (broken) {
+    const problem = problemSentence(broken) ?? ""
     body = (
       <Line>
         <div className="min-w-0 flex-1">
-          <span className="text-foreground">{problemSentence(broken)}.</span>
+          <span className="text-foreground">{t`${problem}.`}</span>
           {broken.error && <div className="mt-0.5 text-xs break-words">{broken.error}</div>}
           <div className="mt-1 -ml-1.5 flex gap-0.5">
             <Button variant="text" size="inline" onClick={recheck}>
-              Check again
+              {t`Check again`}
             </Button>
             <Button variant="text" size="inline" onClick={() => openSettings("agents")}>
-              Use another agent…
+              {t`Use another agent…`}
             </Button>
           </div>
         </div>
       </Line>
     )
   } else {
+    const name = first?.name ?? ""
     body = (
       <Line>
         <div className="min-w-0 flex-1">
-          <span className="text-foreground">Owlit needs a coding agent on this Mac.</span>
+          <span className="text-foreground">{t`Owlit needs a coding agent on this Mac.`}</span>
           {first?.installHint && (
             <>
               {" "}
-              To use {first.name}, run this in Terminal:
+              {t`To use ${name}, run this in Terminal:`}
               <div className="mt-1 flex items-start gap-1">
                 <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{first.installHint}</code>
-                <CopyButton text={first.installHint} label="Copy the install command" className="mt-0.5" />
+                <CopyButton text={first.installHint} label={t`Copy the install command`} className="mt-0.5" />
               </div>
             </>
           )}
           <div className="mt-1 -ml-1.5 flex gap-0.5">
             <Button variant="text" size="inline" onClick={recheck}>
-              Check again
+              {t`Check again`}
             </Button>
             <Button variant="text" size="inline" onClick={() => openSettings("agents")}>
-              Use another agent…
+              {t`Use another agent…`}
             </Button>
           </div>
         </div>

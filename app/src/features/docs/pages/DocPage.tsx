@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { useParams } from "react-router-dom"
 import { EllipsisVerticalIcon } from "lucide-react"
@@ -13,7 +14,6 @@ import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
-import { plural } from "@/lib/words"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
 export function DocPage() {
@@ -35,7 +35,9 @@ export function DocPage() {
 
   if (!file && !loaded) return null
   if (!file || !isMarkdown(file.path))
-    return <NotFound title="This doc is not in the workspace" detail="It may have been moved or deleted." back={{ label: "Back to docs", to: "/docs" }} />
+    return (
+      <NotFound title={t`This doc is not in the workspace`} detail={t`It may have been moved or deleted.`} back={{ label: t`Back to docs`, to: "/docs" }} />
+    )
 
   // A folder shows itself in the list, selected, so a new doc lands there
   const trail = folder
@@ -59,7 +61,7 @@ export function DocPage() {
         <NoteCount docId={file.id} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Doc actions" className="text-muted-foreground">
+            <Button variant="ghost" size="icon-sm" aria-label={t`Doc actions`} className="text-muted-foreground">
               <EllipsisVerticalIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -83,9 +85,9 @@ function DeletedOnDisk({ docId }: { docId: string }) {
   if (!missing) return null
   return (
     <>
-      <span className="shrink-0 px-1 text-muted-foreground">Deleted on disk</span>
+      <span className="shrink-0 px-1 text-muted-foreground">{t`Deleted on disk`}</span>
       <Button variant="ghost" size="sm" onClick={() => saveAgain(docId)} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-        Save again
+        {t`Save again`}
       </Button>
     </>
   )
@@ -107,7 +109,7 @@ function NoteCount({ docId }: { docId: string }) {
 
   return (
     <Button variant="ghost" size="sm" onClick={next} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-      {plural(notes.length, "note")}
+      {plural(notes.length, { one: "# note", other: "# notes" })}
     </Button>
   )
 }

@@ -1,12 +1,17 @@
+import { plural, t, type ChoiceOptions } from "@lingui/core/macro"
 import { baseName } from "@owlit/protocol"
 import type { MessagePart, ToolCall } from "../types"
-import { owlitStepTitle, owlitToolOf, toolTitle } from "./tool-title"
-import { capital, joinAnd, plural } from "@/lib/words"
+import { owlitStepWords, owlitToolOf, quote, toolTitle } from "./tool-title"
+import { capital, joinActions } from "@/lib/words"
 
 // How a step of an answer is put in words: what it is doing while it runs, what it did once done, and what
 // kind of work it is, so a block of steps can say in one sentence what happened ("Read 3 files and
 // searched the web twice"). Steps are named by the agent's own tool and inputs when it says them (Claude
 // Code does); otherwise by the title it gave, read as plainly as it allows.
+//
+// Every sentence owlit puts together is a whole message per form (running, done, n times), so each
+// language says it its own way; only what an agent wrote itself (a command's description, a tool's title)
+// stays in the agent's words, and gets an English past tense only when it is English.
 
 export type { ToolCall }
 export { owlitToolOf }
@@ -18,11 +23,13 @@ export interface StepWords {
   done: string
   // What kind of work, for the block's sentence and for folding neighbours together
   group: string
+  // The file a read, edit or write named, so steps on one file are said once ("Read and edited story.md")
+  file?: string
   // Housekeeping of the agent's that says nothing to the user (loading its tools, its to-do list)
   hidden?: boolean
 }
 
-// ---- Verbs ----
+// ---- Verbs, for what an agent wrote in English ----
 
 const PAST: Record<string, string> = {
   add: "added", analyse: "analysed", analyze: "analyzed", ask: "asked", browse: "browsed", build: "built", calculate: "calculated",
@@ -47,7 +54,8 @@ const ING: Record<string, string> = Object.fromEntries(
 
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
 
-// The sentence with its first verb in the past tense; unchanged when the first word isn't a verb owlit knows
+// An English sentence with its first verb in the past tense; unchanged when the first word isn't a verb
+// owlit knows (a sentence in another language among them)
 export function pastTense(sentence: string) {
   const m = /^(\S+)(.*)$/s.exec(sentence.trim())
   if (!m) return sentence
@@ -91,8 +99,6 @@ export const hostOf = (url: string) => {
   }
 }
 
-const quote = (s: string) => `“${s.length > 80 ? `${s.slice(0, 80)}…` : s}”`
-
 // The title a fetched page gave, when the agent's summary of it says ("**Title:** …", or a first heading)
 export function pageTitle(content?: string) {
   if (!content) return undefined
@@ -108,7 +114,8 @@ function mcpWords(name: string): StepWords | undefined {
   const m = /^mcp(?:__|\.)([^_.]+(?:_[^_.]+)*?)(?:__|\.)(\w+)$/.exec(name)
   if (!m) return undefined
   const server = m[1].replace(/^claude_ai_/, "").replace(/_/g, " ")
-  return { now: `Use ${server}: ${lower(words(m[2]))}`, done: `Used ${server}: ${lower(words(m[2]))}`, group: `mcp:${server}` }
+  const action = lower(words(m[2]))
+  return { now: t`Use ${server}: ${action}`, done: t`Used ${server}: ${action}`, group: `mcp:${server}` }
 }
 
 // SubagentHandback is how an agent the step handed work to gives its report back; the report reaches the
@@ -116,6 +123,31 @@ function mcpWords(name: string): StepWords | undefined {
 const HIDDEN = new Set(["ToolSearch", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "TaskOutput", "SubagentHandback"])
 
 // ---- One step ----
+
+// A step on a file, named or not
+function fileStep(kind: "read" | "edit" | "write", path: string | undefined): StepWords {
+  const file = path === undefined ? undefined : fileName(path)
+  if (kind === "read") return file ? { now: t`Read ${file}`, done: t`Read ${file}`, group: "read", file } : { now: t`Read a file`, done: t`Read a file`, group: "read" }
+  if (kind === "edit") return file ? { now: t`Edit ${file}`, done: t`Edited ${file}`, group: "edit", file } : { now: t`Edit a file`, done: t`Edited a file`, group: "edit" }
+  return file ? { now: t`Write ${file}`, done: t`Wrote ${file}`, group: "write", file } : { now: t`Write a file`, done: t`Wrote a file`, group: "write" }
+}
+
+const runCommand = (): StepWords => ({ now: t`Run a command`, done: t`Ran a command`, group: "command" })
+
+// What an agent wrote to say what it does ("Run the tests"): its own words, past tense once done
+const described = (description: string, group: string): StepWords => ({ now: capital(description), done: capital(pastTense(description)), group })
+
+function webSearch(query: string | undefined): StepWords {
+  if (!query) return { now: t`Search the web`, done: t`Searched the web`, group: "web" }
+  const quoted = quote(query)
+  return { now: t`Search the web for ${quoted}`, done: t`Searched the web for ${quoted}`, group: "web" }
+}
+
+function fetchPage(where: string | undefined, content: string | undefined): StepWords {
+  const page = where ?? t`a page`
+  const title = pageTitle(content)
+  return { now: t`Open ${page}`, done: title ? t`Opened “${title}”` : t`Opened ${page}`, group: "fetch" }
+}
 
 // `questions`: how many questions the step asked the user, when it asked some
 export function stepWords(call: ToolCall, questions = 1): StepWords {
@@ -126,53 +158,45 @@ export function stepWords(call: ToolCall, questions = 1): StepWords {
   if (name && HIDDEN.has(name)) return { now: name, done: name, group: "hidden", hidden: true }
 
   const owlit = owlitToolOf(name ?? call.title)
-  if (owlit) {
-    const now = owlitStepTitle(owlit, tool)
-    return { now, done: pastTense(now), group: `owlit:${owlit}` }
-  }
+  if (owlit) return { ...owlitStepWords(owlit, tool), group: `owlit:${owlit}` }
   const mcp = name ? mcpWords(name) : undefined
   if (mcp) return mcp
 
   switch (name) {
     case "Bash":
-    case "BashOutput": {
-      const d = tool?.description
-      return d ? { now: capital(d), done: capital(pastTense(d)), group: "command" } : { now: "Run a command", done: "Ran a command", group: "command" }
-    }
+    case "BashOutput":
+      return tool?.description ? described(tool.description, "command") : runCommand()
     case "Read":
-      return { now: `Read ${fileName(path ?? "a file")}`, done: `Read ${fileName(path ?? "a file")}`, group: "read" }
+      return fileStep("read", path)
     case "Edit":
     case "MultiEdit":
     case "NotebookEdit":
-      return { now: `Edit ${fileName(path ?? "a file")}`, done: `Edited ${fileName(path ?? "a file")}`, group: "edit" }
+      return fileStep("edit", path)
     case "Write":
-      return { now: `Write ${fileName(path ?? "a file")}`, done: `Wrote ${fileName(path ?? "a file")}`, group: "write" }
-    case "Glob":
-      return tool?.pattern
-        ? { now: `Look for files matching ${quote(tool.pattern)}`, done: `Looked for files matching ${quote(tool.pattern)}`, group: "find" }
-        : { now: "Look for files", done: "Looked for files", group: "find" }
-    case "Grep":
-      return tool?.pattern
-        ? { now: `Search files for ${quote(tool.pattern)}`, done: `Searched files for ${quote(tool.pattern)}`, group: "grep" }
-        : { now: "Search files", done: "Searched files", group: "grep" }
+      return fileStep("write", path)
+    case "Glob": {
+      if (!tool?.pattern) return { now: t`Look for files`, done: t`Looked for files`, group: "find" }
+      const pattern = quote(tool.pattern)
+      return { now: t`Look for files matching ${pattern}`, done: t`Looked for files matching ${pattern}`, group: "find" }
+    }
+    case "Grep": {
+      if (!tool?.pattern) return { now: t`Search files`, done: t`Searched files`, group: "grep" }
+      const pattern = quote(tool.pattern)
+      return { now: t`Search files for ${pattern}`, done: t`Searched files for ${pattern}`, group: "grep" }
+    }
     case "WebSearch":
-      return tool?.query
-        ? { now: `Search the web for ${quote(tool.query)}`, done: `Searched the web for ${quote(tool.query)}`, group: "web" }
-        : { now: "Search the web", done: "Searched the web", group: "web" }
-    case "WebFetch": {
-      const where = tool?.url ? shortUrl(tool.url) : "a page"
-      const title = pageTitle(call.content)
-      return { now: `Open ${where}`, done: title ? `Opened “${title}”` : `Opened ${where}`, group: "fetch" }
-    }
+      return webSearch(tool?.query)
+    case "WebFetch":
+      return fetchPage(tool?.url ? shortUrl(tool.url) : undefined, call.content)
     case "Agent":
-    case "Task": {
-      const d = tool?.description
-      return d ? { now: capital(d), done: capital(pastTense(d)), group: "agent" } : { now: "Hand a task to an agent", done: "Handed a task to an agent", group: "agent" }
-    }
+    case "Task":
+      return tool?.description ? described(tool.description, "agent") : { now: t`Hand a task to an agent`, done: t`Handed a task to an agent`, group: "agent" }
     case "AskUserQuestion":
-      return questions > 1
-        ? { now: `Ask you ${questions} questions`, done: `Asked you ${questions} questions`, group: "question" }
-        : { now: "Ask you a question", done: "Asked you a question", group: "question" }
+      return {
+        now: plural(questions, { one: "Ask you a question", other: "Ask you # questions" }),
+        done: plural(questions, { one: "Asked you a question", other: "Asked you # questions" }),
+        group: "question",
+      }
   }
   return fromTitle(call)
 }
@@ -181,15 +205,12 @@ export function stepWords(call: ToolCall, questions = 1): StepWords {
 function fromTitle(call: ToolCall): StepWords {
   const title = call.title.trim()
   let m: RegExpExecArray | null
-  if (call.kind === "execute") return { now: "Run a command", done: "Ran a command", group: "command" }
-  if ((m = /^Read (.+)$/.exec(title)) && call.kind === "read") return { now: `Read ${fileName(m[1].replace(/ \(.*\)$/, ""))}`, done: `Read ${fileName(m[1].replace(/ \(.*\)$/, ""))}`, group: "read" }
-  if ((m = /^Edit (.+)$/.exec(title))) return { now: `Edit ${fileName(m[1])}`, done: `Edited ${fileName(m[1])}`, group: "edit" }
-  if ((m = /^Write (.+)$/.exec(title))) return { now: `Write ${fileName(m[1])}`, done: `Wrote ${fileName(m[1])}`, group: "write" }
-  if ((m = /^Fetch (\S+)/.exec(title))) {
-    const page = pageTitle(call.content)
-    return { now: `Open ${shortUrl(m[1])}`, done: page ? `Opened “${page}”` : `Opened ${shortUrl(m[1])}`, group: "fetch" }
-  }
-  if ((m = /^Search "(.*)"$/s.exec(title))) return { now: `Search the web for ${quote(m[1])}`, done: `Searched the web for ${quote(m[1])}`, group: "web" }
+  if (call.kind === "execute") return runCommand()
+  if ((m = /^Read (.+)$/.exec(title)) && call.kind === "read") return fileStep("read", m[1].replace(/ \(.*\)$/, ""))
+  if ((m = /^Edit (.+)$/.exec(title))) return fileStep("edit", m[1])
+  if ((m = /^Write (.+)$/.exec(title))) return fileStep("write", m[1])
+  if ((m = /^Fetch (\S+)/.exec(title))) return fetchPage(shortUrl(m[1]), call.content)
+  if ((m = /^Search "(.*)"$/s.exec(title))) return webSearch(m[1])
   const mcp = mcpWords(title)
   if (mcp) return mcp
   if (title === "ToolSearch") return { now: title, done: title, group: "hidden", hidden: true }
@@ -202,55 +223,119 @@ export const stepGroup = (call: ToolCall) => stepWords(call).group
 
 // ---- A block of steps ----
 
-// [one, several]; "#" stands for the count
-const GROUPS: Record<string, [string, string]> = {
-  command: ["ran a command", "ran # commands"],
-  read: ["read a file", "read # files"],
-  edit: ["edited a file", "edited # files"],
-  write: ["wrote a file", "wrote # files"],
-  find: ["looked for files", "looked for files # times"],
-  grep: ["searched files", "searched files # times"],
-  web: ["searched the web", "searched the web # times"],
-  fetch: ["opened a page", "opened # pages"],
-  agent: ["handed a task to a helper", "handed # tasks to helpers"],
-  question: ["asked you a question", "asked you # questions"],
-  other: ["used a tool", "used # tools"],
-  "owlit:library_list": ["listed your Library", "listed your Library # times"],
-  "owlit:library_get": ["looked up a paper", "looked up # papers"],
-  "owlit:library_read": ["read a paper", "read # papers"],
-  "owlit:library_highlights": ["read your highlights", "read your highlights # times"],
-  "owlit:library_search": ["searched for papers", "searched for papers # times"],
-  "owlit:library_related": ["followed a paper's citations", "followed a paper's citations # times"],
-  "owlit:library_journal": ["listed a journal's papers", "listed a journal's papers # times"],
-  "owlit:library_add": ["added papers to your Library", "added papers # times"],
-  "owlit:library_remove": ["removed papers from your Library", "removed papers # times"],
-  "owlit:library_request_digest": ["asked for a reading note", "asked for # reading notes"],
-  "owlit:docs_list": ["listed your docs", "listed your docs # times"],
-  "owlit:docs_read": ["read a doc", "read # docs"],
-  "owlit:docs_add_note": ["left a note on a doc", "left # notes on docs"],
-  "owlit:docs_move": ["moved a doc", "moved # docs"],
-  "owlit:chats_read": ["read a chat", "read # chats"],
-  "owlit:ui_jump": ["showed a passage", "showed # passages"],
-  "owlit:ui_mark": ["highlighted a passage", "highlighted # passages"],
-}
-const LIVE: Record<string, string> = {
-  command: "Running commands",
-  read: "Reading files",
-  edit: "Editing",
-  write: "Writing",
-  find: "Looking for files",
-  grep: "Searching files",
-  web: "Searching the web",
-  fetch: "Opening pages",
-  agent: "Working with a helper",
-  "owlit:library_search": "Searching for papers",
-  "owlit:library_related": "Following citations",
-  "owlit:library_journal": "Listing a journal's papers",
-  "owlit:library_read": "Reading papers",
-  "owlit:docs_read": "Reading docs",
+// An exact form for two ("twice") is ICU's "=2". Lingui's types only take "2", which its native macro
+// transform passes on unchanged and ICU then can't read, so the options are cast instead.
+type Twice = ChoiceOptions
+
+// What n steps of a kind did, in a lower-case phrase for the middle of a sentence ("read 3 files",
+// "searched the web twice"); undefined for a kind owlit has no phrase for
+function kindPhrase(group: string, n: number): string | undefined {
+  switch (group) {
+    case "command":
+      return plural(n, { one: "ran a command", other: "ran # commands" })
+    case "read":
+      return plural(n, { one: "read a file", other: "read # files" })
+    case "edit":
+      return plural(n, { one: "edited a file", other: "edited # files" })
+    case "write":
+      return plural(n, { one: "wrote a file", other: "wrote # files" })
+    case "find":
+      return plural(n, { one: "looked for files", "=2": "looked for files twice", other: "looked for files # times" } as Twice)
+    case "grep":
+      return plural(n, { one: "searched files", "=2": "searched files twice", other: "searched files # times" } as Twice)
+    case "web":
+      return plural(n, { one: "searched the web", "=2": "searched the web twice", other: "searched the web # times" } as Twice)
+    case "fetch":
+      return plural(n, { one: "opened a page", other: "opened # pages" })
+    case "agent":
+      return plural(n, { one: "handed a task to a helper", other: "handed # tasks to helpers" })
+    case "question":
+      return plural(n, { one: "asked you a question", other: "asked you # questions" })
+    case "other":
+      return plural(n, { one: "used a tool", other: "used # tools" })
+    case "owlit:library_list":
+      return plural(n, { one: "listed your Library", "=2": "listed your Library twice", other: "listed your Library # times" } as Twice)
+    case "owlit:library_get":
+      return plural(n, { one: "looked up a paper", other: "looked up # papers" })
+    case "owlit:library_read":
+      return plural(n, { one: "read a paper", other: "read # papers" })
+    case "owlit:library_highlights":
+      return plural(n, { one: "read your highlights", "=2": "read your highlights twice", other: "read your highlights # times" } as Twice)
+    case "owlit:library_search":
+      return plural(n, { one: "searched for papers", "=2": "searched for papers twice", other: "searched for papers # times" } as Twice)
+    case "owlit:library_related":
+      return plural(n, { one: "followed a paper's citations", "=2": "followed a paper's citations twice", other: "followed a paper's citations # times" } as Twice)
+    case "owlit:library_journal":
+      return plural(n, { one: "listed a journal's papers", "=2": "listed a journal's papers twice", other: "listed a journal's papers # times" } as Twice)
+    case "owlit:library_add":
+      return plural(n, { one: "added papers to your Library", "=2": "added papers twice", other: "added papers # times" } as Twice)
+    case "owlit:library_remove":
+      return plural(n, { one: "removed papers from your Library", "=2": "removed papers twice", other: "removed papers # times" } as Twice)
+    case "owlit:library_request_digest":
+      return plural(n, { one: "asked for a reading note", other: "asked for # reading notes" })
+    case "owlit:docs_list":
+      return plural(n, { one: "listed your docs", "=2": "listed your docs twice", other: "listed your docs # times" } as Twice)
+    case "owlit:docs_read":
+      return plural(n, { one: "read a doc", other: "read # docs" })
+    case "owlit:docs_add_note":
+      return plural(n, { one: "left a note on a doc", other: "left # notes on docs" })
+    case "owlit:docs_move":
+      return plural(n, { one: "moved a doc", other: "moved # docs" })
+    case "owlit:chats_read":
+      return plural(n, { one: "read a chat", other: "read # chats" })
+    case "owlit:ui_jump":
+      return plural(n, { one: "showed a passage", other: "showed # passages" })
+    case "owlit:ui_mark":
+      return plural(n, { one: "highlighted a passage", other: "highlighted # passages" })
+  }
+  if (group.startsWith("mcp:")) {
+    const server = group.slice(4)
+    return plural(n, { one: `used ${server}`, "=2": `used ${server} twice`, other: `used ${server} # times` } as Twice)
+  }
+  return undefined
 }
 
-const count = (n: number) => (n === 2 ? "twice" : `${n} times`)
+// What a running block is doing, by the kind of its latest step
+function liveWords(group: string): string | undefined {
+  switch (group) {
+    case "command":
+      return t`Running commands`
+    case "read":
+      return t`Reading files`
+    case "edit":
+      return t`Editing`
+    case "write":
+      return t`Writing`
+    case "find":
+      return t`Looking for files`
+    case "grep":
+      return t`Searching files`
+    case "web":
+      return t`Searching the web`
+    case "fetch":
+      return t`Opening pages`
+    case "agent":
+      return t`Working with a helper`
+    case "owlit:library_search":
+      return t`Searching for papers`
+    case "owlit:library_related":
+      return t`Following citations`
+    case "owlit:library_journal":
+      return t`Listing a journal's papers`
+    case "owlit:library_read":
+      return t`Reading papers`
+    case "owlit:docs_read":
+      return t`Reading docs`
+  }
+  return undefined
+}
+
+// What a step on a file did, without the file, for "Read and edited story.md"
+function fileVerb(group: string) {
+  if (group === "read") return t({ message: "read", context: "done to a file, before its name: read and edited story.md" })
+  if (group === "edit") return t({ message: "edited", context: "done to a file, before its name: read and edited story.md" })
+  return t({ message: "wrote", context: "done to a file, before its name: read and wrote story.md" })
+}
 
 // Groups whose phrase counts files ("edited 3 files"), so a file worked on twice is counted once
 const FILE_GROUPS = new Set(["read", "edit", "write"])
@@ -258,10 +343,7 @@ const FILE_GROUPS = new Set(["read", "edit", "write"])
 // What a group of n steps did, in a lower-case phrase ("read 3 files"); `one` is the step itself when alone
 export function groupPhrase(group: string, n: number, one?: string) {
   if (n === 1 && one) return lower(one)
-  const forms = GROUPS[group]
-  if (forms) return n === 1 ? forms[0] : forms[1].replace("# times", count(n)).replace("#", String(n))
-  if (group.startsWith("mcp:")) return n === 1 ? `used ${group.slice(4)}` : `used ${group.slice(4)} ${count(n)}`
-  return n === 1 ? "used a tool" : `used ${n} tools`
+  return kindPhrase(group, n) ?? plural(n, { one: "used a tool", other: "used # tools" })
 }
 
 // A step with its words, worked out once for a block
@@ -274,7 +356,7 @@ export interface WordedStep {
 // came ("Listed your Library, searched the web twice and opened 3 pages"), or "Took 12 steps"
 export function blockSentence(steps: WordedStep[]) {
   const shown = steps.map(({ call, words }) => ({ c: call, w: words })).filter((x) => !x.w.hidden)
-  if (shown.length === 0) return "Thought"
+  if (shown.length === 0) return t({ message: "Thought", comment: "a block of an answer's steps in which the agent only thought" })
   // A step that didn't run to the end is said as it was asked ("Edit notes.md"); its row says what happened
   const said = (x: (typeof shown)[number]) => (x.c.status === "completed" ? x.w.done : x.w.now)
   if (shown.length === 1) return said(shown[0])
@@ -284,29 +366,36 @@ export function blockSentence(steps: WordedStep[]) {
   if (counted.length === 1) return said(counted[0])
   // Steps on files count the files, not the steps: two edits of draft.md are "Read and edited draft.md",
   // not "Read draft.md and edited 2 files". A step that names no file ("a file") counts as its own.
-  const groups = new Map<string, { n: number; one: string; seen: Set<string> }>()
+  const groups = new Map<string, { n: number; one: string; file?: string; seen: Set<string> }>()
   for (const { w } of counted) {
     const g = groups.get(w.group)
-    if (!g) groups.set(w.group, { n: 1, one: w.done, seen: new Set([w.done]) })
-    else if (!FILE_GROUPS.has(w.group) || !g.seen.has(w.done) || w.done.endsWith(" a file")) {
+    if (!g) groups.set(w.group, { n: 1, one: w.done, file: w.file, seen: new Set([w.done]) })
+    else if (!FILE_GROUPS.has(w.group) || !g.seen.has(w.done) || !w.file) {
       g.n++
       g.seen.add(w.done)
     }
   }
-  if (groups.size > 3) return `Took ${shown.length} steps`
+  if (groups.size > 3) {
+    const count = shown.length
+    return t`Took ${count} steps`
+  }
   // Single steps on one file name it once ("Read and edited story.md")
-  const singles = [...groups.values()].map(({ n, one }) => (n === 1 ? /^(\S+) (.+)$/.exec(one) : null))
-  const object = singles[0]?.[2]
-  if (object && object !== "a file" && singles.every((m) => m?.[2] === object)) return `${capital(joinAnd(singles.map((m) => lower(m![1]))))} ${object}`
-  return capital(joinAnd([...groups].map(([group, { n, one }]) => groupPhrase(group, n, one))))
+  const all = [...groups]
+  const file = all[0][1].file
+  if (file && all.every(([group, g]) => FILE_GROUPS.has(group) && g.n === 1 && g.file === file)) {
+    const verbs = joinActions(all.map(([group]) => fileVerb(group)))
+    return capital(t({ message: `${verbs} ${file}`, context: "file actions and the file: read and edited story.md" }))
+  }
+  return capital(joinActions(all.map(([group, { n, one }]) => groupPhrase(group, n, one))))
 }
 
 // What a running block is doing, by the kind of its latest step
 export function liveSentence(steps: WordedStep[]) {
   const shown = steps.map((s) => s.words).filter((w) => !w.hidden)
   const latest = shown.at(-1)
-  if (!latest) return "Working"
-  return LIVE[latest.group] ?? (latest.group.startsWith("owlit:") ? latest.now : "Working")
+  const working = () => t({ message: "Working", comment: "what an answer is doing while it runs" })
+  if (!latest) return working()
+  return liveWords(latest.group) ?? (latest.group.startsWith("owlit:") ? latest.now : working())
 }
 
 // Neighbouring steps of these kinds fold into one row ("Read 3 files"); a command, an edit or a question
@@ -315,28 +404,40 @@ export const foldable = (group: string) => ["read", "find", "grep", "web", "fetc
 
 // ---- What Owlit asks ----
 
+// What Owlit asks to do, as the end of "Owlit wants to …": "edit 研究故事.md", "run a command"
+function askAction(title: string, call?: ToolCall) {
+  if (call) {
+    const w = stepWords(call)
+    if (runsCommand(call)) return t({ message: "run a command", context: "Owlit wants to …" })
+    if (call.tool?.name === "Write" && !call.diff?.oldText) {
+      const path = pathOf(call)
+      if (!path) return t({ message: "create a file", context: "Owlit wants to …" })
+      const file = fileName(path)
+      return t({ message: `create ${file}`, context: "Owlit wants to …" })
+    }
+    if (!w.hidden) return lower(w.now)
+  }
+  return lower(toolTitle(title).replace(/(?:[\w.~-]*\/)+([\w.-]+)/g, "$1"))
+}
+
 // A permission or question as one sentence in Owlit's words, for the card above the composer, Home and
 // notifications: "Owlit wants to edit 研究故事.md", "Owlit wants to run a command"
 export function askSentence(title: string, call?: ToolCall) {
-  if (call) {
-    const w = stepWords(call)
-    if (runsCommand(call)) return "Owlit wants to run a command"
-    if (call.tool?.name === "Write" && !call.diff?.oldText) return `Owlit wants to create ${fileName(pathOf(call) ?? "a file")}`
-    if (!w.hidden) return `Owlit wants to ${lower(w.now)}`
-  }
-  const action = toolTitle(title).replace(/(?:[\w.~-]*\/)+([\w.-]+)/g, "$1")
-  return `Owlit wants to ${lower(action)}`
+  const action = askAction(title, call)
+  return t`Owlit wants to ${action}`
 }
 
 // What Owlit was still waiting on the user to allow when its reply broke; those steps never ran ("It was
 // asking to edit 研究故事.md when it stopped, so that wasn't done.")
 export function unansweredSentence(parts: MessagePart[]) {
   const calls = new Map(parts.flatMap((p) => (p.type === "tool_call" ? [[p.toolCallId, p] as const] : [])))
-  const asks = new Set(
-    parts.flatMap((p) => (p.type === "permission" && !p.outcome ? [askSentence(p.title, calls.get(p.toolCallId)).replace(/^Owlit wants to /, "")] : [])),
-  )
+  const asks = new Set(parts.flatMap((p) => (p.type === "permission" && !p.outcome ? [askAction(p.title, calls.get(p.toolCallId))] : [])))
   if (asks.size === 0) return undefined
-  return `It was asking to ${joinAnd([...asks])} when it stopped, so ${asks.size === 1 ? "that wasn't" : "those weren't"} done.`
+  const actions = joinActions([...asks])
+  return plural(asks.size, {
+    one: `It was asking to ${actions} when it stopped, so that wasn't done.`,
+    other: `It was asking to ${actions} when it stopped, so those weren't done.`,
+  })
 }
 
 // ---- An agent the answer handed work to ----
@@ -350,15 +451,19 @@ export function agentDone(calls: ToolCall[]) {
     const name = c.tool?.name ?? c.title
     return (owlitToolOf(name) ?? name) === tool
   }
+  // library_add's result says "Added …" once per paper; that is core's text to the agent, always English
   const papers = done.filter((c) => owlit(c, "library_add")).reduce((n, c) => n + (c.content?.match(/^Added /gm)?.length ?? 0), 0)
-  if (papers) return papers === 1 ? "Added a paper" : `Added ${papers} papers`
+  if (papers) return plural(papers, { one: "Added a paper", other: "Added # papers" })
   const notes = done.filter((c) => owlit(c, "library_request_digest")).length
-  if (notes) return notes === 1 ? "Asked for a reading note" : `Asked for ${notes} reading notes`
+  if (notes) return plural(notes, { one: "Asked for a reading note", other: "Asked for # reading notes" })
   const files = [...new Set(done.filter((c) => c.kind === "edit").map(pathOf).filter((p): p is string => !!p))]
-  if (files.length === 1) return `Edited ${fileName(files[0])}`
-  if (files.length > 1) return `Edited ${files.length} files`
+  if (files.length === 1) {
+    const file = fileName(files[0])
+    return t`Edited ${file}`
+  }
+  if (files.length > 1) return plural(files.length, { one: "Edited # file", other: "Edited # files" })
   const shown = calls.filter((c) => !stepWords(c).hidden).length
-  return shown ? plural(shown, "step") : undefined
+  return shown ? plural(shown, { one: "# step", other: "# steps" }) : undefined
 }
 
 // The step an agent is at now, in the steps' own words ("Searching your Library for “…”")
@@ -366,5 +471,5 @@ export function agentNow(calls: ToolCall[], thinking: boolean) {
   const running = calls
     .map((call) => ({ call, words: stepWords(call) }))
     .findLast((s) => !s.words.hidden && (s.call.status === "in_progress" || s.call.status === "pending"))
-  return running ? running.words.now : thinking ? "Thinking" : "Starting"
+  return running ? running.words.now : thinking ? t`Thinking` : t`Starting`
 }

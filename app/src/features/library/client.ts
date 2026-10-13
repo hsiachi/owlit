@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { Paper, ResolvedPaper } from "./types"
 
 // A looked-up paper, with the id of the one the library already has for it, if any
@@ -24,7 +25,7 @@ export interface LibraryClient {
 export class PublisherNeedsUser extends Error {
   readonly needs: "check" | "sign-in"
   constructor(needs: "check" | "sign-in") {
-    super(needs === "sign-in" ? "The publisher wants you to sign in." : "The publisher wants a quick check.")
+    super(needs === "sign-in" ? t`The publisher wants you to sign in.` : t`The publisher wants a quick check.`)
     this.name = "PublisherNeedsUser"
     this.needs = needs
   }

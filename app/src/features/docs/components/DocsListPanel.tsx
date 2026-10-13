@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { FolderPlusIcon } from "lucide-react"
@@ -46,7 +47,10 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
   const open = () => {
     if (node.markdown) navigate(`/docs/${node.file.id}`)
     else if (onDisk) openOnDisk(node.file.path)
-    else toast(`${node.name} opens in the system app`)
+    else {
+      const name = node.name
+      toast(t`${name} opens in the system app`)
+    }
   }
 
   return (
@@ -57,7 +61,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
       depth={depth}
       tree={p}
       lit={active}
-      menuLabel="Doc actions"
+      menuLabel={t`Doc actions`}
       menu={() => fileGroups(node.file)}
       // A drop on a doc lands in the doc's folder, which lights up to say so
       dropTo={parentPath(node.file.path)}
@@ -110,7 +114,7 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
           depth={depth}
           tree={p}
           lit={selected}
-          menuLabel="Folder actions"
+          menuLabel={t`Folder actions`}
           menu={() => folderGroups(node.path)}
           dropTo={node.path}
           expanded={open}
@@ -176,13 +180,13 @@ export function DocsListPanel() {
     <>
       <PanelHeader>
         <NewRow
-          label="New doc"
+          label={t`New doc`}
           onClick={() => newDoc()}
           extra={
-            <Tip label="New folder" side="right">
+            <Tip label={t`New folder`} side="right">
               <button
                 type="button"
-                aria-label="New folder"
+                aria-label={t`New folder`}
                 onClick={newFolder}
                 className="absolute right-1.5 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/new:opacity-100 hover:bg-foreground/8 hover:text-foreground focus-key:opacity-100"
               >
@@ -197,8 +201,8 @@ export function DocsListPanel() {
       <ActionsOnRightClick
         groups={[
           [
-            { label: "New doc", onSelect: () => newDoc("") },
-            { label: "New folder", onSelect: newFolder },
+            { label: t`New doc`, onSelect: () => newDoc("") },
+            { label: t`New folder`, onSelect: newFolder },
           ],
         ]}
       >
@@ -221,7 +225,7 @@ export function DocsListPanel() {
           onDragLeave={(e) => e.target === e.currentTarget && setDragOver(null)}
           onDrop={(e) => onDropInto("", e)}
         >
-          {tree.children.length === 0 && <PanelEmpty>No docs yet.</PanelEmpty>}
+          {tree.children.length === 0 && <PanelEmpty>{t`No docs yet.`}</PanelEmpty>}
           <TreeLevel nodes={tree.children} depth={0} {...props} />
         </SidebarContent>
       </ActionsOnRightClick>

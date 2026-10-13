@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
@@ -296,9 +297,9 @@ export class Core {
     this.router.register("chats.openFile", z.object({ path: z.string() }), async ({ path: rel }) => {
       const ws = this.requireWorkspace()
       const host = this.options.host
-      if (!host?.openPath) throw new RpcFailure(RpcErrorCode.InternalError, "owlit can't open files in other apps here.")
+      if (!host?.openPath) throw new RpcFailure(RpcErrorCode.InternalError, t`owlit can't open files in other apps here.`)
       const file = path.join(ws.root, ...chatFile(rel).split("/"))
-      if (!existsSync(file)) throw new RpcFailure(RpcErrorCode.NotFound, "owlit no longer has that file.", { path: rel })
+      if (!existsSync(file)) throw new RpcFailure(RpcErrorCode.NotFound, t`owlit no longer has that file.`, { path: rel })
       await host.openPath(file)
       return null
     })
@@ -799,7 +800,7 @@ export class Core {
   }
 
   private requireWorkspace() {
-    if (!this.workspace) throw new RpcFailure(RpcErrorCode.NoWorkspace, "Open a folder as the workspace first.")
+    if (!this.workspace) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     return this.workspace
   }
 

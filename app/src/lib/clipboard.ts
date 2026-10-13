@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 
 // Copy, saying so only when it fails; callers decide how to confirm success
@@ -6,7 +7,7 @@ export async function copyText(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text)
     return true
   } catch {
-    toast.error("Could not write to the clipboard")
+    toast.error(t`Could not write to the clipboard`)
     return false
   }
 }

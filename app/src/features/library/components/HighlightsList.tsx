@@ -1,10 +1,11 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/copy-button"
 import { GroupLabel } from "@/components/group-label"
 import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
-import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown } from "../lib/highlights"
+import { HIGHLIGHT_COLORS, HIGHLIGHT_MARK, highlightLabel, highlightsMarkdown } from "../lib/highlights"
 import { usePaperHighlights } from "../lib/use-highlights"
 import { deleteHighlight } from "../actions"
 import { copyText } from "@/lib/clipboard"
@@ -22,8 +23,11 @@ async function copy(text: string, done: string) {
 export function CopyAllHighlights({ paperId }: { paperId: string }) {
   const highlights = usePaperHighlights(paperId)
   if (highlights.length === 0) return null
-  return <CopyButton text={highlightsMarkdown(highlights)} label="Copy all as Markdown" size="icon-sm" className="-mr-1.5" />
+  return <CopyButton text={highlightsMarkdown(highlights)} label={t`Copy all as Markdown`} size="icon-sm" className="-mr-1.5" />
 }
+
+// A page's heading in the list, by its number from 1
+const pageLabel = (page: number) => t`Page ${page}`
 
 // A paper's highlights in reading order, grouped by page. A click jumps the reader to the passage;
 // a highlight clicked in the PDF scrolls into view here.
@@ -36,7 +40,7 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
   }, [highlights])
 
   if (highlights.length === 0) {
-    return <p className="text-detail text-muted-foreground">Select text in the PDF to highlight it.</p>
+    return <p className="text-detail text-muted-foreground">{t`Select text in the PDF to highlight it.`}</p>
   }
 
   return (
@@ -45,7 +49,7 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
         {pages.map(([page, hs]) => (
           <section key={page}>
             <GroupLabel as="h3" flush>
-              Page {page + 1}
+              {pageLabel(page + 1)}
             </GroupLabel>
             <ul className="-mx-2 flex flex-col gap-0.5">
               {hs.map((h) => (
@@ -76,28 +80,28 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
   const menu: MenuGroups = [
     [
       {
-        label: "Color",
+        label: t`Color`,
         childrenClassName: "w-36",
         children: HIGHLIGHT_COLORS.map((c) => ({
-          label: HIGHLIGHT_LABEL[c],
+          label: highlightLabel(c),
           mark: <span aria-hidden className="size-3 rounded-full" style={{ background: HIGHLIGHT_MARK[c] }} />,
           checked: h.color === c,
           onSelect: () => updateHighlight(h.id, { color: c }),
         })),
       },
       {
-        label: h.comment ? "Edit comment" : "Add comment",
+        label: h.comment ? t`Edit comment` : t`Add comment`,
         onSelect: () => {
           jump()
           useReaderStore.getState().open(h.id, { commenting: true })
         },
       },
-      { label: "Copy", onSelect: () => copy(h.text, "Highlight copied") },
-      { label: "Add to note", onSelect: onAddToNote },
+      { label: t({ message: "Copy", comment: "verb: copy the text" }), onSelect: () => copy(h.text, t`Highlight copied`) },
+      { label: t`Add to note`, onSelect: onAddToNote },
     ],
     [
       {
-        label: "Delete",
+        label: t({ message: "Delete", comment: "verb: delete a highlight" }),
         destructive: true,
         onSelect: () => deleteHighlight(h.id),
       },
@@ -113,9 +117,9 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
             <span className="line-clamp-4 text-sm leading-relaxed">{h.text}</span>
           </span>
           {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
-          {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">Added by Owlit</span>}
+          {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">{t`Added by Owlit`}</span>}
         </button>
-        <RowMenuButton groups={menu} label="Highlight actions" className="absolute top-1.5 right-1.5" />
+        <RowMenuButton groups={menu} label={t`Highlight actions`} className="absolute top-1.5 right-1.5" />
       </li>
     </ActionsOnRightClick>
   )

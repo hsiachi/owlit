@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { EditorView, showTooltip, type Tooltip } from "@codemirror/view"
 import { isPassage } from "@/app/text-menu"
@@ -29,7 +30,7 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
         dom.append(menu)
         const button = document.createElement("button")
         button.type = "button"
-        button.textContent = "Ask Owlit"
+        button.textContent = t`Ask Owlit`
         // Keep the selection and focus in the editor while clicking
         button.onmousedown = (e) => e.preventDefault()
         button.onclick = () => {

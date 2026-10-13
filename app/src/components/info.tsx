@@ -1,9 +1,10 @@
+import { t } from "@lingui/core/macro"
 import { InfoIcon } from "lucide-react"
 import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 // An explanation behind an info icon. The icon keeps a 20px target but takes a line no taller than text.
-export function Info({ children, label = "About this" }: { children: React.ReactNode; label?: string }) {
+export function Info({ children, label = t`About this` }: { children: React.ReactNode; label?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>

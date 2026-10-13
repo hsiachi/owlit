@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { EmptyPlace } from "@/components/empty-place"
 import { ListRow } from "@/components/list-row"
 import { KIND_ICON } from "@/lib/kinds"
@@ -33,23 +35,23 @@ export function KnowledgeEmpty() {
   const docs = Object.values(files)
     .filter((f) => isMarkdown(f.path))
     .sort((a, b) => b.modifiedAt - a.modifiedAt)
-    .map((f) => ({ key: f.id, to: `/docs/${f.id}`, icon: KIND_ICON.doc, title: displayName(f.path), what: "your doc" }))
+    .map((f) => ({ key: f.id, to: `/docs/${f.id}`, icon: KIND_ICON.doc, title: displayName(f.path), what: t`your doc` }))
   const material = [...touchedPapers, ...docs]
 
   if (!material.length)
     return (
       <EmptyPlace
-        title="No topics yet"
-        detail="Owlit keeps its understanding of your research here, as topics. A topic starts once two things you read, highlighted, wrote or said are about the same question."
-        note={status ?? "There’s nothing to do here; it fills in by itself."}
+        title={t`No topics yet`}
+        detail={t`Owlit keeps its understanding of your research here, as topics. A topic starts once two things you read, highlighted, wrote or said are about the same question.`}
+        note={status ?? t`There’s nothing to do here; it fills in by itself.`}
         className="mx-auto max-w-md py-16"
       />
     )
   const more = material.length - SHOWN
   return (
     <EmptyPlace
-      title="No topics yet"
-      detail="Topics start from what you’ve touched. None has started from these yet; one will once two of them are about the same question."
+      title={t`No topics yet`}
+      detail={t`Topics start from what you’ve touched. None has started from these yet; one will once two of them are about the same question.`}
       note={status}
       className="mx-auto max-w-md py-16"
     >
@@ -57,7 +59,7 @@ export function KnowledgeEmpty() {
         {material.slice(0, SHOWN).map((m) => (
           <ListRow key={m.key} to={m.to} size="sm" icon={m.icon} title={m.title} detail={m.what} />
         ))}
-        {more > 0 && <p className="px-2.5 pt-1 text-detail text-muted-foreground">and {more} more</p>}
+        {more > 0 && <p className="px-2.5 pt-1 text-detail text-muted-foreground">{t`and ${more} more`}</p>}
       </div>
     </EmptyPlace>
   )
@@ -73,12 +75,14 @@ export function useKnowledgeStatus() {
   if (problem) {
     return (
       <>
-        Owlit can’t read your material while {problem}.{" "}
+        <Trans>Owlit can’t read your material while {problem}.</Trans>{" "}
         <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => openSettings("agents")}>
-          Manage agents…
+          {t`Manage agents…`}
         </button>
       </>
     )
   }
-  return run ? <>Owlit last read your workspace {ago(run.at, { inSentence: true })}.</> : null
+  if (!run) return null
+  const when = ago(run.at, { inSentence: true })
+  return <Trans>Owlit last read your workspace {when}.</Trans>
 }

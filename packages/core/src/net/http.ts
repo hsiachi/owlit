@@ -2,6 +2,8 @@
 // and certificates), waits its turn for its host (each API has its own rate), times out, and is tried
 // again when the failure is the kind that passes: a dropped connection, 429, 5xx.
 
+import { t } from "@lingui/core/macro"
+
 export interface HostLimit {
   // Requests started per second, at most
   perSecond: number
@@ -85,12 +87,18 @@ export class Http {
         if (response.status !== 429 && response.status < 500) throw new HttpError(response.status, url, describe(response.status, url))
         // A daily allowance that's used up won't come back on a retry (OpenAlex's resets at midnight UTC)
         const quota = response.status === 429 ? quotaResetIn(response) : undefined
-        if (quota !== undefined) throw new HttpError(429, url, `${hostOf(url)}'s allowance is used up for now.`, quota)
+        if (quota !== undefined) {
+          const host = hostOf(url)
+          throw new HttpError(429, url, t`${host}'s allowance is used up for now.`, quota)
+        }
         if (attempt >= retries) throw new HttpError(response.status, url, describe(response.status, url))
         wait = retryAfter(response) ?? this.retryBaseMs * 2 ** attempt
       } catch (error) {
         if (error instanceof HttpError || options.signal?.aborted) throw error
-        if (attempt >= retries) throw new HttpError(0, url, `Couldn't reach ${hostOf(url)}.`)
+        if (attempt >= retries) {
+          const host = hostOf(url)
+          throw new HttpError(0, url, t`Couldn't reach ${host}.`)
+        }
         wait = this.retryBaseMs * 2 ** attempt
       }
       await sleep(wait, options.signal)
@@ -176,11 +184,11 @@ export function hostOf(url: string) {
 
 function describe(status: number, url: string) {
   const host = hostOf(url)
-  if (status === 404) return `${host} has no record of that.`
-  if (status === 401 || status === 403) return `${host} refused the request.`
-  if (status === 429) return `${host} is asking owlit to slow down.`
-  if (status >= 500) return `${host} is having trouble right now.`
-  return `${host} answered ${status}.`
+  if (status === 404) return t`${host} has no record of that.`
+  if (status === 401 || status === 403) return t`${host} refused the request.`
+  if (status === 429) return t`${host} is asking owlit to slow down.`
+  if (status >= 500) return t`${host} is having trouble right now.`
+  return t`${host} answered ${status}.`
 }
 
 // Seconds until the quota comes back, when a 429 says none is left and it won't be back within a minute:

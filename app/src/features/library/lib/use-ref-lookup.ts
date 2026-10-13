@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { useDebouncedQuery } from "@/hooks/use-debounced-query"
 import { libraryClient, useLibraryStore } from "../store"
@@ -33,7 +34,7 @@ export function useRefLookup(input: string | null) {
           const existing = (resolved.existingId ? papers[resolved.existingId] : undefined) ?? findExisting(papers, resolved)
           return existing ? { state: "exists", paper: existing } : { state: "found", resolved }
         },
-        (e) => ({ state: "error", message: e instanceof Error ? e.message : "Could not look that up." }),
+        (e) => ({ state: "error", message: e instanceof Error ? e.message : t`Could not look that up.` }),
       ),
     250,
   )
@@ -46,7 +47,7 @@ export function useRefLookup(input: string | null) {
     const paper = addPaper(lookup.resolved)
     // The new paper lands at the top, already peeked, so it can be tagged or read right away
     useLibraryUi.getState().revealPaper(paper.id)
-    toast("Added to library", { description: paper.title })
+    toast(t`Added to library`, { description: paper.title })
   }
 
   return { lookup, add }

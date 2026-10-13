@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { Fragment } from "react"
 import { CheckIcon, TriangleAlertIcon } from "lucide-react"
 import { ROLES } from "@owlit/protocol"
@@ -20,6 +21,7 @@ import { AgentIcon } from "./agent-icons"
 import { isUnavailable, statusLabel } from "../../lib/connector-status"
 import { ConnectorStatusChip } from "../ConnectorStatusChip"
 import { useResolvedSelection } from "../../use-selection"
+import { roleWords } from "../../lib/selection"
 import { openSettings } from "@/features/settings/store"
 
 // A compact trigger: no chevron (a menu opens from each), a tooltip naming what it sets. Radix needs the
@@ -75,6 +77,11 @@ function RadioItem({
 export function AgentPicker({ chatId, className }: { chatId?: string; className?: string }) {
   const { connectors, connector, model, role, effort, update } = useResolvedSelection(chatId)
   const unavailable = isUnavailable(connector)
+  const agent = connector?.name
+  const status = connector ? statusLabel(connector.status) : undefined
+  const modelName = model?.name ?? ""
+  const effortName = effort?.name ?? ""
+  const roleSaid = roleWords(role.id)
 
   return (
     <div className={cn("flex min-w-0 items-center", className)}>
@@ -82,8 +89,8 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
           the user takes the mark's place, so it reads at a glance. */}
       <DropdownMenu>
         <PickerButton
-          aria-label={`Agent: ${connector?.name ?? "none"}`}
-          tip={connector ? (unavailable || connector.status === "checking" ? `${connector.name} · ${statusLabel[connector.status]}` : connector.name) : "No agent"}
+          aria-label={agent ? t`Agent: ${agent}` : t`Agent: none`}
+          tip={connector ? (unavailable || connector.status === "checking" ? `${connector.name} · ${status}` : connector.name) : t`No agent`}
           className={cn("w-7 justify-center px-0", unavailable && "text-destructive hover:text-destructive")}
         >
           {connector?.status === "checking" ? <Spinner className="size-3.5" /> : unavailable ? <TriangleAlertIcon className="size-4" /> : <AgentIcon id={connector?.id} />}
@@ -106,7 +113,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => openSettings("agents")}>
-            Manage agents…
+            {t`Manage agents…`}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -117,7 +124,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
               and the effort keeps the muted tone's contrast (a fainter effort fell under 3:1). Below a 304px
               composer (the agent panel at its narrowest) the effort leaves the trigger and stays in the
               tooltip and the menu. */}
-          <PickerButton aria-label="Choose model and effort" tip={effort ? `${model?.name} · ${effort.name} effort` : model?.name} className="group/model">
+          <PickerButton aria-label={t`Choose model and effort`} tip={effort ? t`${modelName} · ${effortName} effort` : model?.name} className="group/model">
             <span className="min-w-0 truncate text-foreground/80 group-hover/model:text-foreground group-data-open/model:text-foreground">{model?.name}</span>
             {effort && <span className="shrink-0 @max-[19rem]:hidden">{effort.name}</span>}
           </PickerButton>
@@ -135,7 +142,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <span className="flex-1">Effort</span>
+                    <span className="flex-1">{t({ message: "Effort", comment: "how hard the model thinks: a menu of effort levels" })}</span>
                     <span className="text-muted-foreground">{effort?.name}</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-52" sideOffset={6}>
@@ -153,14 +160,15 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
       {/* The role is Owlit's own, not the agent's: every agent offers the same three. Named in full even
           in a narrow composer, since a role reads as its name. */}
       <DropdownMenu>
-        <PickerButton aria-label="Choose how Owlit works" tip={role.description} className="shrink-0">
-          {role.name}
+        <PickerButton aria-label={t`Choose how Owlit works`} tip={roleSaid.description} className="shrink-0">
+          {roleSaid.name}
         </PickerButton>
         <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuLabel>Owlit works as</DropdownMenuLabel>
-          {ROLES.map((r) => (
-            <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={r.name} description={r.description} />
-          ))}
+          <DropdownMenuLabel>{t`Owlit works as`}</DropdownMenuLabel>
+          {ROLES.map((r) => {
+            const said = roleWords(r.id)
+            return <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={said.name} description={said.description} />
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

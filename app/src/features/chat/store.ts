@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { applyUpdate, DEFAULT_ROLE, withoutAgentError } from "@owlit/protocol"
@@ -78,7 +79,8 @@ export const useChatStore = create<ChatState>()(
         const now = Date.now()
         const chat: Chat = {
           id: crypto.randomUUID(),
-          title: "New chat",
+          // Saved as said now; the first question replaces it
+          title: t`New chat`,
           createdAt: now,
           updatedAt: now,
           pinned: false,

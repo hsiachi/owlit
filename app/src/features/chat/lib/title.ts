@@ -1,3 +1,5 @@
+import { t } from "@lingui/core/macro"
+import { i18n } from "@/lib/i18n"
 import { starters } from "./starters"
 
 const TITLE_MAX = 80
@@ -9,7 +11,7 @@ const TITLE_MAX = 80
 // their labels) finishes the stem's sentence instead.
 function withoutStem(text: string) {
   for (const { prompt } of starters) {
-    const stem = prompt.trim()
+    const stem = i18n._(prompt).trim()
     if (!text.startsWith(stem)) continue
     const rest = text.slice(stem.length).trim()
     if (/^\p{Lu}\p{Ll}/u.test(rest) && rest.length > 20) return rest
@@ -21,9 +23,9 @@ function withoutStem(text: string) {
 // title that fits its row (Home, the panel header) still reads as cut rather than ending mid-word; a row
 // too narrow for it truncates with CSS, which adds its own ellipsis to the shortened words
 export const titleFrom = (text: string) => {
-  const t = withoutStem(text.replace(/\s+/g, " ").trim()).replace(/@\[([^\]]+)\]/g, "$1")
-  if (t.length <= TITLE_MAX) return t || "New chat"
-  const head = t.slice(0, TITLE_MAX)
+  const title = withoutStem(text.replace(/\s+/g, " ").trim()).replace(/@\[([^\]]+)\]/g, "$1")
+  if (title.length <= TITLE_MAX) return title || t`New chat`
+  const head = title.slice(0, TITLE_MAX)
   const space = head.lastIndexOf(" ")
   // A single word longer than half the room is cut as it is, not dropped
   const cut = space > TITLE_MAX / 2 ? head.slice(0, space) : head

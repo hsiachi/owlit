@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary } from "@owlit/protocol"
 import { constants } from "node:fs"
 import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
@@ -19,7 +20,7 @@ interface IndexFile {
 
 type ChatFile = Chat & { version: 1 }
 
-const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, "That chat is not in the workspace.", { id })
+const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That chat is not in the workspace.`, { id })
 
 // The workspace's chats in .owlit/chats/: <id>.json holds a chat whole (its fields and messages), so one
 // file can be read on its own (Knowledge reads them); index.json lists them without messages, so the
@@ -53,7 +54,7 @@ export class Chats {
     // Only a missing file is an empty chat. Anything else (a file that can't be read or parsed right
     // now) fails the call and isn't cached: the next message would otherwise be written over the chat.
     const stored = await readJson<ChatFile>(this.fileOf(id)).catch((error) => {
-      throw new RpcFailure(RpcErrorCode.Unavailable, "owlit couldn't read that chat just now.", { id, reason: error instanceof Error ? error.message : String(error) })
+      throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit couldn't read that chat just now.`, { id, reason: error instanceof Error ? error.message : String(error) })
     })
     // A turn that was streaming when owlit last stopped never finished
     const messages = (stored?.messages ?? []).map((m) => (m.status === "streaming" ? cutOff(m) : m))
@@ -64,7 +65,7 @@ export class Chats {
 
   async create(summary: ChatSummary) {
     const index = await this.loadIndex()
-    if (index.has(summary.id)) throw new RpcFailure(RpcErrorCode.Conflict, "A chat with that id already exists.", { id: summary.id })
+    if (index.has(summary.id)) throw new RpcFailure(RpcErrorCode.Conflict, t`A chat with that id already exists.`, { id: summary.id })
     const chat: Chat = { ...summary, messages: [] }
     index.set(chat.id, summary)
     this.bodies.set(chat.id, chat)
@@ -105,15 +106,15 @@ export class Chats {
   // a single <stamp>-chat-<id>.json and come back the same way.
   async restore(id: string): Promise<Chat> {
     const index = await this.loadIndex()
-    if (index.has(id)) throw new RpcFailure(RpcErrorCode.Conflict, "That chat is already in the workspace.", { id })
+    if (index.has(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That chat is already in the workspace.`, { id })
     const suffix = `-chat-${id}`
     const entries = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix) || n.endsWith(`${suffix}.json`)).sort().reverse()
     const entry = entries[0]
-    if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, "That chat is no longer in the trash.", { id })
+    if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, t`That chat is no longer in the trash.`, { id })
     const from = path.join(this.trashDir, entry)
     const legacy = entry.endsWith(".json")
     const stored = await readJson<ChatFile>(legacy ? from : path.join(from, "chat.json"))
-    if (!stored || stored.id !== id) throw new RpcFailure(RpcErrorCode.NotFound, "That chat is no longer in the trash.", { id })
+    if (!stored || stored.id !== id) throw new RpcFailure(RpcErrorCode.NotFound, t`That chat is no longer in the trash.`, { id })
     const { version: _v, ...chat } = stored
     return this.serial(async () => {
       if (!legacy) {
@@ -201,7 +202,7 @@ export class Chats {
   private fileName(id: string, rel: string) {
     const prefix = `${chatFilesDir(id)}/`
     const name = rel.startsWith(prefix) ? rel.slice(prefix.length) : ""
-    if (!name || name.includes("/") || name === "." || name === "..") throw new RpcFailure(RpcErrorCode.InvalidParams, "That isn't a file of this chat.", { path: rel })
+    if (!name || name.includes("/") || name === "." || name === "..") throw new RpcFailure(RpcErrorCode.InvalidParams, t`That isn't a file of this chat.`, { path: rel })
     return name
   }
 

@@ -4,6 +4,7 @@
 // (core notes it for Check now). With the user there, the page shows inside owlit's own window, in the
 // room the renderer reserved for it, and waits for them.
 
+import { t } from "@lingui/core/macro"
 import { NeedsUser, pdfLinkOn, type BrowserHost, type BrowserRequest } from "@owlit/core"
 import { app, BrowserWindow, session as electronSession, WebContentsView, type Rectangle, type WebContents } from "electron"
 
@@ -66,7 +67,7 @@ export function createBrowserHost(): PublisherBrowser {
       show: false,
       width: 1100,
       height: 800,
-      title: "Owlit · Publisher",
+      title: t({ message: "Owlit · Publisher", comment: "title of the window that shows a publisher's or library's sign-in page" }),
       webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true },
     })
     // Closing it (the library proxy's sign-in) hides it: the session lives on
@@ -199,7 +200,7 @@ export function createBrowserHost(): PublisherBrowser {
       try {
         await request.needUser(
           state,
-          state === "login" ? "Sign in to the library or publisher on the page." : "The publisher wants to check this is a person.",
+          state === "login" ? t`Sign in to the library or publisher on the page.` : t`The publisher wants to check this is a person.`,
           Promise.race([untilClear(contents, request), gone]),
         )
       } finally {

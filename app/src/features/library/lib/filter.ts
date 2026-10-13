@@ -1,5 +1,6 @@
+import { plural, t } from "@lingui/core/macro"
 import { DAY } from "@/lib/time"
-import { hasAllWords, plural, queryWords } from "@/lib/words"
+import { hasAllWords, queryWords } from "@/lib/words"
 import type { Paper } from "../types"
 import { surname } from "./format"
 import type { Sort, StatusFilter } from "../ui-store"
@@ -59,7 +60,7 @@ interface ListParams {
 // their text (textHits, from the index, best first) follow the ones whose details match, in the index's order.
 export function visiblePapers(papers: Record<string, Paper>, params: ListParams, textHits: ReadonlyMap<string, string> = new Map()): Paper[] {
   const q = params.query.trim()
-  const kept = (p: Paper) => matchesFilter(p, params.filter) && params.tags.every((t) => p.tags.includes(t))
+  const kept = (p: Paper) => matchesFilter(p, params.filter) && params.tags.every((tag) => p.tags.includes(tag))
   const byDetails = Object.values(papers)
     .filter((p) => kept(p) && matchesQuery(p, q))
     .sort((a, b) => compare(a, b, params.sort))
@@ -85,27 +86,28 @@ export interface PaperGroup {
   papers: Paper[]
 }
 
-const AGE_BANDS: [string, number][] = [
-  ["Today", DAY],
-  ["Previous 7 days", 7 * DAY],
-  ["Previous 30 days", 30 * DAY],
-  ["Earlier", Infinity],
+const ageBands = (): [string, number][] => [
+  [t`Today`, DAY],
+  [t`Previous 7 days`, 7 * DAY],
+  [t`Previous 30 days`, 30 * DAY],
+  [t`Earlier`, Infinity],
 ]
 
 // The list layout's groups, in the spirit of the chat history: by age when sorted by date added,
 // by year when sorted by year, one count while searching, and none for the alphabetical sorts
 export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now()): PaperGroup[] {
-  if (searching) return [{ label: plural(papers.length, "paper"), papers }]
+  if (searching) return [{ label: plural(papers.length, { one: "# paper", other: "# papers" }), papers }]
   if (sort.key === "addedAt") {
-    const groups = AGE_BANDS.map(([label]) => ({ label, papers: [] as Paper[] }))
-    for (const p of papers) groups[AGE_BANDS.findIndex(([, max]) => now - p.addedAt < max)].papers.push(p)
+    const bands = ageBands()
+    const groups = bands.map(([label]) => ({ label, papers: [] as Paper[] }))
+    for (const p of papers) groups[bands.findIndex(([, max]) => now - p.addedAt < max)].papers.push(p)
     if (!sort.desc) groups.reverse()
     return groups.filter((g) => g.papers.length > 0)
   }
   if (sort.key === "year") {
     const groups: PaperGroup[] = []
     for (const p of papers) {
-      const label = p.year ? String(p.year) : "No year"
+      const label = p.year ? String(p.year) : t`No year`
       const last = groups.at(-1)
       if (last?.label === label) last.papers.push(p)
       else groups.push({ label, papers: [p] })
@@ -128,7 +130,7 @@ export function upNext(papers: Record<string, Paper>): PaperGroup[] {
     .sort((a, b) => b.addedAt - a.addedAt)
     .slice(0, UNREAD)
   return [
-    { label: "Reading", papers: reading },
-    { label: "Not read yet", papers: unread },
+    { label: t({ message: "Reading", comment: "group heading: papers being read now" }), papers: reading },
+    { label: t`Not read yet`, papers: unread },
   ].filter((g) => g.papers.length > 0)
 }

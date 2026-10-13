@@ -2,54 +2,57 @@
 // Shortcuts lists them all, so the two can't disagree. The keys themselves are handled where they act,
 // window-wide ones through useShortcut; a new shortcut is added here too.
 
+import type { MessageDescriptor } from "@lingui/core"
+import { msg } from "@lingui/core/macro"
 import { create } from "zustand"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 
 export interface Shortcut {
   id: string
-  label: string
+  // Words are messages, said in the interface's language where the list shows them
+  label: MessageDescriptor
   // Where it applies, said after the label in the list
-  where?: string
+  where?: MessageDescriptor
   keys: string[]
 }
 
-export const SHORTCUT_GROUPS: { title: string; shortcuts: Shortcut[] }[] = [
+export const SHORTCUT_GROUPS: { title: MessageDescriptor; shortcuts: Shortcut[] }[] = [
   {
-    title: "Everywhere",
+    title: msg`Everywhere`,
     shortcuts: [
-      { id: "palette", label: "Find anything", keys: ["⌘", "K"] },
-      { id: "find", label: "Find on this page", where: "in the Library and Knowledge", keys: ["/"] },
-      { id: "owlit", label: "Ask Owlit", where: "outside Chat", keys: ["⌘", "J"] },
-      { id: "owlit-panel", label: "Show or hide the current chat", where: "outside Chat", keys: ["⇧", "⌘", "J"] },
-      { id: "settings", label: "Settings", keys: ["⌘", ","] },
-      { id: "open-workspace", label: "Open workspace", keys: ["⌘", "O"] },
-      { id: "shortcuts", label: "Keyboard shortcuts", keys: ["⌘", "/"] },
+      { id: "palette", label: msg`Find anything`, keys: ["⌘", "K"] },
+      { id: "find", label: msg`Find on this page`, where: msg`in the Library and Knowledge`, keys: ["/"] },
+      { id: "owlit", label: msg`Ask Owlit`, where: msg`outside Chat`, keys: ["⌘", "J"] },
+      { id: "owlit-panel", label: msg`Show or hide the current chat`, where: msg`outside Chat`, keys: ["⇧", "⌘", "J"] },
+      { id: "settings", label: msg`Settings`, keys: ["⌘", ","] },
+      { id: "open-workspace", label: msg`Open workspace`, keys: ["⌘", "O"] },
+      { id: "shortcuts", label: msg`Keyboard shortcuts`, keys: ["⌘", "/"] },
     ],
   },
   {
-    title: "Docs and Chat",
+    title: msg`Docs and Chat`,
     shortcuts: [
-      { id: "new", label: "New doc", where: "in Docs · New chat in Chat", keys: ["⌘", "N"] },
-      { id: "mention", label: "Mention or cite", where: "in a doc, note or message", keys: ["@"] },
-      { id: "send", label: "Send", where: "in the composer", keys: ["↵"] },
-      { id: "newline", label: "New line", where: "in the composer", keys: ["⇧", "↵"] },
-      { id: "rename-row", label: "Rename", where: "in the docs list", keys: ["F2"] },
-      { id: "delete-row", label: "Delete", where: "in the docs list, with Undo", keys: ["⌘", "⌫"] },
+      { id: "new", label: msg`New doc`, where: msg`in Docs · New chat in Chat`, keys: ["⌘", "N"] },
+      { id: "mention", label: msg`Mention or cite`, where: msg`in a doc, note or message`, keys: ["@"] },
+      { id: "send", label: msg({ message: "Send", comment: "verb, in the keyboard shortcut list" }), where: msg`in the composer`, keys: ["↵"] },
+      { id: "newline", label: msg`New line`, where: msg`in the composer`, keys: ["⇧", "↵"] },
+      { id: "rename-row", label: msg({ message: "Rename", comment: "verb, in the keyboard shortcut list" }), where: msg`in the docs list`, keys: ["F2"] },
+      { id: "delete-row", label: msg({ message: "Delete", comment: "verb, in the keyboard shortcut list" }), where: msg`in the docs list, with Undo`, keys: ["⌘", "⌫"] },
     ],
   },
   {
-    title: "Reading a paper",
+    title: msg`Reading a paper`,
     shortcuts: [
-      { id: "find-in-paper", label: "Find in paper", keys: ["⌘", "F"] },
-      { id: "highlight", label: "Highlight the selection", where: "in colour 1 to 4", keys: ["1", "–", "4"] },
-      { id: "copy", label: "Copy the selection", keys: ["⌘", "C"] },
-      { id: "save-comment", label: "Save a comment", keys: ["⌘", "↵"] },
-      { id: "close", label: "Close the popover", keys: ["Esc"] },
+      { id: "find-in-paper", label: msg`Find in paper`, keys: ["⌘", "F"] },
+      { id: "highlight", label: msg`Highlight the selection`, where: msg`in colour 1 to 4`, keys: ["1", "–", "4"] },
+      { id: "copy", label: msg`Copy the selection`, keys: ["⌘", "C"] },
+      { id: "save-comment", label: msg`Save a comment`, keys: ["⌘", "↵"] },
+      { id: "close", label: msg`Close the popover`, keys: ["Esc"] },
     ],
   },
   {
-    title: "Undo",
-    shortcuts: [{ id: "undo", label: "Undo", where: "Owlit’s last change to your doc or note too", keys: ["⌘", "Z"] }],
+    title: msg({ message: "Undo", comment: "heading of a group in the keyboard shortcut list" }),
+    shortcuts: [{ id: "undo", label: msg({ message: "Undo", comment: "verb, in the keyboard shortcut list" }), where: msg`Owlit’s last change to your doc or note too`, keys: ["⌘", "Z"] }],
   },
 ]
 

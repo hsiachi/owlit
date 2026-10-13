@@ -2,6 +2,7 @@
 // use owlit (owlit_help): owlit://settings/<section> opens Settings there, owlit://shortcuts opens the
 // shortcut list. They open over the page, so nothing navigates.
 
+import { t } from "@lingui/core/macro"
 import { parseOwlitUri } from "@owlit/protocol"
 import { openSettings, settingsPlace, type SettingsPlace } from "@/features/settings/store"
 import { openShortcuts } from "./shortcuts"
@@ -18,8 +19,9 @@ const isShortcuts = (href: string) => parseOwlitUri(href)?.kind === "shortcuts"
 // What the link opens, in words; null for anything that isn't one of these links
 export function appLinkTitle(href: string) {
   const settings = settingsLink(href)
-  if (settings) return settings.label ? `Settings › ${settings.label}` : "Settings"
-  if (isShortcuts(href)) return "Keyboard shortcuts"
+  const place = settings?.label
+  if (settings) return place ? t`Settings › ${place}` : t`Settings`
+  if (isShortcuts(href)) return t`Keyboard shortcuts`
   return null
 }
 

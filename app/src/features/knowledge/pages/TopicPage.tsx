@@ -23,7 +23,8 @@ import { citingDocs, freshness, paperRef, withAliases } from "../format"
 import { useTarget } from "../hooks"
 import { ringBlock } from "../lib/ring"
 import { shortDate } from "@/lib/time"
-import { plural } from "@/lib/words"
+import { plural, t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { changedSince, renameTopic, useKnowledgeStore, useTopic } from "../store"
 import type { Topic, TopicSidecar } from "../types"
 import { useKnowledgeUi } from "../ui-store"
@@ -60,19 +61,21 @@ function TopicView({ topicId }: { topicId: string }) {
   }, [topic?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!topic)
-    return <NotFound title="This topic is gone" detail="It may have been merged, deleted or renamed outside owlit." back={{ label: "Back to Knowledge", to: "/knowledge" }} />
+    return (
+      <NotFound title={t`This topic is gone`} detail={t`It may have been merged, deleted or renamed outside owlit.`} back={{ label: t`Back to Knowledge`, to: "/knowledge" }} />
+    )
 
   const sidecar: TopicSidecar = side ?? { seenAt: 0, history: [], edits: {}, removed: {}, said: {}, changedAt: {} }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader trail={[{ label: "Knowledge", to: "/knowledge" }]} current={topic.name}>
+      <PageHeader trail={[{ label: t`Knowledge`, to: "/knowledge" }]} current={topic.name}>
         <Button variant="ghost" size="sm" className="font-normal text-muted-foreground" onClick={() => useAgentWindow.getState().open()}>
           <MessageSquareIcon />
-          Chat about this
+          {t`Chat about this`}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Topic actions" className="text-muted-foreground data-[state=open]:bg-muted">
+            <Button variant="ghost" size="icon-sm" aria-label={t`Topic actions`} className="text-muted-foreground data-[state=open]:bg-muted">
               <EllipsisVerticalIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -104,12 +107,14 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
   const renaming = useKnowledgeUi((s) => s.renaming === topic.id)
   const set = useKnowledgeUi((s) => s.set)
   const cited = useCitedIn(topic)
+  const updated = shortDate(topic.updatedAt)
+  const lastLook = shortDate(seenBefore)
   return (
     <>
       {renaming ? (
         <RenameInput
           initial={topic.name}
-          label="Topic name"
+          label={t`Topic name`}
           onDone={(name) => {
             if (name !== null) renameTopic(topic.id, name)
             set({ renaming: null })
@@ -121,13 +126,16 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
         <PageTitle onDoubleClick={() => set({ renaming: topic.id })}>{topic.name}</PageTitle>
       )}
       <p className="mt-2 text-detail text-muted-foreground">
-        Updated {shortDate(topic.updatedAt)}
-        {side.paused && " · updates paused"}{" "}
-        <Info>Owlit keeps this topic from your notes, papers and chats. Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words.</Info>
+        {side.paused ? t`Updated ${updated} · updates paused` : t`Updated ${updated}`}{" "}
+        <Info>
+          {t`Owlit keeps this topic from your notes, papers and chats. Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words.`}
+        </Info>
       </p>
       {cited && (
         <p className="mt-1 text-detail text-muted-foreground">
-          Cited in <MentionLink label={displayName(cited.file.path)} to={`/docs/${cited.file.id}`} />
+          <Trans>
+            Cited in <MentionLink label={displayName(cited.file.path)} to={`/docs/${cited.file.id}`} />
+          </Trans>
           {cited.heading && <> · {cited.heading}</>}
         </p>
       )}
@@ -140,7 +148,9 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
       {freshIds.length > 0 && (
         <Button variant="text" size="inline" onClick={() => ringBlock(freshIds[0])} className="-ml-1.5 mt-4 flex gap-2">
           <NoteDot />
-          {plural(freshIds.length, "line")} changed since you last looked{seenBefore > 0 && ` on ${shortDate(seenBefore)}`}
+          {seenBefore > 0
+            ? plural(freshIds.length, { one: `# line changed since you last looked on ${lastLook}`, other: `# lines changed since you last looked on ${lastLook}` })
+            : plural(freshIds.length, { one: "# line changed since you last looked", other: "# lines changed since you last looked" })}
         </Button>
       )}
     </>
@@ -153,7 +163,7 @@ function Questions({ topic }: { topic: Topic }) {
   const shown = all ? topic.questions : topic.questions.slice(0, MAX_QUESTIONS)
   return (
     <section className="mt-10">
-      <GroupLabel flush>Your questions</GroupLabel>
+      <GroupLabel flush>{t`Your questions`}</GroupLabel>
       <div className="flex flex-col gap-4">
         {shown.map((q) => (
           <QuestionRow key={q.id} topic={topic} id={q.id} text={q.text} status={q.status} />
@@ -166,6 +176,7 @@ function Questions({ topic }: { topic: Topic }) {
 
 function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; text: string; status?: string }) {
   const { ref, hit } = useTarget(id)
+  const name = topic.name
   return (
     <div ref={ref} id={id} className={cn("-mx-2 rounded-md px-2 py-0.5", hit && "animate-highlight-flash")}>
       <p className="text-body leading-relaxed">
@@ -176,7 +187,7 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
           <Prose text={status} topic={topic} />
         </p>
       )}
-      <span className="sr-only">In {topic.name}</span>
+      <span className="sr-only">{t`In ${name}`}</span>
     </div>
   )
 }
@@ -184,7 +195,7 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
 function MoreButton({ open, hidden, onClick }: { open: boolean; hidden: number; onClick: () => void }) {
   return (
     <FoldButton open={open} onClick={onClick} className="mt-2">
-      {open ? "Show less" : `Show ${hidden} more`}
+      {open ? t`Show less` : t`Show ${hidden} more`}
     </FoldButton>
   )
 }
@@ -196,7 +207,7 @@ function SoFar({ topic, side, seenBefore, freshIds, onViewed }: { topic: Topic; 
   const shown = all ? topic.lines : topic.lines.slice(0, MAX_LINES)
   return (
     <section className="mt-10">
-      <GroupLabel flush>So far</GroupLabel>
+      <GroupLabel flush>{t`So far`}</GroupLabel>
       {/* A wider left gutter than right, for the note dot, so the words still line up with the label */}
       <div className="-mr-2 -ml-5 flex flex-col gap-1">
         {shown.map((l) => (

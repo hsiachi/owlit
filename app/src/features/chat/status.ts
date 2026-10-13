@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
@@ -124,10 +125,19 @@ export function chatsNeedYou(chats: Record<string, Chat>, streaming: Record<stri
   return Object.values(chats).some((c) => (streaming[c.id] && pendingAsk(c)) || brokenReply(c, dismissed[c.id]))
 }
 
+// Getters, so each word is said in the interface's language when read rather than once on import
 export const STATUS_LABEL: Record<ChatStatus, string> = {
   idle: "",
-  working: "Working",
-  waiting: "Waiting on you",
-  finished: "Finished since you last looked",
-  failed: "Stopped with an error",
+  get working() {
+    return t({ message: "Working", comment: "a chat's status: its agent is at work" })
+  },
+  get waiting() {
+    return t`Waiting on you`
+  },
+  get finished() {
+    return t`Finished since you last looked`
+  },
+  get failed() {
+    return t`Stopped with an error`
+  },
 }

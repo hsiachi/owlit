@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { Switch } from "@/components/ui/switch"
@@ -15,10 +16,10 @@ export function OwlitSection() {
       <Group id="profile">
         <NameRow />
       </Group>
-      <Group id="background" label="Background work">
+      <Group id="background" label={t`Background work`}>
         <BackgroundWork />
       </Group>
-      <Group id="privacy" label="Privacy" note="What owlit remembers stays in this workspace and is never sent anywhere.">
+      <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays in this workspace and is never sent anywhere.`}>
         <MemoryRow />
       </Group>
     </>
@@ -30,16 +31,16 @@ function NameRow() {
   return (
     <List>
       <Row
-        name="Your name"
+        name={t`Your name`}
         control={
           <CommitInput
             value={name}
             onCommit={(next) => void updateSettings({ profile: { name: next || null } })}
-            placeholder="What Owlit calls you"
+            placeholder={t`What Owlit calls you`}
             spellCheck={false}
             autoComplete="off"
             maxLength={60}
-            aria-label="Your name"
+            aria-label={t`Your name`}
           />
         }
       />
@@ -55,8 +56,9 @@ function BackgroundWork() {
   // Unset means the first agent that is ready, owlit's first choice first (core's own choice)
   const fallback = ready.find((c) => c.id === FIRST_CHOICE_AGENT) ?? ready[0]
   const chosen = view?.backgroundAgent ?? ""
+  const fallbackName = fallback?.name
   const options = [
-    { value: "", label: fallback ? `Automatic (${fallback.name})` : "Automatic" },
+    { value: "", label: fallbackName ? t`Automatic (${fallbackName})` : t`Automatic` },
     ...connectors.filter((c) => isReady(c) || c.id === chosen).map((c) => ({ value: c.id, label: c.name })),
   ]
   // The agent doing the work, and the models it offers (an agent's own "Default" is not a real choice)
@@ -73,23 +75,23 @@ function BackgroundWork() {
   return (
     <List>
       <Row
-        name="Agent"
-        help="Writes reading notes and keeps Knowledge up to date."
-        control={<Picker label="Agent for background work" value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
+        name={t`Agent`}
+        help={t`Writes reading notes and keeps Knowledge up to date.`}
+        control={<Picker label={t`Agent for background work`} value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (
         <Row
-          name="Model"
-          info="A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
-          control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
+          name={t`Model`}
+          info={t`A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support.`}
+          control={<Picker label={t`Model for background work`} value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
         />
       )}
       <LanguageRow />
       <Row
-        name="Reading notes for every paper"
-        help="Otherwise only for papers you open or star."
-        info="On, a big import keeps the agent busy for a while."
-        control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label="Reading notes for every paper" />}
+        name={t`Reading notes for every paper`}
+        help={t`Otherwise only for papers you open or star.`}
+        info={t`On, a big import keeps the agent busy for a while.`}
+        control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label={t`Reading notes for every paper`} />}
       />
     </List>
   )
@@ -104,18 +106,18 @@ function LanguageRow() {
   const listed = !stored || NOTE_LANGUAGES.some((l) => l.code === stored)
   const [typing, setTyping] = useState(false)
   const other = typing || !listed
-  const options = [...NOTE_LANGUAGES.map((l) => ({ value: l.code, label: l.native })), { value: OTHER, label: "Other…" }]
+  const options = [...NOTE_LANGUAGES.map((l) => ({ value: l.code, label: l.native })), { value: OTHER, label: t({ message: "Other…", comment: "a language not in the list" }) }]
   const save = (language: string | null) => void updateSettings({ library: { digestLanguage: language } })
   return (
     <Row
-      name="Reading notes in"
-      info="Technical terms stay as the paper writes them, whatever the language."
+      name={t`Reading notes in`}
+      info={t`Technical terms stay as the paper writes them, whatever the language.`}
       control={
         <div className="flex items-center gap-2">
           {other && (
             <CommitInput
-              aria-label="Language for reading notes"
-              placeholder="Language"
+              aria-label={t`Language for reading notes`}
+              placeholder={t`Language`}
               value={listed ? "" : (stored ?? "")}
               onCommit={(words) => {
                 if (words) save(words)
@@ -125,7 +127,7 @@ function LanguageRow() {
             />
           )}
           <Picker
-            label="Language for reading notes"
+            label={t`Language for reading notes`}
             value={other ? OTHER : (stored ?? system)}
             options={options}
             onChange={(code) => {
@@ -146,9 +148,9 @@ function MemoryRow() {
   return (
     <List>
       <Row
-        name="Remember what I do in owlit"
-        help="What you open, highlight and write keeps Knowledge and Home current."
-        control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label="Remember what I do in owlit" />}
+        name={t`Remember what I do in owlit`}
+        help={t`What you open, highlight and write keeps Knowledge and Home current.`}
+        control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>
   )

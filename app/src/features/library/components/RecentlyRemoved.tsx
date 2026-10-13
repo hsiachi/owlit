@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { BorderedList } from "@/components/bordered-list"
 import { FoldButton } from "@/components/fold"
@@ -37,7 +38,7 @@ export function RecentlyRemoved() {
     <section className="mt-6">
       {/* The fold lines its chevron up with the rows' text, as a group label does */}
       <FoldButton open={open} onClick={() => setOpen(!open)} className="ml-1">
-        {removed.length === 1 ? "A paper" : `${removed.length} papers`} removed recently
+        {removed.length === 1 ? t`A paper removed recently` : plural(removed.length, { one: "# paper removed recently", other: "# papers removed recently" })}
       </FoldButton>
       <Unfold open={open}>
         <BorderedList as="ul" className="mt-1">
@@ -57,6 +58,7 @@ function RemovedRow({ paper }: { paper: TrashedPaper }) {
     setRestoring(true)
     void restoreFromTrash([paper.id]).finally(() => setRestoring(false))
   }
+  const when = ago(paper.removedAt, { inSentence: true })
   return (
     <li className="group/removed flex h-9 items-center gap-3 pr-2.5 pl-2.5 text-sm">
       <span className="min-w-0 flex-1 truncate" title={paper.title}>
@@ -65,7 +67,7 @@ function RemovedRow({ paper }: { paper: TrashedPaper }) {
       <span className="max-w-[40%] shrink-0 truncate text-detail text-muted-foreground">{paperMeta(paper)}</span>
       <span className="relative flex shrink-0 items-center justify-end">
         <span className="text-detail text-muted-foreground tabular-nums group-hover/removed:invisible group-has-focus-key/removed:invisible">
-          Removed {ago(paper.removedAt, { inSentence: true })}
+          {t`Removed ${when}`}
         </span>
         <Button
           variant="text"
@@ -74,7 +76,7 @@ function RemovedRow({ paper }: { paper: TrashedPaper }) {
           onClick={restore}
           className="absolute -right-1.5 opacity-0 group-hover/removed:opacity-100 focus-key:opacity-100"
         >
-          Restore
+          {t`Restore`}
         </Button>
       </span>
     </li>

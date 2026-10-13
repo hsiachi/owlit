@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { useDocumentState } from "@embedpdf/core/react"
 import { useScroll, useScrollCapability } from "@embedpdf/plugin-scroll/react"
@@ -43,7 +44,7 @@ export function ReaderControls({ documentId, back, onBack }: { documentId: strin
           ) : (
             <div className={PILL}>
               <ZoomReadout documentId={documentId} />
-              <PillIcon label="Find in paper" shortcut="find-in-paper" onClick={() => setSearching(true)}>
+              <PillIcon label={t`Find in paper`} shortcut="find-in-paper" onClick={() => setSearching(true)}>
                 <SearchIcon />
               </PillIcon>
             </div>
@@ -61,7 +62,7 @@ function ZoomReadout({ documentId }: { documentId: string }) {
   const { state, provides } = useZoom(documentId)
   const isMode = typeof state.zoomLevel === "string"
   const next = state.zoomLevel === ZoomMode.FitWidth ? 1 : state.zoomLevel === ZoomMode.FitPage ? ZoomMode.FitWidth : ZoomMode.FitPage
-  const label = state.zoomLevel === ZoomMode.FitWidth ? "Fit width · click for 100%" : state.zoomLevel === ZoomMode.FitPage ? "Fit page · click to fit width" : "Click to fit the page"
+  const label = state.zoomLevel === ZoomMode.FitWidth ? t`Fit width · click for 100%` : state.zoomLevel === ZoomMode.FitPage ? t`Fit page · click to fit width` : t`Click to fit the page`
   return (
     <Tip label={label}>
       <button type="button" onClick={() => provides?.requestZoom(next)} className={cn(ITEM, "px-2 tabular-nums", !isMode && "text-foreground")}>
@@ -143,18 +144,18 @@ function SearchPill({ documentId, onClose }: { documentId: string; onClose: () =
             else provides?.nextResult()
           }
         }}
-        placeholder="Find in paper"
+        placeholder={t`Find in paper`}
         className="h-6 w-40 bg-transparent px-1.5 text-detail text-foreground outline-none placeholder:text-muted-foreground"
       />
       {/* No "0/0" before anything is typed; it reads as a failed search */}
-      {query.trim() !== "" && <span className="shrink-0 px-1 tabular-nums">{total === 0 ? "None" : `${active} of ${total}`}</span>}
-      <PillIcon label="Previous match" onClick={() => provides?.previousResult()} disabled={total === 0}>
+      {query.trim() !== "" && <span className="shrink-0 px-1 tabular-nums">{total === 0 ? t({ message: "None", comment: "find in paper: no matches" }) : t`${active} of ${total}`}</span>}
+      <PillIcon label={t`Previous match`} onClick={() => provides?.previousResult()} disabled={total === 0}>
         <ChevronUpIcon />
       </PillIcon>
-      <PillIcon label="Next match" onClick={() => provides?.nextResult()} disabled={total === 0}>
+      <PillIcon label={t`Next match`} onClick={() => provides?.nextResult()} disabled={total === 0}>
         <ChevronDownIcon />
       </PillIcon>
-      <PillIcon label="Close" aria-label="Close find" onClick={onClose}>
+      <PillIcon label={t({ message: "Close", comment: "verb: close the find field" })} aria-label={t`Close find`} onClick={onClose}>
         <XIcon />
       </PillIcon>
     </div>
@@ -194,6 +195,7 @@ function PageIndicator({ documentId, back, onBack }: { documentId: string; back:
   // It sits on the text, so it shows while the reader is moving and steps back once they stop.
   // A way back stays in view until it is used.
   const shown = scrolling || hovered || !!back
+  const backPage = back?.pageNumber ?? 0
   return (
     <div
       onPointerEnter={() => setHovered(true)}
@@ -202,7 +204,7 @@ function PageIndicator({ documentId, back, onBack }: { documentId: string; back:
     >
       {back && (
         <>
-          <Tip label={`Back to page ${back.pageNumber}`}>
+          <Tip label={t`Back to page ${backPage}`}>
             <button
               type="button"
               onClick={() => {

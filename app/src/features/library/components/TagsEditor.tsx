@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import { CheckIcon, PlusIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -47,7 +48,7 @@ function TagChip({
       {onRemove && (
         <button
           type="button"
-          aria-label={`Remove tag ${tag}`}
+          aria-label={t`Remove tag ${tag}`}
           onClick={onRemove}
           className="relative mr-1 grid size-4 place-items-center rounded-sm text-muted-foreground after:absolute after:-inset-1 after:content-[''] opacity-0 group-hover/tag:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-key:opacity-100"
         >
@@ -74,7 +75,7 @@ export function TagPicker({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const papers = useLibraryStore((s) => s.papers)
-  const allTags = useMemo(() => collectTags(papers).map(([t]) => t), [papers])
+  const allTags = useMemo(() => collectTags(papers).map(([tag]) => tag), [papers])
   const q = normalizeTag(query)
   const canCreate = q.length > 0 && !allTags.includes(q)
 
@@ -88,13 +89,13 @@ export function TagPicker({
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align={align} className="w-60 p-0">
         <Command>
-          <CommandInput placeholder="Find or create a tag" value={query} onValueChange={setQuery} />
+          <CommandInput placeholder={t`Find or create a tag`} value={query} onValueChange={setQuery} />
           <CommandList>
-            <CommandEmpty>No tags yet.</CommandEmpty>
+            <CommandEmpty>{t`No tags yet.`}</CommandEmpty>
             {canCreate && (
               <CommandGroup>
                 <CommandItem value={`create-${q}`} onSelect={() => pick(q)}>
-                  Create “{q}”
+                  {t`Create “${q}”`}
                 </CommandItem>
               </CommandGroup>
             )}
@@ -128,7 +129,7 @@ export function TagsEditor({
   onOpenTag?: (tag: string) => void
   className?: string
 }) {
-  const toggle = (tag: string) => onChange(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag])
+  const toggle = (tag: string) => onChange(tags.includes(tag) ? tags.filter((other) => other !== tag) : [...tags, tag])
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
@@ -138,7 +139,7 @@ export function TagsEditor({
       <TagPicker selected={tags} onPick={toggle}>
         <Button variant="ghost" size="xs" className="font-normal text-muted-foreground">
           <PlusIcon />
-          Tag
+          {t({ message: "Tag", comment: "button: add a tag to the paper" })}
         </Button>
       </TagPicker>
     </div>

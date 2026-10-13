@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo } from "react"
 import { EmptyPlace } from "@/components/empty-place"
 import { PageShell } from "@/components/page"
@@ -23,7 +24,7 @@ export function UpNextPage() {
           <PaperList groups={groups} order={order} />
         </div>
       ) : (
-        <EmptyPlace title="Nothing to read next" detail="Papers you start reading, and new ones with a PDF, will show up here." className="mt-20" />
+        <EmptyPlace title={t`Nothing to read next`} detail={t`Papers you start reading, and new ones with a PDF, will show up here.`} className="mt-20" />
       )}
     </PageShell>
   )

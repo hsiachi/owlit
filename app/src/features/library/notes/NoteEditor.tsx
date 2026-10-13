@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -39,7 +40,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
           link: { openOnClick: false, autolink: true, protocols: ["owlit"] },
         }),
         Markdown,
-        Placeholder.configure({ placeholder: "What do you take from this paper?" }),
+        Placeholder.configure({ placeholder: t`What do you take from this paper?` }),
         NoteMention,
         NoteSuggestions.configure({ respond: (edit: PendingEdit, apply: boolean) => respondToEdit(edit.chatId, edit.requestId, apply) }),
       ],
@@ -54,7 +55,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
           if (!href.startsWith(HIGHLIGHT_LINK)) return false
           const h = useLibraryStore.getState().highlights[href.slice(HIGHLIGHT_LINK.length)]
           if (h) useReaderStore.getState().api?.jumpToHighlight(h)
-          else toast("That highlight was deleted")
+          else toast(t`That highlight was deleted`)
           return true
         },
       },
@@ -182,7 +183,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={chat}
           >
-            Ask Owlit
+            {t`Ask Owlit`}
           </button>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import {
   interfaceLocale,
   LOCALES,
@@ -160,15 +161,15 @@ export function registerSettings({ router, settings, http, browser, systemLangua
     if (preset) proxy = { ...PROXY_PRESETS[preset].proxy }
     else if (link?.trim()) {
       proxy = proxyFromLink(link)
-      if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, "That link doesn't show which proxy it went through.")
+      if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, t`That link doesn't show which proxy it went through.`)
     }
     // A different proxy is a different sign-in
     return save((s) => ({ ...s, library: merge(s.library, { proxy, proxySignedInAt: null }) }))
   })
   router.register("settings.proxySignIn", noParams, async () => {
     const proxy = (await settings.get()).library.proxy
-    if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, "No library proxy is set up.")
-    if (!browser) throw new RpcFailure(RpcErrorCode.Unavailable, "Signing in needs the owlit desktop app.")
+    if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, t`No library proxy is set up.`)
+    if (!browser) throw new RpcFailure(RpcErrorCode.Unavailable, t`Signing in needs the owlit desktop app.`)
     await browser.showLogin(proxy.base)
     return save((s) => ({ ...s, library: { ...s.library, proxySignedInAt: Date.now() } }))
   })
@@ -180,7 +181,7 @@ async function check(http: Http, s: AppSettings, target: SettingsCheckTarget): P
   if (target === "mineruServer") {
     if (s.parsing.service !== "self-hosted") return { result: "unknown" }
     const url = s.parsing.url ?? "http://127.0.0.1:8000"
-    return (await tryServer(http, s.parsing)) ? { result: "works" } : { result: "rejected", message: `Nothing answers at ${url}. Is MinerU running?` }
+    return (await tryServer(http, s.parsing)) ? { result: "works" } : { result: "rejected", message: t`Nothing answers at ${url}. Is MinerU running?` }
   }
   if (target === "mineruToken") {
     if (!s.parsing.token) return { result: "unknown" }
@@ -188,11 +189,11 @@ async function check(http: Http, s: AppSettings, target: SettingsCheckTarget): P
       case "works":
         return { result: "works" }
       case "quota":
-        return { result: "works", message: "Today's MinerU quota is used up. Papers keep their built-in text until tomorrow." }
+        return { result: "works", message: t`Today's MinerU quota is used up. Papers keep their built-in text until tomorrow.` }
       case "rejected":
-        return { result: "rejected", message: "MinerU says this token isn't valid. Check it was copied whole." }
+        return { result: "rejected", message: t`MinerU says this token isn't valid. Check it was copied whole.` }
       case "unreachable":
-        return { result: "unknown", message: "Couldn't reach MinerU to check the token. It will be tried on the next paper." }
+        return { result: "unknown", message: t`Couldn't reach MinerU to check the token. It will be tried on the next paper.` }
     }
   }
   const key = target === "s2ApiKey" ? s.library.s2ApiKey : s.library.openalexApiKey
@@ -208,9 +209,9 @@ async function check(http: Http, s: AppSettings, target: SettingsCheckTarget): P
     return { result: "works" }
   } catch (error) {
     if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
-      return { result: "rejected", message: `${service} says this key isn't valid. Check it was copied whole.` }
+      return { result: "rejected", message: t`${service} says this key isn't valid. Check it was copied whole.` }
     }
-    if (error instanceof HttpError && error.status === 429) return { result: "unknown", message: `${service} is busy; the key will be tried on the next lookup.` }
-    return { result: "unknown", message: `Couldn't reach ${service} to check the key.` }
+    if (error instanceof HttpError && error.status === 429) return { result: "unknown", message: t`${service} is busy; the key will be tried on the next lookup.` }
+    return { result: "unknown", message: t`Couldn't reach ${service} to check the key.` }
   }
 }

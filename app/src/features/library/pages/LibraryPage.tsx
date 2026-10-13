@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { DropCard, EmptyPlace } from "@/components/empty-place"
@@ -19,6 +20,7 @@ import { useRefLookup } from "../lib/use-ref-lookup"
 import { usePrefsStore } from "../prefs-store"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
+import { starterPrompt } from "@/features/chat/lib/starters"
 
 // All papers: everything in the library, narrowed by search, status and tags
 export function LibraryPage() {
@@ -57,8 +59,9 @@ export function LibraryPage() {
   const unfiltered = !refInput && !words && filter === "all" && tags.length === 0
 
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the
-  // way "Ask Owlit to find papers" hands over its stem, so nothing is sent until the person says so
-  const askOwlit = () => navigate("/chat", { state: { starter: `Find recent papers on ${words}` } })
+  // way "Ask Owlit to find papers" hands over its stem (Chat's starter, in the interface's language), so
+  // nothing is sent until the person says so.
+  const askOwlit = () => navigate("/chat", { state: { starter: `${starterPrompt("find")}${words}` } })
   // Enter in the field adds the reference it holds. Words that match nothing go to Owlit at once rather
   // than moving focus to the button: the hand-off is the one thing offered, and it only fills the composer.
   // Words with matches have already done their work by narrowing the list.
@@ -98,7 +101,7 @@ export function LibraryPage() {
               {noMatch ? (
                 <NoMatch words={words} onAsk={askOwlit} />
               ) : visible.length === 0 ? (
-                <p className="py-16 text-center text-sm text-muted-foreground">No papers match.</p>
+                <p className="py-16 text-center text-sm text-muted-foreground">{t`No papers match.`}</p>
               ) : table ? (
                 <PaperTable papers={visible} order={order} snippets={snippets} />
               ) : (
@@ -111,7 +114,7 @@ export function LibraryPage() {
         {unfiltered && <RecentlyRemoved />}
       </PageShell>
       <BulkBar />
-      {dragging && <DropOverlay label="Drop PDF to add" />}
+      {dragging && <DropOverlay label={t`Drop PDF to add`} />}
     </div>
   )
 }
@@ -120,9 +123,9 @@ export function LibraryPage() {
 // action is a hand-off to Owlit, the same as the empty library's, so finding papers is always one button.
 function NoMatch({ words, onAsk }: { words: string; onAsk: () => void }) {
   return (
-    <EmptyPlace title={<>No papers match “{words}”</>} detail="Owlit can look for papers on this and add what it finds." className="py-16">
+    <EmptyPlace title={t`No papers match “${words}”`} detail={t`Owlit can look for papers on this and add what it finds.`} className="py-16">
       <Button variant="outline" size="sm" onClick={onAsk}>
-        Ask Owlit to find papers about this
+        {t`Ask Owlit to find papers about this`}
       </Button>
     </EmptyPlace>
   )
@@ -137,15 +140,15 @@ function EmptyLibrary() {
   return (
     <div className="mt-12 flex justify-center">
       <DropCard
-        title="Add your first papers"
-        detail="Paste a DOI, arXiv id or link in the field above, or drop PDFs here."
+        title={t`Add your first papers`}
+        detail={t`Paste a DOI, arXiv id or link in the field above, or drop PDFs here.`}
         actions={
           <>
             <Button size="sm" onClick={() => fileInput.current?.click()}>
-              Choose PDFs
+              {t`Choose PDFs`}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/chat", { state: { starter: "Find recent papers on " } })}>
-              Ask Owlit to find papers
+            <Button variant="outline" size="sm" onClick={() => navigate("/chat", { state: { starter: starterPrompt("find") } })}>
+              {t`Ask Owlit to find papers`}
             </Button>
           </>
         }

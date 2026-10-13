@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAgentWindow } from "@/features/agent/store"
@@ -34,13 +35,15 @@ export function useChatNotifications() {
       const key = ask ? `${chat.id}:${ask.requestId}` : broken ? `${chat.id}:${broken.id}` : null
       if (!key || said.current.has(key)) continue
       said.current.add(key)
-      const where = `In “${chat.title}”`
+      const title = chat.title
+      const where = t`In “${title}”`
       if (ask?.type === "permission") {
         bridge.notify({ title: askSentence(ask.title, callOf(chat, ask.toolCallId)), body: where, chatId: chat.id })
       } else if (ask?.type === "question") {
-        bridge.notify({ title: "Owlit has a question", body: ask.questions[0]?.question ?? where, chatId: chat.id })
+        bridge.notify({ title: t`Owlit has a question`, body: ask.questions[0]?.question ?? where, chatId: chat.id })
       } else if (broken) {
-        bridge.notify({ title: "Owlit stopped", body: broken.error ? `${where}: ${broken.error}` : where, chatId: chat.id })
+        const error = broken.error
+        bridge.notify({ title: t`Owlit stopped`, body: error ? t`In “${title}”: ${error}` : where, chatId: chat.id })
       }
     }
   }, [standing, dismissed])

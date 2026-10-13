@@ -1,3 +1,4 @@
+import { plural, t } from "@lingui/core/macro"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { copyText } from "@/lib/clipboard"
@@ -24,11 +25,11 @@ export function usePaperActions() {
 
   // APA, one reference per line
   const copyCitation = async (papers: Paper[]) => {
-    if (await copyText(papers.map(apaCitation).join("\n\n"))) toast(papers.length > 1 ? `${papers.length} citations copied` : "Citation copied")
+    if (await copyText(papers.map(apaCitation).join("\n\n"))) toast(papers.length > 1 ? plural(papers.length, { one: "# citation copied", other: "# citations copied" }) : t`Citation copied`)
   }
 
   const copyBibtex = async (papers: Paper[]) => {
-    if (await copyText(papers.map(bibtex).join("\n\n"))) toast(papers.length > 1 ? `BibTeX for ${papers.length} papers copied` : "BibTeX copied")
+    if (await copyText(papers.map(bibtex).join("\n\n"))) toast(papers.length > 1 ? plural(papers.length, { one: "BibTeX for # paper copied", other: "BibTeX for # papers copied" }) : t`BibTeX copied`)
   }
 
   // Removal is immediate; the toast's Undo puts everything back
@@ -37,7 +38,7 @@ export function usePaperActions() {
     if (removed.length === 0) return
     clearSelection()
     opts.afterRemove?.()
-    toastUndo(removed.length === 1 ? "Removed from library" : `Removed ${removed.length} papers`, () => restorePapers(removed), {
+    toastUndo(removed.length === 1 ? t`Removed from library` : plural(removed.length, { one: "Removed # paper", other: "Removed # papers" }), () => restorePapers(removed), {
       description: removed.length === 1 ? removed[0].title : undefined,
     })
   }
@@ -51,7 +52,7 @@ export function usePaperActions() {
 export function deleteHighlight(id: string) {
   const { removeHighlight, restoreHighlight } = useLibraryStore.getState()
   const removed = removeHighlight(id)
-  if (removed) toastUndo("Highlight deleted", () => restoreHighlight(removed))
+  if (removed) toastUndo(t`Highlight deleted`, () => restoreHighlight(removed))
 }
 
 // A passage of a paper (a selection, a highlight, a line of its note) handed to the agent window; rects

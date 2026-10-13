@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { RpcErrorCode, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, realpath, stat } from "node:fs/promises"
@@ -88,7 +89,8 @@ export class Workspace {
       release = await acquireLock(lockFileFor(root), root)
     } catch (error) {
       if (error instanceof WorkspaceLockedError) {
-        throw new RpcFailure(RpcErrorCode.Conflict, `${path.basename(root)} is already open in another owlit.`, {
+        const name = path.basename(root)
+        throw new RpcFailure(RpcErrorCode.Conflict, t`${name} is already open in another owlit.`, {
           pid: error.pid,
         })
       }
@@ -122,7 +124,7 @@ export class Workspace {
   async setLayout(patch: Record<string, unknown>) {
     const file = this.owlitPath("workspace.json")
     const stored = await readJson<WorkspaceSettings>(file).catch(() => null)
-    if (stored === null) throw new RpcFailure(RpcErrorCode.Conflict, "workspace.json in .owlit can't be read, so owlit leaves it alone.")
+    if (stored === null) throw new RpcFailure(RpcErrorCode.Conflict, t`workspace.json in .owlit can't be read, so owlit leaves it alone.`)
     const layout: Record<string, unknown> = { ...stored?.layout }
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) delete layout[key]
@@ -149,10 +151,11 @@ export async function resolveFolder(folder: string) {
   try {
     info = await stat(absolute)
   } catch {
-    throw new RpcFailure(RpcErrorCode.NotFound, `There is no folder at ${absolute}.`, { path: absolute })
+    throw new RpcFailure(RpcErrorCode.NotFound, t`There is no folder at ${absolute}.`, { path: absolute })
   }
   if (!info.isDirectory()) {
-    throw new RpcFailure(RpcErrorCode.NotFound, `${path.basename(absolute)} is a file, not a folder.`, { path: absolute })
+    const name = path.basename(absolute)
+    throw new RpcFailure(RpcErrorCode.NotFound, t`${name} is a file, not a folder.`, { path: absolute })
   }
   return realpath(absolute)
 }

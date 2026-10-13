@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import * as React from "react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { SettingsIcon } from "lucide-react"
 import { matchNav, nav } from "@/app/nav"
+import { i18n } from "@/lib/i18n"
 import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
 import { useLibraryStore } from "@/features/library/store"
@@ -29,7 +31,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // wherever they are reading
   const dismissed = useSeenStore((s) => s.dismissed)
   const chatNeedsYou = useChatStore((s) => chatsNeedYou(s.chats, s.streaming, dismissed))
-  const markOf = (to: string) => (to === "/library" && libraryNeedsYou ? "A paper needs you" : to === "/chat" && chatNeedsYou ? "A chat needs you" : undefined)
+  const markOf = (to: string) => (to === "/library" && libraryNeedsYou ? t`A paper needs you` : to === "/chat" && chatNeedsYou ? t`A chat needs you` : undefined)
 
   return (
     <Sidebar
@@ -45,12 +47,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenu className="gap-2">
                 {nav.map((item) => {
                   const needsYou = markOf(item.to)
+                  const place = i18n._(item.label)
                   return (
                     <SidebarMenuItem key={item.to}>
                       <SidebarMenuButton
                         asChild
                         tooltip={{
-                          children: needsYou ? `${item.label} · ${needsYou}` : item.label,
+                          children: needsYou ? t({ message: `${place} · ${needsYou}`, comment: "a place in the rail, then what waits there: Library · A paper needs you" }) : place,
                           hidden: false,
                         }}
                         onClick={() => item.panel && setOpen(true)}
@@ -59,7 +62,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       >
                         <NavLink to={item.to} className="relative">
                           <item.icon />
-                          <span>{item.label}</span>
+                          <span>{place}</span>
                           {needsYou && <span aria-hidden className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-warning" />}
                         </NavLink>
                       </SidebarMenuButton>
@@ -98,12 +101,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 function SettingsButton() {
   return (
     <SidebarMenuButton
-      tooltip={{ children: <TipLabel label="Settings" shortcut="settings" />, hidden: false }}
+      tooltip={{ children: <TipLabel label={t`Settings`} shortcut="settings" />, hidden: false }}
       onClick={() => openSettings()}
       className="px-2.5 md:px-2"
     >
       <SettingsIcon />
-      <span>Settings</span>
+      <span>{t`Settings`}</span>
     </SidebarMenuButton>
   )
 }

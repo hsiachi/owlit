@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import type { Mentionable } from "@/features/chat/types"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
@@ -146,7 +147,10 @@ export function mentionLabel(uri: string): string | undefined {
   const u = parseOwlitUri(uri)
   if (u?.kind === "paper") {
     const paper = paperOf(u.id)
-    return paper ? `${citationLabel(paper)}${u.page ? `, p. ${u.page}` : ""}` : undefined
+    if (!paper) return undefined
+    const cite = citationLabel(paper)
+    const page = u.page
+    return page ? t({ message: `${cite}, p. ${page}`, comment: "a paper cited at a page: Chan et al. 2026, p. 13" }) : cite
   }
   if (u?.kind === "doc") return u.path.split("/").pop()?.replace(/\.md$/, "")
   if (u?.kind === "knowledge") return knowledgeTitle(u)

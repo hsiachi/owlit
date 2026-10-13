@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { useDocumentState, useRegistry } from "@embedpdf/core/react"
 import {
@@ -98,6 +99,9 @@ async function readLinks(engine: PdfEngine, doc: PdfDocumentObject, pageIndex: n
   return found
 }
 
+// A link's name for a screen reader, by the page number it goes to
+const goToPage = (page: number) => t`Go to page ${page}`
+
 export function LinkLayer({ documentId, pageIndex, onFollow }: { documentId: string; pageIndex: number; onFollow: (mark: ReturnMark) => void }) {
   const { registry } = useRegistry()
   const { provides: scroll } = useScroll(documentId)
@@ -123,7 +127,7 @@ export function LinkLayer({ documentId, pageIndex, onFollow }: { documentId: str
         <button
           type="button"
           key={h.key}
-          aria-label={`Go to page ${h.destination.pageIndex + 1}`}
+          aria-label={goToPage(h.destination.pageIndex + 1)}
           onClick={() => {
             if (!scroll) return
             const metrics = scroll.getMetrics()
