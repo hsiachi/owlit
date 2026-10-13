@@ -943,6 +943,7 @@ msgstr ""
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
 msgid "Cancel"
 msgstr ""
 
@@ -4779,6 +4780,35 @@ msgstr ""
 msgid "The publisher wants to check this is a person."
 msgstr ""
 
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command is installed"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Run “owlit --help” in Terminal to see what it can do."
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+#: apps/desktop/src/main.ts
+msgid "OK"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace the owlit command?"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "{LINK} already exists. Replacing it makes it run this copy of Owlit."
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command couldn't be installed"
+msgstr ""
+
 #: apps/desktop/src/main.ts
 msgid "Couldn't open the folder"
 msgstr ""
@@ -4820,15 +4850,15 @@ msgid "The pitta library couldn't be imported"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "OK"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "About {name}"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Install Command Line Tool…"
 msgstr ""
 
 #: apps/desktop/src/main.ts

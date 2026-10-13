@@ -10,6 +10,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notificati
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
+import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
@@ -311,6 +312,7 @@ async function updateMenu(core: Core) {
             { role: "about", label: t`About ${name}` },
             { type: "separator" },
             settingsItem,
+            { label: t`Install Command Line Tool…`, click: () => void installCliTool() },
             { type: "separator" },
             { role: "services", label: t`Services` },
             { type: "separator" },
@@ -431,6 +433,16 @@ async function systemProxy(): Promise<Record<string, string>> {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
+  // A folder handed to the app (open -a Owlit <folder>, which `owlit open` runs; the Dock's recent
+  // workspaces) opens as the workspace. One handed over while starting takes the last workspace's place.
+  let handed: string | null = null
+  let openHanded: ((folder: string) => void) | null = null
+  app.on("open-file", (event, file) => {
+    event.preventDefault()
+    if (openHanded) openHanded(file)
+    else handed = file
+  })
+
   app.on("second-instance", () => {
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) return
@@ -521,8 +533,11 @@ if (!app.requestSingleInstanceLock()) {
     // Reopen the last workspace. It starts opening before the window loads, so the window waits for it
     // instead of showing the welcome page; on a first launch, or when the folder is gone, the window
     // shows the welcome page.
-    const last = await core.lastWorkspace()
+    const last = handed ?? (await core.lastWorkspace())
     if (last) void openWorkspace(core, last)
+    openHanded = (folder) => void openWorkspace(core, folder)
+    // The owlit command's script, pointing at this copy of the app
+    void writeCliScript(path.join(__dirname, "owlit.cjs")).catch((error) => console.error("[cli] couldn't write the owlit script:", error))
 
     const win = createWindow()
     // The first window is listening once it has loaded; that is when core says hello

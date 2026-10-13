@@ -943,6 +943,7 @@ msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
 msgid "Cancel"
 msgstr "取消"
 
@@ -4779,6 +4780,35 @@ msgstr "请在页面上登录图书馆或出版商。"
 msgid "The publisher wants to check this is a person."
 msgstr "出版商想确认你是真人。"
 
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command is installed"
+msgstr "owlit 命令已安装"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Run “owlit --help” in Terminal to see what it can do."
+msgstr "在终端中运行“owlit --help”，看看它能做什么。"
+
+#: apps/desktop/src/cli-tool.ts
+#: apps/desktop/src/main.ts
+msgid "OK"
+msgstr "好"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace the owlit command?"
+msgstr "要替换 owlit 命令吗？"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "{LINK} already exists. Replacing it makes it run this copy of Owlit."
+msgstr "{LINK} 已存在。替换后，它会运行这一份 Owlit。"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace"
+msgstr "替换"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command couldn't be installed"
+msgstr "无法安装 owlit 命令"
+
 #: apps/desktop/src/main.ts
 msgid "Couldn't open the folder"
 msgstr "无法打开文件夹"
@@ -4820,16 +4850,16 @@ msgid "The pitta library couldn't be imported"
 msgstr "无法导入 pitta 文献库"
 
 #: apps/desktop/src/main.ts
-msgid "OK"
-msgstr "好"
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr "设置…"
 
 #: apps/desktop/src/main.ts
 msgid "About {name}"
 msgstr "关于 {name}"
+
+#: apps/desktop/src/main.ts
+msgid "Install Command Line Tool…"
+msgstr "安装命令行工具…"
 
 #: apps/desktop/src/main.ts
 msgid "Services"

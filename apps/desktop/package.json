@@ -18,6 +18,7 @@
     "@lingui/core": "6.9.1",
     "@lingui/native-tools": "0.1.6",
     "@owlit/agent": "workspace:*",
+    "@owlit/cli": "workspace:*",
     "@owlit/core": "workspace:*",
     "@owlit/i18n": "workspace:*",
     "@owlit/mcp": "workspace:*",

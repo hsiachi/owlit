@@ -943,6 +943,7 @@ msgstr "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -4779,6 +4780,35 @@ msgstr "Sign in to the library or publisher on the page."
 msgid "The publisher wants to check this is a person."
 msgstr "The publisher wants to check this is a person."
 
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command is installed"
+msgstr "The owlit command is installed"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Run “owlit --help” in Terminal to see what it can do."
+msgstr "Run “owlit --help” in Terminal to see what it can do."
+
+#: apps/desktop/src/cli-tool.ts
+#: apps/desktop/src/main.ts
+msgid "OK"
+msgstr "OK"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace the owlit command?"
+msgstr "Replace the owlit command?"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "{LINK} already exists. Replacing it makes it run this copy of Owlit."
+msgstr "{LINK} already exists. Replacing it makes it run this copy of Owlit."
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace"
+msgstr "Replace"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command couldn't be installed"
+msgstr "The owlit command couldn't be installed"
+
 #: apps/desktop/src/main.ts
 msgid "Couldn't open the folder"
 msgstr "Couldn't open the folder"
@@ -4820,16 +4850,16 @@ msgid "The pitta library couldn't be imported"
 msgstr "The pitta library couldn't be imported"
 
 #: apps/desktop/src/main.ts
-msgid "OK"
-msgstr "OK"
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr "Settings…"
 
 #: apps/desktop/src/main.ts
 msgid "About {name}"
 msgstr "About {name}"
+
+#: apps/desktop/src/main.ts
+msgid "Install Command Line Tool…"
+msgstr "Install Command Line Tool…"
 
 #: apps/desktop/src/main.ts
 msgid "Services"
