@@ -5,24 +5,24 @@ description: A quiet, paper-toned desk for reading, writing and thinking through
 colors:
   # Light mode, warm tone. Dark values and the other tones are in app/src/index.css, the source of truth.
   # Surfaces, back to front
-  sidebar: "oklch(0.942 0.007 80)"
-  sidebar-panel: "oklch(0.976 0.004 85)"
-  background: "oklch(0.99 0.002 85)"
+  sidebar: "oklch(0.942 0.007 95)"
+  sidebar-panel: "oklch(0.976 0.004 95)"
+  background: "oklch(0.99 0.002 95)"
   card: "oklch(1 0 0)"
   popover: "oklch(1 0 0)"
   # Text
   foreground: "oklch(0.21 0.008 60)"
   muted-foreground: "oklch(0.505 0.012 65)"
   primary: "oklch(0.25 0.008 60)"
-  primary-foreground: "oklch(0.985 0.003 85)"
+  primary-foreground: "oklch(0.985 0.003 95)"
   # State fills: translucent tints of the text colour
   muted: "oklch(0.3 0.02 65 / 5%)"
   secondary: "oklch(0.3 0.02 65 / 5%)"
   accent: "oklch(0.3 0.02 65 / 6%)"
   sidebar-accent: "oklch(0.3 0.02 65 / 6.5%)"
   # Lines
-  border: "oklch(0.905 0.006 80)"
-  input: "oklch(0.9 0.006 80)"
+  border: "oklch(0.905 0.006 95)"
+  input: "oklch(0.9 0.006 95)"
   ring: "oklch(0.7 0.012 70)"
   # Marks: one meaning each, unchanged by paper tone
   mention: "oklch(0.48 0.09 255)"
@@ -423,7 +423,7 @@ owlit is a Mac app for reading, writing and thinking through papers with an assi
 
 ### Five rules
 
-1. **Paper, not steel.** Every neutral carries a faint warm tint (hue 60 to 85, chroma under 0.012), so greys read as paper. Surfaces are opaque and step lighter from the back of the window to the front: frame, list panel, sheet, card, popover. The brightest thing on any screen is what you read or act on: a PDF page, the composer, a card. Depth is told by that lightness, then a hairline, and only what floats gets a shadow.
+1. **Paper, not steel.** Every neutral carries a faint warm tint (chroma under 0.012), so greys read as paper: surfaces and lines at hue 95, a warm ivory that matches the app icon's tile, text and state fills a little warmer, so they read as ink. Surfaces are opaque and step lighter from the back of the window to the front: frame, list panel, sheet, card, popover. The brightest thing on any screen is what you read or act on: a PDF page, the composer, a card. Depth is told by that lightness, then a hairline, and only what floats gets a shadow.
 2. **Quiet by default.** A row at rest is its name and one line of muted detail. Actions appear on hover, focus or an open menu. Nothing is counted in a badge; a count that earns its place is a muted number at the end of a line. A finished thing goes quiet.
 3. **One ladder of states, one mark per rung.** Everything that can have a state sits on one ladder, each rung with one mark, the same everywhere: *fine* is nothing at all; *working* is a quiet grey (a breathing ring, a shimmer on the words, a muted spinner on the row at work); *changed since you last looked*, only for what Owlit did, is Owlit's green dot (`owlit-mark`), gone once seen; *waiting on you* is the `warning` amber dot, and where it sits beside a time (the chat list) the word Waiting takes the time's place; *broken* is `destructive`, red, with the word Stopped the same way. Each rung is its own hue, so nothing is told apart by a shade.
 4. **Every colour says one thing.** Neutrals carry the whole interface. Each other colour has a single meaning and draws marks (words, dots, rules, underlines), never washes. Paper tones never touch a mark. Two states that both matter are never told apart by colour alone.
@@ -444,11 +444,11 @@ owlit is a Mac app for reading, writing and thinking through papers with an assi
 
 ### Brand
 
-The mark is a feather: one hand-drawn, round-ended line that curls back on itself three times, in the text's own ink, never filled, outlined, shadowed or tinted. As an icon (`OwlitMark`) it is drawn to lucide's measure: the line fills 20 of 24 units of its square and its stroke is 2 of 24, so it sits beside lucide icons as one of them. It stands only for Owlit: the top bar's toggle for the agent window, Ask Owlit in the highlight toolbar, the app icon. It is never decoration.
+The mark is a feather: one hand-drawn, round-ended line that curls back on itself three times. In the interface it is in the text's own ink, never filled, outlined, shadowed or tinted; only the app icon draws it in green. As an icon (`OwlitMark`) it is drawn to lucide's measure: the line fills 20 of 24 units of its square and its stroke is 2 of 24, so it sits beside lucide icons as one of them. It stands only for Owlit: the top bar's toggle for the agent window, Ask Owlit in the highlight toolbar, the app icon. It is never decoration.
 
 The wordmark is lowercase "owlit" in Dosis 500 slanted 12° (Dosis has no italic, so the slant is a skew). The lockup (`OwlitLockup`) puts the feather before the word, drawn with a thinner line than the icon, its height 1.35 times the ascender of the "l", as outlined paths so no font is needed; it appears once, on the welcome page. The Chat greeting is set in the wordmark's face, 44px, skewed 12°, in the foreground at 90%; nothing else uses Dosis. In the interface the name is plain text.
 
-The app icon is a squircle tile in a light paper gradient with a soft drop shadow and a hairline edge, the feather on it in near-black ink; the dark icon keeps the shape on a dark warm tile.
+The app icon is the one place the brand wears Owlit's green, because it lives outside the app; inside, green keeps its single meaning. It is a rounded tile in a warm-white gradient with a soft drop shadow, a light inner edge and a hairline, the feather on it in `owlit` green with a faint grain inside the line, drawn larger than in the interface (2.8 times its own units on the 1024 grid). The dark icon is a graphite tile with the feather in a light mint. Small sizes are drawn with a heavier line rather than scaled down, so the feather keeps about a pixel at 16 and 32. `apps/desktop/scripts/icon.mjs` builds every file from one description; the macOS dark icon waits for an Icon Composer file.
 
 ## Colors
 
