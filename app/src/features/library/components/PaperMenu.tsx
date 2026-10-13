@@ -39,11 +39,12 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
       onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: Error) => toast.error(error.message || "Couldn't refresh the details.")),
     })
   }
-  // A paper with something to read and no reading note yet; core skips it otherwise anyway
-  if (isDesktop && single && !single.hasDigest && (single.pdf || single.text)) {
+  // A paper with something to read; one with a note can have it written again (a better model, after a
+  // change of language), which only the user ever asks for
+  if (isDesktop && single && (single.pdf || single.text)) {
     copy.push({
-      label: "Write a reading note",
-      onSelect: () => void rpc.library.requestDigest({ id: single.id }).catch(() => toast.error("Couldn't ask for a reading note.")),
+      label: single.hasDigest ? "Rewrite reading note" : "Write a reading note",
+      onSelect: () => void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error("Couldn't ask for a reading note.")),
     })
   }
 

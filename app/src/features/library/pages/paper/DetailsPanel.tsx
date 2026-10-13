@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
 import { cn } from "@/lib/utils"
-import { rpc } from "@/lib/rpc"
-import { GroupLabel } from "@/components/group-label"
+import { FoldButton } from "@/components/fold"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
-import { openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsList"
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
@@ -103,8 +100,7 @@ function About({ paper }: { paper: Paper }) {
   const links = externalLinks(paper)
   return (
     <div>
-      {paper.abstract ? <p className="text-sm leading-relaxed whitespace-pre-line">{stripLatex(paper.abstract)}</p> : <p className="text-sm text-muted-foreground">No abstract.</p>}
-      <Digest paper={paper} />
+      {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">No abstract.</p>}
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-detail">
         <dt className="text-muted-foreground">Tags</dt>
         <dd>
@@ -145,39 +141,19 @@ function About({ paper }: { paper: Paper }) {
   )
 }
 
-// The reading note Owlit wrote for the paper (digest.md), or that it is writing: the agent's work on a
-// paper the person never asked about, so the label signs it ("Reading note · Owlit, 2 min ago") and, while
-// the paper.digest task for this paper is queued or running, a muted shimmering sentence holds its place.
-// Here for now; its place is the interface's to settle.
-function Digest({ paper }: { paper: Paper }) {
-  const [text, setText] = useState<string | null>(null)
-  const writing = useTasksStore((s) => openTasksFor(s, paper.id).some((t) => t.kind === "paper.digest"))
-  useEffect(() => {
-    if (!paper.hasDigest) return
-    let live = true
-    rpc.library
-      .digest({ id: paper.id })
-      .then((t) => live && setText(t))
-      .catch(() => undefined)
-    return () => {
-      live = false
-    }
-  }, [paper.id, paper.hasDigest])
-  // A note fetched for a paper that has since lost it isn't shown
-  const shown = paper.hasDigest ? text : null
-  if (!shown && !writing) return null
+// The abstract. With a reading note on the page, the note says more, so the abstract folds to its first
+// lines until asked for.
+function Abstract({ text, folded }: { text: string; folded: boolean }) {
+  const [open, setOpen] = useState(false)
+  const shut = folded && !open
   return (
-    <section className="mt-5">
-      <GroupLabel as="h3" flush>
-        {shown && paper.digestAt ? `Reading note · Owlit, ${ago(paper.digestAt, { inSentence: true })}` : "Reading note · Owlit"}
-      </GroupLabel>
-      {shown ? (
-        <Markdown text={shown} className="text-sm" />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          <span className="shimmer">Owlit is reading this paper…</span>
-        </p>
+    <div>
+      <p className={cn("text-sm leading-relaxed whitespace-pre-line", shut && "line-clamp-4")}>{text}</p>
+      {folded && (
+        <FoldButton open={open} onClick={() => setOpen(!open)} className="mt-1">
+          {open ? "Show less" : "Show more"}
+        </FoldButton>
       )}
-    </section>
+    </div>
   )
 }

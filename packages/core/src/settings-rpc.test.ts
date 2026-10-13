@@ -42,7 +42,7 @@ describe("settings", () => {
     expect(await call("settings.get")).toEqual({
       appearance: { theme: "system", tone: "warm" },
       profile: {},
-      library: {},
+      library: { digestLanguageSystem: "en" },
       parsing: { auto: true },
       secrets: {},
       activity: { enabled: true },

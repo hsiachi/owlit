@@ -10,12 +10,12 @@ import { contentListToText, type ContentBlock } from "./convert.ts"
 import { unzip } from "./unzip.ts"
 
 // A zip with stored entries (what unzip must read; MinerU's are deflated, which node's zlib handles)
-function zipOf(files: Record<string, string>) {
+function zipOf(files: Record<string, string | Buffer>) {
   const locals: Buffer[] = []
   const centrals: Buffer[] = []
   let offset = 0
   for (const [name, text] of Object.entries(files)) {
-    const data = Buffer.from(text)
+    const data = Buffer.isBuffer(text) ? text : Buffer.from(text)
     const nameBytes = Buffer.from(name)
     const local = Buffer.alloc(30)
     local.writeUInt32LE(0x04034b50, 0)
@@ -50,6 +50,46 @@ const contentList: ContentBlock[] = [
   { type: "ref_text", text: "[1] Dourish, P. and Bellotti, V. 1992. Awareness and coordination.", bbox: [80, 800, 900, 830], page_idx: 0 },
   { type: "page_number", text: "1", bbox: [490, 960, 510, 975], page_idx: 0 },
 ]
+
+// MinerU's layout for the same page: Figure 1 in two panels (its caption under the right one), Figure 2
+// a chart kept whole, and Table 1
+const span = (content: string) => ({ lines: [{ spans: [{ type: "text", content }] }] })
+const picture = (image_path: string) => ({ lines: [{ spans: [{ type: "image", image_path }] }] })
+const layout = {
+  pdf_info: [
+    {
+      page_idx: 0,
+      page_size: [612, 792],
+      para_blocks: [
+        { type: "image", bbox: [72, 420, 290, 560], blocks: [{ type: "image_body", bbox: [72, 420, 290, 560], ...picture("images/left.jpg") }] },
+        {
+          type: "image",
+          bbox: [310, 420, 540, 590],
+          blocks: [
+            { type: "image_body", bbox: [310, 420, 540, 560], ...picture("images/right.jpg") },
+            { type: "image_caption", bbox: [72, 570, 540, 590], ...span("Figure 1: Two panels of one figure.") },
+          ],
+        },
+        {
+          type: "chart",
+          bbox: [72, 620, 300, 760],
+          blocks: [
+            { type: "chart_body", bbox: [72, 620, 300, 740], ...picture("images/chart.jpg") },
+            { type: "chart_caption", bbox: [72, 745, 300, 760], ...span("Fig. 2. A chart.") },
+          ],
+        },
+        {
+          type: "table",
+          bbox: [72, 240, 540, 320],
+          blocks: [
+            { type: "table_caption", bbox: [72, 240, 540, 255], ...span("Table 1: Results") },
+            { type: "table_body", bbox: [72, 260, 540, 320], ...picture("images/table.jpg") },
+          ],
+        },
+      ],
+    },
+  ],
+}
 
 describe("contentListToText", () => {
   it("turns MinerU's blocks into pages of blocks in points", () => {
@@ -111,7 +151,18 @@ function mineruCloud(options: { polls?: number; refuse?: boolean; hang?: boolean
         },
       })
     }
-    if (url === "https://cdn.example.org/batch-1.zip") return new Response(zipOf({ "x/x_content_list.json": JSON.stringify(contentList), "x/full.md": "# x" }))
+    if (url === "https://cdn.example.org/batch-1.zip")
+      return new Response(
+        zipOf({
+          "x/x_content_list.json": JSON.stringify(contentList),
+          "x/full.md": "# x",
+          "x/layout.json": JSON.stringify(layout),
+          "x/images/left.jpg": Buffer.from("left panel"),
+          "x/images/right.jpg": Buffer.from("right panel"),
+          "x/images/chart.jpg": Buffer.from("a chart"),
+          "x/images/table.jpg": Buffer.from("a table"),
+        }),
+      )
     return new Response("", { status: 404 })
   }) as unknown as typeof globalThis.fetch
   return { fetch, asked }
@@ -167,6 +218,20 @@ describe("paper.parse", () => {
     expect((await call("library.list")).papers[0].text).toBe("full")
     expect(cloud.asked.filter((a) => a.startsWith("POST"))).toHaveLength(1)
     expect(cloud.asked).toContain("PUT https://oss.example.org/upload/batch-1")
+
+    // The figures come with it: MinerU's own picture where it kept one whole, the PDF drawn again
+    // where it cut one into panels
+    const figures = await call("library.figures", { id: "doi-10.9-p" })
+    expect(figures.map((f: { id: string; label: string; page: number }) => [f.id, f.label, f.page])).toEqual([
+      ["table-1", "Table 1", 0],
+      ["figure-1", "Figure 1", 0],
+      ["figure-2", "Figure 2", 0],
+    ])
+    expect(figures[1].rect).toEqual({ x: 72, y: 420, w: 468, h: 140 })
+    expect(figures[1].url).toBe("owlit-file://workspace/library/papers/doi-10.9-p/figures/figure-1.png")
+    expect(readFileSync(path.join(dir, "figures/figure-1.png")).subarray(1, 4).toString()).toBe("PNG")
+    expect(readFileSync(path.join(dir, "figures/figure-2.jpg"), "utf8")).toBe("a chart")
+    expect(readFileSync(path.join(dir, "figures/table-1.jpg"), "utf8")).toBe("a table")
   }, 30_000)
 
   it("looks up the recorded job after a restart instead of submitting another", async () => {

@@ -40,6 +40,9 @@ export interface Paper {
   // file's time), so the note can be signed with its age
   hasDigest?: boolean
   digestAt?: number
+  // The reading note no longer matches how owlit writes them: an older way of writing (format), or
+  // another language than Settings now asks for (language). Rewriting is the user's call.
+  digestOutdated?: "format" | "language"
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
@@ -76,6 +79,23 @@ export interface Rect {
 export interface PageRect extends Rect {
   // 0-based
   page: number
+}
+
+// A figure or table of a paper as a picture (library/papers/<id>/figures/), from MinerU's reading of
+// the PDF. A reading note shows one by its id: ![Figure 3](figure-3).
+export interface PaperFigure {
+  // figure-3, table-2, figure-s1
+  id: string
+  kind: "figure" | "table"
+  // "Figure 3", as its caption numbers it
+  label: string
+  caption: string
+  // 0-based
+  page: number
+  // Where it sits, PDF points from the page's top-left corner
+  rect: Rect
+  // The picture, served from the workspace
+  url: string
 }
 
 export interface Highlight {

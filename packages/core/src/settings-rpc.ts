@@ -1,4 +1,6 @@
 import {
+  DEFAULT_NOTE_LANGUAGE,
+  normalizeNoteLanguage,
   PROXY_PRESETS,
   proxyFromLink,
   RpcErrorCode,
@@ -26,7 +28,8 @@ const SECRET_FIELDS = {
   mineruToken: ["parsing", "token"],
 } as const satisfies Record<SecretName, readonly [string, string]>
 
-export function settingsView(s: AppSettings): SettingsView {
+// systemLanguage: the note language the system's own language means (noteLanguageFor)
+export function settingsView(s: AppSettings, systemLanguage = DEFAULT_NOTE_LANGUAGE): SettingsView {
   const secrets: SettingsView["secrets"] = {}
   for (const [name, [group, key]] of Object.entries(SECRET_FIELDS) as [SecretName, readonly [keyof AppSettings, string]][]) {
     const value = (s[group] as Record<string, unknown>)[key]
@@ -40,7 +43,8 @@ export function settingsView(s: AppSettings): SettingsView {
       contactEmail: library.contactEmail,
       proxy: library.proxy,
       proxySignedInAt: library.proxySignedInAt,
-      digestLanguage: library.digestLanguage,
+      digestLanguage: library.digestLanguage ? normalizeNoteLanguage(library.digestLanguage) : undefined,
+      digestLanguageSystem: systemLanguage,
       digestEveryPaper: library.digestEveryPaper,
     }),
     parsing: defined({ service: parsing.service, url: parsing.url, auto: parsing.auto ?? true }),
@@ -113,17 +117,18 @@ interface Deps {
   settings: SettingsStore
   http: Http
   browser?: BrowserHost
+  systemLanguage?: string
   changed: (view: SettingsView) => void
 }
 
-export function registerSettings({ router, settings, http, browser, changed }: Deps) {
+export function registerSettings({ router, settings, http, browser, systemLanguage, changed }: Deps) {
   const save = async (change: (s: AppSettings) => AppSettings) => {
-    const view = settingsView(await settings.update(change))
+    const view = settingsView(await settings.update(change), systemLanguage)
     changed(view)
     return view
   }
 
-  router.register("settings.get", noParams, async () => settingsView(await settings.get()))
+  router.register("settings.get", noParams, async () => settingsView(await settings.get(), systemLanguage))
   router.register("settings.update", z.object({ patch: patchSchema }), ({ patch }) => save((s) => applyPatch(s, patch)))
   router.register("settings.setSecret", z.object({ name: secretName, value: z.string().trim().max(4096).nullable() }), ({ name, value }) =>
     save((s) => {

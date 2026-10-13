@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronUpIcon, PanelRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NotFound, PageHeader } from "@/components/page"
 import { IconButton } from "@/components/icon-button"
+import { SegmentedControl } from "@/components/segmented-control"
 import { useAgentWindow } from "@/features/agent/store"
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
@@ -12,14 +13,15 @@ import { useTakeParam } from "../lib/use-take-param"
 import { notePathOf } from "../notes/note-actions"
 import { usePrefsStore } from "../prefs-store"
 import { PdfReader } from "../reader/PdfReader"
-import { whenReaderReady } from "../reader/reader-store"
+import { useReaderStore, whenReaderReady } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
 import { DetailsPanel } from "./paper/DetailsPanel"
 import { NoPdf } from "./paper/NoPdf"
+import { ReadingNote, useWritingNote } from "./paper/ReadingNote"
 
-// One paper, reader first: the PDF on a darker well, details beside it
+// One paper: its reading note, or the PDF on a darker well, with details beside it
 export function PaperPage() {
   const { paperId = "" } = useParams()
   const navigate = useNavigate()
@@ -67,21 +69,56 @@ export function PaperPage() {
     return () => paperClosed(id)
   }, [paperId])
 
+  // The reading note or the PDF. A paper with a note opens on it, since most of the time the note is
+  // enough; the choice holds until the next paper.
+  const writing = useWritingNote(paperId)
+  const [chosen, setChosen] = useState<{ paperId: string; view: PaperView } | null>(null)
+  const hasNote = !!paper?.hasDigest
+  const view: PaperView = chosen?.paperId === paperId ? chosen.view : hasNote ? "note" : "pdf"
+  const showView = (next: PaperView) => setChosen({ paperId, view: next })
+  // Settled when the paper opens: a note that arrives while the PDF is being read doesn't take its place
+  // (once the library has the paper: after a reload it arrives a moment later)
+  const known = !!paper
+  useEffect(() => {
+    if (known) setChosen((c) => (c?.paperId === paperId ? c : { paperId, view: hasNote ? "note" : "pdf" }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paperId, known])
+  // The PDF stays loaded under the note, so going to a page is the reader's own jump
+  const showPage = (page: number) => {
+    showView("pdf")
+    void whenReaderReady(paperId).then((api) => api.showPage(page), () => undefined)
+  }
+  // A jump into the PDF from elsewhere (a highlight in the list, a passage from Knowledge) shows the PDF
+  useEffect(
+    () =>
+      useReaderStore.subscribe((s, prev) => {
+        if ((s.flashId && s.flashId !== prev.flashId) || (s.ring?.pulse && s.ring !== prev.ring) || (s.activeId && s.activeId !== prev.activeId)) {
+          setChosen({ paperId, view: "pdf" })
+        }
+      }),
+    [paperId],
+  )
+
   // Opened from a passage link (a topic line's "§2"): go to the passage once the reader is ready
   useTakeParam("passage", (passageId) => {
     const passage = useKnowledgeStore.getState().paper(paperId).passages[passageId]
-    if (passage) void whenReaderReady(paperId).then((api) => api.showPassage(passage, "jump"), () => undefined)
+    if (!passage) return
+    setChosen({ paperId, view: "pdf" })
+    void whenReaderReady(paperId).then((api) => api.showPassage(passage, "jump"), () => undefined)
   })
 
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) return <NotFound title="This paper is not in the library" detail="It may have been removed." back={{ label: "Back to library", to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
+  // Only once there is a note, or one on its way, is there anything to choose
+  const choosing = hasNote || writing
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* With the details open the title is right there in the panel, so the trail stops at Library */}
       <PageHeader trail={[{ label: "Library", to: "/library" }]} current={panelOpen ? undefined : paper.title}>
+        {choosing && <SegmentedControl label="Show" value={view} onChange={showView} options={VIEWS} className="mr-2" />}
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">
             {idx + 1} of {order.length}
@@ -100,14 +137,31 @@ export function PaperPage() {
 
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
-        <main className={cn("flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
-          {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf key={paper.id} paper={paper} />}
+        <main className={cn("relative flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
+          {/* Its own stacking context, so the reader's floating pills stay under the note, and out of
+              reach while the note covers it */}
+          <div className="isolate flex min-h-0 flex-1 flex-col" inert={choosing && view === "note"}>
+            {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf key={paper.id} paper={paper} />}
+          </div>
+          {/* Over the reader rather than instead of it: the PDF keeps its place, and a jump to a page
+              doesn't wait for it to load again */}
+          {choosing && view === "note" && (
+            <div className="absolute inset-0 z-10">
+              <ReadingNote paper={paper} onShowPage={showPage} />
+            </div>
+          )}
         </main>
         {panelOpen && <DetailsPanel paper={paper} />}
       </div>
     </div>
   )
 }
+
+type PaperView = "note" | "pdf"
+const VIEWS: { value: PaperView; label: string }[] = [
+  { value: "note", label: "Reading note" },
+  { value: "pdf", label: "PDF" },
+]
 
 // All papers, kept as they were while only reading positions move. A position changes at every scroll
 // pause and nothing on this page follows it (the reader reads its paper's once, in position.ts), so a
