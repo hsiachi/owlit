@@ -68,6 +68,7 @@ export class SettingsStore {
     return this.update((s) => ({
       ...s,
       lastWorkspace: workspacePath,
+      onboardedAt: s.onboardedAt ?? Date.now(),
       recentWorkspaces: [workspacePath, ...s.recentWorkspaces.filter((p) => p !== workspacePath)].slice(0, RECENT_LIMIT),
     }))
   }

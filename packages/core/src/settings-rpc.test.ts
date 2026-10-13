@@ -47,6 +47,7 @@ describe("settings", () => {
       parsing: { auto: true },
       secrets: {},
       activity: { enabled: true },
+      onboarded: false,
     })
   })
 

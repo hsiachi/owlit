@@ -100,7 +100,7 @@ function BackgroundWork() {
 // The language of digests: a listed one, or Other with the user's own words for it. Unset follows
 // the system's language, shown as the value; picking the system's language goes back to unset, so it
 // keeps following the system. Terms keeping the paper's wording is the digest's rule, not a choice here.
-function LanguageRow() {
+export function LanguageRow() {
   const stored = useSettings((s) => s.view?.library.digestLanguage)
   const system = useSettings((s) => s.view?.library.digestLanguageSystem) ?? "en"
   const listed = !stored || NOTE_LANGUAGES.some((l) => l.code === stored)

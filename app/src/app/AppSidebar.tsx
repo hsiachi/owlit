@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import * as React from "react"
-import { NavLink, useLocation } from "react-router-dom"
+import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +12,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { SettingsIcon } from "lucide-react"
+import { CircleHelpIcon, SettingsIcon } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { askOwlitHowTo } from "@/features/agent/store"
+import { showIntro } from "@/features/onboarding/store"
+import { takeTour } from "@/features/tour/take"
+import { openShortcuts } from "@/app/shortcuts"
 import { matchNav, nav } from "@/app/nav"
 import { i18n } from "@/lib/i18n"
 import { TipLabel } from "@/components/tip"
@@ -86,6 +91,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarFooter className="px-(--frame-gap) pb-0">
           <SidebarMenu>
             <SidebarMenuItem>
+              <HelpButton />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <SettingsButton />
             </SidebarMenuItem>
           </SidebarMenu>
@@ -104,6 +112,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </Sidebar>
       )}
     </Sidebar>
+  )
+}
+
+// Help, beside Settings at the rail's foot: the tour, the introduction again, every shortcut, or Owlit
+// answering how to do something. The menu bar's Help menu has the same.
+function HelpButton() {
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuButton data-tour="help" tooltip={{ children: <TipLabel label={t`Help`} />, hidden: false }} className="px-2.5 md:px-2">
+          <CircleHelpIcon />
+          <span>{t`Help`}</span>
+        </SidebarMenuButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="end" className="w-52">
+        <DropdownMenuItem onSelect={takeTour}>{t`Take the tour`}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={showIntro}>{t`How owlit works`}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={openShortcuts}>{t`Keyboard shortcuts`}</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => askOwlitHowTo(pathname, navigate)}>{t`Ask Owlit how to…`}</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

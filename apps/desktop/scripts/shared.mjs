@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs"
+import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -73,4 +73,7 @@ export function copyMainAssets() {
   const fromCore = createRequire(path.join(desktopDir, "../../packages/core/package.json"))
   mkdirSync(distDir, { recursive: true })
   copyFileSync(fromCore.resolve("@embedpdf/pdfium/pdfium.wasm"), path.join(distDir, "pdfium.wasm"))
+  // The example workspace the first-launch flow offers (workspace.createExample)
+  const example = path.join(desktopDir, "resources", "example-workspace")
+  if (existsSync(example)) cpSync(example, path.join(distDir, "example-workspace"), { recursive: true })
 }

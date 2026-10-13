@@ -31,6 +31,8 @@ export interface SettingsView {
   // The model each agent uses for background work, by agent id; absent means the agent's default
   backgroundModels?: Record<string, string>
   activity: { enabled: boolean }
+  // A workspace has opened on this machine before; until then a launch shows the first-launch flow
+  onboarded: boolean
 }
 
 // null clears a value back to its default

@@ -129,7 +129,8 @@ export function PaperPage() {
           title too: the header is where the page says where you are, and a trail ending at Library read
           as being on the Library, with the digest under it showing no title of its own */}
       <PageHeader trail={[{ label: t`Library`, to: "/library" }]} current={paper.title}>
-        {choosing && <SegmentedControl label={t({ message: "Show", comment: "choice between showing the digest or the PDF" })} value={view} onChange={showView} options={views} className="mr-2" />}
+        {/* The tour's stop on the digest points at the switch */}
+        {choosing && <span data-tour="digest-switch" className="contents"><SegmentedControl label={t({ message: "Show", comment: "choice between showing the digest or the PDF" })} value={view} onChange={showView} options={views} className="mr-2" /></span>}
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">
             {t`${position} of ${total}`}
@@ -148,7 +149,7 @@ export function PaperPage() {
 
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
-        <main className={cn("relative flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
+        <main data-tour="reader" className={cn("relative flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
           {/* Its own stacking context, so the reader's floating pills stay under the digest, and out of
               reach while the digest covers it */}
           <div className="isolate flex min-h-0 flex-1 flex-col" inert={choosing && view === "digest"}>

@@ -69,7 +69,7 @@ export function DocPage() {
           <ActionsDropdownContent groups={fileGroups(file)} align="end" />
         </DropdownMenu>
       </PageHeader>
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main data-tour="doc" className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-6 pt-6">
           <DocEditor key={file.id} file={file} />
         </div>

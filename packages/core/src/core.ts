@@ -26,6 +26,7 @@ import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
+import { copyExample } from "./workspace/example.ts"
 import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 import { OWLIT_DIR } from "./workspace/paths.ts"
@@ -58,6 +59,8 @@ export interface CoreOptions {
   knowledgeTimings?: KnowledgeTimings
   // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
   lateQuietMs?: number
+  // The example workspace the app ships, which workspace.createExample copies
+  exampleDir?: string
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -162,6 +165,11 @@ export class Core {
     this.router.register("workspace.create", z.object({ parent: z.string().min(1), name: z.string() }), async ({ parent, name }) =>
       this.openWorkspace(await createFolder(parent, name)),
     )
+    this.router.register("workspace.createExample", noParams, async () => {
+      const source = this.options.exampleDir
+      if (!source || !existsSync(source)) throw new RpcFailure(RpcErrorCode.NotFound, t`This copy of owlit has no example workspace.`)
+      return this.openWorkspace(await copyExample(source, suggestFolder().parent))
+    })
     this.router.register("workspace.forget", z.object({ path: z.string().min(1) }), async ({ path }) => {
       await this.settings.forgetWorkspace(path)
       return null

@@ -68,6 +68,9 @@ export interface Methods {
   "workspace.welcome": { params: void; result: WelcomeInfo }
   // Makes a new folder name in parent and opens it; refuses a name that is taken
   "workspace.create": { params: { parent: string; name: string }; result: WorkspaceInfo }
+  // Copies the example workspace the app ships into the folder Create would use (Documents), or opens the
+  // copy made before, and opens it
+  "workspace.createExample": { params: void; result: WorkspaceInfo }
   // Takes a workspace off the recent list (one that was moved, once it has been found elsewhere)
   "workspace.forget": { params: { path: string }; result: null }
   // Open a folder as the workspace, closing the current one; creates .owlit/ if missing
@@ -444,7 +447,7 @@ export interface CoreVersion {
   node: string
 }
 
-export type MenuCommand = "settings" | "shortcuts" | "how-to"
+export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro"
 
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {

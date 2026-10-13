@@ -25,6 +25,30 @@ msgid "{place} · {needsYou}"
 msgstr "{place} · {needsYou}"
 
 #: app/src/app/AppSidebar.tsx
+#: apps/desktop/src/main.ts
+msgid "Help"
+msgstr "Help"
+
+#: app/src/app/AppSidebar.tsx
+msgid "Take the tour"
+msgstr "Take the tour"
+
+#: app/src/app/AppSidebar.tsx
+msgid "How owlit works"
+msgstr "How owlit works"
+
+#: app/src/app/AppSidebar.tsx
+#: app/src/app/ShortcutsDialog.tsx
+#: app/src/app/app-links.ts
+#: app/src/app/shortcuts.ts
+msgid "Keyboard shortcuts"
+msgstr "Keyboard shortcuts"
+
+#: app/src/app/AppSidebar.tsx
+msgid "Ask Owlit how to…"
+msgstr "Ask Owlit how to…"
+
+#: app/src/app/AppSidebar.tsx
 #: app/src/app/app-links.ts
 #: app/src/app/shortcuts.ts
 #: app/src/features/settings/SettingsDialog.tsx
@@ -51,6 +75,8 @@ msgstr "Chats"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/nav.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Docs"
 msgstr "Docs"
@@ -104,6 +130,7 @@ msgstr "Nothing found."
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
 #: app/src/features/library/digests.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/main.ts
 msgid "Open"
@@ -122,23 +149,20 @@ msgstr "Navigate"
 #: app/src/components/ui/sheet.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/library/reader/ReaderControls.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
 msgid "Close"
 msgstr "Close"
 
+#. verb: the step before
 #: app/src/app/Shell.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Back"
 msgstr "Back"
 
 #: app/src/app/Shell.tsx
 msgid "Forward"
 msgstr "Forward"
-
-#: app/src/app/ShortcutsDialog.tsx
-#: app/src/app/app-links.ts
-#: app/src/app/shortcuts.ts
-msgid "Keyboard shortcuts"
-msgstr "Keyboard shortcuts"
 
 #: app/src/app/ShortcutsDialog.tsx
 msgid "Every keyboard shortcut in owlit"
@@ -170,6 +194,7 @@ msgid "Home"
 msgstr "Home"
 
 #: app/src/app/nav.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Chat"
 msgstr "Chat"
 
@@ -178,6 +203,9 @@ msgstr "Chat"
 #: app/src/features/knowledge/pages/LoosePage.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 #: app/src/lib/kinds.ts
 msgid "Knowledge"
 msgstr "Knowledge"
@@ -185,6 +213,10 @@ msgstr "Knowledge"
 #: app/src/app/nav.ts
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Library"
 msgstr "Library"
@@ -214,6 +246,7 @@ msgstr "in the Library and Knowledge"
 #: app/src/features/library/notes/NoteEditor.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
 msgstr "Ask Owlit"
@@ -329,6 +362,7 @@ msgstr "Close the popover"
 #. verb: take back what was just done
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/lib/toast.ts
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
@@ -468,6 +502,7 @@ msgid "Ask anything."
 msgstr "Ask anything."
 
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "Ask a follow-up…"
 msgstr "Ask a follow-up…"
 
@@ -502,9 +537,11 @@ msgid "Note"
 msgstr "Note"
 
 #. a view of the paper page: Owlit's digest of the paper
+#. a view of the paper page: Owlit's digest of the paper
 #. chip: a passage quoted from the paper's digest
 #: app/src/features/agent/page-context.ts
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr "Digest"
 
@@ -548,34 +585,42 @@ msgid "How do I… (about owlit)"
 msgstr "How do I… (about owlit)"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Up late, {name}"
 msgstr "Up late, {name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good morning, {name}"
 msgstr "Good morning, {name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good afternoon, {name}"
 msgstr "Good afternoon, {name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good evening, {name}"
 msgstr "Good evening, {name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Up late"
 msgstr "Up late"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good morning"
 msgstr "Good morning"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good afternoon"
 msgstr "Good afternoon"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good evening"
 msgstr "Good evening"
 
@@ -790,14 +835,16 @@ msgstr "Type your answer below"
 msgid "Skip"
 msgstr "Skip"
 
+#. button: the next question
+#. the tour's next stop
+#: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Next"
+msgstr "Next"
+
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Submit"
 msgstr "Submit"
-
-#. button: the next question
-#: app/src/features/chat/components/WaitingDock.tsx
-msgid "Next"
-msgstr "Next"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Agent: {agent}"
@@ -882,6 +929,8 @@ msgid "Remove {name}"
 msgstr "Remove {name}"
 
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Ask about your papers, docs or notes…"
 msgstr "Ask about your papers, docs or notes…"
 
@@ -1306,12 +1355,16 @@ msgid "Not checked"
 msgstr "Not checked"
 
 #. an agent's status: checking whether it is installed
+#. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Checking…"
 msgstr "Checking…"
 
 #. an agent's status
+#. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Ready"
 msgstr "Ready"
 
@@ -1386,6 +1439,7 @@ msgstr "Reads, answers and leaves comments. Never changes your files or library.
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
+#: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
 msgstr "Assistant"
 
@@ -2007,16 +2061,21 @@ msgid "a paper's note"
 msgstr "a paper's note"
 
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Suggested by Owlit"
 msgstr "Suggested by Owlit"
 
 #. verb: discard an edit Owlit suggested
+#. verb: discard an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Discard"
 msgstr "Discard"
 
 #. verb: apply an edit Owlit suggested
+#. verb: apply an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Apply"
 msgstr "Apply"
 
@@ -2288,6 +2347,7 @@ msgid "Recent"
 msgstr "Recent"
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Drop PDFs to add them to your Library"
 msgstr "Drop PDFs to add them to your Library"
 
@@ -2670,7 +2730,9 @@ msgid "a note"
 msgstr "a note"
 
 #. the speaker of a topic's line: You wrote, You said
+#. the speaker of a topic's line: You wrote, You said
 #: app/src/features/knowledge/format.ts
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 msgid "You"
 msgstr "You"
 
@@ -2968,6 +3030,7 @@ msgid "{count, plural, one {Not in a topic yet · # passage} other {Not in a top
 msgstr "{count, plural, one {Not in a topic yet · # passage} other {Not in a topic yet · # passages}}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 msgid "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
 msgstr "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
 
@@ -3331,10 +3394,12 @@ msgid "Copy all as Markdown"
 msgstr "Copy all as Markdown"
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Page {page}"
 msgstr "Page {page}"
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Select text in the PDF to highlight it."
 msgstr "Select text in the PDF to highlight it."
 
@@ -3403,6 +3468,8 @@ msgid "Layout"
 msgstr "Layout"
 
 #: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Search, or paste a DOI, arXiv id or link to add"
 msgstr "Search, or paste a DOI, arXiv id or link to add"
 
@@ -3420,6 +3487,7 @@ msgstr "Add a PDF file"
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
 msgstr "Reading"
 
@@ -3440,6 +3508,7 @@ msgstr "Unread"
 #. reading status of a paper: finished reading (past participle)
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Read"
 msgstr "Read"
 
@@ -3535,6 +3604,7 @@ msgstr "{0, plural, one {Remove # paper} other {Remove # papers}}"
 
 #. button: go on reading a paper
 #: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Continue"
 msgstr "Continue"
 
@@ -3720,6 +3790,7 @@ msgid "Back to library"
 msgstr "Back to library"
 
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "{position} of {total}"
 msgstr "{position} of {total}"
 
@@ -3753,16 +3824,19 @@ msgstr "Resize details"
 
 #. tab: the user's notes on a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Notes"
 msgstr "Notes"
 
 #. tab: the passages highlighted in a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Highlights"
 msgstr "Highlights"
 
 #. tab: a paper's abstract and details
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "About"
 msgstr "About"
 
@@ -3821,12 +3895,13 @@ msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr "You can keep reading. Owlit will let you know when it's ready."
 
 #: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is reading this paper again…"
-msgstr "Owlit is reading this paper again…"
-
-#: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
 msgstr "Digest · Owlit, {when}"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr "Owlit is reading this paper again…"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Digest · Owlit"
@@ -4102,6 +4177,292 @@ msgstr "owlit couldn't look for a PDF."
 msgid "No PDF found. Drop one here if you have it."
 msgstr "No PDF found. Drop one here if you have it."
 
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Agent for Owlit"
+msgstr "Agent for Owlit"
+
+#. placeholder {0}: c.version
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Ready · {0}"
+msgstr "Ready · {0}"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Copy the sign-in command"
+msgstr "Copy the sign-in command"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Copy the install command"
+msgstr "Copy the install command"
+
+#. verb
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Check again"
+msgstr "Check again"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Steps"
+msgstr "Steps"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Skip intro"
+msgstr "Skip intro"
+
+#. closes How owlit works
+#. ends the tour
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Done"
+msgstr "Done"
+
+#. an onboarding step: writing docs
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Write"
+msgstr "Write"
+
+#. an onboarding step: asking Owlit
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Ask"
+msgstr "Ask"
+
+#. an onboarding step: Owlit's Knowledge
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Remember"
+msgstr "Remember"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "About you"
+msgstr "About you"
+
+#. an onboarding step: the agent Owlit runs on
+#. an onboarding step: the agent Owlit runs on
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Agent"
+msgstr "Agent"
+
+#. an onboarding step: theme and paper tone
+#. an onboarding step: theme and paper tone
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Look"
+msgstr "Look"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Where to begin"
+msgstr "Where to begin"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read, write and think through papers with <0>Owlit</0>."
+msgstr "Read, write and think through papers with <0>Owlit</0>."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Get started"
+msgstr "Get started"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Takes about a minute. You can skip any of it."
+msgstr "Takes about a minute. You can skip any of it."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read closely."
+msgstr "Read closely."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+msgstr "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Write with your sources."
+msgstr "Write with your sources."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
+msgstr "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Ask, or hand it off."
+msgstr "Ask, or hand it off."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+msgstr "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Owlit keeps notes."
+msgstr "Owlit keeps notes."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "From what you read, highlight and write, Owlit keeps notes on your research, by topic. <0>Every line says who said it</0>, and you can correct any of it."
+msgstr "From what you read, highlight and write, Owlit keeps notes on your research, by topic. <0>Every line says who said it</0>, and you can correct any of it."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "A little about you."
+msgstr "A little about you."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "So Owlit knows what to call you and how to reach your papers. All of it can wait."
+msgstr "So Owlit knows what to call you and how to reach your papers. All of it can wait."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Pick Owlit's engine."
+msgstr "Pick Owlit's engine."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Owlit runs on a coding agent you already have. Here's what's on this Mac."
+msgstr "Owlit runs on a coding agent you already have. Here's what's on this Mac."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Make it yours."
+msgstr "Make it yours."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Pick a theme and a paper tone. You can change both in Settings."
+msgstr "Pick a theme and a paper tone. You can change both in Settings."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "What should Owlit call you?"
+msgstr "What should Owlit call you?"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Your name"
+msgstr "Your name"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Where the Workspace Goes"
+msgstr "Where the Workspace Goes"
+
+#. button of the folder picker
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose"
+msgstr "Choose"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Open a Folder"
+msgstr "Open a Folder"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+msgstr "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Where to begin?"
+msgstr "Where to begin?"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Look around a workspace that's already set up, or start with an empty folder of your own. You can do the other one later."
+msgstr "Look around a workspace that's already set up, or start with an empty folder of your own. You can do the other one later."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Explore an example"
+msgstr "Explore an example"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Takes a short tour"
+msgstr "Takes a short tour"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Eight papers on hallucination and retrieval, with digests, highlights, a draft and Owlit's notes."
+msgstr "Eight papers on hallucination and retrieval, with digests, highlights, a draft and Owlit's notes."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Start fresh"
+msgstr "Start fresh"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "An empty folder for your own papers and notes. Drop in PDFs, or ask Owlit to find some."
+msgstr "An empty folder for your own papers and notes. Drop in PDFs, or ask Owlit to find some."
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Change…"
+msgstr "Change…"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Or <0>open a folder you have</0>: notes, an Obsidian vault, PDFs."
+msgstr "Or <0>open a folder you have</0>: notes, an Obsidian vault, PDFs."
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Read {paper}, pages {pages}"
+msgstr "Read {paper}, pages {pages}"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Reading {paper}, pages {pages}"
+msgstr "Reading {paper}, pages {pages}"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Searched arXiv and Semantic Scholar · {found} found, {kept} kept"
+msgstr "Searched arXiv and Semantic Scholar · {found} found, {kept} kept"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Searching arXiv and Semantic Scholar"
+msgstr "Searching arXiv and Semantic Scholar"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
+msgstr "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
+
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/lib/time.ts
+msgid "just now"
+msgstr "just now"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Highlight · {highlight}"
+msgstr "Highlight · {highlight}"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Your doc · {doc}"
+msgstr "Your doc · {doc}"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Chat · {chat}"
+msgstr "Chat · {chat}"
+
+#. the speaker of a topic's line: the paper it came from
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "The paper"
+msgstr "The paper"
+
+#. the speaker of a topic's line: Owlit's own reading
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Owlit thinks"
+msgstr "Owlit thinks"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Owlit is reading what you’ve touched…"
+msgstr "Owlit is reading what you’ve touched…"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "You corrected Owlit’s line"
+msgstr "You corrected Owlit’s line"
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+msgstr "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+msgstr "Hi. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi!"
+msgstr "Hi!"
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Answered through {agentName}"
+msgstr "Answered through {agentName}"
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
 msgstr "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
@@ -4178,12 +4539,6 @@ msgstr "Sign-ins"
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
 msgstr "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
-
-#. verb
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Check again"
-msgstr "Check again"
 
 #. verb: check whether the agent is installed and works
 #: app/src/features/settings/sections/AgentsSection.tsx
@@ -4318,11 +4673,6 @@ msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr "What owlit remembers stays in this workspace and is never sent anywhere."
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Your name"
-msgstr "Your name"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
 msgstr "What Owlit calls you"
 
@@ -4333,10 +4683,6 @@ msgstr "Automatic ({fallbackName})"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic"
 msgstr "Automatic"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Agent"
-msgstr "Agent"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Writes digests and keeps Knowledge up to date."
@@ -4600,6 +4946,7 @@ msgid "Only needed past the free daily allowance."
 msgstr "Only needed past the free daily allowance."
 
 #: app/src/features/settings/store.ts
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Owlit"
 msgstr "Owlit"
 
@@ -4611,14 +4958,79 @@ msgstr "Agents"
 msgid "Appearance"
 msgstr "Appearance"
 
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The example's papers"
+msgstr "The example's papers"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Eight papers on hallucination and retrieval are already here. Open one to read it."
+msgstr "Eight papers on hallucination and retrieval are already here. Open one to read it."
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Waiting for you to open a paper…"
+msgstr "Waiting for you to open a paper…"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Owlit's digest"
+msgstr "Owlit's digest"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+msgstr "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Try switching to the PDF…"
+msgstr "Try switching to the PDF…"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Select to highlight or ask"
+msgstr "Select to highlight or ask"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Select any sentence: pick a colour to highlight it, comment on it, or ask Owlit about it."
+msgstr "Select any sentence: pick a colour to highlight it, comment on it, or ask Owlit about it."
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Cite as you write"
+msgstr "Cite as you write"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The draft cites papers from the Library. Type <0>@</0> in any doc to add one."
+msgstr "The draft cites papers from the Library. Type <0>@</0> in any doc to add one."
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Ask from anywhere"
+msgstr "Ask from anywhere"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Press <0>⌘J</0> on any page to ask Owlit about what's on screen. It answers beside the page."
+msgstr "Press <0>⌘J</0> on any page to ask Owlit about what's on screen. It answers beside the page."
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "That's it"
+msgstr "That's it"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Help is here"
+msgstr "Help is here"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own."
+msgstr "Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own."
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: STOPS.length
+#: app/src/features/tour/TourOverlay.tsx
+msgid "{0} of {1}"
+msgstr "{0} of {1}"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Skip tour"
+msgstr "Skip tour"
+
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
 msgstr "Owlit will use <0>{name}</0>"
-
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Change…"
-msgstr "Change…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Looking for an agent on this Mac…"
@@ -4643,27 +5055,6 @@ msgstr "Owlit needs a coding agent on this Mac."
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "To use {name}, run this in Terminal:"
 msgstr "To use {name}, run this in Terminal:"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Copy the install command"
-msgstr "Copy the install command"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Open a Folder"
-msgstr "Open a Folder"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Where the Workspace Goes"
-msgstr "Where the Workspace Goes"
-
-#. button of the folder picker
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose"
-msgstr "Choose"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
@@ -4697,10 +5088,6 @@ msgstr "Locate…"
 msgid "Remove from Recent"
 msgstr "Remove from Recent"
 
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "What should Owlit call you?"
-msgstr "What should Owlit call you?"
-
 #. label: the folder the new workspace goes in
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "In"
@@ -4726,10 +5113,6 @@ msgstr "That file can't be read from here."
 #: app/src/lib/rpc.ts
 msgid "This needs the owlit desktop app."
 msgstr "This needs the owlit desktop app."
-
-#: app/src/lib/time.ts
-msgid "just now"
-msgstr "just now"
 
 #: app/src/lib/time.ts
 msgid "Just now"
@@ -4951,8 +5334,12 @@ msgid "Bring All to Front"
 msgstr "Bring All to Front"
 
 #: apps/desktop/src/main.ts
-msgid "Help"
-msgstr "Help"
+msgid "Take the Tour"
+msgstr "Take the Tour"
+
+#: apps/desktop/src/main.ts
+msgid "How owlit Works"
+msgstr "How owlit Works"
 
 #: apps/desktop/src/main.ts
 msgid "Keyboard Shortcuts"
@@ -5130,6 +5517,10 @@ msgstr "That chat is no longer in the trash."
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
 msgstr "That isn't a file of this chat."
+
+#: packages/core/src/core.ts
+msgid "This copy of owlit has no example workspace."
+msgstr "This copy of owlit has no example workspace."
 
 #: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts

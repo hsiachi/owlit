@@ -407,6 +407,11 @@ async function updateMenu(core: Core) {
       role: "help",
       label: t`Help`,
       submenu: [
+        // The tour runs in the example workspace, which it opens when another one is open
+        { label: t`Take the Tour`, click: () => send("tour") },
+        // The first launch's four introduction steps again, over the app
+        { label: t`How owlit Works`, enabled: !!current, click: () => send("intro") },
+        { type: "separator" },
         { label: t`Keyboard Shortcuts`, accelerator: "CmdOrCtrl+/", click: () => send("shortcuts") },
         // Owlit answers questions about owlit itself; it needs a workspace to run in
         { label: t`Ask Owlit How To…`, enabled: !!current, click: () => send("how-to") },
@@ -456,6 +461,7 @@ if (!app.requestSingleInstanceLock()) {
       engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
+      exampleDir: path.join(__dirname, "example-workspace"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),

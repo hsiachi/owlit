@@ -19,6 +19,10 @@ import { useAgentWindow } from "@/features/agent/store"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { useSettingsShortcut } from "@/features/settings/hooks"
 import { WelcomePage } from "@/features/welcome/WelcomePage"
+import { OnboardingFlow } from "@/features/onboarding/OnboardingFlow"
+import { useIntro } from "@/features/onboarding/store"
+import { useSettings } from "@/features/settings/store"
+import { TourOverlay } from "@/features/tour/TourOverlay"
 import { isDesktop } from "@/lib/rpc"
 import { useNeedsWelcome, useWorkspace } from "@/lib/workspace"
 import { useChatNotifications } from "@/features/chat/use-notify"
@@ -28,12 +32,18 @@ import "@/features/docs/fs"
 // Serves Knowledge to agents the same way
 import "@/features/knowledge/agent"
 
-// Until a workspace is open the window shows the welcome page; while the last one is still opening at
-// launch it shows only the empty frame, so the welcome page never flashes past
+// Until a workspace is open the window shows the first-launch flow, on a machine where no workspace has
+// opened yet, or else the welcome page; while the last one is still opening at launch it shows only the
+// empty frame, so neither flashes past. The flow stays up while the workspace it chose is opening.
 export function Shell() {
   const welcome = useNeedsWelcome()
   const waiting = useWorkspace((s) => isDesktop && !s.current && (!s.known || s.opening))
-  if (welcome) return <WelcomePage />
+  const onboarded = useSettings((s) => s.view?.onboarded)
+  // Once shown, the flow stays through the opening of the workspace it chose (onboarded turns true then)
+  const [onboarding, setOnboarding] = useState(false)
+  if (welcome && onboarded === false && !onboarding) setOnboarding(true)
+  if (onboarding && (welcome || waiting)) return <OnboardingFlow />
+  if (welcome) return onboarded === undefined ? <div className="app-drag h-svh bg-background" /> : <WelcomePage />
   if (waiting) return <div className="app-drag h-svh bg-sidebar" />
   return <AppShell />
 }
@@ -110,9 +120,23 @@ function AppShell() {
         <CommandPalette />
         <SettingsDialog />
         <ShortcutsDialog />
+        <TourOverlay />
+        <IntroReplay />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}
         <Toaster position="bottom-right" offset={docked ? { right: panelWidth + 20, bottom: 24 } : undefined} />
       </div>
     </TooltipProvider>
+  )
+}
+
+// Help › How owlit works: the flow's introduction steps over the app
+function IntroReplay() {
+  const open = useIntro((s) => s.open)
+  const close = useIntro((s) => s.close)
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 animate-in fade-in duration-200">
+      <OnboardingFlow mode="replay" onClose={close} />
+    </div>
   )
 }
