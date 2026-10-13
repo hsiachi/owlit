@@ -6,7 +6,9 @@
   "type": "module",
   "exports": {
     "./server": "./src/server.ts",
-    "./store": "./src/store.ts"
+    "./store": "./src/store.ts",
+    "./rules": "./src/rules.ts",
+    "./contract": "./src/contract.ts"
   },
   "scripts": {
     "start": "node src/main.ts",

@@ -1,0 +1,28 @@
+// The share server on Cloudflare (see README › Sharing docs by link). `pnpm --filter @owlit/share-worker deploy`
+// builds the reader's page and deploys both; links point at whatever address the worker is reached by.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "owlit-share",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-15",
+  // The reader's page (apps/share-web, built). Its files are served as they are; /s/<id> and the API go
+  // through the worker first, so the page gets its security headers.
+  "assets": {
+    "directory": "../share-web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/s/*", "/healthz"]
+  },
+  // One ShareRoom per shared doc: its bundle, its comments and its readers' sockets. Limiter counts new shares
+  // per address.
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "ShareRoom" },
+      { "name": "LIMITS", "class_name": "Limiter" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShareRoom", "Limiter"] }],
+  "observability": { "enabled": true }
+  // Your own address (recommended; workers.dev isn't reliably reachable from mainland China):
+  // "routes": [{ "pattern": "share.example.org", "custom_domain": true }]
+}

@@ -3,7 +3,9 @@ packages:
   - packages/*
   - apps/*
 
-# Packages allowed to run install scripts: Electron downloads its binary, esbuild picks its native build
+# Packages allowed to run install scripts: Electron downloads its binary, esbuild and workerd (the share
+# worker's local runtime) pick their native builds
 onlyBuiltDependencies:
   - electron
   - esbuild
+  - workerd

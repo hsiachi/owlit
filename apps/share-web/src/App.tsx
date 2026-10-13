@@ -58,8 +58,14 @@ export function App() {
     }
     void reload()
     void reloadComments()
-    return follow(shareId, { update: reload, comments: reloadComments, stopped: () => setLoaded({ kind: "stopped" }) })
   }, [shareId, reload, reloadComments])
+
+  // Following starts once the share has said how (its live channel)
+  const live = loaded.kind === "ok" ? (loaded.view.live ?? "events") : null
+  useEffect(() => {
+    if (!shareId || !live) return
+    return follow(shareId, live, { update: reload, comments: reloadComments, stopped: () => setLoaded({ kind: "stopped" }) })
+  }, [shareId, live, reload, reloadComments])
 
   const view = loaded.kind === "ok" ? loaded.view : null
   useEffect(() => {

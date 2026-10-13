@@ -40,11 +40,22 @@ export async function postComment(id: string, body: { anchor?: ShareAnchor; pare
   throw new Error(t`The comment couldn't be saved. Try again.`)
 }
 
-// Calls back when the share changes, its comments change, or it stops. The browser reconnects on its own.
-export function follow(id: string, on: { update: () => void; comments: () => void; stopped: () => void }) {
+interface Listeners {
+  update: () => void
+  comments: () => void
+  stopped: () => void
+}
+
+// Calls back when the share changes, its comments change, or it stops, over the channel the server named:
+// a WebSocket (the Cloudflare worker) or server-sent events (the Node server). After a dropped connection
+// comes back, whatever changed meanwhile is fetched once.
+export function follow(id: string, live: "socket" | "events", on: Listeners) {
+  return live === "socket" ? followSocket(id, on) : followEvents(id, on)
+}
+
+function followEvents(id: string, on: Listeners) {
   if (typeof EventSource === "undefined") return () => {}
   const source = new EventSource(`/api/shares/${encodeURIComponent(id)}/events`)
-  // After a dropped connection comes back, whatever changed meanwhile is fetched once
   let opened = false
   source.addEventListener("open", () => {
     if (opened) {
@@ -60,6 +71,54 @@ export function follow(id: string, on: { update: () => void; comments: () => voi
     on.stopped()
   })
   return () => source.close()
+}
+
+// Kept alive with a ping the server answers without waking up; opened again, a little later each time,
+// when it drops
+const PING_MS = 30_000
+function followSocket(id: string, on: Listeners) {
+  let socket: WebSocket | null = null
+  let ping: ReturnType<typeof setInterval> | undefined
+  let retry: ReturnType<typeof setTimeout> | undefined
+  let wait = 1000
+  let opened = false
+  let done = false
+  const connect = () => {
+    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/shares/${encodeURIComponent(id)}/socket`
+    socket = new WebSocket(url)
+    socket.addEventListener("open", () => {
+      wait = 1000
+      if (opened) {
+        on.update()
+        on.comments()
+      }
+      opened = true
+      ping = setInterval(() => socket?.send("ping"), PING_MS)
+    })
+    socket.addEventListener("message", (e) => {
+      if (e.data === "pong") return
+      const { type } = JSON.parse(String(e.data)) as { type: string }
+      if (type === "update") on.update()
+      else if (type === "comments") on.comments()
+      else if (type === "stopped") {
+        done = true
+        on.stopped()
+      }
+    })
+    socket.addEventListener("close", () => {
+      clearInterval(ping)
+      if (done) return
+      retry = setTimeout(connect, wait)
+      wait = Math.min(wait * 2, 30_000)
+    })
+  }
+  connect()
+  return () => {
+    done = true
+    clearInterval(ping)
+    clearTimeout(retry)
+    socket?.close()
+  }
 }
 
 // The name a reader signs comments with, kept in this browser

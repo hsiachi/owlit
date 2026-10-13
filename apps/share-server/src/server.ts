@@ -1,14 +1,14 @@
-import { SHARE_LIMITS, type ShareAnchor, type ShareBundle, type ShareComment, type SharePermission, type ShareView } from "@owlit/protocol"
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
+import type { ShareBundle, ShareComment, ShareView } from "@owlit/protocol"
 import { createReadStream } from "node:fs"
 import { stat } from "node:fs/promises"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import path from "node:path"
+import { BODY_LIMITS, carriesKey, checkChange, checkComment, checkNewShare, checkResolve, COMMENTS_PER_SHARE, hashToken, HttpFailure, newId, PAGE_HEADERS, RATES, SHARE_ID, underRate } from "./rules.ts"
 import type { Store } from "./store.ts"
 
-// The share server's HTTP side. owlit creates a share and pushes its bundle with the key it got back;
-// readers fetch the bundle, follow changes over server-sent events and post comments. It also serves the
-// reader's page (apps/share-web, built) at /s/<id>.
+// The share server's HTTP side, on plain Node (apps/share-worker is the same on Cloudflare). owlit creates a
+// share and pushes its bundle with the key it got back; readers fetch the bundle, follow changes over
+// server-sent events and post comments. It also serves the reader's page (apps/share-web, built) at /s/<id>.
 
 export interface ShareServerOptions {
   store: Store
@@ -21,53 +21,7 @@ export interface ShareServerOptions {
   now?: () => number
 }
 
-const COMMENTS_PER_SHARE = 2000
-// Requests per address in a window: making shares, posting comments
-const RATES = {
-  create: { count: 30, windowMs: 60 * 60_000 },
-  comment: { count: 40, windowMs: 10 * 60_000 },
-} as const
 const HEARTBEAT_MS = 25_000
-
-class HttpFailure extends Error {
-  readonly status: number
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
-
-const newId = (bytes: number) => randomBytes(bytes).toString("base64url")
-const hash = (token: string) => createHash("sha256").update(token).digest("hex")
-const SHARE_ID = /^[A-Za-z0-9_-]{16,64}$/
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v)
-
-function checkBundle(value: unknown): ShareBundle {
-  if (!isRecord(value) || value.version !== 1 || typeof value.title !== "string" || typeof value.markdown !== "string" || !isRecord(value.papers)) {
-    throw new HttpFailure(400, "The bundle isn't one this server reads.")
-  }
-  for (const paper of Object.values(value.papers)) {
-    if (!isRecord(paper) || typeof paper.id !== "string" || typeof paper.title !== "string" || !Array.isArray(paper.authors)) {
-      throw new HttpFailure(400, "A paper in the bundle isn't one this server reads.")
-    }
-  }
-  return value as unknown as ShareBundle
-}
-
-const checkPermission = (value: unknown): SharePermission => {
-  if (value === "comment" || value === "view") return value
-  throw new HttpFailure(400, "permission is comment or view.")
-}
-
-function checkAnchor(value: unknown): ShareAnchor | null {
-  if (value === null || value === undefined) return null
-  if (!isRecord(value) || typeof value.quote !== "string" || typeof value.prefix !== "string" || typeof value.suffix !== "string") {
-    throw new HttpFailure(400, "The comment's passage isn't one this server reads.")
-  }
-  if (!value.quote.trim() || value.quote.length > SHARE_LIMITS.quote) throw new HttpFailure(400, "The passage is empty or too long.")
-  return { quote: value.quote, prefix: value.prefix.slice(-64), suffix: value.suffix.slice(0, 64) }
-}
 
 async function readBody(req: IncomingMessage, limit: number): Promise<unknown> {
   const chunks: Buffer[] = []
@@ -98,15 +52,6 @@ const MIME: Record<string, string> = {
   ".json": "application/json",
 }
 
-// The reader's page loads only from here; images in a doc may come from the web. A link out never says
-// where it came from, so the share's address doesn't travel in Referer.
-const PAGE_HEADERS = {
-  "content-security-policy": "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
-  "referrer-policy": "no-referrer",
-  "x-content-type-options": "nosniff",
-  "x-robots-tag": "noindex, nofollow",
-}
-
 export function createShareServer(options: ShareServerOptions) {
   const { store } = options
   const now = options.now ?? Date.now
@@ -118,25 +63,11 @@ export function createShareServer(options: ShareServerOptions) {
     return forwarded || req.socket.remoteAddress || "?"
   }
 
-  // Sliding window per address and kind
   const limit = (req: IncomingMessage, kind: keyof typeof RATES) => {
-    const { count, windowMs } = RATES[kind]
-    const key = `${kind}:${clientOf(req)}`
-    const t = now()
-    const recent = (hits.get(key) ?? []).filter((at) => t - at < windowMs)
-    if (recent.length >= count) throw new HttpFailure(429, "Too many requests from here; try again a little later.")
-    recent.push(t)
-    hits.set(key, recent)
+    if (!underRate(hits, `${kind}:${clientOf(req)}`, RATES[kind], now())) throw new HttpFailure(429, "Too many requests from here; try again a little later.")
   }
 
-  const isAuthor = (req: IncomingMessage, tokenHash: string) => {
-    const header = String(req.headers.authorization ?? "")
-    const token = /^Bearer (.+)$/.exec(header)?.[1]
-    if (!token) return false
-    const a = Buffer.from(hash(token))
-    const b = Buffer.from(tokenHash)
-    return a.length === b.length && timingSafeEqual(a, b)
-  }
+  const isAuthor = (req: IncomingMessage, tokenHash: string) => carriesKey(req.headers.authorization, tokenHash)
 
   const shareFor = (id: string) => {
     const row = SHARE_ID.test(id) ? store.share(id) : undefined
@@ -144,9 +75,9 @@ export function createShareServer(options: ShareServerOptions) {
     return row
   }
 
-  const requireAuthor = (req: IncomingMessage, id: string) => {
+  const requireAuthor = async (req: IncomingMessage, id: string) => {
     const row = shareFor(id)
-    if (!isAuthor(req, row.tokenHash)) throw new HttpFailure(403, "Only the author can change this share.")
+    if (!(await isAuthor(req, row.tokenHash))) throw new HttpFailure(403, "Only the author can change this share.")
     return row
   }
 
@@ -196,14 +127,11 @@ export function createShareServer(options: ShareServerOptions) {
     if (!id) {
       if (method !== "POST") throw new HttpFailure(405, "Method not allowed.")
       limit(req, "create")
-      const body = await readBody(req, SHARE_LIMITS.bundle + 1024)
-      if (!isRecord(body)) throw new HttpFailure(400, "The body isn't an object.")
-      const bundle = checkBundle(body.bundle)
-      const permission = body.permission === undefined ? "comment" : checkPermission(body.permission)
+      const { bundle, permission } = checkNewShare(await readBody(req, BODY_LIMITS.share))
       const shareId = newId(16)
       const token = newId(32)
       const t = now()
-      store.createShare({ id: shareId, tokenHash: hash(token), bundle: JSON.stringify(bundle), permission, createdAt: t, updatedAt: t })
+      store.createShare({ id: shareId, tokenHash: await hashToken(token), bundle: JSON.stringify(bundle), permission, createdAt: t, updatedAt: t })
       return json(res, 201, { id: shareId, token, url: `${options.publicUrl}/s/${shareId}` })
     }
 
@@ -215,20 +143,16 @@ export function createShareServer(options: ShareServerOptions) {
         return json(res, 200, view)
       }
       if (method === "PUT") {
-        const row = requireAuthor(req, id)
+        const row = await requireAuthor(req, id)
         if (row.stoppedAt) throw new HttpFailure(410, "This share was stopped.")
-        const body = await readBody(req, SHARE_LIMITS.bundle + 1024)
-        if (!isRecord(body)) throw new HttpFailure(400, "The body isn't an object.")
-        const change: { bundle?: string; permission?: SharePermission } = {}
-        if (body.bundle !== undefined) change.bundle = JSON.stringify(checkBundle(body.bundle))
-        if (body.permission !== undefined) change.permission = checkPermission(body.permission)
+        const change = checkChange(await readBody(req, BODY_LIMITS.share))
         const t = now()
-        store.updateShare(id, change, t)
+        store.updateShare(id, { ...(change.bundle ? { bundle: JSON.stringify(change.bundle) } : {}), ...(change.permission ? { permission: change.permission } : {}) }, t)
         send(id, "update", { updatedAt: t, permission: change.permission ?? row.permission })
         return json(res, 200, { updatedAt: t })
       }
       if (method === "DELETE") {
-        const row = requireAuthor(req, id)
+        const row = await requireAuthor(req, id)
         if (!row.stoppedAt) {
           store.stopShare(id, now())
           send(id, "stopped", {})
@@ -258,7 +182,7 @@ export function createShareServer(options: ShareServerOptions) {
 
     if (sub === "comments" && !commentId) {
       const row = shareFor(id)
-      const author = isAuthor(req, row.tokenHash)
+      const author = await isAuthor(req, row.tokenHash)
       // The author still reads the comments of a stopped share; readers can't
       if (row.stoppedAt && !author) return json(res, 410, { error: "The author stopped sharing this.", stopped: true })
       if (method === "GET") return json(res, 200, store.comments(id))
@@ -267,33 +191,25 @@ export function createShareServer(options: ShareServerOptions) {
       if (!author && row.permission !== "comment") throw new HttpFailure(403, "This share can be read but not commented on.")
       if (!author) limit(req, "comment")
       if (store.countComments(id) >= COMMENTS_PER_SHARE) throw new HttpFailure(429, "This share has as many comments as it can hold.")
-      const body = await readBody(req, 64 * 1024)
-      if (!isRecord(body)) throw new HttpFailure(400, "The body isn't an object.")
-      const text = typeof body.text === "string" ? body.text.trim() : ""
-      const name = typeof body.name === "string" ? body.name.trim() : ""
-      if (!text || text.length > SHARE_LIMITS.comment) throw new HttpFailure(400, "The comment is empty or too long.")
-      if (!name || name.length > SHARE_LIMITS.name) throw new HttpFailure(400, "Say who you are, in a short name.")
+      const body = checkComment(await readBody(req, BODY_LIMITS.comment))
       let parent: string | undefined
-      let anchor: ShareAnchor | null = null
-      if (typeof body.parent === "string" && body.parent) {
+      if (body.parent) {
         const of = store.comment(id, body.parent)
         if (!of) throw new HttpFailure(400, "The comment this answers isn't there.")
         // Replies hang off the first comment, so a thread is one level deep
         parent = of.parent ?? of.id
-      } else anchor = checkAnchor(body.anchor)
-      if (!parent && !anchor) throw new HttpFailure(400, "A comment is on a passage or answers another comment.")
-      const comment: ShareComment = { id: newId(9), anchor, ...(parent ? { parent } : {}), name, by: author ? "author" : "reader", text, at: now() }
+      }
+      const comment: ShareComment = { id: newId(9), anchor: body.anchor, ...(parent ? { parent } : {}), name: body.name, by: author ? "author" : "reader", text: body.text, at: now() }
       store.addComment(id, comment)
       send(id, "comments", { id: comment.id })
       return json(res, 201, comment)
     }
 
     if (sub === "comments" && commentId && method === "PATCH") {
-      requireAuthor(req, id)
-      const body = await readBody(req, 1024)
-      if (!isRecord(body) || typeof body.resolved !== "boolean") throw new HttpFailure(400, "resolved is true or false.")
+      await requireAuthor(req, id)
+      const resolved = checkResolve(await readBody(req, BODY_LIMITS.small))
       if (!store.comment(id, commentId)) throw new HttpFailure(404, "There is no such comment.")
-      store.setResolved(id, commentId, body.resolved)
+      store.setResolved(id, commentId, resolved)
       send(id, "comments", { id: commentId })
       res.writeHead(204).end()
       return

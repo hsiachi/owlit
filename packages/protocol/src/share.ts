@@ -34,6 +34,9 @@ export interface ShareView {
   bundle: ShareBundle
   permission: SharePermission
   updatedAt: number
+  // How the page hears of changes: "socket" over a WebSocket at …/socket (the Cloudflare worker, whose idle
+  // sockets cost nothing); absent, server-sent events at …/events (the Node server)
+  live?: "socket"
 }
 
 // Where a comment sits: its words and a little text either side, as agents' notes on docs are anchored
