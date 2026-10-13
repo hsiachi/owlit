@@ -5,7 +5,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Workspace } from "../workspace/workspace.ts"
 import { checkTopic, countSentences, countWords, findQuote } from "./check.ts"
-import type { KnowledgeServices } from "./knowledge.ts"
+import { diff, lineChange, type KnowledgeServices } from "./knowledge.ts"
 
 const blank = (): TopicSidecar => ({ seenAt: 0, history: [], edits: {}, removed: {}, said: {}, changedAt: {} })
 
@@ -98,6 +98,26 @@ describe("checkTopic", () => {
     const text = "<!-- page 1 -->\n\nIntro.\n\n<!-- page 3 -->\n\nRAG-Token Model In the RAG-Token model we can draw a differ-\nent latent document for each target token and marginalize accordingly. This allows"
     expect(findQuote(text, QUOTE)).toBe(3)
     expect(findQuote(text, "Not in the paper at all")).toBeNull()
+  })
+})
+
+describe("the history of a line", () => {
+  const line = { id: "s1", speaker: "Jacovi et al. 2025", text: "Three prompted judges reduce bias.", sources: [{ label: "§3.1", uri: `owlit://library/${PAPER}#passage=judges` }] }
+
+  it("keeps the old words only when the words changed", () => {
+    expect(lineChange(line, { ...line, text: "Three judges reduce bias." })).toEqual({ what: "Rewritten", before: "Three prompted judges reduce bias." })
+    // Spacing isn't a rewrite
+    expect(lineChange(line, { ...line, text: " Three prompted  judges\nreduce bias. " })).toBeNull()
+    expect(lineChange(line, { ...line, condition: "Factuality is the mean of the three judges." })).toEqual({ what: "Source changed" })
+    expect(lineChange(line, { ...line, sources: [{ label: "§3.2", uri: `owlit://library/${PAPER}#passage=other` }] })).toEqual({ what: "Source changed" })
+    expect(lineChange(line, { ...line, speaker: "Owlit" })).toEqual({ what: "Speaker changed" })
+  })
+
+  it("records a write's changes line by line", () => {
+    const before = topicOf([ragLine, "- Owlit thinks: Retrieval granularity matters. ^s2"])
+    const next = topicOf([ragLine, "- Owlit thinks: Retrieval granularity matters. ^s2\n  - Only for multi-hop questions."])
+    expect(diff(before, next)).toEqual([{ lineId: "s2", what: "Source changed" }])
+    expect(diff(before, before)).toEqual([])
   })
 })
 

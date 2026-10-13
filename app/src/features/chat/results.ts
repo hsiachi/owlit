@@ -27,13 +27,17 @@ export interface AgentResult {
   // A paper the agent took back out of the library
   removed?: boolean
   undone?: boolean
+  // After an Undo from the card: what puts the change back (core keeps the undo as a version too)
+  redoId?: string
 }
 
 interface ResultsState {
   // By assistant message id
   byMessage: Record<string, AgentResult[]>
   add: (messageId: string, result: AgentResult) => void
-  markUndone: (messageId: string, versionIds: string[]) => void
+  // Each undone change with what puts it back, when there is a way
+  markUndone: (messageId: string, redoIds: Record<string, string | undefined>) => void
+  markRedone: (messageId: string, versionIds: string[]) => void
 }
 
 // Old replies drop out first; a result row is a confirmation, the version itself stays in core
@@ -52,9 +56,19 @@ export const useResultsStore = create<ResultsState>()(
           for (const id of ids.slice(0, Math.max(0, ids.length - KEEP))) delete byMessage[id]
           return { byMessage }
         }),
-      markUndone: (messageId, versionIds) =>
+      markUndone: (messageId, redoIds) =>
         set((s) => ({
-          byMessage: { ...s.byMessage, [messageId]: (s.byMessage[messageId] ?? []).map((r) => (versionIds.includes(r.versionId) ? { ...r, undone: true } : r)) },
+          byMessage: {
+            ...s.byMessage,
+            [messageId]: (s.byMessage[messageId] ?? []).map((r) => (r.versionId in redoIds ? { ...r, undone: true, redoId: redoIds[r.versionId] } : r)),
+          },
+        })),
+      markRedone: (messageId, versionIds) =>
+        set((s) => ({
+          byMessage: {
+            ...s.byMessage,
+            [messageId]: (s.byMessage[messageId] ?? []).map((r) => (versionIds.includes(r.versionId) ? { ...r, undone: false, redoId: undefined } : r)),
+          },
         })),
     }),
     { name: "owlit.chat-results" },
@@ -68,17 +82,32 @@ function replyOf(chatId: string): string | undefined {
   return [...chat.messages].reverse().find((m) => m.role === "assistant")?.id
 }
 
-// Without the desktop app there is no core keeping versions; the mock agent says how to take back what it did
-const mockUndo = new Map<string, () => void>()
-export const setMockUndo = (versionId: string, undo: () => void) => mockUndo.set(versionId, undo)
+// Without the desktop app there is no core keeping versions; the mock agent says how to take back what it
+// did, and its undo hands back how to put it back again
+type MockUndo = () => (() => void) | void
+const mockUndo = new Map<string, MockUndo>()
+const mockRedo = new Map<string, () => void>()
+export const setMockUndo = (versionId: string, undo: MockUndo) => mockUndo.set(versionId, undo)
 
-export async function undoResult(versionId: string) {
+// Takes a change back; returns what puts it back again, when there is a way. A change undone and redone
+// is undone again by its own version: core's restore only asks that the file reads as the change left it.
+export async function undoResult(versionId: string): Promise<string | undefined> {
+  if (isDesktop) return (await rpc.versions.restore({ id: versionId })).redoId
+  const redo = mockUndo.get(versionId)?.()
+  if (!redo) return undefined
+  const redoId = `mock-redo-${crypto.randomUUID()}`
+  mockRedo.set(redoId, redo)
+  return redoId
+}
+
+// Puts back a change an Undo from the result card took back, the same way the Undo was made
+export async function redoResult(redoId: string) {
   if (isDesktop) {
-    await rpc.versions.restore({ id: versionId })
+    await rpc.versions.restore({ id: redoId })
     return
   }
-  mockUndo.get(versionId)?.()
-  mockUndo.delete(versionId)
+  mockRedo.get(redoId)?.()
+  mockRedo.delete(redoId)
 }
 
 // A doc by its name; a paper's note by its paper ("Chen 2025")

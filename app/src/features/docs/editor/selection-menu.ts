@@ -21,8 +21,12 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
       above: true,
       arrow: false,
       create: (view) => {
+        // CodeMirror makes the returned element the tooltip itself, and the doc theme clears .cm-tooltip's
+        // fill and border (it outranks a plain class), so the menu is drawn on an element inside it
         const dom = document.createElement("div")
-        dom.className = "selection-menu"
+        const menu = document.createElement("div")
+        menu.className = "selection-menu"
+        dom.append(menu)
         const button = document.createElement("button")
         button.type = "button"
         button.textContent = "Ask Owlit"
@@ -32,7 +36,7 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
           const { from, to } = view.state.selection.main
           chat(view.state.sliceDoc(from, to), view)
         }
-        dom.append(button)
+        menu.append(button)
         // Lifted clear of the selected line, so it never sits on the words being chosen
         return { dom, offset: { x: 0, y: 8 } }
       },

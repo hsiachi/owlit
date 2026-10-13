@@ -1,6 +1,6 @@
-import { isHiddenFromDocs, paperUri, parseOwlitUri, type WorkspaceFile } from "@owlit/protocol"
+import { isHiddenFromDocs, paperUri, parseOwlitUri, sameWords, type WorkspaceFile } from "@owlit/protocol"
 import { plural } from "@/lib/words"
-import type { Line, TopicSidecar, Verb } from "./types"
+import type { Change, Line, TopicSidecar, Verb } from "./types"
 
 // Topic files are read and written by @owlit/protocol's parseTopic and serializeTopic, shared with core
 export { parseTopic, serializeTopic, topicPath, topicSlug, topicUri } from "@owlit/protocol"
@@ -37,9 +37,83 @@ export function verbOf(l: Line): Verb {
   return isAbstractOnly(l) ? "says" : "found"
 }
 
-// The line before Owlit's latest rewrite since `since`, shown while the change is unseen
-export const wasBefore = (lineId: string, side: TopicSidecar, since: number) =>
-  side.history.find((h) => h.lineId === lineId && h.at > since && h.by === "owlit" && h.before)?.before
+// The line as the person last saw it, before Owlit's rewrites since `since`, shown while the change is
+// unseen. Given the line's words now, nothing is shown when they read the same: older histories recorded a
+// change to a line's sources or condition as a rewrite, with the unchanged words as `before`.
+export function wasBefore(lineId: string, side: TopicSidecar, since: number, now?: string) {
+  const before = side.history.findLast((h) => h.lineId === lineId && h.at > since && h.by === "owlit" && h.before)?.before
+  return before !== undefined && now !== undefined && sameWords(before, now) ? undefined : before
+}
+
+// How the history shows one change: its words, and the line before it only when the words differ from what
+// the change left. `after` is the line's words right after the change (see wordsAfter). An old "Rewritten"
+// whose words stayed the same changed the line's sources or condition.
+export function shownChange(h: Change, after: string | undefined): { what: string; was?: string } {
+  if (!h.before || after === undefined || !h.lineId || !sameWords(h.before, after)) return { what: h.what, was: h.before }
+  return { what: h.what === "Rewritten" ? "Source changed" : h.what }
+}
+
+// Each change's line as it read right after the change, by change id: the words the next change to that
+// line found, or the line as it is now. History is newest first.
+export function wordsAfter(history: Change[], now: (lineId: string) => string | undefined) {
+  const after = new Map<string, string | undefined>()
+  const latest = new Map<string, string | undefined>()
+  for (const h of history) {
+    if (!h.lineId) continue
+    const words = latest.has(h.lineId) ? latest.get(h.lineId) : now(h.lineId)
+    after.set(h.id, words)
+    // A question's change keeps its status, not its words, so only lines carry words back
+    latest.set(h.lineId, h.before !== undefined && !h.what.startsWith("Question") ? h.before : words)
+  }
+  return after
+}
+
+// The change log's groups: changes Owlit made together, from one write or one run, share their reason and
+// are shown under it once. Newest first, like the history; each group's changes in the order they were made.
+export function changeGroups(history: Change[]): Change[][] {
+  const groups: Change[][] = []
+  for (const h of history) {
+    const last = groups.at(-1)?.[0]
+    if (last && h.by === "owlit" && last.by === "owlit" && h.why === last.why && shortDay(h.at) === shortDay(last.at)) groups.at(-1)!.push(h)
+    else groups.push([h])
+  }
+  return groups.map((g) => g.reverse())
+}
+
+const shortDay = (t: number) => new Date(t).toDateString()
+
+// ---- Lines named in prose ----
+
+// Owlit may name a topic's lines by their block ids in what it writes (a question's status, a line's
+// condition, why it changed): "(^s3, ^s6)". On screen each becomes a mention of that line; an id no line
+// holds any more is left out, with its brackets when none in them are left.
+export type ProsePart = string | { id: string }
+
+const NAMED = /(\s*)\((\^[a-z]+\d+(?:\s*(?:,|;|and)\s*\^[a-z]+\d+)*)\)|(\s*)\^([a-z]+\d+)\b/g
+
+export function namedLines(text: string, has: (id: string) => boolean): ProsePart[] {
+  const out: ProsePart[] = []
+  const put = (p: ProsePart) => {
+    if (typeof p === "string" && typeof out.at(-1) === "string") out[out.length - 1] += p
+    else if (p) out.push(p)
+  }
+  let from = 0
+  for (const m of text.matchAll(NAMED)) {
+    const [all, groupSpace, group, bareSpace, bare] = m
+    put(text.slice(from, m.index))
+    from = m.index + all.length
+    const ids = (group ? [...group.matchAll(/\^([a-z]+\d+)/g)].map((x) => x[1]) : [bare]).filter(has)
+    if (!ids.length) continue
+    put(`${group ? groupSpace : bareSpace}${group ? "(" : ""}`)
+    ids.forEach((id, i) => {
+      if (i) put(", ")
+      put({ id })
+    })
+    if (group) put(")")
+  }
+  put(text.slice(from))
+  return out.filter((p) => p !== "")
+}
 
 // Whether Owlit added or rewrote the line since `seenBefore`; a line the user rewrote is theirs either way
 export function freshness(lineId: string, side: TopicSidecar, seenBefore: number): "new" | "changed" | null {
