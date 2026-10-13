@@ -2,7 +2,7 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
-import { backgroundMeta, FIRST_CHOICE } from "./profiles.ts"
+import { backgroundMeta, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
@@ -21,6 +21,9 @@ export const KNOWLEDGE_TOOLS = /^(mcp__owlit__)?knowledge_write$/
 
 export interface BackgroundRun {
   prompt: string
+  // Pictures after the prompt, each after its label (a paper's figures), for an agent that sees images;
+  // one that doesn't gets the prompt alone, which names them anyway
+  pictures?: { label: string; data: string; mimeType: string }[]
   // The workspace, as the session's cwd
   root: string
   mcpServers: acp.McpServer[]
@@ -36,6 +39,8 @@ export interface BackgroundRun {
 export interface BackgroundResult {
   text: string
   connectorId: string
+  // The model chosen for background work, when one is and the agent offers it
+  model?: string
 }
 
 export class Background {
@@ -101,16 +106,24 @@ export class Background {
       // without asking, and requestPermission only refuses what is asked: the session asks first.
       // (Not plan mode: Claude Code then ends by asking to leave it, which nobody can answer here.)
       await setMode(proc, session, "default")
-      const model = run.models?.[connectorId]
-      if (model) await setModel(proc, session, model)
+      const chosen = run.models?.[connectorId]
+      const model = chosen && (await setModel(proc, session, chosen)) ? chosen : undefined
+      const init = await proc.initialized()
       // An agent that takes owlit's rules in its system prompt has them already
-      const rules = takesRules(await proc.initialized()) ? [] : [{ type: "text" as const, text: preamble(run.root) }]
-      const response = await proc.prompt({ sessionId: session.sessionId, prompt: [...rules, { type: "text", text: run.prompt }] })
+      const rules = takesRules(init) ? [] : [{ type: "text" as const, text: preamble(run.root) }]
+      const pictures: acp.ContentBlock[] =
+        run.pictures?.length && sendsPictures(connectorId, init, model)
+          ? run.pictures.flatMap((p) => [
+              { type: "text" as const, text: p.label },
+              { type: "image" as const, data: p.data, mimeType: p.mimeType },
+            ])
+          : []
+      const response = await proc.prompt({ sessionId: session.sessionId, prompt: [...rules, { type: "text", text: run.prompt }, ...pictures] })
       run.signal.throwIfAborted()
       log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
       if (response.stopReason === "refusal") throw new Error("The agent declined.")
       if (!answer.trim()) throw new Error(refused.length ? `The agent wanted tools it may not use here (${refused.join(", ")}).` : "The agent said nothing.")
-      return { text: answer, connectorId }
+      return { text: answer, connectorId, ...(model ? { model } : {}) }
     } finally {
       run.signal.removeEventListener("abort", cancel)
       await proc.closeSession(session.sessionId).catch(() => undefined)
@@ -127,13 +140,18 @@ export class Background {
   }
 }
 
-// The model set on the session if the agent still offers it; otherwise its default stays
+// The model set on the session if the agent still offers it (true); otherwise its default stays
 async function setModel(proc: Awaited<ReturnType<Agents["process"]>>, session: acp.NewSessionResponse, model: string) {
   const option = session.configOptions?.find((o) => o.category === "model" && o.type === "select")
-  if (!option || option.type !== "select" || option.currentValue === model) return
+  if (!option || option.type !== "select") return false
+  if (option.currentValue === model) return true
   const values = (option.options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
-  if (values.includes(model)) await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: model })
-  else log(`model ${model} isn't offered any more; the agent's default is used`)
+  if (values.includes(model)) {
+    await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: model })
+    return true
+  }
+  log(`model ${model} isn't offered any more; the agent's default is used`)
+  return false
 }
 
 // The mode set on the session if the agent offers it: as a config option (category mode) or, for an

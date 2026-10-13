@@ -51,11 +51,29 @@ describe("reading notes", () => {
     await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-a" } })
     expect(await digestDone("doi-10.1-a")).toMatchObject({ state: "done", priority: "waiting" })
     const digest = readFileSync(path.join(root, "library/papers/doi-10.1-a/digest.md"), "utf8")
-    expect(digest).toMatch(/^# Paper doi-10\.1-a\n\n## Question\n/)
+    // Unset, the language is the system's; a test host has none, so English
+    expect(digest).toMatch(/^# Paper doi-10\.1-a\n\n## Summary\n\n- \*\*Background\*\*: Written in English, having seen 0 pictures\./)
+    expect(digest).toContain("## Details")
     expect(digest).not.toContain("```")
-    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-a/digest.json"), "utf8"))).toMatchObject({ by: expect.stringMatching(/^custom-/) })
-    expect((await call("library.list")).papers[0].hasDigest).toBe(true)
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-a/digest.json"), "utf8"))).toMatchObject({ format: 2, language: "en", by: expect.stringMatching(/^custom-/) })
+    expect((await call("library.list")).papers[0]).toMatchObject({ hasDigest: true })
+    expect((await call("library.list")).papers[0].digestOutdated).toBeUndefined()
     expect(await call("chats.list")).toEqual([])
+  })
+
+  it("writes in the language Settings asks for, and says when a note is in another", async () => {
+    const { root, call, addPaper, digestDone } = await setup()
+    // A word typed before the setting was a list means the listed language
+    await call("settings.update", { patch: { library: { digestLanguage: "中文" } } })
+    expect((await call("settings.get")).library).toMatchObject({ digestLanguage: "zh-Hans", digestLanguageSystem: "en" })
+    await addPaper("doi-10.1-zh")
+    await call("library.requestDigest", { id: "doi-10.1-zh" })
+    await digestDone("doi-10.1-zh")
+    expect(readFileSync(path.join(root, "library/papers/doi-10.1-zh/digest.md"), "utf8")).toContain("Written in Simplified Chinese (简体中文)")
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-zh/digest.json"), "utf8"))).toMatchObject({ language: "zh-Hans" })
+
+    await call("settings.update", { patch: { library: { digestLanguage: "ja" } } })
+    expect((await call("library.list")).papers[0].digestOutdated).toBe("language")
   })
 
   it("writes one in the background when a paper is starred", async () => {
@@ -65,19 +83,46 @@ describe("reading notes", () => {
     expect(await digestDone("doi-10.1-b")).toMatchObject({ state: "done", priority: "background" })
   })
 
-  it("writes none for papers merely added, and never replaces a note that is there", async () => {
-    const { root, call, workspace, addPaper } = await setup()
+  it("writes none for papers merely added, and replaces a note that is there only when asked", async () => {
+    const { root, call, workspace, addPaper, digestDone } = await setup()
     for (let i = 0; i < 50; i++) await addPaper(`doi-10.1-bulk${i}`)
     await new Promise((r) => setTimeout(r, 200))
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
 
-    writeFileSync(path.join(root, "library/papers/doi-10.1-bulk0/digest.md"), "# From pitta\n\nKept as it is.\n")
+    const note = path.join(root, "library/papers/doi-10.1-bulk0/digest.md")
+    writeFileSync(note, "# From pitta\n\nKept as it is.\n")
     await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-bulk0" } })
     await call("library.requestDigest", { id: "doi-10.1-bulk0" })
     await new Promise((r) => setTimeout(r, 200))
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
-    expect(readFileSync(path.join(root, "library/papers/doi-10.1-bulk0/digest.md"), "utf8")).toBe("# From pitta\n\nKept as it is.\n")
-    await expect(call("library.writeDigest", { id: "doi-10.1-bulk0", text: "# Other\n" })).rejects.toThrow("already has a reading note")
+    expect(readFileSync(note, "utf8")).toBe("# From pitta\n\nKept as it is.\n")
+    // Written another way than owlit writes notes now: the page offers to rewrite it
+    const paper = async () => (await call("library.list")).papers.find((p: { id: string }) => p.id === "doi-10.1-bulk0")
+    expect((await paper()).digestOutdated).toBe("format")
+
+    await call("library.requestDigest", { id: "doi-10.1-bulk0", rewrite: true })
+    expect(await digestDone("doi-10.1-bulk0")).toMatchObject({ state: "done", priority: "asked" })
+    expect(readFileSync(note, "utf8")).toMatch(/^# Paper doi-10\.1-bulk0\n\n## Summary/)
+    expect((await paper()).digestOutdated).toBeUndefined()
+  })
+
+  it("shows the agent the paper's figures and lists them, when it has some", async () => {
+    const { root, call, addPaper, digestDone } = await setup()
+    await addPaper("doi-10.1-fig")
+    const dir = path.join(root, "library/papers/doi-10.1-fig")
+    // As paper.figures leaves them; a PDF so the figures count as the paper's
+    writeFileSync(path.join(dir, "paper.pdf"), "%PDF-1.4\n%%EOF\n")
+    mkdirSync(path.join(dir, "figures"))
+    writeFileSync(path.join(dir, "figures/figure-1.png"), "png bytes")
+    writeFileSync(
+      path.join(dir, "figures.json"),
+      JSON.stringify({ version: 1, source: "layout", at: Date.now(), figures: [{ id: "figure-1", kind: "figure", label: "Figure 1", caption: "Figure 1: A chart.", page: 0, rect: { x: 1, y: 2, w: 3, h: 4 }, file: "figure-1.png" }] }),
+    )
+    await call("library.requestDigest", { id: "doi-10.1-fig" })
+    await digestDone("doi-10.1-fig")
+    const digest = readFileSync(path.join(dir, "digest.md"), "utf8")
+    expect(digest).toContain("having seen 1 pictures")
+    expect(digest).toContain("![Figure](figure-1)")
   })
 
   it("waits for a paper's text before writing, and skips papers with nothing to read", async () => {

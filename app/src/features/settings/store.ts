@@ -2,7 +2,7 @@
 // dialog's open state. Changes go straight to core: there is no Save, and every window hears the result.
 // Without the desktop app there is no core; appearance is then kept in localStorage so dev:web can try it.
 
-import type { AppearanceSettings, ProxyPreset, SecretName, SettingsCheckTarget, SettingsPatch, SettingsView } from "@owlit/protocol"
+import { noteLanguageFor, type AppearanceSettings, type ProxyPreset, type SecretName, type SettingsCheckTarget, type SettingsPatch, type SettingsView } from "@owlit/protocol"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
@@ -84,7 +84,7 @@ export async function setActivity(enabled: boolean) {
   await rpc.activity.setEnabled({ enabled })
 }
 
-const webView = (): SettingsView => ({ appearance: storedAppearance(), profile: {}, library: {}, parsing: { auto: true }, secrets: {}, activity: { enabled: true } })
+const webView = (): SettingsView => ({ appearance: storedAppearance(), profile: {}, library: { digestLanguageSystem: noteLanguageFor(navigator.languages) }, parsing: { auto: true }, secrets: {}, activity: { enabled: true } })
 
 export function startSettings() {
   if (!isDesktop) {

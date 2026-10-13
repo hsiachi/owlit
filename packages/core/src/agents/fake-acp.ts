@@ -115,9 +115,19 @@ class FakeAgent implements acp.Agent {
     const signal = session.turn.signal
     const say = (t: string) => this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: t } } })
     try {
-      if (text.includes("Write a reading note")) {
+      if (text.includes("writing a literature note")) {
+        // Says back what it was given (the language, the pictures it saw), so tests can tell
         const title = text.match(/starting with "# ([^"]+)"/)?.[1] ?? "Paper"
-        await say("```markdown\n# " + title + "\n\n## Question\nWhat the fake paper asks, in a sentence long enough to count.\n\n## Method\nHow it goes about it.\n\n## Findings\nWhat it found (p. 1).\n\n## Limitations\nWhat it leaves open.\n\n## Why it matters\nWho would use it.\n```")
+        const language = text.match(/Language of the note:\n([^.]+)\./)?.[1] ?? "?"
+        const pictures = params.prompt.filter((b) => b.type === "image").length
+        const figure = text.match(/^- (figure-\d+) \(p\. \d+\)/m)?.[1]
+        await say(
+          "```markdown\n# " +
+            title +
+            `\n\n## Summary\n\n- **Background**: Written in ${language}, having seen ${pictures} pictures.\n- **Key Findings**: What it found (p. 1).\n\n` +
+            (figure ? `![Figure](${figure})\n\n` : "") +
+            "## Details\n\n### What it measured\nHow it goes about it, in a sentence long enough to count.\n\n### The boundary of the conclusion\nWhat it leaves open.\n```",
+        )
         return { stopReason: "end_turn" }
       }
       if (text.includes("rules?")) {

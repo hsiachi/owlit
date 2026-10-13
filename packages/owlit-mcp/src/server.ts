@@ -190,7 +190,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
           lines.push(`Couldn't add ${ref}: ${error instanceof Error ? error.message : String(error)}`)
         }
       }
-      if (lines.some((l) => l.startsWith("Added"))) lines.push("PDFs and text arrive by themselves; once you have read a paper, keep a reading note with library_write_digest.")
+      if (lines.some((l) => l.startsWith("Added"))) lines.push("PDFs and text arrive by themselves. For a paper worth a reading note, ask for one with library_request_digest.")
       return lines.join("\n")
     }
     case "library_remove": {
@@ -202,9 +202,13 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const done = await owlit.rpc.library.removeByAgent({ ids, ...asker })
       return [...done.removed.map((id) => `Removed ${id}.`), ...done.refused.map((r) => `Kept ${r.id}: ${r.why}.`)].join("\n")
     }
-    case "library_write_digest": {
-      const paper = await owlit.rpc.library.writeDigest({ id: str("id"), text: str("digest"), by: options.chatId ? `chat:${options.chatId}` : "agent" })
-      return `Kept the reading note for ${paper.id}.`
+    // Every note comes from the same background run, so all of them are written one way, in the
+    // user's language, with the paper's figures; a chat's agent asks rather than writes its own
+    case "library_request_digest": {
+      const id = str("id")
+      if (await owlit.rpc.library.digest({ id })) return `${id} has a reading note already; read it with library_read part=digest.`
+      await owlit.rpc.library.requestDigest({ id })
+      return `Owlit is writing a reading note for ${id}; it appears on the paper's page when done.`
     }
     case "docs_list": {
       const { files } = await owlit.rpc.docs.list()

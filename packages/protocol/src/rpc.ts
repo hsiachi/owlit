@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -314,11 +314,13 @@ export interface Methods {
   // refused, since its proceedings can't be listed yet.
   "library.journal": { params: { journal: string; year: string; query?: string; offset?: number; limit?: number; by?: string }; result: FoundPapers }
   "library.highlights": { params: { id: string }; result: Highlight[] }
-  // Queues a reading note by a background agent (the paper menu's Write a reading note); nothing when
-  // the paper has one or nothing to read
-  "library.requestDigest": { params: { id: string }; result: null }
-  // A reading note an agent wrote itself, kept as digest.md; refused when the paper has one
-  "library.writeDigest": { params: { id: string; text: string; by?: string }; result: Paper }
+  // Queues a reading note by a background agent (the paper menu's Write a reading note, an agent's
+  // library_request_digest); nothing when the paper has nothing to read. rewrite: the user asks for the
+  // note there to be written again (a newer way of writing, another language); without it a paper that
+  // has one is left as it is.
+  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: null }
+  // The paper's figures and tables as pictures, for its reading note
+  "library.figures": { params: { id: string }; result: PaperFigure[] }
   // The paper's reading notes (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already

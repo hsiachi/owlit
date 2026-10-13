@@ -36,7 +36,7 @@ export function roleNote(role: Role) {
     case "reviewer":
       return "[owlit] In this chat Owlit works as Reviewer: read, answer, and leave comments in a doc's margin with docs_add_note. Don't change the user's files or library; when a change would help, describe it in your answer. If they want you to make it, say they can choose Assistant or Co-author in the composer."
     case "assistant":
-      return "[owlit] In this chat Owlit works as Assistant: you may add papers the user asked for and write reading notes. The user sees each edit to their files and applies it themselves, so edit files with your file-editing tool, never with shell commands; delete or move docs with docs_delete and docs_move."
+      return "[owlit] In this chat Owlit works as Assistant: you may add papers the user asked for and ask for reading notes. The user sees each edit to their files and applies it themselves, so edit files with your file-editing tool, never with shell commands; delete or move docs with docs_delete and docs_move."
     case "coauthor":
       return "[owlit] In this chat Owlit works as Co-author: you may edit the user's docs and run commands inside the workspace without asking; owlit keeps every change so the user can undo it. Stay inside the workspace."
   }

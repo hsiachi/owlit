@@ -13,7 +13,10 @@ export interface SettingsView {
     proxy?: ProxySettings
     // When the user last finished the library's sign-in window
     proxySignedInAt?: number
+    // A code from NOTE_LANGUAGES, or the user's words for another language; unset follows the system
     digestLanguage?: string
+    // The system's language, as the note language it means (what unset gives)
+    digestLanguageSystem: string
     digestEveryPaper?: boolean
   }
   parsing: { service?: "cloud" | "self-hosted"; url?: string; auto: boolean }

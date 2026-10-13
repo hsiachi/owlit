@@ -1,4 +1,4 @@
-import { chatOfFile, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, normalizeNoteLanguage, noteLanguageFor, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
@@ -83,9 +83,13 @@ export class Core {
   private readonly http: Http
   private readonly background: Background
   private socket: SocketServer | null = null
+  // The note language the system's own language means: reading notes are written in it until
+  // Settings says otherwise
+  private readonly systemLanguage: string
 
   constructor(options: CoreOptions) {
     this.options = options
+    this.systemLanguage = noteLanguageFor(options.host?.languages?.() ?? [])
     this.settings = new SettingsStore(options.userDataDir, options.host?.secrets)
     this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
     limitMetadataHosts(this.http)
@@ -178,7 +182,7 @@ export class Core {
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), async ({ enabled }) => {
       const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
       this.notifier.notify("activity.status", next.activity)
-      this.notifier.notify("settings.changed", settingsView(next))
+      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguage))
       return next.activity
     })
 
@@ -187,6 +191,7 @@ export class Core {
       settings: this.settings,
       http: this.http,
       browser: options.host?.browser,
+      systemLanguage: this.systemLanguage,
       changed: (view) => this.notifier.notify("settings.changed", view),
     })
 
@@ -458,13 +463,11 @@ export class Core {
     this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
     this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
     this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
-    this.router.register("library.requestDigest", z.object({ id: paperId }), async ({ id }) => {
-      await library().wantDigest(id, "asked")
+    this.router.register("library.requestDigest", z.object({ id: paperId, rewrite: z.boolean().optional() }), async ({ id, rewrite }) => {
+      await library().wantDigest(id, "asked", { rewrite })
       return null
     })
-    this.router.register("library.writeDigest", z.object({ id: paperId, text: z.string().min(1), by: z.string().optional() }), ({ id, text, by }) =>
-      library().writeDigest(id, text, by ?? "agent"),
-    )
+    this.router.register("library.figures", z.object({ id: paperId }), ({ id }) => library().figures(id))
     this.router.register(
       "library.read",
       z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),
@@ -646,8 +649,12 @@ export class Core {
                 // Libraries sign you out after a while (Tsinghua's tlink after two hours): Settings says so
                 // once a run finds the sign-in page, and signed in again once a PDF comes through
                 proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
-                agent: async (prompt, signal) =>
-                  this.background.run({ prompt, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
+                agent: async (prompt, signal, pictures) =>
+                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
+                noteLanguage: async () => {
+                  const chosen = (await this.settings.get()).library.digestLanguage
+                  return chosen ? normalizeNoteLanguage(chosen) : this.systemLanguage
+                },
               },
               knowledge: {
                 agent: async (prompt, signal) => {
@@ -746,7 +753,7 @@ export class Core {
       const { proxySignedInAt: _, ...rest } = s.library
       return { ...s, library: signedIn ? { ...rest, proxySignedInAt: Date.now() } : rest }
     })
-    this.notifier.notify("settings.changed", settingsView(next))
+    this.notifier.notify("settings.changed", settingsView(next, this.systemLanguage))
   }
 
   // The agent (and its model) chosen for background work in Settings
