@@ -1,5 +1,5 @@
 import { RpcErrorCode, type PaperRecord } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -323,6 +323,59 @@ describe("library on disk", () => {
     expect(readdirSync(path.join(root, ".owlit/trash"))).toHaveLength(1)
     const [back] = await call("library.restore", { ids: [id] })
     expect(back?.id).toBe(id)
+  })
+
+  it("Undo brings a paper back even when a step wrote into its folder after it was removed", async () => {
+    const { root, call } = await setup({})
+    const id = "arxiv-1706.03762"
+    await call("library.add", { paper: resolvedArxiv })
+    await call("library.setNote", { paperId: id, content: "kept" })
+    await call("library.remove", { ids: [id] })
+    // A download that finished after the removal, before it heard it was cancelled
+    mkdirSync(path.join(root, "library/papers", id), { recursive: true })
+    writeFileSync(path.join(root, "library/papers", id, "late.txt"), "late")
+    mkdirSync(path.join(root, ".owlit/papers", id), { recursive: true })
+    const [back] = await call("library.restore", { ids: [id] })
+    expect(back?.id).toBe(id)
+    expect(readFileSync(path.join(root, "library/papers", id, "note.md"), "utf8")).toContain("kept")
+    expect(existsSync(path.join(root, "library/papers", id, "late.txt"))).toBe(true)
+    expect(existsSync(path.join(root, ".owlit/papers", id, "state.json"))).toBe(true)
+    expect(readdirSync(path.join(root, ".owlit/trash"))).toEqual([])
+  })
+
+  it("restoring a paper that is in the library already gives it back as it is and leaves the trash alone", async () => {
+    const { root, call } = await setup({})
+    const id = "arxiv-1706.03762"
+    await call("library.add", { paper: resolvedArxiv })
+    await call("library.remove", { ids: [id] })
+    await call("library.add", { paper: resolvedArxiv })
+    await call("library.update", { id, patch: { starred: true } })
+    const [back] = await call("library.restore", { ids: [id] })
+    expect(back).toMatchObject({ id, starred: true })
+    expect(readdirSync(path.join(root, ".owlit/trash"))).toHaveLength(1)
+    expect(await call("library.restore", { ids: [id] })).toHaveLength(1)
+  })
+
+  it("lists the papers removed in the last 30 days, newest first, until they are back", async () => {
+    const { root, call } = await setup({})
+    await call("library.add", { paper: resolvedArxiv })
+    await call("library.update", { id: resolvedArxiv.id, patch: { title: "Attention (my title)" } })
+    await call("library.add", { paper: { id: "arxiv-2408.00447", title: "Second", authors: [], ids: { arxiv: "2408.00447" } } })
+    await call("library.add", { paper: { id: "arxiv-2403.17859", title: "Old", authors: [], ids: { arxiv: "2403.17859" } } })
+    await call("library.remove", { ids: ["arxiv-2403.17859"] })
+    await call("library.remove", { ids: [resolvedArxiv.id] })
+    await new Promise((r) => setTimeout(r, 5))
+    await call("library.remove", { ids: ["arxiv-2408.00447"] })
+    // Removed long ago: kept in the trash, no longer offered
+    const trash = path.join(root, ".owlit/trash")
+    const old = readdirSync(trash).find((name) => name.endsWith("-paper-arxiv-2403.17859"))!
+    renameSync(path.join(trash, old), path.join(trash, `${Date.now() - 31 * 86_400_000}-paper-arxiv-2403.17859`))
+    const listed = await call("library.trash")
+    expect(listed.map((p: { id: string }) => p.id)).toEqual(["arxiv-2408.00447", resolvedArxiv.id])
+    expect(listed[1]).toMatchObject({ title: "Attention (my title)", authors: ["Ashish Vaswani"], year: 2017 })
+    expect(listed[1].removedAt).toBeLessThanOrEqual(listed[0].removedAt)
+    await call("library.restore", { ids: [resolvedArxiv.id] })
+    expect((await call("library.trash")).map((p: { id: string }) => p.id)).toEqual(["arxiv-2408.00447"])
   })
 
   it("hears about a paper folder another program puts in library/papers", async () => {

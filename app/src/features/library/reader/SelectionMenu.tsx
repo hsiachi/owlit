@@ -35,7 +35,10 @@ export function SelectionMenu({ rect, menuWrapperProps, placement, documentId, p
   }
 
   return (
-    <div {...menuWrapperProps}>
+    // EmbedPDF stacks its menu wrapper at z 3, under the page's link hotspots (z 20): a toolbar over a line
+    // with a citation gave the click to the citation, and Ask Owlit jumped the PDF to the references.
+    // Raised over the links like the highlight popover (HighlightLayer's Anchor).
+    <div {...menuWrapperProps} style={{ ...menuWrapperProps.style, zIndex: 30 }}>
       <div className="pointer-events-auto absolute" style={floatOn(rect.size.width / 2, 0, rect.size.height, placement.suggestTop)}>
         <HighlightToolbar
           onColor={(c) => void keep(c)}

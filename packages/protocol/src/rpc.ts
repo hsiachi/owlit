@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -288,8 +288,12 @@ export interface Methods {
   // Papers an agent added and the user hasn't worked with, to .owlit/trash/ as versions (Undo); papers
   // it may not remove come back in refused, with why
   "library.removeByAgent": { params: { ids: string[]; chatId?: string }; result: { removed: string[]; refused: { id: string; why: string }[] } }
-  // Puts back what library.remove took (Undo)
+  // Puts back what library.remove took (Undo), from the newest trash entry of each paper; a paper that is
+  // in the library already comes back as it is
   "library.restore": { params: { ids: string[] }; result: Paper[] }
+  // Papers removed in the last 30 days, newest first, one entry per paper; papers back in the library,
+  // and copies folded into another paper, are left out
+  "library.trash": { params: void; result: TrashedPaper[] }
   // Refresh details: asks the services about the paper again now and rewrites its details (the user's
   // own corrections stay). A paper found to be a copy of another is folded into it: that one comes back.
   "library.refresh": { params: { id: string }; result: Paper | null }

@@ -65,14 +65,19 @@ export interface Change {
   at: number
   // The line or question it touched, if one
   lineId?: string
-  // "Added", "Rewritten", "Removed"…, as the history shows it
+  // "Added", "Rewritten", "Source changed", "Removed"…, as the history shows it
   what: string
-  // Why, in the user's terms ("you read Schick 2023 §Limitations")
+  // Why, one sentence to the user ("You read Schick 2023 §Limitations, so …"). Changes made together
+  // (one write) share it and their `at`.
   why: string
   by: "owlit" | "you"
-  // The line before a rewrite, so the history can show it
+  // The line before a rewrite, so the history can show it; only when its words changed
   before?: string
 }
+
+// Whether two wordings of a line say the same thing word for word: spacing doesn't count, so a rewrite
+// that only moved whitespace isn't one
+export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim()
 
 // Something the user said about a line, in a chat or the ask bar
 export interface Said {
@@ -324,7 +329,8 @@ export interface KnowledgeWrite {
   topic: string
   // The whole topic file
   content: string
-  // Why, in the user's terms ("you highlighted two passages of Lewis et al. 2020")
+  // Why, one plain sentence to the user, shown in the topic's history ("You highlighted two passages of
+  // Lewis et al. 2020, so …")
   why: string
   // Line or question ids removed on purpose
   remove?: string[]

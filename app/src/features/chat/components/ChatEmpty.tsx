@@ -4,7 +4,8 @@ import { keysFor } from "@/app/shortcuts"
 import { Button } from "@/components/ui/button"
 import { useSettings } from "@/features/settings/store"
 import { useChatStore } from "../store"
-import type { PromptInput, SourceKind } from "../types"
+import type { PromptInput } from "../types"
+import { starters } from "../lib/starters"
 import { Composer, type ComposerHandle } from "./composer/Composer"
 
 function greeting() {
@@ -14,16 +15,6 @@ function greeting() {
   if (h < 18) return "Good afternoon"
   return "Good evening"
 }
-
-// The Chat page is where work is handed off (a quick question goes through the agent window, ⌘J), so the
-// starters are jobs that take a few minutes. Each fills a prompt stem; where it needs a paper or doc, the
-// mention popup opens on that kind.
-const suggestions: { label: string; prompt: string; kind?: SourceKind | "all" }[] = [
-  { label: "Find papers and add them", prompt: "Find recent papers on " },
-  { label: "Compare papers", prompt: "Compare the methods and findings of ", kind: "paper" },
-  { label: "Review a draft", prompt: "Review where I overstate a finding or misread a paper in ", kind: "doc" },
-  { label: "Ask about your papers", prompt: "What do my papers say about " },
-]
 
 // /chat with no conversation selected: greeting, composer, starter prompts
 export function ChatEmpty() {
@@ -58,7 +49,7 @@ export function ChatEmpty() {
       </div>
       <div className="flex max-w-3xl flex-wrap justify-center gap-2">
         {/* Words only on a translucent fill: no outline to stack against the composer's border */}
-        {suggestions.map((s) => (
+        {starters.map((s) => (
           <Button
             key={s.label}
             variant="secondary"

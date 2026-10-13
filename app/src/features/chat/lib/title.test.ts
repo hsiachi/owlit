@@ -24,4 +24,14 @@ describe("titleFrom", () => {
   it("cuts one long word as it is", () => {
     expect(titleFrom("a".repeat(100))).toBe(`${"a".repeat(80)}…`)
   })
+
+  it("drops a starter's stem when the person wrote a whole question of their own after it", () => {
+    expect(titleFrom("What do my papers say about Compare how RAGTruth and HaluEval annotate spans")).toBe("Compare how RAGTruth and HaluEval annotate spans")
+    expect(titleFrom("What do my papers say about hallucination detection in RAG")).toBe("What do my papers say about hallucination detection in RAG")
+    expect(titleFrom("What do my papers say about Transformers")).toBe("What do my papers say about Transformers")
+    expect(titleFrom("Find recent papers on RAG hallucination benchmarks")).toBe("Find recent papers on RAG hallucination benchmarks")
+    expect(titleFrom("Compare the methods and findings of @[Niu et al. 2023] and @[Zheng et al. 2023]")).toBe(
+      "Compare the methods and findings of Niu et al. 2023 and Zheng et al. 2023",
+    )
+  })
 })

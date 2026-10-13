@@ -5,12 +5,12 @@ import { NoteDot } from "@/components/marks"
 import { useAgentWindow } from "@/features/agent/store"
 import { shortDate } from "@/lib/time"
 import { toastUndo } from "@/lib/toast"
-import { lineKey, topicUri, wasBefore } from "../format"
+import { lineKey, shownChange, topicUri, wasBefore, wordsAfter } from "../format"
 import { useTarget, useViewed } from "../hooks"
 import { editLine, removeLine } from "../store"
 import type { Line, Topic, TopicSidecar } from "../types"
 import { useKnowledgeUi } from "../ui-store"
-import { SentenceEditor } from "./bits"
+import { Prose, SentenceEditor } from "./bits"
 import { DatedRows, type DatedRow } from "./DatedRows"
 import { LineBody, TopicLine } from "./TopicLine"
 
@@ -39,7 +39,7 @@ export function LineRow({
     !!fresh,
     useCallback(() => onViewed(line.id), [onViewed, line.id]),
   )
-  const was = fresh === "changed" && !open ? wasBefore(line.id, side, seenBefore) : undefined
+  const was = fresh === "changed" && !open ? wasBefore(line.id, side, seenBefore, line.text) : undefined
 
   const remove = () => {
     const undo = removeLine(topic.id, line.id)
@@ -103,7 +103,7 @@ export function LineRow({
               }}
             />
           ) : (
-            <LineBody line={line} was={was} />
+            <LineBody line={line} was={was} topic={topic} />
           )}
           {open && !editing && <LineHistory topic={topic} line={line} side={side} />}
         </div>
@@ -115,25 +115,45 @@ export function LineRow({
 
 // Where a line came from and how it changed, ruled off under it
 function LineHistory({ topic, line, side }: { topic: Topic; line: Line; side: TopicSidecar }) {
-  const rows: (DatedRow & { at: number })[] = side.history
-    .filter((h) => h.lineId === line.id)
-    .map((h) => ({
+  const history = side.history.filter((h) => h.lineId === line.id)
+  const after = wordsAfter(history, () => line.text)
+  const rows: (DatedRow & { at: number })[] = history.map((h) => {
+    const { what, was } = shownChange(h, after.get(h.id))
+    return {
       key: h.id,
       at: h.at,
       date: shortDate(h.at),
       text: (
         <>
-          {h.what} <span className="text-muted-foreground">· {h.why}</span>
-          {h.before && <span className="block text-muted-foreground">Was: “{h.before}”</span>}
+          {what}{" "}
+          <span className="text-muted-foreground">
+            · <Prose text={h.why} topic={topic} />
+          </span>
+          {was && <span className="block text-muted-foreground">Was: “{was}”</span>}
         </>
       ),
-    }))
+    }
+  })
   for (const [i, s] of (side.said[line.id] ?? []).entries())
     rows.push({ key: `said-${i}`, at: s.at, date: shortDate(s.at), text: <span className="text-muted-foreground">You said: “{s.text}”</span> })
   if (!side.history.some((h) => h.lineId === line.id && h.what === "Added")) {
     const start = side.history.filter((h) => !h.lineId).at(-1)
     const at = start?.at ?? topic.updatedAt
-    rows.push({ key: "start", at, date: shortDate(at), text: <>In this topic since it began {start && <span className="text-muted-foreground">· {start.why}</span>}</> })
+    rows.push({
+      key: "start",
+      at,
+      date: shortDate(at),
+      text: (
+        <>
+          In this topic since it began{" "}
+          {start && (
+            <span className="text-muted-foreground">
+              · <Prose text={start.why} topic={topic} />
+            </span>
+          )}
+        </>
+      ),
+    })
   }
   rows.sort((a, b) => a.at - b.at)
   return <DatedRows rows={rows} className="mt-2.5 border-t pt-2.5 text-detail" />

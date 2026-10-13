@@ -4,8 +4,8 @@ import { useSettings } from "@/features/settings/store"
 import { isDesktop } from "@/lib/rpc"
 import { useWorkspace } from "@/lib/workspace"
 
-// What Home needs that the files don't say: where the cursor was when the user last wrote in a doc, and
-// when they were last here. Kept in this window's storage per workspace folder; nothing goes to core.
+// What Home needs that the files don't say: where the cursor was when the user last wrote in a doc, when
+// Owlit last wrote in one, and when they were last here. Kept in this window's storage per workspace folder; nothing goes to core.
 
 interface DocMark {
   path: string
@@ -17,6 +17,8 @@ interface DocMark {
 interface TrailState {
   // Most recent first, per workspace
   docs: Record<string, DocMark[]>
+  // When Owlit last wrote each doc, most recent first, per workspace
+  owlitDocs: Record<string, { path: string; at: number }[]>
   lastActiveAt: Record<string, number>
   // When this launch found the user last here, per workspace; not kept, so it is fresh every launch
   awayFrom: Record<string, number | null>
@@ -25,10 +27,10 @@ interface TrailState {
 const KEEP = 30
 
 export const useTrail = create<TrailState>()(
-  persist(() => ({ docs: {}, lastActiveAt: {}, awayFrom: {} }), {
+  persist(() => ({ docs: {}, owlitDocs: {}, lastActiveAt: {}, awayFrom: {} }), {
     name: "owlit-home",
     version: 1,
-    partialize: (s) => ({ docs: s.docs, lastActiveAt: s.lastActiveAt }),
+    partialize: (s) => ({ docs: s.docs, owlitDocs: s.owlitDocs, lastActiveAt: s.lastActiveAt }),
   }),
 )
 
@@ -45,6 +47,16 @@ export function markDocEdit(path: string, head: number) {
   useTrail.setState((s) => {
     const rest = (s.docs[key] ?? []).filter((m) => m.path !== path)
     return { docs: { ...s.docs, [key]: [{ path, at: Date.now(), head }, ...rest].slice(0, KEEP) } }
+  })
+}
+
+// Called for every write of Owlit's to a doc (docs/fs.ts), open or not, so Home can say whose edit was last
+export function markOwlitEdit(path: string) {
+  if (!remembering()) return
+  const key = workspaceKey()
+  useTrail.setState((s) => {
+    const rest = (s.owlitDocs[key] ?? []).filter((m) => m.path !== path)
+    return { owlitDocs: { ...s.owlitDocs, [key]: [{ path, at: Date.now() }, ...rest].slice(0, KEEP) } }
   })
 }
 

@@ -15,6 +15,7 @@ import { MentionLink } from "@/components/mention/mention-token"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
+import { Prose } from "../components/bits"
 import { LineRow } from "../components/LineRow"
 import { TopicMenuContent } from "../components/TopicMenu"
 import { Changes, Sources } from "../components/TopicLog"
@@ -131,7 +132,11 @@ function Intro({ topic, side, seenBefore, freshIds }: { topic: Topic; side: Topi
         </p>
       )}
       {/* The topic's own words, not a quote, so in body tone behind the rule */}
-      {topic.summary && <p className="mt-5 border-l-2 pl-4 text-body leading-relaxed text-pretty">{topic.summary}</p>}
+      {topic.summary && (
+        <p className="mt-5 border-l-2 pl-4 text-body leading-relaxed text-pretty">
+          <Prose text={topic.summary} topic={topic} />
+        </p>
+      )}
       {freshIds.length > 0 && (
         <Button variant="text" size="inline" onClick={() => ringBlock(freshIds[0])} className="-ml-1.5 mt-4 flex gap-2">
           <NoteDot />
@@ -163,8 +168,14 @@ function QuestionRow({ topic, id, text, status }: { topic: Topic; id: string; te
   const { ref, hit } = useTarget(id)
   return (
     <div ref={ref} id={id} className={cn("-mx-2 rounded-md px-2 py-0.5", hit && "animate-highlight-flash")}>
-      <p className="text-body leading-relaxed">{text}</p>
-      {status && <p className="text-detail leading-relaxed text-muted-foreground">{status}</p>}
+      <p className="text-body leading-relaxed">
+        <Prose text={text} topic={topic} />
+      </p>
+      {status && (
+        <p className="text-detail leading-relaxed text-muted-foreground">
+          <Prose text={status} topic={topic} />
+        </p>
+      )}
       <span className="sr-only">In {topic.name}</span>
     </div>
   )

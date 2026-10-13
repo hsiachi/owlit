@@ -20,6 +20,7 @@ import {
   type ParsingSettings,
   type ResolvedPaper,
   type Task,
+  type TrashedPaper,
   type TaskPriority,
 } from "@owlit/protocol"
 import { watch, type FSWatcher } from "node:fs"
@@ -91,6 +92,8 @@ const FIGURES_RETRY_MS = 60 * 60_000
 // 5 MB, Anthropic's limit being the lowest)
 const MAX_PICTURES = 16
 const PICTURE_MAX_BYTES = 5 * 1024 * 1024
+// How far back the Library's removed papers are offered for restoring
+const TRASH_LISTED_MS = 30 * 24 * 60 * 60_000
 
 const exists = (file: string) => stat(file).then(() => true, () => false)
 
@@ -356,7 +359,7 @@ export class Library {
   remove(ids: string[]): Promise<null> {
     return this.serial(async () => {
       const stamp = Date.now()
-      for (const id of ids) if (isPaperId(id)) await this.trash(id, stamp)
+      for (const id of ids) if (isPaperId(id)) await this.moveToTrash(id, stamp)
       return null
     })
   }
@@ -373,7 +376,7 @@ export class Library {
         else if ((await readState(this.root, id))?.addedBy !== "agent") refused.push({ id, why: "the user added it; ask them to remove it" })
         else if (await this.touched(id)) refused.push({ id, why: "the user has starred, tagged, marked, highlighted or written about it; ask them" })
         else {
-          await this.trash(id, stamp)
+          await this.moveToTrash(id, stamp)
           removed.push(id)
         }
       }
@@ -381,29 +384,78 @@ export class Library {
     })
   }
 
-  // The most recent removal of each paper, put back
+  // The most recent removal of each paper, put back. Found by the paper's id whichever trash entry holds
+  // it, and safe to ask twice: a paper already in the library (Undo pressed again, or restored from the
+  // removed list meanwhile) comes back as it is, never from an older entry over what is there.
   restore(ids: string[]): Promise<Paper[]> {
     return this.serial(async () => {
-      const trashRoot = path.join(this.root, OWLIT_DIR, "trash")
-      const entries = (await readdir(trashRoot).catch(() => [] as string[])).sort().reverse()
+      const entries = await this.trashEntries()
       const restored: Paper[] = []
       for (const id of ids) {
-        const entry = entries.find((name) => name.endsWith(`-paper-${id}`))
+        if (!isPaperId(id)) continue
+        if (await readRecord(this.root, id)) {
+          const paper = await this.get(id)
+          if (paper) restored.push(paper)
+          continue
+        }
+        const entry = entries.find((e) => e.id === id)
         if (!entry) continue
-        const trash = path.join(trashRoot, entry)
+        const trash = path.join(this.root, OWLIT_DIR, "trash", entry.name)
         await mkdir(path.dirname(paperDir(this.root, id)), { recursive: true })
         await mkdir(path.dirname(paperStateDir(this.root, id)), { recursive: true })
-        await rename(path.join(trash, "paper"), paperDir(this.root, id)).catch(ignoreMissing)
-        await rename(path.join(trash, "state"), paperStateDir(this.root, id)).catch(ignoreMissing)
+        await moveInto(path.join(trash, "paper"), paperDir(this.root, id))
+        await moveInto(path.join(trash, "state"), paperStateDir(this.root, id))
         await rm(trash, { recursive: true, force: true })
         const record = await readRecord(this.root, id)
         const paper = record && (await this.get(id))
         if (!paper) continue
         this.index.set(id, record.ids, record.title)
         restored.push(paper)
+        await this.resume(id)
       }
       return restored
     })
+  }
+
+  // Papers removed in the last 30 days, newest first, one entry per paper. A paper back in the library
+  // (restored, or added again) and a copy folded into another paper (its id an alias now) aren't listed:
+  // restoring either would bring back something the library already has.
+  async trash(): Promise<TrashedPaper[]> {
+    const since = Date.now() - TRASH_LISTED_MS
+    const aliases = await this.aliases()
+    const listed: TrashedPaper[] = []
+    for (const entry of await this.trashEntries()) {
+      if (entry.at < since) break
+      if (listed.some((p) => p.id === entry.id) || aliases[entry.id] || (await readRecord(this.root, entry.id))) continue
+      const dir = path.join(this.root, OWLIT_DIR, "trash", entry.name)
+      const record = await readJson<PaperRecord>(path.join(dir, "paper", "paper.json")).catch(() => undefined)
+      if (!record || typeof record.title !== "string") continue
+      // Named as the user last saw it: their corrections (state.json's overrides) over the record
+      const state = await readJson<PaperState>(path.join(dir, "state", "state.json")).catch(() => undefined)
+      const paper = toPaper({ ...record, id: entry.id, authors: Array.isArray(record.authors) ? record.authors : [] }, state ?? freshState("user", entry.at), false)
+      listed.push(clean({ id: entry.id, title: paper.title, authors: paper.authors, year: paper.year, venue: paper.venue, removedAt: entry.at }))
+    }
+    return listed
+  }
+
+  // The papers in .owlit/trash/ (<stamp>-paper-<id>), newest first
+  private async trashEntries(): Promise<{ name: string; id: string; at: number }[]> {
+    const names = await readdir(path.join(this.root, OWLIT_DIR, "trash")).catch(() => [] as string[])
+    return names
+      .flatMap((name) => {
+        const match = /^(\d+)-paper-(.+)$/.exec(name)
+        return match && isPaperId(match[2]) ? [{ name, id: match[2], at: Number(match[1]) }] : []
+      })
+      .sort((a, b) => b.at - a.at)
+  }
+
+  // The steps a removal cancelled, queued again for a paper put back: its PDF, its text, its details
+  private async resume(id: string) {
+    const pdf = await hasPdfFile(this.root, id)
+    if (!pdf && !(await readAcquisition(this.root, id))) this.queue("paper.pdf", id, "background")
+    if (pdf && !(await readText(this.root, id))) this.queue("paper.text", id, "background")
+    const record = await readRecord(this.root, id)
+    if (record?.fetchedAt && (record.checked ?? 0) < METADATA_CHECKS && refOfIds(record.ids)) this.queue("paper.metadata", id, "background")
   }
 
   // Adds a highlight, or replaces the one with its id
@@ -1345,7 +1397,7 @@ export class Library {
         return
       }
       // The lookup that found the copy (paper.metadata, running) ends on its own
-      await this.trash(copy, Date.now(), (task) => task.kind === "paper.metadata" && task.state === "running")
+      await this.moveToTrash(copy, Date.now(), (task) => task.kind === "paper.metadata" && task.state === "running")
       const aliases = await this.aliases()
       for (const [from, to] of Object.entries(aliases)) if (to === copy) aliases[from] = kept
       aliases[copy] = kept
@@ -1364,7 +1416,7 @@ export class Library {
   }
 
   // Both halves of a paper to .owlit/trash/, where restore() finds them
-  private async trash(id: string, stamp: number, spare?: (task: Task) => boolean) {
+  private async moveToTrash(id: string, stamp: number, spare?: (task: Task) => boolean) {
     this.scheduler?.cancelSubject(id, spare)
     // A paper already gone (undoing an agent's add after it took the paper back) leaves no entry: an empty
     // one would be the newest, so restore would take it and bring nothing back
@@ -1441,11 +1493,11 @@ export class Library {
         if (record) this.index.set(id, record.ids, record.title)
         else this.index.delete(id)
       }
-      return ids
-    }).then(
-      (ids) => this.announce(ids),
-      (error) => console.error("[core] couldn't read changes in the library", error),
-    )
+      // Told from inside the lock, so a write queued behind this look (a restore, for Undo) can't land
+      // between reading the folders and telling the window: "removed" would then arrive after the paper
+      // was back, and the window would lose it again
+      await this.announce(ids)
+    }).catch((error) => console.error("[core] couldn't read changes in the library", error))
   }
 
   private trashDir(stamp: number, id: string) {
@@ -1507,6 +1559,33 @@ function asRpcFailure(error: unknown) {
 
 function ignoreMissing(error: NodeJS.ErrnoException) {
   if (error.code !== "ENOENT") throw error
+}
+
+// Moves a folder to where it belongs, when something has made that place again meanwhile: a step that was
+// running when the paper was removed can write its file (a PDF, its text) before it hears it was
+// cancelled, and a rename onto a folder that isn't empty fails. That made Undo bring nothing back in a blind
+// test, the paper's folder left in the trash. The moved folder's files win; what only the newcomer has (a
+// PDF that finished downloading) stays. A folder that isn't there (a paper with no state yet) is nothing to move.
+async function moveInto(from: string, to: string): Promise<void> {
+  try {
+    await rename(from, to)
+    return
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === "ENOENT" && !(await exists(from))) return
+    if (code !== "ENOTEMPTY" && code !== "EEXIST") throw error
+  }
+  for (const name of await readdir(from)) {
+    const source = path.join(from, name)
+    const target = path.join(to, name)
+    const [a, b] = await Promise.all([stat(source), stat(target).catch(() => undefined)])
+    if (b && a.isDirectory() && b.isDirectory()) await moveInto(source, target)
+    else {
+      if (b) await rm(target, { recursive: true, force: true })
+      await rename(source, target)
+    }
+  }
+  await rm(from, { recursive: true, force: true })
 }
 
 function clean<T extends object>(value: T): T {
