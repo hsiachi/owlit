@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
-import { BorderedList } from "@/components/bordered-list"
+import { RowList, rowClass } from "@/components/row-list"
 import { FoldButton } from "@/components/fold"
 import { Unfold } from "@/components/unfold"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { listTrash, restoreFromTrash } from "../disk"
 import { paperMeta } from "../lib/format"
 import { useLibraryStore } from "../store"
 import type { TrashedPaper } from "@owlit/protocol"
+import { cn } from "@/lib/utils"
 
 // The papers in the trash, asked again whenever the library gains or loses a paper (a removal, an Undo,
 // a restore from here)
@@ -41,11 +42,11 @@ export function RecentlyRemoved() {
         {removed.length === 1 ? t`A paper removed recently` : plural(removed.length, { one: "# paper removed recently", other: "# papers removed recently" })}
       </FoldButton>
       <Unfold open={open}>
-        <BorderedList as="ul" className="mt-1">
+        <RowList as="ul" className="mt-1">
           {removed.map((p) => (
             <RemovedRow key={p.id} paper={p} />
           ))}
-        </BorderedList>
+        </RowList>
       </Unfold>
     </section>
   )
@@ -60,7 +61,7 @@ function RemovedRow({ paper }: { paper: TrashedPaper }) {
   }
   const when = ago(paper.removedAt, { inSentence: true })
   return (
-    <li className="group/removed flex h-9 items-center gap-3 pr-2.5 pl-2.5 text-sm">
+    <li className={cn("group/removed flex h-9 items-center gap-3 text-sm hover:bg-accent", rowClass)}>
       <span className="min-w-0 flex-1 truncate" title={paper.title}>
         {paper.title}
       </span>

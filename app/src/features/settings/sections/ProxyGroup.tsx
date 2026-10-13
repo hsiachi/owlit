@@ -87,7 +87,7 @@ function LinkForm({ onDone }: { onDone: () => void }) {
     }
   }
   return (
-    <div className="flex flex-col gap-1.5 bg-muted/40 px-3.5 py-3">
+    <div className="-mx-3 mb-2 flex flex-col gap-1.5 rounded-lg bg-muted px-3 py-3">
       <label className="text-xs text-muted-foreground" htmlFor="proxy-link">
         {t`A link to any paper, opened through your library`}
       </label>

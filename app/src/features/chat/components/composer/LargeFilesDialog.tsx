@@ -1,10 +1,11 @@
 import { plural, t } from "@lingui/core/macro"
 import { LARGE_FILE_BYTES } from "@owlit/protocol"
-import { BorderedList } from "@/components/bordered-list"
+import { RowList, rowClass } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { formatBytes } from "../../lib/attachments"
+import { cn } from "@/lib/utils"
 
 // Files over LARGE_FILE_BYTES ask once before they are copied (useAttachments' `large`)
 export function LargeFilesDialog({ files, onAnswer }: { files: File[] | null; onAnswer: (how: "copy" | "skip" | null) => void }) {
@@ -15,14 +16,14 @@ export function LargeFilesDialog({ files, onAnswer }: { files: File[] | null; on
       {/* Focus would land on the title's info icon and open its tooltip */}
       <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeading title={plural(big.length, { one: "Copy this large file?", other: "Copy # large files?" })} about={about} />
-        <BorderedList as="ul">
+        <RowList as="ul">
           {big.map((f, i) => (
-            <li key={i} className="flex h-9 items-center gap-3 px-3.5 text-sm">
+            <li key={i} className={cn("flex h-9 items-center gap-3 text-sm", rowClass)}>
               <span className="min-w-0 flex-1 truncate">{f.name}</span>
               <span className="shrink-0 text-muted-foreground">{formatBytes(f.size)}</span>
             </li>
           ))}
-        </BorderedList>
+        </RowList>
         <DialogFooter>
           {/* The smaller ones dropped with them are still attached */}
           <Button variant="ghost" onClick={() => onAnswer("skip")}>
