@@ -3,7 +3,8 @@
 A pnpm workspace: `app/` is the renderer (React + Vite), `packages/protocol/` the wire types,
 `packages/core/` the backend (plain Node, never imports Electron or React), `apps/desktop/` the
 Electron shell that wires them together, `packages/client/` a Node client for a running owlit, and
-`packages/owlit-mcp/` the MCP server that gives agents owlit's library, docs and chats.
+`packages/owlit-mcp/` the MCP server that gives agents owlit's library, docs and chats. `apps/share-server/` and
+`apps/share-web/` are the server and the browser page behind sharing a doc by link.
 
 ```bash
 pnpm install
@@ -37,3 +38,28 @@ claude mcp add owlit -- node "$PWD/packages/owlit-mcp/src/main.ts" --workspace ~
 ```
 
 `--workspace` is the folder open in owlit. With owlit closed, every tool answers that owlit isn't open.
+
+## Sharing docs by link
+
+A doc's Share button makes a link anyone can open in a browser, without owlit: they read the doc and the
+papers it cites (Owlit's digests, and the author's notes if allowed) and comment; comments come back into the
+doc. owlit pushes every change as it is made. The server keeps only what readers see and their comments, in one
+SQLite file; PDFs never go there, and the key that changes a link stays on the computer that made it.
+
+Locally, run the server with the built page, then owlit pointed at it:
+
+```bash
+pnpm --filter @owlit/share-web build
+STATIC_DIR=apps/share-web/dist node apps/share-server/src/main.ts      # http://localhost:8787
+OWLIT_SHARE_SERVER=http://localhost:8787 pnpm dev
+```
+
+`pnpm --filter @owlit/share-web dev` serves the page with HMR against that server. To put the server on a machine
+you can ssh into (Node 22.13+, sudo for the systemd service):
+
+```bash
+apps/share-server/deploy/deploy.sh algernon https://share.example.org   # behind Caddy: apps/share-server/deploy/Caddyfile
+apps/share-server/deploy/deploy.sh algernon http://<ip>:8787             # no proxy, unencrypted: only to try it
+OWLIT_SHARE_SERVER=https://share.example.org pnpm build                  # bakes the server into the app
+```
+

@@ -29,6 +29,9 @@ import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
 import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
 import { toastUndo } from "@/lib/toast"
+import { toast } from "sonner"
+import { readerComments, setOpenThread, setThreads, threadSpots } from "./reader-comments"
+import { shares, threadsOf, useShareStore, type Thread } from "../share/store"
 
 // A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
 // carry no user event at all; neither is the user's edit.
@@ -59,6 +62,26 @@ function dismissNote(fileId: string, note: AgentNote, next: string | null) {
   useDocsUiStore.getState().setOpenNote(fileId, next)
   const removed = useDocsStore.getState().removeNote(fileId, note.id)
   if (removed) toastUndo(t`Note dismissed`, () => useDocsStore.getState().restoreNote(fileId, removed))
+}
+
+// A reader's comment, answered or put away; the doc's path is looked up then, as it may have been renamed
+const pathOf = (fileId: string) => useDocsStore.getState().files[fileId]?.path
+async function replyTo(fileId: string, thread: Thread, text: string) {
+  const path = pathOf(fileId)
+  if (!path) return
+  await shares.reply(path, thread.root.id, text).catch((error: Error) => {
+    toast.error(error.message)
+    throw error
+  })
+}
+function resolveThread(fileId: string, thread: Thread) {
+  const path = pathOf(fileId)
+  if (!path) return
+  useDocsUiStore.getState().setOpenComment(fileId, null)
+  void shares
+    .resolve(path, thread.root.id, true)
+    .then(() => toastUndo(t`Comment resolved`, () => shares.resolve(path, thread.root.id, false)))
+    .catch((error: Error) => toast.error(error.message))
 }
 
 const SAVE_DELAY = 300
@@ -138,6 +161,11 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             mentionLabel,
             onOpenMention: (uri) => openMention(uri, (to) => navigateRef.current(to)),
           }),
+          readerComments({
+            onOpen: (threadId) => useDocsUiStore.getState().setOpenComment(id, threadId),
+            onReply: (thread, text) => replyTo(id, thread, text),
+            onResolve: (thread) => resolveThread(id, thread),
+          }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
@@ -181,6 +209,28 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       notes = s.notes[id]
       view.dispatch({ effects: setNotes.of(notes ?? []) })
     })
+    // Readers' comments on the doc's share link follow the share store, by the doc's path now
+    const commentsNow = () => useShareStore.getState().comments[useDocsStore.getState().files[id]?.path ?? ""]
+    let comments = commentsNow()
+    view.dispatch({ effects: setThreads.of(threadsOf(comments)) })
+    const unsubscribeComments = useShareStore.subscribe(() => {
+      const next = commentsNow()
+      if (next === comments) return
+      comments = next
+      view.dispatch({ effects: setThreads.of(threadsOf(comments)) })
+    })
+    const openCommentFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openComment?.docId === id ? s.openComment.threadId : null)
+    let openComment = openCommentFor(useDocsUiStore.getState())
+    if (openComment) view.dispatch({ effects: setOpenThread.of(openComment) })
+    const unsubscribeOpenComment = useDocsUiStore.subscribe((s) => {
+      const next = openCommentFor(s)
+      if (next === openComment) return
+      openComment = next
+      view.dispatch({ effects: setOpenThread.of(next) })
+      const spot = threadSpots(view.state).find((n) => n.thread.root.id === next)
+      if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 200 }) })
+    })
+
     saveNotePlaces = () => {
       const doc = view.state.doc
       const moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">> = {}
@@ -223,6 +273,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       setDrawn([])
       unsubscribeNotes()
       unsubscribeOpen()
+      unsubscribeComments()
+      unsubscribeOpenComment()
       unsubscribeMissing()
       unregister()
       view.destroy()

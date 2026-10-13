@@ -14,7 +14,7 @@ export default defineConfig({
   catalogs: [
     {
       path: "<rootDir>/packages/i18n/locales/{locale}",
-      include: ["<rootDir>/app/src", "<rootDir>/apps/desktop/src", "<rootDir>/packages/core/src"],
+      include: ["<rootDir>/app/src", "<rootDir>/apps/desktop/src", "<rootDir>/apps/share-web/src", "<rootDir>/packages/core/src"],
       exclude: ["**/*.test.ts", "**/*.test.tsx", "**/node_modules/**"],
     },
   ],

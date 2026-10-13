@@ -274,6 +274,92 @@ importers:
         specifier: ~6.0.2
         version: 6.0.3
 
+  apps/share-server:
+    dependencies:
+      '@owlit/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.19.1
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      oxlint:
+        specifier: ^1.81.0
+        version: 1.87.0
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: 5.0.2
+        version: 5.0.2(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+
+  apps/share-web:
+    dependencies:
+      '@lingui/core':
+        specifier: 6.9.1
+        version: 6.9.1(@babel/core@7.29.7)
+      '@lingui/react':
+        specifier: 6.9.1
+        version: 6.9.1(@babel/core@7.29.7)(react@19.3.0)
+      '@owlit/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@owlit/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      katex:
+        specifier: ^0.19.0
+        version: 0.19.0
+      lucide-react:
+        specifier: ^1.53.0
+        version: 1.53.0(@types/react@19.3.0)(react@19.3.0)
+      react:
+        specifier: ^19.2.8
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.3.0(react@19.3.0)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.3.0)(react@19.3.0)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      remark-math:
+        specifier: ^6.0.0
+        version: 6.0.0
+    devDependencies:
+      '@lingui/vite-plugin':
+        specifier: 6.9.1
+        version: 6.9.1(@babel/core@7.29.7)(@lingui/babel-plugin-lingui-macro@6.9.1(@babel/core@7.29.7))(esbuild@0.28.2)(rolldown@1.2.13)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.2.7
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^6.1.1
+        version: 6.1.2(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+      oxlint:
+        specifier: ^1.81.0
+        version: 1.87.0
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.3.0
+        version: 8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)
+
   packages/client:
     dependencies:
       '@owlit/protocol':
@@ -320,6 +406,9 @@ importers:
       '@lingui/vite-plugin':
         specifier: 6.9.1
         version: 6.9.1(@babel/core@7.29.7)(@lingui/babel-plugin-lingui-macro@6.9.1(@babel/core@7.29.7))(esbuild@0.28.2)(rolldown@1.2.13)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+      '@owlit/share-server':
+        specifier: workspace:*
+        version: link:../../apps/share-server
       '@types/node':
         specifier: ^24.13.3
         version: 24.19.1

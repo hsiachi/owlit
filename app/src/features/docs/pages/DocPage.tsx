@@ -14,6 +14,7 @@ import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
+import { DocShareControls } from "../share/DocShareControls"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
 export function DocPage() {
@@ -59,6 +60,7 @@ export function DocPage() {
       <PageHeader trail={trail} current={displayName(file.path)}>
         <DeletedOnDisk docId={file.id} />
         <NoteCount docId={file.id} />
+        <DocShareControls file={file} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label={t`Doc actions`} className="text-muted-foreground">

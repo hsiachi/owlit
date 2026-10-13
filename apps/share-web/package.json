@@ -1,0 +1,37 @@
+{
+  "name": "@owlit/share-web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The page a shared doc's reader opens: the doc, the papers it cites, and comments",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lingui/core": "6.9.1",
+    "@lingui/react": "6.9.1",
+    "@owlit/i18n": "workspace:*",
+    "@owlit/protocol": "workspace:*",
+    "katex": "^0.19.0",
+    "lucide-react": "^1.53.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
+  },
+  "devDependencies": {
+    "@lingui/vite-plugin": "6.9.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}

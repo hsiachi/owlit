@@ -9,6 +9,7 @@ import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./sear
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
+import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
@@ -141,6 +142,20 @@ export interface Methods {
   "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
   // Passages edited while the doc was open, saved as they read now: note id → its new anchor
   "notes.reanchor": { params: { path: string; moved: Record<string, NoteAnchor> }; result: null }
+
+  // ---- Sharing a doc by link: the share server holds what readers see; their comments come back here.
+  // Shares are by doc path and follow renames. server is where links point; null when none is set up.
+  "share.list": { params: void; result: { server: string | null; shares: DocShare[] } }
+  // Makes a link for the doc and pushes it with the papers it cites; from then on every change is pushed
+  "share.create": { params: { path: string; notes: boolean }; result: DocShare }
+  "share.update": { params: { path: string; permission?: SharePermission; notes?: boolean }; result: DocShare }
+  // The link stops working for everyone who has it
+  "share.stop": { params: { path: string }; result: null }
+  // The doc's comments as last fetched, fetching them again first when the server can be reached
+  "share.comments": { params: { path: string }; result: ShareComment[] }
+  // The author's reply, under the profile's name
+  "share.reply": { params: { path: string; parent: string; text: string }; result: ShareComment }
+  "share.resolve": { params: { path: string; id: string; resolved: boolean }; result: null }
 
   // ---- Knowledge: topic files in knowledge/ (read and written as docs), and beside them in .owlit/knowledge/
   // what the user did to them, which no run may undo
@@ -427,6 +442,10 @@ export interface Notifications {
   "knowledge.changed": { topics?: Record<string, TopicSidecar>; papers?: Record<string, PaperKnowledge> }
   // A Knowledge run ended; items is empty when it changed nothing
   "knowledge.updated": KnowledgeRun
+  // A shared doc's state changed (pushed, couldn't push, renamed); share null: no longer shared
+  "share.changed": { path: string; share: DocShare | null }
+  // New or changed comments on a shared doc: all of them, as they are now
+  "share.comments": { path: string; comments: ShareComment[] }
   // A task changed; sent at most every 200ms per task, always with its latest state
   "tasks.changed": { task: Task }
 }

@@ -18,6 +18,8 @@ interface DocsUiState {
   renaming: string | null
   // The agent note shown open under its paragraph, at most one at a time
   openNote: { docId: string; noteId: string } | null
+  // A reader's comment on a shared doc shown open under its paragraph, the same way
+  openComment: { docId: string; threadId: string } | null
   // Rows picked with ⌘- or ⇧-click to act on together, by row key (see rowKey); the anchor is where a
   // ⇧-click range starts
   picked: string[]
@@ -32,6 +34,7 @@ interface DocsUiState {
   openedDoc: (id: string, folder: string) => void
   setRenaming: (key: string | null) => void
   setOpenNote: (docId: string, noteId: string | null) => void
+  setOpenComment: (docId: string, threadId: string | null) => void
   setPicked: (picked: string[], anchor?: string | null) => void
   // The rows an action on one row covers: every picked row when it is one of several picked, else the row alone
   actingOn: (key: string) => string[]
@@ -52,6 +55,7 @@ export const useDocsUiStore = create<DocsUiState>()(
       lastDocId: null,
       renaming: null,
       openNote: null,
+      openComment: null,
       picked: [],
       pickAnchor: null,
       versionsOf: null,
@@ -87,6 +91,7 @@ export const useDocsUiStore = create<DocsUiState>()(
       openedDoc: (id, folder) => set({ lastDocId: id, targetFolder: folder, selectedFolder: null }),
       setRenaming: (renaming) => set({ renaming }),
       setOpenNote: (docId, noteId) => set({ openNote: noteId ? { docId, noteId } : null }),
+      setOpenComment: (docId, threadId) => set({ openComment: threadId ? { docId, threadId } : null }),
       setPicked: (picked, anchor) => set((s) => ({ picked, pickAnchor: anchor === undefined ? s.pickAnchor : anchor })),
       actingOn: (key) => {
         const { picked } = get()

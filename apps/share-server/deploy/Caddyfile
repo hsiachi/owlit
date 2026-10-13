@@ -1,0 +1,7 @@
+# Caddy in front of the share server: it gets and renews the certificate for the name by itself.
+# The name must point at the machine (an A record), and ports 80 and 443 must be open.
+# Events (what keeps readers' pages live) pass through as they come; Caddy flushes event streams on its own.
+share.example.org {
+	encode gzip
+	reverse_proxy 127.0.0.1:8787
+}

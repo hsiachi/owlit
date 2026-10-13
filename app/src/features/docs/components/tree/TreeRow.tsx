@@ -56,6 +56,7 @@ export function TreeRow({
   dropTo,
   expanded,
   lead,
+  trail,
   onOpen,
   onDragHold,
   onDragGone,
@@ -76,6 +77,8 @@ export function TreeRow({
   expanded?: boolean
   // What goes in the chevron-wide slot before the name
   lead?: React.ReactNode
+  // A quiet mark after the name (a doc shared by link); it gives way to ⋯ on hover
+  trail?: React.ReactNode
   onOpen: () => void
   // While a drag is held over the row, and once it leaves or drops
   onDragHold?: () => void
@@ -127,6 +130,7 @@ export function TreeRow({
           <span data-name className={cn("truncate", nameClassName)}>
             {name}
           </span>
+          {trail && <span className="ml-auto flex shrink-0 items-center pl-1 text-muted-foreground group-hover/row:hidden">{trail}</span>}
         </button>
         <RowMenuButton groups={menu.groups} label={menuLabel} onOpen={menu.onOpen} side="right" align="start" className="absolute top-1/2 right-1 -translate-y-1/2" />
       </div>

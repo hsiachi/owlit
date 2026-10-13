@@ -12,6 +12,9 @@ import { pathToFileURL } from "node:url"
 import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
+// The share server named at build time (scripts/shared.mjs); "" when none was
+declare const __OWLIT_SHARE_SERVER__: string
+
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
 
@@ -456,6 +459,8 @@ if (!app.requestSingleInstanceLock()) {
       engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
+      // Where doc links are made (apps/share-server); none means docs can't be shared yet
+      shareServer: process.env.OWLIT_SHARE_SERVER || __OWLIT_SHARE_SERVER__ || undefined,
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),

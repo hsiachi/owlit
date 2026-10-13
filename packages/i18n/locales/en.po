@@ -99,6 +99,7 @@ msgstr "Nothing found."
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/docs/save-as-doc.ts
+#: app/src/features/docs/share/store.ts
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
@@ -123,6 +124,7 @@ msgstr "Navigate"
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/library/reader/ReaderControls.tsx
 #: apps/desktop/src/main.ts
+#: apps/share-web/src/App.tsx
 msgid "Close"
 msgstr "Close"
 
@@ -251,6 +253,7 @@ msgstr "in a doc, note or message"
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/docs/editor/reader-comments.ts
 msgid "Send"
 msgstr "Send"
 
@@ -360,6 +363,7 @@ msgid "Copy"
 msgstr "Copy"
 
 #: app/src/components/copy-button.tsx
+#: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copied"
@@ -937,12 +941,15 @@ msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 msgstr "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: apps/share-web/src/App.tsx
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -2070,6 +2077,7 @@ msgid "Versions…"
 msgstr "Versions…"
 
 #: app/src/features/docs/actions.ts
+#: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr "Copy link"
 
@@ -2095,6 +2103,10 @@ msgstr "{name} opens in the system app"
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Doc actions"
 msgstr "Doc actions"
+
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Shared by link"
+msgstr "Shared by link"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
@@ -2190,6 +2202,10 @@ msgid "Note dismissed"
 msgstr "Note dismissed"
 
 #: app/src/features/docs/editor/DocEditor.tsx
+msgid "Comment resolved"
+msgstr "Comment resolved"
+
+#: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
 msgstr "Doc text"
 
@@ -2227,6 +2243,34 @@ msgstr "Front matter"
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
 msgstr "No doc with this name"
+
+#. placeholder {0}: c.name
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "{0} (you)"
+msgstr "{0} (you)"
+
+#. placeholder {0}: q.length > 90 ? `${q.slice(0, 90)}…` : q
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "The words this comment was on have changed: “{0}”"
+msgstr "The words this comment was on have changed: “{0}”"
+
+#: app/src/features/docs/editor/reader-comments.ts
+#: apps/share-web/src/App.tsx
+msgid "Reply…"
+msgstr "Reply…"
+
+#: app/src/features/docs/editor/reader-comments.ts
+#: apps/share-web/src/App.tsx
+msgid "Reply"
+msgstr "Reply"
+
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "Resolve"
+msgstr "Resolve"
+
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "{n, plural, one {# comment} other {# comments}}"
+msgstr "{n, plural, one {# comment} other {# comments}}"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -2276,6 +2320,140 @@ msgstr "Answer"
 #: app/src/features/docs/save-as-doc.ts
 msgid "Saved as doc"
 msgstr "Saved as doc"
+
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Readers don't have your latest changes yet"
+msgstr "Readers don't have your latest changes yet"
+
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Shared"
+msgstr "Shared"
+
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Share"
+msgstr "Share"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "{cited, plural, one {The paper it cites} other {The # papers it cites}}"
+msgstr "{cited, plural, one {The paper it cites} other {The # papers it cites}}"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "The papers it cites"
+msgstr "The papers it cites"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Owlit's digest of each and a link to read it. Papers you cite later join them."
+msgstr "Owlit's digest of each and a link to read it. Papers you cite later join them."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Your notes on those papers"
+msgstr "Your notes on those papers"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers see them beside each paper"
+msgstr "Readers see them beside each paper"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Kept to yourself"
+msgstr "Kept to yourself"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Share your notes on the papers"
+msgstr "Share your notes on the papers"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Share “{name}”"
+msgstr "Share “{name}”"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Anyone with the link reads the doc in a browser, without owlit, and can comment on it. Comments come back here."
+msgstr "Anyone with the link reads the doc in a browser, without owlit, and can comment on it. Comments come back here."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Make a link to send. Whoever opens it reads the doc and comments in their browser."
+msgstr "Make a link to send. Whoever opens it reads the doc and comments in their browser."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "They also see"
+msgstr "They also see"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Your changes reach readers as you make them. Your chats, highlights and other docs stay here."
+msgstr "Your changes reach readers as you make them. Your chats, highlights and other docs stay here."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+#: packages/core/src/share/shares.ts
+msgid "No share server is set up, so owlit can't make links yet."
+msgstr "No share server is set up, so owlit can't make links yet."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Create link"
+msgstr "Create link"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Anyone with the link"
+msgstr "Anyone with the link"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Who may comment"
+msgstr "Who may comment"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Can comment"
+msgstr "Can comment"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Can only read"
+msgstr "Can only read"
+
+#. noun: a web link to the paper
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Link"
+msgstr "Link"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers also see"
+msgstr "Readers also see"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+#: packages/core/src/share/shares.ts
+msgid "This doc was shared from another computer; only that one can change its link."
+msgstr "This doc was shared from another computer; only that one can change its link."
+
+#. placeholder {0}: ago(share.pushedAt, { inSentence: true })
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers have the doc as it was {0}."
+msgstr "Readers have the doc as it was {0}."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers have the latest version."
+msgstr "Readers have the latest version."
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Stop sharing"
+msgstr "Stop sharing"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Done"
+msgstr "Done"
+
+#: app/src/features/docs/share/store.ts
+msgid "{name} commented on {doc}"
+msgstr "{name} commented on {doc}"
+
+#. placeholder {0}: fresh.length
+#: app/src/features/docs/share/store.ts
+msgid "{0} new comments on {doc}"
+msgstr "{0} new comments on {doc}"
+
+#: app/src/features/docs/share/store.ts
+msgid "Stopped sharing"
+msgstr "Stopped sharing"
+
+#: app/src/features/docs/share/store.ts
+msgid "The link no longer opens."
+msgstr "The link no longer opens."
 
 #. file name of a duplicated doc: the original name, then copy
 #: app/src/features/docs/store.ts
@@ -3766,11 +3944,6 @@ msgstr "Highlights"
 msgid "About"
 msgstr "About"
 
-#. noun: a web link to the paper
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "Link"
-msgstr "Link"
-
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No abstract."
 msgstr "No abstract."
@@ -3969,6 +4142,7 @@ msgid "Choose file"
 msgstr "Choose file"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -4728,18 +4902,21 @@ msgid "This needs the owlit desktop app."
 msgstr "This needs the owlit desktop app."
 
 #: app/src/lib/time.ts
-msgid "just now"
-msgstr "just now"
-
-#: app/src/lib/time.ts
+#: apps/share-web/src/time.ts
 msgid "Just now"
 msgstr "Just now"
 
 #: app/src/lib/time.ts
+msgid "just now"
+msgstr "just now"
+
+#: app/src/lib/time.ts
+#: apps/share-web/src/time.ts
 msgid "{minutes} min ago"
 msgstr "{minutes} min ago"
 
 #: app/src/lib/time.ts
+#: apps/share-web/src/time.ts
 msgid "{hours} h ago"
 msgstr "{hours} h ago"
 
@@ -4981,6 +5158,178 @@ msgstr "Open Link in Browser"
 #: apps/desktop/src/text-menu.ts
 msgid "Copy Link"
 msgstr "Copy Link"
+
+#. placeholder {0}: paper.authors[0]
+#: apps/share-web/src/App.tsx
+msgid "{0} et al."
+msgstr "{0} et al."
+
+#: apps/share-web/src/App.tsx
+msgid "Opening…"
+msgstr "Opening…"
+
+#: apps/share-web/src/App.tsx
+msgid "There is nothing at this link"
+msgstr "There is nothing at this link"
+
+#: apps/share-web/src/App.tsx
+msgid "Check that the whole link was copied, or ask for it again."
+msgstr "Check that the whole link was copied, or ask for it again."
+
+#: apps/share-web/src/App.tsx
+msgid "The author stopped sharing this doc"
+msgstr "The author stopped sharing this doc"
+
+#: apps/share-web/src/App.tsx
+msgid "Ask them for a new link if you still need it."
+msgstr "Ask them for a new link if you still need it."
+
+#: apps/share-web/src/App.tsx
+msgid "Couldn't reach the server"
+msgstr "Couldn't reach the server"
+
+#: apps/share-web/src/App.tsx
+msgid "Check your connection."
+msgstr "Check your connection."
+
+#. placeholder {0}: bundle.author
+#: apps/share-web/src/App.tsx
+msgid "Shared by {0}"
+msgstr "Shared by {0}"
+
+#: apps/share-web/src/App.tsx
+msgid "Doc"
+msgstr "Doc"
+
+#: apps/share-web/src/App.tsx
+msgid "Cited papers"
+msgstr "Cited papers"
+
+#: apps/share-web/src/App.tsx
+msgid "Read only"
+msgstr "Read only"
+
+#. placeholder {0}: openThreads.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, one {# comment} other {# comments}}"
+
+#: apps/share-web/src/App.tsx
+msgid "Comments"
+msgstr "Comments"
+
+#: apps/share-web/src/App.tsx
+msgid "All comments"
+msgstr "All comments"
+
+#. placeholder {0}: ago(props.updatedAt)
+#: apps/share-web/src/App.tsx
+msgid "Updated {0}"
+msgstr "Updated {0}"
+
+#: apps/share-web/src/App.tsx
+msgid "Select words to comment on them."
+msgstr "Select words to comment on them."
+
+#: apps/share-web/src/App.tsx
+msgctxt "verb: say something about the selected words"
+msgid "Comment"
+msgstr "Comment"
+
+#: apps/share-web/src/App.tsx
+msgid "The papers this doc cites, in the order it first cites them."
+msgstr "The papers this doc cites, in the order it first cites them."
+
+#: apps/share-web/src/App.tsx
+msgid "{count, plural, one {Cited once} other {Cited # times}}"
+msgstr "{count, plural, one {Cited once} other {Cited # times}}"
+
+#: apps/share-web/src/App.tsx
+msgid "Read the paper"
+msgstr "Read the paper"
+
+#: apps/share-web/src/App.tsx
+msgid "Digest · written by Owlit"
+msgstr "Digest · written by Owlit"
+
+#. placeholder {0}: bundle.author
+#: apps/share-web/src/App.tsx
+msgid "{0}'s note"
+msgstr "{0}'s note"
+
+#: apps/share-web/src/App.tsx
+msgid "The author's note"
+msgstr "The author's note"
+
+#. placeholder {0}: citations.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {Where the doc cites it} other {Where the doc cites it · #}}"
+msgstr "{0, plural, one {Where the doc cites it} other {Where the doc cites it · #}}"
+
+#: apps/share-web/src/App.tsx
+msgid "The words this was on have changed since:"
+msgstr "The words this was on have changed since:"
+
+#: apps/share-web/src/App.tsx
+msgid "author"
+msgstr "author"
+
+#: apps/share-web/src/App.tsx
+msgid "The author marked this resolved."
+msgstr "The author marked this resolved."
+
+#: apps/share-web/src/App.tsx
+msgid "Your comment…"
+msgstr "Your comment…"
+
+#: apps/share-web/src/App.tsx
+msgid "Your name, shown with what you write"
+msgstr "Your name, shown with what you write"
+
+#: apps/share-web/src/App.tsx
+msgid "As {who}"
+msgstr "As {who}"
+
+#: apps/share-web/src/App.tsx
+msgid "Change"
+msgstr "Change"
+
+#. placeholder {0}: th.replies.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# reply} other {# replies}}"
+msgstr "{0, plural, one {# reply} other {# replies}}"
+
+#: apps/share-web/src/App.tsx
+msgid "words changed"
+msgstr "words changed"
+
+#: apps/share-web/src/App.tsx
+msgid "No open comments."
+msgstr "No open comments."
+
+#: apps/share-web/src/App.tsx
+msgid "Resolved"
+msgstr "Resolved"
+
+#: apps/share-web/src/api.ts
+msgid "Couldn't reach the server. Check your connection and try again."
+msgstr "Couldn't reach the server. Check your connection and try again."
+
+#: apps/share-web/src/api.ts
+msgid "This doc can be read but not commented on."
+msgstr "This doc can be read but not commented on."
+
+#: apps/share-web/src/api.ts
+msgid "The author stopped sharing this doc."
+msgstr "The author stopped sharing this doc."
+
+#: apps/share-web/src/api.ts
+msgid "Too many comments in a short while. Try again in a few minutes."
+msgstr "Too many comments in a short while. Try again in a few minutes."
+
+#: apps/share-web/src/api.ts
+msgid "The comment couldn't be saved. Try again."
+msgstr "The comment couldn't be saved. Try again."
 
 #: packages/core/src/agents/agents.ts
 msgid "The command is empty."
@@ -5374,6 +5723,59 @@ msgstr "Wiley refused: either the token isn't valid or it sees no subscription f
 #: packages/core/src/settings-rpc.ts
 msgid "{service} is busy; the key will be tried on the next paper."
 msgstr "{service} is busy; the key will be tried on the next paper."
+
+#: packages/core/src/share/client.ts
+msgid "Couldn't reach the share server ({host})."
+msgstr "Couldn't reach the share server ({host})."
+
+#: packages/core/src/share/client.ts
+msgid "The link was stopped."
+msgstr "The link was stopped."
+
+#: packages/core/src/share/client.ts
+msgid "The share server no longer has this link."
+msgstr "The share server no longer has this link."
+
+#: packages/core/src/share/client.ts
+msgid "The share server refused: this computer doesn't hold the link's key."
+msgstr "The share server refused: this computer doesn't hold the link's key."
+
+#: packages/core/src/share/client.ts
+msgid "The doc and its papers are too large to share."
+msgstr "The doc and its papers are too large to share."
+
+#: packages/core/src/share/client.ts
+msgid "The share server is asking owlit to slow down."
+msgstr "The share server is asking owlit to slow down."
+
+#. placeholder {0}: data.error
+#: packages/core/src/share/client.ts
+msgid "The share server answered: {0}"
+msgstr "The share server answered: {0}"
+
+#: packages/core/src/share/client.ts
+msgid "The share server answered {status}."
+msgstr "The share server answered {status}."
+
+#: packages/core/src/share/shares.ts
+msgid "Only docs can be shared."
+msgstr "Only docs can be shared."
+
+#: packages/core/src/share/shares.ts
+msgid "There is no {docPath} in the workspace."
+msgstr "There is no {docPath} in the workspace."
+
+#: packages/core/src/share/shares.ts
+msgid "The author"
+msgstr "The author"
+
+#: packages/core/src/share/shares.ts
+msgid "The doc isn't in the workspace any more, so readers see it as it last was."
+msgstr "The doc isn't in the workspace any more, so readers see it as it last was."
+
+#: packages/core/src/share/shares.ts
+msgid "{docPath} isn't shared."
+msgstr "{docPath} isn't shared."
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts
