@@ -57,6 +57,7 @@ import { extractText, pageSizes, readPdf, UnreadablePdf } from "./text/extract.t
 import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, cloudResult, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { figurePictures, noFigures, readFigures, removeFigures, toPaperFigures, writeFiguresFromLayout, writeFiguresFromText } from "./figures/figures.ts"
+import { renderCrops } from "./figures/render.ts"
 import { DIGEST_FORMAT, digestPrompt, drifted, type DigestRecord } from "./digest/prompt.ts"
 import { identify, type Identified } from "./text/identify.ts"
 import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
@@ -147,8 +148,6 @@ export class Library {
   private writing: Promise<unknown> = Promise.resolve()
   // What each import.pitta run did, by task id
   private pittaSummaries = new Map<string, { added: number; skipped: number; failed: string[] }>()
-  // Papers whose reading note the user asked to have written again; the note task replaces theirs
-  private rewrites = new Set<string>()
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
   private pdfHashes: Map<string, string> | undefined
 
@@ -194,8 +193,7 @@ export class Library {
     const paper = toPaper({ ...record, id }, state, pdf)
     if (await exists(path.join(paperDir(this.root, id), "digest.md"))) {
       paper.hasDigest = true
-      const outdated = await this.digestOutdated(id)
-      if (outdated) paper.digestOutdated = outdated
+      Object.assign(paper, await this.digestState(id))
     }
     const text = await this.textQuality(id)
     if (text) paper.text = text
@@ -530,12 +528,11 @@ export class Library {
         if (!record) throw new TaskFailure(`${id} is not in the library.`)
         const dir = paperDir(this.root, id)
         // A note already there stays, unless the user asked for it to be written again
-        const rewrite = this.rewrites.has(id)
+        const rewrite = await this.rewriteAsked(id)
         if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
         const text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
         if (text === null) {
           if (await hasPdfFile(this.root, id)) ctx.require("paper.text", id)
-          this.rewrites.delete(id)
           return
         }
         // The figures first, so the note can show them. Looking for them never fails (paper.figures
@@ -560,7 +557,6 @@ export class Library {
           await writeFileAtomic(path.join(dir, "digest.md"), digest)
           await writeJsonAtomic(path.join(dir, "digest.json"), kept)
         })
-        this.rewrites.delete(id)
         await this.announce([id])
       },
     })
@@ -680,8 +676,24 @@ export class Library {
     if (!options.rewrite && (await exists(path.join(dir, "digest.md")))) return
     const hasText = await exists(path.join(dir, "text.md"))
     if (!hasText && !(await hasPdfFile(this.root, id))) return
-    if (options.rewrite) this.rewrites.add(id)
+    // Asked for on disk, beside the note: the task may run after a restart, and must still know
+    if (options.rewrite && (await exists(path.join(dir, "digest.md")))) {
+      await this.serial(async () => {
+        // A note with no record (pitta's) gets one that says no more than the file does
+        const record = (await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)) ?? {
+          version: 1,
+          by: "unknown",
+          at: Math.round((await stat(path.join(dir, "digest.md"))).mtimeMs),
+        }
+        await writeJsonAtomic(path.join(dir, "digest.json"), { ...record, rewriteAsked: Date.now() } satisfies DigestRecord)
+      })
+    }
     this.queue("paper.digest", id, priority)
+  }
+
+  private async rewriteAsked(id: string) {
+    const record = await readJson<DigestRecord>(path.join(paperDir(this.root, id), "digest.json")).catch(() => undefined)
+    return !!record?.rewriteAsked
   }
 
   // A paper's figures and tables as pictures, for its reading note
@@ -690,12 +702,25 @@ export class Library {
     return toPaperFigures(id, await readFigures(this.root, id))
   }
 
-  // How the paper's note stands against how notes are written now (Paper.digestOutdated)
-  private async digestOutdated(id: string): Promise<Paper["digestOutdated"]> {
-    const record = await readJson<DigestRecord>(path.join(paperDir(this.root, id), "digest.json")).catch(() => undefined)
-    if (record?.format !== DIGEST_FORMAT) return "format"
+  // A page of the paper as a picture, small, for a glance at what a reading note points at (p. 7)
+  async pagePicture(id: string, page: number): Promise<{ data: string; mimeType: string }> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    if (!(await hasPdfFile(this.root, id))) throw new RpcFailure(RpcErrorCode.NotFound, "The paper has no PDF.", { id })
+    const [picture] = await renderCrops(await readFile(pdfFile(this.root, id)), [{ page }], this.services.pdfiumWasm, 1).catch((error) => {
+      throw new RpcFailure(RpcErrorCode.NotFound, error instanceof Error ? error.message : String(error), { id })
+    })
+    return { data: picture.toString("base64"), mimeType: "image/png" }
+  }
+
+  // When the paper's note was written, and how it stands against how notes are written now
+  private async digestState(id: string): Promise<Pick<Paper, "digestAt" | "digestOutdated">> {
+    const dir = paperDir(this.root, id)
+    const record = await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)
+    const at = record?.at ?? (await stat(path.join(dir, "digest.md")).then((s) => s.mtimeMs, () => undefined))
+    const state: Pick<Paper, "digestAt" | "digestOutdated"> = at ? { digestAt: Math.round(at) } : {}
+    if (record?.format !== DIGEST_FORMAT) return { ...state, digestOutdated: "format" }
     const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
-    return record.language && record.language !== language ? "language" : undefined
+    return record.language && record.language !== language ? { ...state, digestOutdated: "language" } : state
   }
 
   // The paper's reading notes (digest.md), or null when it has none

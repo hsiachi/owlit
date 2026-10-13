@@ -41,6 +41,8 @@ export interface Paper {
   // The reading note no longer matches how owlit writes them: an older way of writing (format), or
   // another language than Settings now asks for (language). Rewriting is the user's call.
   digestOutdated?: "format" | "language"
+  // When the reading note was written
+  digestAt?: number
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and

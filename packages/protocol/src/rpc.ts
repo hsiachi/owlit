@@ -321,6 +321,8 @@ export interface Methods {
   "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: null }
   // The paper's figures and tables as pictures, for its reading note
   "library.figures": { params: { id: string }; result: PaperFigure[] }
+  // A page of the paper's PDF as a small picture (base64), for a glance at a page a note points at
+  "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
   // The paper's reading notes (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already

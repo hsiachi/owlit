@@ -1,7 +1,7 @@
 import katex from "katex"
 import { isValidElement, type ReactNode } from "react"
 import "katex/dist/katex.min.css"
-import ReactMarkdown, { defaultUrlTransform } from "react-markdown"
+import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import { cn } from "@/lib/utils"
@@ -45,8 +45,9 @@ function textOf(node: ReactNode): string {
   return isValidElement<{ children?: ReactNode }>(node) ? textOf(node.props.children) : ""
 }
 
-// Markdown renderer for assistant text; styles live under `.markdown` in index.css
-export function Markdown({ text, className }: { text: string; className?: string }) {
+// Markdown renderer for assistant text; styles live under `.markdown` in index.css. A place with its own
+// marks (a reading note's figures and pages) adds `components` for them and `prepare` to put them in.
+export function Markdown({ text, className, components, prepare }: { text: string; className?: string; components?: Components; prepare?: (text: string) => string }) {
   const openPage = useOpenFromChat()
   const open = (href: string) => {
     if (openAppLink(href)) return
@@ -85,9 +86,10 @@ export function Markdown({ text, className }: { text: string; className?: string
                 {children}
               </a>
             ),
+          ...components,
         }}
       >
-        {prepareMath(text)}
+        {prepareMath(prepare ? prepare(text) : text)}
       </ReactMarkdown>
     </div>
   )

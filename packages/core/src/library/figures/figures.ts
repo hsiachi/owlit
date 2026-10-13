@@ -80,8 +80,9 @@ export async function writeFiguresFromText(root: string, id: string, text: Paper
 
 async function place(root: string, id: string, source: FiguresFile["source"], planned: PlannedFigure[], images: Map<string, Uint8Array>, pdf: Uint8Array, wasmPath?: string) {
   const dir = path.join(paperDir(root, id), FIGURES_DIR)
-  // A figure kept whole uses MinerU's picture; the rest are drawn from the PDF in one pass
-  const whole = (f: PlannedFigure) => (f.images.length === 1 ? images.get(f.images[0]) : undefined)
+  // A figure kept whole uses MinerU's picture (named by file name, with or without its folder); the
+  // rest are drawn from the PDF in one pass
+  const whole = (f: PlannedFigure) => (f.images.length === 1 ? images.get(path.basename(f.images[0])) : undefined)
   const drawn = planned.filter((f) => !whole(f))
   const crops = drawn.length ? await renderCrops(pdf, drawn.map((f) => ({ page: f.page, box: f.box })), wasmPath) : []
   const pictures = new Map(drawn.map((f, i) => [f, crops[i]]))

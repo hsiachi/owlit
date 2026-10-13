@@ -23,6 +23,8 @@ export interface DigestRecord {
   // Some part came out in another language than asked (the Summary drifts most): kept, not refused
   drift?: boolean
   at: number
+  // The user asked for the note to be written again; set until the new one is written
+  rewriteAsked?: number
 }
 
 // The full text given in the prompt; past it the agent reads on with library_read. pitta gave 400k;

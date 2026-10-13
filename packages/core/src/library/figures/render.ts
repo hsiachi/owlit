@@ -15,10 +15,11 @@ const FORMAT_BGRA = 4
 
 export interface Crop {
   page: number
-  box: Box
+  // The part of the page; without one, all of it
+  box?: Box
 }
 
-export async function renderCrops(bytes: Uint8Array, crops: Crop[], wasmPath?: string): Promise<Buffer[]> {
+export async function renderCrops(bytes: Uint8Array, crops: Crop[], wasmPath?: string, scale = SCALE): Promise<Buffer[]> {
   const m = await loadPdfium(wasmPath)
   const heap = () => (m.pdfium as unknown as { HEAPU8: Uint8Array }).HEAPU8
   const ptr = m.pdfium.wasmExports.malloc(bytes.length)
@@ -36,17 +37,18 @@ export async function renderCrops(bytes: Uint8Array, crops: Crop[], wasmPath?: s
       try {
         const pw = m.FPDF_GetPageWidthF(page)
         const ph = m.FPDF_GetPageHeightF(page)
-        const x0 = Math.max(0, crop.box.x0 - PAD)
-        const y0 = Math.max(0, crop.box.y0 - PAD)
-        const x1 = Math.min(pw, crop.box.x1 + PAD)
-        const y1 = Math.min(ph, crop.box.y1 + PAD)
-        const w = Math.max(1, Math.round((x1 - x0) * SCALE))
-        const h = Math.max(1, Math.round((y1 - y0) * SCALE))
+        const box = crop.box ?? { x0: PAD, y0: PAD, x1: pw - PAD, y1: ph - PAD }
+        const x0 = Math.max(0, box.x0 - PAD)
+        const y0 = Math.max(0, box.y0 - PAD)
+        const x1 = Math.min(pw, box.x1 + PAD)
+        const y1 = Math.min(ph, box.y1 + PAD)
+        const w = Math.max(1, Math.round((x1 - x0) * scale))
+        const h = Math.max(1, Math.round((y1 - y0) * scale))
         const bitmap = m.FPDFBitmap_CreateEx(w, h, FORMAT_BGRA, 0, 0)
         try {
           m.FPDFBitmap_FillRect(bitmap, 0, 0, w, h, 0xffffffff)
           // The whole page drawn at the scale, shifted so the box lands on the bitmap
-          m.FPDF_RenderPageBitmap(bitmap, page, -Math.round(x0 * SCALE), -Math.round(y0 * SCALE), Math.round(pw * SCALE), Math.round(ph * SCALE), 0, FLAGS)
+          m.FPDF_RenderPageBitmap(bitmap, page, -Math.round(x0 * scale), -Math.round(y0 * scale), Math.round(pw * scale), Math.round(ph * scale), 0, FLAGS)
           const stride = m.FPDFBitmap_GetStride(bitmap)
           const start = m.FPDFBitmap_GetBuffer(bitmap)
           out.push(png(heap().slice(start, start + stride * h), w, h, stride))

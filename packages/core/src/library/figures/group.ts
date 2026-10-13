@@ -41,7 +41,7 @@ export interface PlannedFigure {
   page: number
   // The figure's box in PDF points, top-left origin
   box: Box
-  // MinerU's picture of each piece (images/<hash>.jpg), in reading order
+  // MinerU's picture of each piece (<hash>.jpg), in reading order
   images: string[]
 }
 

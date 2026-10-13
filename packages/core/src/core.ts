@@ -468,6 +468,7 @@ export class Core {
       return null
     })
     this.router.register("library.figures", z.object({ id: paperId }), ({ id }) => library().figures(id))
+    this.router.register("library.pagePicture", z.object({ id: paperId, page: z.number().int().min(0) }), ({ id, page }) => library().pagePicture(id, page))
     this.router.register(
       "library.read",
       z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),

@@ -1,4 +1,5 @@
-import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
+import { useState } from "react"
+import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
@@ -79,24 +80,11 @@ function BackgroundWork() {
       {agent && models.length > 1 && (
         <Row
           name="Model"
-          info="A smaller one costs less; reading notes rarely need the strongest."
+          info="A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
           control={<Picker label="Model for background work" value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
         />
       )}
-      <Row
-        name="Reading notes in"
-        info="Papers keep their own language."
-        // Unset is English (core's default), shown as the value rather than a placeholder that looks like one
-        control={
-          <CommitInput
-            aria-label="Reading notes language"
-            placeholder="English"
-            value={view?.library.digestLanguage ?? "English"}
-            onCommit={(language) => void updateSettings({ library: { digestLanguage: language && language !== "English" ? language : null } })}
-            className="w-40"
-          />
-        }
-      />
+      <LanguageRow />
       <Row
         name="Reading notes for every paper"
         help="Otherwise only for papers you open or star."
@@ -106,6 +94,52 @@ function BackgroundWork() {
     </List>
   )
 }
+
+// The language of reading notes: a listed one, or Other with the user's own words for it. Unset follows
+// the system's language, shown as the value; picking the system's language goes back to unset, so it
+// keeps following the system. Terms keeping the paper's wording is the note's rule, not a choice here.
+function LanguageRow() {
+  const stored = useSettings((s) => s.view?.library.digestLanguage)
+  const system = useSettings((s) => s.view?.library.digestLanguageSystem) ?? "en"
+  const listed = !stored || NOTE_LANGUAGES.some((l) => l.code === stored)
+  const [typing, setTyping] = useState(false)
+  const other = typing || !listed
+  const options = [...NOTE_LANGUAGES.map((l) => ({ value: l.code, label: l.native })), { value: OTHER, label: "Other…" }]
+  const save = (language: string | null) => void updateSettings({ library: { digestLanguage: language } })
+  return (
+    <Row
+      name="Reading notes in"
+      info="Technical terms stay as the paper writes them, whatever the language."
+      control={
+        <div className="flex items-center gap-2">
+          {other && (
+            <CommitInput
+              aria-label="Language for reading notes"
+              placeholder="Language"
+              value={listed ? "" : (stored ?? "")}
+              onCommit={(words) => {
+                if (words) save(words)
+              }}
+              autoFocus={typing}
+              className="w-36"
+            />
+          )}
+          <Picker
+            label="Language for reading notes"
+            value={other ? OTHER : (stored ?? system)}
+            options={options}
+            onChange={(code) => {
+              setTyping(code === OTHER)
+              if (code !== OTHER) save(code === system ? null : code)
+            }}
+          />
+        </div>
+      }
+    />
+  )
+}
+
+const OTHER = "other"
 
 function MemoryRow() {
   const enabled = useSettings((s) => s.view?.activity.enabled ?? true)

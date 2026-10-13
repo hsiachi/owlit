@@ -102,7 +102,7 @@ export async function checkCloud(http: Http, settings: ParsingSettings, batchId:
 }
 
 // What a reading brings back: the content list (the text), and for the figures MinerU's layout (where
-// each block and caption sits) with the pictures it cut out, by their path in the result (images/…)
+// each block and caption sits) with the pictures it cut out, by file name
 export interface MinerUResult {
   blocks: ContentBlock[]
   layout?: LayoutPage[]
@@ -147,11 +147,10 @@ export function resultFromZip(zip: Buffer): MinerUResult {
   const blocks = JSON.parse(files.get(name)!.toString("utf8")) as ContentBlock[]
   const layoutFile = [...files.keys()].find((n) => /(^|\/)layout\.json$/.test(n))
   const layout = layoutFile ? layoutPages(JSON.parse(files.get(layoutFile)!.toString("utf8"))) : undefined
-  // Pictures keyed as the layout names them, images/<hash>.jpg, whatever folder the zip put them in
+  // Pictures by file name (<hash>.jpg), as the layout names them, whatever folder the zip put them in
   const images = new Map<string, Uint8Array>()
   for (const [n, bytes] of files) {
-    const at = n.indexOf("images/")
-    if (at >= 0 && !n.endsWith("/")) images.set(n.slice(at), bytes)
+    if (/(^|\/)images\/[^/]+$/.test(n)) images.set(n.slice(n.lastIndexOf("/") + 1), bytes)
   }
   return { blocks, layout, images }
 }
@@ -179,11 +178,11 @@ export async function parseSelfHosted(http: Http, settings: ParsingSettings, nam
   const list = typeof result?.content_list === "string" ? (JSON.parse(result.content_list) as ContentBlock[]) : result?.content_list
   if (!list) throw new Error("The MinerU server sent no content list.")
   const middle: unknown = typeof result?.middle_json === "string" ? JSON.parse(result.middle_json) : result?.middle_json
-  // Pictures come as data URLs keyed by file name; the layout names them images/<name>
+  // Pictures come as data URLs keyed by file name, as the layout names them
   const images = new Map<string, Uint8Array>()
   for (const [key, value] of Object.entries(result?.images ?? {})) {
     const data = /^data:[^,]*;base64,(.*)$/s.exec(value)?.[1] ?? value
-    images.set(key.startsWith("images/") ? key : `images/${key}`, Buffer.from(data, "base64"))
+    images.set(key.slice(key.lastIndexOf("/") + 1), Buffer.from(data, "base64"))
   }
   return { blocks: list, layout: layoutPages(middle), images }
 }
