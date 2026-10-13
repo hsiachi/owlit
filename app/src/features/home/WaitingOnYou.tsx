@@ -102,11 +102,24 @@ function useWaiting(): Waiting[] {
     const waitingPapers = Object.values(papers)
       .filter((p) => p.noPdf?.needs && !p.pdf)
       .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
-    for (const needs of ["check", "sign-in"] as const) {
+    for (const needs of ["check", "sign-in", "blocked"] as const) {
       const group = waitingPapers.filter((p) => p.noPdf?.needs === needs)
       const what = (several: boolean) =>
-        needs === "sign-in" ? `${several ? "Publishers want" : "The publisher wants"} you to sign in` : `${several ? "Publishers want" : "The publisher wants"} a quick check`
-      const label = needs === "sign-in" ? "Sign in" : "Check now"
+        needs === "sign-in"
+          ? `${several ? "Publishers want" : "The publisher wants"} you to sign in`
+          : needs === "blocked"
+            ? `${several ? "Publishers aren't" : "The publisher isn't"} letting owlit in`
+            : `${several ? "Publishers want" : "The publisher wants"} a quick check`
+      const label = needs === "sign-in" ? "Sign in" : needs === "blocked" ? "Get it yourself" : "Check now"
+      // Nothing to go through in turn: each paper's card offers the user's own browser
+      if (needs === "blocked") {
+        if (group.length <= 2) {
+          for (const paper of group) out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: `for ${citationLabel(paper)}`, open: { label, run: () => navigate(`/library/${paper.id}`) } })
+        } else if (group.length) {
+          out.push({ key: "papers:blocked", icon: KIND_ICON.paper, what: what(true), where: `for ${namesOf(group)}`, detail: group.map(citationLabel).join("\n"), open: { label, run: () => navigate(`/library/${group[0].id}`) } })
+        }
+        continue
+      }
       if (group.length <= 2) {
         for (const paper of group) {
           out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: `for ${citationLabel(paper)}`, open: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })

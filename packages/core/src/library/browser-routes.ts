@@ -28,7 +28,7 @@ const ROWS: Row[] = [
   { name: "wiley", prefix: "10.1111/", sites: ["wiley.com"], landing: "https://onlinelibrary.wiley.com/doi/{doi}", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
   { name: "tandf", prefix: "10.1080/", sites: ["tandfonline.com"], landing: "https://www.tandfonline.com/doi/full/{doi}", pdf: "https://www.tandfonline.com/doi/pdf/{doi}" },
   { name: "springer", prefix: "10.1007/", sites: ["springer.com"], landing: "https://link.springer.com/article/{doi}", pdf: "https://link.springer.com/content/pdf/{doi}.pdf" },
-  { name: "elsevier", prefix: "10.1016/", sites: ["elsevier.com", "sciencedirect.com"], landing: "https://doi.org/{doi}" },
+  { name: "elsevier", prefix: "10.1016/", sites: ["elsevier.com", "sciencedirect.com", "sciencedirectassets.com"], landing: "https://doi.org/{doi}" },
   { name: "ieee", prefix: "10.1109/", sites: ["ieee.org"], landing: "https://doi.org/{doi}" },
 ]
 
@@ -62,6 +62,9 @@ export interface BrowserRoute {
   landing: string
   pdf?: string
   allowHosts: string[]
+  // The publisher's sites, as far as they are known before visiting (Elsevier's DOIs are registered to
+  // elsevier.com and read at sciencedirect.com): what owlit's visits to it are paced and held by
+  sites: string[]
 }
 
 // Direct first; through the proxy when one is set up. `registered` is the address the DOI is registered
@@ -76,10 +79,11 @@ export function browserRoutes(doi: string, proxy: ProxySettings | undefined, reg
   const pdf = row?.pdf ? fill(row.pdf) : undefined
   const name = `browser:${row?.name ?? "doi"}`
   const hosts = [...PUBLISHER_HOSTS, hostOf(landing), ...(pdf ? [hostOf(pdf)] : []), ...(site ? [site] : [])]
-  const routes: BrowserRoute[] = [{ name, landing, pdf, allowHosts: hosts }]
+  const sites = row ? row.sites : site ? [site] : []
+  const routes: BrowserRoute[] = [{ name, landing, pdf, allowHosts: hosts, sites }]
   if (proxy?.base) {
     // The PDF is fetched from wherever the proxied page settles, so only the landing goes through it
-    routes.push({ name: `${name}:proxied`, landing: throughProxy(landing, proxy), pdf, allowHosts: [...hosts, hostOf(proxy.base), `.${hostOf(proxy.base)}`] })
+    routes.push({ name: `${name}:proxied`, landing: throughProxy(landing, proxy), pdf, allowHosts: [...hosts, hostOf(proxy.base), `.${hostOf(proxy.base)}`], sites })
   }
   return routes
 }

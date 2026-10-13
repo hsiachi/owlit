@@ -46,8 +46,16 @@ export interface Paper {
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
-  // whether the publisher's page wants the user for it (a check that a person is there, a sign-in)
-  noPdf?: { tried: string[]; at: number; needs?: "check" | "sign-in" }
+  // whether the publisher's page wants the user for it (a check that a person is there, a sign-in), or
+  // the site isn't letting owlit's browser through and the user's own browser is the way (blocked)
+  noPdf?: {
+    tried: string[]
+    at: number
+    needs?: "check" | "sign-in" | "blocked"
+    // Opened in the user's own browser: until when owlit looks for its PDF in their Downloads, and a
+    // downloaded PDF (file name) it isn't sure is this paper's, for them to confirm
+    inBrowser?: { until: number; offered?: string }
+  }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"

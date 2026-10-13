@@ -337,6 +337,11 @@ export interface Methods {
   // (window.owlit.publisherView), waiting for them to pass a check or sign in. Resolves with the paper
   // once the run ends; cancelling its task (paper.pdf.check) ends it.
   "library.checkPublisher": { params: { id: string }; result: Paper }
+  // The paper in the user's own browser (its publisher won't let owlit's through); a PDF of it saved to
+  // their Downloads in the next while becomes its file. The paper comes back with noPdf.inBrowser.
+  "library.openInBrowser": { params: { id: string }; result: Paper }
+  // The user's answer about a downloaded PDF owlit offered (noPdf.inBrowser.offered): take it, or not
+  "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md
