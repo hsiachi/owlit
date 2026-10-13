@@ -15,6 +15,10 @@ msgstr ""
 msgid "A chat needs you"
 msgstr ""
 
+#: app/src/app/AppSidebar.tsx
+msgid "Owlit finished since you last looked"
+msgstr ""
+
 #. a place in the rail, then what waits there: Library · A paper needs you
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
@@ -90,6 +94,7 @@ msgstr ""
 #. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
+#. toast button: open the paper's digest
 #. verb: open the chat that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
@@ -98,6 +103,7 @@ msgstr ""
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/library/digests.ts
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/main.ts
 msgid "Open"
@@ -206,6 +212,7 @@ msgstr ""
 #: app/src/features/knowledge/components/LineRow.tsx
 #: app/src/features/knowledge/paper/ItemRow.tsx
 #: app/src/features/library/notes/NoteEditor.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
@@ -409,6 +416,12 @@ msgstr ""
 msgid "Breadcrumb"
 msgstr ""
 
+#: app/src/components/segmented-control.tsx
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "New since you last looked"
+msgstr ""
+
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
 msgstr ""
@@ -486,6 +499,13 @@ msgstr ""
 #. chip: a passage quoted from the paper's note
 #: app/src/features/agent/page-context.ts
 msgid "Note"
+msgstr ""
+
+#. a view of the paper page: Owlit's digest of the paper
+#. chip: a passage quoted from the paper's digest
+#: app/src/features/agent/page-context.ts
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Digest"
 msgstr ""
 
 #. chip: a passage quoted from this page of the paper
@@ -737,7 +757,7 @@ msgstr ""
 msgid "Next question"
 msgstr ""
 
-#. choice between showing the reading note or the PDF
+#. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
@@ -950,6 +970,9 @@ msgstr ""
 #. verb: send the question again
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Retry"
 msgstr ""
 
@@ -1037,6 +1060,11 @@ msgstr ""
 #. placeholder {0}: n("knowledge")
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {updated a topic} other {updated # topics}}"
+msgstr ""
+
+#. placeholder {0}: n("digest")
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr ""
 
 #. verb
@@ -1605,7 +1633,7 @@ msgid "{n, plural, one {read a paper} other {read # papers}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {asked for a reading note} other {asked for # reading notes}}"
+msgid "{n, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
@@ -1748,7 +1776,7 @@ msgid "{papers, plural, one {Added a paper} other {Added # papers}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{notes, plural, one {Asked for a reading note} other {Asked for # reading notes}}"
+msgid "{notes, plural, one {Asked for a digest} other {Asked for # digests}}"
 msgstr ""
 
 #. placeholder {0}: files.length
@@ -1839,11 +1867,12 @@ msgid "Removed papers from your Library"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Ask for a reading note"
+#: app/src/features/library/digest-rows.tsx
+msgid "Asked for a digest"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Asked for a reading note"
+msgid "Ask for a digest"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
@@ -2263,6 +2292,17 @@ msgid "Drop PDFs to add them to your Library"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+msgid "Digest ready"
+msgstr ""
+
+#. Home: the last item of a paper's line, after when it was read
+#: app/src/features/home/HomePage.tsx
+msgid "digest ready"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
 msgctxt "Home: what was worked on last"
 msgid "Continue"
 msgstr ""
@@ -2377,6 +2417,15 @@ msgid "The publisher wants you to sign in"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
+msgid "Publishers aren't letting owlit in"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher isn't letting owlit in"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want a quick check"
 msgstr ""
 
@@ -2393,6 +2442,10 @@ msgstr ""
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Check now"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Get it yourself"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -2476,11 +2529,6 @@ msgstr ""
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Remove"
-msgstr ""
-
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "New since you last looked"
 msgstr ""
 
 #: app/src/features/knowledge/components/LineRow.tsx
@@ -3179,6 +3227,10 @@ msgid "The publisher wants you to sign in."
 msgstr ""
 
 #: app/src/features/library/client.ts
+msgid "The publisher isn't letting owlit in."
+msgstr ""
+
+#: app/src/features/library/client.ts
 msgid "The publisher wants a quick check."
 msgstr ""
 
@@ -3426,6 +3478,19 @@ msgid "More actions"
 msgstr ""
 
 #: app/src/features/library/components/PaperList.tsx
+msgid "Writing the digest"
+msgstr ""
+
+#: app/src/features/library/components/PaperList.tsx
+msgid "New digest"
+msgstr ""
+
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/digest-rows.tsx
+msgid "Digest stopped"
+msgstr ""
+
+#: app/src/features/library/components/PaperList.tsx
 msgid "Status"
 msgstr ""
 
@@ -3452,15 +3517,15 @@ msgid "Couldn't refresh the details."
 msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Rewrite reading note"
+msgid "Rewrite the digest"
 msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Write a reading note"
+msgid "Write a digest"
 msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Couldn't ask for a reading note."
+msgid "Couldn't ask for a digest."
 msgstr ""
 
 #. placeholder {0}: papers.length
@@ -3505,6 +3570,20 @@ msgstr ""
 #. button: add a tag to the paper
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "Tag"
+msgstr ""
+
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Couldn't ask for the digest again."
+msgstr ""
+
+#: app/src/features/library/digest-rows.tsx
+msgid "Writing the digest…"
+msgstr ""
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't write the digest"
 msgstr ""
 
 #: app/src/features/library/disk.ts
@@ -3660,10 +3739,6 @@ msgstr ""
 msgid "Show details"
 msgstr ""
 
-#: app/src/features/library/pages/PaperPage.tsx
-msgid "Reading note"
-msgstr ""
-
 #: app/src/features/library/pages/UpNextPage.tsx
 msgid "Nothing to read next"
 msgstr ""
@@ -3737,6 +3812,59 @@ msgstr ""
 msgid "Show more"
 msgstr ""
 
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "You can keep reading. Owlit will let you know when it's ready."
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Digest · Owlit, {when}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Digest · Owlit"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit couldn't write this digest again."
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit couldn't write a digest of this paper."
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "This digest is in another language than the one set for digests."
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "This digest was written the old way."
+msgstr ""
+
+#. button: write the digest again
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Rewrite"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "{label}, page {page}: go to it in the PDF"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "{label} · p. {page}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Page {number}"
+msgstr ""
+
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Looking for a PDF…"
 msgstr ""
@@ -3751,6 +3879,22 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "It wants to see a person before it hands over the PDF. Open its page here to do that."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Its check keeps coming back. Save the PDF from your own browser and owlit takes it from your Downloads."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waiting for the PDF from your browser"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Save the PDF from the publisher's page. owlit takes it from your Downloads folder."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Is this the paper's PDF?"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -3770,7 +3914,15 @@ msgid "Drop a PDF here, or let owlit look for an open-access copy."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't open your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't take that file."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -3790,6 +3942,33 @@ msgid "{tried} Drop a PDF here if you have it."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
+msgstr ""
+
+#. button: take the downloaded file as the paper's PDF
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Use it"
+msgstr ""
+
+#. button: the downloaded file is not the paper's PDF
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Not this"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "Open in browser"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open again"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Choose file"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Try again"
 msgstr ""
 
@@ -3798,7 +3977,7 @@ msgid "Find PDF"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Choose file"
+msgid "Or <0>open it in your browser</0>"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -3846,51 +4025,6 @@ msgstr ""
 msgid "Tried {list}."
 msgstr ""
 
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Owlit is reading this paper…"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Owlit is reading this paper again…"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Reading note · Owlit, {when}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Reading note · Owlit"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Couldn't ask for the note again."
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "This note is in another language than your reading notes now."
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "This note was written the old way."
-msgstr ""
-
-#. button: write the reading note again
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Rewrite"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "{label}, page {page}: go to it in the PDF"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "{label} · p. {page}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Page {number}"
-msgstr ""
-
 #. verb: add a comment to a highlight
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Comment"
@@ -3918,10 +4052,6 @@ msgstr ""
 
 #: app/src/features/library/reader/PdfReader.tsx
 msgid "The server may not allow owlit to fetch it. It can still be opened in the browser."
-msgstr ""
-
-#: app/src/features/library/reader/PdfReader.tsx
-msgid "Open in browser"
 msgstr ""
 
 #: app/src/features/library/reader/ReaderControls.tsx
@@ -4209,7 +4339,7 @@ msgid "Agent"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Writes reading notes and keeps Knowledge up to date."
+msgid "Writes digests and keeps Knowledge up to date."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4221,7 +4351,7 @@ msgid "Model"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
+msgid "A smaller one costs less. Digests come out best from the strongest: it catches what a paper doesn't support."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4229,7 +4359,7 @@ msgid "Model for background work"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Reading notes for every paper"
+msgid "Digests for every paper"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4246,7 +4376,7 @@ msgid "Other…"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Reading notes in"
+msgid "Digests in"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4254,7 +4384,7 @@ msgid "Technical terms stay as the paper writes them, whatever the language."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Language for reading notes"
+msgid "Language for digests"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4348,6 +4478,31 @@ msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in in the window that opened, then close it."
+msgstr ""
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Publishers' APIs"
+msgstr ""
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "Optional. With your university's subscription, these fetch PDFs without the publisher's check. They work on the university's network."
+msgstr ""
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "Elsevier API key"
+msgstr ""
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "For ScienceDirect papers."
+msgstr ""
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "Wiley TDM token"
+msgstr ""
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "For Wiley Online Library papers."
 msgstr ""
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
@@ -5085,6 +5240,14 @@ msgid "The pitta library couldn't be read."
 msgstr ""
 
 #: packages/core/src/library/library.ts
+msgid "Opening your browser needs the owlit desktop app."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "owlit doesn't know where this paper lives online."
+msgstr ""
+
+#: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
 msgstr ""
 
@@ -5194,6 +5357,22 @@ msgstr ""
 
 #: packages/core/src/settings-rpc.ts
 msgid "Couldn't reach {service} to check the key."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "The key works, but Elsevier sees no subscription from this network. On the university's network it will."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Elsevier refused this key. Check it was copied whole."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Wiley refused: either the token isn't valid or it sees no subscription from this network."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "{service} is busy; the key will be tried on the next paper."
 msgstr ""
 
 #. the suggested folder name for a new workspace

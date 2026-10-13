@@ -15,6 +15,10 @@ msgstr "有篇论文需要你处理"
 msgid "A chat needs you"
 msgstr "有个对话需要你处理"
 
+#: app/src/app/AppSidebar.tsx
+msgid "Owlit finished since you last looked"
+msgstr "你上次查看后，Owlit 已完成"
+
 #. a place in the rail, then what waits there: Library · A paper needs you
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
@@ -90,6 +94,7 @@ msgstr "什么也没找到。"
 #. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
+#. toast button: open the paper's digest
 #. verb: open the chat that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
@@ -98,6 +103,7 @@ msgstr "什么也没找到。"
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/library/digests.ts
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/main.ts
 msgid "Open"
@@ -206,6 +212,7 @@ msgstr "在文献库和知识中"
 #: app/src/features/knowledge/components/LineRow.tsx
 #: app/src/features/knowledge/paper/ItemRow.tsx
 #: app/src/features/library/notes/NoteEditor.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
@@ -409,6 +416,12 @@ msgstr "显示全部 {total} 项"
 msgid "Breadcrumb"
 msgstr "路径导航"
 
+#: app/src/components/segmented-control.tsx
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/knowledge/paper/ItemRow.tsx
+msgid "New since you last looked"
+msgstr "你上次查看后新增"
+
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
 msgstr "命令面板"
@@ -487,6 +500,13 @@ msgstr "条目"
 #: app/src/features/agent/page-context.ts
 msgid "Note"
 msgstr "笔记"
+
+#. a view of the paper page: Owlit's digest of the paper
+#. chip: a passage quoted from the paper's digest
+#: app/src/features/agent/page-context.ts
+#: app/src/features/library/pages/PaperPage.tsx
+msgid "Digest"
+msgstr "导读"
 
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
@@ -737,7 +757,7 @@ msgstr "上一个问题"
 msgid "Next question"
 msgstr "下一个问题"
 
-#. choice between showing the reading note or the PDF
+#. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
@@ -950,6 +970,9 @@ msgstr "忽略"
 #. verb: send the question again
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Retry"
 msgstr "重试"
 
@@ -1038,6 +1061,11 @@ msgstr "{0, plural, other {在 # 个文档中留下了批注}}"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {updated a topic} other {updated # topics}}"
 msgstr "{0, plural, other {更新了 # 个主题}}"
+
+#. placeholder {0}: n("digest")
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {asked for a digest} other {asked for # digests}}"
+msgstr "{0, plural, other {请求了 # 份导读}}"
 
 #. verb
 #. verb: put back a change that was undone
@@ -1605,7 +1633,7 @@ msgid "{n, plural, one {read a paper} other {read # papers}}"
 msgstr "{n, plural, other {阅读了 # 篇论文}}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {asked for a reading note} other {asked for # reading notes}}"
+msgid "{n, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr "{n, plural, other {请求了 # 份导读}}"
 
 #: app/src/features/chat/lib/step-words.ts
@@ -1748,7 +1776,7 @@ msgid "{papers, plural, one {Added a paper} other {Added # papers}}"
 msgstr "{papers, plural, other {添加了 # 篇论文}}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{notes, plural, one {Asked for a reading note} other {Asked for # reading notes}}"
+msgid "{notes, plural, one {Asked for a digest} other {Asked for # digests}}"
 msgstr "{notes, plural, other {请求了 # 份导读}}"
 
 #. placeholder {0}: files.length
@@ -1839,12 +1867,13 @@ msgid "Removed papers from your Library"
 msgstr "从你的文献库移除了论文"
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Ask for a reading note"
-msgstr "请求一份导读"
+#: app/src/features/library/digest-rows.tsx
+msgid "Asked for a digest"
+msgstr "已请求导读"
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Asked for a reading note"
-msgstr "请求了一份导读"
+msgid "Ask for a digest"
+msgstr "请求导读"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your docs"
@@ -2263,6 +2292,17 @@ msgid "Drop PDFs to add them to your Library"
 msgstr "拖入 PDF，添加到文献库"
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+msgid "Digest ready"
+msgstr "导读已就绪"
+
+#. Home: the last item of a paper's line, after when it was read
+#: app/src/features/home/HomePage.tsx
+msgid "digest ready"
+msgstr "导读已就绪"
+
+#: app/src/features/home/HomePage.tsx
 msgctxt "Home: what was worked on last"
 msgid "Continue"
 msgstr "继续"
@@ -2377,6 +2417,15 @@ msgid "The publisher wants you to sign in"
 msgstr "出版商需要你登录"
 
 #: app/src/features/home/WaitingOnYou.tsx
+msgid "Publishers aren't letting owlit in"
+msgstr "出版商不让 owlit 访问"
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher isn't letting owlit in"
+msgstr "出版商不让 owlit 访问"
+
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want a quick check"
 msgstr "出版商需要你快速验证一下"
 
@@ -2394,6 +2443,10 @@ msgstr "登录"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Check now"
 msgstr "立即检查"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Get it yourself"
+msgstr "自己下载"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "for {cite}"
@@ -2477,11 +2530,6 @@ msgstr "编辑"
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Remove"
 msgstr "移除"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "New since you last looked"
-msgstr "你上次查看后新增"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "Line actions"
@@ -3179,6 +3227,10 @@ msgid "The publisher wants you to sign in."
 msgstr "出版商要求你登录。"
 
 #: app/src/features/library/client.ts
+msgid "The publisher isn't letting owlit in."
+msgstr "出版商不让 owlit 访问。"
+
+#: app/src/features/library/client.ts
 msgid "The publisher wants a quick check."
 msgstr "出版商需要你完成一次快速验证。"
 
@@ -3426,6 +3478,19 @@ msgid "More actions"
 msgstr "更多操作"
 
 #: app/src/features/library/components/PaperList.tsx
+msgid "Writing the digest"
+msgstr "正在写导读"
+
+#: app/src/features/library/components/PaperList.tsx
+msgid "New digest"
+msgstr "新导读"
+
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/digest-rows.tsx
+msgid "Digest stopped"
+msgstr "导读已停止"
+
+#: app/src/features/library/components/PaperList.tsx
 msgid "Status"
 msgstr "状态"
 
@@ -3452,15 +3517,15 @@ msgid "Couldn't refresh the details."
 msgstr "无法刷新信息。"
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Rewrite reading note"
+msgid "Rewrite the digest"
 msgstr "重写导读"
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Write a reading note"
-msgstr "撰写导读"
+msgid "Write a digest"
+msgstr "写导读"
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Couldn't ask for a reading note."
+msgid "Couldn't ask for a digest."
 msgstr "无法请求导读。"
 
 #. placeholder {0}: papers.length
@@ -3506,6 +3571,20 @@ msgstr "新建“{q}”"
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "Tag"
 msgstr "加标签"
+
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Couldn't ask for the digest again."
+msgstr "无法重新请求导读。"
+
+#: app/src/features/library/digest-rows.tsx
+msgid "Writing the digest…"
+msgstr "正在写导读…"
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't write the digest"
+msgstr "无法写出导读"
 
 #: app/src/features/library/disk.ts
 msgid "Couldn't save the library."
@@ -3660,10 +3739,6 @@ msgstr "隐藏详情"
 msgid "Show details"
 msgstr "显示详情"
 
-#: app/src/features/library/pages/PaperPage.tsx
-msgid "Reading note"
-msgstr "导读"
-
 #: app/src/features/library/pages/UpNextPage.tsx
 msgid "Nothing to read next"
 msgstr "没有待读的论文"
@@ -3737,6 +3812,59 @@ msgstr "基础"
 msgid "Show more"
 msgstr "显示更多"
 
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper…"
+msgstr "Owlit 正在阅读这篇论文…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "You can keep reading. Owlit will let you know when it's ready."
+msgstr "你可以继续阅读，导读写好后 Owlit 会告诉你。"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr "Owlit 正在重新阅读这篇论文…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Digest · Owlit, {when}"
+msgstr "导读 · Owlit，{when}"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Digest · Owlit"
+msgstr "导读 · Owlit"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit couldn't write this digest again."
+msgstr "Owlit 无法重写这份导读。"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit couldn't write a digest of this paper."
+msgstr "Owlit 无法为这篇论文写导读。"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "This digest is in another language than the one set for digests."
+msgstr "这份导读的语言与设置中的导读语言不同。"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "This digest was written the old way."
+msgstr "这份导读是按旧方式写的。"
+
+#. button: write the digest again
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Rewrite"
+msgstr "重写"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "{label}, page {page}: go to it in the PDF"
+msgstr "{label}，第 {page} 页：在 PDF 中转到此处"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "{label} · p. {page}"
+msgstr "{label} · 第 {page} 页"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Page {number}"
+msgstr "第 {number} 页"
+
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Looking for a PDF…"
 msgstr "正在查找 PDF…"
@@ -3752,6 +3880,22 @@ msgstr "在这里打开它的页面登录，owlit 就会获取 PDF。"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "It wants to see a person before it hands over the PDF. Open its page here to do that."
 msgstr "它要先确认你是真人，才会提供 PDF。在这里打开它的页面完成验证。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Its check keeps coming back. Save the PDF from your own browser and owlit takes it from your Downloads."
+msgstr "它的验证一直反复出现。在你自己的浏览器里保存 PDF，owlit 会从“下载”文件夹中取用。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waiting for the PDF from your browser"
+msgstr "正在等待浏览器中下载的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Save the PDF from the publisher's page. owlit takes it from your Downloads folder."
+msgstr "在出版商的页面上保存 PDF，owlit 会从“下载”文件夹中取用。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Is this the paper's PDF?"
+msgstr "这是这篇论文的 PDF 吗？"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No PDF found"
@@ -3770,8 +3914,16 @@ msgid "Drop a PDF here, or let owlit look for an open-access copy."
 msgstr "把 PDF 拖到这里，或让 owlit 查找开放获取的版本。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't open your browser."
+msgstr "无法打开你的浏览器。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
 msgstr "已附加 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't take that file."
+msgstr "无法使用这个文件。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Couldn't attach that file."
@@ -3790,6 +3942,33 @@ msgid "{tried} Drop a PDF here if you have it."
 msgstr "{tried}如果你有 PDF，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
+msgstr "{file} 刚出现在“下载”文件夹中，owlit 无法判断它属于哪篇论文。"
+
+#. button: take the downloaded file as the paper's PDF
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Use it"
+msgstr "使用它"
+
+#. button: the downloaded file is not the paper's PDF
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Not this"
+msgstr "不是这个"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "Open in browser"
+msgstr "在浏览器中打开"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open again"
+msgstr "再次打开"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Choose file"
+msgstr "选择文件"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Try again"
 msgstr "重试"
 
@@ -3798,8 +3977,8 @@ msgid "Find PDF"
 msgstr "查找 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Choose file"
-msgstr "选择文件"
+msgid "Or <0>open it in your browser</0>"
+msgstr "或<0>在浏览器中打开</0>"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Your library may have it. <0>Set up library proxy</0>"
@@ -3846,51 +4025,6 @@ msgstr "owlit 不知道这篇论文有开放获取的版本。"
 msgid "Tried {list}."
 msgstr "已尝试：{list}。"
 
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Owlit is reading this paper…"
-msgstr "Owlit 正在阅读这篇论文…"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Owlit is reading this paper again…"
-msgstr "Owlit 正在重新阅读这篇论文…"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Reading note · Owlit, {when}"
-msgstr "导读 · Owlit，{when}"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Reading note · Owlit"
-msgstr "导读 · Owlit"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Couldn't ask for the note again."
-msgstr "无法重新请求导读。"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "This note is in another language than your reading notes now."
-msgstr "这篇导读的语言与你现在设置的导读语言不同。"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "This note was written the old way."
-msgstr "这篇导读是按旧方式写的。"
-
-#. button: write the reading note again
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Rewrite"
-msgstr "重写"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "{label}, page {page}: go to it in the PDF"
-msgstr "{label}，第 {page} 页：在 PDF 中转到此处"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "{label} · p. {page}"
-msgstr "{label} · 第 {page} 页"
-
-#: app/src/features/library/pages/paper/ReadingNote.tsx
-msgid "Page {number}"
-msgstr "第 {number} 页"
-
 #. verb: add a comment to a highlight
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Comment"
@@ -3919,10 +4053,6 @@ msgstr "无法加载此 PDF"
 #: app/src/features/library/reader/PdfReader.tsx
 msgid "The server may not allow owlit to fetch it. It can still be opened in the browser."
 msgstr "服务器可能不允许 owlit 获取它。你仍可以在浏览器中打开。"
-
-#: app/src/features/library/reader/PdfReader.tsx
-msgid "Open in browser"
-msgstr "在浏览器中打开"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Fit width · click for 100%"
@@ -4209,7 +4339,7 @@ msgid "Agent"
 msgstr "智能体"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Writes reading notes and keeps Knowledge up to date."
+msgid "Writes digests and keeps Knowledge up to date."
 msgstr "写导读，并让知识保持最新。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4221,15 +4351,15 @@ msgid "Model"
 msgstr "模型"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
-msgstr "小一些的模型更省钱。导读用最强的模型效果最好：它能发现论文里站不住脚的说法。"
+msgid "A smaller one costs less. Digests come out best from the strongest: it catches what a paper doesn't support."
+msgstr "小模型更省钱。最强的模型写出的导读最好：它能发现论文中缺乏依据的说法。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model for background work"
 msgstr "后台任务使用的模型"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Reading notes for every paper"
+msgid "Digests for every paper"
 msgstr "为每篇论文写导读"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4246,7 +4376,7 @@ msgid "Other…"
 msgstr "其他…"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Reading notes in"
+msgid "Digests in"
 msgstr "导读语言"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4254,7 +4384,7 @@ msgid "Technical terms stay as the paper writes them, whatever the language."
 msgstr "无论用哪种语言，专业术语都保留论文原文的写法。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Language for reading notes"
+msgid "Language for digests"
 msgstr "导读语言"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4349,6 +4479,31 @@ msgstr "{0, plural, other {图书馆在获取 # 个 PDF 时要求登录。登录
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in in the window that opened, then close it."
 msgstr "请在打开的窗口中登录，然后关闭它。"
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Publishers' APIs"
+msgstr "出版商 API"
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "Optional. With your university's subscription, these fetch PDFs without the publisher's check. They work on the university's network."
+msgstr "可选。借助你所在大学的订阅，这些接口可以绕过出版商的验证直接获取 PDF。需要在校园网内使用。"
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "Elsevier API key"
+msgstr "Elsevier API 密钥"
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "For ScienceDirect papers."
+msgstr "用于 ScienceDirect 上的论文。"
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "Wiley TDM token"
+msgstr "Wiley TDM 令牌"
+
+#: app/src/features/settings/sections/PublisherApisGroup.tsx
+msgid "For Wiley Online Library papers."
+msgstr "用于 Wiley Online Library 上的论文。"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Built-in only"
@@ -5085,6 +5240,14 @@ msgid "The pitta library couldn't be read."
 msgstr "无法读取 pitta 文献库。"
 
 #: packages/core/src/library/library.ts
+msgid "Opening your browser needs the owlit desktop app."
+msgstr "需要 owlit 桌面应用才能打开你的浏览器。"
+
+#: packages/core/src/library/library.ts
+msgid "owlit doesn't know where this paper lives online."
+msgstr "owlit 不知道这篇论文的网上地址。"
+
+#: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
 msgstr "无法连接任何 PDF 来源。"
 
@@ -5195,6 +5358,22 @@ msgstr "{service} 正忙；下次查询时会再试这个密钥。"
 #: packages/core/src/settings-rpc.ts
 msgid "Couldn't reach {service} to check the key."
 msgstr "无法连接 {service} 来检查密钥。"
+
+#: packages/core/src/settings-rpc.ts
+msgid "The key works, but Elsevier sees no subscription from this network. On the university's network it will."
+msgstr "密钥有效，但 Elsevier 在当前网络下检测不到订阅。在校园网内就可以。"
+
+#: packages/core/src/settings-rpc.ts
+msgid "Elsevier refused this key. Check it was copied whole."
+msgstr "Elsevier 拒绝了这个密钥。请检查是否完整复制。"
+
+#: packages/core/src/settings-rpc.ts
+msgid "Wiley refused: either the token isn't valid or it sees no subscription from this network."
+msgstr "Wiley 拒绝了：令牌无效，或在当前网络下检测不到订阅。"
+
+#: packages/core/src/settings-rpc.ts
+msgid "{service} is busy; the key will be tried on the next paper."
+msgstr "{service} 正忙，会在下一篇论文时再试这个密钥。"
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts
