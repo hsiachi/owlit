@@ -21,6 +21,8 @@ export const defaultSettings = (): AppSettings => ({
 const SECRETS = [
   ["library", "s2ApiKey"],
   ["library", "openalexApiKey"],
+  ["library", "elsevierApiKey"],
+  ["library", "wileyTdmToken"],
   ["parsing", "token"],
 ] as const
 

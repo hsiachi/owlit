@@ -14,13 +14,48 @@ import { paperDir } from "./paths.ts"
 // The largest PDF owlit keeps
 const MAX_BYTES = 200 * 1024 * 1024
 
-export type RouteKind = "arxiv" | "upstream" | "publisher" | "unpaywall" | "browser"
+export type RouteKind = "arxiv" | "upstream" | "api" | "publisher" | "unpaywall" | "browser"
 
 export interface Route {
   kind: RouteKind
-  // A name to show: "arxiv", "openalex", "publisher:springer", "unpaywall/repository"
+  // A name to show: "arxiv", "openalex", "publisher:springer", "unpaywall/repository", "api:elsevier"
   name: string
   url: string
+  // Sent with the request and never written down (a publisher's API key)
+  headers?: Record<string, string>
+}
+
+// The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
+// browser or a check: Elsevier's article API and Wiley's text-and-data-mining API
+export interface PublisherKeys {
+  elsevierApiKey?: string
+  wileyTdmToken?: string
+}
+
+const ELSEVIER_PREFIXES = ["10.1016/", "10.1006/", "10.1053/", "10.1054/", "10.1067/", "10.1078/", "10.1383/", "10.1529/"]
+const WILEY_PREFIXES = ["10.1002/", "10.1111/", "10.1046/", "10.1113/", "10.1034/"]
+export const ELSEVIER_API_HOST = "api.elsevier.com"
+export const WILEY_API_HOST = "api.wiley.com"
+
+// The publisher's API route for a DOI, when owlit has its key
+export function apiRoute(doi: string, keys: PublisherKeys): Route | undefined {
+  if (keys.elsevierApiKey && ELSEVIER_PREFIXES.some((p) => doi.startsWith(p))) {
+    return {
+      kind: "api",
+      name: "api:elsevier",
+      url: `https://${ELSEVIER_API_HOST}/content/article/doi/${doi}?httpAccept=application/pdf`,
+      headers: { "x-els-apikey": keys.elsevierApiKey },
+    }
+  }
+  if (keys.wileyTdmToken && WILEY_PREFIXES.some((p) => doi.startsWith(p))) {
+    return {
+      kind: "api",
+      name: "api:wiley",
+      url: `https://${WILEY_API_HOST}/onlinelibrary/tdm/v1/articles/${encodeURIComponent(doi)}`,
+      headers: { "wiley-tdm-client-token": keys.wileyTdmToken },
+    }
+  }
+  return undefined
 }
 
 export interface Attempt {
@@ -44,9 +79,9 @@ export interface Acquisition {
   dropHere: string
   // Of the PDF in place: the same file dropped again is recognised
   sha256?: string
-  // The publisher's page wanted a person (a check, a sign-in) while nobody was looking: Check now
-  // and the host whose page it was
-  needs?: { reason: "challenge" | "login"; route: string; at: number; host?: string }
+  // The publisher's page wanted a person (a check, a sign-in) while nobody was looking: Check now,
+  // and the host whose page it was. refused: a check came back after the user passed it.
+  needs?: { reason: "challenge" | "login" | "refused"; route: string; at: number; host?: string }
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}
@@ -79,7 +114,7 @@ export function publisherOf(doi: string) {
 // so they are looked up only when the free routes before them have failed.
 export async function* routesFor(
   record: PaperRecord,
-  lookups: { landing: (doi: string) => Promise<string | undefined>; unpaywall: (doi: string) => Promise<Route[]> },
+  lookups: { landing: (doi: string) => Promise<string | undefined>; unpaywall: (doi: string) => Promise<Route[]>; keys?: PublisherKeys },
 ): AsyncGenerator<Route> {
   const seen = new Set<string>()
   const fresh = (route: Route) => {
@@ -97,6 +132,9 @@ export async function* routesFor(
     if (fresh(route)) yield route
   }
   if (!doi) return
+  // The publisher's own API before its site: licensed for this, and never behind a check
+  const api = lookups.keys ? apiRoute(doi, lookups.keys) : undefined
+  if (api && fresh(api)) yield api
   const publisher = publisherOf(doi)
   if (publisher) {
     const suffix = doi.slice(doi.indexOf("/") + 1)
@@ -173,8 +211,8 @@ export class NotAPdf extends Error {
 
 // Downloads url to dest when what comes back starts with %PDF-. Written beside dest first, so a
 // half-downloaded file never takes its name.
-export async function downloadPdf(http: Http, url: string, dest: string, signal?: AbortSignal) {
-  const response = await http.get(url, { signal, retries: 1, timeoutMs: 120_000, headers: { accept: "application/pdf,*/*;q=0.8" } })
+export async function downloadPdf(http: Http, url: string, dest: string, signal?: AbortSignal, headers?: Record<string, string>) {
+  const response = await http.get(url, { signal, retries: 1, timeoutMs: 120_000, headers: { accept: "application/pdf,*/*;q=0.8", ...headers } })
   if (!response.body) throw new NotAPdf(`${hostOf(url)} sent nothing.`)
   const declared = Number(response.headers.get("content-length"))
   if (declared > MAX_BYTES) {

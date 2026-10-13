@@ -404,6 +404,13 @@ if (!app.requestSingleInstanceLock()) {
           if (failure) throw new Error(failure)
         },
         revealPath: (file) => shell.showItemInFolder(file),
+        // OWLIT_NO_EXTERNAL (tests): say where it would go instead of opening the user's browser
+        openExternal: async (url) => {
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", url)
+          else await shell.openExternal(url)
+        },
+        // OWLIT_DOWNLOADS (tests): another folder in place of the user's Downloads
+        downloadsDir: () => process.env.OWLIT_DOWNLOADS ?? app.getPath("downloads"),
       },
     })
     attachCore(core, browser)

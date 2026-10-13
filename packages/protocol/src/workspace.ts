@@ -88,6 +88,10 @@ export interface LibrarySettings {
   openalexApiKey?: string
   // Semantic Scholar allows far more with a key; without one it often answers "slow down"
   s2ApiKey?: string
+  // Publishers' own APIs, which give the university's network its subscribed PDFs without a browser:
+  // Elsevier's API key (dev.elsevier.com) and Wiley's text-and-data-mining token
+  elsevierApiKey?: string
+  wileyTdmToken?: string
   // The library's proxy, through which publishers see the university's subscription
   proxy?: ProxySettings
   // When the user last closed the proxy's sign-in window; nothing tells owlit when the login runs out
