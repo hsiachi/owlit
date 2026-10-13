@@ -14,6 +14,7 @@ import { startTrail } from "@/features/home/trail"
 import { startAppearance, storedAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
+import { startImports } from "@/features/library/imports"
 import { applyLocale, i18n } from "@/lib/i18n"
 import { bridge, onNotify } from "@/lib/rpc"
 import { startUiActions } from "@/lib/ui-actions"
@@ -32,6 +33,7 @@ startSettings()
 // what agents changed
 startWorkspace()
 startTasks()
+startImports()
 startUiActions()
 startAgentChanges()
 

@@ -7,7 +7,8 @@
 import { t } from "@lingui/core/macro"
 import { isTaskFinished, RpcErrorCode, type ImportPreview, type ImportSource, type ImportSummary, type Paper, type PaperIds, type ResolvedPaper, type Task } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
-import { mkdir, readdir, stat } from "node:fs/promises"
+import { access, mkdir, readdir, stat } from "node:fs/promises"
+import { homedir } from "node:os"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../../fs-util.ts"
 import { RpcFailure } from "../../rpc/index.ts"
@@ -116,6 +117,15 @@ export class Imports {
     record.taskId = this.scheduler.enqueue(KINDS[source], id, "asked").id
     await this.write(record)
     return summarize(record)
+  }
+
+  // Zotero's own folder, where it keeps zotero.sqlite unless told otherwise
+  async findZotero(): Promise<string | null> {
+    const folder = path.join(homedir(), "Zotero")
+    return access(path.join(folder, "zotero.sqlite")).then(
+      () => folder,
+      () => null,
+    )
   }
 
   // Reads the collection and counts, adding nothing

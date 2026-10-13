@@ -95,6 +95,14 @@ ipcMain.handle("choose-folder", async (event, options: { title: string; message?
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
 
+ipcMain.handle("choose-file", async (event, options: { title: string; message?: string; buttonLabel?: string; extensions: string[] }) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  const { extensions, ...rest } = options
+  const dialogOptions: Electron.OpenDialogOptions = { ...rest, properties: ["openFile"], filters: [{ name: extensions.join(", "), extensions }] }
+  const result = await (win ? dialog.showOpenDialog(win, dialogOptions) : dialog.showOpenDialog(dialogOptions))
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+
 ipcMain.on("appearance", (event) => {
   event.returnValue = appearance
 })
@@ -345,6 +353,7 @@ async function updateMenu(core: Core) {
           ],
         },
         { type: "separator" },
+        { label: t`Import Papers…`, enabled: !!current, click: () => send("import") },
         { label: t`Import a pitta Library…`, enabled: !!current, click: () => void importPitta(core) },
         // Elsewhere the convention is File › Settings
         ...(isMac ? [] : [{ type: "separator" as const }, settingsItem]),

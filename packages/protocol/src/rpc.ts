@@ -341,6 +341,8 @@ export interface Methods {
   // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the
   // library has are skipped; nothing gets a digest. parse answers ahead whether MinerU reads every new PDF.
   "library.import": { params: { source: ImportSource; path: string; collectionsAsTags?: boolean; parse?: boolean }; result: ImportSummary }
+  // The Zotero library in its usual place (~/Zotero), or null when there is none
+  "library.findZotero": { params: void; result: string | null }
   // What importing that collection would do, without adding anything
   "library.previewImport": { params: { source: ImportSource; path: string }; result: ImportPreview }
   // A cancelled or stopped import goes on, skipping what it did
@@ -463,7 +465,7 @@ export interface CoreVersion {
   node: string
 }
 
-export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro"
+export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import"
 
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {
@@ -486,6 +488,8 @@ export interface OwlitBridge {
   onMenu(listener: (command: MenuCommand) => void): () => void
   // The system's folder picker; the chosen folder, or null when cancelled
   chooseFolder(options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }): Promise<string | null>
+  // The system's file picker, showing only files with these extensions (without the dot); null when cancelled
+  chooseFile(options: { title: string; message?: string; buttonLabel?: string; extensions: string[] }): Promise<string | null>
   // Where the publisher's page shows during Check now, in the window's CSS pixels; null takes it away
   setPublisherView(bounds: { x: number; y: number; width: number; height: number } | null): void
   // A right-click the page leaves to the system's text menu: whether what is selected can be handed to

@@ -533,6 +533,7 @@ export class Core {
     )
     this.router.register("library.continueImport", z.object({ id: z.string().min(1) }), ({ id }) => library().imports.continue(id))
     this.router.register("library.imports", noParams, () => library().imports.list())
+    this.router.register("library.findZotero", noParams, () => library().imports.findZotero())
     this.router.register("library.importAnswer", z.object({ id: z.string().min(1), parse: z.boolean() }), ({ id, parse }) => library().imports.answer(id, parse))
     this.router.register("library.dismissImport", z.object({ id: z.string().min(1) }), async ({ id }) => {
       await library().imports.dismiss(id)
