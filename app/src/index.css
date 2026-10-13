@@ -100,20 +100,22 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Neutrals carry a faint warm tint (hue 60-85, chroma under 0.012) so greys read as paper, not steel.
+/* Neutrals carry a faint warm tint (chroma under 0.012) so greys read as paper, not steel. Surfaces and
+   lines sit at hue 95, a warm ivory: at 80 they leaned orange and the frame read as tan next to the sheet.
+   Text and the state fills keep their own tint (60-65 here, 80 in dark), which reads as ink.
    Surfaces are opaque and step up from back to front: frame (sidebar) < list panel < main sheet <
    raised (card: composer, cards) and floating (popover). State fills (muted, secondary, accent,
    sidebar-accent) are translucent tints of the foreground, so a chip on a hovered row, or a hover on
    any surface, always reads as one step darker (lighter in dark mode) than what is beneath it. */
 :root {
-    --background: oklch(0.99 0.002 85);
+    --background: oklch(0.99 0.002 95);
     --foreground: oklch(0.21 0.008 60);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.21 0.008 60);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.21 0.008 60);
     --primary: oklch(0.25 0.008 60);
-    --primary-foreground: oklch(0.985 0.003 85);
+    --primary-foreground: oklch(0.985 0.003 95);
     --secondary: oklch(0.3 0.02 65 / 5%);
     --secondary-foreground: oklch(0.25 0.008 60);
     --muted: oklch(0.3 0.02 65 / 5%);
@@ -129,10 +131,10 @@
     --warning: oklch(0.66 0.12 70);
     /* A doc's own ==highlights==: the lemon of a yellow PDF highlight, so the two never pass for a note */
     --text-highlight: oklch(0.93 0.11 98);
-    --border: oklch(0.905 0.006 80);
-    --input: oklch(0.9 0.006 80);
+    --border: oklch(0.905 0.006 95);
+    --input: oklch(0.9 0.006 95);
     --ring: oklch(0.7 0.012 70);
-    --chart-1: oklch(0.87 0.006 80);
+    --chart-1: oklch(0.87 0.006 95);
     --chart-2: oklch(0.56 0.01 70);
     --chart-3: oklch(0.44 0.01 65);
     --chart-4: oklch(0.37 0.01 60);
@@ -145,8 +147,8 @@
     --t-layout: 180ms;
     --t-mark: 150ms;
     --ease: cubic-bezier(0.2, 0, 0, 1);
-    --sidebar: oklch(0.942 0.007 80);
-    --sidebar-panel: oklch(0.976 0.004 85);
+    --sidebar: oklch(0.942 0.007 95);
+    --sidebar-panel: oklch(0.976 0.004 95);
     --mention: oklch(0.48 0.09 255);
     /* Star and tag colours: low-chroma marks that carry meaning, never fills. The star is a gold kept off
        amber, so it never passes for waiting; the green tag is an olive, so its dot never passes for Owlit's */
@@ -181,23 +183,24 @@
     --highlight-pink-mark: oklch(0.7 0.13 355);
     --sidebar-foreground: oklch(0.21 0.008 60);
     --sidebar-primary: oklch(0.25 0.008 60);
-    --sidebar-primary-foreground: oklch(0.985 0.003 85);
+    --sidebar-primary-foreground: oklch(0.985 0.003 95);
     --sidebar-accent: oklch(0.3 0.02 65 / 6.5%);
     --sidebar-accent-foreground: oklch(0.21 0.008 60);
-    --sidebar-border: oklch(0.905 0.006 80);
+    --sidebar-border: oklch(0.905 0.006 95);
     --sidebar-ring: oklch(0.7 0.012 70);
 }
 
-/* Dark mode keeps the same warm tint and the same back-to-front order, lifted off pure black */
+/* Dark mode keeps the same warm tint, surfaces and lines at hue 95 as in light (at 60 the panels leaned
+   red-brown), and the same back-to-front order, lifted off pure black */
 .dark {
-    --background: oklch(0.215 0.005 60);
+    --background: oklch(0.215 0.005 95);
     --foreground: oklch(0.935 0.006 80);
-    --card: oklch(0.245 0.006 60);
+    --card: oklch(0.245 0.006 95);
     --card-foreground: oklch(0.935 0.006 80);
-    --popover: oklch(0.255 0.006 60);
+    --popover: oklch(0.255 0.006 95);
     --popover-foreground: oklch(0.935 0.006 80);
     --primary: oklch(0.92 0.006 80);
-    --primary-foreground: oklch(0.215 0.005 60);
+    --primary-foreground: oklch(0.215 0.005 95);
     --secondary: oklch(0.95 0.01 80 / 7%);
     --secondary-foreground: oklch(0.935 0.006 80);
     --muted: oklch(0.95 0.01 80 / 7%);
@@ -209,16 +212,16 @@
     --owlit-mark: oklch(0.75 0.12 155);
     --warning: oklch(0.78 0.11 75);
     --text-highlight: oklch(0.4 0.07 100);
-    --border: oklch(0.935 0.01 80 / 10%);
-    --input: oklch(0.935 0.01 80 / 14%);
+    --border: oklch(0.935 0.01 95 / 10%);
+    --input: oklch(0.935 0.01 95 / 14%);
     --ring: oklch(0.55 0.012 70);
     --chart-1: oklch(0.87 0.006 80);
     --chart-2: oklch(0.56 0.01 70);
     --chart-3: oklch(0.44 0.01 65);
     --chart-4: oklch(0.37 0.01 60);
     --chart-5: oklch(0.27 0.008 60);
-    --sidebar: oklch(0.155 0.004 60);
-    --sidebar-panel: oklch(0.19 0.005 60);
+    --sidebar: oklch(0.155 0.004 95);
+    --sidebar-panel: oklch(0.19 0.005 95);
     --mention: oklch(0.78 0.07 255);
     --star: oklch(0.82 0.12 90);
     --tag-red: oklch(0.7 0.1 28);
@@ -231,10 +234,10 @@
     --tag-pink: oklch(0.74 0.09 350);
     --sidebar-foreground: oklch(0.935 0.006 80);
     --sidebar-primary: oklch(0.92 0.006 80);
-    --sidebar-primary-foreground: oklch(0.215 0.005 60);
+    --sidebar-primary-foreground: oklch(0.215 0.005 95);
     --sidebar-accent: oklch(0.95 0.01 80 / 8%);
     --sidebar-accent-foreground: oklch(0.935 0.006 80);
-    --sidebar-border: oklch(0.935 0.01 80 / 10%);
+    --sidebar-border: oklch(0.935 0.01 95 / 10%);
     --sidebar-ring: oklch(0.55 0.012 70);
 }
 
@@ -247,59 +250,59 @@
    colour for the window's background. */
 /* Warm inside a preview (the tone picker draws each tone with the app's own tokens) */
 :root:not(.dark) [data-tone="warm"] {
-    --background: oklch(0.99 0.002 85);
+    --background: oklch(0.99 0.002 95);
     --foreground: oklch(0.21 0.008 60);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.21 0.008 60);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.21 0.008 60);
     --primary: oklch(0.25 0.008 60);
-    --primary-foreground: oklch(0.985 0.003 85);
+    --primary-foreground: oklch(0.985 0.003 95);
     --secondary: oklch(0.3 0.02 65 / 5%);
     --secondary-foreground: oklch(0.25 0.008 60);
     --muted: oklch(0.3 0.02 65 / 5%);
     --muted-foreground: oklch(0.505 0.012 65);
     --accent: oklch(0.3 0.02 65 / 6%);
     --accent-foreground: oklch(0.25 0.008 60);
-    --border: oklch(0.905 0.006 80);
-    --input: oklch(0.9 0.006 80);
+    --border: oklch(0.905 0.006 95);
+    --input: oklch(0.9 0.006 95);
     --ring: oklch(0.7 0.012 70);
-    --sidebar: oklch(0.942 0.007 80);
-    --sidebar-panel: oklch(0.976 0.004 85);
+    --sidebar: oklch(0.942 0.007 95);
+    --sidebar-panel: oklch(0.976 0.004 95);
     --sidebar-foreground: oklch(0.21 0.008 60);
     --sidebar-primary: oklch(0.25 0.008 60);
-    --sidebar-primary-foreground: oklch(0.985 0.003 85);
+    --sidebar-primary-foreground: oklch(0.985 0.003 95);
     --sidebar-accent: oklch(0.3 0.02 65 / 6.5%);
     --sidebar-accent-foreground: oklch(0.21 0.008 60);
-    --sidebar-border: oklch(0.905 0.006 80);
+    --sidebar-border: oklch(0.905 0.006 95);
     --sidebar-ring: oklch(0.7 0.012 70);
 }
 .dark [data-tone="warm"] {
-    --background: oklch(0.215 0.005 60);
+    --background: oklch(0.215 0.005 95);
     --foreground: oklch(0.935 0.006 80);
-    --card: oklch(0.245 0.006 60);
+    --card: oklch(0.245 0.006 95);
     --card-foreground: oklch(0.935 0.006 80);
-    --popover: oklch(0.255 0.006 60);
+    --popover: oklch(0.255 0.006 95);
     --popover-foreground: oklch(0.935 0.006 80);
     --primary: oklch(0.92 0.006 80);
-    --primary-foreground: oklch(0.215 0.005 60);
+    --primary-foreground: oklch(0.215 0.005 95);
     --secondary: oklch(0.95 0.01 80 / 7%);
     --secondary-foreground: oklch(0.935 0.006 80);
     --muted: oklch(0.95 0.01 80 / 7%);
     --muted-foreground: oklch(0.7 0.01 70);
     --accent: oklch(0.95 0.01 80 / 8%);
     --accent-foreground: oklch(0.935 0.006 80);
-    --border: oklch(0.935 0.01 80 / 10%);
-    --input: oklch(0.935 0.01 80 / 14%);
+    --border: oklch(0.935 0.01 95 / 10%);
+    --input: oklch(0.935 0.01 95 / 14%);
     --ring: oklch(0.55 0.012 70);
-    --sidebar: oklch(0.155 0.004 60);
-    --sidebar-panel: oklch(0.19 0.005 60);
+    --sidebar: oklch(0.155 0.004 95);
+    --sidebar-panel: oklch(0.19 0.005 95);
     --sidebar-foreground: oklch(0.935 0.006 80);
     --sidebar-primary: oklch(0.92 0.006 80);
-    --sidebar-primary-foreground: oklch(0.215 0.005 60);
+    --sidebar-primary-foreground: oklch(0.215 0.005 95);
     --sidebar-accent: oklch(0.95 0.01 80 / 8%);
     --sidebar-accent-foreground: oklch(0.935 0.006 80);
-    --sidebar-border: oklch(0.935 0.01 80 / 10%);
+    --sidebar-border: oklch(0.935 0.01 95 / 10%);
     --sidebar-ring: oklch(0.55 0.012 70);
 }
 :root[data-tone="neutral"]:not(.dark),

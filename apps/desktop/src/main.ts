@@ -109,7 +109,7 @@ ipcMain.on("notify", (event, n: { title: string; body: string; chatId: string })
 
 // The frame colour (the sidebar token) of each tone, light and dark; app/src/index.css has the source
 const FRAME: Record<AppearanceSettings["tone"], [light: string, dark: string]> = {
-  warm: ["#eeebe7", "#0e0c0b"],
+  warm: ["#edece7", "#0d0c0a"],
   neutral: ["#ececec", "#0c0c0c"],
   slate: ["#e6ecf3", "#090c11"],
   sepia: ["#efe7d8", "#120d09"],
