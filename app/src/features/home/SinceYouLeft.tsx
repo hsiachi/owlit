@@ -11,15 +11,19 @@ import { useAgentWindow } from "@/features/agent/store"
 import { useLibraryStore } from "@/features/library/store"
 import { LineBody, TopicLine } from "@/features/knowledge/components/TopicLine"
 import { topicUri, wasBefore } from "@/features/knowledge/format"
-import { DAY, shortDate } from "@/lib/time"
+import { ago, DAY, shortDate } from "@/lib/time"
+import { KIND_ICON } from "@/lib/kinds"
+import { useChatStore } from "@/features/chat/store"
+import { useSeenStore } from "@/features/chat/status"
 import { changedSince, useKnowledgeStore, useTopics } from "@/features/knowledge/store"
 import type { Line, Topic, TopicSidecar } from "@/features/knowledge/types"
 import { cn } from "@/lib/utils"
-import { plural } from "@/lib/words"
+import { capital, plural } from "@/lib/words"
 
-// After three days or more away: one row per topic Owlit changed meanwhile, opening in place to the
-// changed lines, and one line for papers Owlit added. It belongs to this launch only; what the user
-// doesn't open keeps its dot on the Knowledge page.
+// After three days or more away: one row per chat whose work finished meanwhile and that the user hasn't
+// opened since (the jobs they handed off before leaving), one row per topic Owlit changed meanwhile,
+// opening in place to the changed lines, and one line for papers Owlit added. It belongs to this launch
+// only; what the user doesn't open keeps its dot on the Knowledge page.
 
 export const AWAY_FOR = 3 * DAY
 
@@ -30,15 +34,29 @@ interface Changed {
   what: string
 }
 
-// "2 lines added, 1 rewritten", or "New topic, 3 lines", from Owlit's history since the user left
+// "2 lines added, 1 rewritten", "1 question added" or "New topic, 3 lines", from Owlit's history since the
+// user left. The history's words are Owlit's own ("Added", "Question added"); the line is set as a
+// sentence, so it starts with a capital whatever comes first.
 function summary(side: TopicSidecar, since: number, lines: Line[]) {
   const lineCount = (n: number) => plural(n, "line")
   const recent = side.history.filter((h) => h.by === "owlit" && h.at > since)
-  if (recent.some((h) => h.what === "Topic started")) return `New topic, ${lineCount(lines.length)}`
+  // "Started" is what core writes; "Topic started" is kept for topics from earlier builds
+  if (recent.some((h) => h.what === "Started" || h.what === "Topic started")) return `New topic, ${lineCount(lines.length)}`
   const counts = new Map<string, number>()
   for (const h of recent) if (h.lineId) counts.set(h.what.toLowerCase(), (counts.get(h.what.toLowerCase()) ?? 0) + 1)
-  const parts = [...counts].map(([what, n], i) => (i === 0 ? `${lineCount(n)} ${what}` : `${n} ${what}`))
-  return parts.length ? parts.join(", ") : `${lineCount(lines.length)} changed`
+  const parts = [...counts].map(([what, n], i) => {
+    // A question's change counts questions, not lines
+    const question = /^question (.+)$/.exec(what)
+    if (question) return `${plural(n, "question")} ${question[1]}`
+    return i === 0 ? `${lineCount(n)} ${what}` : `${n} ${what}`
+  })
+  return capital(parts.length ? parts.join(", ") : `${lineCount(lines.length)} changed`)
+}
+
+interface Finished {
+  id: string
+  title: string
+  at: number
 }
 
 export function SinceYouLeft({ since }: { since: number }) {
@@ -58,8 +76,24 @@ export function SinceYouLeft({ since }: { since: number }) {
     [topics, sides, since],
   )
   const added = useMemo(() => Object.values(papers).filter((p) => p.addedBy === "agent" && p.addedAt > since).length, [papers, since])
+  // The chat list's own mark, "Finished since you last looked", limited to replies that ended while away;
+  // opening the chat takes it off, here as in the list
+  const chats = useChatStore((s) => s.chats)
+  const unseenChats = useSeenStore((s) => s.unseen)
+  const finished = useMemo<Finished[]>(
+    () =>
+      Object.values(chats)
+        .flatMap((c) => {
+          if (unseenChats[c.id] !== "finished") return []
+          const last = c.messages.at(-1)
+          const at = last?.role === "assistant" ? last.finishedAt : undefined
+          return at && at > since ? [{ id: c.id, title: c.title, at }] : []
+        })
+        .sort((a, b) => b.at - a.at),
+    [chats, unseenChats, since],
+  )
 
-  if (!changed.length && !added) return null
+  if (!changed.length && !added && !finished.length) return null
 
   const toggle = (c: Changed) => {
     const opening = !open[c.topic.id]
@@ -72,6 +106,9 @@ export function SinceYouLeft({ since }: { since: number }) {
     <section className="mt-8">
       <GroupLabel>Since you left on {shortDate(since)}</GroupLabel>
       <div className="flex flex-col gap-0.5">
+        {finished.map((f) => (
+          <ListRow key={f.id} to={`/chat/${f.id}`} icon={KIND_ICON.chat} title={f.title} end={`Finished ${ago(f.at, { inSentence: true })}`} />
+        ))}
         {changed.map((c) => {
           const isOpen = !!open[c.topic.id]
           const unseen = changedSince(c.topic, c.side).length > 0
@@ -112,7 +149,7 @@ function Peek({ c, since }: { c: Changed; since: number }) {
       {c.lines.map((l) => (
         <TopicLine key={l.id} line={l} className="py-1.5">
           <div className="min-w-0">
-            <LineBody line={l} was={wasBefore(l.id, c.side, since)} />
+            <LineBody line={l} was={wasBefore(l.id, c.side, since, l.text)} topic={c.topic} />
           </div>
         </TopicLine>
       ))}

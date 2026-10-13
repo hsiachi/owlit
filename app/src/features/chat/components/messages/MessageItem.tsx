@@ -7,6 +7,7 @@ import { Quote } from "@/components/quote"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
+import { timeStamp } from "@/lib/time"
 import type { AttachmentFile, ChatMessage, MessagePart } from "../../types"
 import { AttachmentList } from "../composer/AttachmentList"
 import { importCopy, openAttached } from "../../lib/attachments"
@@ -56,8 +57,6 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
     </div>
   )
 }
-
-const timeOf = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
 // Fold consecutive thoughts and tool calls into one steps block; everything else stays a part.
 // A permission or question belongs to its tool call's row (waiting, then its outcome), so the steps on
@@ -221,7 +220,7 @@ export function AssistantMessage({
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             <span className="mr-1 text-xs font-normal text-muted-foreground">
               {message.status === "cancelled" && "· "}
-              {[modelName, timeOf(message.finishedAt ?? message.createdAt)].filter(Boolean).join(" · ")}
+              {[modelName, timeStamp(message.finishedAt ?? message.createdAt)].filter(Boolean).join(" · ")}
             </span>
             {text && <CopyButton text={text} />}
             {text && onSaveAsDoc && (

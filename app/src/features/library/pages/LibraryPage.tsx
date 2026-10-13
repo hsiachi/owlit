@@ -9,6 +9,7 @@ import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
+import { RecentlyRemoved } from "../components/RecentlyRemoved"
 import { addPdfFiles } from "../lib/add-pdfs"
 import { groupPapers, matchesQuery, visiblePapers } from "../lib/filter"
 import { useTextHits } from "@/features/search/full-text"
@@ -53,6 +54,7 @@ export function LibraryPage() {
   const table = layout === "table"
   const empty = Object.keys(papers).length === 0
   const noMatch = words.length > 0 && visible.length === 0
+  const unfiltered = !refInput && !words && filter === "all" && tags.length === 0
 
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the
   // way "Ask Owlit to find papers" hands over its stem, so nothing is sent until the person says so
@@ -105,6 +107,8 @@ export function LibraryPage() {
             </div>
           </>
         )}
+        {/* Under the whole library only: a narrowed list isn't where a removed paper would be looked for */}
+        {unfiltered && <RecentlyRemoved />}
       </PageShell>
       <BulkBar />
       {dragging && <DropOverlay label="Drop PDF to add" />}

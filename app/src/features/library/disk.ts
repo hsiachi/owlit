@@ -1,4 +1,4 @@
-import type { Highlight, Paper, PaperNote, PaperPatch } from "@owlit/protocol"
+import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owlit/protocol"
 import { toast } from "sonner"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -26,10 +26,12 @@ const resting = new Map<string, ReturnType<typeof setTimeout>>()
 const queue = createWorkspaceQueue({
   onError: (error) => {
     toast.error(error instanceof Error ? error.message : "Couldn't save the library.")
-    void reload()
+    // Read again once what is queued has gone through: a read sent at once could come back after a
+    // restore queued behind the failure, and take the restored paper out of the store again
+    enqueue(reload)
   },
 })
-const enqueue = (op: () => Promise<unknown>) => queue.enqueue(op)
+const enqueue = (op: () => Promise<unknown>, after?: () => void) => queue.enqueue(op, after)
 
 // Later calls with the same key replace earlier ones until the key has rested for ms
 function afterRest(key: string, ms: number, op: () => Promise<unknown>) {
@@ -82,6 +84,28 @@ export async function importPdf(path: string) {
   return imported
 }
 
+// ---- The trash
+
+// Papers removed in the last 30 days, for the Library's removed list; none outside the desktop app. Asked
+// once the changes already queued have reached core, so a removal just made is in it.
+export async function listTrash(): Promise<TrashedPaper[]> {
+  if (!onDisk || !useWorkspace.getState().current) return []
+  await queue.settled()
+  return rpc.library.trash()
+}
+
+// Puts papers back from the trash, the way Undo does (library.restore), then reads the library again so
+// their highlights and notes come back with them. Resolves once they are in the store.
+export function restoreFromTrash(ids: string[]): Promise<void> {
+  for (const id of ids) removedHere.delete(id)
+  return new Promise((resolve) =>
+    enqueue(async () => {
+      await rpc.library.restore({ ids })
+      await load()
+    }, () => resolve()),
+  )
+}
+
 // ---- Differences, store → core
 
 function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>) {
@@ -94,7 +118,17 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
   const back = added.filter((p) => removedHere.has(p.id))
   if (back.length) {
     for (const p of back) removedHere.delete(p.id)
-    enqueue(() => rpc.library.restore({ ids: back.map((p) => p.id) }))
+    enqueue(async () => {
+      const restored = await rpc.library.restore({ ids: back.map((p) => p.id) })
+      // Core's word on what came back. The removal's library.changed can reach the window after Undo put
+      // the paper back in the store, and take it out again; a paper missing now is taken from here.
+      takeFromCore(() =>
+        useLibraryStore.setState((s) => {
+          const missing = restored.filter((p) => !s.papers[p.id])
+          return missing.length ? { papers: { ...s.papers, ...byId(missing) } } : s
+        }),
+      )
+    })
   }
   for (const paper of added) {
     if (back.includes(paper)) continue
@@ -123,7 +157,11 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
     if (!Object.keys(patch).length) continue
     // Scrolling moves the position many times a second; only where it comes to rest is kept
     if (Object.keys(patch).length === 1 && patch.position) {
-      afterRest(`position:${paper.id}`, POSITION_REST_MS, () => rpc.library.update({ id: paper.id, patch: { position: useLibraryStore.getState().papers[paper.id]?.position } }))
+      afterRest(`position:${paper.id}`, POSITION_REST_MS, async () => {
+        // A paper removed while its position rested has nothing to save it to
+        const position = useLibraryStore.getState().papers[paper.id]?.position
+        if (position) await rpc.library.update({ id: paper.id, patch: { position } })
+      })
     } else {
       enqueue(() => rpc.library.update({ id: paper.id, patch }))
     }
@@ -141,9 +179,11 @@ function highlightsChanged(next: Record<string, Highlight>, prev: Record<string,
 function notesChanged(next: Record<string, PaperNote>, prev: Record<string, PaperNote>, papers: Record<string, Paper>) {
   for (const note of Object.values(next)) {
     if (prev[note.paperId]?.content === note.content) continue
-    afterRest(`note:${note.paperId}`, NOTE_REST_MS, () =>
-      rpc.library.setNote({ paperId: note.paperId, content: useLibraryStore.getState().notes[note.paperId]?.content ?? "" }),
-    )
+    afterRest(`note:${note.paperId}`, NOTE_REST_MS, async () => {
+      const { papers, notes } = useLibraryStore.getState()
+      // Removed while the note rested: the note went to the trash with it, and Undo sends it again
+      if (papers[note.paperId]) await rpc.library.setNote({ paperId: note.paperId, content: notes[note.paperId]?.content ?? "" })
+    })
   }
   for (const paperId of Object.keys(prev)) {
     if (!next[paperId] && papers[paperId]) enqueue(() => rpc.library.setNote({ paperId, content: "" }))

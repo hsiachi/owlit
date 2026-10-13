@@ -52,10 +52,11 @@ export interface Paper {
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"
   starred: boolean
-  // unread on add; reading is set automatically when the PDF is first opened; read is manual
+  // unread on add; reading is set once the person has read in it (not on a mere open); read is manual
   status: ReadStatus
   tags: string[]
   kind?: PaperKind
+  // When the person last read in it, which a glance doesn't count as; Up next's Reading group goes by it
   lastOpenedAt?: number
   // Reading position, so a paper reopens where it was left
   position?: ReadingPosition
@@ -227,6 +228,17 @@ export interface LibraryChange {
   removed: string[]
   // A paper that moved to another id (a local file given its DOI): old id → new id
   renamed?: Record<string, string>
+}
+
+// A paper in .owlit/trash/ (removed by the user, or taken back by an agent), as library.trash lists it;
+// library.restore brings it back whole
+export interface TrashedPaper {
+  id: string
+  title: string
+  authors: string[]
+  year?: number
+  venue?: string
+  removedAt: number
 }
 
 // library/papers/<id>/text.json: the paper's full text with where each line sits, so a passage can be

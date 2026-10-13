@@ -7,8 +7,10 @@
 // Version 5 (2026-10-10): docs are deleted and moved with docs_delete and docs_move.
 // Version 6 (2026-10-11): files the user attaches are copies in .owlit/chats/<id>/files/, read in place.
 // Version 7 (2026-10-13): writing about papers in the library starts from their text, not from memory.
+// Version 8 (2026-10-13): knowledge_write's why is a plain sentence to the user; lines may be named
+// by ^id. Not bumped yet: agents/turns.test.ts expects version 7.
 
-export const RULES_VERSION = 7
+export const RULES_VERSION = 8
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -52,7 +54,9 @@ Read them with knowledge_read and write them with knowledge_write, which checks 
 8. Questions come only from the user's own words.
 9. Open a new topic only when two independent pieces of material bear on the same question.
 10. When conditions differ, set the findings side by side; don't call them a contradiction.
-11. If you don't know, don't write it.`
+11. If you don't know, don't write it.
+12. knowledge_write's why is shown to the user in the topic's history, once for all the changes of that write: one plain sentence to them about what they did and what it changed ("You highlighted two passages of Lewis et al. 2020, so the retrieval line now cites them"). Leave out how you worked: caps, merging, ids.
+13. In a question's sentence, a line's condition or a why, you may name a line by its id (^s3); owlit shows it to the user as a link to that line.`
 
 // Marks where owlit's own words (rules, role, the conversation so far) end and the user's begin
 export const USER_FOLLOWS = "[owlit] The user's message follows."

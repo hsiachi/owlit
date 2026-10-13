@@ -40,7 +40,6 @@ export function HighlightToolbar({
   onClose: () => void
 }) {
   const [copied, setCopied] = useState(false)
-  const field = useRef<HTMLTextAreaElement>(null)
 
   const copy = async () => {
     if (!(await onCopy())) return
@@ -69,17 +68,17 @@ export function HighlightToolbar({
     }
   })
 
-  useEffect(() => {
-    if (!commenting) return
-    const el = field.current
-    if (!el) return
-    el.focus()
-    el.setSelectionRange(el.value.length, el.value.length)
-  }, [commenting])
-
   return (
-    // The menu material, at a menu's 14px corners
-    <div data-reader-ui className={cn("menu-surface rounded-xl p-1.5 text-popover-foreground", commenting && "w-72")}>
+    // The menu material, at a menu's 14px corners. Presses and clicks stop here: the toolbar floats over the
+    // page's text and links, and none of them may get a press meant for the toolbar (the page's own
+    // pointer handlers, a citation hotspot that would jump the PDF)
+    <div
+      data-reader-ui
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      className={cn("menu-surface rounded-xl p-1.5 text-popover-foreground", commenting && "w-72")}
+    >
       <div className="flex items-center gap-0.5">
         <div className="flex items-center gap-1 px-1">
           {HIGHLIGHT_COLORS.map((c) => (
@@ -122,22 +121,46 @@ export function HighlightToolbar({
           </IconButton>
         )}
       </div>
-      {commenting && (
-        <textarea
-          ref={field}
-          value={comment ?? ""}
-          onChange={(e) => onCommentChange?.(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault()
-              onClose()
-            }
-          }}
-          rows={3}
-          placeholder="Add a comment"
-          className="mt-1.5 block max-h-48 min-h-16 w-full resize-none rounded-md border bg-card px-2.5 py-2 text-sm leading-normal outline-none [field-sizing:content] placeholder:text-muted-foreground focus:border-foreground/30"
-        />
-      )}
+      {commenting && <CommentField comment={comment} onChange={(text) => onCommentChange?.(text)} onDone={onClose} />}
     </div>
+  )
+}
+
+// The comment on a highlight. Each keystroke is kept as it is typed, so a press outside (which closes the
+// popover) loses nothing. Enter saves and closes, Shift+Enter starts a new line: in a blind test a comment
+// ended with Enter was lost, and Enter is what people press to finish a short line. Esc closes it through
+// the toolbar's own keys, keeping what was typed, as before.
+function CommentField({ comment, onChange, onDone }: { comment?: string; onChange: (text: string) => void; onDone: () => void }) {
+  const field = useRef<HTMLTextAreaElement>(null)
+  // The words as typed: the highlight keeps none while they are only spaces, and the field shouldn't lose them
+  const [draft, setDraft] = useState(comment ?? "")
+
+  useEffect(() => {
+    const el = field.current
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [])
+
+  return (
+    <textarea
+      ref={field}
+      value={draft}
+      onChange={(e) => {
+        setDraft(e.target.value)
+        onChange(e.target.value)
+      }}
+      onKeyDown={(e) => {
+        // Enter while an input method is composing picks its word; it doesn't end the comment
+        if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return
+        e.preventDefault()
+        onChange(draft.trim())
+        onDone()
+      }}
+      onBlur={() => onChange(draft.trim())}
+      rows={3}
+      placeholder="Add a comment"
+      className="mt-1.5 block max-h-48 min-h-16 w-full resize-none rounded-md border bg-card px-2.5 py-2 text-sm leading-normal outline-none [field-sizing:content] placeholder:text-muted-foreground focus:border-foreground/30"
+    />
   )
 }

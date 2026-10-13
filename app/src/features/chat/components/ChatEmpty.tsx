@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { keysFor } from "@/app/shortcuts"
 import { Button } from "@/components/ui/button"
+import { useAgentWindow } from "@/features/agent/store"
 import { useSettings } from "@/features/settings/store"
 import { useChatStore } from "../store"
-import type { PromptInput, SourceKind } from "../types"
+import type { PromptInput } from "../types"
+import { starters } from "../lib/starters"
 import { Composer, type ComposerHandle } from "./composer/Composer"
 
 function greeting() {
@@ -15,30 +17,42 @@ function greeting() {
   return "Good evening"
 }
 
-// The Chat page is where work is handed off (a quick question goes through the agent window, ⌘J), so the
-// starters are jobs that take a few minutes. Each fills a prompt stem; where it needs a paper or doc, the
-// mention popup opens on that kind.
-const suggestions: { label: string; prompt: string; kind?: SourceKind | "all" }[] = [
-  { label: "Find papers and add them", prompt: "Find recent papers on " },
-  { label: "Compare papers", prompt: "Compare the methods and findings of ", kind: "paper" },
-  { label: "Review a draft", prompt: "Review where I overstate a finding or misread a paper in ", kind: "doc" },
-  { label: "Ask about your papers", prompt: "What do my papers say about " },
-]
+// What a visit to /chat itself asks for: a starter handed over from elsewhere (the Library's Ask Owlit to
+// find papers), or a fresh page (New chat, ⌘N, a deleted or missing chat)
+interface ChatIndexState {
+  starter?: string
+  fresh?: boolean
+}
 
-// /chat with no conversation selected: greeting, composer, starter prompts
+export const FRESH_CHAT: ChatIndexState = { fresh: true }
+
+// /chat with no conversation selected: greeting, composer, starter prompts. Reached plainly (the rail's Chat
+// button, a link), it goes back to the chat the person last looked at, as Docs goes back to the doc they
+// were in: in a test, someone who left a running chat for the Library and came back by the rail landed on
+// an empty page and thought the app had lost their chat. New chat and a hand-off say so in the route's state
+// and get the empty page.
 export function ChatEmpty() {
   const navigate = useNavigate()
   const createChat = useChatStore((s) => s.createChat)
   const send = useChatStore((s) => s.send)
+  const chatsLoaded = useChatStore((s) => s.chatsLoaded)
   const composer = useRef<ComposerHandle>(null)
   // Settings › Owlit; without a name the greeting stands alone
   const name = useSettings((s) => s.view?.profile.name)
-  // A starter handed over from elsewhere (the Library's Ask Owlit to find papers)
-  const starter = (useLocation().state as { starter?: string } | null)?.starter
+  const state = useLocation().state as ChatIndexState | null
+  const starter = state?.starter
+  const lastChatId = useAgentWindow((s) => s.chatId)
+  const lastChat = useChatStore((s) => (lastChatId ? s.chats[lastChatId] : undefined))
 
   useEffect(() => {
     if (starter) composer.current?.setText(starter)
   }, [starter])
+
+  if (!starter && !state?.fresh && lastChatId) {
+    if (lastChat) return <Navigate to={`/chat/${lastChat.id}`} replace />
+    // The chats are still being read; a chat that is gone falls through to the empty page
+    if (!chatsLoaded) return null
+  }
 
   // The composer names the new chat's id: files attached before sending are already in its folder
   const start = (input: PromptInput, id: string) => {
@@ -58,7 +72,7 @@ export function ChatEmpty() {
       </div>
       <div className="flex max-w-3xl flex-wrap justify-center gap-2">
         {/* Words only on a translucent fill: no outline to stack against the composer's border */}
-        {suggestions.map((s) => (
+        {starters.map((s) => (
           <Button
             key={s.label}
             variant="secondary"

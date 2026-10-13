@@ -16,6 +16,15 @@ export interface EditStats {
 // with this line between them, which the preview shows as a gap
 export const HUNK_GAP = "⋯"
 
+// The parts of such a diff again, each an old and a new text; the whole diff when the two sides don't
+// split alike
+export function diffParts(oldText: string, newText: string) {
+  const gap = `\n${HUNK_GAP}\n`
+  const olds = oldText.split(gap)
+  const news = newText.split(gap)
+  return olds.length === news.length ? olds.map((o, i) => ({ oldText: o, newText: news[i] })) : [{ oldText, newText }]
+}
+
 // Text people write in sentences: notes and docs, and papers in LaTeX, Typst and the like, where a
 // paragraph is one long line too
 const PROSE = /\.(md|markdown|txt|tex|ltx|typ|rst|org|adoc|qmd|rmd)$/i

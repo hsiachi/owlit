@@ -126,7 +126,7 @@ function About({ paper }: { paper: Paper }) {
         <dt className="text-muted-foreground">Added</dt>
         <dd>
           {ago(paper.addedAt)}
-          {paper.addedBy === "agent" && " by an agent"}
+          {paper.addedBy === "agent" && " by Owlit"}
         </dd>
         <dt className="text-muted-foreground">File</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (paper.pdf.pages ? `PDF, ${paper.pdf.pages} pages` : "PDF") : "No PDF"}</dd>

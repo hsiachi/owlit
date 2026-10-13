@@ -10,6 +10,7 @@ import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useDigestState } from "../digests"
 import { visiblePapers } from "../lib/filter"
+import { useReadingVisit } from "../lib/reading"
 import { useTakeParam } from "../lib/use-take-param"
 import { notePathOf } from "../notes/note-actions"
 import { usePrefsStore } from "../prefs-store"
@@ -30,7 +31,6 @@ export function PaperPage() {
   const paper = papers[paperId]
   // A paper that moved (a local file given its DOI) still opens from its old link
   const movedTo = useLibraryStore((s) => (s.papers[paperId] ? undefined : s.aliases[paperId]))
-  const markOpened = useLibraryStore((s) => s.markOpened)
   const prefersPanel = usePrefsStore((s) => s.panelOpen)
   const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
   // The right side holds one panel at a time: a docked agent window takes the details panel's place,
@@ -55,14 +55,15 @@ export function PaperPage() {
   const prevId = idx > 0 ? order[idx - 1] : null
   const nextId = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null
 
-  // Opening a paper with a PDF counts as starting to read it. The list's keyboard cursor follows so
-  // ↑↓ carry on from here after going back, but nothing is shown as selected.
+  // The list's keyboard cursor follows the paper opened, so ↑↓ carry on from here after going back, but
+  // nothing is shown as selected
   useEffect(() => {
     if (!paper) return
     useLibraryUi.getState().placeCursor(paper.id)
-    if (paper.pdf) markOpened(paper.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId])
+  // Opening a paper isn't reading it: it turns Reading once the person has read in it (lib/reading.ts)
+  useReadingVisit(paperId, !!paper?.pdf)
 
   // Closing a paper is when Owlit takes in what was found in it
   useEffect(() => {

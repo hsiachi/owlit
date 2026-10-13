@@ -433,40 +433,42 @@ export class Turns {
               : [],
         )
       },
-      requestPermission: (r, agentId) => {
+      requestPermission: async (r, agentId) => {
         const turn = this.asking(key, chatId)
         const emit = turn?.emit
-        if (!turn || !emit || turn.cancelled) return Promise.resolve({ outcome: { outcome: "cancelled" } })
+        if (!turn || !emit || turn.cancelled) return { outcome: { outcome: "cancelled" } }
         // A call to owlit's own tools asks owlit, not the user: owlit-mcp decides consent by the role
         // itself (Codex asks before every MCP call in its read-only mode)
         if (this.live.get(key)?.owlitCalls.has(r.toolCall.toolCallId)) {
           const allow = r.options.find((o) => o.kind === "allow_once")
-          if (allow) return Promise.resolve({ outcome: { outcome: "selected", optionId: allow.optionId } })
+          if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
         }
         // What the role doesn't allow is refused before the user sees it
         if (answerFor(turn.role, toKind(r.toolCall.kind)) === "reject") {
           const reject = r.options.find((o) => o.kind === "reject_once") ?? r.options.find((o) => o.kind === "reject_always")
-          return Promise.resolve(reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } })
+          return reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } }
         }
+        const toolCall = await withReplacedText(r.toolCall, root)
+        if (turn.cancelled) return { outcome: { outcome: "cancelled" } }
         const requestId = randomUUID()
-        const toolCallId = r.toolCall.toolCallId
+        const toolCallId = toolCall.toolCallId
         // A request may leave out what its tool call already announced (Codex sends only the id)
         const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === toolCallId)
-        const title = r.toolCall.title ?? (announced?.type === "tool_call" ? announced.title : undefined)
+        const title = toolCall.title ?? (announced?.type === "tool_call" ? announced.title : undefined)
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
         const by = agentId ? { agentId } : {}
-        emit({ type: "tool_call", toolCallId, title: title ?? "Tool", kind: toKind(r.toolCall.kind), status: "pending", ...toolContent(r.toolCall, root), ...by })
+        emit({ type: "tool_call", toolCallId, title: title ?? "Tool", kind: toKind(toolCall.kind), status: "pending", ...toolContent(toolCall, root), ...by })
         emit({
           type: "permission_request",
           requestId,
           toolCallId,
           title: title ?? "The agent asks to go ahead",
-          kind: toKind(r.toolCall.kind),
+          kind: toKind(toolCall.kind),
           options: r.options.map((o) => ({ optionId: o.optionId, name: o.name, kind: o.kind as PermissionKind })),
           ...by,
         })
-        return new Promise((resolve) => {
+        return new Promise<acp.RequestPermissionResponse>((resolve) => {
           turn.permissions.set(requestId, {
             toolCallId,
             options: r.options,
@@ -854,6 +856,20 @@ const toKind = (kind?: string | null): ToolKind => (kind && KINDS.has(kind as To
 const relative = (file: string, root: string) => {
   const rel = path.relative(root, file)
   return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel.split(path.sep).join("/") : file
+}
+
+// Claude Code asks to Write a file with the new text alone: the request can't tell a new file from one it
+// replaces, so its diff always reads as a creation. The text it would replace is read here, so the edit
+// is shown (and drawn in the doc) as what it changes. Only a whole-file Write: its one diff carries the
+// tool's whole input, where a part of another agent's edit without old text is an insertion.
+async function withReplacedText(call: acp.ToolCallUpdate, root: string): Promise<acp.ToolCallUpdate> {
+  const diffs = (call.content ?? []).filter((c) => c.type === "diff")
+  const write = toolInfoOf(call)?.name === "Write" ? (call.rawInput as { content?: unknown } | undefined) : undefined
+  const diff = diffs.length === 1 ? diffs[0] : undefined
+  if (!diff || diff.oldText != null || typeof write?.content !== "string" || write.content !== diff.newText) return call
+  const replaced = await readFile(path.resolve(root, diff.path), "utf8").catch(() => null)
+  if (replaced === null) return call
+  return { ...call, content: call.content!.map((c) => (c === diff ? { ...diff, oldText: replaced } : c)) }
 }
 
 function toolContent(call: { content?: acp.ToolCallContent[] | null; locations?: acp.ToolCallLocation[] | null }, root: string) {

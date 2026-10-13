@@ -58,13 +58,13 @@ const ORDER: PermissionKind[] = ["allow_once", "allow_always", "reject_once", "r
 
 function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string; ask: Part<"permission">; call?: ToolCall; agent?: string; compact: boolean }) {
   const editPath = call?.diff?.path
-  const inPlace = useInPlace((s) => !!editPath && !!s.shown[editPath])
+  const inPlace = useInPlace((s) => !!s.drawn[ask.requestId])
   const [answerHere, setAnswerHere] = useState(false)
   const [all, setAll] = useState(false)
   const [long, setLong] = useState(false)
   const respond = (optionId: string) => useChatStore.getState().respondPermission(chatId, ask.requestId, optionId)
 
-  // An edit already drawn where it would land is answered there, with Apply and Discard
+  // An edit drawn where it would land, in an editor on screen, is answered there, with Apply and Discard
   if (inPlace && !answerHere) {
     const where = editPath && paperOfNotePath(editPath) ? "your note" : "the doc"
     return (

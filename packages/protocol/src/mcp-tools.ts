@@ -248,7 +248,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
       properties: {
         topic: { type: "string", description: "The topic's id or name; a new name starts a new topic" },
         content: { type: "string", description: "The whole file, as knowledge_read shows the format" },
-        why: { type: "string", description: "Why, in the user's terms: “you highlighted two passages of Lewis et al. 2020”" },
+        why: { type: "string", description: "One plain sentence to the user, shown in the topic's history: “You highlighted two passages of Lewis et al. 2020, so …”. Not how you worked." },
         remove: { type: "string", description: "Ids of lines or questions removed on purpose, comma-separated (optional)" },
         passages: {
           type: "string",

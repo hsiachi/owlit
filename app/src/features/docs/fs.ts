@@ -13,6 +13,7 @@ import { fileAt, perFiles, useDocsStore } from "./store"
 import { displayName, docUri, isMarkdown, type WorkspaceFile } from "./types"
 import { chatOnScreen, labelOf } from "@/features/chat/results"
 import { toastUndo } from "@/lib/toast"
+import { markOwlitEdit } from "@/features/home/trail"
 
 // What [[wikilinks]] can name: each doc by its name and by its path, the first doc keeping a name
 const linkNames = perFiles((files) => {
@@ -80,9 +81,11 @@ setWorkspaceFs({
     if (!file) {
       const created = useDocsStore.getState().createDocAt(path, content)
       if (!created) throw new Error(`Can't write ${path}`)
+      markOwlitEdit(created.path)
       return
     }
     if (!applyAgentEdit(file, content)) useDocsStore.getState().writeDoc(file.id, content)
+    markOwlitEdit(file.path)
   },
 })
 
@@ -141,7 +144,9 @@ if (isDesktop) {
   })
   registerUiHandler("fs.write", ({ path, content, versionId }) => {
     const file = fileAt(path)
-    return { applied: !!file && applyAgentEdit(file, content, versionId) }
+    const applied = !!file && applyAgentEdit(file, content, versionId)
+    if (applied) markOwlitEdit(file.path)
+    return { applied }
   })
 
   // An undo took a note an agent left away
@@ -160,6 +165,7 @@ if (isDesktop) {
 
   // A doc no window had open: core wrote it; the change itself arrives as docs.changed
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {
+    markOwlitEdit(path)
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(chatId)) return
     toastUndo("Edit applied", () => restoreVersion(versionId, path), {

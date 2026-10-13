@@ -32,8 +32,9 @@ interface LibraryState {
   setTags: (id: string, tags: string[]) => void
   addTag: (ids: string[], tag: string) => void
   removeTag: (ids: string[], tag: string) => void
-  // Called when the PDF is opened: records the time and moves unread → reading
-  markOpened: (id: string) => void
+  // Called once the person has really read in the paper (lib/reading.ts says when): records the time
+  // Up next orders by and moves unread → reading
+  markReading: (id: string) => void
   setPosition: (id: string, position: ReadingPosition) => void
 
   addHighlight: (h: Omit<Highlight, "id" | "createdAt">) => Highlight
@@ -140,7 +141,7 @@ export const useLibraryStore = create<LibraryState>()(
 
       removeTag: (ids, tag) => set((s) => patchPapers(s, ids, (p) => (p.tags.includes(tag) ? { tags: p.tags.filter((x) => x !== tag) } : undefined))),
 
-      markOpened: (id) =>
+      markReading: (id) =>
         set((s) => patchPapers(s, [id], (p) => ({ lastOpenedAt: Date.now(), status: p.status === "unread" ? "reading" : p.status }))),
 
       setPosition: (id, position) =>

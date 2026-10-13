@@ -12,6 +12,7 @@ import { useDigestState, type DigestState } from "../digests"
 import type { PaperGroup } from "../lib/filter"
 import { paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { STATUS_LABEL } from "../lib/status"
+import { tagsFirst } from "../lib/tags"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
@@ -200,11 +201,16 @@ const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
   status: (p) => p.status !== "unread" || !!p.noPdf?.needs,
 }
 
+// Added says "Oct 8 · Owlit" for a paper Owlit added, which needs a wider cell than a date alone
+const ADDED_BY_OWLIT_WIDTH = 136
+
 function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[]): Column[] {
-  const kept = useMemo(
-    () => COLUMNS.filter((c) => !FILLED[c.key] || papers.some(FILLED[c.key]!)),
-    [papers],
-  )
+  const kept = useMemo(() => {
+    const byOwlit = papers.some((p) => p.addedBy === "agent")
+    return COLUMNS.filter((c) => !FILLED[c.key] || papers.some(FILLED[c.key]!)).map((c) =>
+      c.key === "added" && byOwlit ? { ...c, width: ADDED_BY_OWLIT_WIDTH } : c,
+    ) as Column[]
+  }, [papers])
   // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
   // before paint, so the table never shows a frame with every column squeezed in; and it only
   // re-renders when a column actually comes or goes.
@@ -228,9 +234,10 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
   return useMemo(() => kept.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [kept, hidden])
 }
 
-function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; order: string[]; open: (id: string) => void; columns: Set<ColumnKey>; snippet?: string }) {
+function TableRow({ paper, order, open, columns, snippet, tagFilter }: { paper: Paper; order: string[]; open: (id: string) => void; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[] }) {
   const { selected, handlers } = useRowHandlers(paper, order, open)
   const digest = useDigestState(paper)
+  const tags = tagsFirst(paper.tags, tagFilter)
   // Square cells with a hairline under each row (none under the last), as in answer tables
   const td = cn("h-9 truncate border-b px-2.5 text-detail text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
   const venue = paper.venue && shortVenue(paper.venue)
@@ -257,11 +264,11 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
         )}
         {columns.has("tags") && (
           <td className={td}>
-            {paper.tags.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <TagDot tag={paper.tags[0]} className="size-1.5" />
-                <span className="truncate">{paper.tags[0]}</span>
-                {paper.tags.length > 1 && <span className="shrink-0">+{paper.tags.length - 1}</span>}
+            {tags.length > 0 && (
+              <span className="flex items-center gap-1.5" title={tags.length > 1 ? tags.join(", ") : undefined}>
+                <TagDot tag={tags[0]} className="size-1.5" />
+                <span className="truncate">{tags[0]}</span>
+                {tags.length > 1 && <span className="shrink-0">+{tags.length - 1}</span>}
               </span>
             )}
           </td>
@@ -282,8 +289,11 @@ function TableRow({ paper, order, open, columns, snippet }: { paper: Paper; orde
           </td>
         )}
         <td className={cn(td, "tabular-nums")}>
-          {/* The date gives way to the row's actions */}
-          <span className="group-hover/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">{ago(paper.addedAt)}</span>
+          {/* Owlit signs what it added, as everywhere it leaves something; the date gives way to the row's actions */}
+          <span className="group-hover/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
+            {ago(paper.addedAt)}
+            {paper.addedBy === "agent" && " · Owlit"}
+          </span>
           <RowActions paper={paper} className="-my-1 -mr-1.5 justify-end" />
         </td>
       </tr>
@@ -297,6 +307,7 @@ export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order
   const peekId = useLibraryUi((s) => s.peekId)
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
+  const tagFilter = useLibraryUi((s) => s.tags)
   const navigate = useNavigate()
   const open = (id: string) => navigate(`/library/${id}`)
   const table = useRef<HTMLTableElement>(null)
@@ -354,7 +365,7 @@ export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order
               </td>
             </tr>
           ) : (
-            <TableRow key={p.id} paper={p} order={order} open={open} columns={shown} snippet={snippets?.get(p.id)} />
+            <TableRow key={p.id} paper={p} order={order} open={open} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} />
           ),
         )}
       </tbody>

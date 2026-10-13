@@ -6,7 +6,7 @@ import { Markdown } from "@tiptap/markdown"
 import { toast } from "sonner"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { respondToEdit } from "@/features/chat/lib/respond-edit"
-import { useShowsEditsInPlace } from "@/features/chat/in-place"
+import { drawnEdits } from "@/features/chat/in-place"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { cn } from "@/lib/utils"
 import { askAboutPassage } from "../actions"
@@ -30,8 +30,6 @@ export function NoteEditor({ paperId }: { paperId: string }) {
   const setNote = useLibraryStore((s) => s.setNote)
   const box = useRef<HTMLDivElement>(null)
   const [menu, setMenu] = useState<{ left: number; top: number; below: boolean } | null>(null)
-  // Owlit's proposed edits to this note are answered here, so the chat's card points at the note
-  useShowsEditsInPlace(notePathOf(paperId))
 
   const editor = useEditor(
     {
@@ -87,10 +85,20 @@ export function NoteEditor({ paperId }: { paperId: string }) {
   useEffect(() => {
     if (!editor) return
     const path = notePathOf(paperId)
-    return subscribePendingEdits(
+    // Owlit's proposed edits to this note are answered here, so the chat's card points at the note. The
+    // note draws every one: what it can't place goes at its end.
+    const setDrawn = drawnEdits()
+    const unsubscribe = subscribePendingEdits(
       () => path,
-      (edits) => editor.view.dispatch(editor.state.tr.setMeta(noteSuggestionsKey, edits)),
+      (edits) => {
+        editor.view.dispatch(editor.state.tr.setMeta(noteSuggestionsKey, edits))
+        setDrawn(edits.map((e) => e.requestId))
+      },
     )
+    return () => {
+      unsubscribe()
+      setDrawn([])
+    }
   }, [editor, paperId])
 
   // A selected passage offers one action above it, "Ask Owlit"; not while the mouse is still choosing

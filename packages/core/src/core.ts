@@ -435,6 +435,7 @@ export class Core {
       return { removed: done.removed, refused: [...refused, ...done.refused] }
     })
     this.router.register("library.restore", z.object({ ids: z.array(paperId) }), ({ ids }) => library().restore(ids))
+    this.router.register("library.trash", noParams, () => library().trash())
     this.router.register("library.refresh", z.object({ id: paperId }), ({ id }) => library().refresh(id))
     const rect = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
     const highlight = z.object({

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { useScrollCapability } from "@embedpdf/plugin-scroll/react"
+import { readInPaper } from "../lib/reading"
 import { useLibraryStore } from "../store"
 import type { Paper, ReadingPosition } from "../types"
 
@@ -37,11 +38,14 @@ export function usePositionMemory(documentId: string, paper: Paper) {
       if (pending.current) setPosition(paper.id, pending.current)
       pending.current = null
     }
+    // The page the reader opened on: moving off it is reading (lib/reading.ts), a scroll within it isn't yet
+    const startPage = initial.current?.page ?? 1
     const off = scroll.onScroll((m) => {
       if (!restored.current) return
       // The top of the screen: the first visible page and how far down it the view starts
       const top = [...m.pageVisibilityMetrics].sort((a, b) => a.pageNumber - b.pageNumber)[0]
       if (!top) return
+      if (top.pageNumber !== startPage) readInPaper(paper.id)
       pending.current = { page: top.pageNumber, y: Math.round(top.original.pageY) }
       clearTimeout(timer)
       timer = setTimeout(flush, 400)
