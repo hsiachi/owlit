@@ -5,7 +5,7 @@ import { LoaderCircleIcon } from "lucide-react"
 import { BorderedList } from "@/components/bordered-list"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
-import { canRun, connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
+import { canRun, connectorProblem, problemSentence, statusLabel } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { updateSettings, useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
@@ -77,7 +77,8 @@ export function AgentChoice() {
                     {c.version && c.version !== "unknown" ? t`Ready · ${c.version}` : t({ message: "Ready", comment: "an agent's status" })}
                   </>
                 ) : (
-                  <span className="truncate">{problemSentence(c)}</span>
+                  // The row already names the agent, so the short word where there is one
+                  <span className="truncate">{problem === "not_installed" ? statusLabel("not_installed") : problemSentence(c)}</span>
                 )}
               </span>
             </span>

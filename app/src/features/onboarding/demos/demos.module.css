@@ -539,10 +539,10 @@
 }
 .tabs {
   display: flex;
-  gap: 9px;
+  gap: 7px;
   margin: 12px 0 10px;
   position: relative;
-  font-size: 10.5px;
+  font-size: 10px;
   white-space: nowrap;
   color: var(--muted-foreground);
 }

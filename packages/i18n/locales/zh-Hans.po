@@ -4187,13 +4187,13 @@ msgid "Ready · {0}"
 msgstr "就绪 · {0}"
 
 #: app/src/features/onboarding/AgentChoice.tsx
-msgid "Copy the sign-in command"
-msgstr "拷贝登录命令"
-
-#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copy the install command"
 msgstr "拷贝安装命令"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Copy the sign-in command"
+msgstr "拷贝登录命令"
 
 #. verb
 #: app/src/features/onboarding/AgentChoice.tsx
@@ -4320,11 +4320,6 @@ msgstr "按你的喜好来。"
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Pick a theme and a paper tone. You can change both in Settings."
 msgstr "选一个主题和纸张色调，之后都能在设置里改。"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "What should Owlit call you?"
-msgstr "Owlit 该怎么称呼你？"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5087,6 +5082,10 @@ msgstr "查找…"
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Remove from Recent"
 msgstr "从最近使用中移除"
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "What should Owlit call you?"
+msgstr "Owlit 该怎么称呼你？"
 
 #. label: the folder the new workspace goes in
 #: app/src/features/welcome/WelcomePage.tsx

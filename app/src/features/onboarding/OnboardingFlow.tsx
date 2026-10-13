@@ -274,7 +274,7 @@ function Teach({ step }: { step: StepId }) {
   const agentName = useAgentName()
   const Icon = l.icon
   return (
-    <div className="mx-auto grid h-full max-w-[1104px] grid-cols-[minmax(0,26rem)_1fr] items-center gap-14 px-12">
+    <div className="mx-auto grid h-full max-w-[1104px] grid-cols-[minmax(0,28rem)_1fr] items-center gap-14 px-12">
       {/* Keyed by step, so each step's words come in fresh */}
       <div key={step} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
         <div className="mb-3.5 flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -282,8 +282,9 @@ function Teach({ step }: { step: StepId }) {
           <span>{l.kicker}</span>
           {l.keys && <Key>{l.keys}</Key>}
         </div>
-        {/* Set like the wordmark: Dosis slanted by a skew; Chinese stands upright */}
-        <h1 className="font-display mb-4 -skew-x-6 text-[2.75rem] leading-[1.05] font-medium [&:lang(zh)]:skew-x-0">{l.title}</h1>
+        {/* Set like the wordmark: Dosis slanted by a skew, on one line, since a skew shifts each line of a
+            wrapped title by its height; Chinese stands upright */}
+        <h1 className="font-display mb-4 -skew-x-6 text-[2.5rem] leading-[1.05] font-medium whitespace-nowrap [&:lang(zh)]:skew-x-0">{l.title}</h1>
         <p className="text-base leading-relaxed text-muted-foreground [&_b]:font-medium [&_b]:text-foreground">{l.body}</p>
         <Setup step={step} />
       </div>
@@ -317,7 +318,7 @@ function Setup({ step }: { step: StepId }) {
       <div className="mt-6 flex flex-col gap-5">
         <List>
           <Row
-            name={t`What should Owlit call you?`}
+            name={t`Your name`}
             control={
               <CommitInput
                 aria-label={t`Your name`}
@@ -389,7 +390,7 @@ function Start() {
   return (
     <div className="flex h-full flex-col items-center justify-center px-12 text-center">
       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
-        <h1 className="font-display mb-4 -skew-x-6 text-[2.75rem] leading-[1.05] font-medium [&:lang(zh)]:skew-x-0">{t`Where to begin?`}</h1>
+        <h1 className="font-display mb-4 -skew-x-6 text-[2.5rem] leading-[1.05] font-medium [&:lang(zh)]:skew-x-0">{t`Where to begin?`}</h1>
         <p className="mx-auto max-w-lg text-base leading-relaxed text-muted-foreground">
           {t`Look around a workspace that's already set up, or start with an empty folder of your own. You can do the other one later.`}
         </p>

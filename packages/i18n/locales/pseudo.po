@@ -4187,12 +4187,12 @@ msgid "Ready · {0}"
 msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
-msgid "Copy the sign-in command"
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Copy the install command"
 msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Copy the install command"
+msgid "Copy the sign-in command"
 msgstr ""
 
 #. verb
@@ -4319,11 +4319,6 @@ msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Pick a theme and a paper tone. You can change both in Settings."
-msgstr ""
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "What should Owlit call you?"
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
@@ -5086,6 +5081,10 @@ msgstr ""
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Remove from Recent"
+msgstr ""
+
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "What should Owlit call you?"
 msgstr ""
 
 #. label: the folder the new workspace goes in
