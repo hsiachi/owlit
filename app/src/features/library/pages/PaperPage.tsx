@@ -51,7 +51,8 @@ export function PaperPage() {
   const filter = useLibraryUi((s) => s.filter)
   const tags = useLibraryUi((s) => s.tags)
   const sort = useLibraryUi((s) => s.sort)
-  const order = useMemo(() => visiblePapers(papers, { query, filter, tags, sort }).map((p) => p.id), [papers, query, filter, tags, sort])
+  const only = useLibraryUi((s) => s.only)
+  const order = useMemo(() => visiblePapers(papers, { query, filter, tags, sort, only }).map((p) => p.id), [papers, query, filter, tags, sort, only])
   const idx = order.indexOf(paperId)
   const prevId = idx > 0 ? order[idx - 1] : null
   const nextId = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null

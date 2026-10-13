@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { t } from "@lingui/core/macro"
-import { BorderedList } from "@/components/bordered-list"
+import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,6 +9,7 @@ import { speakerName } from "../format"
 import { getTopic, splitTopic } from "../store"
 import type { Topic } from "../types"
 import { useKnowledgeUi } from "../ui-store"
+import { cn } from "@/lib/utils"
 
 // Split…: pick the lines that leave, name the new topic
 export function SplitDialog() {
@@ -49,10 +50,10 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
           if (ok) onDone(splitTopic(topic.id, picked, name))
         }}
       >
-        <BorderedList as="ul">
+        <RowList as="ul">
           {topic.lines.map((l) => (
             <li key={l.id}>
-              <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 text-sm leading-snug">
+              <label className={cn("flex cursor-pointer items-start gap-3 py-2.5 text-sm leading-snug", rowClass, rowHover)}>
                 <Checkbox
                   className="mt-0.5"
                   checked={picked.includes(l.id)}
@@ -65,7 +66,7 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
               </label>
             </li>
           ))}
-        </BorderedList>
+        </RowList>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">{t`New topic`}</span>
           <input

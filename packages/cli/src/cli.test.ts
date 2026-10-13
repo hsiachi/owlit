@@ -1,6 +1,6 @@
 import { Core } from "@owlit/core"
 import { execFile } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -95,6 +95,17 @@ describe("owlit", () => {
     mkdirSync(path.join(root, ".owlit"))
     expect(await owlit(["list"])).toEqual({ code: 3, out: "", err: `owlit isn't open with ws. Run "owlit open" to open it.\n` })
     expect(await owlit(["list"], tmpdir())).toMatchObject({ code: 2, err: /isn't in an owlit workspace/ })
+  })
+
+  it("imports a BibTeX file and follows it to the end", async () => {
+    const { root, owlit } = await setup()
+    writeFileSync(path.join(root, "refs.bib"), "@article{v, title = {Attention Is All You Need}, eprint = {1706.03762}, archivePrefix = {arXiv}}\n@misc{x}\n")
+    const result = await owlit(["import", "bibtex", "refs.bib"])
+    expect(result).toMatchObject({ code: 0, err: expect.stringMatching(/Importing|Reading/) })
+    expect(result.out).toMatch(/^1 added · 0 already there · 1 couldn't be added\n  x: It has no title, identifier or PDF\.\nPDFs and text arrive by themselves/)
+    const again = JSON.parse((await owlit(["import", "bibtex", "refs.bib", "--json"])).out)
+    expect(again).toMatchObject({ source: "bibtex", added: [], existed: 1 })
+    expect(await owlit(["import", "endnote", "refs.enl"])).toMatchObject({ code: 2, err: /^owlit import takes zotero, bibtex or folder/ })
   })
 
   it("explains a wrong command", async () => {

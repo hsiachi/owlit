@@ -989,6 +989,8 @@ msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
@@ -2330,6 +2332,7 @@ msgid "In a doc, type @ to cite a paper."
 msgstr "在文档中输入 @ 即可引用论文。"
 
 #: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Answer"
 msgstr "回答"
 
@@ -2467,6 +2470,10 @@ msgstr "图书馆需要你登录"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
 msgstr "以获取 PDF"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An import asks about MinerU"
+msgstr "一次导入在问 MinerU 的事"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
@@ -3240,8 +3247,10 @@ msgid "{0, plural, one {# doc} other {# docs}}"
 msgstr "{0, plural, other {# 篇文档}}"
 
 #. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
 #. placeholder {0}: papers.length
 #: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr "{0, plural, other {# 篇论文}}"
@@ -3433,6 +3442,218 @@ msgstr "由 Owlit 添加"
 msgid "Highlight actions"
 msgstr "高亮操作"
 
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from Zotero"
+msgstr "来自 Zotero"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from {name}"
+msgstr "来自 {name}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from the {name} folder"
+msgstr "来自文件夹 {name}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{fresh, plural, one {Import {origin}: should MinerU read the new paper's PDF?} other {Import {origin}: should MinerU read the PDFs of # new papers?}}"
+msgstr "{fresh, plural, one {导入（{origin}）：要让 MinerU 读这篇新论文的 PDF 吗？} other {导入（{origin}）：要让 MinerU 读这 # 篇新论文的 PDF 吗？}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Read them"
+msgstr "读"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Not this time"
+msgstr "这次不用"
+
+#. placeholder {0}: task.error ?? ""
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin} stopped: {0}"
+msgstr "导入（{origin}）停下了：{0}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped after {done} of {total}"
+msgstr "导入在 {done}/{total} 处停下了"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped"
+msgstr "导入停下了"
+
+#. button: go on reading a paper
+#. carry on with a stopped import
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Continue"
+msgstr "继续阅读"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Put away"
+msgstr "收起"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Reading the collection {origin}…"
+msgstr "正在读取文献集（{origin}）…"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Importing {origin} · {done} of {total}"
+msgstr "正在导入（{origin}）· {done}/{total}"
+
+#. placeholder {0}: summary.existed
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{0, plural, one {# was here already} other {# were here already}}"
+msgstr "{0, plural, other {# 篇已在库中}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{withoutPdf, plural, one {# without a PDF} other {# without a PDF}}"
+msgstr "{withoutPdf, plural, other {# 篇没有 PDF}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {# paper came in {origin}} other {# papers came in {origin}}}"
+msgstr "{added, plural, other {导入了 # 篇论文（{origin}）}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Nothing new came in {origin}"
+msgstr "没有新论文（{origin}）"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "From this import"
+msgstr "这次导入的"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {Show it} other {Show the #}}"
+msgstr "{added, plural, one {查看} other {查看这 # 篇}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{n, plural, one {# couldn't be added} other {# couldn't be added}}"
+msgstr "{n, plural, other {# 篇没能加入}}"
+
+#. button of the folder picker
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose"
+msgstr "选取"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Your Zotero folder"
+msgstr "你的 Zotero 文件夹"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Zotero"
+msgstr "Zotero"
+
+#. placeholder {0}: tilde(zotero)
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Found at {0}"
+msgstr "在 {0}"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Choose its folder…"
+msgstr "选择它的文件夹…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file…"
+msgstr "BibTeX 文件…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "From Zotero, Mendeley, JabRef or Google Scholar"
+msgstr "Zotero、Mendeley、JabRef 或 Google Scholar 导出的"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file"
+msgstr "BibTeX 文件"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs…"
+msgstr "一个装着 PDF 的文件夹…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Every PDF in it and its subfolders"
+msgstr "其中及子文件夹里的所有 PDF"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs"
+msgstr "装着 PDF 的文件夹"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import Papers"
+msgstr "导入论文"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Bring in papers from Zotero, a BibTeX file or a folder of PDFs"
+msgstr "从 Zotero、BibTeX 文件或 PDF 文件夹导入论文"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "That collection couldn't be read."
+msgstr "无法读取这个文献集。"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import from Zotero"
+msgstr "从 Zotero 导入"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a BibTeX file"
+msgstr "导入 BibTeX 文件"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a folder of PDFs"
+msgstr "导入 PDF 文件夹"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "The import couldn't start."
+msgstr "导入没能开始。"
+
+#. pick another collection to import
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Change…"
+msgstr "更改…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Reading…"
+msgstr "正在读取…"
+
+#. placeholder {0}: preview.collections
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {Collections become tags (# collection)} other {Collections become tags (# collections)}}"
+msgstr "{0, plural, other {把分类变成标签（# 个分类）}}"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {MinerU reads the new paper's PDF} other {MinerU reads the PDFs of the # new papers}}"
+msgstr "{fresh, plural, one {MinerU 读这篇新论文的 PDF} other {MinerU 读这 # 篇新论文的 PDF}}"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Each one is paid for by your MinerU account. Off: pdfium alone, for this import."
+msgstr "每一篇都由你的 MinerU 账户付费。关掉：这次导入只用 pdfium。"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Nothing new to import"
+msgstr "没有新的可导入"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {Import # paper} other {Import # papers}}"
+msgstr "{fresh, plural, other {导入 # 篇论文}}"
+
+#. placeholder {0}: p.total
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# PDF} other {# PDFs}}"
+msgstr "{0, plural, other {# 个 PDF}}"
+
+#. placeholder {0}: p.total
+#. placeholder {1}: p.withPdf
+#. placeholder {2}: p.withPdf
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PDF}}"
+msgstr "{0, plural, one {# 篇论文，{1} 篇有 PDF} other {# 篇论文，{2} 篇有 PDF}}"
+
+#. placeholder {0}: p.known
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
+msgstr "{0, plural, other {其中 # 篇已在库中。}}"
+
 #. Library tab: the papers to read next
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Up next"
@@ -3522,6 +3743,11 @@ msgstr "已读"
 msgid "Needs you"
 msgstr "需要你处理"
 
+#. placeholder {0}: only.label
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Stop showing only {0}"
+msgstr "不再只看「{0}」"
+
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Stop filtering by {tag}"
 msgstr "取消按 {tag} 筛选"
@@ -3602,12 +3828,6 @@ msgstr "无法请求导读。"
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
 msgstr "{0, plural, other {移除 # 篇论文}}"
-
-#. button: go on reading a paper
-#: app/src/features/library/components/PaperPeek.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Continue"
-msgstr "继续阅读"
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
@@ -3747,8 +3967,8 @@ msgid "No papers match."
 msgstr "没有匹配的论文。"
 
 #: app/src/features/library/pages/LibraryPage.tsx
-msgid "Drop PDF to add"
-msgstr "拖放 PDF 以添加"
+msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
+msgstr "拖入 PDF 来添加，或拖入 BibTeX 文件、文件夹来导入"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "No papers match “{words}”"
@@ -3777,6 +3997,14 @@ msgstr "选择 PDF"
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Ask Owlit to find papers"
 msgstr "让 Owlit 找论文"
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Coming from Zotero or BibTeX?"
+msgstr "从 Zotero 或 BibTeX 来？"
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Import your collection"
+msgstr "导入你的文献集"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "This paper is not in the library"
@@ -4333,12 +4561,6 @@ msgstr "你的名字"
 msgid "Where the Workspace Goes"
 msgstr "工作区存放位置"
 
-#. button of the folder picker
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose"
-msgstr "选取"
-
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Open a Folder"
@@ -4376,12 +4598,6 @@ msgstr "从头开始"
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "An empty folder for your own papers and notes. Drop in PDFs, or ask Owlit to find some."
 msgstr "一个空文件夹，放你自己的论文和笔记。拖进 PDF，或者让 Owlit 帮你找。"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Change…"
-msgstr "更改…"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Or <0>open a folder you have</0>: notes, an Obsidian vault, PDFs."
@@ -5280,6 +5496,10 @@ msgid "Clear Menu"
 msgstr "清除菜单"
 
 #: apps/desktop/src/main.ts
+msgid "Import Papers…"
+msgstr "导入论文…"
+
+#: apps/desktop/src/main.ts
 msgid "Import a pitta Library…"
 msgstr "导入 pitta 文献库…"
 
@@ -5631,9 +5851,63 @@ msgstr "{0, plural, other {删除 # 行}}"
 msgid "Sources updated"
 msgstr "来源已更新"
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr "owlit 在这里无法导入。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr "这次导入的记录不见了。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr "MinerU 会读取 {fresh} 篇新论文的 PDF，每一篇都要付费。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr "它没有标题、标识符或 PDF。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr "没有这次导入。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr "{file} 处什么都没有。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr "{file} 不是文件夹。"
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr "{file} 不是 BibTeX 文件。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr "{input} 处没有 Zotero 文献库。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr "{file} 处没有文件。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr "{file} 不是 Better BibTeX 导出的 JSON。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr "{dir} 处没有文件夹。"
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
 msgstr "那篇论文不在文献库中。"
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
+msgstr "没有找到这个标题的论文。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't tell which paper that is."
@@ -5650,10 +5924,6 @@ msgstr "owlit 在这里无法查找 PDF。"
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
 msgstr "owlit 在这里无法打开出版商页面。"
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
-msgstr "owlit 在这里无法导入。"
 
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."

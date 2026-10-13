@@ -5,6 +5,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import { AppSidebar } from "@/app/AppSidebar"
 import { CommandPalette } from "@/app/CommandPalette"
 import { ShortcutsDialog } from "@/app/ShortcutsDialog"
+import { ImportDialog } from "@/features/library/components/ImportDialog"
 import { useShortcutsShortcut } from "@/app/shortcuts"
 import { matchNav } from "@/app/nav"
 import { IconButton } from "@/components/icon-button"
@@ -120,6 +121,7 @@ function AppShell() {
         <CommandPalette />
         <SettingsDialog />
         <ShortcutsDialog />
+        <ImportDialog />
         <TourOverlay />
         <IntroReplay />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import { t } from "@lingui/core/macro"
 import type { Connector } from "@owlit/protocol"
 import { LoaderCircleIcon } from "lucide-react"
-import { BorderedList } from "@/components/bordered-list"
+import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
 import { canRun, connectorProblem, problemSentence, statusLabel } from "@/features/chat/lib/connector-status"
@@ -45,7 +45,7 @@ export function AgentChoice() {
   }
 
   return (
-    <BorderedList className="mt-6" role="radiogroup" aria-label={t`Agent for Owlit`}>
+    <RowList className="mt-6" role="radiogroup" aria-label={t`Agent for Owlit`}>
       {connectors.map((c) => {
         const ready = canRun(c)
         const on = c.id === chosen?.id
@@ -60,7 +60,7 @@ export function AgentChoice() {
             tabIndex={ready ? 0 : -1}
             onClick={() => ready && choose(c)}
             onKeyDown={(e) => ready && (e.key === "Enter" || e.key === " ") && choose(c)}
-            className={cn("flex min-h-13 items-center gap-3 px-3.5 py-2 outline-none", ready ? "cursor-pointer hover:bg-muted focus-key:bg-muted" : "cursor-default")}
+            className={cn("flex min-h-13 items-center gap-3 py-2 outline-none", rowClass, ready ? cn("cursor-pointer", rowHover) : "cursor-default")}
           >
             <span className={cn("grid size-4 shrink-0 place-items-center rounded-full ring-[1.5px] ring-border transition-shadow ring-inset", on && "ring-[5px] ring-foreground", !ready && "opacity-40")} />
             <span className="min-w-0 flex-1">
@@ -93,6 +93,6 @@ export function AgentChoice() {
           </div>
         )
       })}
-    </BorderedList>
+    </RowList>
   )
 }

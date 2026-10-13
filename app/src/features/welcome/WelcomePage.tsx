@@ -3,7 +3,7 @@ import { t } from "@lingui/core/macro"
 import type { RecentWorkspace, WelcomeInfo } from "@owlit/protocol"
 import { FolderIcon, FolderOpenIcon, FolderPlusIcon, FolderXIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
-import { BorderedList } from "@/components/bordered-list"
+import { RowIcon, RowList, rowClass, rowHover } from "@/components/row-list"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { ListRow } from "@/components/list-row"
@@ -19,6 +19,7 @@ import { updateSettings, useSettings } from "@/features/settings/store"
 import { bridge, rpc } from "@/lib/rpc"
 import { useControlsRoom } from "@/lib/window-frame"
 import { AgentCheck } from "./AgentCheck"
+import { cn } from "@/lib/utils"
 
 // The page the window shows while no workspace is open: on a first launch, or when the last workspace is
 // no longer where it was. It asks where to work, and, until the user has given one, what Owlit should
@@ -101,7 +102,7 @@ export function WelcomePage() {
 
             <NameField />
 
-            <BorderedList className="mt-7">
+            <RowList className="mt-7">
               {editing ? (
                 <CreateForm
                   name={name}
@@ -118,9 +119,11 @@ export function WelcomePage() {
                   onCreate={create}
                 />
               ) : (
-                <div className="flex min-h-15 items-center gap-3 pr-2.5 pl-3.5 transition-colors hover:bg-muted">
-                  <button type="button" className="flex min-w-0 flex-1 items-center gap-3 self-stretch text-left outline-none focus-key:bg-muted" disabled={!info} onClick={create}>
-                    <FolderPlusIcon className="size-4 shrink-0 text-muted-foreground" />
+                <div className={cn("flex min-h-15 items-center gap-3 pr-1", rowClass, "transition-colors hover:bg-accent")}>
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-3 self-stretch text-left outline-none" disabled={!info} onClick={create}>
+                    <RowIcon>
+                      <FolderPlusIcon />
+                    </RowIcon>
                     <span className="min-w-0">
                       <span className="block text-sm font-medium">{t`Create a workspace`}</span>
                       <span className="block truncate text-detail text-muted-foreground">{info ? `${tilde(parent)}/${name}` : " "}</span>
@@ -133,16 +136,18 @@ export function WelcomePage() {
               )}
               <button
                 type="button"
-                className="flex min-h-15 w-full items-center gap-3 px-3.5 text-left transition-colors outline-none hover:bg-muted focus-key:bg-muted"
+                className={cn("flex min-h-15 w-full items-center gap-3 text-left", rowClass, rowHover)}
                 onClick={openFolder}
               >
-                <FolderOpenIcon className="size-4 shrink-0 text-muted-foreground" />
+                <RowIcon>
+                  <FolderOpenIcon />
+                </RowIcon>
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{t`Open a folder you have`}</span>
                   <span className="block truncate text-detail text-muted-foreground">{t`Notes, an Obsidian vault, PDFs. Your files stay as they are.`}</span>
                 </span>
               </button>
-            </BorderedList>
+            </RowList>
 
             {!!info?.recent.length && (
               <section className="mt-7">
@@ -232,7 +237,7 @@ function CreateForm({
   }, [])
   return (
     <form
-      className="py-3 pr-3.5 pl-3.5"
+      className={cn("bg-accent py-3", rowClass)}
       onSubmit={(e) => {
         e.preventDefault()
         onCreate()
@@ -240,10 +245,12 @@ function CreateForm({
       onKeyDown={(e) => e.key === "Escape" && onCancel()}
     >
       <div className="flex items-center gap-3">
-        <FolderPlusIcon className="size-4 shrink-0 text-muted-foreground" />
+        <RowIcon>
+          <FolderPlusIcon />
+        </RowIcon>
         <span className="text-sm font-medium">{t`Create a workspace`}</span>
       </div>
-      <div className="mt-3 grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5 pl-7 text-detail">
+      <div className="mt-3 grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5 pl-11 text-detail">
         <label htmlFor="workspace-name" className="text-muted-foreground">
           {t({ message: "Name", comment: "label: the new workspace folder's name" })}
         </label>

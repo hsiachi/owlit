@@ -58,6 +58,7 @@ import {
 } from "./pdf.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
+import { Imports } from "./bulk/imports.ts"
 import { readText, writeText } from "./text/files.ts"
 import { extractText, pageSizes, readPdf, UnreadablePdf } from "./text/extract.ts"
 import { contentListToText } from "./parse/convert.ts"
@@ -68,7 +69,7 @@ import { DIGEST_FORMAT, digestPrompt, drifted, type DigestRecord } from "./diges
 import { identify, type Identified } from "./text/identify.ts"
 import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import { findJournal, listJournal, parseYears, relatedOf, searchSource, type RelatedKind } from "./discover.ts"
-import type { JournalArticle } from "./sources/crossref.ts"
+import { titleKey, type JournalArticle } from "./sources/crossref.ts"
 import type { SourceRecord } from "./sources/types.ts"
 import {
   applyPatch,
@@ -158,6 +159,8 @@ export class Library {
   private timer: ReturnType<typeof setTimeout> | undefined
   // Writes, one at a time, so a paper's files never race
   private writing: Promise<unknown> = Promise.resolve()
+  // Collections brought in at once (Zotero, BibTeX, a folder of PDFs)
+  readonly imports: Imports
   // What each import.pitta run did, by task id
   private pittaSummaries = new Map<string, { added: number; skipped: number; failed: string[] }>()
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
@@ -178,11 +181,22 @@ export class Library {
     services.http.limit(WILEY_API_HOST, { perSecond: 0.1, concurrent: 1 })
     services.http.limit(ELSEVIER_API_HOST, { perSecond: 2, concurrent: 2 })
     this.index = new PaperIndex(root)
+    this.imports = new Imports(dataDir, {
+      find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
+      add: (paper, extra) => this.addNew(paper, "user", "background", extra),
+      addPdf: (file, extra) => this.importPdf(file, { priority: "background", ...extra }),
+      resolve: (title) => this.byTitle(title),
+      parsingOn: async () => {
+        const settings = (await this.services.parsing?.()) ?? {}
+        return !!settings.service && !(settings.service === "cloud" && !settings.token) && settings.auto !== false
+      },
+    })
   }
 
   // The scheduler that runs this library's tasks (paper.metadata and what follows an add)
   attach(scheduler: Scheduler) {
     this.scheduler = scheduler
+    this.imports.attach(scheduler)
   }
 
   // ---- Reading
@@ -274,6 +288,18 @@ export class Library {
     return { paper: { id: resolution.id, ...pick(resolution) }, existingId }
   }
 
+  // The paper with exactly this title, as OpenAlex knows it: an import's entry with nothing else to go on
+  // (a book, an old paper). A near match isn't taken, since nobody is there to check it.
+  private async byTitle(title: string): Promise<{ paper: ResolvedPaper; existingId?: string }> {
+    const found = await searchSource(this.services.http, title, 5, "openalex", {}, await this.services.settings(), { retries: 1 }).catch((error) => {
+      throw asRpcFailure(error)
+    })
+    const hit = found.records.find((r) => r.title && titleKey(r.title) === titleKey(title))
+    if (!hit) throw new RpcFailure(RpcErrorCode.NotFound, t`No paper with this title was found.`)
+    const [paper] = await this.mark([hit])
+    return { paper, ...(paper.inLibrary ? { existingId: paper.inLibrary } : {}) }
+  }
+
   // For each input, the paper in the library it names, offline
   async known(inputs: string[]): Promise<(string | null)[]> {
     return Promise.all(
@@ -293,8 +319,14 @@ export class Library {
   }
 
   // add(), saying whether the paper was there already (under one of its ids, or as the same title
-  // where one of the two has no DOI)
-  addNew(resolved: ResolvedPaper, addedBy: Paper["addedBy"] = "user", priority: TaskPriority = "asked"): Promise<{ paper: Paper; existed: boolean }> {
+  // where one of the two has no DOI). An import hands over the PDF it has (nothing is downloaded then)
+  // and the paper's tags.
+  addNew(
+    resolved: ResolvedPaper,
+    addedBy: Paper["addedBy"] = "user",
+    priority: TaskPriority = "asked",
+    extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean } } = {},
+  ): Promise<{ paper: Paper; existed: boolean }> {
     return this.serial(async () => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
       if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit can't tell which paper that is.`)
@@ -320,13 +352,16 @@ export class Library {
       await mkdir(paperDir(this.root, id), { recursive: true })
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
-      await writeState(this.root, id, freshState(addedBy))
+      await writeState(this.root, id, { ...freshState(addedBy), ...(extra.tags?.length ? { tags: extra.tags } : {}) })
+      // Known as imported before any step that reads it is queued
+      if (extra.imported) this.imports.note(id, extra.imported)
       this.index.set(id, record.ids, record.title)
       // What a lookup didn't fill (or a search result left unchecked: no Crossref title), the services
       // fill now; then the steps that follow an add
       if (!resolution) this.queue("paper.metadata", id, priority)
       else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
-      for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
+      if (extra.pdf) await this.placePdf(id, extra.pdf, await sha256Of(extra.pdf), priority)
+      else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
       return { paper: (await this.get(id))!, existed: false }
     })
   }
@@ -1070,7 +1105,8 @@ export class Library {
   // file. The same file dropped again is the paper it already is.
   // Reading and looking up happen outside the write queue, so a slow service never holds up a star or a
   // note; only placing the paper is queued.
-  async importPdf(file: string): Promise<{ paper: Paper; existed: boolean }> {
+  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean } } = {}): Promise<{ paper: Paper; existed: boolean }> {
+    const priority = options.priority ?? "asked"
     await assertPdf(file)
     const sha = await sha256Of(file)
     const same = await this.serial(() => this.paperWithPdf(sha))
@@ -1117,17 +1153,18 @@ export class Library {
       await mkdir(paperDir(this.root, id), { recursive: true })
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
-      await writeState(this.root, id, freshState("user"))
+      await writeState(this.root, id, { ...freshState("user"), ...(options.tags?.length ? { tags: options.tags } : {}) })
+      if (options.imported) this.imports.note(id, options.imported)
       this.index.set(id, record.ids, record.title)
       // An id the services couldn't be asked about (offline) gets its metadata later
-      if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, "asked")
-      await this.placePdf(id, file, sha)
+      if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, priority)
+      await this.placePdf(id, file, sha, priority)
       return { paper: (await this.get(id))!, existed: false }
     })
   }
 
   // The file becomes the paper's PDF, and the steps that read it follow
-  private async placePdf(id: string, file: string, sha: string) {
+  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked") {
     // A download or a publisher's page still looking must not replace the user's file when it lands,
     // nor a reading of the old file come back over the new one's
     for (const t of this.scheduler?.list() ?? []) {
@@ -1156,7 +1193,7 @@ export class Library {
       sha256: sha,
     })
     this.pdfHashes?.set(sha, id)
-    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, "asked")
+    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, priority)
   }
 
   // The paper whose PDF is this file, by its SHA-256 (kept in acquisition.json, or worked out once)
@@ -1211,6 +1248,8 @@ export class Library {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
+    // Before any paper is read: imported papers skip the digest and maybe MinerU
+    await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
     // A library that can't be read yet still opens; lookups just find less
     await this.index.load().catch((error) => console.error("[core] couldn't read the library", error))
@@ -1257,6 +1296,7 @@ export class Library {
     return [
       // A digest by a background agent session, from the paper's full text
       ...(this.services.agent ? [this.digestTask(this.services.agent)] : []),
+      ...this.imports.tasks(),
       this.figuresTask(),
       // MinerU's reading of the PDF replaces pdfium's (kept as text.pdfium.json). The job is recorded
       // before the file goes up, so a restart looks it up instead of paying for another. Without a
@@ -1390,9 +1430,11 @@ export class Library {
           const legacy = (await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")).startsWith(LEGACY_TEXT_MARK)
           await writeText(this.root, id, text, { markdown: !legacy })
           this.queue("index.paper", id, "background")
-          if ((await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
+          // An imported paper gets no digest of its own accord, and MinerU only if the import allowed it
+          const imported = this.imports.imported(id)
+          if (!imported && (await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
           // A scan has no text at all until MinerU reads it. pitta's text.md is MinerU's already.
-          if (!legacy) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
+          if (!legacy && imported?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
       }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact

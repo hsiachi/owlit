@@ -1,11 +1,12 @@
 import { t } from "@lingui/core/macro"
-import { BorderedList } from "@/components/bordered-list"
+import { RowList, rowClass } from "@/components/row-list"
 import { GroupLabel } from "@/components/group-label"
 import { DialogHeading } from "@/components/info"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { i18n } from "@/lib/i18n"
 import { closeShortcuts, SHORTCUT_GROUPS, useShortcutsSheet } from "./shortcuts"
+import { cn } from "@/lib/utils"
 
 // Help › Keyboard Shortcuts (⌘/): every shortcut, grouped, one line each. Short enough to need no search.
 export function ShortcutsDialog() {
@@ -19,9 +20,9 @@ export function ShortcutsDialog() {
             <GroupLabel as="h3" flush>
               {i18n._(group.title)}
             </GroupLabel>
-            <BorderedList as="ul">
+            <RowList as="ul">
               {group.shortcuts.map((s) => (
-                <li key={s.id} className="flex min-h-9 items-center gap-3 px-3 py-1 text-sm">
+                <li key={s.id} className={cn("flex min-h-9 items-center gap-3 py-1 text-sm", rowClass)}>
                   <span className="min-w-0 flex-1">
                     {i18n._(s.label)}
                     {s.where && <span className="text-muted-foreground"> {i18n._(s.where)}</span>}
@@ -31,7 +32,7 @@ export function ShortcutsDialog() {
                   </KbdGroup>
                 </li>
               ))}
-            </BorderedList>
+            </RowList>
           </section>
         ))}
       </DialogContent>

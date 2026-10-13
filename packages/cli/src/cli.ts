@@ -2,7 +2,7 @@
 // agents outside owlit. Every command asks the running app; there is no headless mode.
 
 import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
-import type { Task } from "@owlit/protocol"
+import { isTaskFinished, type ImportSource, type Task } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { stat } from "node:fs/promises"
 import path from "node:path"
@@ -13,6 +13,8 @@ export interface Io {
   env: Record<string, string | undefined>
   out: (text: string) => void
   err: (text: string) => void
+  // Asks the person at the terminal; missing when no one is there (a script, a pipe)
+  ask?: (question: string) => Promise<string>
 }
 
 export const HELP = `owlit: the owlit app from Terminal. owlit has to be open with the workspace.
@@ -27,6 +29,10 @@ Commands:
   search <words…>          Search the library: titles, abstracts, full text
   tasks                    What owlit is working on, and what finished since it opened
   open                     Open the workspace in owlit
+  import <kind> <path>     Bring in a collection: zotero (zotero.sqlite, its folder, or a
+                           Better BibTeX .json), bibtex (a .bib file) or folder (its PDFs).
+                           --tags makes Zotero collections tags; --parse / --no-parse answers
+                           ahead whether MinerU reads every PDF of a big import
   import-pitta <folder>    Bring in a pitta library
   index rebuild            Read the workspace again for search
 
@@ -56,6 +62,9 @@ export async function run(argv: string[], io: Io): Promise<number> {
         section: { type: "string" },
         digest: { type: "boolean" },
         note: { type: "boolean" },
+        tags: { type: "boolean" },
+        parse: { type: "boolean" },
+        "no-parse": { type: "boolean" },
         help: { type: "boolean", short: "h" },
         // Where the socket is, when not in the temp folder (tests)
         "socket-dir": { type: "string" },
@@ -109,7 +118,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
 }
 
 interface Context {
-  flags: { json?: boolean; pages?: string; section?: string; digest?: boolean; note?: boolean }
+  flags: { json?: boolean; pages?: string; section?: string; digest?: boolean; note?: boolean; tags?: boolean; parse?: boolean; "no-parse"?: boolean }
   print: (human: string, json: unknown) => void
   io: Io
 }
@@ -187,6 +196,44 @@ async function commands(command: string, args: string[], owlit: OwlitClient, { f
       return 0
     }
 
+    case "import": {
+      const [source, from] = args
+      if (!["zotero", "bibtex", "folder"].includes(source) || !from || args.length > 2) {
+        throw new Usage("owlit import takes zotero, bibtex or folder, then the path.")
+      }
+      const started = await owlit.rpc.library.import({ source: source as ImportSource, path: path.resolve(io.cwd, from), ...(flags.tags ? { collectionsAsTags: true } : {}) })
+      let shown = ""
+      let task: Task | undefined
+      for (;;) {
+        task = (await owlit.rpc.tasks.list()).find((t) => t.id === started.taskId)
+        if (!task || isTaskFinished(task)) break
+        if (task.state === "waiting_for_you" && task.waiting?.reason === "confirm_spend") {
+          const parse = flags.parse ? true : flags["no-parse"] ? false : await askParse(task.waiting.detail, io)
+          if (parse === null) {
+            io.err(`${task.waiting.detail} The import waits for an answer in owlit's Library.\n`)
+            return FAILED
+          }
+          await owlit.rpc.library.importAnswer({ id: started.id, parse })
+          continue
+        }
+        const line = task.progress?.total ? `Importing ${task.progress.done} of ${task.progress.total}` : "Reading the collection…"
+        if (line !== shown && !flags.json) io.err(`${line}\n`)
+        shown = line
+        await new Promise((r) => setTimeout(r, 300))
+      }
+      const summary = (await owlit.rpc.library.imports()).find((i) => i.id === started.id) ?? started
+      if (task?.state === "failed") {
+        io.err(`The import stopped: ${task.error ?? "it failed"}\n`)
+        return FAILED
+      }
+      const failed = summary.failed.map((f) => `  ${f.title ?? f.key}: ${f.error}`)
+      const head = `${summary.added.length} added · ${summary.existed} already there${summary.failed.length ? ` · ${summary.failed.length} couldn't be added` : ""}`
+      const lines = [task?.state === "cancelled" ? `Cancelled. ${head}` : head, ...failed]
+      if (summary.added.length) lines.push("PDFs and text arrive by themselves; owlit tasks shows how far they are.")
+      print(lines.join("\n"), summary)
+      return task?.state === "done" ? 0 : FAILED
+    }
+
     case "import-pitta": {
       need("the pitta library's folder (the one that holds papers/)")
       const done = await owlit.rpc.library.importPitta({ root: path.resolve(io.cwd, args[0]) })
@@ -211,6 +258,13 @@ async function commands(command: string, args: string[], owlit: OwlitClient, { f
     default:
       throw new Usage(`There is no command ${command}.`)
   }
+}
+
+// Whether MinerU reads every PDF of a big import, asked at the terminal; null with no one to ask
+async function askParse(question: string, io: Io): Promise<boolean | null> {
+  if (!io.ask) return null
+  const answer = (await io.ask(`${question} Have MinerU read them? [y/N] `)).trim().toLowerCase()
+  return answer === "y" || answer === "yes"
 }
 
 // Opens the workspace in the app (the bundle the installed command belongs to, as OWLIT_APP says; else

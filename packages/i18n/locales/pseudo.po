@@ -989,6 +989,8 @@ msgstr ""
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
@@ -2330,6 +2332,7 @@ msgid "In a doc, type @ to cite a paper."
 msgstr ""
 
 #: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Answer"
 msgstr ""
 
@@ -2466,6 +2469,10 @@ msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An import asks about MinerU"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3240,8 +3247,10 @@ msgid "{0, plural, one {# doc} other {# docs}}"
 msgstr ""
 
 #. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
 #. placeholder {0}: papers.length
 #: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr ""
@@ -3433,6 +3442,218 @@ msgstr ""
 msgid "Highlight actions"
 msgstr ""
 
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from Zotero"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from {name}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from the {name} folder"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{fresh, plural, one {Import {origin}: should MinerU read the new paper's PDF?} other {Import {origin}: should MinerU read the PDFs of # new papers?}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Read them"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Not this time"
+msgstr ""
+
+#. placeholder {0}: task.error ?? ""
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin} stopped: {0}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped after {done} of {total}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped"
+msgstr ""
+
+#. button: go on reading a paper
+#. carry on with a stopped import
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Continue"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Put away"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Reading the collection {origin}…"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Importing {origin} · {done} of {total}"
+msgstr ""
+
+#. placeholder {0}: summary.existed
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{0, plural, one {# was here already} other {# were here already}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{withoutPdf, plural, one {# without a PDF} other {# without a PDF}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {# paper came in {origin}} other {# papers came in {origin}}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Nothing new came in {origin}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "From this import"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {Show it} other {Show the #}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{n, plural, one {# couldn't be added} other {# couldn't be added}}"
+msgstr ""
+
+#. button of the folder picker
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Your Zotero folder"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Zotero"
+msgstr ""
+
+#. placeholder {0}: tilde(zotero)
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Found at {0}"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Choose its folder…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "From Zotero, Mendeley, JabRef or Google Scholar"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Every PDF in it and its subfolders"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import Papers"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Bring in papers from Zotero, a BibTeX file or a folder of PDFs"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "That collection couldn't be read."
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import from Zotero"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a BibTeX file"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a folder of PDFs"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "The import couldn't start."
+msgstr ""
+
+#. pick another collection to import
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Change…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Reading…"
+msgstr ""
+
+#. placeholder {0}: preview.collections
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {Collections become tags (# collection)} other {Collections become tags (# collections)}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {MinerU reads the new paper's PDF} other {MinerU reads the PDFs of the # new papers}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Each one is paid for by your MinerU account. Off: pdfium alone, for this import."
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Nothing new to import"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {Import # paper} other {Import # papers}}"
+msgstr ""
+
+#. placeholder {0}: p.total
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# PDF} other {# PDFs}}"
+msgstr ""
+
+#. placeholder {0}: p.total
+#. placeholder {1}: p.withPdf
+#. placeholder {2}: p.withPdf
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PDF}}"
+msgstr ""
+
+#. placeholder {0}: p.known
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
+msgstr ""
+
 #. Library tab: the papers to read next
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Up next"
@@ -3522,6 +3743,11 @@ msgstr ""
 msgid "Needs you"
 msgstr ""
 
+#. placeholder {0}: only.label
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Stop showing only {0}"
+msgstr ""
+
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Stop filtering by {tag}"
 msgstr ""
@@ -3601,12 +3827,6 @@ msgstr ""
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
-msgstr ""
-
-#. button: go on reading a paper
-#: app/src/features/library/components/PaperPeek.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Continue"
 msgstr ""
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
@@ -3747,7 +3967,7 @@ msgid "No papers match."
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
-msgid "Drop PDF to add"
+msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
@@ -3776,6 +3996,14 @@ msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Ask Owlit to find papers"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Coming from Zotero or BibTeX?"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Import your collection"
 msgstr ""
 
 #: app/src/features/library/pages/PaperPage.tsx
@@ -4333,12 +4561,6 @@ msgstr ""
 msgid "Where the Workspace Goes"
 msgstr ""
 
-#. button of the folder picker
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose"
-msgstr ""
-
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Open a Folder"
@@ -4375,12 +4597,6 @@ msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "An empty folder for your own papers and notes. Drop in PDFs, or ask Owlit to find some."
-msgstr ""
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Change…"
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
@@ -5280,6 +5496,10 @@ msgid "Clear Menu"
 msgstr ""
 
 #: apps/desktop/src/main.ts
+msgid "Import Papers…"
+msgstr ""
+
+#: apps/desktop/src/main.ts
 msgid "Import a pitta Library…"
 msgstr ""
 
@@ -5631,8 +5851,62 @@ msgstr ""
 msgid "Sources updated"
 msgstr ""
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr ""
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
 msgstr ""
 
 #: packages/core/src/library/library.ts
@@ -5649,10 +5923,6 @@ msgstr ""
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
 msgstr ""
 
 #: packages/core/src/library/library.ts
