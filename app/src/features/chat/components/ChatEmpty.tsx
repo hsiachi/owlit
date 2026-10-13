@@ -50,8 +50,9 @@ export function ChatEmpty() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
-      {/* Set like the wordmark: Dosis has no italic, so the 12° slant is drawn with a skew */}
-      <h1 className="font-display max-w-3xl -skew-x-12 text-center text-[2.75rem] leading-none font-medium text-balance text-foreground/90">
+      {/* Set like the wordmark: Dosis has no italic, so the 12° slant is drawn with a skew. Chinese is never
+          slanted (it reads as a faux italic), so in Chinese the greeting stands upright */}
+      <h1 className="font-display max-w-3xl -skew-x-12 text-center [&:lang(zh)]:skew-x-0 text-[2.75rem] leading-none font-medium text-balance text-foreground/90">
         {greeting(name)}
       </h1>
       <div className="w-full max-w-3xl">

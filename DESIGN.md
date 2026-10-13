@@ -489,7 +489,7 @@ One face, six sizes, two weights. **Figtree** everywhere: 22px for page titles (
 
 Chinese characters, which Figtree doesn't have, come from **PingFang SC** (Microsoft YaHei on Windows) at the same sizes and weights, while Latin letters and digits in the same line stay Figtree; the page's `lang` follows the interface language. Translated labels are given the room their words need rather than cut to the English width.
 
-**Dosis 500, skewed 12°**, is the greeting's face and nothing else: a narrow display face that tires at small sizes. **Monospace** (system, 0.85em on `muted`, or 13px in a block) is for what a machine said or takes: commands, keys, paths, an agent's raw message. A sentence about them is never monospace.
+**Dosis 500, skewed 12°**, is the greeting's face and nothing else: a narrow display face that tires at small sizes. A Chinese greeting stands upright: slanted characters read as a faux italic. **Monospace** (system, 0.85em on `muted`, or 13px in a block) is for what a machine said or takes: commands, keys, paths, an agent's raw message. A sentence about them is never monospace.
 
 Rendered Markdown (answers, reading notes, the paper note) keeps headings at 1.25/1.1/1rem semibold, lists with a 1.5rem indent, quotes behind a 2px muted rule, tables ruled and never boxed, code blocks wrapping their long lines rather than scrolling (a fenced paragraph still reads), display math centred on its own line.
 

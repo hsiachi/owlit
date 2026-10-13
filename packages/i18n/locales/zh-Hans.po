@@ -2262,11 +2262,10 @@ msgstr "最近"
 msgid "Drop PDFs to add them to your Library"
 msgstr "拖入 PDF，添加到文献库"
 
-#. button: go on reading a paper
 #: app/src/features/home/HomePage.tsx
-#: app/src/features/library/components/PaperPeek.tsx
+msgctxt "Home: what was worked on last"
 msgid "Continue"
-msgstr "继续阅读"
+msgstr "继续"
 
 #: app/src/features/home/HomePage.tsx
 msgid "edited {when}"
@@ -3353,7 +3352,7 @@ msgstr "布局"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Search, or paste a DOI, arXiv id or link to add"
-msgstr "搜索，或粘贴 DOI、arXiv ID 或链接来添加"
+msgstr "搜索，或粘贴 DOI、arXiv 编号或链接来添加"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Search or add papers"
@@ -3469,6 +3468,11 @@ msgstr "无法请求导读。"
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
 msgstr "{0, plural, other {移除 # 篇论文}}"
 
+#. button: go on reading a paper
+#: app/src/features/library/components/PaperPeek.tsx
+msgid "Continue"
+msgstr "继续阅读"
+
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
 msgstr "最近移除的一篇论文"
@@ -3574,7 +3578,7 @@ msgstr "无法查找。"
 
 #: app/src/features/library/mock-client.ts
 msgid "That does not look like a DOI, an arXiv id or a URL."
-msgstr "这看起来不像 DOI、arXiv ID 或 URL。"
+msgstr "这看起来不像 DOI、arXiv 编号或 URL。"
 
 #: app/src/features/library/mock-client.ts
 msgid "No open-access PDF was found for this paper."
@@ -5098,7 +5102,7 @@ msgstr "{root} 中没有 papers 文件夹。"
 
 #: packages/core/src/library/resolve.ts
 msgid "That doesn't look like a DOI, an arXiv id or a link to a paper."
-msgstr "这看起来不像 DOI、arXiv ID 或论文链接。"
+msgstr "这看起来不像 DOI、arXiv 编号或论文链接。"
 
 #: packages/core/src/library/resolve.ts
 msgid "No service owlit asks knows that paper."

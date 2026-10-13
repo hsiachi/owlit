@@ -2262,9 +2262,8 @@ msgstr ""
 msgid "Drop PDFs to add them to your Library"
 msgstr ""
 
-#. button: go on reading a paper
 #: app/src/features/home/HomePage.tsx
-#: app/src/features/library/components/PaperPeek.tsx
+msgctxt "Home: what was worked on last"
 msgid "Continue"
 msgstr ""
 
@@ -3467,6 +3466,11 @@ msgstr ""
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
+msgstr ""
+
+#. button: go on reading a paper
+#: app/src/features/library/components/PaperPeek.tsx
+msgid "Continue"
 msgstr ""
 
 #: app/src/features/library/components/RecentlyRemoved.tsx

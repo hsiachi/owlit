@@ -78,7 +78,7 @@ function LeadCard({ place }: { place: Place }) {
   const meta = [place.detail, didWords(place)].filter(Boolean).join(" · ")
   return (
     <section className="mt-5">
-      <GroupLabel>{t`Continue`}</GroupLabel>
+      <GroupLabel>{t({ message: "Continue", context: "Home: what was worked on last" })}</GroupLabel>
       <Link to={place.to} className="block rounded-md px-2.5 py-2 outline-none hover:bg-muted focus-key:bg-muted">
         <div className="flex min-w-0 items-center gap-2.5">
           <KindIcon kind={place.kind} className="size-4 shrink-0 text-muted-foreground" />
