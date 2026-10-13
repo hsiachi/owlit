@@ -162,7 +162,7 @@ const COLUMNS = [
   { key: "venue", label: msg`Venue`, width: 160, sort: "venue" },
   { key: "tags", label: msg`Tags`, width: 144 },
   { key: "status", label: msg`Status`, width: 104 },
-  { key: "added", label: msg({ message: "Added", comment: "table column: when the paper was added" }), width: 96, sort: "addedAt" },
+  { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
 ] as const
 
 type Column = (typeof COLUMNS)[number]

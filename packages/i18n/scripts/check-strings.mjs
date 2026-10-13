@@ -62,6 +62,13 @@ function check(file) {
   const visit = (node) => {
     const callee = ts.isTaggedTemplateExpression(node) ? node.tag : ts.isCallExpression(node) ? node.expression : null
     if (callee && ts.isIdentifier(callee) && MACROS.has(callee.text) && atTopLevel(node)) report(node, `${callee.text}(…) at the module's top level`)
+    // t({ message, context }) and msg({ … }): the macro reads context and id only as written literals and
+    // silently drops anything else, which merges messages meant to differ
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && ["t", "msg"].includes(node.expression.text) && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0])) {
+      for (const p of node.arguments[0].properties) {
+        if (ts.isPropertyAssignment(p) && ["context", "id"].includes(p.name.getText(source)) && !ts.isStringLiteral(p.initializer) && !ts.isNoSubstitutionTemplateLiteral(p.initializer)) report(p, `${p.name.getText(source)} that isn't a literal string`)
+      }
+    }
     if (ts.isJsxText(node)) {
       const words = node.text.trim()
       if (words && hasLetters(words) && !SAME_EVERYWHERE.test(words) && !insideTrans(node)) report(node, `text "${words.slice(0, 60)}"`)

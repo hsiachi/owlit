@@ -200,10 +200,6 @@ msgid "in the Library and Knowledge"
 msgstr "in the Library and Knowledge"
 
 #: app/src/app/shortcuts.ts
-msgid "outside Chat"
-msgstr "outside Chat"
-
-#: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/docs/editor/selection-menu.ts
@@ -214,6 +210,10 @@ msgstr "outside Chat"
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
 msgstr "Ask Owlit"
+
+#: app/src/app/shortcuts.ts
+msgid "outside Chat"
+msgstr "outside Chat"
 
 #: app/src/app/shortcuts.ts
 msgid "Show or hide the current chat"
@@ -270,10 +270,6 @@ msgstr "Rename"
 msgid "in the docs list"
 msgstr "in the docs list"
 
-#: app/src/app/shortcuts.ts
-msgid "in the docs list, with Undo"
-msgstr "in the docs list, with Undo"
-
 #. verb, in the keyboard shortcut list
 #. verb: delete a highlight
 #. verb: delete a topic
@@ -285,6 +281,10 @@ msgstr "in the docs list, with Undo"
 #: apps/desktop/src/main.ts
 msgid "Delete"
 msgstr "Delete"
+
+#: app/src/app/shortcuts.ts
+msgid "in the docs list, with Undo"
+msgstr "in the docs list, with Undo"
 
 #: app/src/app/shortcuts.ts
 msgid "Reading a paper"
@@ -917,10 +917,6 @@ msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 msgstr "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-msgid "Skip large files"
-msgstr "Skip large files"
-
-#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
@@ -929,6 +925,10 @@ msgstr "Skip large files"
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Cancel"
 msgstr "Cancel"
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+msgid "Skip large files"
+msgstr "Skip large files"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/chat/use-notify.ts
@@ -1000,12 +1000,8 @@ msgid "Your note on {name}"
 msgstr "Your note on {name}"
 
 #. a paper the agent added to the library
-#. table column: when the paper was added
-#. when the paper was added to the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/format.ts
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Added"
 msgstr "Added"
 
@@ -1431,6 +1427,16 @@ msgid "Read {file}"
 msgstr "Read {file}"
 
 #: app/src/features/chat/lib/step-words.ts
+msgctxt "a step that ran"
+msgid "Read {file}"
+msgstr "Read {file}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Read a file"
+msgstr "Read a file"
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "a step that ran"
 msgid "Read a file"
 msgstr "Read a file"
 
@@ -1491,20 +1497,24 @@ msgid "Searched the web for {quoted}"
 msgstr "Searched the web for {quoted}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "a page"
-msgstr "a page"
+msgid "Open {where}"
+msgstr "Open {where}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Open {page}"
-msgstr "Open {page}"
+msgid "Open a page"
+msgstr "Open a page"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opened “{title}”"
 msgstr "Opened “{title}”"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Opened {page}"
-msgstr "Opened {page}"
+msgid "Opened {where}"
+msgstr "Opened {where}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Opened a page"
+msgstr "Opened a page"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Look for files"
@@ -1775,6 +1785,16 @@ msgid "Read a paper"
 msgstr "Read a paper"
 
 #: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a paper"
+msgstr "Read a paper"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read your highlights"
+msgstr "Read your highlights"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
 msgid "Read your highlights"
 msgstr "Read your highlights"
 
@@ -1839,6 +1859,11 @@ msgid "Read a doc"
 msgstr "Read a doc"
 
 #: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a doc"
+msgstr "Read a doc"
+
+#: app/src/features/chat/lib/tool-title.ts
 msgid "Leave a note on a doc"
 msgstr "Leave a note on a doc"
 
@@ -1875,6 +1900,16 @@ msgid "Read a chat"
 msgstr "Read a chat"
 
 #: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a chat"
+msgstr "Read a chat"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read Knowledge"
+msgstr "Read Knowledge"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
 msgid "Read Knowledge"
 msgstr "Read Knowledge"
 
@@ -2320,18 +2355,18 @@ msgid "Manage agents"
 msgstr "Manage agents"
 
 #: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Library proxy"
+msgstr "Library proxy"
+
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Your library wants you to sign in"
 msgstr "Your library wants you to sign in"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
 msgstr "to fetch PDFs"
-
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/settings/sections/ProxyGroup.tsx
-#: app/src/features/settings/store.ts
-msgid "Library proxy"
-msgstr "Library proxy"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
@@ -3395,6 +3430,12 @@ msgstr "More actions"
 msgid "Status"
 msgstr "Status"
 
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgctxt "when the paper was added to the library"
+msgid "Added"
+msgstr "Added"
+
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Copy citations"
 msgstr "Copy citations"
@@ -4134,13 +4175,13 @@ msgid "Background work"
 msgstr "Background work"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere."
-msgstr "What owlit remembers stays in this workspace and is never sent anywhere."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 msgid "Privacy"
 msgstr "Privacy"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What owlit remembers stays in this workspace and is never sent anywhere."
+msgstr "What owlit remembers stays in this workspace and is never sent anywhere."
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/welcome/WelcomePage.tsx
@@ -4367,13 +4408,13 @@ msgid "That doesn't look like an email address."
 msgstr "That doesn't look like an email address."
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
-msgid "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
-msgstr "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
-
-#: app/src/features/settings/sections/SourcesGroup.tsx
 #: app/src/features/settings/store.ts
 msgid "Finding papers"
 msgstr "Finding papers"
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
+msgstr "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Contact email"

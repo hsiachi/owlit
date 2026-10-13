@@ -9,47 +9,47 @@ msgstr ""
 
 #: app/src/app/AppSidebar.tsx
 msgid "A paper needs you"
-msgstr ""
+msgstr "有篇论文需要你处理"
 
 #: app/src/app/AppSidebar.tsx
 msgid "A chat needs you"
-msgstr ""
+msgstr "有个对话需要你处理"
 
 #. a place in the rail, then what waits there: Library · A paper needs you
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
-msgstr ""
+msgstr "{place} · {needsYou}"
 
 #: app/src/app/AppSidebar.tsx
 #: app/src/app/app-links.ts
 #: app/src/app/shortcuts.ts
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Settings"
-msgstr ""
+msgstr "设置"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/components/list-panel.tsx
 msgid "Search"
-msgstr ""
+msgstr "搜索"
 
 #: app/src/app/CommandPalette.tsx
 msgid "Jump to a paper, a doc or a chat"
-msgstr ""
+msgstr "跳转到论文、文档或对话"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/settings/store.ts
 msgid "Papers"
-msgstr ""
+msgstr "论文"
 
 #: app/src/app/CommandPalette.tsx
 msgid "Chats"
-msgstr ""
+msgstr "对话"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/nav.ts
 #: app/src/lib/kinds.ts
 msgid "Docs"
-msgstr ""
+msgstr "文档"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/agent/AgentWindow.tsx
@@ -57,7 +57,7 @@ msgstr ""
 #: app/src/features/chat/lib/title.ts
 #: app/src/features/chat/store.ts
 msgid "New chat"
-msgstr ""
+msgstr "新对话"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/shortcuts.ts
@@ -66,23 +66,23 @@ msgstr ""
 #: app/src/features/docs/pages/DocsHome.tsx
 #: app/src/features/home/HomePage.tsx
 msgid "New doc"
-msgstr ""
+msgstr "新文档"
 
 #: app/src/app/CommandPalette.tsx
 msgid "Actions"
-msgstr ""
+msgstr "操作"
 
 #: app/src/app/CommandPalette.tsx
 msgid "Search papers, docs and chats…"
-msgstr ""
+msgstr "搜索论文、文档和对话…"
 
 #: app/src/app/CommandPalette.tsx
 msgid "Nothing found yet. Still indexing…"
-msgstr ""
+msgstr "还没找到。仍在建立索引…"
 
 #: app/src/app/CommandPalette.tsx
 msgid "Nothing found."
-msgstr ""
+msgstr "什么也没找到。"
 
 #. button of the folder picker
 #. button of the folder picker
@@ -101,12 +101,12 @@ msgstr ""
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/main.ts
 msgid "Open"
-msgstr ""
+msgstr "打开"
 
 #. palette footer, beside the arrow keys: moves between rows
 #: app/src/app/CommandPalette.tsx
 msgid "Navigate"
-msgstr ""
+msgstr "选择"
 
 #. palette footer, beside the Esc key: closes the palette
 #. verb: close the Owlit panel
@@ -118,54 +118,54 @@ msgstr ""
 #: app/src/features/library/reader/ReaderControls.tsx
 #: apps/desktop/src/main.ts
 msgid "Close"
-msgstr ""
+msgstr "关闭"
 
 #: app/src/app/Shell.tsx
 msgid "Back"
-msgstr ""
+msgstr "后退"
 
 #: app/src/app/Shell.tsx
 msgid "Forward"
-msgstr ""
+msgstr "前进"
 
 #: app/src/app/ShortcutsDialog.tsx
 #: app/src/app/app-links.ts
 #: app/src/app/shortcuts.ts
 msgid "Keyboard shortcuts"
-msgstr ""
+msgstr "键盘快捷键"
 
 #: app/src/app/ShortcutsDialog.tsx
 msgid "Every keyboard shortcut in owlit"
-msgstr ""
+msgstr "owlit 的全部键盘快捷键"
 
 #: app/src/app/agent-changes.ts
 msgid "Note added"
-msgstr ""
+msgstr "已添加笔记"
 
 #: app/src/app/agent-changes.ts
 msgid "Paper added"
-msgstr ""
+msgstr "已添加论文"
 
 #: app/src/app/agent-changes.ts
 msgid "Knowledge updated"
-msgstr ""
+msgstr "知识已更新"
 
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
-msgstr ""
+msgstr "已移除论文"
 
 #: app/src/app/app-links.ts
 msgid "Settings › {place}"
-msgstr ""
+msgstr "设置 › {place}"
 
 #: app/src/app/nav.ts
 #: app/src/features/home/HomePage.tsx
 msgid "Home"
-msgstr ""
+msgstr "主页"
 
 #: app/src/app/nav.ts
 msgid "Chat"
-msgstr ""
+msgstr "对话"
 
 #: app/src/app/nav.ts
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
@@ -174,34 +174,30 @@ msgstr ""
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 #: app/src/lib/kinds.ts
 msgid "Knowledge"
-msgstr ""
+msgstr "知识"
 
 #: app/src/app/nav.ts
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/lib/kinds.ts
 msgid "Library"
-msgstr ""
+msgstr "文献库"
 
 #: app/src/app/shortcuts.ts
 msgid "Everywhere"
-msgstr ""
+msgstr "全局"
 
 #: app/src/app/shortcuts.ts
 msgid "Find anything"
-msgstr ""
+msgstr "查找任何内容"
 
 #: app/src/app/shortcuts.ts
 msgid "Find on this page"
-msgstr ""
+msgstr "在本页查找"
 
 #: app/src/app/shortcuts.ts
 msgid "in the Library and Knowledge"
-msgstr ""
-
-#: app/src/app/shortcuts.ts
-msgid "outside Chat"
-msgstr ""
+msgstr "在文献库和知识中"
 
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
@@ -213,31 +209,35 @@ msgstr ""
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
-msgstr ""
+msgstr "问 Owlit"
+
+#: app/src/app/shortcuts.ts
+msgid "outside Chat"
+msgstr "在对话以外"
 
 #: app/src/app/shortcuts.ts
 msgid "Show or hide the current chat"
-msgstr ""
+msgstr "显示或隐藏当前对话"
 
 #: app/src/app/shortcuts.ts
 msgid "Open workspace"
-msgstr ""
+msgstr "打开工作区"
 
 #: app/src/app/shortcuts.ts
 msgid "Docs and Chat"
-msgstr ""
+msgstr "文档和对话"
 
 #: app/src/app/shortcuts.ts
 msgid "in Docs · New chat in Chat"
-msgstr ""
+msgstr "在文档中 · 在对话中则为新对话"
 
 #: app/src/app/shortcuts.ts
 msgid "Mention or cite"
-msgstr ""
+msgstr "提及或引用"
 
 #: app/src/app/shortcuts.ts
 msgid "in a doc, note or message"
-msgstr ""
+msgstr "在文档、笔记或消息中"
 
 #. verb, in the keyboard shortcut list
 #. verb: send the message
@@ -245,15 +245,15 @@ msgstr ""
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Send"
-msgstr ""
+msgstr "发送"
 
 #: app/src/app/shortcuts.ts
 msgid "in the composer"
-msgstr ""
+msgstr "在输入框中"
 
 #: app/src/app/shortcuts.ts
 msgid "New line"
-msgstr ""
+msgstr "换行"
 
 #. verb
 #. verb, in the keyboard shortcut list
@@ -264,15 +264,11 @@ msgstr ""
 #: app/src/features/docs/actions.ts
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Rename"
-msgstr ""
+msgstr "重命名"
 
 #: app/src/app/shortcuts.ts
 msgid "in the docs list"
-msgstr ""
-
-#: app/src/app/shortcuts.ts
-msgid "in the docs list, with Undo"
-msgstr ""
+msgstr "在文档列表中"
 
 #. verb, in the keyboard shortcut list
 #. verb: delete a highlight
@@ -284,36 +280,40 @@ msgstr ""
 #: app/src/features/library/components/HighlightsList.tsx
 #: apps/desktop/src/main.ts
 msgid "Delete"
-msgstr ""
+msgstr "删除"
+
+#: app/src/app/shortcuts.ts
+msgid "in the docs list, with Undo"
+msgstr "在文档列表中，可撤销"
 
 #: app/src/app/shortcuts.ts
 msgid "Reading a paper"
-msgstr ""
+msgstr "阅读论文"
 
 #: app/src/app/shortcuts.ts
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Find in paper"
-msgstr ""
+msgstr "在论文中查找"
 
 #: app/src/app/shortcuts.ts
 msgid "Highlight the selection"
-msgstr ""
+msgstr "高亮所选内容"
 
 #: app/src/app/shortcuts.ts
 msgid "in colour 1 to 4"
-msgstr ""
+msgstr "使用颜色 1 到 4"
 
 #: app/src/app/shortcuts.ts
 msgid "Copy the selection"
-msgstr ""
+msgstr "拷贝所选内容"
 
 #: app/src/app/shortcuts.ts
 msgid "Save a comment"
-msgstr ""
+msgstr "保存备注"
 
 #: app/src/app/shortcuts.ts
 msgid "Close the popover"
-msgstr ""
+msgstr "关闭弹出框"
 
 #. heading of a group in the keyboard shortcut list
 #. verb, in the keyboard shortcut list
@@ -326,16 +326,16 @@ msgstr ""
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Undo"
-msgstr ""
+msgstr "撤销"
 
 #: app/src/app/shortcuts.ts
 msgid "Owlit’s last change to your doc or note too"
-msgstr ""
+msgstr "也可撤销 Owlit 对你的文档或笔记的上一次修改"
 
 #. a menu's name, then what is chosen in it
 #: app/src/components/choice-menu.tsx
 msgid "{label}: {choice}"
-msgstr ""
+msgstr "{label}：{choice}"
 
 #. verb
 #. verb: copy the large files into the workspace
@@ -350,241 +350,241 @@ msgstr ""
 #: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Copy"
-msgstr ""
+msgstr "拷贝"
 
 #: app/src/components/copy-button.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copied"
-msgstr ""
+msgstr "已拷贝"
 
 #: app/src/components/fade-clip.tsx
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show less"
-msgstr ""
+msgstr "收起"
 
 #: app/src/components/fade-clip.tsx
 msgid "Show all"
-msgstr ""
+msgstr "显示全部"
 
 #. verb: empty the search field
 #: app/src/components/find-field.tsx
 msgid "Clear"
-msgstr ""
+msgstr "清除"
 
 #: app/src/components/info.tsx
 msgid "About this"
-msgstr ""
+msgstr "关于此项"
 
 #: app/src/components/marks.tsx
 #: app/src/features/knowledge/components/LineRow.tsx
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Changed since you last looked"
-msgstr ""
+msgstr "自你上次查看后有改动"
 
 #: app/src/components/marks.tsx
 #: app/src/features/chat/status.ts
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Waiting on you"
-msgstr ""
+msgstr "等你处理"
 
 #. filter chip: every paper
 #. filter: every kind of thing
 #: app/src/components/mention/mention-list.tsx
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "All"
-msgstr ""
+msgstr "全部"
 
 #: app/src/components/mention/mention-list.tsx
 msgid "No matches"
-msgstr ""
+msgstr "没有匹配项"
 
 #: app/src/components/mention/mention-list.tsx
 msgid "Show all {total}"
-msgstr ""
+msgstr "显示全部 {total} 项"
 
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
-msgstr ""
+msgstr "路径导航"
 
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
-msgstr ""
+msgstr "命令面板"
 
 #: app/src/components/ui/command.tsx
 msgid "Search for a command to run..."
-msgstr ""
+msgstr "搜索要运行的命令…"
 
 #: app/src/components/ui/message-scroller.tsx
 msgid "Scroll to end"
-msgstr ""
+msgstr "滚动到底部"
 
 #: app/src/components/ui/message-scroller.tsx
 msgid "Scroll to start"
-msgstr ""
+msgstr "滚动到顶部"
 
 #: app/src/components/ui/sidebar.tsx
 msgid "Sidebar"
-msgstr ""
+msgstr "边栏"
 
 #: app/src/components/ui/sidebar.tsx
 msgid "Displays the mobile sidebar."
-msgstr ""
+msgstr "显示移动版边栏。"
 
 #: app/src/components/ui/sidebar.tsx
 msgid "Toggle Sidebar"
-msgstr ""
+msgstr "切换边栏"
 
 #: app/src/components/ui/spinner.tsx
 msgid "Loading"
-msgstr ""
+msgstr "正在载入"
 
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Ask Owlit…"
-msgstr ""
+msgstr "问 Owlit…"
 
 #: app/src/features/agent/AgentAskBar.tsx
 msgid "Last chat"
-msgstr ""
+msgstr "上一个对话"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Ask anything."
-msgstr ""
+msgstr "想问什么都可以。"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Ask a follow-up…"
-msgstr ""
+msgstr "继续追问…"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "No chats yet"
-msgstr ""
+msgstr "还没有对话"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Open in Chat"
-msgstr ""
+msgstr "在对话中打开"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Resize Owlit"
-msgstr ""
+msgstr "调整 Owlit 大小"
 
 #: app/src/features/agent/ContextChips.tsx
 msgid "Don't include {name}"
-msgstr ""
+msgstr "不包含 {name}"
 
 #: app/src/features/agent/ContextChips.tsx
 msgid "Don't include the selection"
-msgstr ""
+msgstr "不包含所选内容"
 
 #. chip: a passage quoted from a line of a Knowledge topic
 #: app/src/features/agent/page-context.ts
 msgid "Line"
-msgstr ""
+msgstr "条目"
 
 #. chip: a passage quoted from the paper's note
 #: app/src/features/agent/page-context.ts
 msgid "Note"
-msgstr ""
+msgstr "笔记"
 
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "p. {page}"
-msgstr ""
+msgstr "第 {page} 页"
 
 #. chip: a passage the user selected
 #: app/src/features/agent/page-context.ts
 msgid "Selection"
-msgstr ""
+msgstr "所选内容"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this paper…"
-msgstr ""
+msgstr "问问这篇论文…"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this doc…"
-msgstr ""
+msgstr "问问这篇文档…"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this topic…"
-msgstr ""
+msgstr "问问这个主题…"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this paper, or anything else."
-msgstr ""
+msgstr "问问这篇论文，或任何其他问题。"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this doc, or anything else."
-msgstr ""
+msgstr "问问这篇文档，或任何其他问题。"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this topic, or anything else."
-msgstr ""
+msgstr "问问这个主题，或任何其他问题。"
 
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
-msgstr ""
+msgstr "怎么做…（关于 owlit）"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Up late, {name}"
-msgstr ""
+msgstr "夜深了，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Good morning, {name}"
-msgstr ""
+msgstr "早上好，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Good afternoon, {name}"
-msgstr ""
+msgstr "下午好，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Good evening, {name}"
-msgstr ""
+msgstr "晚上好，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Up late"
-msgstr ""
+msgstr "夜深了"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Good morning"
-msgstr ""
+msgstr "早上好"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Good afternoon"
-msgstr ""
+msgstr "下午好"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "Good evening"
-msgstr ""
+msgstr "晚上好"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
 msgid "From anywhere, {keys} asks Owlit about what’s on your screen."
-msgstr ""
+msgstr "在任何地方按 {keys}，都能就屏幕上的内容问 Owlit。"
 
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Chat deleted"
-msgstr ""
+msgstr "对话已删除"
 
 #. verb: unpin a chat
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Unpin"
-msgstr ""
+msgstr "取消置顶"
 
 #. verb: pin a chat to the top
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Pin"
-msgstr ""
+msgstr "置顶"
 
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Rename chat"
-msgstr ""
+msgstr "重命名对话"
 
 #. a chat's status: waiting on the user
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Waiting"
-msgstr ""
+msgstr "等待中"
 
 #. a chat's status: the agent stopped with an error
 #. a helper agent's status: it stopped before it was done
@@ -593,149 +593,149 @@ msgstr ""
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Stopped"
-msgstr ""
+msgstr "已停止"
 
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Chat actions"
-msgstr ""
+msgstr "对话操作"
 
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "No chats yet."
-msgstr ""
+msgstr "还没有对话。"
 
 #: app/src/features/chat/components/ChatMessages.tsx
 msgid "Messages"
-msgstr ""
+msgstr "消息"
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Not signed in"
-msgstr ""
+msgstr "未登录"
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Not installed"
-msgstr ""
+msgstr "未安装"
 
 #. an agent's status
 #. an agent's status
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Error"
-msgstr ""
+msgstr "出错"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Allow"
-msgstr ""
+msgstr "允许"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Always allow"
-msgstr ""
+msgstr "始终允许"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Don't allow"
-msgstr ""
+msgstr "不允许"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Never allow"
-msgstr ""
+msgstr "永不允许"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Waiting in your note: Apply or Discard it there"
-msgstr ""
+msgstr "在你的笔记中等待：请在那里应用或放弃"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Waiting in the doc: Apply or Discard it there"
-msgstr ""
+msgstr "在文档中等待：请在那里应用或放弃"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Answer here"
-msgstr ""
+msgstr "在这里回答"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "A new file"
-msgstr ""
+msgstr "新文件"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Rewrites the doc"
-msgstr ""
+msgstr "重写整篇文档"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Adds {added}"
-msgstr ""
+msgstr "增加 {added}"
 
 #. after “Adds …”, hence lowercase
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "removes {removed}"
-msgstr ""
+msgstr "删去 {removed}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Removes {removed}"
-msgstr ""
+msgstr "删去 {removed}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "in {folder}"
-msgstr ""
+msgstr "位于 {folder}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "For the agent “{agent}”"
-msgstr ""
+msgstr "代智能体“{agent}”"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit is waiting on you"
-msgstr ""
+msgstr "Owlit 在等你处理"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Or type below to say what to do instead"
-msgstr ""
+msgstr "也可以在下方输入，告诉它改做什么"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Question {number}"
-msgstr ""
+msgstr "问题 {number}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks for the agent “{agent}”"
-msgstr ""
+msgstr "Owlit 代智能体“{agent}”提问"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks"
-msgstr ""
+msgstr "Owlit 提问"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks for the agent “{agent}” · {header}"
-msgstr ""
+msgstr "Owlit 代智能体“{agent}”提问 · {header}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks · {header}"
-msgstr ""
+msgstr "Owlit 提问 · {header}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "{count, plural, one {Owlit asks for the agent “{agent}” # question} other {Owlit asks for the agent “{agent}” # questions}}"
-msgstr ""
+msgstr "{count, plural, other {Owlit 代智能体“{agent}”提了 # 个问题}}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "{count, plural, one {Owlit asks # question} other {Owlit asks # questions}}"
-msgstr ""
+msgstr "{count, plural, other {Owlit 提了 # 个问题}}"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks for the agent “{agent}” a question"
-msgstr ""
+msgstr "Owlit 代智能体“{agent}”提了一个问题"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks a question"
-msgstr ""
+msgstr "Owlit 提了一个问题"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Owlit asks you"
-msgstr ""
+msgstr "Owlit 问你"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Previous question"
-msgstr ""
+msgstr "上一个问题"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Next question"
-msgstr ""
+msgstr "下一个问题"
 
 #. choice between showing the reading note or the PDF
 #. verb: scroll to the helper agents' block and open it
@@ -744,181 +744,177 @@ msgstr ""
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Show"
-msgstr ""
+msgstr "显示"
 
 #. verb: fold the card to one line
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Fold"
-msgstr ""
+msgstr "收起"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Something else…"
-msgstr ""
+msgstr "其他…"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Or type your own answer below"
-msgstr ""
+msgstr "也可以在下方输入你自己的回答"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Type your answer below"
-msgstr ""
+msgstr "在下方输入你的回答"
 
 #. button: go on to the next paper without this one
 #. verb: skip the agent's question
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Skip"
-msgstr ""
+msgstr "跳过"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Submit"
-msgstr ""
+msgstr "提交"
 
 #. button: the next question
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Next"
-msgstr ""
+msgstr "下一个"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Agent: {agent}"
-msgstr ""
+msgstr "智能体：{agent}"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Agent: none"
-msgstr ""
+msgstr "智能体：无"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "No agent"
-msgstr ""
+msgstr "不用智能体"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "Manage agents…"
-msgstr ""
+msgstr "管理智能体…"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Choose model and effort"
-msgstr ""
+msgstr "选择模型和思考强度"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "{modelName} · {effortName} effort"
-msgstr ""
+msgstr "{modelName} · 思考强度：{effortName}"
 
 #. how hard the model thinks: a menu of effort levels
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Effort"
-msgstr ""
+msgstr "思考强度"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Choose how Owlit works"
-msgstr ""
+msgstr "选择 Owlit 的工作方式"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Owlit works as"
-msgstr ""
+msgstr "Owlit 的角色"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 msgid "{agent} can't read text files"
-msgstr ""
+msgstr "{agent} 无法读取文本文件"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 msgid "{agent} can't read PDFs"
-msgstr ""
+msgstr "{agent} 无法读取 PDF"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 msgid "{agent} can't read images"
-msgstr ""
+msgstr "{agent} 无法读取图片"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 msgid "{agent} can't read Word files"
-msgstr ""
+msgstr "{agent} 无法读取 Word 文件"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 msgid "{agent} can't read this kind of file"
-msgstr ""
+msgstr "{agent} 无法读取这类文件"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "Adding…"
-msgstr ""
+msgstr "正在添加…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 msgid "In your Library"
-msgstr ""
+msgstr "已在你的文献库中"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Open {name}"
-msgstr ""
+msgstr "打开 {name}"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "Add to Library"
-msgstr ""
+msgstr "添加到文献库"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Remove {name}"
-msgstr ""
+msgstr "移除 {name}"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Ask about your papers, docs or notes…"
-msgstr ""
+msgstr "问问你的论文、文档或笔记…"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Or tell Owlit what to do instead…"
-msgstr ""
+msgstr "也可以告诉 Owlit 改做什么…"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Or type your own answer…"
-msgstr ""
+msgstr "也可以输入你自己的回答…"
 
 #. verb: set up the agent in Settings
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Set up"
-msgstr ""
+msgstr "设置"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Attach files or mention a paper, doc or note"
-msgstr ""
+msgstr "附加文件，或提及论文、文档或笔记"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Add attachments or context"
-msgstr ""
+msgstr "添加附件或上下文"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Attach files"
-msgstr ""
+msgstr "附加文件"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Add from {place}"
-msgstr ""
+msgstr "从{place}添加"
 
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Stop"
-msgstr ""
+msgstr "停止"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Stop generating"
-msgstr ""
+msgstr "停止生成"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Send message"
-msgstr ""
+msgstr "发送消息"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "owlit keeps a copy of each file you attach with the chat, inside the workspace, so the chat still has it when the original moves or changes."
-msgstr ""
+msgstr "owlit 会在工作区里为对话保存一份你附加的每个文件的副本，这样即使原文件移动或更改，对话里仍然有它。"
 
 #. placeholder {0}: big.length
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
-msgstr ""
-
-#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-msgid "Skip large files"
-msgstr ""
+msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 #: app/src/features/knowledge/components/SplitDialog.tsx
@@ -928,120 +924,120 @@ msgstr ""
 #: app/src/features/settings/parts.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Cancel"
-msgstr ""
+msgstr "取消"
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+msgid "Skip large files"
+msgstr "跳过大文件"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/chat/use-notify.ts
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Owlit stopped"
-msgstr ""
+msgstr "Owlit 已停止"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Details"
-msgstr ""
+msgstr "详细信息"
 
 #. verb: leave a broken reply as it is
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Dismiss"
-msgstr ""
+msgstr "忽略"
 
 #. verb: send the question again
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Retry"
-msgstr ""
+msgstr "重试"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Edit message"
-msgstr ""
+msgstr "编辑消息"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Working…"
-msgstr ""
+msgstr "正在处理…"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Stopped, partial"
-msgstr ""
+msgstr "已停止，内容不完整"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Save as doc"
-msgstr ""
+msgstr "存为文档"
 
 #. verb: ask for the answer again
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Regenerate"
-msgstr ""
+msgstr "重新生成"
 
 #. a doc an edit mostly replaced
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/format.ts
 msgid "Rewritten"
-msgstr ""
+msgstr "已重写"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Words added and removed"
-msgstr ""
+msgstr "增删的字数"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Lines added and removed"
-msgstr ""
+msgstr "增删的行数"
 
 #. placeholder {0}: list.length
 #. placeholder {0}: notes.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "{0, plural, one {# note} other {# notes}}"
-msgstr ""
+msgstr "{0, plural, other {# 条批注}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Your note on {name}"
-msgstr ""
+msgstr "你的笔记：{name}"
 
 #. a paper the agent added to the library
-#. table column: when the paper was added
-#. when the paper was added to the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/format.ts
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Added"
-msgstr ""
+msgstr "已添加"
 
 #. a paper the agent took out of the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/format.ts
 msgid "Removed"
-msgstr ""
+msgstr "已移除"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{docs, plural, one {edited a doc} other {edited # docs}}"
-msgstr ""
+msgstr "{docs, plural, other {编辑了 # 个文档}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{docs, plural, one {edited a file} other {edited # files}}"
-msgstr ""
+msgstr "{docs, plural, other {编辑了 # 个文件}}"
 
 #. placeholder {0}: added(rows)
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {added a paper} other {added # papers}}"
-msgstr ""
+msgstr "{0, plural, other {添加了 # 篇论文}}"
 
 #. placeholder {0}: removed(rows)
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {removed a paper} other {removed # papers}}"
-msgstr ""
+msgstr "{0, plural, other {移除了 # 篇论文}}"
 
 #. placeholder {0}: n("note")
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
-msgstr ""
+msgstr "{0, plural, other {在 # 个文档中留下了批注}}"
 
 #. placeholder {0}: n("knowledge")
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {updated a topic} other {updated # topics}}"
-msgstr ""
+msgstr "{0, plural, other {更新了 # 个主题}}"
 
 #. verb
 #. verb: put back a change that was undone
@@ -1049,190 +1045,190 @@ msgstr ""
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Redo"
-msgstr ""
+msgstr "重做"
 
 #. a change that was taken back
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/lib/versions.ts
 msgid "Undone"
-msgstr ""
+msgstr "已撤销"
 
 #. verb: take back every change of the reply
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Undo all"
-msgstr ""
+msgstr "全部撤销"
 
 #. placeholder {0}: rest.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
-msgstr ""
+msgstr "{0, plural, other {显示其余 # 项}}"
 
 #. a helper agent's status
 #. a step that failed
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Failed"
-msgstr ""
+msgstr "失败"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "What it found"
-msgstr ""
+msgstr "它的发现"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "Its findings show here when it’s done."
-msgstr ""
+msgstr "完成后，它的发现会显示在这里。"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "The agent is waiting on you"
-msgstr ""
+msgstr "智能体在等你处理"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "An agent is waiting on you"
-msgstr ""
+msgstr "有智能体在等你处理"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "{done} of {count} done"
-msgstr ""
+msgstr "已完成 {done}/{count}"
 
 #. after a helper agent's task: the task was handed to an agent
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "an agent"
-msgstr ""
+msgstr "交给了助手智能体"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "{count, plural, one {# agent working} other {# agents working}}"
-msgstr ""
+msgstr "{count, plural, other {# 个智能体在工作}}"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "{done} done"
-msgstr ""
+msgstr "已完成 {done} 个"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "{count, plural, one {Worked with # agent} other {Worked with # agents}}"
-msgstr ""
+msgstr "{count, plural, other {与 # 个智能体协作完成}}"
 
 #: app/src/features/chat/components/messages/agents.tsx
 msgid "{working, plural, one {Waiting for an agent} other {Waiting for # agents}}"
-msgstr ""
+msgstr "{working, plural, other {正在等待 # 个智能体}}"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Allowed"
-msgstr ""
+msgstr "已允许"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Always allowed"
-msgstr ""
+msgstr "始终允许"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Not allowed"
-msgstr ""
+msgstr "未允许"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Never allowed"
-msgstr ""
+msgstr "永不允许"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Not answered"
-msgstr ""
+msgstr "未回答"
 
 #. a question the user skipped
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Skipped"
-msgstr ""
+msgstr "已跳过"
 
 #. a block of an answer's steps in which the agent only thought
 #. noun: what the agent thought
 #: app/src/features/chat/components/messages/parts.tsx
 #: app/src/features/chat/lib/step-words.ts
 msgid "Thought"
-msgstr ""
+msgstr "思考过程"
 
 #. the agent is thinking
 #. the agent is thinking
 #: app/src/features/chat/components/messages/parts.tsx
 #: app/src/features/chat/lib/step-words.ts
 msgid "Thinking"
-msgstr ""
+msgstr "正在思考"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{soFar} so far"
-msgstr ""
+msgstr "已 {soFar} 步"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Couldn't save {lost}"
-msgstr ""
+msgstr "无法保存 {lost}"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{failed} failed"
-msgstr ""
+msgstr "{failed} 个失败"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{refused} not allowed"
-msgstr ""
+msgstr "{refused} 个未获允许"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{stopped} stopped"
-msgstr ""
+msgstr "{stopped} 个已停止"
 
 #: app/src/features/chat/components/messages/parts.tsx
 #: app/src/lib/words.ts
 msgctxt "between things in a list"
 msgid ", "
-msgstr ""
+msgstr "、"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "({counts})"
-msgstr ""
+msgstr "（{counts}）"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{hidden, plural, one {# earlier step} other {# earlier steps}}"
-msgstr ""
+msgstr "{hidden, plural, other {更早的 # 个步骤}}"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Plan · {done}/{total}"
-msgstr ""
+msgstr "计划 · {done}/{total}"
 
 #. placeholder {0}: part.questions.length
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{0, plural, one {Answered a question} other {Answered # questions}}"
-msgstr ""
+msgstr "{0, plural, other {回答了 # 个问题}}"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "Skipped a question"
-msgstr ""
+msgstr "跳过了一个问题"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "A question went unanswered"
-msgstr ""
+msgstr "有一个问题未回答"
 
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "Already in your Library"
-msgstr ""
+msgstr "已在你的文献库中"
 
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "Added “{title}”"
-msgstr ""
+msgstr "已添加“{title}”"
 
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "Couldn't add that paper."
-msgstr ""
+msgstr "无法添加这篇论文。"
 
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "In Library"
-msgstr ""
+msgstr "已在文献库中"
 
 #: app/src/features/chat/components/messages/step-results.tsx
 msgid "No answer"
-msgstr ""
+msgstr "没有回答"
 
 #: app/src/features/chat/connectors.ts
 #: packages/core/src/agents/agents.ts
 msgid "Custom agent"
-msgstr ""
+msgstr "自定义智能体"
 
 #: app/src/features/chat/connectors.ts
 msgid "Custom ACP agent"
-msgstr ""
+msgstr "自定义 ACP 智能体"
 
 #. the model or mode an agent uses when none is picked
 #. the model or mode an agent uses when none is picked
@@ -1240,1192 +1236,1231 @@ msgstr ""
 #: app/src/features/chat/connectors.ts
 #: packages/core/src/agents/agents.ts
 msgid "Default"
-msgstr ""
+msgstr "默认"
 
 #: app/src/features/chat/disk.ts
 msgid "Couldn't save the chat."
-msgstr ""
+msgstr "无法保存对话。"
 
 #: app/src/features/chat/lib/attachments.ts
 msgid "owlit couldn't read that file."
-msgstr ""
+msgstr "owlit 无法读取该文件。"
 
 #: app/src/features/chat/lib/attachments.ts
 #: packages/core/src/chats/attach.ts
 msgid "Folders can't be attached yet."
-msgstr ""
+msgstr "暂不支持附加文件夹。"
 
 #: app/src/features/chat/lib/attachments.ts
 msgid "Pasted file"
-msgstr ""
+msgstr "粘贴的文件"
 
 #: app/src/features/chat/lib/attachments.ts
 #: app/src/features/library/lib/add-pdfs.ts
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Added to library"
-msgstr ""
+msgstr "已添加到文献库"
 
 #: app/src/features/chat/lib/attachments.ts
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Already in your library"
-msgstr ""
+msgstr "已在你的文献库中"
 
 #: app/src/features/chat/lib/attachments.ts
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Couldn't add that file."
-msgstr ""
+msgstr "无法添加该文件。"
 
 #. an agent's status: not checked yet whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Not checked"
-msgstr ""
+msgstr "未检查"
 
 #. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Checking…"
-msgstr ""
+msgstr "正在检查…"
 
 #. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Ready"
-msgstr ""
+msgstr "就绪"
 
 #. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Connected"
-msgstr ""
+msgstr "已连接"
 
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t installed"
-msgstr ""
+msgstr "{agent} 未安装"
 
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t signed in"
-msgstr ""
+msgstr "{agent} 未登录"
 
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} can’t run"
-msgstr ""
+msgstr "{agent} 无法运行"
 
 #: app/src/features/chat/lib/edit-counts.ts
 msgid "{lines, plural, one {line} other {lines}}"
-msgstr ""
+msgstr "{lines, plural, other {行}}"
 
 #: app/src/features/chat/lib/edit-counts.ts
 msgid "{n, plural, one {{shown} word} other {{shown} words}}"
-msgstr ""
+msgstr "{n, plural, other {{shown} 字}}"
 
 #: app/src/features/chat/lib/edit-counts.ts
 msgid "{n, plural, one {{shown} line} other {{shown} lines}}"
-msgstr ""
+msgstr "{n, plural, other {{shown} 行}}"
 
 #. heading over pinned chats
 #: app/src/features/chat/lib/group-chats.ts
 msgid "Pinned"
-msgstr ""
+msgstr "已置顶"
 
 #: app/src/features/chat/lib/group-chats.ts
 #: app/src/features/library/lib/filter.ts
 msgid "Today"
-msgstr ""
+msgstr "今天"
 
 #: app/src/features/chat/lib/group-chats.ts
 #: app/src/lib/time.ts
 msgid "Yesterday"
-msgstr ""
+msgstr "昨天"
 
 #: app/src/features/chat/lib/group-chats.ts
 #: app/src/features/library/lib/filter.ts
 msgid "Previous 7 days"
-msgstr ""
+msgstr "过去 7 天"
 
 #: app/src/features/chat/lib/group-chats.ts
 #: app/src/features/library/lib/filter.ts
 msgid "Previous 30 days"
-msgstr ""
+msgstr "过去 30 天"
 
 #. heading over chats older than 30 days
 #: app/src/features/chat/lib/group-chats.ts
 msgid "Older"
-msgstr ""
+msgstr "更早"
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 msgid "Reviewer"
-msgstr ""
+msgstr "审阅者"
 
 #: app/src/features/chat/lib/selection.ts
 msgid "Reads, answers and leaves comments. Never changes your files or library."
-msgstr ""
+msgstr "阅读、回答并留下批注。不会改动你的文件或文献库。"
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 msgid "Assistant"
-msgstr ""
+msgstr "助理"
 
 #: app/src/features/chat/lib/selection.ts
 msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
-msgstr ""
+msgstr "查找并添加论文，记自己的笔记。只有你采纳后，你的文稿才会改动。"
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 msgid "Co-author"
-msgstr ""
+msgstr "合著者"
 
 #: app/src/features/chat/lib/selection.ts
 msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
-msgstr ""
+msgstr "还能编辑你的文档，并在这个工作区中运行命令。每处改动都可以撤销。"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers and add them"
-msgstr ""
+msgstr "查找并添加论文"
 
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
 msgid "Find recent papers on "
-msgstr ""
+msgstr "查找以下主题的近期论文： "
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Compare papers"
-msgstr ""
+msgstr "比较论文"
 
 #. starts a question the user finishes with papers; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
 msgid "Compare the methods and findings of "
-msgstr ""
+msgstr "比较以下论文的方法和发现： "
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Review a draft"
-msgstr ""
+msgstr "审阅草稿"
 
 #. starts a question the user finishes with a doc; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
 msgid "Review where I overstate a finding or misread a paper in "
-msgstr ""
+msgstr "找出这份文稿中夸大结论或误读论文的地方： "
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Ask about your papers"
-msgstr ""
+msgstr "就你的论文提问"
 
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
 msgid "What do my papers say about "
-msgstr ""
+msgstr "我的论文对这个问题怎么说： "
 
 #: app/src/features/chat/lib/step-output.ts
 msgid "{n, plural, one {# result} other {# results}}"
-msgstr ""
+msgstr "{n, plural, other {# 条结果}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Use {server}: {action}"
-msgstr ""
+msgstr "使用 {server}：{action}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Used {server}: {action}"
-msgstr ""
+msgstr "使用了 {server}：{action}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Read {file}"
-msgstr ""
+msgstr "读取 {file}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "a step that ran"
+msgid "Read {file}"
+msgstr "读取了 {file}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Read a file"
-msgstr ""
+msgstr "读取文件"
+
+#: app/src/features/chat/lib/step-words.ts
+msgctxt "a step that ran"
+msgid "Read a file"
+msgstr "读取了一个文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Edit {file}"
-msgstr ""
+msgstr "编辑 {file}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Edited {file}"
-msgstr ""
+msgstr "编辑了 {file}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Edit a file"
-msgstr ""
+msgstr "编辑一个文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Edited a file"
-msgstr ""
+msgstr "编辑了一个文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Write {file}"
-msgstr ""
+msgstr "写入 {file}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Wrote {file}"
-msgstr ""
+msgstr "写入了 {file}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Write a file"
-msgstr ""
+msgstr "写入一个文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Wrote a file"
-msgstr ""
+msgstr "写入了一个文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Run a command"
-msgstr ""
+msgstr "运行一条命令"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Ran a command"
-msgstr ""
+msgstr "运行了一条命令"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Search the web"
-msgstr ""
+msgstr "在网上搜索"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searched the web"
-msgstr ""
+msgstr "在网上搜索了"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Search the web for {quoted}"
-msgstr ""
+msgstr "在网上搜索{quoted}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searched the web for {quoted}"
-msgstr ""
+msgstr "在网上搜索了{quoted}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "a page"
-msgstr ""
+msgid "Open {where}"
+msgstr "打开 {where}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Open {page}"
-msgstr ""
+msgid "Open a page"
+msgstr "打开一个页面"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opened “{title}”"
-msgstr ""
+msgstr "打开了“{title}”"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Opened {page}"
-msgstr ""
+msgid "Opened {where}"
+msgstr "打开了 {where}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "Opened a page"
+msgstr "打开了一个页面"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Look for files"
-msgstr ""
+msgstr "查找文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Looked for files"
-msgstr ""
+msgstr "查找了文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Look for files matching {pattern}"
-msgstr ""
+msgstr "查找匹配{pattern}的文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Looked for files matching {pattern}"
-msgstr ""
+msgstr "查找了匹配{pattern}的文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Search files"
-msgstr ""
+msgstr "搜索文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searched files"
-msgstr ""
+msgstr "搜索了文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Search files for {pattern}"
-msgstr ""
+msgstr "在文件中搜索{pattern}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searched files for {pattern}"
-msgstr ""
+msgstr "在文件中搜索了{pattern}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Hand a task to an agent"
-msgstr ""
+msgstr "把任务交给助手智能体"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Handed a task to an agent"
-msgstr ""
+msgstr "把任务交给了助手智能体"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
-msgstr ""
+msgstr "{questions, plural, other {问你 # 个问题}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{questions, plural, one {Asked you a question} other {Asked you # questions}}"
-msgstr ""
+msgstr "{questions, plural, other {问了你 # 个问题}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {ran a command} other {ran # commands}}"
-msgstr ""
+msgstr "{n, plural, other {运行了 # 条命令}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {read a file} other {read # files}}"
-msgstr ""
+msgstr "{n, plural, other {读取了 # 个文件}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {edited a file} other {edited # files}}"
-msgstr ""
+msgstr "{n, plural, other {编辑了 # 个文件}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {wrote a file} other {wrote # files}}"
-msgstr ""
+msgstr "{n, plural, other {写入了 # 个文件}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {opened a page} other {opened # pages}}"
-msgstr ""
+msgstr "{n, plural, other {打开了 # 个页面}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
-msgstr ""
+msgstr "{n, plural, other {把 # 个任务交给了助手智能体}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked you a question} other {asked you # questions}}"
-msgstr ""
+msgstr "{n, plural, other {问了你 # 个问题}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {used a tool} other {used # tools}}"
-msgstr ""
+msgstr "{n, plural, other {使用了 # 个工具}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {looked up a paper} other {looked up # papers}}"
-msgstr ""
+msgstr "{n, plural, other {查询了 # 篇论文}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {read a paper} other {read # papers}}"
-msgstr ""
+msgstr "{n, plural, other {阅读了 # 篇论文}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked for a reading note} other {asked for # reading notes}}"
-msgstr ""
+msgstr "{n, plural, other {请求了 # 份导读}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {read a doc} other {read # docs}}"
-msgstr ""
+msgstr "{n, plural, other {阅读了 # 个文档}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
-msgstr ""
+msgstr "{n, plural, other {在文档上留下了 # 条批注}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {moved a doc} other {moved # docs}}"
-msgstr ""
+msgstr "{n, plural, other {移动了 # 个文档}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {read a chat} other {read # chats}}"
-msgstr ""
+msgstr "{n, plural, other {阅读了 # 个对话}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {showed a passage} other {showed # passages}}"
-msgstr ""
+msgstr "{n, plural, other {展示了 # 段文字}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {highlighted a passage} other {highlighted # passages}}"
-msgstr ""
+msgstr "{n, plural, other {高亮了 # 段文字}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Running commands"
-msgstr ""
+msgstr "正在运行命令"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Reading files"
-msgstr ""
+msgstr "正在读取文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Editing"
-msgstr ""
+msgstr "正在编辑"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Writing"
-msgstr ""
+msgstr "正在写入"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Looking for files"
-msgstr ""
+msgstr "正在查找文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searching files"
-msgstr ""
+msgstr "正在搜索文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searching the web"
-msgstr ""
+msgstr "正在网上搜索"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opening pages"
-msgstr ""
+msgstr "正在打开页面"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Working with a helper"
-msgstr ""
+msgstr "正在与助手智能体协作"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searching for papers"
-msgstr ""
+msgstr "正在搜索论文"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Following citations"
-msgstr ""
+msgstr "正在追踪引用"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Listing a journal's papers"
-msgstr ""
+msgstr "正在列出期刊的论文"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Reading papers"
-msgstr ""
+msgstr "正在阅读论文"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Reading docs"
-msgstr ""
+msgstr "正在阅读文档"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "done to a file, before its name: read and edited story.md"
 msgid "read"
-msgstr ""
+msgstr "读取"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "done to a file, before its name: read and edited story.md"
 msgid "edited"
-msgstr ""
+msgstr "编辑"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "done to a file, before its name: read and wrote story.md"
 msgid "wrote"
-msgstr ""
+msgstr "写入"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Took {count} steps"
-msgstr ""
+msgstr "执行了 {count} 个步骤"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "file actions and the file: read and edited story.md"
 msgid "{verbs} {file}"
-msgstr ""
+msgstr "{verbs}了 {file}"
 
 #. a chat's status: its agent is at work
 #. what an answer is doing while it runs
 #: app/src/features/chat/lib/step-words.ts
 #: app/src/features/chat/status.ts
 msgid "Working"
-msgstr ""
+msgstr "正在处理"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "Owlit wants to …"
 msgid "run a command"
-msgstr ""
+msgstr "运行一条命令"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "Owlit wants to …"
 msgid "create a file"
-msgstr ""
+msgstr "创建一个文件"
 
 #: app/src/features/chat/lib/step-words.ts
 msgctxt "Owlit wants to …"
 msgid "create {file}"
-msgstr ""
+msgstr "创建 {file}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Owlit wants to {action}"
-msgstr ""
+msgstr "Owlit 想{action}"
 
 #. placeholder {0}: asks.size
 #: app/src/features/chat/lib/step-words.ts
 msgid "{0, plural, one {It was asking to {actions} when it stopped, so that wasn't done.} other {It was asking to {actions} when it stopped, so those weren't done.}}"
-msgstr ""
+msgstr "{0, plural, other {它停下时正在请求{actions}，所以这些操作没有执行。}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{papers, plural, one {Added a paper} other {Added # papers}}"
-msgstr ""
+msgstr "{papers, plural, other {添加了 # 篇论文}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{notes, plural, one {Asked for a reading note} other {Asked for # reading notes}}"
-msgstr ""
+msgstr "{notes, plural, other {请求了 # 份导读}}"
 
 #. placeholder {0}: files.length
 #: app/src/features/chat/lib/step-words.ts
 msgid "{0, plural, one {Edited # file} other {Edited # files}}"
-msgstr ""
+msgstr "{0, plural, other {编辑了 # 个文件}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{shown, plural, one {# step} other {# steps}}"
-msgstr ""
+msgstr "{shown, plural, other {# 个步骤}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Starting"
-msgstr ""
+msgstr "正在启动"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your Library"
-msgstr ""
+msgstr "列出你的文献库"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Listed your Library"
-msgstr ""
+msgstr "列出了你的文献库"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Look up a paper"
-msgstr ""
+msgstr "查询一篇论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Looked up a paper"
-msgstr ""
+msgstr "查询了一篇论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Read a paper"
-msgstr ""
+msgstr "阅读论文"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a paper"
+msgstr "阅读了一篇论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Read your highlights"
-msgstr ""
+msgstr "读取你的高亮"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read your highlights"
+msgstr "读取了你的高亮"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Search for papers"
-msgstr ""
+msgstr "搜索论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Searched for papers"
-msgstr ""
+msgstr "搜索了论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Follow a paper's citations"
-msgstr ""
+msgstr "追踪一篇论文的引用"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Followed a paper's citations"
-msgstr ""
+msgstr "追踪了一篇论文的引用"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List a journal's papers"
-msgstr ""
+msgstr "列出某个期刊的论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Listed a journal's papers"
-msgstr ""
+msgstr "列出了某个期刊的论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Add papers to your Library"
-msgstr ""
+msgstr "把论文添加到你的文献库"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Added papers to your Library"
-msgstr ""
+msgstr "把论文添加到了你的文献库"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Remove papers from your Library"
-msgstr ""
+msgstr "从你的文献库移除论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Removed papers from your Library"
-msgstr ""
+msgstr "从你的文献库移除了论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Ask for a reading note"
-msgstr ""
+msgstr "请求一份导读"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Asked for a reading note"
-msgstr ""
+msgstr "请求了一份导读"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your docs"
-msgstr ""
+msgstr "列出你的文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Listed your docs"
-msgstr ""
+msgstr "列出了你的文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Read a doc"
-msgstr ""
+msgstr "阅读文档"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a doc"
+msgstr "阅读了一篇文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Leave a note on a doc"
-msgstr ""
+msgstr "在文档上留下批注"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Left a note on a doc"
-msgstr ""
+msgstr "在文档上留下了批注"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Delete docs"
-msgstr ""
+msgstr "删除文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Deleted docs"
-msgstr ""
+msgstr "删除了文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Move a doc"
-msgstr ""
+msgstr "移动文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Moved a doc"
-msgstr ""
+msgstr "移动了文档"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your chats"
-msgstr ""
+msgstr "列出你的对话"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Listed your chats"
-msgstr ""
+msgstr "列出了你的对话"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Read a chat"
-msgstr ""
+msgstr "读取对话"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a chat"
+msgstr "读取了一个对话"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Read Knowledge"
-msgstr ""
+msgstr "读取知识"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read Knowledge"
+msgstr "读取了知识"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Update Knowledge"
-msgstr ""
+msgstr "更新知识"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Updated Knowledge"
-msgstr ""
+msgstr "更新了知识"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Open something in owlit"
-msgstr ""
+msgstr "在 owlit 中打开内容"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Opened something in owlit"
-msgstr ""
+msgstr "在 owlit 中打开了内容"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Show a passage"
-msgstr ""
+msgstr "显示一段文字"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Showed a passage"
-msgstr ""
+msgstr "显示了一段文字"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Highlight a passage"
-msgstr ""
+msgstr "高亮一段文字"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Highlighted a passage"
-msgstr ""
+msgstr "高亮了一段文字"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Search for {query}"
-msgstr ""
+msgstr "搜索{query}"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Searched for {query}"
-msgstr ""
+msgstr "搜索了{query}"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List the papers in {journal}"
-msgstr ""
+msgstr "列出{journal}中的论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Listed the papers in {journal}"
-msgstr ""
+msgstr "列出了{journal}中的论文"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Follow {paper}'s citations"
-msgstr ""
+msgstr "追踪 {paper} 的引用"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Followed {paper}'s citations"
-msgstr ""
+msgstr "追踪了 {paper} 的引用"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "your note on {paper}"
-msgstr ""
+msgstr "你对 {paper} 的笔记"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "a paper's note"
-msgstr ""
+msgstr "一篇论文的笔记"
 
 #: app/src/features/chat/pending-edits.ts
 msgid "Suggested by Owlit"
-msgstr ""
+msgstr "Owlit 的建议"
 
 #. verb: discard an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
 msgid "Discard"
-msgstr ""
+msgstr "放弃"
 
 #. verb: apply an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
 msgid "Apply"
-msgstr ""
+msgstr "应用"
 
 #: app/src/features/chat/status.ts
 msgid "Finished since you last looked"
-msgstr ""
+msgstr "在你上次查看后完成"
 
 #: app/src/features/chat/status.ts
 msgid "Stopped with an error"
-msgstr ""
+msgstr "出错停止"
 
 #: app/src/features/chat/use-notify.ts
 msgid "In “{title}”"
-msgstr ""
+msgstr "在“{title}”中"
 
 #: app/src/features/chat/use-notify.ts
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Owlit has a question"
-msgstr ""
+msgstr "Owlit 有个问题"
 
 #: app/src/features/chat/use-notify.ts
 msgid "In “{title}”: {error}"
-msgstr ""
+msgstr "在“{title}”中：{error}"
 
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
-msgstr ""
+msgstr "链接已复制"
 
 #: app/src/features/docs/actions.ts
 msgid "Doc deleted"
-msgstr ""
+msgstr "文档已删除"
 
 #: app/src/features/docs/actions.ts
 msgid "Folder deleted"
-msgstr ""
+msgstr "文件夹已删除"
 
 #: app/src/features/docs/actions.ts
 msgid "{n, plural, one {{name} and # file} other {{name} and # files}}"
-msgstr ""
+msgstr "{n, plural, other {{name} 及 # 个文件}}"
 
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {# item deleted} other {# items deleted}}"
-msgstr ""
+msgstr "{count, plural, other {已删除 # 项}}"
 
 #: app/src/features/docs/actions.ts
 msgid "Duplicate"
-msgstr ""
+msgstr "创建副本"
 
 #: app/src/features/docs/actions.ts
 msgid "Versions…"
-msgstr ""
+msgstr "版本…"
 
 #: app/src/features/docs/actions.ts
 msgid "Copy link"
-msgstr ""
+msgstr "复制链接"
 
 #: app/src/features/docs/actions.ts
 msgid "Show in Finder"
-msgstr ""
+msgstr "在访达中显示"
 
 #: app/src/features/docs/actions.ts
 #: app/src/features/docs/components/DocsListPanel.tsx
 #: app/src/features/docs/store.ts
 msgid "New folder"
-msgstr ""
+msgstr "新建文件夹"
 
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
-msgstr ""
+msgstr "{count, plural, other {删除 # 项}}"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "{name} opens in the system app"
-msgstr ""
+msgstr "{name} 会用系统应用打开"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Doc actions"
-msgstr ""
+msgstr "文档操作"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
-msgstr ""
+msgstr "文件夹操作"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "No docs yet."
-msgstr ""
+msgstr "还没有文档。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Version restored"
-msgstr ""
+msgstr "已恢复该版本"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Versions of {name}"
-msgstr ""
+msgstr "{name} 的版本"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
-msgstr ""
+msgstr "Owlit 每次修改这篇文档之前的文本，保留 30 天。即使文档之后又有改动，恢复也会把它放回去。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Owlit hasn't changed this doc."
-msgstr ""
+msgstr "Owlit 还没有改过这篇文档。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before an undo"
-msgstr ""
+msgstr "撤销之前"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before Owlit's edit"
-msgstr ""
+msgstr "Owlit 编辑之前"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from “{title}”"
-msgstr ""
+msgstr "{when} · 来自“{title}”"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from a chat"
-msgstr ""
+msgstr "{when} · 来自一个对话"
 
 #. verb: put this version of the doc back
 #: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "Restore"
-msgstr ""
+msgstr "恢复"
 
 #: app/src/features/docs/disk.ts
 msgid "Couldn't save the change."
-msgstr ""
+msgstr "无法保存这次修改。"
 
 #: app/src/features/docs/disk.ts
 msgid "{name} was deleted outside owlit"
-msgstr ""
+msgstr "{name} 已在 owlit 之外被删除"
 
 #: app/src/features/docs/disk.ts
 msgid "It stays open here until you leave it."
-msgstr ""
+msgstr "在你离开之前，它会一直在这里打开。"
 
 #: app/src/features/docs/disk.ts
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Save again"
-msgstr ""
+msgstr "重新保存"
 
 #: app/src/features/docs/disk.ts
 msgid "{name} is no longer on disk"
-msgstr ""
+msgstr "{name} 已不在磁盘上"
 
 #: app/src/features/docs/disk.ts
 msgid "It was moved or deleted outside owlit."
-msgstr ""
+msgstr "它已在 owlit 之外被移动或删除。"
 
 #: app/src/features/docs/disk.ts
 msgid "{name} changed on disk"
-msgstr ""
+msgstr "{name} 在磁盘上有改动"
 
 #: app/src/features/docs/disk.ts
 msgid "Your latest edits aren't saved yet."
-msgstr ""
+msgstr "你最近的编辑还没有保存。"
 
 #. take the text on disk instead of the unsaved edits
 #: app/src/features/docs/disk.ts
 #: apps/desktop/src/main.ts
 msgid "Reload"
-msgstr ""
+msgstr "重新载入"
 
 #: app/src/features/docs/disk.ts
 msgid "Keep mine"
-msgstr ""
+msgstr "保留我的"
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Note dismissed"
-msgstr ""
+msgstr "已忽略批注"
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
-msgstr ""
+msgstr "文档正文"
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Start writing"
-msgstr ""
+msgstr "开始写作"
 
 #. which note of the doc's notes is open: 2 of 5
 #: app/src/features/docs/editor/agent-notes.ts
 msgid "{at} of {n}"
-msgstr ""
+msgstr "{at}/{n}"
 
 #: app/src/features/docs/editor/agent-notes.ts
 msgid "Previous note"
-msgstr ""
+msgstr "上一条批注"
 
 #: app/src/features/docs/editor/agent-notes.ts
 msgid "Next note"
-msgstr ""
+msgstr "下一条批注"
 
 #: app/src/features/docs/editor/agent-notes.ts
 msgid "The passage this note was on has changed: “{passage}”"
-msgstr ""
+msgstr "这条批注所在的段落已经改变：“{passage}”"
 
 #: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Chat about this"
-msgstr ""
+msgstr "就此对话"
 
 #: app/src/features/docs/editor/block-preview.ts
 msgid "Front matter"
-msgstr ""
+msgstr "前置元数据"
 
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
-msgstr ""
+msgstr "没有这个名字的文档"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
-msgstr ""
+msgstr "已应用修改"
 
 #: app/src/features/docs/fs.ts
 msgid "Your note on {paper}"
-msgstr ""
+msgstr "你对 {paper} 的笔记"
 
 #. a paper cited at a page: Chan et al. 2026, p. 13
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
-msgstr ""
+msgstr "{cite}，第 {page} 页"
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "This doc is not in the workspace"
-msgstr ""
+msgstr "这篇文档不在工作区中"
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "It may have been moved or deleted."
-msgstr ""
+msgstr "它可能已被移动或删除。"
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Back to docs"
-msgstr ""
+msgstr "返回文档"
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Deleted on disk"
-msgstr ""
+msgstr "已从磁盘删除"
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "No docs yet"
-msgstr ""
+msgstr "还没有文档"
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "Notes and drafts live here as Markdown files in your workspace. Files you add in Finder show up too."
-msgstr ""
+msgstr "笔记和草稿以 Markdown 文件的形式保存在你的工作区中。你在访达中添加的文件也会出现在这里。"
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "In a doc, type @ to cite a paper."
-msgstr ""
+msgstr "在文档中输入 @ 即可引用论文。"
 
 #: app/src/features/docs/save-as-doc.ts
 msgid "Answer"
-msgstr ""
+msgstr "回答"
 
 #: app/src/features/docs/save-as-doc.ts
 msgid "Saved as doc"
-msgstr ""
+msgstr "已存为文档"
 
 #. file name of a duplicated doc: the original name, then copy
 #: app/src/features/docs/store.ts
 msgid "{stem} copy"
-msgstr ""
+msgstr "{stem} 副本"
 
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Recent"
-msgstr ""
+msgstr "最近"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Drop PDFs to add them to your Library"
-msgstr ""
+msgstr "拖入 PDF，添加到文献库"
 
 #. button: go on reading a paper
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/library/components/PaperPeek.tsx
 msgid "Continue"
-msgstr ""
+msgstr "继续阅读"
 
 #: app/src/features/home/HomePage.tsx
 msgid "edited {when}"
-msgstr ""
+msgstr "{when}编辑过"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Owlit wrote {when}"
-msgstr ""
+msgstr "Owlit {when}写过"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Owlit edited {when}"
-msgstr ""
+msgstr "Owlit {when}编辑过"
 
 #: app/src/features/home/HomePage.tsx
 msgid "read {when}"
-msgstr ""
+msgstr "{when}读过"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Add papers"
-msgstr ""
+msgstr "添加论文"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Drop PDFs anywhere here, or choose them from your disk"
-msgstr ""
+msgstr "把 PDF 拖到这里任意位置，或从磁盘中选择"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Notes and drafts are Markdown files in this folder"
-msgstr ""
+msgstr "笔记和草稿是这个文件夹里的 Markdown 文件"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Chat with Owlit"
-msgstr ""
+msgstr "和 Owlit 对话"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Ask, or hand off work like finding papers"
-msgstr ""
+msgstr "提问，或把找论文之类的工作交给它"
 
 #: app/src/features/home/HomePage.tsx
 msgid "This folder is your workspace. Papers, notes and chats you add live in it as ordinary files."
-msgstr ""
+msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对话都作为普通文件保存在里面。"
 
 #: app/src/features/home/HomePage.tsx
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
-msgstr ""
+msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
 
 #. placeholder {0}: lines.length
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{0, plural, one {New topic, # line} other {New topic, # lines}}"
-msgstr ""
+msgstr "{0, plural, other {新主题，# 个条目}}"
 
 #. placeholder {0}: lines.length
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{0, plural, one {# line changed} other {# lines changed}}"
-msgstr ""
+msgstr "{0, plural, other {# 个条目有改动}}"
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left on {left}"
-msgstr ""
+msgstr "你 {left}离开后"
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Finished {when}"
-msgstr ""
+msgstr "{when}完成"
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
-msgstr ""
+msgstr "{added, plural, other {Owlit 向你的文献库添加了 # 篇论文}}"
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Open topic"
-msgstr ""
+msgstr "打开主题"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "in “{title}”"
-msgstr ""
+msgstr "在“{title}”中"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "picked for chats"
-msgstr ""
+msgstr "用于对话"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "picked for background work"
-msgstr ""
+msgstr "用于后台任务"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Manage agents"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Your library wants you to sign in"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "to fetch PDFs"
-msgstr ""
+msgstr "管理智能体"
 
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/settings/sections/ProxyGroup.tsx
 #: app/src/features/settings/store.ts
 msgid "Library proxy"
-msgstr ""
+msgstr "图书馆代理"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Your library wants you to sign in"
+msgstr "图书馆需要你登录"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "to fetch PDFs"
+msgstr "以获取 PDF"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
-msgstr ""
+msgstr "出版商需要你登录"
 
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The publisher wants you to sign in"
-msgstr ""
+msgstr "出版商需要你登录"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want a quick check"
-msgstr ""
+msgstr "出版商需要你快速验证一下"
 
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The publisher wants a quick check"
-msgstr ""
+msgstr "出版商需要你快速验证一下"
 
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Sign in"
-msgstr ""
+msgstr "登录"
 
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Check now"
-msgstr ""
+msgstr "立即检查"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "for {cite}"
-msgstr ""
+msgstr "· {cite}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "for {names}"
-msgstr ""
+msgstr "· {names}"
 
 #. placeholder {0}: papers.length - 2
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{0, plural, one {{named} and # more} other {{named} and # more}}"
-msgstr ""
+msgstr "{0, plural, other {{named} 及另外 # 篇}}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
-msgstr ""
+msgstr "{what} {where}：{label}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what}: {label}"
-msgstr ""
+msgstr "{what}：{label}"
 
 #. a topic Owlit changed from a chat
 #: app/src/features/knowledge/components/ChatUpdates.tsx
 msgid "Updated"
-msgstr ""
+msgstr "已更新"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "your doc"
-msgstr ""
+msgstr "你的文档"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "No topics yet"
-msgstr ""
+msgstr "还没有主题"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "Owlit keeps its understanding of your research here, as topics. A topic starts once two things you read, highlighted, wrote or said are about the same question."
-msgstr ""
+msgstr "Owlit 会把它对你研究的理解以主题的形式放在这里。当你读过、高亮过、写过或说过的两样东西涉及同一个问题时，一个主题就开始了。"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "There’s nothing to do here; it fills in by itself."
-msgstr ""
+msgstr "这里不需要你做任何事，它会自己慢慢充实。"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "Topics start from what you’ve touched. None has started from these yet; one will once two of them are about the same question."
-msgstr ""
+msgstr "主题从你接触过的内容开始。这些内容还没有形成主题；一旦其中两样涉及同一个问题，就会形成一个。"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "and {more} more"
-msgstr ""
+msgstr "还有 {more} 项"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "Owlit can’t read your material while {problem}."
-msgstr ""
+msgstr "{problem}，Owlit 无法读取你的资料。"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "Owlit last read your workspace {when}."
-msgstr ""
+msgstr "Owlit {when}读取过你的工作区。"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "Line removed"
-msgstr ""
+msgstr "条目已移除"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "Updates won’t bring it back."
-msgstr ""
+msgstr "之后的更新不会把它加回来。"
 
 #. verb: edit a topic's line
 #. verb: edit a topic's line
@@ -2433,7 +2468,7 @@ msgstr ""
 #: app/src/features/knowledge/paper/ItemRow.tsx
 #: apps/desktop/src/main.ts
 msgid "Edit"
-msgstr ""
+msgstr "编辑"
 
 #. verb: remove a topic's line
 #. verb: remove the paper from the library
@@ -2442,37 +2477,37 @@ msgstr ""
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Remove"
-msgstr ""
+msgstr "移除"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "New since you last looked"
-msgstr ""
+msgstr "你上次查看后新增"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "Line actions"
-msgstr ""
+msgstr "内容操作"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 #: app/src/features/knowledge/components/TopicLine.tsx
 msgid "Was: “{was}”"
-msgstr ""
+msgstr "原为：“{was}”"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "You said: “{said}”"
-msgstr ""
+msgstr "你说：“{said}”"
 
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "In this topic since it began"
-msgstr ""
+msgstr "自主题开始就在其中"
 
 #: app/src/features/knowledge/components/SplitDialog.tsx
 msgid "Split {topicName}"
-msgstr ""
+msgstr "拆分 {topicName}"
 
 #: app/src/features/knowledge/components/SplitDialog.tsx
 msgid "New topic"
-msgstr ""
+msgstr "新主题"
 
 #. label: the new workspace folder's name
 #. placeholder: the new topic's name
@@ -2480,694 +2515,694 @@ msgstr ""
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Name"
-msgstr ""
+msgstr "名称"
 
 #. verb: split a topic in two
 #: app/src/features/knowledge/components/SplitDialog.tsx
 msgid "Split"
-msgstr ""
+msgstr "拆分"
 
 #: app/src/features/knowledge/components/TopicLine.tsx
 msgid "abstract only"
-msgstr ""
+msgstr "仅摘要"
 
 #: app/src/features/knowledge/components/TopicLog.tsx
 msgid "Sources · {from}"
-msgstr ""
+msgstr "来源 · {from}"
 
 #: app/src/features/knowledge/components/TopicLog.tsx
 msgid "A line"
-msgstr ""
+msgstr "某个条目"
 
 #. placeholder {0}: history.length
 #: app/src/features/knowledge/components/TopicLog.tsx
 msgid "{0, plural, one {# change} other {# changes}}"
-msgstr ""
+msgstr "{0, plural, other {# 处改动}}"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Owlit is updating Knowledge"
-msgstr ""
+msgstr "Owlit 正在更新知识"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "It reads what changed since the last update."
-msgstr ""
+msgstr "它会读取上次更新以来的变化。"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Updated · {name}"
-msgstr ""
+msgstr "已更新 · {name}"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Nothing new"
-msgstr ""
+msgstr "没有新内容"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Nothing has changed in its sources since {day}."
-msgstr ""
+msgstr "自{day}以来，它的来源没有变化。"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Nothing has changed in its sources."
-msgstr ""
+msgstr "它的来源没有变化。"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Merge into"
-msgstr ""
+msgstr "合并到"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Merged into {into}"
-msgstr ""
+msgstr "已合并到 {into}"
 
 #. verb: split a topic in two
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Split…"
-msgstr ""
+msgstr "拆分…"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Unarchive"
-msgstr ""
+msgstr "取消归档"
 
 #. verb: archive a topic
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Archive"
-msgstr ""
+msgstr "归档"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Update now"
-msgstr ""
+msgstr "立即更新"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Resume updates"
-msgstr ""
+msgstr "恢复更新"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Pause updates"
-msgstr ""
+msgstr "暂停更新"
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Deleted {name}"
-msgstr ""
+msgstr "已删除 {name}"
 
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Save"
-msgstr ""
+msgstr "保存"
 
 #: app/src/features/knowledge/format.ts
 msgid "{highlights, plural, one {# highlight and a note} other {# highlights and a note}}"
-msgstr ""
+msgstr "{highlights, plural, other {# 处高亮和一条笔记}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{highlights, plural, one {# highlight, a note} other {# highlights, a note}}"
-msgstr ""
+msgstr "{highlights, plural, other {# 处高亮、一条笔记}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{highlights, plural, one {# highlight} other {# highlights}}"
-msgstr ""
+msgstr "{highlights, plural, other {# 处高亮}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "a note"
-msgstr ""
+msgstr "一条笔记"
 
 #. the speaker of a topic's line: You wrote, You said
 #: app/src/features/knowledge/format.ts
 msgid "You"
-msgstr ""
+msgstr "你"
 
 #. after a speaker in a topic: You wrote
 #: app/src/features/knowledge/format.ts
 msgid "wrote"
-msgstr ""
+msgstr "写道"
 
 #. after a speaker in a topic: You said (in a chat)
 #: app/src/features/knowledge/format.ts
 msgid "said"
-msgstr ""
+msgstr "说"
 
 #. after a speaker in a topic: Schick 2023 reported
 #: app/src/features/knowledge/format.ts
 msgid "reported"
-msgstr ""
+msgstr "报告"
 
 #. after a speaker in a topic: You rewrote (the line)
 #: app/src/features/knowledge/format.ts
 msgid "rewrote"
-msgstr ""
+msgstr "改写"
 
 #. after a paper in a topic: Schick 2023 found
 #: app/src/features/knowledge/format.ts
 msgid "found"
-msgstr ""
+msgstr "发现"
 
 #. after a paper in a topic: Schick 2023 says (in its abstract)
 #: app/src/features/knowledge/format.ts
 msgid "says"
-msgstr ""
+msgstr "称"
 
 #. after a speaker in a topic: Owlit thinks
 #: app/src/features/knowledge/format.ts
 msgid "thinks"
-msgstr ""
+msgstr "认为"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "added"
-msgstr ""
+msgstr "已添加"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "rewritten"
-msgstr ""
+msgstr "已改写"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "removed"
-msgstr ""
+msgstr "已移除"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "speaker changed"
-msgstr ""
+msgstr "发言者已更改"
 
 #: app/src/features/knowledge/format.ts
 msgid "Speaker changed"
-msgstr ""
+msgstr "已更改发言者"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "source changed"
-msgstr ""
+msgstr "来源已更改"
 
 #: app/src/features/knowledge/format.ts
 msgid "Source changed"
-msgstr ""
+msgstr "已更改来源"
 
 #. after a question's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "question added"
-msgstr ""
+msgstr "问题已添加"
 
 #: app/src/features/knowledge/format.ts
 msgid "Question added"
-msgstr ""
+msgstr "已添加问题"
 
 #. after a question's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "question updated"
-msgstr ""
+msgstr "问题已更新"
 
 #: app/src/features/knowledge/format.ts
 msgid "Question updated"
-msgstr ""
+msgstr "已更新问题"
 
 #. after a question's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "question removed"
-msgstr ""
+msgstr "问题已移除"
 
 #: app/src/features/knowledge/format.ts
 msgid "Question removed"
-msgstr ""
+msgstr "已移除问题"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "you rewrote it"
-msgstr ""
+msgstr "已被你改写"
 
 #: app/src/features/knowledge/format.ts
 msgid "You rewrote it"
-msgstr ""
+msgstr "你改写了这个条目"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "you removed it"
-msgstr ""
+msgstr "已被你移除"
 
 #: app/src/features/knowledge/format.ts
 msgid "You removed it"
-msgstr ""
+msgstr "你移除了它"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "you added a condition"
-msgstr ""
+msgstr "已被你加上条件"
 
 #: app/src/features/knowledge/format.ts
 msgid "You added a condition"
-msgstr ""
+msgstr "你添加了条件"
 
 #. after a line's opening words in a topic's change log
 #: app/src/features/knowledge/format.ts
 msgid "anchored to its passage"
-msgstr ""
+msgstr "已锚定到原文段落"
 
 #: app/src/features/knowledge/format.ts
 msgid "Anchored to its passage"
-msgstr ""
+msgstr "已锚定到原文段落"
 
 #. a topic's first change: it started
 #: app/src/features/knowledge/format.ts
 msgid "Started"
-msgstr ""
+msgstr "开始"
 
 #: app/src/features/knowledge/format.ts
 msgid "Summary rewritten"
-msgstr ""
+msgstr "概述已改写"
 
 #: app/src/features/knowledge/format.ts
 msgid "Renamed from “{name}”"
-msgstr ""
+msgstr "由“{name}”重命名而来"
 
 #: app/src/features/knowledge/format.ts
 msgid "Merged in “{name}”"
-msgstr ""
+msgstr "并入了“{name}”"
 
 #: app/src/features/knowledge/format.ts
 msgid "Split from “{name}”"
-msgstr ""
+msgstr "从“{name}”拆分而来"
 
 #. placeholder {0}: Number(moved[1])
 #: app/src/features/knowledge/format.ts
 msgid "{0, plural, one {# line moved to “{name}”} other {# lines moved to “{name}”}}"
-msgstr ""
+msgstr "{0, plural, other {# 条移至“{name}”}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "edited on the topic page"
-msgstr ""
+msgstr "在主题页上编辑"
 
 #: app/src/features/knowledge/format.ts
 msgid "it won’t come back on an update"
-msgstr ""
+msgstr "更新时不会再出现"
 
 #: app/src/features/knowledge/format.ts
 msgid "you renamed it"
-msgstr ""
+msgstr "你重命名了它"
 
 #: app/src/features/knowledge/format.ts
 msgid "you merged the two topics"
-msgstr ""
+msgstr "你合并了两个主题"
 
 #: app/src/features/knowledge/format.ts
 msgid "you split the topic"
-msgstr ""
+msgstr "你拆分了主题"
 
 #: app/src/features/knowledge/format.ts
 msgid "what you said in chat"
-msgstr ""
+msgstr "你在对话中说的"
 
 #: app/src/features/knowledge/format.ts
 msgid "you highlighted it in {paper}"
-msgstr ""
+msgstr "你在 {paper} 中高亮了它"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# line added} other {# lines added}}"
-msgstr ""
+msgstr "{n, plural, other {新增 # 条}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# added} other {# added}}"
-msgstr ""
+msgstr "{n, plural, other {新增 # 条}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# line rewritten} other {# lines rewritten}}"
-msgstr ""
+msgstr "{n, plural, other {改写 # 条}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# rewritten} other {# rewritten}}"
-msgstr ""
+msgstr "{n, plural, other {改写 # 条}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# line removed} other {# lines removed}}"
-msgstr ""
+msgstr "{n, plural, other {移除 # 条}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# removed} other {# removed}}"
-msgstr ""
+msgstr "{n, plural, other {移除 # 条}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# line’s source changed} other {# lines’ sources changed}}"
-msgstr ""
+msgstr "{n, plural, other {# 条更换了来源}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# source changed} other {# sources changed}}"
-msgstr ""
+msgstr "{n, plural, other {# 条更换了来源}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# line’s speaker changed} other {# lines’ speakers changed}}"
-msgstr ""
+msgstr "{n, plural, other {# 条更换了说话人}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# speaker changed} other {# speakers changed}}"
-msgstr ""
+msgstr "{n, plural, other {# 条更换了说话人}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# line anchored to its passage} other {# lines anchored to their passages}}"
-msgstr ""
+msgstr "{n, plural, other {# 条锚定到原文段落}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# anchored} other {# anchored}}"
-msgstr ""
+msgstr "{n, plural, other {# 条已锚定}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# question added} other {# questions added}}"
-msgstr ""
+msgstr "{n, plural, other {新增 # 个问题}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# question updated} other {# questions updated}}"
-msgstr ""
+msgstr "{n, plural, other {更新 # 个问题}}"
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# question removed} other {# questions removed}}"
-msgstr ""
+msgstr "{n, plural, other {移除 # 个问题}}"
 
 #: app/src/features/knowledge/mentions.ts
 msgid "Topic"
-msgstr ""
+msgstr "主题"
 
 #: app/src/features/knowledge/mentions.ts
 msgid "Question · {name}"
-msgstr ""
+msgstr "问题 · {name}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "This week"
-msgstr ""
+msgstr "本周"
 
 #. group of topics updated more than a week ago
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 #: app/src/features/library/lib/filter.ts
 msgid "Earlier"
-msgstr ""
+msgstr "更早"
 
 #. placeholder {0}: archived.length
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "{0, plural, one {# archived} other {# archived}}"
-msgstr ""
+msgstr "{0, plural, other {已归档 # 个}}"
 
 #. placeholder {0}: loose.length
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "{0, plural, one {# loose passage} other {# loose passages}}"
-msgstr ""
+msgstr "{0, plural, other {# 个零散段落}}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Find a topic, a line or a question"
-msgstr ""
+msgstr "查找主题、条目或问题"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Find in Knowledge"
-msgstr ""
+msgstr "在知识中查找"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "No topics match."
-msgstr ""
+msgstr "没有匹配的主题。"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Set aside · {asideList}"
-msgstr ""
+msgstr "搁置 · {asideList}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "{count, plural, one {Not in a topic yet · # passage} other {Not in a topic yet · # passages}}"
-msgstr ""
+msgstr "{count, plural, other {尚未归入主题 · # 个段落}}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
-msgstr ""
+msgstr "{n, plural, other {{when}更新 · # 个主题}}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Topic name"
-msgstr ""
+msgstr "主题名称"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Topic actions"
-msgstr ""
+msgstr "主题操作"
 
 #: app/src/features/knowledge/pages/LoosePage.tsx
 msgid "Not in a topic yet"
-msgstr ""
+msgstr "尚未归入主题"
 
 #: app/src/features/knowledge/pages/LoosePage.tsx
 msgid "Passages from your docs and chats that no topic holds. Owlit files them when a topic needs them; nothing here needs doing."
-msgstr ""
+msgstr "来自你的文档和对话、还没有归入任何主题的段落。主题需要时，Owlit 会把它们归进去；这里没有需要你处理的事。"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "This topic is gone"
-msgstr ""
+msgstr "这个主题已不存在"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "It may have been merged, deleted or renamed outside owlit."
-msgstr ""
+msgstr "它可能已被合并、删除，或在 owlit 之外被重命名。"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Back to Knowledge"
-msgstr ""
+msgstr "返回知识"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Updated {updated} · updates paused"
-msgstr ""
+msgstr "{updated}更新 · 已暂停更新"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Updated {updated}"
-msgstr ""
+msgstr "{updated}更新"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Owlit keeps this topic from your notes, papers and chats. Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words."
-msgstr ""
+msgstr "Owlit 根据你的笔记、论文和对话维护这个主题。每一条都注明出自谁。点击一条，可以查看它的出处和改动。编辑过的条目会保留你的措辞。"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Cited in <0/>"
-msgstr ""
+msgstr "被 <0/> 引用"
 
 #. placeholder {0}: freshIds.length
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "{0, plural, one {# line changed since you last looked on {lastLook}} other {# lines changed since you last looked on {lastLook}}}"
-msgstr ""
+msgstr "{0, plural, other {自你 {lastLook} 查看以来，有 # 条改动}}"
 
 #. placeholder {0}: freshIds.length
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "{0, plural, one {# line changed since you last looked} other {# lines changed since you last looked}}"
-msgstr ""
+msgstr "{0, plural, other {自你上次查看以来，有 # 条改动}}"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Your questions"
-msgstr ""
+msgstr "你的问题"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "In {name}"
-msgstr ""
+msgstr "在 {name} 中"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Show {hidden} more"
-msgstr ""
+msgstr "再显示 {hidden} 个"
 
 #: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "So far"
-msgstr ""
+msgstr "目前所知"
 
 #. a passage of a paper, when it has no section or page
 #. button that shows the paper's passage behind an item
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Passage"
-msgstr ""
+msgstr "原文"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "You wrote in <0/> · {date}"
-msgstr ""
+msgstr "你在 <0/> 中写道 · {date}"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Your question in <0/>"
-msgstr ""
+msgstr "你在 <0/> 中的问题"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "In {at}"
-msgstr ""
+msgstr "在 {at} 中"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "You {verb} in {at}"
-msgstr ""
+msgstr "你在 {at} 中{verb}"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Owlit thinks in {at}"
-msgstr ""
+msgstr "Owlit 在 {at} 中认为"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "You took from {speaker} in {at}"
-msgstr ""
+msgstr "你在 {at} 中采用了 {speaker} 的说法"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Hide passage"
-msgstr ""
+msgstr "收起原文"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Find it in the paper"
-msgstr ""
+msgstr "在论文中定位"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Found by you"
-msgstr ""
+msgstr "由你找到"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "{section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper."
-msgstr ""
+msgstr "{section} 是你高亮的段落。关闭论文时，Owlit 会据此改写这一条。"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "From the abstract only."
-msgstr ""
+msgstr "仅来自摘要。"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Its passage isn’t in this copy of the paper."
-msgstr ""
+msgstr "这份论文里找不到它对应的段落。"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "A passage not in this copy"
-msgstr ""
+msgstr "不在这份论文里的段落"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "It now sits under Backs what you have."
-msgstr ""
+msgstr "它现在归在“支持你已有的观点”下。"
 
 #. verb: accept Owlit's guess that a passage connects to what you have
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Connect"
-msgstr ""
+msgstr "关联"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Marked as not related"
-msgstr ""
+msgstr "已标记为不相关"
 
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Not related"
-msgstr ""
+msgstr "不相关"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Challenges what you have"
-msgstr ""
+msgstr "挑战你已有的观点"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Backs what you have"
-msgstr ""
+msgstr "支持你已有的观点"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Might connect"
-msgstr ""
+msgstr "可能相关"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Taken into your topics"
-msgstr ""
+msgstr "已纳入你的主题"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Each item pairs a passage of this paper with something you already have: your words, a question, a line in a topic. Challenges and Backs say which way it cuts. Might connect holds Owlit’s guesses until you connect them. Taken into your topics are lines that come from this paper; edit one and it stays in your words."
-msgstr ""
+msgstr "每一项都把这篇论文的一段原文和你已有的内容配对：你的文字、一个问题，或主题中的一条。“挑战”和“支持”表明它偏向哪一边。“可能相关”里是 Owlit 的猜测，等你确认关联。“已纳入你的主题”是来自这篇论文的条目；编辑过的条目会保留你的措辞。"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Owlit found something new"
-msgstr ""
+msgstr "Owlit 有新发现"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "About the Knowledge tab"
-msgstr ""
+msgstr "关于“知识”标签页"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Nothing connected yet"
-msgstr ""
+msgstr "还没有关联"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "You have {touched} here. Owlit connects them to your other papers, docs and questions once a topic starts, and a topic starts once two of them are about the same question."
-msgstr ""
+msgstr "你在这里有 {touched}。主题建立后，Owlit 会把它们和你的其他论文、文档和问题关联起来；当其中两项涉及同一个问题时，主题就会建立。"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Highlight, cite or talk about this paper, and Owlit connects it to your other papers, docs and questions once two of them are about the same question."
-msgstr ""
+msgstr "高亮、引用或讨论这篇论文后，当其中两项涉及同一个问题时，Owlit 就会把它和你的其他论文、文档和问题关联起来。"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "Used in"
-msgstr ""
+msgstr "出现在"
 
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
 msgid "chat, {date}"
-msgstr ""
+msgstr "对话，{date}"
 
 #: app/src/features/knowledge/runner.ts
 msgid "One line anchored to the passage you highlighted"
-msgstr ""
+msgstr "一条已锚定到你高亮的段落"
 
 #. placeholder {0}: kinds.doc.size
 #: app/src/features/knowledge/store.ts
 msgid "{0, plural, one {# doc} other {# docs}}"
-msgstr ""
+msgstr "{0, plural, other {# 篇文档}}"
 
 #. placeholder {0}: kinds.paper.size
 #. placeholder {0}: papers.length
 #: app/src/features/knowledge/store.ts
 #: app/src/features/library/lib/filter.ts
 msgid "{0, plural, one {# paper} other {# papers}}"
-msgstr ""
+msgstr "{0, plural, other {# 篇论文}}"
 
 #. placeholder {0}: kinds.chat.size
 #: app/src/features/knowledge/store.ts
 msgid "{0, plural, one {# chat} other {# chats}}"
-msgstr ""
+msgstr "{0, plural, other {# 个对话}}"
 
 #: app/src/features/knowledge/store.ts
 msgid "nothing yet"
-msgstr ""
+msgstr "暂无内容"
 
 #. placeholder {0}: papers.length
 #: app/src/features/library/actions.ts
 msgid "{0, plural, one {# citation copied} other {# citations copied}}"
-msgstr ""
+msgstr "{0, plural, other {已复制 # 条引用}}"
 
 #: app/src/features/library/actions.ts
 msgid "Citation copied"
-msgstr ""
+msgstr "已复制引用"
 
 #. placeholder {0}: papers.length
 #: app/src/features/library/actions.ts
 msgid "{0, plural, one {BibTeX for # paper copied} other {BibTeX for # papers copied}}"
-msgstr ""
+msgstr "{0, plural, other {已复制 # 篇论文的 BibTeX}}"
 
 #: app/src/features/library/actions.ts
 msgid "BibTeX copied"
-msgstr ""
+msgstr "已复制 BibTeX"
 
 #: app/src/features/library/actions.ts
 msgid "Removed from library"
-msgstr ""
+msgstr "已从文献库移除"
 
 #. placeholder {0}: removed.length
 #: app/src/features/library/actions.ts
 msgid "{0, plural, one {Removed # paper} other {Removed # papers}}"
-msgstr ""
+msgstr "{0, plural, other {已移除 # 篇论文}}"
 
 #: app/src/features/library/actions.ts
 msgid "Highlight deleted"
-msgstr ""
+msgstr "已删除高亮"
 
 #: app/src/features/library/client.ts
 msgid "The publisher wants you to sign in."
-msgstr ""
+msgstr "出版商要求你登录。"
 
 #: app/src/features/library/client.ts
 msgid "The publisher wants a quick check."
-msgstr ""
+msgstr "出版商需要你完成一次快速验证。"
 
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "Looking up {input}…"
-msgstr ""
+msgstr "正在查找 {input}…"
 
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "Add to library"
-msgstr ""
+msgstr "添加到文献库"
 
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "PDF available"
-msgstr ""
+msgstr "可获取 PDF"
 
 #. button: add the paper to the library
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "Add"
-msgstr ""
+msgstr "添加"
 
 #: app/src/features/library/components/BulkBar.tsx
 msgid "{count} selected"
-msgstr ""
+msgstr "已选择 {count} 篇"
 
 #. verb: unstar a paper
 #. verb: unstar a paper
@@ -3176,7 +3211,7 @@ msgstr ""
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/StarButton.tsx
 msgid "Unstar"
-msgstr ""
+msgstr "取消星标"
 
 #. verb: star a paper
 #. verb: star a paper
@@ -3185,148 +3220,148 @@ msgstr ""
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/StarButton.tsx
 msgid "Star"
-msgstr ""
+msgstr "加星标"
 
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Mark as"
-msgstr ""
+msgstr "标记为"
 
 #: app/src/features/library/components/BulkBar.tsx
 msgid "Add tag"
-msgstr ""
+msgstr "添加标签"
 
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Copy BibTeX"
-msgstr ""
+msgstr "复制 BibTeX"
 
 #: app/src/features/library/components/BulkBar.tsx
 msgid "Clear selection"
-msgstr ""
+msgstr "取消选择"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Edit details"
-msgstr ""
+msgstr "编辑信息"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Fix what the resolver got wrong, or fill in a PDF-only paper."
-msgstr ""
+msgstr "修正自动识别出错的信息，或为只有 PDF 的论文补全信息。"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "Title"
-msgstr ""
+msgstr "标题"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Authors, one per line"
-msgstr ""
+msgstr "作者，每行一位"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "Year"
-msgstr ""
+msgstr "年份"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "Venue"
-msgstr ""
+msgstr "发表处"
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Abstract"
-msgstr ""
+msgstr "摘要"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
-msgstr ""
+msgstr "全部复制为 Markdown"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Page {page}"
-msgstr ""
+msgstr "第 {page} 页"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Select text in the PDF to highlight it."
-msgstr ""
+msgstr "在 PDF 中选中文本即可高亮。"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Color"
-msgstr ""
+msgstr "颜色"
 
 #: app/src/features/library/components/HighlightsList.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Edit comment"
-msgstr ""
+msgstr "编辑备注"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Add comment"
-msgstr ""
+msgstr "添加备注"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight copied"
-msgstr ""
+msgstr "已复制高亮"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Add to note"
-msgstr ""
+msgstr "添加到笔记"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Added by Owlit"
-msgstr ""
+msgstr "由 Owlit 添加"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight actions"
-msgstr ""
+msgstr "高亮操作"
 
 #. Library tab: the papers to read next
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Up next"
-msgstr ""
+msgstr "待读"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "All papers"
-msgstr ""
+msgstr "全部论文"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
-msgstr ""
+msgstr "最近添加"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "Authors"
-msgstr ""
+msgstr "作者"
 
 #. menu: how the papers are ordered
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Sort"
-msgstr ""
+msgstr "排序"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "List"
-msgstr ""
+msgstr "列表"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Table"
-msgstr ""
+msgstr "表格"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Layout"
-msgstr ""
+msgstr "布局"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Search, or paste a DOI, arXiv id or link to add"
-msgstr ""
+msgstr "搜索，或粘贴 DOI、arXiv ID 或链接来添加"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Search or add papers"
-msgstr ""
+msgstr "搜索或添加论文"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Add a PDF file"
-msgstr ""
+msgstr "添加 PDF 文件"
 
 #. group heading: papers being read now
 #. reading status of a paper: being read now
@@ -3335,27 +3370,27 @@ msgstr ""
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
 msgid "Reading"
-msgstr ""
+msgstr "在读"
 
 #. filter chip: starred papers
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/StarButton.tsx
 msgid "Starred"
-msgstr ""
+msgstr "已加星标"
 
 #. reading status of a paper
 #. reading status of a paper
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/status.ts
 msgid "Unread"
-msgstr ""
+msgstr "未读"
 
 #. reading status of a paper: finished reading (past participle)
 #. reading status of a paper: finished reading (past participle)
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/status.ts
 msgid "Read"
-msgstr ""
+msgstr "已读"
 
 #. a paper whose publisher wants the user to check or sign in
 #. a paper whose publisher wants the user to check or sign in
@@ -3364,1827 +3399,1833 @@ msgstr ""
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Needs you"
-msgstr ""
+msgstr "需要你处理"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Stop filtering by {tag}"
-msgstr ""
+msgstr "取消按 {tag} 筛选"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Tags"
-msgstr ""
+msgstr "标签"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "No tags yet."
-msgstr ""
+msgstr "还没有标签。"
 
 #: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/lib/format.ts
 msgid "Unknown authors"
-msgstr ""
+msgstr "作者未知"
 
 #: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
-msgstr ""
+msgstr "更多操作"
 
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"
-msgstr ""
+msgstr "状态"
+
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgctxt "when the paper was added to the library"
+msgid "Added"
+msgstr "添加时间"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Copy citations"
-msgstr ""
+msgstr "复制引用"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Copy citation"
-msgstr ""
+msgstr "复制引用"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Refresh details"
-msgstr ""
+msgstr "刷新信息"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Couldn't refresh the details."
-msgstr ""
+msgstr "无法刷新信息。"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Rewrite reading note"
-msgstr ""
+msgstr "重写导读"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Write a reading note"
-msgstr ""
+msgstr "撰写导读"
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Couldn't ask for a reading note."
-msgstr ""
+msgstr "无法请求导读。"
 
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
-msgstr ""
+msgstr "{0, plural, other {移除 # 篇论文}}"
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
-msgstr ""
+msgstr "最近移除的一篇论文"
 
 #. placeholder {0}: removed.length
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "{0, plural, one {# paper removed recently} other {# papers removed recently}}"
-msgstr ""
+msgstr "{0, plural, other {最近移除的 # 篇论文}}"
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "Removed {when}"
-msgstr ""
+msgstr "{when}移除"
 
 #: app/src/features/library/components/StatusMenu.tsx
 msgid "Reading status"
-msgstr ""
+msgstr "阅读状态"
 
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "Remove tag {tag}"
-msgstr ""
+msgstr "移除标签 {tag}"
 
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "Find or create a tag"
-msgstr ""
+msgstr "查找或新建标签"
 
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "Create “{q}”"
-msgstr ""
+msgstr "新建“{q}”"
 
 #. button: add a tag to the paper
 #: app/src/features/library/components/TagsEditor.tsx
 msgid "Tag"
-msgstr ""
+msgstr "加标签"
 
 #: app/src/features/library/disk.ts
 msgid "Couldn't save the library."
-msgstr ""
+msgstr "无法保存文献库。"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
-msgstr ""
+msgstr "这种方式只能添加 PDF 文件。"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Adding 1 of {total}…"
-msgstr ""
+msgstr "正在添加第 1 篇，共 {total} 篇…"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Adding {name}…"
-msgstr ""
+msgstr "正在添加 {name}…"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Adding {number} of {total}…"
-msgstr ""
+msgstr "正在添加第 {number} 篇，共 {total} 篇…"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "{added} added"
-msgstr ""
+msgstr "已添加 {added} 篇"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "{existing} already in your library"
-msgstr ""
+msgstr "{existing} 篇已在你的文献库中"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "{unreadCount} couldn't be read"
-msgstr ""
+msgstr "{unreadCount} 篇无法读取"
 
 #. placeholder {0}: pdfs.length
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "{0, plural, one {Added # paper} other {Added # papers}}"
-msgstr ""
+msgstr "{0, plural, other {已添加 # 篇论文}}"
 
 #: app/src/features/library/lib/filter.ts
 msgid "No year"
-msgstr ""
+msgstr "无年份"
 
 #: app/src/features/library/lib/filter.ts
 msgid "Not read yet"
-msgstr ""
+msgstr "还没读"
 
 #. highlight colour
 #: app/src/features/library/lib/highlights.ts
 msgid "Yellow"
-msgstr ""
+msgstr "黄色"
 
 #. highlight colour
 #: app/src/features/library/lib/highlights.ts
 msgid "Green"
-msgstr ""
+msgstr "绿色"
 
 #. highlight colour
 #: app/src/features/library/lib/highlights.ts
 msgid "Blue"
-msgstr ""
+msgstr "蓝色"
 
 #. highlight colour
 #: app/src/features/library/lib/highlights.ts
 msgid "Pink"
-msgstr ""
+msgstr "粉色"
 
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
-msgstr ""
+msgstr "无法查找。"
 
 #: app/src/features/library/mock-client.ts
 msgid "That does not look like a DOI, an arXiv id or a URL."
-msgstr ""
+msgstr "这看起来不像 DOI、arXiv ID 或 URL。"
 
 #: app/src/features/library/mock-client.ts
 msgid "No open-access PDF was found for this paper."
-msgstr ""
+msgstr "没有找到这篇论文的开放获取 PDF。"
 
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "What do you take from this paper?"
-msgstr ""
+msgstr "你从这篇论文中得到了什么？"
 
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "That highlight was deleted"
-msgstr ""
+msgstr "那条高亮已被删除"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "No papers match."
-msgstr ""
+msgstr "没有匹配的论文。"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Drop PDF to add"
-msgstr ""
+msgstr "拖放 PDF 以添加"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "No papers match “{words}”"
-msgstr ""
+msgstr "没有与“{words}”匹配的论文"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for papers on this and add what it finds."
-msgstr ""
+msgstr "Owlit 可以帮你查找相关论文，并添加找到的结果。"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Ask Owlit to find papers about this"
-msgstr ""
+msgstr "让 Owlit 查找相关论文"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Add your first papers"
-msgstr ""
+msgstr "添加你的第一批论文"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Paste a DOI, arXiv id or link in the field above, or drop PDFs here."
-msgstr ""
+msgstr "在上方输入框粘贴 DOI、arXiv 编号或链接，或把 PDF 拖到这里。"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Choose PDFs"
-msgstr ""
+msgstr "选择 PDF"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Ask Owlit to find papers"
-msgstr ""
+msgstr "让 Owlit 找论文"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "This paper is not in the library"
-msgstr ""
+msgstr "这篇论文不在文献库中"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "It may have been removed."
-msgstr ""
+msgstr "它可能已被移除。"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Back to library"
-msgstr ""
+msgstr "返回文献库"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "{position} of {total}"
-msgstr ""
+msgstr "{position} / {total}"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Previous paper"
-msgstr ""
+msgstr "上一篇论文"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Next paper"
-msgstr ""
+msgstr "下一篇论文"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Hide details"
-msgstr ""
+msgstr "隐藏详情"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Show details"
-msgstr ""
+msgstr "显示详情"
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Reading note"
-msgstr ""
+msgstr "导读"
 
 #: app/src/features/library/pages/UpNextPage.tsx
 msgid "Nothing to read next"
-msgstr ""
+msgstr "没有待读的论文"
 
 #: app/src/features/library/pages/UpNextPage.tsx
 msgid "Papers you start reading, and new ones with a PDF, will show up here."
-msgstr ""
+msgstr "你开始阅读的论文，以及新加入且有 PDF 的论文，都会显示在这里。"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Resize details"
-msgstr ""
+msgstr "调整详情栏宽度"
 
 #. tab: the user's notes on a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Notes"
-msgstr ""
+msgstr "笔记"
 
 #. tab: the passages highlighted in a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Highlights"
-msgstr ""
+msgstr "高亮"
 
 #. tab: a paper's abstract and details
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "About"
-msgstr ""
+msgstr "信息"
 
 #. noun: a web link to the paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Link"
-msgstr ""
+msgstr "链接"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No abstract."
-msgstr ""
+msgstr "无摘要。"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "{when} by Owlit"
-msgstr ""
+msgstr "{when}，由 Owlit 添加"
 
 #. the paper's PDF file
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 #: apps/desktop/src/main.ts
 msgid "File"
-msgstr ""
+msgstr "文件"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "{pages, plural, one {PDF, # page} other {PDF, # pages}}"
-msgstr ""
+msgstr "{pages, plural, other {PDF，共 # 页}}"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No PDF"
-msgstr ""
+msgstr "无 PDF"
 
 #. how much of the paper's text owlit has read
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Text"
-msgstr ""
+msgstr "正文"
 
 #. the paper's text: read in full
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Full"
-msgstr ""
+msgstr "完整"
 
 #. the paper's text: read plainly, without layout
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Basic"
-msgstr ""
+msgstr "基础"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show more"
-msgstr ""
+msgstr "显示更多"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Looking for a PDF…"
-msgstr ""
+msgstr "正在查找 PDF…"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "If you already have it, drop it here."
-msgstr ""
+msgstr "如果你已经有了，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Sign in on its page here and owlit fetches the PDF."
-msgstr ""
+msgstr "在这里打开它的页面登录，owlit 就会获取 PDF。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "It wants to see a person before it hands over the PDF. Open its page here to do that."
-msgstr ""
+msgstr "它要先确认你是真人，才会提供 PDF。在这里打开它的页面完成验证。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No PDF found"
-msgstr ""
+msgstr "未找到 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Drop a PDF here if you have it."
-msgstr ""
+msgstr "如果你有 PDF，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No PDF yet"
-msgstr ""
+msgstr "还没有 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Drop a PDF here, or let owlit look for an open-access copy."
-msgstr ""
+msgstr "把 PDF 拖到这里，或让 owlit 查找开放获取的版本。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
-msgstr ""
+msgstr "已附加 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Couldn't attach that file."
-msgstr ""
+msgstr "无法附加该文件。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF found"
-msgstr ""
+msgstr "已找到 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Could not find a PDF."
-msgstr ""
+msgstr "找不到 PDF。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried} Drop a PDF here if you have it."
-msgstr ""
+msgstr "{tried}如果你有 PDF，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Try again"
-msgstr ""
+msgstr "重试"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Find PDF"
-msgstr ""
+msgstr "查找 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Choose file"
-msgstr ""
+msgstr "选择文件"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Your library may have it. <0>Set up library proxy</0>"
-msgstr ""
+msgstr "你的图书馆可能有。<0>设置图书馆代理</0>"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: packages/core/src/library/library.ts
 msgid "owlit couldn't open the publisher's page."
-msgstr ""
+msgstr "owlit 无法打开出版商页面。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The publisher wants you on its page."
-msgstr ""
+msgstr "出版商需要你在它的页面上操作。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Opening the publisher's page…"
-msgstr ""
+msgstr "正在打开出版商页面…"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "the next paper"
-msgstr ""
+msgstr "下一篇论文"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Next: {nextName}"
-msgstr ""
+msgstr "下一篇：{nextName}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "the publisher"
-msgstr ""
+msgstr "出版商"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "the library proxy"
-msgstr ""
+msgstr "图书馆代理"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "open-access links"
-msgstr ""
+msgstr "开放获取链接"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit knows of no open copy of this paper."
-msgstr ""
+msgstr "owlit 不知道这篇论文有开放获取的版本。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Tried {list}."
-msgstr ""
+msgstr "已尝试：{list}。"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Owlit is reading this paper…"
-msgstr ""
+msgstr "Owlit 正在阅读这篇论文…"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Owlit is reading this paper again…"
-msgstr ""
+msgstr "Owlit 正在重新阅读这篇论文…"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Reading note · Owlit, {when}"
-msgstr ""
+msgstr "导读 · Owlit，{when}"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Reading note · Owlit"
-msgstr ""
+msgstr "导读 · Owlit"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Couldn't ask for the note again."
-msgstr ""
+msgstr "无法重新请求导读。"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "This note is in another language than your reading notes now."
-msgstr ""
+msgstr "这篇导读的语言与你现在设置的导读语言不同。"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "This note was written the old way."
-msgstr ""
+msgstr "这篇导读是按旧方式写的。"
 
 #. button: write the reading note again
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Rewrite"
-msgstr ""
+msgstr "重写"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "{label}, page {page}: go to it in the PDF"
-msgstr ""
+msgstr "{label}，第 {page} 页：在 PDF 中转到此处"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "{label} · p. {page}"
-msgstr ""
+msgstr "{label} · 第 {page} 页"
 
 #: app/src/features/library/pages/paper/ReadingNote.tsx
 msgid "Page {number}"
-msgstr ""
+msgstr "第 {number} 页"
 
 #. verb: add a comment to a highlight
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Comment"
-msgstr ""
+msgstr "备注"
 
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Delete highlight"
-msgstr ""
+msgstr "删除高亮"
 
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Add a comment"
-msgstr ""
+msgstr "添加备注"
 
 #: app/src/features/library/reader/LinkLayer.tsx
 msgid "Go to page {page}"
-msgstr ""
+msgstr "转到第 {page} 页"
 
 #: app/src/features/library/reader/PdfReader.tsx
 msgid "The PDF engine did not start"
-msgstr ""
+msgstr "PDF 引擎未能启动"
 
 #: app/src/features/library/reader/PdfReader.tsx
 msgid "This PDF could not be loaded"
-msgstr ""
+msgstr "无法加载此 PDF"
 
 #: app/src/features/library/reader/PdfReader.tsx
 msgid "The server may not allow owlit to fetch it. It can still be opened in the browser."
-msgstr ""
+msgstr "服务器可能不允许 owlit 获取它。你仍可以在浏览器中打开。"
 
 #: app/src/features/library/reader/PdfReader.tsx
 msgid "Open in browser"
-msgstr ""
+msgstr "在浏览器中打开"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Fit width · click for 100%"
-msgstr ""
+msgstr "适合宽度 · 点击切换到 100%"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Fit page · click to fit width"
-msgstr ""
+msgstr "适合页面 · 点击切换到适合宽度"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Click to fit the page"
-msgstr ""
+msgstr "点击以适合页面"
 
 #. find in paper: no matches
 #. no library proxy
 #: app/src/features/library/reader/ReaderControls.tsx
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "None"
-msgstr ""
+msgstr "无"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "{active} of {total}"
-msgstr ""
+msgstr "{active} / {total}"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Previous match"
-msgstr ""
+msgstr "上一个匹配项"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Next match"
-msgstr ""
+msgstr "下一个匹配项"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Close find"
-msgstr ""
+msgstr "关闭查找"
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Back to page {backPage}"
-msgstr ""
+msgstr "返回第 {backPage} 页"
 
 #: app/src/features/library/rpc-client.ts
 #: packages/core/src/library/library.ts
 msgid "owlit couldn't look for a PDF."
-msgstr ""
+msgstr "owlit 无法查找 PDF。"
 
 #: app/src/features/library/rpc-client.ts
 msgid "No PDF found. Drop one here if you have it."
-msgstr ""
+msgstr "未找到 PDF。如果你有，拖到这里即可。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
-msgstr ""
+msgstr "Owlit 怎么称呼你、没人等着时它做的工作，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them."
-msgstr ""
+msgstr "安装在这台电脑上的编程智能体，通过 Agent Client Protocol 驱动。每个智能体使用自己的登录方式；owlit 不为它们保存任何密钥。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better."
-msgstr ""
+msgstr "owlit 如何查找论文、获取 PDF、解析正文。这里的设置都是可选的，用来让这些功能更好用。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "How owlit looks on this computer. Stars, notes, tags and PDF highlights keep their colours in every tone, because the colour is what they mean."
-msgstr ""
+msgstr "owlit 在这台电脑上的外观。星标、笔记、标签和 PDF 高亮在每种色调下都保持原有颜色，因为颜色本身就代表含义。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "This computer's settings for owlit."
-msgstr ""
+msgstr "owlit 在这台电脑上的设置。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "About {sectionLabel}"
-msgstr ""
+msgstr "关于{sectionLabel}"
 
 #: app/src/features/settings/form-state.ts
 msgid "Couldn't check it just now."
-msgstr ""
+msgstr "暂时无法检查。"
 
 #: app/src/features/settings/parts.tsx
 msgid "{service} accepted it"
-msgstr ""
+msgstr "{service} 已接受"
 
 #: app/src/features/settings/parts.tsx
 msgid "Checking with {service}…"
-msgstr ""
+msgstr "正在向 {service} 验证…"
 
 #: app/src/features/settings/parts.tsx
 msgid "Not set"
-msgstr ""
+msgstr "未设置"
 
 #: app/src/features/settings/parts.tsx
 msgid "Add key"
-msgstr ""
+msgstr "添加密钥"
 
 #: app/src/features/settings/parts.tsx
 msgid "Get one at <0>{site}</0>. Press Enter to keep it."
-msgstr ""
+msgstr "可在 <0>{site}</0> 获取。按 Enter 保存。"
 
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Paste the key"
-msgstr ""
+msgstr "粘贴密钥"
 
 #: app/src/features/settings/parts.tsx
 msgid "Remove key"
-msgstr ""
+msgstr "移除密钥"
 
 #: app/src/features/settings/parts.tsx
 msgid "Key ending in {last4}"
-msgstr ""
+msgstr "尾号为 {last4} 的密钥"
 
 #: app/src/features/settings/parts.tsx
 msgid "Key set"
-msgstr ""
+msgstr "已设置密钥"
 
 #: app/src/features/settings/parts.tsx
 msgid "Change key"
-msgstr ""
+msgstr "更换密钥"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Sign-ins"
-msgstr ""
+msgstr "登录方式"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
-msgstr ""
+msgstr "{engineName} 可以同时登录多个服务商。每个对话都可以在输入框中从中任选模型。"
 
 #. verb
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Check again"
-msgstr ""
+msgstr "重新检查"
 
 #. verb: check whether the agent is installed and works
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Check"
-msgstr ""
+msgstr "检查"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Copy install command"
-msgstr ""
+msgstr "复制安装命令"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Add an agent"
-msgstr ""
+msgstr "添加智能体"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Add agent"
-msgstr ""
+msgstr "添加智能体"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "My agent"
-msgstr ""
+msgstr "我的智能体"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Command"
-msgstr ""
+msgstr "命令"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "What owlit runs to start the agent. It must speak ACP over stdio."
-msgstr ""
+msgstr "owlit 用来启动智能体的命令。它必须通过 stdio 使用 ACP 通信。"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "System"
-msgstr ""
+msgstr "跟随系统"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Light"
-msgstr ""
+msgstr "浅色"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Dark"
-msgstr ""
+msgstr "深色"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Warm"
-msgstr ""
+msgstr "暖色"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Neutral"
-msgstr ""
+msgstr "中性"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Slate"
-msgstr ""
+msgstr "青灰"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Sepia"
-msgstr ""
+msgstr "棕褐"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Language"
-msgstr ""
+msgstr "语言"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Theme"
-msgstr ""
+msgstr "外观模式"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Paper tone"
-msgstr ""
+msgstr "纸张色调"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Dim PDF pages in the dark theme"
-msgstr ""
+msgstr "在深色模式下调暗 PDF 页面"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
-msgstr ""
+msgstr "页面在两种外观模式下都保持白色；调暗后，在深色面板旁就不会刺眼。"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Sign out"
-msgstr ""
+msgstr "退出登录"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Signed in"
-msgstr ""
+msgstr "已登录"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Add a sign-in"
-msgstr ""
+msgstr "添加登录方式"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Sign in with"
-msgstr ""
+msgstr "登录方式"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Save key"
-msgstr ""
+msgstr "保存密钥"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Continue in browser"
-msgstr ""
+msgstr "在浏览器中继续"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "API key"
-msgstr ""
+msgstr "API 密钥"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Kept on this Mac, in owlit's own folder. Model requests are billed to this key."
-msgstr ""
+msgstr "保存在这台 Mac 上 owlit 自己的文件夹里。模型请求的费用计入此密钥。"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Finish signing in in your browser."
-msgstr ""
+msgstr "请在浏览器中完成登录。"
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
-msgstr ""
+msgstr "会打开浏览器登录。模型请求使用你的 ChatGPT 套餐。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 msgid "Background work"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere."
-msgstr ""
+msgstr "后台任务"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 msgid "Privacy"
-msgstr ""
+msgstr "隐私"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What owlit remembers stays in this workspace and is never sent anywhere."
+msgstr "owlit 记住的内容只保存在这个工作区，绝不会发送到任何地方。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Your name"
-msgstr ""
+msgstr "你的名字"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
-msgstr ""
+msgstr "Owlit 怎么称呼你"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
-msgstr ""
+msgstr "自动（{fallbackName}）"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic"
-msgstr ""
+msgstr "自动"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Agent"
-msgstr ""
+msgstr "智能体"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Writes reading notes and keeps Knowledge up to date."
-msgstr ""
+msgstr "写导读，并让知识保持最新。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Agent for background work"
-msgstr ""
+msgstr "后台任务使用的智能体"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model"
-msgstr ""
+msgstr "模型"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "A smaller one costs less. Reading notes come out best from the strongest: it catches what a paper doesn't support."
-msgstr ""
+msgstr "小一些的模型更省钱。导读用最强的模型效果最好：它能发现论文里站不住脚的说法。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model for background work"
-msgstr ""
+msgstr "后台任务使用的模型"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Reading notes for every paper"
-msgstr ""
+msgstr "为每篇论文写导读"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Otherwise only for papers you open or star."
-msgstr ""
+msgstr "关闭时，只为你打开过或加了星标的论文写导读。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "On, a big import keeps the agent busy for a while."
-msgstr ""
+msgstr "开启后，一次大量导入会让智能体忙上一阵。"
 
 #. a language not in the list
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Other…"
-msgstr ""
+msgstr "其他…"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Reading notes in"
-msgstr ""
+msgstr "导读语言"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Technical terms stay as the paper writes them, whatever the language."
-msgstr ""
+msgstr "无论用哪种语言，专业术语都保留论文原文的写法。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Language for reading notes"
-msgstr ""
+msgstr "导读语言"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Remember what I do in owlit"
-msgstr ""
+msgstr "记住我在 owlit 中的操作"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What you open, highlight and write keeps Knowledge and Home current."
-msgstr ""
+msgstr "你打开、高亮和写下的内容会让知识和主页保持最新。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
-msgstr ""
+msgstr "{host} · 改写网址"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · sign-in link"
-msgstr ""
+msgstr "{host} · 登录链接"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Another library…"
-msgstr ""
+msgstr "其他图书馆…"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Your library"
-msgstr ""
+msgstr "你的图书馆"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Reaches paywalled PDFs through your university's proxy, signed in as you."
-msgstr ""
+msgstr "以你的身份通过学校的代理获取付费墙后的 PDF。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Proxy"
-msgstr ""
+msgstr "代理"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Change proxy"
-msgstr ""
+msgstr "更换代理"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Couldn't keep that proxy."
-msgstr ""
+msgstr "无法保存这个代理。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "A link to any paper, opened through your library"
-msgstr ""
+msgstr "任意一篇论文通过你的图书馆打开后的链接"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Use this proxy"
-msgstr ""
+msgstr "使用此代理"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Proxy at <0>{where}</0>"
-msgstr ""
+msgstr "代理地址：<0>{where}</0>"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "This link doesn't show a proxy. Open a paper from your library's website and copy the address from the browser."
-msgstr ""
+msgstr "这个链接里看不出代理。请从你图书馆的网站打开一篇论文，再从浏览器复制地址。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Open a paper from your library's website and copy the address from the browser."
-msgstr ""
+msgstr "请从你图书馆的网站打开一篇论文，再从浏览器复制地址。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign-in"
-msgstr ""
+msgstr "登录"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
-msgstr ""
+msgstr "owlit 在自己的浏览器窗口中，以你的身份通过代理获取 PDF。图书馆过一段时间会让你退出登录；获取时如果要求登录，再登录一次即可。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Waiting for the sign-in window…"
-msgstr ""
+msgstr "正在等待登录窗口…"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Signed in {when}"
-msgstr ""
+msgstr "登录于 {when}"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in again…"
-msgstr ""
+msgstr "重新登录…"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in…"
-msgstr ""
+msgstr "登录…"
 
 #. placeholder {0}: waiting.length
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{0, plural, one {The library asked for sign-in while fetching a PDF. It continues once you're signed in.} other {The library asked for sign-in while fetching # PDFs. They continue once you're signed in.}}"
-msgstr ""
+msgstr "{0, plural, other {图书馆在获取 # 个 PDF 时要求登录。登录后会继续获取。}}"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in in the window that opened, then close it."
-msgstr ""
+msgstr "请在打开的窗口中登录，然后关闭它。"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Built-in only"
-msgstr ""
+msgstr "仅内置"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "MinerU cloud"
-msgstr ""
+msgstr "MinerU 云服务"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "MinerU on my own server"
-msgstr ""
+msgstr "自建服务器上的 MinerU"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 #: app/src/features/settings/store.ts
 msgid "Reading PDFs"
-msgstr ""
+msgstr "解析 PDF"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Read PDFs with"
-msgstr ""
+msgstr "PDF 解析方式"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "MinerU is slower but gets tables, formulas and scans right."
-msgstr ""
+msgstr "MinerU 较慢，但能正确处理表格、公式和扫描件。"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Token"
-msgstr ""
+msgstr "令牌"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "MinerU's API token. Kept in the system keychain."
-msgstr ""
+msgstr "MinerU 的 API 令牌。保存在系统钥匙串中。"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Read new PDFs with MinerU automatically"
-msgstr ""
+msgstr "自动用 MinerU 解析新 PDF"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Off means MinerU reads a paper only when you ask on its page."
-msgstr ""
+msgstr "关闭时，只有你在论文页面上要求，MinerU 才会解析这篇论文。"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "Address"
-msgstr ""
+msgstr "地址"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "MinerU answered"
-msgstr ""
+msgstr "MinerU 已响应"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "MinerU address"
-msgstr ""
+msgstr "MinerU 地址"
 
 #: app/src/features/settings/sections/ReadingGroup.tsx
 msgid "An address starts with http:// or https://."
-msgstr ""
+msgstr "地址需以 http:// 或 https:// 开头。"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "That doesn't look like an email address."
-msgstr ""
-
-#: app/src/features/settings/sections/SourcesGroup.tsx
-msgid "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
-msgstr ""
+msgstr "这看起来不像邮箱地址。"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 #: app/src/features/settings/store.ts
 msgid "Finding papers"
-msgstr ""
+msgstr "查找论文"
+
+#: app/src/features/settings/sections/SourcesGroup.tsx
+msgid "All optional: lookups work without them, only slower. Keys are kept in the system keychain."
+msgstr "都是可选的：没有它们也能查询，只是慢一些。密钥保存在系统钥匙串中。"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Contact email"
-msgstr ""
+msgstr "联系邮箱"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies."
-msgstr ""
+msgstr "填写邮箱后，OpenAlex 和 Unpaywall 会响应得更快、更稳定，Unpaywall 还能找到开放获取的副本。"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Semantic Scholar API key"
-msgstr ""
+msgstr "Semantic Scholar API 密钥"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Without a key, searches are slow and often refused."
-msgstr ""
+msgstr "没有密钥时，搜索很慢，而且常被拒绝。"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "OpenAlex API key"
-msgstr ""
+msgstr "OpenAlex API 密钥"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Only needed past the free daily allowance."
-msgstr ""
+msgstr "仅在超出每日免费额度时需要。"
 
 #: app/src/features/settings/store.ts
 msgid "Owlit"
-msgstr ""
+msgstr "Owlit"
 
 #: app/src/features/settings/store.ts
 msgid "Agents"
-msgstr ""
+msgstr "智能体"
 
 #: app/src/features/settings/store.ts
 msgid "Appearance"
-msgstr ""
+msgstr "外观"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
-msgstr ""
+msgstr "Owlit 将使用 <0>{name}</0>"
 
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Change…"
-msgstr ""
+msgstr "更改…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Looking for an agent on this Mac…"
-msgstr ""
+msgstr "正在这台 Mac 上查找智能体…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
-msgstr ""
+msgstr "<0>{problem}。</0>在终端中运行 <1>{command}</1> 以登录。"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "{problem}."
-msgstr ""
+msgstr "{problem}。"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Use another agent…"
-msgstr ""
+msgstr "使用其他智能体…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit needs a coding agent on this Mac."
-msgstr ""
+msgstr "Owlit 需要这台 Mac 上有一个编程智能体。"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "To use {name}, run this in Terminal:"
-msgstr ""
+msgstr "要使用 {name}，请在终端中运行："
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copy the install command"
-msgstr ""
+msgstr "拷贝安装命令"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Open a Folder"
-msgstr ""
+msgstr "打开文件夹"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr ""
+msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Where the Workspace Goes"
-msgstr ""
+msgstr "工作区存放位置"
 
 #. button of the folder picker
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Choose"
-msgstr ""
+msgstr "选取"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
-msgstr ""
+msgstr "查找 {name}"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Read, write and think through papers with Owlit. Everything lives in a folder on your Mac."
-msgstr ""
+msgstr "和 Owlit 一起阅读、写作、思考论文。一切都保存在你 Mac 上的一个文件夹里。"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Create a workspace"
-msgstr ""
+msgstr "创建工作区"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Open a folder you have"
-msgstr ""
+msgstr "打开已有文件夹"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Notes, an Obsidian vault, PDFs. Your files stay as they are."
-msgstr ""
+msgstr "笔记、Obsidian 库、PDF 都可以。你的文件保持原样。"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "isn’t at {where} anymore"
-msgstr ""
+msgstr "已不在 {where}"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate…"
-msgstr ""
+msgstr "查找…"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Remove from Recent"
-msgstr ""
+msgstr "从最近使用中移除"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "What should Owlit call you?"
-msgstr ""
+msgstr "Owlit 该怎么称呼你？"
 
 #. label: the folder the new workspace goes in
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "In"
-msgstr ""
+msgstr "位置"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Choose…"
-msgstr ""
+msgstr "选取…"
 
 #. verb: create the workspace
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Create"
-msgstr ""
+msgstr "创建"
 
 #: app/src/lib/clipboard.ts
 msgid "Could not write to the clipboard"
-msgstr ""
+msgstr "无法写入剪贴板"
 
 #: app/src/lib/rpc.ts
 msgid "That file can't be read from here."
-msgstr ""
+msgstr "无法从这里读取那个文件。"
 
 #: app/src/lib/rpc.ts
 msgid "This needs the owlit desktop app."
-msgstr ""
+msgstr "这需要 owlit 桌面应用。"
 
 #: app/src/lib/time.ts
 msgid "just now"
-msgstr ""
+msgstr "刚刚"
 
 #: app/src/lib/time.ts
 msgid "Just now"
-msgstr ""
+msgstr "刚刚"
 
 #: app/src/lib/time.ts
 msgid "{minutes} min ago"
-msgstr ""
+msgstr "{minutes} 分钟前"
 
 #: app/src/lib/time.ts
 msgid "{hours} h ago"
-msgstr ""
+msgstr "{hours} 小时前"
 
 #: app/src/lib/time.ts
 msgid "yesterday"
-msgstr ""
+msgstr "昨天"
 
 #: app/src/lib/versions.ts
 msgid "Redone"
-msgstr ""
+msgstr "已重做"
 
 #: app/src/lib/words.ts
 msgctxt "the last thing in a list"
 msgid "{rest} and {last}"
-msgstr ""
+msgstr "{rest}和{last}"
 
 #: app/src/lib/words.ts
 msgctxt "between actions in a sentence"
 msgid ", "
-msgstr ""
+msgstr "，"
 
 #: app/src/lib/words.ts
 msgctxt "the last action in a sentence"
 msgid "{rest} and {last}"
-msgstr ""
+msgstr "{rest}，{last}"
 
 #. title of the window that shows a publisher's or library's sign-in page
 #: apps/desktop/src/browser.ts
 msgid "Owlit · Publisher"
-msgstr ""
+msgstr "Owlit · 出版商"
 
 #: apps/desktop/src/browser.ts
 msgid "Sign in to the library or publisher on the page."
-msgstr ""
+msgstr "请在页面上登录图书馆或出版商。"
 
 #: apps/desktop/src/browser.ts
 msgid "The publisher wants to check this is a person."
-msgstr ""
+msgstr "出版商想确认你是真人。"
 
 #: apps/desktop/src/main.ts
 msgid "Couldn't open the folder"
-msgstr ""
+msgstr "无法打开文件夹"
 
 #: apps/desktop/src/main.ts
 msgid "Open Workspace"
-msgstr ""
+msgstr "打开工作区"
 
 #: apps/desktop/src/main.ts
 msgid "Choose the folder Owlit works in. Your docs, library and notes live there."
-msgstr ""
+msgstr "选择 Owlit 工作的文件夹。你的文档、文献库和笔记都存放在那里。"
 
 #: apps/desktop/src/main.ts
 msgid "Import a pitta Library"
-msgstr ""
+msgstr "导入 pitta 文献库"
 
 #: apps/desktop/src/main.ts
 msgid "Choose the pitta library (the folder that holds papers/). It is only read."
-msgstr ""
+msgstr "选择 pitta 文献库（包含 papers/ 的文件夹）。只会读取，不会改动。"
 
 #: apps/desktop/src/main.ts
 msgid "Import"
-msgstr ""
+msgstr "导入"
 
 #: apps/desktop/src/main.ts
 msgid "{added, plural, one {# paper imported} other {# papers imported}}"
-msgstr ""
+msgstr "{added, plural, other {已导入 # 篇论文}}"
 
 #: apps/desktop/src/main.ts
 msgid "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
-msgstr ""
+msgstr "{skipped, plural, other {# 篇已在文献库中。}}"
 
 #: apps/desktop/src/main.ts
 msgid "{failedCount} couldn't be read:"
-msgstr ""
+msgstr "{failedCount} 篇无法读取："
 
 #: apps/desktop/src/main.ts
 msgid "The pitta library couldn't be imported"
-msgstr ""
+msgstr "无法导入 pitta 文献库"
 
 #: apps/desktop/src/main.ts
 msgid "OK"
-msgstr ""
+msgstr "好"
 
 #: apps/desktop/src/main.ts
 msgid "Settings…"
-msgstr ""
+msgstr "设置…"
 
 #: apps/desktop/src/main.ts
 msgid "About {name}"
-msgstr ""
+msgstr "关于 {name}"
 
 #: apps/desktop/src/main.ts
 msgid "Services"
-msgstr ""
+msgstr "服务"
 
 #: apps/desktop/src/main.ts
 msgid "Hide {name}"
-msgstr ""
+msgstr "隐藏 {name}"
 
 #: apps/desktop/src/main.ts
 msgid "Hide Others"
-msgstr ""
+msgstr "隐藏其他"
 
 #: apps/desktop/src/main.ts
 msgid "Show All"
-msgstr ""
+msgstr "全部显示"
 
 #: apps/desktop/src/main.ts
 msgid "Quit {name}"
-msgstr ""
+msgstr "退出 {name}"
 
 #: apps/desktop/src/main.ts
 msgid "Open Workspace…"
-msgstr ""
+msgstr "打开工作区…"
 
 #: apps/desktop/src/main.ts
 msgid "Open Recent"
-msgstr ""
+msgstr "打开最近使用"
 
 #: apps/desktop/src/main.ts
 msgid "No Recent Workspaces"
-msgstr ""
+msgstr "没有最近使用的工作区"
 
 #: apps/desktop/src/main.ts
 msgid "Clear Menu"
-msgstr ""
+msgstr "清除菜单"
 
 #: apps/desktop/src/main.ts
 msgid "Import a pitta Library…"
-msgstr ""
+msgstr "导入 pitta 文献库…"
 
 #: apps/desktop/src/main.ts
 msgid "Close Window"
-msgstr ""
+msgstr "关闭窗口"
 
 #: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Cut"
-msgstr ""
+msgstr "剪切"
 
 #: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Paste"
-msgstr ""
+msgstr "粘贴"
 
 #: apps/desktop/src/main.ts
 msgid "Paste and Match Style"
-msgstr ""
+msgstr "粘贴并匹配样式"
 
 #: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Select All"
-msgstr ""
+msgstr "全选"
 
 #: apps/desktop/src/main.ts
 msgid "Speech"
-msgstr ""
+msgstr "语音"
 
 #: apps/desktop/src/main.ts
 msgid "Start Speaking"
-msgstr ""
+msgstr "开始朗读"
 
 #: apps/desktop/src/main.ts
 msgid "Stop Speaking"
-msgstr ""
+msgstr "停止朗读"
 
 #: apps/desktop/src/main.ts
 msgid "View"
-msgstr ""
+msgstr "显示"
 
 #: apps/desktop/src/main.ts
 msgid "Force Reload"
-msgstr ""
+msgstr "强制重新载入"
 
 #: apps/desktop/src/main.ts
 msgid "Toggle Developer Tools"
-msgstr ""
+msgstr "切换开发者工具"
 
 #: apps/desktop/src/main.ts
 msgid "Actual Size"
-msgstr ""
+msgstr "实际大小"
 
 #: apps/desktop/src/main.ts
 msgid "Zoom In"
-msgstr ""
+msgstr "放大"
 
 #: apps/desktop/src/main.ts
 msgid "Zoom Out"
-msgstr ""
+msgstr "缩小"
 
 #: apps/desktop/src/main.ts
 msgid "Toggle Full Screen"
-msgstr ""
+msgstr "切换全屏幕"
 
 #: apps/desktop/src/main.ts
 msgid "Window"
-msgstr ""
+msgstr "窗口"
 
 #: apps/desktop/src/main.ts
 msgid "Minimize"
-msgstr ""
+msgstr "最小化"
 
 #: apps/desktop/src/main.ts
 msgid "Zoom"
-msgstr ""
+msgstr "缩放"
 
 #: apps/desktop/src/main.ts
 msgid "Bring All to Front"
-msgstr ""
+msgstr "前置全部窗口"
 
 #: apps/desktop/src/main.ts
 msgid "Help"
-msgstr ""
+msgstr "帮助"
 
 #: apps/desktop/src/main.ts
 msgid "Keyboard Shortcuts"
-msgstr ""
+msgstr "键盘快捷键"
 
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
-msgstr ""
+msgstr "问 Owlit 怎么做…"
 
 #: apps/desktop/src/text-menu.ts
 msgid "No Guesses Found"
-msgstr ""
+msgstr "没有猜测"
 
 #: apps/desktop/src/text-menu.ts
 msgid "Learn Spelling"
-msgstr ""
+msgstr "学习拼写"
 
 #: apps/desktop/src/text-menu.ts
 msgid "Look Up “{passage}”"
-msgstr ""
+msgstr "查询“{passage}”"
 
 #: apps/desktop/src/text-menu.ts
 msgid "Open Link in Browser"
-msgstr ""
+msgstr "在浏览器中打开链接"
 
 #: apps/desktop/src/text-menu.ts
 msgid "Copy Link"
-msgstr ""
+msgstr "拷贝链接"
 
 #: packages/core/src/agents/agents.ts
 msgid "The command is empty."
-msgstr ""
+msgstr "命令为空。"
 
 #: packages/core/src/agents/agents.ts
 msgid "{agent} is built in and can't be removed."
-msgstr ""
+msgstr "{agent} 是内置的，无法移除。"
 
 #: packages/core/src/agents/agents.ts
 msgid "`{command}` was not found"
-msgstr ""
+msgstr "找不到 `{command}`"
 
 #: packages/core/src/agents/agents.ts
 msgid "{agent} isn't signed in. Sign in under Settings › Agents, then try again."
-msgstr ""
+msgstr "{agent} 尚未登录。请在“设置 › 智能体”中登录，然后重试。"
 
 #: packages/core/src/agents/agents.ts
 msgid "{agent} isn't signed in. Run {command} in a terminal to sign in, then try again."
-msgstr ""
+msgstr "{agent} 尚未登录。请在终端中运行 {command} 登录，然后重试。"
 
 #: packages/core/src/agents/agents.ts
 msgid "{agent}'s service refused the request (403). If {agent} is signed in, this is usually the network or a proxy; try again in a moment."
-msgstr ""
+msgstr "{agent} 的服务拒绝了请求（403）。如果 {agent} 已登录，通常是网络或代理的问题；请稍后再试。"
 
 #. stands in for an agent's name at the start of a sentence: The agent ran into a problem.
 #: packages/core/src/agents/agents.ts
 msgid "The agent"
-msgstr ""
+msgstr "智能体"
 
 #: packages/core/src/agents/agents.ts
 msgid "owlit doesn't know that agent."
-msgstr ""
+msgstr "owlit 不认识这个智能体。"
 
 #: packages/core/src/agents/fs.ts
 msgid "That earlier version is no longer kept."
-msgstr ""
+msgstr "那个较早的版本已不再保留。"
 
 #: packages/core/src/agents/fs.ts
 msgid "That note is already gone."
-msgstr ""
+msgstr "那条笔记已经不在了。"
 
 #: packages/core/src/agents/fs.ts
 msgid "The note changed after the agent's edit, so owlit left it as it is."
-msgstr ""
+msgstr "智能体编辑后笔记又有了改动，所以 owlit 没有动它。"
 
 #: packages/core/src/agents/fs.ts
 msgid "{name} changed after the agent's edit, so owlit left it as it is."
-msgstr ""
+msgstr "智能体编辑后 {name} 又有了改动，所以 owlit 没有动它。"
 
 #: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts
 #: packages/core/src/core.ts
 #: packages/core/src/knowledge/knowledge.ts
 msgid "Open a folder as the workspace first."
-msgstr ""
+msgstr "请先打开一个文件夹作为工作区。"
 
 #: packages/core/src/agents/process.ts
 msgid "{name} stopped ({signal}). It starts again with the next message."
-msgstr ""
+msgstr "{name} 已停止（{signal}）。发送下一条消息时会重新启动。"
 
 #: packages/core/src/agents/process.ts
 msgid "{name} stopped ({signal})"
-msgstr ""
+msgstr "{name} 已停止（{signal}）"
 
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}: {last}. It starts again with the next message."
-msgstr ""
+msgstr "{name} 已退出，代码 {code}：{last}。发送下一条消息时会重新启动。"
 
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}: {last}"
-msgstr ""
+msgstr "{name} 已退出，代码 {code}：{last}"
 
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}. It starts again with the next message."
-msgstr ""
+msgstr "{name} 已退出，代码 {code}。发送下一条消息时会重新启动。"
 
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}"
-msgstr ""
+msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/turns.ts
 msgid "This chat is still answering."
-msgstr ""
+msgstr "这个对话仍在回答中。"
 
 #: packages/core/src/agents/turns.ts
 msgid "Owlit was closed before it could finish."
-msgstr ""
+msgstr "Owlit 在完成之前被关闭了。"
 
 #: packages/core/src/agents/turns.ts
 msgid "{name} quit unexpectedly. It starts again with the next message."
-msgstr ""
+msgstr "{name} 意外退出。发送下一条消息时会重新启动。"
 
 #: packages/core/src/agents/turns.ts
 msgid "{name} ran into a problem."
-msgstr ""
+msgstr "{name} 遇到了问题。"
 
 #: packages/core/src/agents/turns.ts
 msgid "That question is no longer waiting for an answer."
-msgstr ""
+msgstr "那个问题已不再等待回答。"
 
 #. a step in a chat whose tool the agent did not name
 #: packages/core/src/agents/turns.ts
 msgid "Tool"
-msgstr ""
+msgstr "工具"
 
 #: packages/core/src/agents/turns.ts
 msgid "The agent asks to go ahead"
-msgstr ""
+msgstr "智能体请求继续"
 
 #: packages/core/src/chats/attach.ts
 msgid "owlit can't read that file."
-msgstr ""
+msgstr "owlit 无法读取那个文件。"
 
 #: packages/core/src/chats/attach.ts
 msgid "owlit couldn't copy that file."
-msgstr ""
+msgstr "owlit 无法拷贝那个文件。"
 
 #: packages/core/src/chats/attach.ts
 msgid "Give the file's path or its contents."
-msgstr ""
+msgstr "请提供文件的路径或内容。"
 
 #: packages/core/src/chats/attach.ts
 msgid "That isn't a file attached to a chat."
-msgstr ""
+msgstr "那不是附加到对话的文件。"
 
 #: packages/core/src/chats/chats.ts
 msgid "That chat is not in the workspace."
-msgstr ""
+msgstr "那个对话不在工作区中。"
 
 #: packages/core/src/chats/chats.ts
 msgid "owlit couldn't read that chat just now."
-msgstr ""
+msgstr "owlit 刚才无法读取那个对话。"
 
 #: packages/core/src/chats/chats.ts
 msgid "A chat with that id already exists."
-msgstr ""
+msgstr "已存在使用该 ID 的对话。"
 
 #: packages/core/src/chats/chats.ts
 msgid "That chat is already in the workspace."
-msgstr ""
+msgstr "那个对话已在工作区中。"
 
 #: packages/core/src/chats/chats.ts
 msgid "That chat is no longer in the trash."
-msgstr ""
+msgstr "那个对话已不在废纸篓中。"
 
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
-msgstr ""
+msgstr "那不是这个对话的文件。"
 
 #: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't open files in other apps here."
-msgstr ""
+msgstr "owlit 在这里无法用其他应用打开文件。"
 
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
-msgstr ""
+msgstr "owlit 已不再有那个文件。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."
-msgstr ""
+msgstr "工作区中没有 {rel}。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no folder in the workspace."
-msgstr ""
+msgstr "工作区中没有文件夹。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{name} is not a Markdown file."
-msgstr ""
+msgstr "{name} 不是 Markdown 文件。"
 
 #: packages/core/src/docs/docs.ts
 msgid "That name has nothing in it a file name can use."
-msgstr ""
+msgstr "这个名称里没有可用作文件名的字符。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{name} can't go inside itself."
-msgstr ""
+msgstr "{name} 不能放进它自己里面。"
 
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't show files in Finder here."
-msgstr ""
+msgstr "owlit 在这里无法在访达中显示文件。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{rel} is outside what Docs can reach."
-msgstr ""
+msgstr "{rel} 超出了文档能访问的范围。"
 
 #: packages/core/src/docs/docs.ts
 msgid "The workspace root is outside what Docs can reach."
-msgstr ""
+msgstr "工作区根目录超出了文档能访问的范围。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{file} is outside the workspace."
-msgstr ""
+msgstr "{file} 在工作区之外。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{file} leads outside the workspace."
-msgstr ""
+msgstr "{file} 指向工作区之外。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{name} is no longer on disk."
-msgstr ""
+msgstr "{name} 已不在磁盘上。"
 
 #: packages/core/src/docs/docs.ts
 msgid "{name} changed on disk."
-msgstr ""
+msgstr "{name} 在磁盘上有改动。"
 
 #: packages/core/src/knowledge/knowledge.ts
 msgid "There is no such version of Knowledge."
-msgstr ""
+msgstr "知识没有这个版本。"
 
 #. placeholder {0}: n.added
 #: packages/core/src/knowledge/knowledge.ts
 msgid "{0, plural, one {One line added} other {# lines added}}"
-msgstr ""
+msgstr "{0, plural, other {新增 # 行}}"
 
 #. placeholder {0}: n.rewritten
 #: packages/core/src/knowledge/knowledge.ts
 msgid "{0, plural, one {One line rewritten} other {# lines rewritten}}"
-msgstr ""
+msgstr "{0, plural, other {改写 # 行}}"
 
 #. placeholder {0}: n.removed
 #: packages/core/src/knowledge/knowledge.ts
 msgid "{0, plural, one {One line removed} other {# lines removed}}"
-msgstr ""
+msgstr "{0, plural, other {删除 # 行}}"
 
 #: packages/core/src/knowledge/knowledge.ts
 msgid "Sources updated"
-msgstr ""
+msgstr "来源已更新"
 
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
-msgstr ""
+msgstr "那篇论文不在文献库中。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't tell which paper that is."
-msgstr ""
+msgstr "owlit 无法判断那是哪篇论文。"
 
 #: packages/core/src/library/library.ts
 msgid "Another paper in your library already has that id."
-msgstr ""
+msgstr "文献库中已有另一篇论文使用这个 ID。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't look for PDFs here."
-msgstr ""
+msgstr "owlit 在这里无法查找 PDF。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
-msgstr ""
+msgstr "owlit 在这里无法打开出版商页面。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't import here."
-msgstr ""
+msgstr "owlit 在这里无法导入。"
 
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."
-msgstr ""
+msgstr "无法读取 pitta 文献库。"
 
 #: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
-msgstr ""
+msgstr "无法连接任何 PDF 来源。"
 
 #: packages/core/src/library/library.ts
 msgid "That file can't be opened."
-msgstr ""
+msgstr "无法打开那个文件。"
 
 #: packages/core/src/library/library.ts
 msgid "That file isn't a PDF."
-msgstr ""
+msgstr "那个文件不是 PDF。"
 
 #: packages/core/src/library/pitta.ts
 msgid "There is no papers folder in {root}."
-msgstr ""
+msgstr "{root} 中没有 papers 文件夹。"
 
 #: packages/core/src/library/resolve.ts
 msgid "That doesn't look like a DOI, an arXiv id or a link to a paper."
-msgstr ""
+msgstr "这看起来不像 DOI、arXiv ID 或论文链接。"
 
 #: packages/core/src/library/resolve.ts
 msgid "No service owlit asks knows that paper."
-msgstr ""
+msgstr "owlit 查询的服务都不认识这篇论文。"
 
 #: packages/core/src/library/resolve.ts
 msgid "owlit couldn't open that page to see which paper it is."
-msgstr ""
+msgstr "owlit 无法打开那个页面来确认是哪篇论文。"
 
 #: packages/core/src/library/resolve.ts
 msgid "That page doesn't say which paper it is."
-msgstr ""
+msgstr "那个页面没有说明是哪篇论文。"
 
 #: packages/core/src/library/text/extract.ts
 msgid "The PDF is password-protected."
-msgstr ""
+msgstr "这个 PDF 受密码保护。"
 
 #: packages/core/src/library/text/extract.ts
 msgid "The PDF can't be read."
-msgstr ""
+msgstr "无法读取这个 PDF。"
 
 #: packages/core/src/net/http.ts
 msgid "{host}'s allowance is used up for now."
-msgstr ""
+msgstr "{host} 的额度暂时用完了。"
 
 #: packages/core/src/net/http.ts
 msgid "Couldn't reach {host}."
-msgstr ""
+msgstr "无法连接 {host}。"
 
 #: packages/core/src/net/http.ts
 msgid "{host} has no record of that."
-msgstr ""
+msgstr "{host} 没有相关记录。"
 
 #: packages/core/src/net/http.ts
 msgid "{host} refused the request."
-msgstr ""
+msgstr "{host} 拒绝了请求。"
 
 #: packages/core/src/net/http.ts
 msgid "{host} is asking owlit to slow down."
-msgstr ""
+msgstr "{host} 要求 owlit 放慢速度。"
 
 #: packages/core/src/net/http.ts
 msgid "{host} is having trouble right now."
-msgstr ""
+msgstr "{host} 目前出了点问题。"
 
 #: packages/core/src/net/http.ts
 msgid "{host} answered {status}."
-msgstr ""
+msgstr "{host} 返回了 {status}。"
 
 #: packages/core/src/rpc/errors.ts
 msgid "Something went wrong inside owlit."
-msgstr ""
+msgstr "owlit 内部出了点问题。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "That link doesn't show which proxy it went through."
-msgstr ""
+msgstr "那个链接看不出经过了哪个代理。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "No library proxy is set up."
-msgstr ""
+msgstr "尚未设置图书馆代理。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "Signing in needs the owlit desktop app."
-msgstr ""
+msgstr "登录需要 owlit 桌面应用。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "Nothing answers at {url}. Is MinerU running?"
-msgstr ""
+msgstr "{url} 没有响应。MinerU 在运行吗？"
 
 #: packages/core/src/settings-rpc.ts
 msgid "Today's MinerU quota is used up. Papers keep their built-in text until tomorrow."
-msgstr ""
+msgstr "今天的 MinerU 额度已用完。论文在明天之前继续使用自带的文本。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "MinerU says this token isn't valid. Check it was copied whole."
-msgstr ""
+msgstr "MinerU 说这个令牌无效。请检查是否完整拷贝。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "Couldn't reach MinerU to check the token. It will be tried on the next paper."
-msgstr ""
+msgstr "无法连接 MinerU 来检查令牌。处理下一篇论文时会再试。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "{service} says this key isn't valid. Check it was copied whole."
-msgstr ""
+msgstr "{service} 说这个密钥无效。请检查是否完整拷贝。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "{service} is busy; the key will be tried on the next lookup."
-msgstr ""
+msgstr "{service} 正忙；下次查询时会再试这个密钥。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "Couldn't reach {service} to check the key."
-msgstr ""
+msgstr "无法连接 {service} 来检查密钥。"
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts
 msgid "Research"
-msgstr ""
+msgstr "研究"
 
 #. the suggested folder name for a new workspace when Research is taken
 #: packages/core/src/workspace/welcome.ts
 msgid "Research {n}"
-msgstr ""
+msgstr "研究 {n}"
 
 #: packages/core/src/workspace/welcome.ts
 msgid "A folder name can't be empty or contain / \\ or :."
-msgstr ""
+msgstr "文件夹名称不能为空，也不能包含 /、\\ 或 :。"
 
 #: packages/core/src/workspace/welcome.ts
 msgid "A folder name starting with a dot would be hidden in Finder."
-msgstr ""
+msgstr "以点开头的文件夹名称在访达中会被隐藏。"
 
 #: packages/core/src/workspace/welcome.ts
 msgid "There is already a folder called {clean} in {within}."
-msgstr ""
+msgstr "{within} 中已有名为 {clean} 的文件夹。"
 
 #: packages/core/src/workspace/workspace.ts
 msgid "{name} is already open in another owlit."
-msgstr ""
+msgstr "{name} 已在另一个 owlit 中打开。"
 
 #: packages/core/src/workspace/workspace.ts
 msgid "workspace.json in .owlit can't be read, so owlit leaves it alone."
-msgstr ""
+msgstr ".owlit 中的 workspace.json 无法读取，所以 owlit 没有动它。"
 
 #: packages/core/src/workspace/workspace.ts
 msgid "There is no folder at {absolute}."
-msgstr ""
+msgstr "{absolute} 处没有文件夹。"
 
 #: packages/core/src/workspace/workspace.ts
 msgid "{name} is a file, not a folder."
-msgstr ""
+msgstr "{name} 是文件，不是文件夹。"

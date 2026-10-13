@@ -11,6 +11,7 @@ import { capital } from "@/lib/words"
 
 // One of owlit's tools as it is about to run or runs ("List your Library") and once it ran ("Listed your
 // Library"). Each form is its own message: a language puts tense its own way, not by changing a verb.
+// Where English says both alike ("Read a paper"), the done form has a context so it can differ.
 export interface ToolWords {
   now: string
   done: string
@@ -23,9 +24,9 @@ function owlitToolWords(tool: string): ToolWords | undefined {
     case "library_get":
       return { now: t`Look up a paper`, done: t`Looked up a paper` }
     case "library_read":
-      return { now: t`Read a paper`, done: t`Read a paper` }
+      return { now: t`Read a paper`, done: t({ message: "Read a paper", context: "a step that ran" }) }
     case "library_highlights":
-      return { now: t`Read your highlights`, done: t`Read your highlights` }
+      return { now: t`Read your highlights`, done: t({ message: "Read your highlights", context: "a step that ran" }) }
     case "library_search":
       return { now: t`Search for papers`, done: t`Searched for papers` }
     case "library_related":
@@ -41,7 +42,7 @@ function owlitToolWords(tool: string): ToolWords | undefined {
     case "docs_list":
       return { now: t`List your docs`, done: t`Listed your docs` }
     case "docs_read":
-      return { now: t`Read a doc`, done: t`Read a doc` }
+      return { now: t`Read a doc`, done: t({ message: "Read a doc", context: "a step that ran" }) }
     case "docs_add_note":
       return { now: t`Leave a note on a doc`, done: t`Left a note on a doc` }
     case "docs_delete":
@@ -51,9 +52,9 @@ function owlitToolWords(tool: string): ToolWords | undefined {
     case "chats_list":
       return { now: t`List your chats`, done: t`Listed your chats` }
     case "chats_read":
-      return { now: t`Read a chat`, done: t`Read a chat` }
+      return { now: t`Read a chat`, done: t({ message: "Read a chat", context: "a step that ran" }) }
     case "knowledge_read":
-      return { now: t`Read Knowledge`, done: t`Read Knowledge` }
+      return { now: t`Read Knowledge`, done: t({ message: "Read Knowledge", context: "a step that ran" }) }
     case "knowledge_write":
       return { now: t`Update Knowledge`, done: t`Updated Knowledge` }
     case "ui_open":

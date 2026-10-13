@@ -2,7 +2,7 @@ import { plural, t, type ChoiceOptions } from "@lingui/core/macro"
 import { baseName } from "@owlit/protocol"
 import type { MessagePart, ToolCall } from "../types"
 import { owlitStepWords, owlitToolOf, quote, toolTitle } from "./tool-title"
-import { capital, joinActions } from "@/lib/words"
+import { capital, joinActions, joinAnd } from "@/lib/words"
 
 // How a step of an answer is put in words: what it is doing while it runs, what it did once done, and what
 // kind of work it is, so a block of steps can say in one sentence what happened ("Read 3 files and
@@ -127,7 +127,10 @@ const HIDDEN = new Set(["ToolSearch", "TodoWrite", "TaskCreate", "TaskUpdate", "
 // A step on a file, named or not
 function fileStep(kind: "read" | "edit" | "write", path: string | undefined): StepWords {
   const file = path === undefined ? undefined : fileName(path)
-  if (kind === "read") return file ? { now: t`Read ${file}`, done: t`Read ${file}`, group: "read", file } : { now: t`Read a file`, done: t`Read a file`, group: "read" }
+  if (kind === "read")
+    return file
+      ? { now: t`Read ${file}`, done: t({ message: `Read ${file}`, context: "a step that ran" }), group: "read", file }
+      : { now: t`Read a file`, done: t({ message: "Read a file", context: "a step that ran" }), group: "read" }
   if (kind === "edit") return file ? { now: t`Edit ${file}`, done: t`Edited ${file}`, group: "edit", file } : { now: t`Edit a file`, done: t`Edited a file`, group: "edit" }
   return file ? { now: t`Write ${file}`, done: t`Wrote ${file}`, group: "write", file } : { now: t`Write a file`, done: t`Wrote a file`, group: "write" }
 }
@@ -144,9 +147,9 @@ function webSearch(query: string | undefined): StepWords {
 }
 
 function fetchPage(where: string | undefined, content: string | undefined): StepWords {
-  const page = where ?? t`a page`
   const title = pageTitle(content)
-  return { now: t`Open ${page}`, done: title ? t`Opened “${title}”` : t`Opened ${page}`, group: "fetch" }
+  if (title) return { now: where ? t`Open ${where}` : t`Open a page`, done: t`Opened “${title}”`, group: "fetch" }
+  return where ? { now: t`Open ${where}`, done: t`Opened ${where}`, group: "fetch" } : { now: t`Open a page`, done: t`Opened a page`, group: "fetch" }
 }
 
 // `questions`: how many questions the step asked the user, when it asked some
@@ -330,7 +333,8 @@ function liveWords(group: string): string | undefined {
   return undefined
 }
 
-// What a step on a file did, without the file, for "Read and edited story.md"
+// What a step on a file did, without the file, for "Read and edited story.md": the verbs are joined as a
+// list ("读取和编辑"), and the sentence around them sets the tense ("{verbs}了 {file}")
 function fileVerb(group: string) {
   if (group === "read") return t({ message: "read", context: "done to a file, before its name: read and edited story.md" })
   if (group === "edit") return t({ message: "edited", context: "done to a file, before its name: read and edited story.md" })
@@ -383,7 +387,7 @@ export function blockSentence(steps: WordedStep[]) {
   const all = [...groups]
   const file = all[0][1].file
   if (file && all.every(([group, g]) => FILE_GROUPS.has(group) && g.n === 1 && g.file === file)) {
-    const verbs = joinActions(all.map(([group]) => fileVerb(group)))
+    const verbs = joinAnd(all.map(([group]) => fileVerb(group)))
     return capital(t({ message: `${verbs} ${file}`, context: "file actions and the file: read and edited story.md" }))
   }
   return capital(joinActions(all.map(([group, { n, one }]) => groupPhrase(group, n, one))))

@@ -127,7 +127,7 @@ function About({ paper }: { paper: Paper }) {
             </dd>
           </div>
         ))}
-        <dt className="text-muted-foreground">{t({ message: "Added", comment: "when the paper was added to the library" })}</dt>
+        <dt className="text-muted-foreground">{t({ message: "Added", context: "when the paper was added to the library" })}</dt>
         <dd>{paper.addedBy === "agent" ? t`${when} by Owlit` : when}</dd>
         <dt className="text-muted-foreground">{t({ message: "File", comment: "the paper's PDF file" })}</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (pages ? plural(pages, { one: "PDF, # page", other: "PDF, # pages" }) : "PDF") : t`No PDF`}</dd>
