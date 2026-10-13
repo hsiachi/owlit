@@ -29,7 +29,7 @@ await build({
     directories: { output: "release" },
     files: ["dist/**/*", "package.json"],
     npmRebuild: false,
-    // icon.png is resources/icon.svg rendered at 1024px; electron-builder makes the .icns from it
-    mac: { identity: null, category: "public.app-category.productivity", icon: "resources/icon.png" },
+    // icon.icns comes from scripts/icon.mjs, with a heavier line at the small sizes
+    mac: { identity: null, category: "public.app-category.productivity", icon: "resources/icon.icns" },
   },
 })

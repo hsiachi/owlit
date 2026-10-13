@@ -444,11 +444,11 @@ owlit is a Mac app for reading, writing and thinking through papers with an assi
 
 ### Brand
 
-The mark is a feather: one hand-drawn, round-ended line that curls back on itself three times, in the text's own ink, never filled, outlined, shadowed or tinted. As an icon (`OwlitMark`) it is drawn to lucide's measure: the line fills 20 of 24 units of its square and its stroke is 2 of 24, so it sits beside lucide icons as one of them. It stands only for Owlit: the top bar's toggle for the agent window, Ask Owlit in the highlight toolbar, the app icon. It is never decoration.
+The mark is a feather: one hand-drawn, round-ended line that curls back on itself three times. In the interface it is in the text's own ink, never filled, outlined, shadowed or tinted; only the app icon draws it in green. As an icon (`OwlitMark`) it is drawn to lucide's measure: the line fills 20 of 24 units of its square and its stroke is 2 of 24, so it sits beside lucide icons as one of them. It stands only for Owlit: the top bar's toggle for the agent window, Ask Owlit in the highlight toolbar, the app icon. It is never decoration.
 
 The wordmark is lowercase "owlit" in Dosis 500 slanted 12° (Dosis has no italic, so the slant is a skew). The lockup (`OwlitLockup`) puts the feather before the word, drawn with a thinner line than the icon, its height 1.35 times the ascender of the "l", as outlined paths so no font is needed; it appears once, on the welcome page. The Chat greeting is set in the wordmark's face, 44px, skewed 12°, in the foreground at 90%; nothing else uses Dosis. In the interface the name is plain text.
 
-The app icon is a squircle tile in a light paper gradient with a soft drop shadow and a hairline edge, the feather on it in near-black ink; the dark icon keeps the shape on a dark warm tile.
+The app icon is the one place the brand wears Owlit's green, because it lives outside the app; inside, green keeps its single meaning. It is a rounded tile in a warm-white gradient with a soft drop shadow, a light inner edge and a hairline, the feather on it in `owlit` green with a faint grain inside the line, drawn larger than in the interface (2.8 times its own units on the 1024 grid). The dark icon is a graphite tile with the feather in a light mint. Small sizes are drawn with a heavier line rather than scaled down, so the feather keeps about a pixel at 16 and 32. `apps/desktop/scripts/icon.mjs` builds every file from one description; the macOS dark icon waits for an Icon Composer file.
 
 ## Colors
 
