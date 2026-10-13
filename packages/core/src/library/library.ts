@@ -29,9 +29,11 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { appendFile, copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { NeedsUser, type BrowserHost } from "../host.ts"
+import { NeedsUser, Refused, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
-import { browserRoutes } from "./browser-routes.ts"
+import { browserRoutes, siteOf, throughProxy } from "./browser-routes.ts"
+import { DownloadWatch } from "./downloads.ts"
+import { Publishers } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
 import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
@@ -40,6 +42,8 @@ import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
 import {
   describeFailure,
+  ELSEVIER_API_HOST,
+  WILEY_API_HOST,
   downloadPdf,
   hasPdfFile,
   landingOf,
@@ -89,7 +93,7 @@ const NOTE_SETTLE_MS = 150
 const PDF_STEPS = ["paper.pdf", "paper.pdf.browser", "paper.pdf.check", "paper.parse", "paper.figures"]
 // Figures that couldn't be had (the cloud unreachable) are looked for again by a note written after this
 const FIGURES_RETRY_MS = 60 * 60_000
-// Pictures a reading note's agent is shown at most, and the largest (model APIs refuse images over
+// Pictures a digest's agent is shown at most, and the largest (model APIs refuse images over
 // 5 MB, Anthropic's limit being the lowest)
 const MAX_PICTURES = 16
 const PICTURE_MAX_BYTES = 5 * 1024 * 1024
@@ -109,9 +113,9 @@ export interface AgentPicture {
 export interface LibraryServices {
   http: Http
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
-  // (reading notes). model is the one chosen for background work, when one is.
+  // (digests). model is the one chosen for background work, when one is.
   agent?: (prompt: string, signal: AbortSignal, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
-  // The language reading notes are written in: Settings' choice, else the system's
+  // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
   browser?: BrowserHost
@@ -123,6 +127,9 @@ export interface LibraryServices {
   settings: () => Promise<LibrarySettings>
   // A run through the library proxy found its sign-in page (false) or got a PDF through it (true)
   proxySignedIn?: (signedIn: boolean) => void
+  // The user's own browser, and the folder it saves to: for papers whose publisher won't let owlit's in
+  openExternal?: (url: string) => Promise<void>
+  downloadsDir?: () => string
 }
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
@@ -155,11 +162,21 @@ export class Library {
   private pittaSummaries = new Map<string, { added: number; skipped: number; failed: string[] }>()
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
   private pdfHashes: Map<string, string> | undefined
+  // How often owlit visits each publisher's site, and which ones it leaves alone for now
+  private readonly publishers: Publishers
+  // Papers opened in the user's browser, whose PDF is looked for in their Downloads folder
+  private downloadWatch: DownloadWatch | undefined
+  // A downloaded PDF that may be the paper's, waiting for the user to say: paper → file
+  private offered = new Map<string, string>()
 
   constructor(root: string, dataDir: string, services: LibraryServices) {
     this.root = root
     this.dataDir = dataDir
     this.services = services
+    this.publishers = new Publishers(dataDir)
+    // Wiley's API takes 60 requests in ten minutes
+    services.http.limit(WILEY_API_HOST, { perSecond: 0.1, concurrent: 1 })
+    services.http.limit(ELSEVIER_API_HOST, { perSecond: 2, concurrent: 2 })
     this.index = new PaperIndex(root)
   }
 
@@ -208,10 +225,22 @@ export class Library {
       const tried = acquisition?.tried.filter((t) => !t.error?.startsWith("Not tried")).map((t) => t.route)
       if (acquisition?.result === "no_pdf") {
         paper.noPdf = { tried: [...new Set(tried)], at: acquisition.at }
-        if (acquisition.needs) paper.noPdf.needs = acquisition.needs.reason === "login" ? "sign-in" : "check"
+        if (acquisition.needs) paper.noPdf.needs = await this.needsOf(acquisition.needs)
+        const until = this.downloadWatch?.until(id)
+        const offered = this.offered.get(id)
+        if (until || offered) paper.noPdf.inBrowser = { until: until ?? Date.now(), ...(offered ? { offered: path.basename(offered) } : {}) }
       }
     }
     return paper
+  }
+
+  // What a publisher's note asks of the user. A site that refused owlit's browser after a check was
+  // passed asks for the user's own browser, for as long as it is held, whichever paper found it out.
+  private async needsOf(needs: NonNullable<Acquisition["needs"]>): Promise<NonNullable<Paper["noPdf"]>["needs"]> {
+    if (needs.reason === "login") return "sign-in"
+    const hold = needs.host ? await this.publishers.held(siteOf(needs.host)) : undefined
+    // Once the hold is over, a refusal is just a check again: the next Check now may pass
+    return hold?.reason === "refused" ? "blocked" : "check"
   }
 
   // ---- Looking up
@@ -603,7 +632,7 @@ export class Library {
         const prompt = digestPrompt({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
         const { text: answer, connectorId, model } = await agent(prompt, ctx.signal, pictures)
         const digest = cleanDigest(answer)
-        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a reading note.")
+        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial(async () => {
           // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
           if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
@@ -616,7 +645,7 @@ export class Library {
     })
   }
 
-  // A paper's figures as pictures (figures.json), for its reading note: from MinerU's result when the
+  // A paper's figures as pictures (figures.json), for its digest: from MinerU's result when the
   // cloud still has it, else from the figure blocks text.json has. Never fails, so the note it comes
   // before never does on its account: what went wrong goes into figures.json, empty.
   private figuresTask() {
@@ -648,8 +677,10 @@ export class Library {
   }
 
   // The publisher's page in a browser, directly and then through the library's proxy. Nobody looking
-  // (paper.pdf.browser), a page that wants a person is noted in acquisition.json for Check now;
-  // with the user there (paper.pdf.check), it waits for them.
+  // (paper.pdf.browser), a page that wants a person is noted in acquisition.json for Check now, and its
+  // site is held: owlit doesn't go back on its own until the hold is over or the user got through
+  // there. Unattended visits to one site are spaced out (publishers.ts). With the user there
+  // (paper.pdf.check), it waits for them, once per site.
   private browserTask(browser: BrowserHost, kind: string, withUser: boolean) {
     return defineTask(kind, {
       lane: "browser",
@@ -664,7 +695,30 @@ export class Library {
         const tried: Attempt[] = [...(previous?.tried ?? [])]
         let needs: Acquisition["needs"]
         const registered = await registeredUrl(this.services.http, record.ids.doi, ctx.signal)
-        for (const route of browserRoutes(record.ids.doi, settings.proxy, registered)) {
+        const routes = browserRoutes(record.ids.doi, settings.proxy, registered)
+        const { sites } = routes[0]
+        // The user waiting on this very paper (Find PDF, Try again) gets one visit now; everything else
+        // keeps to the site's hold and its turn
+        if (!withUser && ctx.task.priority !== "waiting") {
+          const hold = await this.publishers.heldAny(sites)
+          if (hold) {
+            // Noted for Check now without a visit; a paper already noted stays as it is
+            if (previous?.result === "no_pdf" && previous.needs) return
+            tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${hold.site} asked for a person recently.`, at: Date.now() })
+            needs = { reason: hold.reason, route: routes[0].name, at: Date.now(), host: hold.site }
+            const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
+            if (noted) await this.announce([id])
+            return
+          }
+          const wait = Math.max(0, ...sites.map((site) => this.publishers.waitFor(site)))
+          if (wait > 0) ctx.later(wait)
+        }
+        for (const site of sites) this.publishers.visited(site)
+        // Each site asks the user once in this run, whichever route it comes up on
+        const askedSites = new Set<string>()
+        // Sites that just turned an unattended visit away: the proxy leading back to one is stopped
+        const avoid: string[] = []
+        for (const route of routes) {
           ctx.progress(0, undefined, route.name)
           const proxied = route.name.endsWith(":proxied")
           try {
@@ -674,6 +728,8 @@ export class Library {
               pdfOnPageHost: proxied,
               proxyHost: proxied && settings.proxy ? hostOf(settings.proxy.base) : undefined,
               allowHosts: route.allowHosts,
+              avoidSites: withUser ? undefined : [...avoid],
+              askedSites,
               signal: ctx.signal,
               withUser,
               needUser: async (reason, detail, settled) => {
@@ -687,6 +743,7 @@ export class Library {
                 await waiting
                 await settled
               },
+              report: (event) => void this.publishers.log({ paper: id, route: route.name, withUser, ...event }),
             })
             if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
@@ -702,16 +759,34 @@ export class Library {
             })
             for (const next of ["paper.text", "index.paper"]) this.queue(next, id, ctx.task.priority)
             await this.announce([id])
-            // The user got past this publisher: its other papers that wanted them may now come unattended
-            if (withUser && previous?.needs?.host) await this.retryHost(previous.needs.host, id)
+            // The site let owlit through (the user got past it, or a run they waited on did): its hold
+            // is over, and its other papers that wanted the user may now come unattended (their turns
+            // spaced out)
+            const passed = new Set([...askedSites, ...sites, ...(previous?.needs?.host ? [siteOf(previous.needs.host)] : [])])
+            if (withUser || (await this.publishers.heldAny([...passed]))) {
+              for (const site of passed) await this.publishers.release(site)
+              await this.retrySites(passed, id)
+            }
             return
           } catch (error) {
             if (ctx.signal.aborted) throw error
             if (proxied && error instanceof NeedsUser && error.reason === "login") this.services.proxySignedIn?.(false)
-            if (error instanceof NeedsUser) needs ??= { reason: error.reason, route: route.name, at: Date.now(), ...(error.host ? { host: error.host } : {}) }
             tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
-            // With the user, it means they went away: the next route would only wait for them again
-            if (withUser && error instanceof NeedsUser) break
+            if (error instanceof Refused) {
+              // Passed and asked again: the site isn't letting owlit's browser through for now
+              await this.publishers.hold(siteOf(error.host), "refused")
+              needs = { reason: "refused", route: route.name, at: Date.now(), host: error.host }
+              break
+            }
+            if (error instanceof NeedsUser) {
+              needs ??= { reason: error.reason, route: route.name, at: Date.now(), ...(error.host ? { host: error.host } : {}) }
+              if (!withUser && error.reason === "challenge" && error.host) {
+                await this.publishers.hold(siteOf(error.host), "challenge")
+                avoid.push(siteOf(error.host))
+              }
+              // With the user, it means they went away: the next route would only wait for them again
+              if (withUser) break
+            }
           }
         }
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
@@ -721,7 +796,7 @@ export class Library {
     })
   }
 
-  // A reading note is wanted (the paper was opened, starred, asked for by the user or an agent): queued
+  // A digest is wanted (the paper was opened, starred, asked for by the user or an agent): queued
   // when the paper has, or will have, text to read and has no note yet. A note already there, pitta's
   // included, is written again only when the user asks (rewrite), never on owlit's own account.
   async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
@@ -750,13 +825,13 @@ export class Library {
     return !!record?.rewriteAsked
   }
 
-  // A paper's figures and tables as pictures, for its reading note
+  // A paper's figures and tables as pictures, for its digest
   async figures(id: string): Promise<PaperFigure[]> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     return toPaperFigures(id, await readFigures(this.root, id))
   }
 
-  // A page of the paper as a picture, small, for a glance at what a reading note points at (p. 7)
+  // A page of the paper as a picture, small, for a glance at what a digest points at (p. 7)
   async pagePicture(id: string, page: number): Promise<{ data: string; mimeType: string }> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!(await hasPdfFile(this.root, id))) throw new RpcFailure(RpcErrorCode.NotFound, "The paper has no PDF.", { id })
@@ -777,7 +852,7 @@ export class Library {
     return record.language && record.language !== language ? { ...state, digestOutdated: "language" } : state
   }
 
-  // The paper's reading notes (digest.md), or null when it has none
+  // The paper's digests (digest.md), or null when it has none
   async digest(id: string): Promise<string | null> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     return readFile(path.join(paperDir(this.root, id), "digest.md"), "utf8").catch(() => null)
@@ -933,6 +1008,57 @@ export class Library {
     })
   }
 
+  // The paper in the user's own browser, for a publisher that won't let owlit's through: a PDF of it
+  // that lands in their Downloads folder in the next while becomes its file. On campus the library
+  // proxy passes straight through; off campus it is how the browser gets the subscription.
+  async openInBrowser(id: string): Promise<Paper> {
+    const record = await readRecord(this.root, id)
+    if (!record) throw notFound(id)
+    const open = this.services.openExternal
+    if (!open) throw new RpcFailure(RpcErrorCode.Unavailable, t`Opening your browser needs the owlit desktop app.`)
+    const { doi, arxiv } = record.ids
+    const address = doi ? `https://doi.org/${doi}` : arxiv ? `https://arxiv.org/abs/${arxiv}` : undefined
+    if (!address) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit doesn't know where this paper lives online.`)
+    const proxy = (await this.services.settings()).proxy
+    const dir = this.services.downloadsDir?.()
+    if (dir) {
+      this.downloadWatch ??= new DownloadWatch(dir, (file) => this.lookAtPdf(file), (paper, file, sure) => void this.downloadFound(paper, file, sure))
+      this.downloadWatch.watch({ id, doi, title: record.title })
+    }
+    await open(doi && proxy?.base ? throughProxy(address, proxy) : address)
+    return (await this.get(id))!
+  }
+
+  // The user's answer about a downloaded PDF owlit wasn't sure of: take it as the paper's, or keep looking
+  async takeDownload(id: string, take: boolean): Promise<Paper> {
+    const file = this.offered.get(id)
+    this.offered.delete(id)
+    if (take && file) {
+      this.downloadWatch?.stop(id)
+      return this.attachPdf(id, file)
+    }
+    const paper = await this.get(id)
+    if (!paper) throw notFound(id)
+    return paper
+  }
+
+  private async lookAtPdf(file: string) {
+    const bytes = await readFile(file)
+    if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return undefined
+    const { text, meta } = await readPdf(bytes, { wasmPath: this.services.pdfiumWasm, maxPages: 2 }).catch(() => ({ text: undefined, meta: {} }))
+    if (!text) return undefined
+    const found = identify(text, meta)
+    const words = text.pages.flatMap((p) => p.blocks.flatMap((b) => b.lines.map((l) => l.text))).join(" ")
+    return { doi: found.ref?.kind === "doi" ? found.ref.value : undefined, text: words }
+  }
+
+  private async downloadFound(id: string, file: string, sure: boolean) {
+    if (await hasPdfFile(this.root, id)) return this.downloadWatch?.stop(id)
+    if (sure) await this.attachPdf(id, file).catch((error) => console.error("[core] couldn't take a downloaded PDF", error))
+    else this.offered.set(id, file)
+    await this.announce([id])
+  }
+
   // The paper whose PDF is this very file (the same bytes), if the library has one; reads nothing else
   async paperOfFile(file: string): Promise<string | undefined> {
     const sha = await sha256Of(file)
@@ -1007,6 +1133,9 @@ export class Library {
     for (const t of this.scheduler?.list() ?? []) {
       if (t.subject === id && !isTaskFinished(t) && PDF_STEPS.includes(t.kind)) this.scheduler!.cancel(t.id)
     }
+    // Not looked for in Downloads any more, and nothing there to confirm
+    this.downloadWatch?.stop(id)
+    this.offered.delete(id)
     const dest = pdfFile(this.root, id)
     // Its own temporary name: a cancelled download may still be cleaning up its .part
     const part = `${dest}.${process.pid}-${Date.now()}.part`
@@ -1126,7 +1255,7 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
-      // A reading note by a background agent session, from the paper's full text
+      // A digest by a background agent session, from the paper's full text
       ...(this.services.agent ? [this.digestTask(this.services.agent)] : []),
       this.figuresTask(),
       // MinerU's reading of the PDF replaces pdfium's (kept as text.pdfium.json). The job is recorded
@@ -1281,14 +1410,27 @@ export class Library {
           const routes = routesFor(record, {
             landing: (doi) => landingOf(http, doi, ctx.signal),
             unpaywall: (doi) => unpaywallRoutes(http, doi, settings.contactEmail, ctx.signal),
+            keys: { elsevierApiKey: settings.elsevierApiKey, wileyTdmToken: settings.wileyTdmToken },
           })
           const dest = pdfFile(this.root, id)
           for await (const route of routes) {
             ctx.progress(tried.length, undefined, route.name)
+            // A site that answers plain downloads with a check is left to the browser for a while:
+            // asking again only counts against this network
+            const site = siteOf(hostOf(route.url))
+            if (route.kind !== "api" && (await this.publishers.plainRefused(site))) {
+              tried.push({ route: route.name, url: route.url, error: `Not tried: ${site} only lets browsers in.`, at: Date.now() })
+              continue
+            }
             try {
-              await downloadPdf(http, route.url, dest, ctx.signal)
+              await downloadPdf(http, route.url, dest, ctx.signal, route.headers)
+              if (route.name === "api:elsevier") await wholeArticle(dest, this.services.pdfiumWasm)
             } catch (error) {
               if (ctx.signal.aborted) throw error
+              if (error instanceof HttpError && error.challenged) {
+                await this.publishers.refusePlain(site)
+                void this.publishers.log({ paper: id, route: route.name, kind: "plain-refused", host: hostOf(route.url), status: error.status })
+              }
               tried.push({ route: route.name, url: route.url, ...describeFailure(error), at: Date.now() })
               continue
             }
@@ -1446,13 +1588,14 @@ export class Library {
     })
   }
 
-  // Papers whose publisher's page, at `host`, wanted a person: back to the hidden browser, which now
-  // holds what the user's check or sign-in left in its session. Ones it still can't get stay noted.
-  private async retryHost(host: string, except: string) {
+  // Papers whose publisher's page, on one of these sites, wanted a person: back to the hidden browser,
+  // which now holds what the user's check or sign-in left in its session. Ones it still can't get stay
+  // noted.
+  private async retrySites(sites: Set<string>, except: string) {
     for (const id of await this.ids()) {
       if (id === except) continue
       const acquisition = await readAcquisition(this.root, id)
-      if (acquisition?.result !== "no_pdf" || acquisition.needs?.host !== host) continue
+      if (acquisition?.result !== "no_pdf" || !acquisition.needs?.host || !sites.has(siteOf(acquisition.needs.host))) continue
       this.queue("paper.pdf.browser", id, "background")
     }
   }
@@ -1679,4 +1822,14 @@ export function cleanDigest(answer: string) {
     text = text.replace(/\n```\s*$/, "").trim()
   }
   return text + "\n"
+}
+
+// Elsevier's API answers a paper this network has no subscription to with its first page alone, as a
+// PDF: that isn't the paper. (An article of one page is turned away too; the browser route still has it.)
+async function wholeArticle(file: string, wasmPath: string | undefined) {
+  const { pageCount } = await readPdf(await readFile(file), { wasmPath, maxPages: 0 })
+  if (pageCount <= 1) {
+    await rm(file, { force: true })
+    throw new Error("Elsevier's API gave only the first page: it sees no subscription from this network.")
+  }
 }

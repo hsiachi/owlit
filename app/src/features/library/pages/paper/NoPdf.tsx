@@ -20,7 +20,7 @@ import { useTakeParam } from "../../lib/use-take-param"
 import { libraryClient, useLibraryStore } from "../../store"
 import type { Paper } from "../../types"
 
-type CardState = "looking" | "sign-in" | "check" | "not-found" | "not-yet"
+type CardState = "looking" | "sign-in" | "check" | "blocked" | "in-browser" | "offered" | "not-found" | "not-yet"
 
 const card = (state: CardState): { title: string; detail: string } => {
   switch (state) {
@@ -30,6 +30,16 @@ const card = (state: CardState): { title: string; detail: string } => {
       return { title: t`The publisher wants you to sign in`, detail: t`Sign in on its page here and owlit fetches the PDF.` }
     case "check":
       return { title: t`The publisher wants a quick check`, detail: t`It wants to see a person before it hands over the PDF. Open its page here to do that.` }
+    case "blocked":
+      return {
+        title: t`The publisher isn't letting owlit in`,
+        detail: t`Its check keeps coming back. Save the PDF from your own browser and owlit takes it from your Downloads.`,
+      }
+    case "in-browser":
+      return { title: t`Waiting for the PDF from your browser`, detail: t`Save the PDF from the publisher's page. owlit takes it from your Downloads folder.` }
+    // Its detail names the file, so it is said where the card is drawn
+    case "offered":
+      return { title: t`Is this the paper's PDF?`, detail: "" }
     case "not-found":
       return { title: t`No PDF found`, detail: t`Drop a PDF here if you have it.` }
     case "not-yet":
@@ -49,7 +59,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   useTakeParam(
     "check",
     (value, params) => {
-      if (value === "1" && paper.noPdf?.needs && canCheck) setChecking(true)
+      if (value === "1" && paper.noPdf?.needs && paper.noPdf.needs !== "blocked" && canCheck) setChecking(true)
       setInQueue(params.get("queue") === "1")
     },
     ["queue"],
@@ -58,6 +68,36 @@ export function NoPdf({ paper }: { paper: Paper }) {
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
   const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((task) => task.kind === "paper.pdf" || task.kind === "paper.pdf.browser")) || fetching
   const needs = paper.noPdf?.needs
+  const canOpen = !!libraryClient.openInBrowser && !!(paper.ids.doi || paper.ids.arxiv)
+  // Opened in the user's browser: core looks in their Downloads until `until`
+  const inBrowser = paper.noPdf?.inBrowser
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    if (!inBrowser || inBrowser.until <= Date.now()) return
+    const timer = setTimeout(() => setNow(Date.now()), inBrowser.until - Date.now() + 100)
+    return () => clearTimeout(timer)
+  }, [inBrowser])
+  const watching = !!inBrowser && inBrowser.until > now
+
+  const openInBrowser = async () => {
+    try {
+      const found = await libraryClient.openInBrowser!(paper)
+      updatePaper(paper.id, { noPdf: found.noPdf })
+      setNow(Date.now())
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t`Couldn't open your browser.`)
+    }
+  }
+
+  const takeDownload = async (take: boolean) => {
+    try {
+      const found = await libraryClient.takeDownload!(paper, take)
+      updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
+      if (found.pdf) toast(t`PDF attached`, { description: inBrowser?.offered })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t`Couldn't take that file.`)
+    }
+  }
 
   const attach = async (files: ArrayLike<File>) => {
     const file = files[0]
@@ -93,11 +133,23 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   if (checking) return <PublisherPage paper={paper} inQueue={inQueue} onEnd={() => setChecking(false)} />
 
-  const state: CardState = looking ? "looking" : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
+  const state: CardState = looking
+    ? "looking"
+    : inBrowser?.offered
+      ? "offered"
+      : watching
+        ? "in-browser"
+        : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
   const { title, detail: plain } = card(state)
   const tried = triedSentence(paper.noPdf?.tried ?? [])
+  const file = inBrowser?.offered ?? ""
   // What was tried and what to do, as one message so a language can join the two sentences its own way
-  const detail = state === "not-found" ? t`${tried} Drop a PDF here if you have it.` : plain
+  const detail =
+    state === "not-found"
+      ? t`${tried} Drop a PDF here if you have it.`
+      : state === "offered"
+        ? t`${file} just arrived in your Downloads, and owlit can't tell whose it is.`
+        : plain
 
   return (
     <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
@@ -111,22 +163,53 @@ export function NoPdf({ paper }: { paper: Paper }) {
         }
         detail={detail}
         actions={
-          <>
-            {needs && canCheck && !looking ? (
-              <Button size="sm" onClick={() => setChecking(true)}>
-                {needs === "sign-in" ? t`Sign in` : t`Check now`}
+          state === "offered" ? (
+            <>
+              <Button size="sm" onClick={() => void takeDownload(true)}>
+                {t({ message: "Use it", comment: "button: take the downloaded file as the paper's PDF" })}
               </Button>
-            ) : (
-              <Button size="sm" onClick={fetchPdf} disabled={looking}>
-                {paper.noPdf ? t`Try again` : t`Find PDF`}
+              <Button variant="outline" size="sm" onClick={() => void takeDownload(false)}>
+                {t({ message: "Not this", comment: "button: the downloaded file is not the paper's PDF" })}
               </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-              {t`Choose file`}
-            </Button>
-          </>
+            </>
+          ) : (state === "blocked" || state === "in-browser") && canOpen ? (
+            <>
+              <Button size="sm" variant={state === "in-browser" ? "outline" : "default"} onClick={() => void openInBrowser()}>
+                {state === "in-browser" ? t`Open again` : t`Open in browser`}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+                {t`Choose file`}
+              </Button>
+            </>
+          ) : (
+            <>
+              {needs && needs !== "blocked" && canCheck && !looking ? (
+                <Button size="sm" onClick={() => setChecking(true)}>
+                  {needs === "sign-in" ? t`Sign in` : t`Check now`}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={fetchPdf} disabled={looking}>
+                  {paper.noPdf ? t`Try again` : t`Find PDF`}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+                {t`Choose file`}
+              </Button>
+            </>
+          )
         }
       >
+        {/* A check owlit's browser may not get past: the user's own browser is the other way */}
+        {state === "check" && canOpen && (
+          <p className="max-w-72 text-sm text-muted-foreground">
+            <Trans>
+              Or{" "}
+              <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => void openInBrowser()}>
+                open it in your browser
+              </button>
+            </Trans>
+          </p>
+        )}
         {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
         {state === "not-found" && paper.ids.doi && proxyMissing && (
           <p className="max-w-72 text-sm text-muted-foreground">
@@ -249,7 +332,7 @@ const openCheck = (s: Parameters<typeof openTasksFor>[0], paperId: string) =>
   openTasksFor(s, paperId).find((task) => task.kind === "paper.pdf.check")
 
 // The user went elsewhere while owlit looked: a system notification, which brings owlit back
-function notifyNeeds(paper: Paper, needs: "check" | "sign-in") {
+function notifyNeeds(paper: Paper, needs: "check" | "sign-in" | "blocked") {
   if (typeof Notification === "undefined") return
   const notification = new Notification(card(needs).title, { body: paper.title })
   notification.onclick = () => window.focus()

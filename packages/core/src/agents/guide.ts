@@ -50,7 +50,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "agents",
     title: "Agents (Claude Code, Codex, Gemini CLI)",
-    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as reading notes.`,
+    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as digests.`,
   },
   {
     id: "knowledge",
@@ -65,7 +65,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, the agent and language for background work such as reading notes, and whether owlit remembers what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, the agent and language for background work such as digests, and whether owlit remembers what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",

@@ -105,17 +105,34 @@ function useWaiting(): Waiting[] {
     const waitingPapers = Object.values(papers)
       .filter((p) => p.noPdf?.needs && !p.pdf)
       .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
-    for (const needs of ["check", "sign-in"] as const) {
+    for (const needs of ["check", "sign-in", "blocked"] as const) {
       const group = waitingPapers.filter((p) => p.noPdf?.needs === needs)
       const what = (several: boolean) =>
         needs === "sign-in"
           ? several
             ? t`Publishers want you to sign in`
             : t`The publisher wants you to sign in`
-          : several
-            ? t`Publishers want a quick check`
-            : t`The publisher wants a quick check`
-      const label = needs === "sign-in" ? t`Sign in` : t`Check now`
+          : needs === "blocked"
+            ? several
+              ? t`Publishers aren't letting owlit in`
+              : t`The publisher isn't letting owlit in`
+            : several
+              ? t`Publishers want a quick check`
+              : t`The publisher wants a quick check`
+      const label = needs === "sign-in" ? t`Sign in` : needs === "blocked" ? t`Get it yourself` : t`Check now`
+      // Nothing to go through in turn: each paper's card offers the user's own browser
+      if (needs === "blocked") {
+        if (group.length <= 2) {
+          for (const paper of group) {
+            const cite = citationLabel(paper)
+            out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: t`for ${cite}`, open: { label, run: () => navigate(`/library/${paper.id}`) } })
+          }
+        } else if (group.length) {
+          const names = namesOf(group)
+          out.push({ key: "papers:blocked", icon: KIND_ICON.paper, what: what(true), where: t`for ${names}`, detail: group.map(citationLabel).join("\n"), open: { label, run: () => navigate(`/library/${group[0].id}`) } })
+        }
+        continue
+      }
       if (group.length <= 2) {
         for (const paper of group) {
           const cite = citationLabel(paper)

@@ -9,10 +9,11 @@ import { useTopics } from "@/features/knowledge/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentWindow } from "./store"
 
-// A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note
+// A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note or digest
 export function selectionLabel(s: QuotedSelection) {
   if (s.source.kind === "knowledge") return t({ message: "Line", comment: "chip: a passage quoted from a line of a Knowledge topic" })
   if (s.notePath) return t({ message: "Note", comment: "chip: a passage quoted from the paper's note" })
+  if (s.inDigest) return t({ message: "Digest", comment: "chip: a passage quoted from the paper's digest" })
   const page = s.page
   if (page) return t({ message: `p. ${page}`, comment: "chip: a passage quoted from this page of the paper" })
   return t({ message: "Selection", comment: "chip: a passage the user selected" })

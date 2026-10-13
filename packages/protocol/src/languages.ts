@@ -1,4 +1,4 @@
-// The languages reading notes can be written in, picked in Settings. The setting holds a code from this
+// The languages digests can be written in, picked in Settings. The setting holds a code from this
 // list, or, for any other language, the user's own words for it, given to the agent as they are. Unset
 // means the system's language when it is listed, English otherwise. Technical terms keep the paper's
 // wording in every language; that is a rule of the note, not a setting.

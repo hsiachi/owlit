@@ -4,7 +4,7 @@
 import type { Locale } from "./languages.ts"
 import type { AppearanceSettings, ProfileSettings, ProxySettings } from "./workspace.ts"
 
-export type SecretName = "s2ApiKey" | "openalexApiKey" | "mineruToken"
+export type SecretName = "s2ApiKey" | "openalexApiKey" | "mineruToken" | "elsevierApiKey" | "wileyTdmToken"
 
 export interface SettingsView {
   appearance: AppearanceSettings

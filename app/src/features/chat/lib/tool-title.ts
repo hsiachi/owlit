@@ -38,7 +38,7 @@ function owlitToolWords(tool: string): ToolWords | undefined {
     case "library_remove":
       return { now: t`Remove papers from your Library`, done: t`Removed papers from your Library` }
     case "library_request_digest":
-      return { now: t`Ask for a reading note`, done: t`Asked for a reading note` }
+      return { now: t`Ask for a digest`, done: t`Asked for a digest` }
     case "docs_list":
       return { now: t`List your docs`, done: t`Listed your docs` }
     case "docs_read":

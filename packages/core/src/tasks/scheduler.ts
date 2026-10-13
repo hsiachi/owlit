@@ -27,6 +27,9 @@ export interface TaskContext {
   externalJob(service: string, jobId: string): Promise<void>
   // Queues a task of this batch: it is cancelled with this one if it hasn't started
   enqueue(kind: string, subject: string, priority?: TaskPriority): Task
+  // Not now: ends this run, and the task runs again from the start in ms. Not a try, and the lane is
+  // free meanwhile.
+  later(ms: number): never
 }
 
 export interface TaskDefinition {
@@ -45,6 +48,14 @@ export class TaskFailure extends Error {
   constructor(message: string) {
     super(message)
     this.name = "TaskFailure"
+  }
+}
+
+// How ctx.later ends a run
+class Later {
+  readonly ms: number
+  constructor(ms: number) {
+    this.ms = ms
   }
 }
 
@@ -371,6 +382,9 @@ export class Scheduler {
         await this.store.flush()
       },
       enqueue: (kind, subject, priority) => this.enqueue(kind, subject, priority ?? entry.task.priority, entry.task.id),
+      later: (ms) => {
+        throw new Later(ms)
+      },
     }
   }
 
@@ -389,6 +403,8 @@ export class Scheduler {
       const prerequisite = this.entries.get(error.on)?.task
       // It may have finished before this run did
       if (prerequisite && isTaskFinished(prerequisite)) this.afterPrerequisite(entry, prerequisite)
+    } else if (error instanceof Later) {
+      this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, notBefore: Date.now() + error.ms, progress: undefined })
     } else if (error === null) {
       this.finish(entry, "done")
     } else if (controller.signal.aborted) {

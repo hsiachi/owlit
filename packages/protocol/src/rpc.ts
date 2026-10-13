@@ -319,16 +319,16 @@ export interface Methods {
   // refused, since its proceedings can't be listed yet.
   "library.journal": { params: { journal: string; year: string; query?: string; offset?: number; limit?: number; by?: string }; result: FoundPapers }
   "library.highlights": { params: { id: string }; result: Highlight[] }
-  // Queues a reading note by a background agent (the paper menu's Write a reading note, an agent's
+  // Queues a digest by a background agent (the paper menu's Write a digest, an agent's
   // library_request_digest); nothing when the paper has nothing to read. rewrite: the user asks for the
   // note there to be written again (a newer way of writing, another language); without it a paper that
   // has one is left as it is.
   "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: null }
-  // The paper's figures and tables as pictures, for its reading note
+  // The paper's figures and tables as pictures, for its digest
   "library.figures": { params: { id: string }; result: PaperFigure[] }
   // A page of the paper's PDF as a small picture (base64), for a glance at a page a note points at
   "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
-  // The paper's reading notes (digest.md) as Markdown, or null
+  // The paper's digests (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
   // here are skipped. Waits until it is done; progress shows as an import.pitta task.
@@ -342,6 +342,11 @@ export interface Methods {
   // (window.owlit.publisherView), waiting for them to pass a check or sign in. Resolves with the paper
   // once the run ends; cancelling its task (paper.pdf.check) ends it.
   "library.checkPublisher": { params: { id: string }; result: Paper }
+  // The paper in the user's own browser (its publisher won't let owlit's through); a PDF of it saved to
+  // their Downloads in the next while becomes its file. The paper comes back with noPdf.inBrowser.
+  "library.openInBrowser": { params: { id: string }; result: Paper }
+  // The user's answer about a downloaded PDF owlit offered (noPdf.inBrowser.offered): take it, or not
+  "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md

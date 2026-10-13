@@ -18,6 +18,7 @@ import {
 } from "@owlit/protocol"
 import { z } from "zod"
 import type { BrowserHost } from "./host.ts"
+import { ELSEVIER_API_HOST, WILEY_API_HOST } from "./library/pdf.ts"
 import { OPENALEX_HOST } from "./library/sources/openalex.ts"
 import { S2_HOST } from "./library/sources/semanticscholar.ts"
 import { tryServer, tryToken } from "./library/parse/mineru.ts"
@@ -30,6 +31,8 @@ const SECRET_FIELDS = {
   s2ApiKey: ["library", "s2ApiKey"],
   openalexApiKey: ["library", "openalexApiKey"],
   mineruToken: ["parsing", "token"],
+  elsevierApiKey: ["library", "elsevierApiKey"],
+  wileyTdmToken: ["library", "wileyTdmToken"],
 } as const satisfies Record<SecretName, readonly [string, string]>
 
 // The note language a digest is written in when Settings names none: the interface language once one is
@@ -126,7 +129,7 @@ const patchSchema = z.object({
   // model is required, as SettingsPatch says; null clears the agent's choice
   backgroundModel: z.object({ agent: z.string().min(1), model: z.string().min(1).nullable() }).optional(),
 })
-const secretName = z.enum(["s2ApiKey", "openalexApiKey", "mineruToken"])
+const secretName = z.enum(["s2ApiKey", "openalexApiKey", "mineruToken", "elsevierApiKey", "wileyTdmToken"])
 const presetName = z.enum(Object.keys(PROXY_PRESETS) as [keyof typeof PROXY_PRESETS])
 
 interface Deps {
@@ -153,7 +156,7 @@ export function registerSettings({ router, settings, http, browser, systemLangua
       return { ...s, [group]: merge(s[group], { [key]: value }) }
     }),
   )
-  router.register("settings.check", z.object({ target: z.enum(["s2ApiKey", "openalexApiKey", "mineruToken", "mineruServer"]) }), async ({ target }) =>
+  router.register("settings.check", z.object({ target: z.enum(["s2ApiKey", "openalexApiKey", "mineruToken", "elsevierApiKey", "wileyTdmToken", "mineruServer"]) }), async ({ target }) =>
     check(http, await settings.get(), target),
   )
   router.register("settings.setProxy", z.object({ preset: presetName.optional(), link: z.string().max(4096).optional() }), ({ preset, link }) => {
@@ -196,6 +199,7 @@ async function check(http: Http, s: AppSettings, target: SettingsCheckTarget): P
         return { result: "unknown", message: t`Couldn't reach MinerU to check the token. It will be tried on the next paper.` }
     }
   }
+  if (target === "elsevierApiKey" || target === "wileyTdmToken") return checkPublisherKey(http, s, target)
   const key = target === "s2ApiKey" ? s.library.s2ApiKey : s.library.openalexApiKey
   if (!key) return { result: "unknown" }
   const service = target === "s2ApiKey" ? "Semantic Scholar" : "OpenAlex"
@@ -212,6 +216,45 @@ async function check(http: Http, s: AppSettings, target: SettingsCheckTarget): P
       return { result: "rejected", message: t`${service} says this key isn't valid. Check it was copied whole.` }
     }
     if (error instanceof HttpError && error.status === 429) return { result: "unknown", message: t`${service} is busy; the key will be tried on the next lookup.` }
+    return { result: "unknown", message: t`Couldn't reach ${service} to check the key.` }
+  }
+}
+
+// A publisher's key works when its API takes it; whether this network has the subscription is a second
+// question, which Elsevier answers outright and Wiley by handing over a paywalled paper or not
+async function checkPublisherKey(http: Http, s: AppSettings, target: "elsevierApiKey" | "wileyTdmToken"): Promise<SettingsCheck> {
+  const elsevier = target === "elsevierApiKey"
+  const key = elsevier ? s.library.elsevierApiKey : s.library.wileyTdmToken
+  if (!key) return { result: "unknown" }
+  const service = elsevier ? "Elsevier" : "Wiley"
+  try {
+    if (elsevier) {
+      // Computers in Human Behavior, a subscription journal
+      const answer = await http.json<{ "entitlement-response"?: { "document-entitlement"?: { entitled?: boolean } } }>(
+        `https://${ELSEVIER_API_HOST}/content/article/entitlement/doi/10.1016/j.chb.2019.07.016`,
+        { headers: { "x-els-apikey": key }, retries: 0, timeoutMs: 15_000 },
+      )
+      if (answer["entitlement-response"]?.["document-entitlement"]?.entitled === false) {
+        return { result: "works", message: t`The key works, but Elsevier sees no subscription from this network. On the university's network it will.` }
+      }
+      return { result: "works" }
+    }
+    // Journal of Management Studies, a subscription journal
+    const response = await http.get(`https://${WILEY_API_HOST}/onlinelibrary/tdm/v1/articles/${encodeURIComponent("10.1111/joms.13065")}`, {
+      headers: { "wiley-tdm-client-token": key },
+      retries: 0,
+      timeoutMs: 30_000,
+    })
+    await response.body?.cancel().catch(() => {})
+    return { result: "works" }
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 401) return { result: "rejected", message: t`${service} says this key isn't valid. Check it was copied whole.` }
+    if (error instanceof HttpError && error.status === 403) {
+      return elsevier
+        ? { result: "rejected", message: t`Elsevier refused this key. Check it was copied whole.` }
+        : { result: "unknown", message: t`Wiley refused: either the token isn't valid or it sees no subscription from this network.` }
+    }
+    if (error instanceof HttpError && error.status === 429) return { result: "unknown", message: t`${service} is busy; the key will be tried on the next paper.` }
     return { result: "unknown", message: t`Couldn't reach ${service} to check the key.` }
   }
 }

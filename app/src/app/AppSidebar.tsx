@@ -31,7 +31,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // wherever they are reading
   const dismissed = useSeenStore((s) => s.dismissed)
   const chatNeedsYou = useChatStore((s) => chatsNeedYou(s.chats, s.streaming, dismissed))
-  const markOf = (to: string) => (to === "/library" && libraryNeedsYou ? t`A paper needs you` : to === "/chat" && chatNeedsYou ? t`A chat needs you` : undefined)
+  // A reply Owlit finished while the user wasn't looking at its chat: the ladder's "changed since you last
+  // looked" dot, so an answer that landed while they were reading reaches them without watching the list
+  const chatFinished = useSeenStore((s) => Object.keys(s.unseen).length > 0)
+  const markOf = (to: string): { why: string; tone: "warning" | "owlit" } | undefined => {
+    if (to === "/library" && libraryNeedsYou) return { why: t`A paper needs you`, tone: "warning" }
+    if (to === "/chat" && chatNeedsYou) return { why: t`A chat needs you`, tone: "warning" }
+    if (to === "/chat" && chatFinished) return { why: t`Owlit finished since you last looked`, tone: "owlit" }
+    return undefined
+  }
 
   return (
     <Sidebar
@@ -46,7 +54,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 {nav.map((item) => {
-                  const needsYou = markOf(item.to)
+                  const mark = markOf(item.to)
+                  const needsYou = mark?.why
                   const place = i18n._(item.label)
                   return (
                     <SidebarMenuItem key={item.to}>
@@ -63,7 +72,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <NavLink to={item.to} className="relative">
                           <item.icon />
                           <span>{place}</span>
-                          {needsYou && <span aria-hidden className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-warning" />}
+                          {mark && <span aria-hidden className={`absolute top-1.5 right-1.5 size-1.5 rounded-full ${mark.tone === "warning" ? "bg-warning" : "bg-owlit-mark"}`} />}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

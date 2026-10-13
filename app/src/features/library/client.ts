@@ -19,13 +19,18 @@ export interface LibraryClient {
   // The publisher's page shown to the user (Check now), in the room window.owlit.setPublisherView was
   // given; resolves with the paper once they're through or have cancelled. Desktop only.
   checkPublisher?(paper: Paper): Promise<Paper>
+  // The paper in the user's own browser; a PDF of it they save to Downloads soon after becomes its file.
+  // Resolves with the paper (noPdf.inBrowser). Desktop only.
+  openInBrowser?(paper: Paper): Promise<Paper>
+  // The user's answer about a downloaded PDF owlit offered (noPdf.inBrowser.offered)
+  takeDownload?(paper: Paper, take: boolean): Promise<Paper>
 }
 
-// fetchPdf found no PDF because the publisher wants the user first
+// fetchPdf found no PDF because the publisher wants the user first, or isn't letting owlit's browser in
 export class PublisherNeedsUser extends Error {
-  readonly needs: "check" | "sign-in"
-  constructor(needs: "check" | "sign-in") {
-    super(needs === "sign-in" ? t`The publisher wants you to sign in.` : t`The publisher wants a quick check.`)
+  readonly needs: "check" | "sign-in" | "blocked"
+  constructor(needs: "check" | "sign-in" | "blocked") {
+    super(needs === "sign-in" ? t`The publisher wants you to sign in.` : needs === "blocked" ? t`The publisher isn't letting owlit in.` : t`The publisher wants a quick check.`)
     this.name = "PublisherNeedsUser"
     this.needs = needs
   }

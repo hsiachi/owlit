@@ -29,6 +29,7 @@ export const GROUPS = {
   privacy: { section: "owlit", label: msg`Privacy` },
   sources: { section: "papers", label: msg`Finding papers` },
   proxy: { section: "papers", label: msg`Library proxy` },
+  "publisher-apis": { section: "papers", label: msg`Publishers' APIs` },
   reading: { section: "papers", label: msg`Reading PDFs` },
 } as const satisfies Record<string, { section: SettingsSection; label: MessageDescriptor | null }>
 export type SettingsGroup = keyof typeof GROUPS

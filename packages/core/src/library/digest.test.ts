@@ -44,7 +44,7 @@ async function setup() {
   return { root, call, workspace, addPaper, digestDone }
 }
 
-describe("reading notes", () => {
+describe("digests", () => {
   it("writes one when a paper's page is opened, with no chat to show for it", async () => {
     const { root, call, addPaper, digestDone } = await setup()
     await addPaper("doi-10.1-a")

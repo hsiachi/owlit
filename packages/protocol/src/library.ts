@@ -36,18 +36,26 @@ export interface Paper {
   abstract?: string
   ids: PaperIds
   pdf?: PaperPdf
-  // Reading notes an agent wrote (library/papers/<id>/digest.md), and when (digest.json's at, else the
+  // Digests an agent wrote (library/papers/<id>/digest.md), and when (digest.json's at, else the
   // file's time), so the note can be signed with its age
   hasDigest?: boolean
   digestAt?: number
-  // The reading note no longer matches how owlit writes them: an older way of writing (format), or
+  // The digest no longer matches how owlit writes them: an older way of writing (format), or
   // another language than Settings now asks for (language). Rewriting is the user's call.
   digestOutdated?: "format" | "language"
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
-  // whether the publisher's page wants the user for it (a check that a person is there, a sign-in)
-  noPdf?: { tried: string[]; at: number; needs?: "check" | "sign-in" }
+  // whether the publisher's page wants the user for it (a check that a person is there, a sign-in), or
+  // the site isn't letting owlit's browser through and the user's own browser is the way (blocked)
+  noPdf?: {
+    tried: string[]
+    at: number
+    needs?: "check" | "sign-in" | "blocked"
+    // Opened in the user's own browser: until when owlit looks for its PDF in their Downloads, and a
+    // downloaded PDF (file name) it isn't sure is this paper's, for them to confirm
+    inBrowser?: { until: number; offered?: string }
+  }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"
@@ -83,7 +91,7 @@ export interface PageRect extends Rect {
 }
 
 // A figure or table of a paper as a picture (library/papers/<id>/figures/), from MinerU's reading of
-// the PDF. A reading note shows one by its id: ![Figure 3](figure-3).
+// the PDF. A digest shows one by its id: ![Figure 3](figure-3).
 export interface PaperFigure {
   // figure-3, table-2, figure-s1
   id: string

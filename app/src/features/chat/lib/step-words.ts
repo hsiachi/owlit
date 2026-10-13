@@ -275,7 +275,7 @@ function kindPhrase(group: string, n: number): string | undefined {
     case "owlit:library_remove":
       return plural(n, { one: "removed papers from your Library", "=2": "removed papers twice", other: "removed papers # times" } as Twice)
     case "owlit:library_request_digest":
-      return plural(n, { one: "asked for a reading note", other: "asked for # reading notes" })
+      return plural(n, { one: "asked for a digest", other: "asked for # digests" })
     case "owlit:docs_list":
       return plural(n, { one: "listed your docs", "=2": "listed your docs twice", other: "listed your docs # times" } as Twice)
     case "owlit:docs_read":
@@ -459,7 +459,7 @@ export function agentDone(calls: ToolCall[]) {
   const papers = done.filter((c) => owlit(c, "library_add")).reduce((n, c) => n + (c.content?.match(/^Added /gm)?.length ?? 0), 0)
   if (papers) return plural(papers, { one: "Added a paper", other: "Added # papers" })
   const notes = done.filter((c) => owlit(c, "library_request_digest")).length
-  if (notes) return plural(notes, { one: "Asked for a reading note", other: "Asked for # reading notes" })
+  if (notes) return plural(notes, { one: "Asked for a digest", other: "Asked for # digests" })
   const files = [...new Set(done.filter((c) => c.kind === "edit").map(pathOf).filter((p): p is string => !!p))]
   if (files.length === 1) {
     const file = fileName(files[0])

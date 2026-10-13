@@ -12,6 +12,7 @@ import { useOpenFromChat } from "@/features/agent/hooks"
 import { openEditor } from "@/features/docs/editors"
 import { fileAt, filesByPath, useDocsStore } from "@/features/docs/store"
 import { useKnowledgeRows } from "@/features/knowledge/components/ChatUpdates"
+import { useDigestRows } from "@/features/library/digest-rows"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import type { ChatMessage } from "../../types"
 import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
@@ -20,7 +21,7 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, Knowledge updated. A row goes to what it names, in the main view rather than opening
+// notes left, Knowledge updated, digests asked for (followed until written). A row goes to what it names, in the main view rather than opening
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
 // of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
@@ -37,7 +38,7 @@ export interface ResultRow {
   // On an undone row, when the change can be put back
   redo?: () => Promise<void> | void
   // For the summary line: what kind of change, and how much an edit changed
-  kind: "doc" | "paper" | "note" | "knowledge"
+  kind: "doc" | "paper" | "note" | "knowledge" | "digest"
   stats?: EditStats
   // An edited file that is one of the user's Markdown docs
   markdown?: boolean
@@ -238,6 +239,7 @@ function summary(rows: ResultRow[]) {
     removed(rows) && plural(removed(rows), { one: "removed a paper", other: "removed # papers" }),
     n("note") && plural(n("note"), { one: "left notes on a doc", other: "left notes on # docs" }),
     n("knowledge") && plural(n("knowledge"), { one: "updated a topic", other: "updated # topics" }),
+    n("digest") && plural(n("digest"), { one: "asked for a digest", other: "asked for # digests" }),
   ].filter(Boolean) as string[]
   return capital(joinActions(said))
 }
@@ -281,7 +283,7 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
 }
 
 export function ResultCard({ message }: { message: ChatMessage }) {
-  const rows = [...useResultRows(message), ...useKnowledgeRows(message.parts)]
+  const rows = [...useResultRows(message), ...useKnowledgeRows(message.parts), ...useDigestRows(message.parts)]
   const [all, setAll] = useState(false)
   if (!rows.length) return null
   const live = rows.filter((r) => !r.undone && r.undo)

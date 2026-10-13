@@ -3,10 +3,19 @@
 // never shown and only visits the hosts it was told about; a page that wants a person ends that run
 // (core notes it for Check now). With the user there, the page shows inside owlit's own window, in the
 // room the renderer reserved for it, and waits for them.
+//
+// It goes about it as a reader would, so sites have no reason to take it for a script: the PDF is
+// opened from the article page, as a click on its link opens it, and saved from that one response;
+// a site that asks for a person and asks again once that was done is left alone (2026-10-13: Cloudflare
+// in front of ScienceDirect and the ACM put up a new check every time the old one was passed, five
+// times in one Check now).
 
 import { t } from "@lingui/core/macro"
-import { NeedsUser, pdfLinkOn, type BrowserHost, type BrowserRequest } from "@owlit/core"
-import { app, BrowserWindow, session as electronSession, WebContentsView, type Rectangle, type WebContents } from "electron"
+import { NeedsUser, pdfLinkOn, Refused, siteOf, type BrowserHost, type BrowserRequest } from "@owlit/core"
+import { app, BrowserWindow, session as electronSession, WebContentsView, type DownloadItem, type Rectangle, type WebContents } from "electron"
+import { readFile, rm } from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
 
 const PARTITION = "persist:owlit-browser"
 const LOAD_TIMEOUT_MS = 60_000
@@ -17,17 +26,29 @@ const SETTLE_MS = 20_000
 const AWAY_MS = 30_000
 // A page without citation_pdf_url: how long its own PDF link may take to appear
 const PDF_LINK_WAIT_MS = 15_000
+// Opening the PDF: how long the page may stay put without a download starting before it counts as no
+// PDF, and how long the download itself may take
+const PDF_QUIET_MS = 4_000
+const PDF_START_MS = 30_000
+const PDF_DOWNLOAD_MS = 180_000
+const MAX_PDF_BYTES = 200 * 1024 * 1024
 
 // Cloudflare and the like put these in the title or the page. Only the interstitial's own markers:
-// Cloudflare loads /cdn-cgi/challenge-platform/ scripts on ordinary article pages too, and pages embed
-// invisible Turnstile widgets (cf-chl-widget-…) in their forms (doi.org's error page does)
+// Cloudflare loads /cdn-cgi/challenge-platform/ scripts on ordinary article pages too and sets
+// window._cf_chl_opt there (T&F's article pages, 2026-10-13), and pages embed invisible Turnstile
+// widgets (cf-chl-widget-…) in their forms (doi.org's error page does)
 const CHALLENGE_TITLE = /just a moment|attention required|security check|checking your browser|are you a robot|请稍候|正在验证|verify you are human/i
-const CHALLENGE_BODY = /cf-browser-verification|_cf_chl_opt|id="challenge-form"/i
 // A captcha or a password field only counts when it is on screen; publishers load reCAPTCHA scripts
-// and hidden sign-in forms on ordinary pages
+// and hidden sign-in forms on ordinary pages. One small look per poll, not a copy of the page.
 const VISIBLE = `(e) => { const r = e.getBoundingClientRect(); return r.width > 30 && r.height > 10 }`
-const VISIBLE_CAPTCHA = `[...document.querySelectorAll('iframe[src*="captcha"], iframe[src*="challenges.cloudflare.com"], .g-recaptcha, .h-captcha, #captcha')].some(${VISIBLE})`
-const VISIBLE_PASSWORD = `[...document.querySelectorAll('input[type=password]')].some(${VISIBLE})`
+const PAGE_PROBE = `(() => {
+  const visible = ${VISIBLE}
+  return {
+    challenge: !!(document.getElementById("challenge-form") || document.querySelector(".cf-browser-verification")),
+    captcha: [...document.querySelectorAll('iframe[src*="captcha"], iframe[src*="challenges.cloudflare.com"], .g-recaptcha, .h-captcha, #captcha')].some(visible),
+    password: [...document.querySelectorAll("input[type=password]")].some(visible),
+  }
+})()`
 
 type PageState = "ok" | "challenge" | "login"
 
@@ -43,9 +64,11 @@ export function createBrowserHost(): PublisherBrowser {
   app.on("before-quit", () => {
     quitting = true
   })
-  // The hosts the hidden window may visit in the current run, and the last one it was kept from
+  // The hosts the hidden window may visit in the current run, the sites it may not go on to, and the
+  // last host it was kept from
   let allowed: string[] = []
-  let stopped: string | undefined
+  let avoided: string[] = []
+  let stopped: { host: string; avoided: boolean } | undefined
 
   // The page the user sees during Check now, and where it goes
   let view: WebContentsView | null = null
@@ -60,6 +83,64 @@ export function createBrowserHost(): PublisherBrowser {
   let wentAway = false
   // Windows whose page reloads take the view away
   const watched = new WeakSet<BrowserWindow>()
+  // Downloads go to the run working in that page; one nobody waits for isn't saved
+  const downloads = new Map<number, (item: DownloadItem) => void>()
+  let sessionReady = false
+
+  const prepareSession = () => {
+    if (sessionReady) return
+    sessionReady = true
+    const ses = electronSession.fromPartition(PARTITION)
+    // A PDF the page opens is saved, not shown: the response a click on its link gets, taken as it comes
+    ses.webRequest.onHeadersReceived((details, callback) => {
+      const headers = details.responseHeaders ?? {}
+      const type = Object.entries(headers).find(([k]) => k.toLowerCase() === "content-type")?.[1]?.[0] ?? ""
+      if (details.resourceType !== "mainFrame" || !/application\/(pdf|x-pdf)/i.test(type)) return callback({})
+      const kept = Object.fromEntries(Object.entries(headers).filter(([k]) => k.toLowerCase() !== "content-disposition"))
+      callback({ responseHeaders: { ...kept, "Content-Disposition": ["attachment"] } })
+    })
+    ses.on("will-download", (event, item, contents) => {
+      const take = contents ? downloads.get(contents.id) : undefined
+      if (take) take(item)
+      else event.preventDefault()
+    })
+  }
+
+  // The PDF this page downloads during a run, whoever started it (owlit, or the user clicking the
+  // page's own link during Check now)
+  function catchPdf(contents: WebContents) {
+    let resolve!: (bytes: Uint8Array) => void
+    const pdf = new Promise<Uint8Array>((r) => (resolve = r))
+    const items = new Set<DownloadItem>()
+    let got = false
+    downloads.set(contents.id, (item) => {
+      if (got) return item.cancel()
+      items.add(item)
+      const file = path.join(os.tmpdir(), `owlit-pdf-${process.pid}-${Date.now()}-${items.size}`)
+      item.setSavePath(file)
+      item.on("updated", () => {
+        if (item.getReceivedBytes() > MAX_PDF_BYTES) item.cancel()
+      })
+      item.once("done", async (_event, state) => {
+        const bytes = state === "completed" ? await readFile(file).catch(() => undefined) : undefined
+        await rm(file, { force: true }).catch(() => undefined)
+        items.delete(item)
+        if (bytes && isPdf(bytes) && !got) {
+          got = true
+          resolve(new Uint8Array(bytes))
+        }
+      })
+    })
+    return {
+      pdf,
+      // A download is under way, or one gave the PDF
+      busy: () => got || items.size > 0,
+      dispose() {
+        if (downloads.get(contents.id)) downloads.delete(contents.id)
+        for (const item of items) item.cancel()
+      },
+    }
+  }
 
   const hiddenWindow = () => {
     if (hidden && !hidden.isDestroyed()) return hidden
@@ -68,7 +149,8 @@ export function createBrowserHost(): PublisherBrowser {
       width: 1100,
       height: 800,
       title: t({ message: "Owlit · Publisher", comment: "title of the window that shows a publisher's or library's sign-in page" }),
-      webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true },
+      // Never shown, so Chromium would slow its timers to a crawl: a check's script runs at its own pace
+      webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true, backgroundThrottling: false },
     })
     // Closing it (the library proxy's sign-in) hides it: the session lives on
     hidden.on("close", (event) => {
@@ -81,8 +163,10 @@ export function createBrowserHost(): PublisherBrowser {
     const guard = (event: Electron.Event, url: string) => {
       if (hidden?.isVisible()) return
       const host = hostOf(url)
-      if (host && !allowed.some((h) => host === h || (h.startsWith(".") ? host.endsWith(h) : host.endsWith(`.${h}`)))) {
-        stopped = host
+      if (!host) return
+      const avoid = avoided.includes(siteOf(host))
+      if (avoid || !allowed.some((h) => host === h || (h.startsWith(".") ? host.endsWith(h) : host.endsWith(`.${h}`)))) {
+        stopped = { host, avoided: avoid }
         event.preventDefault()
       }
     }
@@ -129,6 +213,7 @@ export function createBrowserHost(): PublisherBrowser {
   }
 
   async function fetchPdf(request: BrowserRequest): Promise<Uint8Array> {
+    prepareSession()
     let contents: WebContents
     if (request.withUser) {
       active = true
@@ -137,35 +222,48 @@ export function createBrowserHost(): PublisherBrowser {
     } else {
       contents = hiddenWindow().webContents
       allowed = request.allowHosts
+      avoided = request.avoidSites ?? []
     }
     stopped = undefined
     // OWLIT_LOG_BROWSER: where a run's time goes
     const started = Date.now()
     const trace = (step: string) => process.env.OWLIT_LOG_BROWSER && console.log(`[publisher] +${((Date.now() - started) / 1000).toFixed(1)}s ${step} ${contents.getURL()}`)
+    const run: Run = { asked: request.askedSites ?? new Set(), cleared: new Set() }
+    // The run's own signal: ended once the PDF is in, however it came
+    const done = new AbortController()
+    const signal = AbortSignal.any([request.signal, done.signal])
+    const steps: BrowserRequest = { ...request, signal }
     const abort = () => contents.stop()
-    request.signal.addEventListener("abort", abort, { once: true })
-    try {
+    signal.addEventListener("abort", abort, { once: true })
+    const opened = (_event: Electron.Event, url: string, status: number) => request.report?.({ kind: "opened", host: hostOf(url), status })
+    contents.on("did-navigate", opened)
+    const caught = catchPdf(contents)
+    const steered = (async () => {
       // A redirect the guard stopped fails the load with a bare ERR_FAILED; say where it was going
-      await load(contents, request.landing, request).catch((error: Error) => {
-        throw stopped ? new Error(`${hostOf(request.landing)} sent the page on to ${stopped}, which owlit doesn't open unattended.`) : error
+      await load(contents, request.landing, steps).catch((error: Error) => {
+        if (stopped?.avoided) throw new Error(`The library proxy led straight back to ${stopped.host}, which had just asked for a person.`)
+        throw stopped ? new Error(`${hostOf(request.landing)} sent the page on to ${stopped.host}, which owlit doesn't open unattended.`) : error
       })
       trace("opened")
-      await waitUntilClear(contents, request)
+      await waitUntilClear(contents, steps, run)
       trace("clear")
-      const pdfUrl = await pdfAddress(contents, request)
+      if (caught.busy()) return caught.pdf
+      const pdfUrl = await pdfAddress(contents, steps)
       if (!pdfUrl) throw new Error("The publisher's page doesn't link a PDF.")
-      let bytes = await fetchWithSession(pdfUrl, request.signal)
-      // Some publishers check again at the PDF itself: open it in the page and look once more
-      if (!isPdf(bytes)) {
-        trace(`no PDF from ${pdfUrl}, opening it`)
-        await load(contents, pdfUrl, request).catch(() => undefined)
-        await waitUntilClear(contents, request)
-        bytes = await fetchWithSession(pdfUrl, request.signal)
-      }
-      if (!isPdf(bytes)) throw new Error(`${hostOf(pdfUrl)} didn't give a PDF to this reader.`)
+      trace(`opening ${pdfUrl}`)
+      return openPdf(contents, pdfUrl, steps, run, caught)
+    })()
+    // A run that lost the race keeps going until its signal says stop: its failure is nobody's news
+    steered.catch(() => undefined)
+    try {
+      const bytes = await Promise.race([caught.pdf, steered])
+      request.report?.({ kind: "pdf", host: hostOf(contents.getURL()) || hostOf(request.landing), bytes: bytes.length })
       return bytes
     } finally {
-      request.signal.removeEventListener("abort", abort)
+      done.abort()
+      signal.removeEventListener("abort", abort)
+      contents.off("did-navigate", opened)
+      caught.dispose()
       if (request.withUser) {
         active = false
         placeView()
@@ -177,25 +275,63 @@ export function createBrowserHost(): PublisherBrowser {
     }
   }
 
+  // Opens the PDF from the page, as its link would, and waits for what comes back to be saved. A check
+  // in the way is met once; a page that is plainly no PDF isn't asked again.
+  async function openPdf(contents: WebContents, url: string, request: BrowserRequest, run: Run, caught: ReturnType<typeof catchPdf>) {
+    const referrer = contents.getURL()
+    const open = () => void contents.loadURL(url, { httpReferrer: referrer }).catch(() => undefined)
+    open()
+    let bytes = await pdfWithin(contents, request, caught)
+    if (!bytes && (await pageState(contents, request)) !== "ok") {
+      await waitUntilClear(contents, request, run)
+      // Past a check the page usually asks for the PDF again by itself; if not, it is opened once more
+      bytes = await pdfWithin(contents, request, caught)
+      if (!bytes) {
+        open()
+        bytes = await pdfWithin(contents, request, caught)
+      }
+      // A check back again ends the run here (NeedsUser, Refused)
+      if (!bytes) await waitUntilClear(contents, request, run)
+    }
+    if (!bytes) throw new Error(`${hostOf(url)} didn't give a PDF to this reader.`)
+    return bytes
+  }
+
   // A check or a sign-in: nobody looking, give it a moment to pass by itself and otherwise end the run;
-  // with the user there, wait for them
-  async function waitUntilClear(contents: WebContents, request: BrowserRequest) {
+  // with the user there, wait for them. Either way a check that comes back once it was passed is
+  // final: waiting or asking again only repeats it.
+  async function waitUntilClear(contents: WebContents, request: BrowserRequest, run: Run) {
     for (let round = 0; round < 3; round++) {
       request.signal.throwIfAborted()
       const state = await pageState(contents, request)
       if (state === "ok") return
+      const host = hostOf(contents.getURL())
+      const site = siteOf(host)
+      request.report?.({ kind: "asked", host, reason: state })
       if (!request.withUser) {
+        if (run.cleared.has(site)) {
+          request.report?.({ kind: "back", host })
+          throw new NeedsUser(state, host)
+        }
         await untilClear(contents, request, SETTLE_MS).catch((error) => {
           if (request.signal.aborted) throw error
-          throw new NeedsUser(state, hostOf(contents.getURL()))
+          throw new NeedsUser(state, host)
         })
+        run.cleared.add(site)
+        request.report?.({ kind: "cleared", host, by: "itself" })
         await settle(contents, request)
         continue
       }
       // The page out of sight too long ends the run; core keeps the note for the next Check now
-      if (wentAway) throw new NeedsUser(state, hostOf(contents.getURL()))
+      if (wentAway) throw new NeedsUser(state, host)
+      // A sign-in may take several pages; a check asked of the user once is enough
+      if (state === "challenge" && run.asked.has(site)) {
+        request.report?.({ kind: "back", host })
+        throw new Refused(host)
+      }
+      if (state === "challenge") run.asked.add(site)
       let left: () => void = () => {}
-      const gone = new Promise<never>((_, reject) => (left = () => reject(new NeedsUser(state, hostOf(contents.getURL())))))
+      const gone = new Promise<never>((_, reject) => (left = () => reject(new NeedsUser(state, host))))
       away.add(left)
       try {
         await request.needUser(
@@ -206,12 +342,15 @@ export function createBrowserHost(): PublisherBrowser {
       } finally {
         away.delete(left)
       }
+      request.report?.({ kind: "cleared", host, by: "user" })
       // Past the check the page goes on to the article: let it arrive before looking for the PDF
       // (2026-10-11: read the moment the user got through, a SAGE page had no PDF link)
       await settle(contents, request)
     }
     const state = await pageState(contents, request)
-    if (state !== "ok") throw request.withUser ? new Error("The publisher kept asking for a check.") : new NeedsUser(state, hostOf(contents.getURL()))
+    if (state === "ok") return
+    const host = hostOf(contents.getURL())
+    throw request.withUser && state === "challenge" ? new Refused(host) : new NeedsUser(state, host)
   }
 
   return {
@@ -299,10 +438,8 @@ async function pageState(contents: WebContents, request: BrowserRequest): Promis
   if (contents.isDestroyed()) return "ok"
   if (onProxySignIn(contents.getURL(), request)) return "login"
   const title = contents.getTitle()
-  const probe = await contents
-    .executeJavaScript(`({ html: document.documentElement.outerHTML.slice(0, 20000), captcha: ${VISIBLE_CAPTCHA}, password: ${VISIBLE_PASSWORD} })`, true)
-    .catch(() => ({ html: "", captcha: false, password: false }))
-  if (CHALLENGE_TITLE.test(title) || CHALLENGE_BODY.test(probe.html) || probe.captcha) return "challenge"
+  const probe = await contents.executeJavaScript(PAGE_PROBE, true).catch(() => ({ challenge: false, captcha: false, password: false }))
+  if (CHALLENGE_TITLE.test(title) || probe.challenge || probe.captcha) return "challenge"
   if (probe.password) return "login"
   return "ok"
 }
@@ -351,11 +488,34 @@ async function pdfAddress(contents: WebContents, request: BrowserRequest) {
   }
 }
 
-// The page's own session fetches it, cookies and all
-async function fetchWithSession(url: string, signal: AbortSignal) {
-  const ses = electronSession.fromPartition(PARTITION)
-  const response = await ses.fetch(url, { signal })
-  return new Uint8Array(await response.arrayBuffer())
+// The PDF the page is downloading, once it is in; undefined when the page settled without starting one
+async function pdfWithin(contents: WebContents, request: BrowserRequest, caught: { pdf: Promise<Uint8Array>; busy(): boolean }) {
+  const until = Date.now() + PDF_START_MS
+  let url = contents.getURL()
+  let quietSince = Date.now()
+  while (Date.now() < until && !contents.isDestroyed()) {
+    request.signal.throwIfAborted()
+    if (caught.busy()) {
+      return Promise.race([
+        caught.pdf,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The PDF took too long to download.")), PDF_DOWNLOAD_MS)),
+      ])
+    }
+    await new Promise((r) => setTimeout(r, 500))
+    const now = contents.getURL()
+    if (now !== url || contents.isLoadingMainFrame()) {
+      url = now
+      quietSince = Date.now()
+    } else if (Date.now() - quietSince >= PDF_QUIET_MS) break
+  }
+  return caught.busy() ? caught.pdf : undefined
+}
+
+// What one run has seen: sites whose check the user was asked to pass, and checks that passed by
+// themselves
+interface Run {
+  asked: Set<string>
+  cleared: Set<string>
 }
 
 const isPdf = (bytes: Uint8Array) => bytes.length > 5 && String.fromCharCode(...bytes.subarray(0, 5)) === "%PDF-"

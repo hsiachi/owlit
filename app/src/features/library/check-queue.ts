@@ -26,5 +26,11 @@ export function useNextCheck(id: string): string | undefined {
   const tasks = useTasksStore()
   const at = ids.indexOf(id)
   if (at < 0) return undefined
-  return ids.slice(at + 1).find((next) => papers[next]?.noPdf?.needs && !papers[next]?.pdf && !openTasksFor(tasks, next).some((t) => t.kind.startsWith("paper.pdf")))
+  // A paper whose publisher isn't letting owlit in has no check to go through
+  return ids
+    .slice(at + 1)
+    .find((next) => {
+      const needs = papers[next]?.noPdf?.needs
+      return needs && needs !== "blocked" && !papers[next]?.pdf && !openTasksFor(tasks, next).some((t) => t.kind.startsWith("paper.pdf"))
+    })
 }

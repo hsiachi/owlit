@@ -26,6 +26,8 @@ export interface Place {
   words?: string
   // What the time means for this kind ("edited", "Owlit edited", "read"); Home words it, none for a chat
   did: Did | null
+  // A paper's id, for the marks it can carry (a new digest)
+  paperId?: string
 }
 
 export type Did = "edited" | "owlit-wrote" | "owlit-edited" | "read"
@@ -121,6 +123,7 @@ export function usePlaces(): Place[] {
         to: `/library/${p.id}`,
         words: mark?.words,
         did: "read",
+        paperId: p.id,
       })
     }
     return out

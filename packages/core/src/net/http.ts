@@ -29,6 +29,8 @@ export class HttpError extends Error {
   readonly url: string
   // A 429 from a used-up quota: seconds until it comes back
   readonly quotaResetIn?: number
+  // Cloudflare answered with a check for a person (cf-mitigated: challenge), not the site itself
+  challenged?: boolean
   constructor(status: number, url: string, message: string, quotaResetIn?: number) {
     super(message)
     this.name = "HttpError"
@@ -84,7 +86,11 @@ export class Http {
         const response = await this.once(url, options)
         if (response.ok) return response
         await response.body?.cancel().catch(() => {})
-        if (response.status !== 429 && response.status < 500) throw new HttpError(response.status, url, describe(response.status, url))
+        if (response.status !== 429 && response.status < 500) {
+          const error = new HttpError(response.status, url, describe(response.status, url))
+          if (response.headers.get("cf-mitigated") === "challenge") error.challenged = true
+          throw error
+        }
         // A daily allowance that's used up won't come back on a retry (OpenAlex's resets at midnight UTC)
         const quota = response.status === 429 ? quotaResetIn(response) : undefined
         if (quota !== undefined) {

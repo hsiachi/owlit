@@ -135,7 +135,7 @@ export class Core {
       userName: async () => (await this.settings.get()).profile.name,
     })
     this.background = new Background(this.agents)
-    // Opening a paper's page says the user is about to read it: its reading note comes first
+    // Opening a paper's page says the user is about to read it: its digest comes first
     this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
     // What the user does feeds Knowledge: a run once things have been quiet for a while
     this.activity.subscribe(["doc.edited", "chat.sent", "chat.ended", "highlight.added", "note.edited", "paper.closed", "knowledge.edited"], (event) =>
@@ -518,6 +518,8 @@ export class Core {
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.checkPublisher", z.object({ id: paperId }), ({ id }) => library().checkPublisher(id))
+    this.router.register("library.openInBrowser", z.object({ id: paperId }), ({ id }) => library().openInBrowser(id))
+    this.router.register("library.takeDownload", z.object({ id: paperId, take: z.boolean() }), ({ id, take }) => library().takeDownload(id, take))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
       library().attachPdf(id, path),
     )
@@ -647,6 +649,8 @@ export class Core {
               library: {
                 http: this.http,
                 browser: this.options.host?.browser,
+                openExternal: this.options.host?.openExternal,
+                downloadsDir: this.options.host?.downloadsDir,
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,

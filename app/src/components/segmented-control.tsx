@@ -1,6 +1,8 @@
+import { t } from "@lingui/core/macro"
 import { useLayoutEffect, useRef } from "react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { NoteDot } from "@/components/marks"
 import { Tip } from "@/components/tip"
 
 // A segmented control (List / Table, System / Light / Dark): a `muted` box with 2px padding whose chosen
@@ -16,8 +18,9 @@ export function SegmentedControl<T extends string>({
   label: string
   value: T
   onChange: (value: T) => void
-  // With an icon the segment shows only it, and its label in a tooltip
-  options: { value: T; label: string; icon?: LucideIcon }[]
+  // With an icon the segment shows only it, and its label in a tooltip. `dot`: Owlit's dot after the
+  // label, for something new there since the user last looked.
+  options: { value: T; label: string; icon?: LucideIcon; dot?: boolean }[]
   className?: string
 }) {
   const box = useRef<HTMLDivElement>(null)
@@ -65,11 +68,12 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               "relative h-6 rounded-md text-muted-foreground outline-none hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50",
-              o.icon ? "grid w-7 place-items-center" : "px-3 text-detail",
+              o.icon ? "grid w-7 place-items-center" : "flex items-center gap-1.5 px-3 text-detail",
               on && "text-foreground",
             )}
           >
             {o.icon ? <o.icon className="size-3.5" /> : o.label}
+            {o.dot && <NoteDot label={t`New since you last looked`} />}
           </button>
         )
         return o.icon ? (

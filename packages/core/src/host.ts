@@ -16,9 +16,13 @@ export interface Host {
   // Seals keys before they are written to settings.json (the desktop app: the system keychain). Without
   // one, keys are written as they are.
   secrets?: SecretBox
-  // The system's preferred languages, most preferred first (BCP 47): what reading notes are written in
+  // The system's preferred languages, most preferred first (BCP 47): what digests are written in
   // until Settings says otherwise
   languages?(): string[]
+  // Opens a web page in the user's own browser
+  openExternal?(url: string): Promise<void>
+  // The folder the user's browser saves downloads to
+  downloadsDir?(): string
 }
 
 export interface SecretBox {
@@ -28,9 +32,9 @@ export interface SecretBox {
 }
 
 export interface BrowserHost {
-  // Opens the landing page (as a reader would), then fetches the PDF with that session's cookies.
-  // Rejects with a sentence when the page gives no PDF, and with NeedsUser when, nobody looking, the
-  // page wants a person and didn't move on by itself.
+  // Opens the landing page (as a reader would), then opens the PDF from it and saves what comes back.
+  // Rejects with a sentence when the page gives no PDF; with NeedsUser when, nobody looking, the page
+  // wants a person and didn't move on by itself; with Refused when a site asks again after it was passed.
   fetchPdf(request: BrowserRequest): Promise<Uint8Array>
   // Shows the window at a page for the user to sign in on (the library proxy); resolves when they close it
   showLogin(url: string): Promise<void>
@@ -46,6 +50,12 @@ export interface BrowserRequest {
   proxyHost?: string
   // The hosts the page may visit while nobody is looking (publisher, doi.org, the proxy)
   allowHosts: string[]
+  // Sites (registrable domains) the page may not go on to while nobody is looking: one that just asked
+  // for a person, which the library proxy would only lead back to
+  avoidSites?: string[]
+  // Sites that asked the user for a check or a sign-in in this run, shared by its routes: each site
+  // asks once, and asking again means it won't let this browser through
+  askedSites?: Set<string>
   signal: AbortSignal
   // The user asked to see the page (Check now): it shows where the app reserved room for it, and a
   // check or a sign-in waits for them instead of ending the run
@@ -53,7 +63,19 @@ export interface BrowserRequest {
   // With the user: the page wants them (a challenge, a sign-in form). `settled` resolves when the page
   // moves on, and needUser resolves once the task may go on.
   needUser(reason: PublisherNeed, detail: string, settled: Promise<void>): Promise<void>
+  // What happened on the way, for publisher-log.jsonl
+  report?(event: BrowserEvent): void
 }
+
+// One step of a browser run, as the log keeps it: how often sites ask, and whether it passes
+export type BrowserEvent =
+  | { kind: "opened"; host: string; status?: number }
+  // A check (or a sign-in) is on the page
+  | { kind: "asked"; host: string; reason: PublisherNeed }
+  | { kind: "cleared"; host: string; by: "itself" | "user" }
+  // The check came back after it had cleared
+  | { kind: "back"; host: string }
+  | { kind: "pdf"; host: string; bytes: number }
 
 export type PublisherNeed = "login" | "challenge"
 
@@ -67,6 +89,17 @@ export class NeedsUser extends Error {
     super(reason === "login" ? "The publisher wants you to sign in." : "The publisher wants to check this is a person.")
     this.name = "NeedsUser"
     this.reason = reason
+    this.host = host
+  }
+}
+
+// A site asked for a check again right after it was passed: it isn't letting this browser through for
+// now, and asking the user once more would only repeat that
+export class Refused extends Error {
+  readonly host: string
+  constructor(host: string) {
+    super(`${host} kept asking for a check after it was passed.`)
+    this.name = "Refused"
     this.host = host
   }
 }
