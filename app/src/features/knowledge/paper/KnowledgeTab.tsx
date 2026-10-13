@@ -7,10 +7,12 @@ import { MentionLink } from "@/components/mention/mention-token"
 import { useChatStore } from "@/features/chat/store"
 import { filesByPath, useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
+import { useHighlightCount } from "@/features/library/lib/use-highlights"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 import { shortDate } from "@/lib/time"
-import { citingDocs, withAliases } from "../format"
+import { useKnowledgeStatus } from "../components/KnowledgeEmpty"
+import { citingDocs, touchedWords, withAliases } from "../format"
 import { topicsOf, useKnowledgeStore, usePaperKnowledge, useTopics } from "../store"
 import { ItemRow } from "./ItemRow"
 import { hasUnseenGuess, paperItems, type Group } from "./items"
@@ -60,14 +62,7 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
 
   return (
     <div className="flex flex-col gap-7 pb-6">
-      {items.length === 0 && (
-        <EmptyPlace
-          size="panel"
-          title="Nothing connected yet"
-          detail="Owlit links this paper to your notes, questions and topics once you highlight, cite or talk about it."
-          className="pt-8"
-        />
-      )}
+      {items.length === 0 && <NothingYet paper={paper} />}
       {groups.map((g, n) => (
         <section key={g.id}>
           <GroupLabel as="h3" flush info={n === 0 && ABOUT} infoLabel="About the Knowledge tab">
@@ -82,6 +77,30 @@ export function KnowledgeTab({ paper }: { paper: Paper }) {
       ))}
       <UsedIn paper={paper} />
     </div>
+  )
+}
+
+// Before anything connects: first the facts, what the person left on this paper in the words the Knowledge
+// page uses ("1 highlight, a note"), then what a connection waits for. Connections come from topics, and a
+// topic starts only once two things are about the same question, so the tab must not promise one for a
+// highlight alone. It ends on the line the Knowledge page ends on: when Owlit last read, or why it can't.
+function NothingYet({ paper }: { paper: Paper }) {
+  const highlights = useHighlightCount(paper.id)
+  const hasNote = useLibraryStore((s) => !!s.notes[paper.id]?.content.trim())
+  const status = useKnowledgeStatus()
+  const touched = touchedWords(highlights, hasNote).replace(", ", " and ")
+  return (
+    <EmptyPlace
+      size="panel"
+      title="Nothing connected yet"
+      detail={
+        touched
+          ? `You have ${touched} here. Owlit connects them to your other papers, docs and questions once a topic starts, and a topic starts once two of them are about the same question.`
+          : "Highlight, cite or talk about this paper, and Owlit connects it to your other papers, docs and questions once two of them are about the same question."
+      }
+      note={status}
+      className="pt-8"
+    />
   )
 }
 

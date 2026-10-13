@@ -22,6 +22,16 @@ export interface SessionHandler {
 // An agent working for a session: announced (with its task, as the agent named it), or its state changed
 export type AgentNotice = { kind: "started"; agentId: string; title: string } | { kind: "state"; agentId: string; state: string }
 
+// Whose sign-in the agent's process runs on, as claude-agent-acp reports it (its authStatus extension, a
+// push on `_auth/status_update`; checked 2026-10-13 with 0.88): "none" is a Claude Code that is signed
+// out, which its initialize and newSession don't say otherwise
+export interface AuthStatus {
+  kind: "account" | "api_key" | "gateway" | "external" | "none"
+  label: string
+}
+
+const AUTH_STATUS_METHOD = "_auth/status_update"
+
 export interface ProcessOptions {
   // Executable and its arguments, already resolved
   file: string
@@ -76,6 +86,9 @@ export class AcpProcess {
   // Each child has its own
   private life: Life = { stopping: false, ended: new Promise(() => {}) }
   private stderr: string[] = []
+  // The latest sign-in the agent reported, and who waits for the first report
+  private auth: AuthStatus | undefined
+  private authWaiters: ((status: AuthStatus | undefined) => void)[] = []
 
   constructor(options: ProcessOptions) {
     this.options = options
@@ -92,6 +105,27 @@ export class AcpProcess {
   // What the agent said about itself when it started
   initialized(): Promise<acp.InitializeResponse> {
     return this.call(async () => this.started!)
+  }
+
+  // Whose sign-in the agent runs on, when it reports it; undefined when it doesn't (most agents), or
+  // hasn't yet. The adapter reads it with a `claude auth status` run it starts at initialize and doesn't
+  // wait for, so a check right after initialize waits up to `waitMs` for that first report, and only
+  // from an agent that said it sends them (agentCapabilities._meta.authStatus).
+  async authStatus(waitMs: number): Promise<AuthStatus | undefined> {
+    if (this.auth) return this.auth
+    const init = this.running ? await this.started?.catch(() => null) : null
+    if (!init?.agentCapabilities?._meta?.authStatus) return undefined
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.authWaiters = this.authWaiters.filter((w) => w !== done)
+        resolve(undefined)
+      }, waitMs)
+      const done = (status: AuthStatus | undefined) => {
+        clearTimeout(timer)
+        resolve(status)
+      }
+      this.authWaiters.push(done)
+    })
   }
 
   newSession(params: acp.NewSessionRequest, handler: SessionHandler) {
@@ -252,6 +286,13 @@ export class AcpProcess {
           const to = this.handlerFor(sessionId)
           return to.handler.createElicitation(r, to.agentId)
         },
+        extNotification: (method, params) => {
+          if (method !== AUTH_STATUS_METHOD) return
+          const status = (params as { authStatus?: AuthStatus }).authStatus
+          if (!status || typeof status.kind !== "string") return
+          this.auth = status
+          for (const waiter of this.authWaiters.splice(0)) waiter(status)
+        },
       }),
       acp.ndJsonStream(Writable.toWeb(child.stdin!), this.takeAgentNotices(Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>)),
     )
@@ -364,6 +405,9 @@ export class AcpProcess {
     this.started = null
     this.handlers.clear()
     this.children.clear()
+    // The next process reads its sign-in afresh; whoever waited on this one hears nothing
+    this.auth = undefined
+    for (const waiter of this.authWaiters.splice(0)) waiter(undefined)
   }
 
   private scheduleIdle() {

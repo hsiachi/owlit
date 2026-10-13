@@ -123,9 +123,10 @@ export interface LibraryServices {
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, "That paper is not in the library.", { id })
 
-// The workspace's papers: library/papers/<id>/ (what each paper is) and .owlit/papers/<id>/ (what the
-// user thinks of it). Changes from the app are answered, not echoed; changes core makes on its own (a
-// task) or another program makes go out through onChange.
+// The workspace's papers: library/papers/<id>/ (what each paper is, and the user's note.md beside it) and
+// .owlit/papers/<id>/ (the rest of what the user thinks of it: state, highlights). Changes from the app
+// are answered, not echoed; changes core makes on its own (a task) or another program makes go out
+// through onChange.
 export class Library {
   readonly root: string
   // This workspace's folder in owlit's data directory (machine-specific state)
@@ -440,9 +441,9 @@ export class Library {
     })
   }
 
-  // An agent's edit to a paper's note (its file is .owlit/papers/<id>/note.md, which agents may not write
-  // directly): written like the window's own, then told to windows, which take it into the open note as
-  // one undoable change
+  // An agent's edit to a paper's note (its file is library/papers/<id>/note.md, which agents write through
+  // owlit's fs rather than directly): written like the window's own, then told to windows, which take it
+  // into the open note as one undoable change
   async writeNoteFor(paperId: string, content: string): Promise<void> {
     await this.serial(async () => {
       if (!(await readRecord(this.root, paperId))) throw notFound(paperId)
@@ -455,7 +456,7 @@ export class Library {
 
   // The paper a workspace-relative path is the note of, if it is one
   noteOf(rel: string): string | null {
-    const prefix = `${OWLIT_DIR}/papers/`
+    const prefix = `${PAPERS_DIR.split(path.sep).join("/")}/`
     if (!rel.startsWith(prefix) || !rel.endsWith("/note.md")) return null
     const id = rel.slice(prefix.length, -"/note.md".length)
     return isPaperId(id) ? id : null
@@ -1035,8 +1036,11 @@ export class Library {
     const prefix = PAPERS_DIR.split(path.sep).join("/") + "/"
     this.watcher = watch(this.root, { recursive: true }, (_event, filename) => {
       const rel = filename ? filename.split(path.sep).join("/") : ""
-      // A paper's note, changed by an agent that writes the disk itself or by another program
-      const noteOf = this.noteOf(rel)
+      // A paper's note, changed by an agent that writes the disk itself or by another program. It sits in
+      // the paper's folder, so it is taken before the folder's other files: a note write is news for the
+      // note alone, not a change of the paper. owlit's own save lands as note.md.<hex>.tmp first
+      // (writeFileAtomic), which counts as the note too, or every keystroke saved would re-announce the paper
+      const noteOf = this.noteOf(rel.replace(/\.[0-9a-f]{8}\.tmp$/, ""))
       if (noteOf) {
         clearTimeout(this.noteTimers.get(noteOf))
         this.noteTimers.set(noteOf, setTimeout(() => void this.noteMayHaveChanged(noteOf).catch(() => undefined), NOTE_SETTLE_MS))

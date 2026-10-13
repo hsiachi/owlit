@@ -10,6 +10,7 @@ import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsLi
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
 import { externalLinks, type ExternalLink } from "../../lib/format"
+import { stripLatex } from "../../lib/latex"
 import { useHighlightCount } from "../../lib/use-highlights"
 import { NoteEditor } from "../../notes/NoteEditor"
 import { addHighlightToNote } from "../../notes/note-actions"
@@ -99,7 +100,7 @@ function About({ paper }: { paper: Paper }) {
   const links = externalLinks(paper)
   return (
     <div>
-      {paper.abstract ? <Abstract text={paper.abstract} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">No abstract.</p>}
+      {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">No abstract.</p>}
       <dl className="mt-5 grid grid-cols-[4.5rem_1fr] items-baseline gap-x-3 gap-y-3 text-detail">
         <dt className="text-muted-foreground">Tags</dt>
         <dd>
@@ -147,7 +148,7 @@ function Abstract({ text, folded }: { text: string; folded: boolean }) {
   const shut = folded && !open
   return (
     <div>
-      <p className={cn("text-sm leading-relaxed", shut && "line-clamp-4")}>{text}</p>
+      <p className={cn("text-sm leading-relaxed whitespace-pre-line", shut && "line-clamp-4")}>{text}</p>
       {folded && (
         <FoldButton open={open} onClick={() => setOpen(!open)} className="mt-1">
           {open ? "Show less" : "Show more"}

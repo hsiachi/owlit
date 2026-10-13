@@ -1,4 +1,5 @@
 import { isHiddenFromDocs, paperUri, parseOwlitUri, type WorkspaceFile } from "@owlit/protocol"
+import { plural } from "@/lib/words"
 import type { Line, TopicSidecar, Verb } from "./types"
 
 // Topic files are read and written by @owlit/protocol's parseTopic and serializeTopic, shared with core
@@ -9,6 +10,10 @@ export const oneLine = (text: string) => text.replace(/\s+/g, " ").trim()
 
 // A line or question inside its topic: "when-to-call/s3"
 export const lineKey = (topicId: string, lineId: string) => `${topicId}/${lineId}`
+
+// What the person has left on a paper, as the Knowledge page and a paper's Knowledge tab both say it:
+// "1 highlight, a note", "3 highlights", "a note"; "" when nothing
+export const touchedWords = (highlights: number, hasNote: boolean) => [highlights > 0 && plural(highlights, "highlight"), hasNote && "a note"].filter(Boolean).join(", ")
 
 // ---- Reading a line ----
 

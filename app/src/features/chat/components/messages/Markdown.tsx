@@ -2,12 +2,13 @@ import katex from "katex"
 import { isValidElement, type ReactNode } from "react"
 import "katex/dist/katex.min.css"
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown"
+import { useLocation } from "react-router-dom"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import { cn } from "@/lib/utils"
 import { appLinkTitle, openAppLink } from "@/app/app-links"
 import { useOpenFromChat } from "@/features/agent/hooks"
-import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
+import { mentionTooltip, openMention } from "@/features/docs/lib/mentions"
 import { MentionToken } from "@/components/mention/mention-token"
 
 // The default sanitizer drops unknown schemes; keep owlit:// so workspace references survive
@@ -49,10 +50,11 @@ function textOf(node: ReactNode): string {
 // marks (a reading note's figures and pages) adds `components` for them and `prepare` to put them in.
 export function Markdown({ text, className, components, prepare }: { text: string; className?: string; components?: Components; prepare?: (text: string) => string }) {
   const openPage = useOpenFromChat()
+  const { pathname } = useLocation()
+  // A page link into the paper open beside the chat scrolls the reader there rather than reopening it
   const open = (href: string) => {
     if (openAppLink(href)) return
-    const to = mentionRoute(href)
-    if (to) openPage(to)
+    openMention(href, openPage, pathname)
   }
   return (
     <div className={cn("markdown leading-relaxed", className)}>
@@ -77,10 +79,11 @@ export function Markdown({ text, className, components, prepare }: { text: strin
             return <pre {...rest}>{children}</pre>
           },
           // Workspace references look the same as the user's @-mentions, which are plain text: an agent
-          // may still format inside the link ("[Lam et al., *Concept Induction*](owlit://…)")
+          // may still format inside the link ("[Lam et al., *Concept Induction*](owlit://…)"). The tooltip
+          // says what the click does, which the text of a page link ("p5") doesn't
           a: ({ href, children }) =>
             href?.startsWith("owlit://") ? (
-              <MentionToken label={textOf(children)} title={appLinkTitle(href) ?? mentionTitle(href) ?? textOf(children)} onClick={() => open(href)} />
+              <MentionToken label={textOf(children)} title={appLinkTitle(href) ?? mentionTooltip(href) ?? textOf(children)} onClick={() => open(href)} />
             ) : (
               <a href={href} target="_blank" rel="noreferrer">
                 {children}

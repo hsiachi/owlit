@@ -40,7 +40,7 @@ export function ReadingNote({ paper, onShowPage }: { paper: Paper; onShowPage: (
     return (
       <Column>
         <p className="flex items-center gap-2 text-detail text-muted-foreground">
-          {writing ? <span className="shimmer">Owlit is writing a reading note…</span> : paper.hasDigest && <Spinner />}
+          {writing ? <span className="shimmer">Owlit is reading this paper…</span> : paper.hasDigest && <Spinner />}
         </p>
       </Column>
     )
@@ -48,7 +48,7 @@ export function ReadingNote({ paper, onShowPage }: { paper: Paper; onShowPage: (
   return (
     <Column>
       <p className="text-detail text-muted-foreground">
-        {writing ? <span className="shimmer">Owlit is writing this note again…</span> : <>Reading note by Owlit{paper.digestAt ? ` · ${ago(paper.digestAt)}` : ""}</>}
+        {writing ? <span className="shimmer">Owlit is reading this paper again…</span> : <>Reading note · Owlit{paper.digestAt ? `, ${ago(paper.digestAt, { inSentence: true })}` : ""}</>}
       </p>
       {paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown

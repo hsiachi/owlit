@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { CopyButton } from "@/components/copy-button"
 import { GroupLabel } from "@/components/group-label"
-import { Button } from "@/components/ui/button"
 import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_LABEL, HIGHLIGHT_MARK, highlightsMarkdown } from "../lib/highlights"
 import { usePaperHighlights } from "../lib/use-highlights"
@@ -16,15 +16,13 @@ async function copy(text: string, done: string) {
   if (await copyText(text)) toast(done)
 }
 
-// Sits at the right end of the tab line while Highlights is open
+// Sits at the right end of the tab line while Highlights is open: the shared copy icon, since the four
+// tabs leave the panel's default width no room for words ("Copy all" as a text button ran into the
+// edge); pulled out by its own padding the way the tabs are (-ml-1.5), so it ends on the text's edge
 export function CopyAllHighlights({ paperId }: { paperId: string }) {
   const highlights = usePaperHighlights(paperId)
   if (highlights.length === 0) return null
-  return (
-    <Button variant="ghost" size="sm" className="-mr-2 font-normal text-muted-foreground" onClick={() => copy(highlightsMarkdown(highlights), "Highlights copied as Markdown")}>
-      Copy all
-    </Button>
-  )
+  return <CopyButton text={highlightsMarkdown(highlights)} label="Copy all as Markdown" size="icon-sm" className="-mr-1.5" />
 }
 
 // A paper's highlights in reading order, grouped by page. A click jumps the reader to the passage;
