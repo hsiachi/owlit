@@ -1,4 +1,4 @@
-// How a reading note is written: pitta's v4 digest prompt, ported as it was, with owlit's changes: the
+// How a digest is written: pitta's v4 digest prompt, ported as it was, with owlit's changes: the
 // detailed part is "Details" (Notes is the user's own tab), places are pages (p. N) as well as
 // sections, and the paper's figures can be shown by id. Its wording was settled by tuning against real
 // papers, so try a change on a few before keeping it, and bump DIGEST_FORMAT (prompt.ts) when a change

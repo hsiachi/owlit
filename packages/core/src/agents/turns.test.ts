@@ -87,6 +87,16 @@ describe("turns", () => {
     expect(texts(promptBlocks(input, "/ws", null))).toEqual(["hi"])
   })
 
+  it("says where a selected passage came from: a page of the paper, or Owlit's digest of it", () => {
+    const source = { kind: "paper" as const, id: "p1", uri: "owlit://library/p1", title: "A paper" }
+    const said = (selection: { page?: number; inDigest?: boolean }) =>
+      promptBlocks({ text: "why?", mentions: [], attachments: [], selection: { text: "a claim", source, ...selection } }, "/ws", null)
+        .map((b) => (b as { text?: string }).text ?? "")
+        .find((t) => t.startsWith("The user selected"))
+    expect(said({ page: 3 })).toBe("The user selected this passage in A paper, on page 3:\n> a claim")
+    expect(said({ inDigest: true })).toContain("in Owlit's digest of A paper (its digest.md, written from the full text; check the paper itself")
+  })
+
   it("gives the agent each attached file as a link to owlit's copy, and an image as a picture too", async () => {
     const { send, text, call, root } = await setup()
     const { file } = await call("chats.attach", { chatId: "c1", name: "shot.png", mimeType: "image/png", data: Buffer.from("png").toString("base64") })

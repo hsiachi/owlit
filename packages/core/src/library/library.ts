@@ -87,7 +87,7 @@ const NOTE_SETTLE_MS = 150
 const PDF_STEPS = ["paper.pdf", "paper.pdf.browser", "paper.pdf.check", "paper.parse", "paper.figures"]
 // Figures that couldn't be had (the cloud unreachable) are looked for again by a note written after this
 const FIGURES_RETRY_MS = 60 * 60_000
-// Pictures a reading note's agent is shown at most, and the largest (model APIs refuse images over
+// Pictures a digest's agent is shown at most, and the largest (model APIs refuse images over
 // 5 MB, Anthropic's limit being the lowest)
 const MAX_PICTURES = 16
 const PICTURE_MAX_BYTES = 5 * 1024 * 1024
@@ -105,9 +105,9 @@ export interface AgentPicture {
 export interface LibraryServices {
   http: Http
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
-  // (reading notes). model is the one chosen for background work, when one is.
+  // (digests). model is the one chosen for background work, when one is.
   agent?: (prompt: string, signal: AbortSignal, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
-  // The language reading notes are written in: Settings' choice, else the system's
+  // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
   browser?: BrowserHost
@@ -550,7 +550,7 @@ export class Library {
         const prompt = digestPrompt({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
         const { text: answer, connectorId, model } = await agent(prompt, ctx.signal, pictures)
         const digest = cleanDigest(answer)
-        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a reading note.")
+        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial(async () => {
           // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
           if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
@@ -563,7 +563,7 @@ export class Library {
     })
   }
 
-  // A paper's figures as pictures (figures.json), for its reading note: from MinerU's result when the
+  // A paper's figures as pictures (figures.json), for its digest: from MinerU's result when the
   // cloud still has it, else from the figure blocks text.json has. Never fails, so the note it comes
   // before never does on its account: what went wrong goes into figures.json, empty.
   private figuresTask() {
@@ -668,7 +668,7 @@ export class Library {
     })
   }
 
-  // A reading note is wanted (the paper was opened, starred, asked for by the user or an agent): queued
+  // A digest is wanted (the paper was opened, starred, asked for by the user or an agent): queued
   // when the paper has, or will have, text to read and has no note yet. A note already there, pitta's
   // included, is written again only when the user asks (rewrite), never on owlit's own account.
   async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
@@ -697,13 +697,13 @@ export class Library {
     return !!record?.rewriteAsked
   }
 
-  // A paper's figures and tables as pictures, for its reading note
+  // A paper's figures and tables as pictures, for its digest
   async figures(id: string): Promise<PaperFigure[]> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     return toPaperFigures(id, await readFigures(this.root, id))
   }
 
-  // A page of the paper as a picture, small, for a glance at what a reading note points at (p. 7)
+  // A page of the paper as a picture, small, for a glance at what a digest points at (p. 7)
   async pagePicture(id: string, page: number): Promise<{ data: string; mimeType: string }> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!(await hasPdfFile(this.root, id))) throw new RpcFailure(RpcErrorCode.NotFound, "The paper has no PDF.", { id })
@@ -724,7 +724,7 @@ export class Library {
     return record.language && record.language !== language ? { ...state, digestOutdated: "language" } : state
   }
 
-  // The paper's reading notes (digest.md), or null when it has none
+  // The paper's digests (digest.md), or null when it has none
   async digest(id: string): Promise<string | null> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     return readFile(path.join(paperDir(this.root, id), "digest.md"), "utf8").catch(() => null)
@@ -1073,7 +1073,7 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
-      // A reading note by a background agent session, from the paper's full text
+      // A digest by a background agent session, from the paper's full text
       ...(this.services.agent ? [this.digestTask(this.services.agent)] : []),
       this.figuresTask(),
       // MinerU's reading of the PDF replaces pdfium's (kept as text.pdfium.json). The job is recorded

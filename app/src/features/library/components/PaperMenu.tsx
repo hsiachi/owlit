@@ -43,8 +43,8 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
   // change of language), which only the user ever asks for
   if (isDesktop && single && (single.pdf || single.text)) {
     copy.push({
-      label: single.hasDigest ? "Rewrite reading note" : "Write a reading note",
-      onSelect: () => void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error("Couldn't ask for a reading note.")),
+      label: single.hasDigest ? "Rewrite the digest" : "Write a digest",
+      onSelect: () => void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error("Couldn't ask for a digest.")),
     })
   }
 

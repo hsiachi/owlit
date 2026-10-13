@@ -19,9 +19,9 @@ import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
 import { DetailsPanel } from "./paper/DetailsPanel"
 import { NoPdf } from "./paper/NoPdf"
-import { ReadingNote, useWritingNote } from "./paper/ReadingNote"
+import { Digest, useWritingDigest } from "./paper/Digest"
 
-// One paper: its reading note, or the PDF on a darker well, with details beside it
+// One paper: Owlit's digest of it, or the PDF on a darker well, with details beside it
 export function PaperPage() {
   const { paperId = "" } = useParams()
   const navigate = useNavigate()
@@ -69,21 +69,21 @@ export function PaperPage() {
     return () => paperClosed(id)
   }, [paperId])
 
-  // The reading note or the PDF. A paper with a note opens on it, since most of the time the note is
+  // The digest or the PDF. A paper with a digest opens on it, since most of the time the digest is
   // enough; the choice holds until the next paper.
-  const writing = useWritingNote(paperId)
+  const writing = useWritingDigest(paperId)
   const [chosen, setChosen] = useState<{ paperId: string; view: PaperView } | null>(null)
-  const hasNote = !!paper?.hasDigest
-  const view: PaperView = chosen?.paperId === paperId ? chosen.view : hasNote ? "note" : "pdf"
+  const hasDigest = !!paper?.hasDigest
+  const view: PaperView = chosen?.paperId === paperId ? chosen.view : hasDigest ? "digest" : "pdf"
   const showView = (next: PaperView) => setChosen({ paperId, view: next })
-  // Settled when the paper opens: a note that arrives while the PDF is being read doesn't take its place
+  // Settled when the paper opens: a digest that arrives while the PDF is being read doesn't take its place
   // (once the library has the paper: after a reload it arrives a moment later)
   const known = !!paper
   useEffect(() => {
-    if (known) setChosen((c) => (c?.paperId === paperId ? c : { paperId, view: hasNote ? "note" : "pdf" }))
+    if (known) setChosen((c) => (c?.paperId === paperId ? c : { paperId, view: hasDigest ? "digest" : "pdf" }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId, known])
-  // The PDF stays loaded under the note, so going to a page is the reader's own jump
+  // The PDF stays loaded under the digest, so going to a page is the reader's own jump
   const showPage = (page: number) => {
     showView("pdf")
     void whenReaderReady(paperId).then((api) => api.showPage(page), () => undefined)
@@ -111,13 +111,15 @@ export function PaperPage() {
   if (!paper) return <NotFound title="This paper is not in the library" detail="It may have been removed." back={{ label: "Back to library", to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
-  // Only once there is a note, or one on its way, is there anything to choose
-  const choosing = hasNote || writing
+  // Only once there is a digest, or one on its way, is there anything to choose
+  const choosing = hasDigest || writing
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* With the details open the title is right there in the panel, so the trail stops at Library */}
-      <PageHeader trail={[{ label: "Library", to: "/library" }]} current={panelOpen ? undefined : paper.title}>
+      {/* The trail always ends at the paper, as a doc's and a topic's do, though the details panel shows the
+          title too: the header is where the page says where you are, and a trail ending at Library read
+          as being on the Library, with the digest under it showing no title of its own */}
+      <PageHeader trail={[{ label: "Library", to: "/library" }]} current={paper.title}>
         {choosing && <SegmentedControl label="Show" value={view} onChange={showView} options={VIEWS} className="mr-2" />}
         {idx >= 0 && (
           <span className="mr-1 text-xs text-muted-foreground tabular-nums">
@@ -138,16 +140,16 @@ export function PaperPage() {
       <div className="flex min-h-0 flex-1">
         {/* The well sits one step darker than the sheet so the pages are the brightest thing on it */}
         <main className={cn("relative flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-panel", (panelOpen || agentDocked) && "rounded-tr-lg")}>
-          {/* Its own stacking context, so the reader's floating pills stay under the note, and out of
-              reach while the note covers it */}
-          <div className="isolate flex min-h-0 flex-1 flex-col" inert={choosing && view === "note"}>
+          {/* Its own stacking context, so the reader's floating pills stay under the digest, and out of
+              reach while the digest covers it */}
+          <div className="isolate flex min-h-0 flex-1 flex-col" inert={choosing && view === "digest"}>
             {paper.pdf ? <PdfReader paper={paper} /> : <NoPdf key={paper.id} paper={paper} />}
           </div>
           {/* Over the reader rather than instead of it: the PDF keeps its place, and a jump to a page
               doesn't wait for it to load again */}
-          {choosing && view === "note" && (
+          {choosing && view === "digest" && (
             <div className="absolute inset-0 z-10">
-              <ReadingNote paper={paper} onShowPage={showPage} />
+              <Digest paper={paper} onShowPage={showPage} />
             </div>
           )}
         </main>
@@ -157,9 +159,9 @@ export function PaperPage() {
   )
 }
 
-type PaperView = "note" | "pdf"
+type PaperView = "digest" | "pdf"
 const VIEWS: { value: PaperView; label: string }[] = [
-  { value: "note", label: "Reading note" },
+  { value: "digest", label: "Digest" },
   { value: "pdf", label: "PDF" },
 ]
 

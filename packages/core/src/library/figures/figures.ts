@@ -113,7 +113,7 @@ async function place(root: string, id: string, source: FiguresFile["source"], pl
   return record
 }
 
-// No figures, and why: the reading note goes ahead without them
+// No figures, and why: the digest goes ahead without them
 export async function noFigures(root: string, id: string, error: string) {
   const record: FiguresFile = { version: 1, source: "text", at: Date.now(), figures: [], error }
   await writeJsonAtomic(path.join(paperDir(root, id), FIGURES_JSON), record)

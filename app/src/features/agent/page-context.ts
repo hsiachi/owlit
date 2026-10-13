@@ -8,8 +8,9 @@ import { useTopics } from "@/features/knowledge/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentWindow } from "./store"
 
-// A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note
-export const selectionLabel = (s: QuotedSelection) => (s.source.kind === "knowledge" ? "Line" : s.notePath ? "Note" : s.page ? `p. ${s.page}` : "Selection")
+// A passage's chip names where it came from: a Knowledge line, a page of a paper, the paper's note or digest
+export const selectionLabel = (s: QuotedSelection) =>
+  s.source.kind === "knowledge" ? "Line" : s.notePath ? "Note" : s.inDigest ? "Digest" : s.page ? `p. ${s.page}` : "Selection"
 
 export const KIND_NAME = { paper: "this paper", doc: "this doc", knowledge: "this topic" } as const
 

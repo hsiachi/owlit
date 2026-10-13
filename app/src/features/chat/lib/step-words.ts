@@ -224,7 +224,7 @@ const GROUPS: Record<string, [string, string]> = {
   "owlit:library_journal": ["listed a journal's papers", "listed a journal's papers # times"],
   "owlit:library_add": ["added papers to your Library", "added papers # times"],
   "owlit:library_remove": ["removed papers from your Library", "removed papers # times"],
-  "owlit:library_request_digest": ["asked for a reading note", "asked for # reading notes"],
+  "owlit:library_request_digest": ["asked for a digest", "asked for # digests"],
   "owlit:docs_list": ["listed your docs", "listed your docs # times"],
   "owlit:docs_read": ["read a doc", "read # docs"],
   "owlit:docs_add_note": ["left a note on a doc", "left # notes on docs"],
@@ -353,7 +353,7 @@ export function agentDone(calls: ToolCall[]) {
   const papers = done.filter((c) => owlit(c, "library_add")).reduce((n, c) => n + (c.content?.match(/^Added /gm)?.length ?? 0), 0)
   if (papers) return papers === 1 ? "Added a paper" : `Added ${papers} papers`
   const notes = done.filter((c) => owlit(c, "library_request_digest")).length
-  if (notes) return notes === 1 ? "Asked for a reading note" : `Asked for ${notes} reading notes`
+  if (notes) return notes === 1 ? "Asked for a digest" : `Asked for ${notes} digests`
   const files = [...new Set(done.filter((c) => c.kind === "edit").map(pathOf).filter((p): p is string => !!p))]
   if (files.length === 1) return `Edited ${fileName(files[0])}`
   if (files.length > 1) return `Edited ${files.length} files`

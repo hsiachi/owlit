@@ -16,7 +16,7 @@ export interface Host {
   // Seals keys before they are written to settings.json (the desktop app: the system keychain). Without
   // one, keys are written as they are.
   secrets?: SecretBox
-  // The system's preferred languages, most preferred first (BCP 47): what reading notes are written in
+  // The system's preferred languages, most preferred first (BCP 47): what digests are written in
   // until Settings says otherwise
   languages?(): string[]
 }

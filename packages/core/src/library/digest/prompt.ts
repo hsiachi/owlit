@@ -2,7 +2,7 @@ import { noteLanguageName, writesCjk, type PaperRecord } from "@owlit/protocol"
 import type { FigureRecord } from "../figures/figures.ts"
 import { digestInstructions } from "./instructions.ts"
 
-// A reading note: one background agent session reads the paper's full text (and sees its figures, when
+// A digest: one background agent session reads the paper's full text (and sees its figures, when
 // it can) and answers with the note, Markdown in a fixed shape (instructions.ts). The note is written
 // once for every question to come, not for one: that is what makes it worth writing.
 
