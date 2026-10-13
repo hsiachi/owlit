@@ -54,7 +54,7 @@ describe("reading notes", () => {
     expect(digest).toMatch(/^# Paper doi-10\.1-a\n\n## Question\n/)
     expect(digest).not.toContain("```")
     expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-a/digest.json"), "utf8"))).toMatchObject({ by: expect.stringMatching(/^custom-/) })
-    expect((await call("library.list")).papers[0].hasDigest).toBe(true)
+    expect((await call("library.list")).papers[0]).toMatchObject({ hasDigest: true, digestAt: expect.any(Number) })
     expect(await call("chats.list")).toEqual([])
   })
 

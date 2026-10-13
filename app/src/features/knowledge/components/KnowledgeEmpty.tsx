@@ -9,7 +9,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useLibraryStore } from "@/features/library/store"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { ago } from "@/lib/time"
-import { plural } from "@/lib/words"
+import { touchedWords } from "../format"
 import { useKnowledgeStore } from "../store"
 
 const SHOWN = 5
@@ -22,18 +22,14 @@ export function KnowledgeEmpty() {
   const highlights = useLibraryStore((s) => s.highlights)
   const notes = useLibraryStore((s) => s.notes)
   const files = useDocsStore((s) => s.files)
-  const status = useStatus()
+  const status = useKnowledgeStatus()
 
   const marks = new Map<string, number>()
   for (const h of Object.values(highlights)) marks.set(h.paperId, (marks.get(h.paperId) ?? 0) + 1)
   const touchedPapers = Object.values(papers)
     .filter((p) => marks.has(p.id) || notes[p.id]?.content.trim())
     .sort((a, b) => (marks.get(b.id) ?? 0) - (marks.get(a.id) ?? 0))
-    .map((p) => {
-      const n = marks.get(p.id) ?? 0
-      const what = [n && plural(n, "highlight"), notes[p.id]?.content.trim() && "a note"].filter(Boolean).join(", ")
-      return { key: p.id, to: `/library/${p.id}`, icon: KIND_ICON.paper, title: citationLabel(p), what }
-    })
+    .map((p) => ({ key: p.id, to: `/library/${p.id}`, icon: KIND_ICON.paper, title: citationLabel(p), what: touchedWords(marks.get(p.id) ?? 0, !!notes[p.id]?.content.trim()) }))
   const docs = Object.values(files)
     .filter((f) => isMarkdown(f.path))
     .sort((a, b) => b.modifiedAt - a.modifiedAt)
@@ -67,8 +63,9 @@ export function KnowledgeEmpty() {
   )
 }
 
-// Only what is true now: the agent that can't read the material, or when Owlit last did
-function useStatus() {
+// Only what is true now: the agent that can't read the material, or when Owlit last did. The Knowledge
+// page's empty state and a paper's Knowledge tab end on the same line.
+export function useKnowledgeStatus() {
   const run = useKnowledgeStore((s) => s.lastRun)
   const background = useSettings((s) => s.view?.backgroundAgent)
   const agent = useChatStore((s) => s.connectors.find((c) => c.id === background))

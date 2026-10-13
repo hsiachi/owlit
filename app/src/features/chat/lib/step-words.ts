@@ -1,6 +1,6 @@
 import { baseName } from "@owlit/protocol"
 import type { MessagePart, ToolCall } from "../types"
-import { OWLIT_TOOLS, owlitToolOf, toolTitle } from "./tool-title"
+import { owlitStepTitle, owlitToolOf, toolTitle } from "./tool-title"
 import { capital, joinAnd, plural } from "@/lib/words"
 
 // How a step of an answer is put in words: what it is doing while it runs, what it did once done, and what
@@ -127,7 +127,7 @@ export function stepWords(call: ToolCall, questions = 1): StepWords {
 
   const owlit = owlitToolOf(name ?? call.title)
   if (owlit) {
-    const now = OWLIT_TOOLS[owlit] ?? words(owlit)
+    const now = owlitStepTitle(owlit, tool)
     return { now, done: pastTense(now), group: `owlit:${owlit}` }
   }
   const mcp = name ? mcpWords(name) : undefined

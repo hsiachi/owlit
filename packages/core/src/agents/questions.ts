@@ -96,6 +96,8 @@ export function toolInfoOf(call: { name?: string | null; _meta?: Record<string, 
   set("url", str("url"))
   set("pattern", str("pattern"))
   set("path", str("file_path") ?? str("path") ?? str("notebook_path"))
+  // Only owlit's own tools: another server's "id" could be anything
+  if (/^mcp(?:__|\.)owlit(?:__|\.)/.test(name)) set("subject", str("journal") ?? str("id"))
   return info
 }
 

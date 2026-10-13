@@ -10,6 +10,7 @@ import { optionFor, pendingAsk, useSeenStore } from "./status"
 import { useAskDraft } from "./ask-draft"
 import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
 import { resolveSelection, selectionOf, type Selection } from "./lib/selection"
+import { titleFrom } from "./lib/title"
 import type { QuestionAnswer } from "@owlit/protocol"
 import type { Chat, ChatMessage, PromptInput } from "./types"
 
@@ -50,12 +51,6 @@ export interface ChatState extends ConnectorSlice {
   // Takes messages out of a chat, here and on disk
   removeMessages: (chatId: string, messageIds: string[]) => void
   answerQuestion: (chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null) => void
-}
-
-// Keep a generous slice and let the list row truncate it with CSS
-const titleFrom = (text: string) => {
-  const t = text.replace(/@\[([^\]]+)\]/g, "$1").replace(/\s+/g, " ").trim()
-  return t.slice(0, 80) || "New chat"
 }
 
 // The state with one chat changed; the same state when the chat is gone

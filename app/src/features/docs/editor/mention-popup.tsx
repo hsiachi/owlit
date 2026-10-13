@@ -4,6 +4,7 @@ import { Prec, type Extension } from "@codemirror/state"
 import { EditorView, keymap, ViewPlugin, type ViewUpdate } from "@codemirror/view"
 import { MentionList, type MentionListHandle } from "@/components/mention/mention-list"
 import { filterMentions, type DocMention } from "../lib/mentions"
+import { mentionInsertion } from "../lib/mention-insert"
 
 // "@" opens the composer's own mention popup, so a mention is picked the same way everywhere. On pick the
 // typed "@query" becomes a Markdown link to the item's owlit:// address.
@@ -77,7 +78,7 @@ export function mentionPopup(reachable: () => DocMention[]): Extension {
         const open = this.open
         const item = open?.items.find((i) => i.id === id && i.kind === kind)
         if (!open || !item) return
-        const text = `[${item.label}](${item.uri}) `
+        const text = mentionInsertion(item.label, item.uri, this.view.state.sliceDoc(open.to, open.to + 1))
         this.view.dispatch({ changes: { from: open.from, to: open.to, insert: text }, selection: { anchor: open.from + text.length } })
         this.close()
         this.view.focus()

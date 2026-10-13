@@ -69,7 +69,7 @@ export interface QuotedSelection {
   // The page of a paper it was selected on, counted from 1
   page?: number
   // Selected in the paper's note rather than its PDF: the note is the user's, kept at notePath
-  // (.owlit/papers/<id>/note.md), and an edit to it is shown in the note before anything changes
+  // (library/papers/<id>/note.md), and an edit to it is shown in the note before anything changes
   notePath?: string
 }
 
@@ -92,6 +92,9 @@ export interface ToolInfo {
   // What a file search looks for
   pattern?: string
   path?: string
+  // What one of owlit's own tools is about, when its input isn't a query or a path: the journal
+  // library_journal lists, the paper library_related starts from
+  subject?: string
 }
 
 // A question the agent asks the user (Claude Code's AskUserQuestion, sent as an ACP form)

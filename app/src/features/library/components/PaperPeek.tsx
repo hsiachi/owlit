@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { usePaperActions } from "../actions"
+import { stripLatex } from "../lib/latex"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
@@ -24,9 +25,14 @@ export function PaperPeek({ paper }: { paper: Paper }) {
       }}
       className="-mx-1.5 my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 shadow-sm"
     >
-      <h3 className="text-body leading-snug font-medium text-balance">{paper.title}</h3>
-      <PaperByline paper={paper} className="mt-1" />
-      {paper.abstract && <p className="mt-2.5 max-w-[68ch] text-sm leading-relaxed">{paper.abstract}</p>}
+      {/* The card runs the Library's wide column, but its words keep one reading measure (68ch), title and
+          authors included, so the text makes one block instead of an authors line running to the card's
+          edge over an abstract that stops short of it */}
+      <div className="max-w-[68ch]">
+        <h3 className="text-body leading-snug font-medium text-balance">{paper.title}</h3>
+        <PaperByline paper={paper} className="mt-1" />
+        {paper.abstract && <p className="mt-2.5 text-sm leading-relaxed whitespace-pre-line">{stripLatex(paper.abstract)}</p>}
+      </div>
       <div className="mt-3.5 flex items-center gap-1">
         <TagsEditor
           tags={paper.tags}

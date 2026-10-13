@@ -36,8 +36,10 @@ export interface Paper {
   abstract?: string
   ids: PaperIds
   pdf?: PaperPdf
-  // Reading notes an agent wrote (library/papers/<id>/digest.md)
+  // Reading notes an agent wrote (library/papers/<id>/digest.md), and when (digest.json's at, else the
+  // file's time), so the note can be signed with its age
   hasDigest?: boolean
+  digestAt?: number
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and

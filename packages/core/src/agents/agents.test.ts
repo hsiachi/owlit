@@ -103,6 +103,14 @@ describe("agents", () => {
     expect(checked.error).toBe("Fake isn't signed in. Run " + process.execPath + " in a terminal to sign in, then try again.")
   })
 
+  it("says when an agent that opens sessions signed out reports it is (Claude Code)", async () => {
+    const { agents, id } = await setup()
+    process.env.FAKE_ACP_AUTH = "none"
+    const checked = await agents.check(id)
+    expect(checked).toMatchObject({ status: "error", authenticated: false, version: "1.2.3" })
+    expect(checked.error).toMatch(/^Fake isn't signed in\. Run /)
+  })
+
   it("ends the process when idle and starts it again when needed", async () => {
     const { agents, id } = await setup(300)
     await agents.check(id)
