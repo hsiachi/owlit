@@ -887,8 +887,11 @@ export class Core {
 
   async dispose() {
     this.started = false
-    this.agents.dispose()
     await this.switching
+    // Background work stops before the agents it runs on: a run cut off by its agent closing would count
+    // as a failed try, where one stopped by closing stays running, to run again next time
+    await this.workspace?.tasks.dispose()
+    this.agents.dispose()
     await this.journal.dispose()
     await this.socket?.close().catch(() => undefined)
     this.socket = null
