@@ -93,12 +93,12 @@ function CollectionView({ st, reg }: { st: CollectState; reg: Reg }) {
               const mine = i === 1 && st.rewritten != null
               return (
                 <div key={i} className={cn(s.crow, s.fadein)}>
-                  <span ref={i === 1 ? reg("answer") : undefined} className={cn(!row.page && !mine && s.mut, i === 1 && st.editing && s.editBox)}>
+                  <span ref={i === 1 ? reg("answer") : undefined} className={cn(row.page === 0 && !mine && s.mut, i === 1 && st.editing && s.editBox)}>
                     {mine ? st.rewritten : row.text}
                   </span>{" "}
                   <span className={s.cite}>{row.cite}</span>
                   {mine && st.corrected && <span className={s.cite}> · {t({ message: "you edited", comment: "after a sentence of Owlit's that the user rewrote" })}</span>}
-                  {row.page && <span className={s.page}>{t({ message: `p. ${row.page}`, comment: "a page of a paper" })}</span>}
+                  {row.page > 0 && <span className={s.pageNo}>{t({ message: `p. ${row.page}`, comment: "a page of a paper" })}</span>}
                 </div>
               )
             })}
