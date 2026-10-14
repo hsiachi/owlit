@@ -3,7 +3,8 @@ import { type PickMode, range, toggle } from "@/lib/multi-select"
 
 // Transient UI state for the Library pages. Not persisted, but it lives outside the page
 // components so filters, selection and scroll survive opening a paper and coming back. The open peek
-// does not: the list pages fold it when they are left (LibraryPage, UpNextPage).
+// survives only a trip into its own paper, so Back is one step out, to the card; leaving the list for
+// anywhere else folds it (lib/use-list-keys.ts).
 
 // "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF
 export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs"
@@ -29,6 +30,8 @@ interface UiState {
   cursorId: string | null
   anchorId: string | null
   peekId: string | null
+  // The paper being opened from the list, until the list has been left for it
+  leavingFor: string | null
   scrollTop: number
 
   editingId: string | null
@@ -50,7 +53,11 @@ interface UiState {
   closePeek: () => void
   // Right-click on an unselected row acts on that row alone, so it becomes the selection
   selectForMenu: (id: string) => void
-  // The cursor on a row with nothing selected or peeked: the paper just opened, so ↑↓ carry on from it
+  // Opening a paper from the list: its peek, if open, waits for the way back
+  leaveFor: (id: string) => void
+  // The list page is going: the peek folds unless the list was left for its paper
+  leaveList: () => void
+  // The cursor on the paper just opened, so ↑↓ carry on from it; nothing selected, and no peek but its own
   placeCursor: (id: string) => void
   // One paper shown whatever narrowed the list: search, filter and tags cleared, its row selected and peeked
   revealPaper: (id: string) => void
@@ -73,6 +80,7 @@ export const useLibraryUi = create<UiState>()((set, get) => ({
   cursorId: null,
   anchorId: null,
   peekId: null,
+  leavingFor: null,
   scrollTop: 0,
   editingId: null,
 
@@ -112,7 +120,9 @@ export const useLibraryUi = create<UiState>()((set, get) => ({
   togglePeek: (id) => set((s) => ({ peekId: s.peekId === id ? null : id, selectedIds: [id], cursorId: id, anchorId: id })),
   closePeek: () => set({ peekId: null }),
   selectForMenu: (id) => set((s) => (s.selectedIds.includes(id) ? s : { selectedIds: [id], cursorId: id, anchorId: id })),
-  placeCursor: (id) => set({ cursorId: id, anchorId: id, selectedIds: [], peekId: null }),
+  leaveFor: (id) => set({ leavingFor: id }),
+  leaveList: () => set((s) => ({ peekId: s.leavingFor && s.leavingFor === s.peekId ? s.peekId : null, leavingFor: null })),
+  placeCursor: (id) => set((s) => ({ cursorId: id, anchorId: id, selectedIds: [], peekId: s.peekId === id ? id : null })),
   revealPaper: (id) => set({ query: "", filter: "all", tags: [], only: null, selectedIds: [id], cursorId: id, anchorId: id, peekId: id }),
   selectAll: (order) => set({ selectedIds: order, peekId: null }),
   clearSelection: () => set({ selectedIds: [], anchorId: null, peekId: null }),
