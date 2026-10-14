@@ -27,6 +27,9 @@ import { useHighlightHitTest } from "./highlight-hits"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
 import { boundsOf, locatePassage, type PassageTarget } from "./passages"
 import { PassageRing } from "./PassageRing"
+import { CitedLayer } from "./CitedLayer"
+import { WearStrip } from "./WearStrip"
+import { useReadWear } from "./wear"
 import { usePositionMemory } from "./position"
 import { ReaderControls } from "./ReaderControls"
 import { useReaderStore } from "./reader-store"
@@ -100,6 +103,13 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
   const highlights = useHighlightsByPage(paper.id)
 
   usePositionMemory(documentId, paper)
+
+  // What has been read of this paper: Owlit's cited sentences, the person's pages (wear.ts)
+  const locateWear = useMemo(
+    () => (registry && pdf && doc?.status === "loaded" ? (p: PassageTarget) => locatePassage(registry.getEngine(), pdf, p) : null),
+    [registry, pdf, doc?.status],
+  )
+  useReadWear(paper.id, locateWear)
 
   useEffect(() => {
     if (!scrollCap) return
@@ -228,6 +238,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
             </Viewport>
           </GlobalPointerProvider>
           <ReaderControls documentId={documentId} back={trail.at(-1) ?? null} onBack={() => setTrail((t) => t.slice(0, -1))} />
+          <WearStrip pageCount={pdf?.pageCount ?? 0} onPage={(i) => scrollCap?.forDocument(documentId).scrollToPage({ pageNumber: i + 1, behavior: "smooth" })} />
         </>
       )}
     </div>
@@ -273,6 +284,8 @@ function Page({
       />
       {/* Last, so its hotspots sit above the selection layer and get the click */}
       <LinkLayer documentId={documentId} pageIndex={pageIndex} onFollow={onFollow} />
+      {/* In the margin, above the links: Owlit's cited sentences answer the pointer */}
+      <CitedLayer documentId={documentId} pageIndex={pageIndex} />
     </PagePointerProvider>
   )
 }

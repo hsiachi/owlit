@@ -249,11 +249,11 @@ msgid "Find anything"
 msgstr ""
 
 #: app/src/app/shortcuts.ts
-msgid "in the Library and Collections"
+msgid "Find on this page"
 msgstr ""
 
 #: app/src/app/shortcuts.ts
-msgid "Find on this page"
+msgid "in the Library and Collections"
 msgstr ""
 
 #: app/src/app/shortcuts.ts
@@ -586,9 +586,11 @@ msgid "Digest"
 msgstr ""
 
 #. a page of a paper
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/library/reader/WearStrip.tsx
 msgid "p. {page}"
 msgstr ""
 
@@ -4555,6 +4557,17 @@ msgstr ""
 msgid "Tried {list}."
 msgstr ""
 
+#. placeholder {0}: c.chatTitle
+#. placeholder {1}: shortDate(c.at)
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "Owlit cited this in “{0}” · {1}"
+msgstr ""
+
+#. placeholder {0}: latest.chatTitle
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "Owlit cited this in “{0}”"
+msgstr ""
+
 #. verb: add a comment to a highlight
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Comment"
@@ -4569,6 +4582,7 @@ msgid "Add a comment"
 msgstr ""
 
 #: app/src/features/library/reader/LinkLayer.tsx
+#: app/src/features/library/reader/WearStrip.tsx
 msgid "Go to page {page}"
 msgstr ""
 
@@ -4618,6 +4632,10 @@ msgstr ""
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Back to page {backPage}"
+msgstr ""
+
+#: app/src/features/library/reader/WearStrip.tsx
+msgid "Where this paper was read"
 msgstr ""
 
 #: app/src/features/library/rpc-client.ts

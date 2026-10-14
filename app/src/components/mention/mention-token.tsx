@@ -12,6 +12,7 @@ export function MentionToken({
   className,
   title,
   unread,
+  quote,
   onClick,
 }: {
   label: React.ReactNode
@@ -19,9 +20,12 @@ export function MentionToken({
   className?: string
   title?: string
   unread?: boolean
+  // The sentence of the paper a citation rests on, shown under the title on hover
+  quote?: string
   onClick?: () => void
 }) {
   if (unread) title = title ? `${title} · ${t`Unread`}` : t`Unread`
+  if (quote) title = `${title ?? ""}\n“${quote}”`.trim()
   const look = cn(
     "inline-flex max-w-80 items-baseline rounded-[0.3em] px-[0.2em] align-baseline transition-colors",
     unread ? "text-mention-unread" : "text-mention",

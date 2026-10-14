@@ -125,6 +125,24 @@ export interface PaperFigure {
   url: string
 }
 
+// What has been read of a paper, for its reader to show: the sentences Owlit's answers rested on, and the
+// pages the person stayed on (seconds at the top of the screen, by 1-based page)
+export interface PaperWear {
+  cited: CitedPassage[]
+  pages: Record<number, number>
+}
+
+// A sentence of the paper an answer in a chat rested on, word for word as the agent gave it in the
+// citation's link title: [Rong et al. 2017](owlit://library/<id>#p4 "the sentence")
+export interface CitedPassage {
+  quote: string
+  page?: number
+  chatId: string
+  chatTitle: string
+  messageId: string
+  at: number
+}
+
 export interface Highlight {
   id: string
   paperId: string

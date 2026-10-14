@@ -183,6 +183,8 @@
     --pdf-search: oklch(0.87 0.012 75);
     --pdf-search-active: oklch(0.8 0.13 60);
     --pdf-link: oklch(0.48 0.09 255);
+    /* Owlit's mark on a page (a sentence its answer cited): the light theme's owlit-mark */
+    --pdf-owlit: oklch(0.6 0.12 155);
     --pdf-page-edge: oklch(0 0 0 / 9%);
     --pdf-flash: oklch(0.55 0.08 70);
     /* Marks drawn on a highlight colour, such as the check on the current colour's dot */

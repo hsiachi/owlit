@@ -53,9 +53,9 @@ export function Markdown({ text, className, components, prepare }: { text: strin
   const openPage = useOpenFromChat()
   const { pathname } = useLocation()
   // A page link into the paper open beside the chat scrolls the reader there rather than reopening it
-  const open = (href: string) => {
+  const open = (href: string, quote?: string) => {
     if (openAppLink(href)) return
-    openMention(href, openPage, pathname)
+    openMention(href, openPage, pathname, quote)
   }
   return (
     <div className={cn("markdown leading-relaxed", className)}>
@@ -90,9 +90,9 @@ export function Markdown({ text, className, components, prepare }: { text: strin
           // says what the click does, which the text of a page link ("p5") doesn't. A doc linked by its
           // file's path (agents are given docs as files) is the same reference. Only web links leave the
           // app; a path to anything else has nowhere to open, so it reads as words.
-          a: ({ href, children }) => {
+          a: ({ href, title, children }) => {
             const uri = href?.startsWith("owlit://") ? href : href ? docUriOfLink(href) : null
-            if (uri) return <WorkspaceLink uri={uri} label={textOf(children)} onClick={() => open(uri)} />
+            if (uri) return <WorkspaceLink uri={uri} label={textOf(children)} quote={title ?? undefined} onClick={() => open(uri, title ?? undefined)} />
             if (href?.startsWith("#")) return <a href={href}>{children}</a>
             if (!href || !/^https?:/i.test(href)) return <span title={href}>{children}</span>
             return (
@@ -110,8 +110,10 @@ export function Markdown({ text, className, components, prepare }: { text: strin
   )
 }
 
-// A reference to something in the workspace; a paper not read yet is lighter until it is
-function WorkspaceLink({ uri, label, onClick }: { uri: string; label: string; onClick: () => void }) {
+// A reference to something in the workspace; a paper not read yet is lighter until it is. A citation's
+// title is the sentence of the paper it rests on: the tooltip shows it under the paper's name.
+function WorkspaceLink({ uri, label, quote, onClick }: { uri: string; label: string; quote?: string; onClick: () => void }) {
   const unread = usePaperUnread(uri)
-  return <MentionToken label={label} title={appLinkTitle(uri) ?? mentionTooltip(uri) ?? label} unread={unread} onClick={onClick} />
+  const title = appLinkTitle(uri) ?? mentionTooltip(uri) ?? label
+  return <MentionToken label={label} title={title} quote={quote} unread={unread} onClick={onClick} />
 }

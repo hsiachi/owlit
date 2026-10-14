@@ -88,3 +88,11 @@ export function boundsOf(rects: Rect[]): Rect {
   const y = Math.min(...rects.map((r) => r.y))
   return { x, y, w: Math.max(...rects.map((r) => r.x + r.w)) - x, h: Math.max(...rects.map((r) => r.y + r.h)) - y }
 }
+
+// A sentence an answer quoted, as a passage to find: its opening words and its closing words, so it is
+// found across line breaks; a short one is its own start and end. page is 1-based, as in the citation.
+export function quoteTarget(quote: string, page?: number): PassageTarget {
+  const words = quote.trim().split(/\s+/)
+  const n = Math.min(8, words.length)
+  return { id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), ...(page ? { page: page - 1 } : {}) }
+}

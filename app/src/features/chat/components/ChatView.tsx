@@ -7,6 +7,7 @@ import type { ComposerHandle } from "./composer/Composer"
 import { ChatMessages } from "./ChatMessages"
 import { ComposerDock } from "./ComposerDock"
 import { FRESH_CHAT } from "./ChatEmpty"
+import { useTakeParam } from "@/features/library/lib/use-take-param"
 
 // /chat/:chatId — message history with the composer docked at the bottom
 export function ChatView() {
@@ -27,6 +28,18 @@ export function ChatView() {
   }, [chatId])
 
   const edit = useCallback((text: string) => composer.current?.setText(text), [])
+
+  // Opened at one answer (?message=, from Owlit's mark in a paper): scroll to it once it is drawn. The
+  // scroller first settles at the chat's end, so the answer is brought up after that.
+  useTakeParam("message", (messageId) => {
+    const until = Date.now() + 3000
+    const seek = () => {
+      const el = document.getElementById(`message-${messageId}`)
+      if (el) setTimeout(() => el.scrollIntoView({ block: "start", behavior: "smooth" }), 250)
+      else if (Date.now() < until) setTimeout(seek, 100)
+    }
+    seek()
+  })
 
   // A chat the workspace hasn't listed yet may still turn up (a reload of this page)
   if (!chat) return chatsLoaded ? <Navigate to="/chat" state={FRESH_CHAT} replace /> : null
