@@ -1,22 +1,32 @@
 import { t } from "@lingui/core/macro"
-import { itemId, type Collection } from "@owlit/protocol"
+import { itemId, parseOwlitUri, type Collection } from "@owlit/protocol"
 import { useState } from "react"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { NoteDot } from "@/components/marks"
-import { MentionLink } from "@/components/mention/mention-token"
+import { MentionLink, MentionToken } from "@/components/mention/mention-token"
+import { useNavigate } from "react-router-dom"
 import { SentenceEditor } from "@/components/sentence-editor"
 import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
 import { cn } from "@/lib/utils"
 import { memoParts, plainMemo, relinkMemo } from "../lib"
 import { editCollection, removeItem } from "../store"
 
-// A sentence of Owlit's (or the user's rewrite of one), with the papers and groups it names as mentions
-export function MemoText({ text }: { text: string }) {
+// A sentence of Owlit's (or the user's rewrite of one), with the papers and groups it names as mentions.
+// A paper that is a row of the collection opens that row in place (onRow); others go where they live.
+export function MemoText({ text, onRow }: { text: string; onRow?: (paperId: string) => boolean }) {
+  const navigate = useNavigate()
+  const go = (route: string | null) => route && navigate(route)
   return (
     <>
-      {memoParts(text).map((p, i) =>
-        typeof p === "string" ? p : <MentionLink key={i} label={p.label} to={mentionRoute(p.uri)} title={mentionTitle(p.uri) ?? p.label} />,
-      )}
+      {memoParts(text).map((p, i) => {
+        if (typeof p === "string") return p
+        const u = parseOwlitUri(p.uri)
+        if (u?.kind === "paper" && onRow) {
+          const id = u.id
+          return <MentionToken key={i} label={p.label} title={mentionTitle(p.uri) ?? p.label} onClick={() => onRow(id) || go(mentionRoute(p.uri))} />
+        }
+        return <MentionLink key={i} label={p.label} to={mentionRoute(p.uri)} title={mentionTitle(p.uri) ?? p.label} />
+      })}
     </>
   )
 }
@@ -24,7 +34,7 @@ export function MemoText({ text }: { text: string }) {
 // Owlit's reading of the papers, a few sentences as a list. A sentence Owlit changed since the user last
 // looked has the dot for its bullet; one the user rewrote says so, with Owlit's words a hover away. Each can
 // be rewritten or removed from its ⋯; nothing asks to be accepted.
-export function Memo({ collection, shown, seenBefore }: { collection: Collection; shown: Collection; seenBefore: number }) {
+export function Memo({ collection, shown, seenBefore, onRow }: { collection: Collection; shown: Collection; seenBefore: number; onRow?: (paperId: string) => boolean }) {
   const [editing, setEditing] = useState<string | null>(null)
   if (!shown.memo.length) return null
   return (
@@ -58,7 +68,7 @@ export function Memo({ collection, shown, seenBefore }: { collection: Collection
               </div>
             ) : (
               <span className={cn("min-w-0 flex-1 pr-7")}>
-                <MemoText text={s.text} />
+                <MemoText text={s.text} onRow={onRow} />
                 {edit && (
                   <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground" title={t`Was: ${plainMemo(edit.was).plain}`}>
                     {t({ message: "you edited", comment: "after a sentence of Owlit's that the user rewrote" })}

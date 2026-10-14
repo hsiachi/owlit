@@ -30,7 +30,8 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   },
   {
     name: "library_get",
-    description: "One paper's details: metadata, abstract, ids, the user's status, star and tags, how many highlights, and whether there is a note or a digest.",
+    description:
+      "One paper's details: metadata, abstract, ids, the user's status, star and tags, how many highlights, and whether there is a note or a digest. Also takes an id a search gave for a paper outside the library, and then gives its whole abstract, which the search's line cuts short.",
     inputSchema: { type: "object", properties: { id }, required: ["id"] },
   },
   {
@@ -249,7 +250,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "collection_write",
     description:
-      "Gather papers you found into a collection, new (no id) or existing, instead of adding them to the library: the user sees it under Collections and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper says about the question, from its abstract (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what is missing and where you looked. It describes the papers; it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the collection's link.",
+      "Gather papers you found into a collection, new (no id) or existing, instead of adding them to the library: the user sees it under Collections and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper found about the question, from its whole abstract (library_get gives it; a search's line cuts it short) (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what is missing and where you looked. It describes the papers; it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the collection's link.",
     inputSchema: {
       type: "object",
       properties: {

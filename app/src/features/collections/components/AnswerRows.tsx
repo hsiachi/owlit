@@ -46,6 +46,7 @@ function AnswerRow({ collection, row, fresh, open }: { collection: Collection; r
   const toggle = () => set({ peek: open ? null : row.id })
   return (
     <div
+      id={`row-${row.id}`}
       className={cn(
         "rounded-xl border border-transparent px-[5px] transition-[background-color,border-color,box-shadow,margin,padding] duration-(--t-layout) ease-(--ease) motion-reduce:transition-none",
         open && "my-1.5 border-border bg-card py-1.5 shadow-sm",

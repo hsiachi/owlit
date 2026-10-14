@@ -1549,8 +1549,8 @@ msgid "Also edits your docs and runs commands in this workspace. Every change ca
 msgstr "还能编辑你的文档，并在这个工作区中运行命令。每处改动都可以撤销。"
 
 #: app/src/features/chat/lib/starters.ts
-msgid "Find papers and add them"
-msgstr "查找并添加论文"
+msgid "Find papers on a question"
+msgstr "就一个问题找论文"
 
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts

@@ -1549,7 +1549,7 @@ msgid "Also edits your docs and runs commands in this workspace. Every change ca
 msgstr ""
 
 #: app/src/features/chat/lib/starters.ts
-msgid "Find papers and add them"
+msgid "Find papers on a question"
 msgstr ""
 
 #. starts a question the user finishes; keep the trailing space

@@ -51,6 +51,13 @@ export function CollectionPage() {
   }
   const shown = shownCollection(collection)
   const since = seenBefore ?? collection.seenAt
+  // A paper the memo names opens as its row, where it is in the list
+  const openRow = (paperId: string) => {
+    if (!shown.rows.some((r) => r.id === paperId)) return false
+    set({ peek: paperId })
+    requestAnimationFrame(() => document.getElementById(`row-${paperId}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }))
+    return true
+  }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader trail={[{ label: t`Collections`, to: "/collections" }, ...(collection.project ? [{ label: collection.project, to: "/collections" }] : [])]} current={shown.title}>
@@ -78,7 +85,7 @@ export function CollectionPage() {
           ) : (
             <PageTitle className="text-balance">{shown.title}</PageTitle>
           )}
-          <Memo collection={collection} shown={shown} seenBefore={since} />
+          <Memo collection={collection} shown={shown} seenBefore={since} onRow={openRow} />
           <AnswerRows collection={collection} shown={shown} seenBefore={since} />
           <About collection={collection} />
         </article>

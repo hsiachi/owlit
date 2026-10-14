@@ -120,7 +120,12 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_get": {
       const { papers, notes } = await owlit.rpc.library.list()
       const paper = papers.find((p) => p.id === str("id"))
-      if (!paper) return `There is no paper ${str("id")} in the library.`
+      if (!paper) {
+        // A paper a search found: its whole abstract, which the search's line cuts short
+        const found = await owlit.rpc.library.found({ id: str("id") })
+        if (!found) return `There is no paper ${str("id")} in the library, and no recent search showed it.`
+        return JSON.stringify({ id: str("id"), ...found, inLibrary: false, note: "Not in the user's library: a search found it. Gather it into a collection with collection_write; add it with library_add only to read its full text." }, null, 2)
+      }
       const highlights = await owlit.rpc.library.highlights({ id: paper.id })
       return JSON.stringify(
         {

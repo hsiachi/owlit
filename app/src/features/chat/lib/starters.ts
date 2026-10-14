@@ -8,7 +8,7 @@ import type { SourceKind } from "../types"
 // mention popup opens on that kind. Label and stem are both said in the interface's language: the stem
 // starts the question the user goes on to write in it (title.ts strips it by its words).
 export const starters: { id: string; label: MessageDescriptor; prompt: MessageDescriptor; kind?: SourceKind | "all" }[] = [
-  { id: "find", label: msg`Find papers and add them`, prompt: msg({ message: "Find recent papers on ", comment: "starts a question the user finishes; keep the trailing space" }) },
+  { id: "find", label: msg`Find papers on a question`, prompt: msg({ message: "Find recent papers on ", comment: "starts a question the user finishes; keep the trailing space" }) },
   { id: "compare", label: msg`Compare papers`, prompt: msg({ message: "Compare the methods and findings of ", comment: "starts a question the user finishes with papers; keep the trailing space" }), kind: "paper" },
   { id: "review", label: msg`Review a draft`, prompt: msg({ message: "Review where I overstate a finding or misread a paper in ", comment: "starts a question the user finishes with a doc; keep the trailing space" }), kind: "doc" },
   { id: "ask", label: msg`Ask about your papers`, prompt: msg({ message: "What do my papers say about ", comment: "starts a question the user finishes; keep the trailing space" }) },

@@ -1549,8 +1549,8 @@ msgid "Also edits your docs and runs commands in this workspace. Every change ca
 msgstr "Also edits your docs and runs commands in this workspace. Every change can be undone."
 
 #: app/src/features/chat/lib/starters.ts
-msgid "Find papers and add them"
-msgstr "Find papers and add them"
+msgid "Find papers on a question"
+msgstr "Find papers on a question"
 
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts

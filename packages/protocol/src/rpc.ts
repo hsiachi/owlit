@@ -5,7 +5,7 @@ import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
-import type { Collection, CollectionEdit, CollectionSummary, CollectionWrite } from "./collections.ts"
+import type { Collection, CollectionEdit, CollectionPaper, CollectionSummary, CollectionWrite } from "./collections.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -312,6 +312,9 @@ export interface Methods {
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
   // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
   "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
+  // A paper a search showed lately, as it showed it (the whole abstract), or the Library's record of it;
+  // null when owlit knows nothing of it
+  "library.found": { params: { id: string }; result: CollectionPaper | null }
   // For each input, the id of the paper in the library it names, or null; asks no one
   "library.known": { params: { inputs: string[] }; result: (string | null)[] }
   // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
