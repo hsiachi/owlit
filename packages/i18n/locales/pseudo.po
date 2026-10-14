@@ -6829,6 +6829,10 @@ msgid "Say what to ask of each paper."
 msgstr ""
 
 #: packages/core/src/collections/collections.ts
+msgid "That column isn't there any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
 msgid "Pick at least one sentence to compare with."
 msgstr ""
 

@@ -224,6 +224,15 @@ describe("Collections, undo", () => {
   })
 })
 
+describe("Collections.paperOf", () => {
+  it("finds a paper a collection keeps, whatever collection it is in", async () => {
+    const { collections } = setup()
+    await start(collections)
+    expect((await collections.paperOf("doi-10.1145-2"))?.title).toBe(papers["doi-10.1145-2"]!.title)
+    expect(await collections.paperOf("doi-10.1145-9")).toBeUndefined()
+  })
+})
+
 describe("uniqueId", () => {
   it("names a collection from its Latin words, or at random when there are too few", () => {
     expect(uniqueId("UIST 2026 papers", [])).toBe("uist-2026-papers")

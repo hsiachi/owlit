@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { isTaskFinished } from "@owlit/protocol"
 import { citeOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
 import { editCollection, put } from "../store"
+import { toast } from "sonner"
 import { RowPeek } from "./AnswerRows"
 import { AskEach, CollectionActions } from "./Work"
 
@@ -259,9 +260,7 @@ function ColumnHeader({ collection, column }: { collection: Collection; column: 
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        {column.kind === "ask" && (
-          <DropdownMenuItem onSelect={() => void askAgain(collection.id, column.question)}>{t`Ask again`}</DropdownMenuItem>
-        )}
+        <DropdownMenuItem onSelect={() => void askAgain(collection.id, column.id)}>{t`Ask again`}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void editCollection(collection.id, { op: "hide", column: column.id, hidden: true })}>{t`Hide column`}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -269,9 +268,9 @@ function ColumnHeader({ collection, column }: { collection: Collection; column: 
 }
 
 // Fills what the column still lacks; the answers there stay, and the user's own stay whatever happens
-async function askAgain(id: string, question: string) {
+async function askAgain(id: string, column: string) {
   if (!isDesktop) return
-  put(await rpc.collections.ask({ id, question }))
+  await rpc.collections.fill({ id, column }).catch((error) => toast.error(error instanceof Error ? error.message : String(error)))
 }
 
 function GroupRow({ collection, section, open, span, count, rels, onToggle }: { collection: Collection; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {

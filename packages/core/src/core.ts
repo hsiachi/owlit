@@ -395,7 +395,9 @@ export class Core {
 
     const library = () => this.requireWorkspace().library
     this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
-    this.router.register("library.found", z.object({ id: z.string().min(1) }), async ({ id }) => (await library().snapshot(id)) ?? null)
+    // A search's results are kept for hours, a collection's papers for good: an agent filling a column a day
+    // later still gets the whole abstract
+    this.router.register("library.found", z.object({ id: z.string().min(1) }), async ({ id }) => (await library().snapshot(id)) ?? (await this.requireWorkspace().collections.paperOf(id)) ?? null)
     this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), ({ inputs }) => library().known(inputs))
     this.router.register("library.list", noParams, () => library().list())
     const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
@@ -691,6 +693,7 @@ export class Core {
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }),
       ({ id, doc, sentences }) => collections().compare(id, doc, sentences),
     )
+    this.router.register("collections.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), ({ id, column }) => collections().fill(id, column))
     this.router.register("collections.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => collections().ask(id, question))
     this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
     this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))

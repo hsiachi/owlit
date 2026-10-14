@@ -6829,6 +6829,10 @@ msgid "Say what to ask of each paper."
 msgstr "说说要问每篇论文什么。"
 
 #: packages/core/src/collections/collections.ts
+msgid "That column isn't there any more."
+msgstr "那一列已经不在了。"
+
+#: packages/core/src/collections/collections.ts
 msgid "Pick at least one sentence to compare with."
 msgstr "至少选一句来对照。"
 

@@ -94,6 +94,16 @@ export class Collections {
       .sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
+  // A paper as a collection keeps it, from any collection that has it
+  async paperOf(paperId: string): Promise<CollectionPaper | undefined> {
+    const ids = await readdir(this.dir).catch(() => [] as string[])
+    for (const id of ids) {
+      const row = (await this.load(id).catch(() => undefined))?.rows.find((r) => r.id === paperId)
+      if (row) return row.paper
+    }
+    return undefined
+  }
+
   async get(id: string): Promise<Collection> {
     const c = await this.load(id)
     if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That collection isn't here any more.`, { id })
@@ -180,6 +190,12 @@ export class Collections {
       this.queue("collections.fill", `${c.id}:${column.id}`, "asked")
       return c
     })
+  }
+
+  async fill(id: string, columnId: string) {
+    const c = await this.get(id)
+    if (!c.columns.some((col) => col.id === columnId)) throw new RpcFailure(RpcErrorCode.NotFound, t`That column isn't there any more.`)
+    return this.queue("collections.fill", `${id}:${columnId}`, "asked")
   }
 
   // A column that sets every paper against sentences the user picked from a doc of theirs. The column is
