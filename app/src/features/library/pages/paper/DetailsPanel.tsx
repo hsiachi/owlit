@@ -132,12 +132,19 @@ function About({ paper }: { paper: Paper }) {
         {inCollections.length > 0 && (
           <>
             <dt className="text-muted-foreground">{t({ message: "In", context: "label before the collections that hold this paper" })}</dt>
-            <dd className="min-w-0">
-              {inCollections.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ", "}
+            {/* Each collection with what it says about this paper, so reading the paper shows Owlit's take on
+                it without going there */}
+            <dd className="flex min-w-0 flex-col gap-2.5">
+              {inCollections.map((c) => (
+                <div key={c.id}>
                   <MentionToken label={c.title} onClick={() => navigate(`/collections/${c.id}?paper=${encodeURIComponent(paper.id)}`)} />
-                </span>
+                  {c.lines.map((l, i) => (
+                    <p key={i} className="mt-0.5 line-clamp-2 leading-normal text-muted-foreground">
+                      {l.label && <span className="text-foreground/80">{l.label}: </span>}
+                      {l.text}
+                    </p>
+                  ))}
+                </div>
               ))}
             </dd>
           </>

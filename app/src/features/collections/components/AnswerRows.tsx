@@ -10,15 +10,16 @@ import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 import { stripLatex } from "@/features/library/lib/latex"
 import { cn } from "@/lib/utils"
-import { citeOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
+import { citeOf, nameOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
 import { editCollection, removeRow, useCollectionsStore } from "../store"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { useCollectionsUi } from "../ui-store"
 
 // The papers of a collection without columns, one line each: what the paper says about the question
-// first, the paper after it. An answer from the abstract is grey; one from the full text is in ink and ends
-// in the page it rests on. The slot before it is the user's own reading, as in the Library (a half ring
-// once they started the paper), or Owlit's dot while the answer is new since they last looked.
+// first, the paper after it, named as the memo names it ("CiteSee · 2023"). Every answer is in ink: one from
+// the full text ends in the page it rests on, so an answer without a page is from the abstract, and grey
+// keeps meaning only "secondary" or "unread". The slot before it is Owlit's dot while the answer is new
+// since the user looked; their own reading is a half ring after the paper's name, on the thing it is about.
 export function AnswerRows({ collection, shown, seenBefore }: { collection: Collection; shown: Collection; seenBefore: number }) {
   const peek = useCollectionsUi((s) => s.peek)
   if (!shown.rows.length) return null
@@ -32,10 +33,10 @@ export function AnswerRows({ collection, shown, seenBefore }: { collection: Coll
   )
 }
 
-function ReadingMark({ paper }: { paper: Paper | undefined }) {
+export function ReadingMark({ paper, className }: { paper: Paper | undefined; className?: string }) {
   if (!paper || paper.status === "unread") return null
   const label = t`You've read some of it`
-  return <span role="img" aria-label={label} title={label} className="size-2 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]" />
+  return <span role="img" aria-label={label} title={label} className={cn("inline-block size-2 shrink-0 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]", className)} />
 }
 
 function AnswerRow({ collection, row, fresh, open }: { collection: Collection; row: CollectionRow; fresh: boolean; open: boolean }) {
@@ -43,7 +44,6 @@ function AnswerRow({ collection, row, fresh, open }: { collection: Collection; r
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
   const answer = row.cells[QUESTION_COLUMN]
-  const edited = !!collection.yours.edits[itemId.cell(row.id, QUESTION_COLUMN)]
   const toggle = () => set({ peek: open ? null : row.id })
   return (
     <div
@@ -60,17 +60,17 @@ function AnswerRow({ collection, row, fresh, open }: { collection: Collection; r
         onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && toggle()}
         className={cn("group/row flex cursor-default gap-2.5 rounded-md py-2 pr-2.5 pl-2.5 text-sm leading-5 outline-none select-none focus-key:bg-muted", !open && "hover:bg-muted")}
       >
-        <span className="flex h-5 w-4 shrink-0 items-center justify-center">{fresh ? <NoteDot /> : <ReadingMark paper={library} />}</span>
+        <span className="flex h-5 w-4 shrink-0 items-center justify-center">{fresh && <NoteDot />}</span>
         <span className="min-w-0 flex-1">
           {open ? (
             <span className="font-medium text-balance">{facts.title}</span>
           ) : (
             <>
-              <span className={cn(answer?.depth === "abstract" && !edited && "text-muted-foreground")} title={answer?.depth === "abstract" && !edited ? t`From the abstract` : undefined}>
-                {answer?.text ?? facts.title}
-              </span>
-              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground" title={facts.title}>
-                {citeOf(facts)}
+              {/* A space rather than a margin, so a name that wraps starts flush with the answer */}
+              <span>{answer?.text ?? facts.title}</span>{" "}
+              <span className="inline-flex max-w-[36ch] items-center gap-1.5 align-bottom text-detail text-muted-foreground" title={`${facts.title} · ${citeOf(facts)}`}>
+                <span className="truncate">{nameOf(facts)}</span>
+                <ReadingMark paper={library} />
               </span>
             </>
           )}
@@ -120,7 +120,7 @@ export function RowPeek({ collection, row, library, className }: { collection: C
         {answer && (
           <p className="mt-2.5 text-sm leading-relaxed">
             {answer.text}
-            {answer.depth === "abstract" && <span className="ml-1.5 text-detail text-muted-foreground">{t`From the abstract`}</span>}
+            {answer.depth === "abstract" && <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{t`From the abstract`}</span>}
           </p>
         )}
         {answer?.passage && (

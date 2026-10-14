@@ -1,7 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { QUESTION_COLUMN, shownCollection, type Collection } from "@owlit/protocol"
-import { cn } from "@/lib/utils"
 import { CollectionTable } from "../components/CollectionTable"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -82,7 +81,7 @@ function CollectionVisit({ collectionId }: { collectionId: string | undefined })
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader trail={[{ label: t`Collections`, to: "/collections" }, ...(collection.project ? [{ label: collection.project, to: "/collections" }] : [])]} current={shown.title}>
+      <PageHeader trail={[{ label: t`Collections`, to: "/collections" }, ...(collection.project ? [{ label: collection.project, to: `/collections?project=${encodeURIComponent(collection.project)}` }] : [])]} current={shown.title}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label={t`Collection actions`} className="text-muted-foreground data-[state=open]:bg-muted">
@@ -93,33 +92,38 @@ function CollectionVisit({ collectionId }: { collectionId: string | undefined })
         </DropdownMenu>
       </PageHeader>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {/* A short list reads in the reading column; a table takes the Library's wide one, its words kept to
-            the reading measure above it */}
-        <article className={cn("mx-auto w-full pt-8 pb-32", table ? "max-w-6xl px-6" : "max-w-3xl px-4")}>
-          {renaming ? (
-            <RenameInput
-              initial={shown.title}
-              label={t`Collection name`}
-              onDone={(name) => {
-                if (name !== null) void editCollection(collection.id, { op: "rename", title: name })
-                set({ renaming: null })
-              }}
-              className="-mx-2 h-9 px-2 text-title font-medium"
-            />
-          ) : (
-            <PageTitle className="text-balance">{shown.title}</PageTitle>
+        {/* One frame whatever the form: the words stay in the reading column, so the title never moves when
+            a column is added, and only a table reaches into the Library's wide column below them */}
+        <article className="pt-8 pb-32">
+          <div className="mx-auto w-full max-w-3xl px-4">
+            {renaming ? (
+              <RenameInput
+                initial={shown.title}
+                label={t`Collection name`}
+                onDone={(name) => {
+                  if (name !== null) void editCollection(collection.id, { op: "rename", title: name })
+                  set({ renaming: null })
+                }}
+                className="-mx-2 h-9 px-2 text-title font-medium"
+              />
+            ) : (
+              <PageTitle className="text-balance">{shown.title}</PageTitle>
+            )}
+            <WorkLine collection={collection} />
+            <Memo collection={collection} shown={shown} seenBefore={since} onRow={openRow} />
+            {/* What can be asked of the papers, in one place for both forms, before them, so a long list
+                doesn't bury it */}
+            <CollectionActions collection={collection} />
+            {!table && <AnswerRows collection={collection} shown={shown} seenBefore={since} />}
+          </div>
+          {table && (
+            <div className="mx-auto w-full max-w-6xl px-6">
+              <CollectionTable collection={collection} shown={shown} seenBefore={since} />
+            </div>
           )}
-          <WorkLine collection={collection} />
-          <Memo collection={collection} shown={shown} seenBefore={since} onRow={openRow} />
-          {table ? (
-            <CollectionTable collection={collection} shown={shown} seenBefore={since} />
-          ) : (
-            <>
-              <AnswerRows collection={collection} shown={shown} seenBefore={since} />
-              <CollectionActions collection={collection} />
-            </>
-          )}
-          <About collection={collection} />
+          <div className="mx-auto w-full max-w-3xl px-4">
+            <About collection={collection} table={table} />
+          </div>
         </article>
       </div>
     </div>
@@ -127,9 +131,14 @@ function CollectionVisit({ collectionId }: { collectionId: string | undefined })
 }
 
 // Where the collection came from and how far Owlit looked: kept, but at the end, so the page opens on the
-// reading itself
-function About({ collection: c }: { collection: Collection }) {
-  const chat = useChatStore((s) => (c.asked.chatId ? s.chats[c.asked.chatId] : undefined))
+// reading itself. Only what is true of this page: no "list above" without papers, "table" for a table.
+function About({ collection: c, table }: { collection: Collection; table: boolean }) {
+  // A collection made from another keeps the question it was really asked; a group made a collection of its
+  // own was asked nothing, so it says where it came from instead of quoting the group's name back
+  const question = c.splitFrom?.asked ?? c.asked
+  const fromGroup = !!c.splitFrom && !c.splitFrom.asked
+  const origin = useCollectionsStore((s) => (c.splitFrom ? s.collections[c.splitFrom.id] : undefined))
+  const chat = useChatStore((s) => (question.chatId ? s.chats[question.chatId] : undefined))
   const rows = shownCollection(c).rows
   const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
   const where = c.sources.length ? joinAnd(c.sources) : undefined
@@ -141,24 +150,44 @@ function About({ collection: c }: { collection: Collection }) {
     : papers
       ? t`Owlit read ${read} of the ${papers} papers in full; the rest are from their abstracts.`
       : undefined
-  const asked = c.asked.text
-  const when = shortDate(c.asked.at)
-  const from = c.asked.chatId && (chat || !isDesktop) ? chatUri(c.asked.chatId) : undefined
+  const legend = papers
+    ? table
+      ? t`The table above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract.`
+      : t`The list above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract.`
+    : undefined
+  const asked = question.text
+  const when = shortDate(question.at)
+  const from = question.chatId && (chat || !isDesktop) ? chatUri(question.chatId) : undefined
   const chatTitle = chat?.title || t`a chat`
+  const originLink = origin ? <MentionLink label={shownCollection(origin).title} to={`/collections/${origin.id}`} /> : t`another collection`
   return (
     <section className="mt-12 max-w-[68ch] text-detail leading-relaxed text-muted-foreground">
       <GroupLabel className="px-0">{t`About this collection`}</GroupLabel>
-      <p>
-        {from ? (
-          <Trans>
-            You asked <span className="text-foreground/80">“{asked}”</span> in <MentionLink label={chatTitle} to={mentionRoute(from)} />, {when}.
+      {fromGroup ? (
+        <p>
+          <Trans comment="a collection the user made from one of another collection's groups">
+            Made from the group <span className="text-foreground/80">“{asked}”</span> in {originLink}, {when}.
           </Trans>
-        ) : (
-          <Trans>
-            You asked <span className="text-foreground/80">“{asked}”</span>, {when}.
-          </Trans>
-        )}
-      </p>
+        </p>
+      ) : (
+        <p>
+          {from ? (
+            <Trans>
+              You asked <span className="text-foreground/80">“{asked}”</span> in <MentionLink label={chatTitle} to={mentionRoute(from)} />, {when}.
+            </Trans>
+          ) : (
+            <Trans>
+              You asked <span className="text-foreground/80">“{asked}”</span>, {when}.
+            </Trans>
+          )}
+          {c.splitFrom && (
+            <>
+              {" "}
+              <Trans comment="after the question: its papers were first added to another collection, then kept apart">Kept separate from {originLink}.</Trans>
+            </>
+          )}
+        </p>
+      )}
       {(c.alsoAsked ?? []).map((a, i) => {
         const later = a.text
         const on = shortDate(a.at)
@@ -170,7 +199,11 @@ function About({ collection: c }: { collection: Collection }) {
           </p>
         )
       })}
-      {looked && <p className="mt-0.5">{looked} {t`The list above is Owlit's reading of them. Grey answers come from an abstract; a page number points to the words an answer rests on.`}</p>}
+      {looked && (
+        <p className="mt-0.5">
+          {looked} {legend}
+        </p>
+      )}
       {c.watch && <p className="mt-0.5">{t`Owlit watches for new papers on this question.`}</p>}
     </section>
   )
