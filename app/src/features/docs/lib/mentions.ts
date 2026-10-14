@@ -6,6 +6,7 @@ import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
 import { paperUri, parseOwlitUri } from "@owlit/protocol"
 import { whenReaderReady } from "@/features/library/reader/reader-store"
+import { quoteTarget } from "@/features/library/reader/passages"
 import { fileAt, useDocsStore } from "../store"
 import { knowledgeMentionables, knowledgeRoute, knowledgeTitle } from "@/features/knowledge/mentions"
 import { isHidden } from "./tree"
@@ -140,17 +141,24 @@ export function mentionTooltip(uri: string): string | undefined {
 // route doesn't change, so only the scroll happens. `go` is the caller's navigation (it may also dock the
 // chat the link was in); it is skipped when the page is already the one shown, so a click leaves no extra
 // history entry.
-export function openMention(uri: string, go: (route: string) => void, pathname = window.location.pathname) {
+export function openMention(uri: string, go: (route: string) => void, pathname = window.location.pathname, quote?: string) {
   const to = mentionRoute(uri)
   if (!to) return
   if (to !== pathname) go(to)
   const u = parseOwlitUri(uri)
-  if (u?.kind !== "paper" || !u.page) return
+  if (u?.kind !== "paper" || (!u.page && !quote)) return
   const paper = paperOf(u.id)
   if (!paper) return
   const page = u.page
-  // A paper without a PDF never gets ready; the link has still opened it
-  whenReaderReady(paper.id).then((api) => api.showPage(page - 1), () => undefined)
+  // A paper without a PDF never gets ready; the link has still opened it. A citation that gave the sentence
+  // it rests on (its link's title) rings that sentence; one that isn't found still lands on its page.
+  whenReaderReady(paper.id).then(
+    async (api) => {
+      if (quote && (await api.showPassage(quoteTarget(quote, page), "jump"))) return
+      if (page) api.showPage(page - 1)
+    },
+    () => undefined,
+  )
 }
 
 // A short name for a bare owlit:// address in prose an agent wrote (a note's text): how a writer cites

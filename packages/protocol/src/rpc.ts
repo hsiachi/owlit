@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -377,6 +377,7 @@ export interface Methods {
   // The Library's line about a finished import is put away
   "library.dismissImport": { params: { id: string }; result: null }
   // The paper's full text, line by line with where each sits (text.json), or null before it is read
+  "library.wear": { params: { id: string }; result: PaperWear }
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with noPdf saying what was tried.

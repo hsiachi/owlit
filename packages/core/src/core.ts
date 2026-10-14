@@ -18,6 +18,7 @@ import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
 import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
+import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
 import { pickFromText } from "./library/library.ts"
@@ -558,6 +559,11 @@ export class Core {
       return null
     })
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
+    // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
+    this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
+      const ws = this.requireWorkspace()
+      return wearOf(id, { chats: ws.chats, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
+    })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.getInBrowser", z.object({ ids: z.array(paperId).min(1) }), ({ ids }) => library().getInBrowser(ids))
     this.router.register("library.showBrowser", z.object({ id: paperId.optional() }), ({ id }) => library().showBrowser(id))

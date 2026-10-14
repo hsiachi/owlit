@@ -576,9 +576,11 @@ msgstr "笔记"
 msgid "Digest"
 msgstr "导读"
 
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
 #: app/src/features/knowledge/paper/ItemRow.tsx
+#: app/src/features/library/reader/WearStrip.tsx
 msgid "p. {page}"
 msgstr "第 {page} 页"
 
@@ -4711,6 +4713,17 @@ msgstr "owlit 不知道这篇论文有开放获取的版本。"
 msgid "Tried {list}."
 msgstr "已尝试：{list}。"
 
+#. placeholder {0}: c.chatTitle
+#. placeholder {1}: shortDate(c.at)
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "Owlit cited this in “{0}” · {1}"
+msgstr "Owlit 在「{0}」里引用过 · {1}"
+
+#. placeholder {0}: latest.chatTitle
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "Owlit cited this in “{0}”"
+msgstr "Owlit 在「{0}」里引用过"
+
 #. verb: add a comment to a highlight
 #: app/src/features/library/reader/HighlightToolbar.tsx
 msgid "Comment"
@@ -4725,6 +4738,7 @@ msgid "Add a comment"
 msgstr "添加备注"
 
 #: app/src/features/library/reader/LinkLayer.tsx
+#: app/src/features/library/reader/WearStrip.tsx
 msgid "Go to page {page}"
 msgstr "转到第 {page} 页"
 
@@ -4782,6 +4796,10 @@ msgstr "关闭查找"
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Back to page {backPage}"
 msgstr "返回第 {backPage} 页"
+
+#: app/src/features/library/reader/WearStrip.tsx
+msgid "Where this paper was read"
+msgstr "这篇论文读过的地方"
 
 #: app/src/features/library/rpc-client.ts
 #: packages/core/src/library/library.ts

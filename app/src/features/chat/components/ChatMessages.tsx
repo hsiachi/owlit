@@ -36,7 +36,7 @@ export function ChatMessages({ chat, streaming, panel = false, onEdit }: { chat:
                 exchange always renders: skipped off screen, a just-sent question would be measured at its
                 placeholder height, and the scroller would anchor it a frame early and then jump */}
             {chat.messages.map((m, i) => (
-              <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === "user"} className={cn("pb-7", i >= chat.messages.length - 2 && "[content-visibility:visible]")}>
+              <MessageScrollerItem key={m.id} id={`message-${m.id}`} messageId={m.id} scrollAnchor={m.role === "user"} className={cn("pb-7", i >= chat.messages.length - 2 && "[content-visibility:visible]")}>
                 <MessageRow
                   chatId={chat.id}
                   message={m}
