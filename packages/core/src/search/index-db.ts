@@ -157,7 +157,6 @@ export class IndexDb {
       CREATE VIRTUAL TABLE papers USING fts5(id UNINDEXED, title, authors, venue, tags, ids, year UNINDEXED, abstract, fulltext, tokenize = 'unicode61 remove_diacritics 2');
       CREATE VIRTUAL TABLE docs USING fts5(path UNINDEXED, title, text, tokenize = 'unicode61 remove_diacritics 2');
       CREATE VIRTUAL TABLE chats USING fts5(id UNINDEXED, title, text, tokenize = 'unicode61 remove_diacritics 2');
-      CREATE VIRTUAL TABLE knowledge USING fts5(topic UNINDEXED, line UNINDEXED, text, tokenize = 'unicode61 remove_diacritics 2');
       CREATE TABLE links (from_source TEXT NOT NULL, from_key TEXT NOT NULL, to_uri TEXT NOT NULL, kind TEXT NOT NULL);
       CREATE INDEX links_to ON links (to_uri);
       CREATE INDEX links_from ON links (from_source, from_key);
@@ -220,7 +219,7 @@ export function toMatch(query: string) {
 // owlit:// mentions and [[wikilinks]] in a text
 export function linksIn(text: string): Link[] {
   const links: Link[] = []
-  for (const m of text.matchAll(/owlit:\/\/(library|docs|knowledge)\/([^\s)"'#\]>]+)/g)) {
+  for (const m of text.matchAll(/owlit:\/\/(library|docs|collections)\/([^\s)"'#\]>]+)/g)) {
     links.push({ to: `owlit://${m[1]}/${decodeOrKeep(m[2])}`, kind: "mention" })
   }
   for (const m of text.matchAll(/\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g)) links.push({ to: `wikilink:${m[1].trim()}`, kind: "wikilink" })

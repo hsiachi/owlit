@@ -275,28 +275,6 @@ describe("owlit-mcp", () => {
     expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "No owlit window is open.", isError: true })
   })
 
-  it("reads and writes Knowledge, refusing what breaks the rules", async () => {
-    const { root, call, tool } = await setup()
-    expect((await tool("knowledge_read")).text).toMatch(/^There are no topics yet\.\n\nA topic file:/)
-    await call("library.add", { paper: { id: "arxiv-2005.11401", title: "Retrieval-Augmented Generation", authors: ["Patrick Lewis", "Ethan Perez"], ids: { arxiv: "2005.11401" }, year: 2020 } })
-    const quote = "In the RAG-Token model we can draw a different latent document for each target token"
-    writeFileSync(path.join(root, "library/papers/arxiv-2005.11401/text.md"), `<!-- page 3 -->\n\nRAG-Token Model ${quote} and marginalize accordingly.\n`)
-
-    const nine = Array.from({ length: 9 }, (_, i) => `- Owlit thinks: Point ${i + 1}.`).join("\n")
-    const tooLong = await tool("knowledge_write", { topic: "Retrieval granularity", content: `# Retrieval granularity\n\n## Understanding\n\n${nine}\n`, why: "you read Lewis et al. 2020" })
-    expect(tooLong).toEqual({ isError: true, text: "owlit didn't write it:\n- Understanding has 9 lines; at most 7, so 2 too many. Merge lines, or say in your answer that the topic should be split." })
-
-    const content = "# Retrieval granularity\n\nPer-token retrieval lets one answer draw on several documents.\n\n## Understanding\n\n- Lewis et al. 2020: RAG-Token can use a different document for each token.\n  - [§2.1](owlit://library/arxiv-2005.11401#passage=rag-token)\n"
-    const passages = JSON.stringify([{ id: "rag-token", paper: "arxiv-2005.11401", quote }])
-    expect(await tool("knowledge_write", { topic: "Retrieval granularity", content, why: "you highlighted §2.1", passages })).toEqual({
-      isError: false,
-      text: "Wrote knowledge/Retrieval granularity.md: Started, Added ^s1.",
-    })
-    expect((await tool("knowledge_read")).text).toMatch(/^- retrieval-granularity · Retrieval granularity · 1 line, 0 questions · updated \d{4}-/)
-    expect((await tool("knowledge_read", { topic: "retrieval-granularity" })).text).toMatch(/^knowledge\/Retrieval granularity\.md \(id retrieval-granularity\)\n\n---\nid: retrieval-granularity/)
-    expect((await tool("knowledge_write", { topic: "Retrieval granularity", content, why: "x", passages: "not json" })).text).toMatch(/^passages should be a JSON array/)
-  })
-
   it("gathers papers into a collection, keeps what the user did, and adds to it later", async () => {
     const { root, core, call, tool } = await setup()
     const changed: { kind: string; label: string; rows?: string[] }[] = []

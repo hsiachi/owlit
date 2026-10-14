@@ -1,9 +1,5 @@
-import { createBrowserRouter } from "react-router-dom"
+import { createBrowserRouter, Navigate } from "react-router-dom"
 import { Shell } from "@/app/Shell"
-import { KnowledgeLayout } from "@/features/knowledge/KnowledgeLayout"
-import { KnowledgePage } from "@/features/knowledge/pages/KnowledgePage"
-import { LoosePage } from "@/features/knowledge/pages/LoosePage"
-import { TopicPage } from "@/features/knowledge/pages/TopicPage"
 import { ChatLayout } from "@/features/chat/ChatLayout"
 import { ChatEmpty } from "@/features/chat/components/ChatEmpty"
 import { ChatView } from "@/features/chat/components/ChatView"
@@ -47,15 +43,8 @@ export const router = createBrowserRouter([
           { path: ":collectionId", element: <CollectionPage /> },
         ],
       },
-      {
-        path: "knowledge",
-        element: <KnowledgeLayout />,
-        children: [
-          { index: true, element: <KnowledgePage /> },
-          { path: "loose", element: <LoosePage /> },
-          { path: ":topicId", element: <TopicPage /> },
-        ],
-      },
+      // Knowledge became Collections: an old link or a bookmark lands there
+      { path: "knowledge/*", element: <Navigate to="/collections" replace /> },
       {
         path: "library",
         element: <LibraryLayout />,

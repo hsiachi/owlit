@@ -187,10 +187,6 @@ msgid "Paper added"
 msgstr "已添加论文"
 
 #: app/src/app/agent-changes.ts
-msgid "Knowledge updated"
-msgstr "知识已更新"
-
-#: app/src/app/agent-changes.ts
 msgid "Papers collected"
 msgstr "已收集论文"
 
@@ -227,6 +223,8 @@ msgstr "对话"
 #: app/src/app/nav.ts
 #: app/src/features/collections/pages/CollectionPage.tsx
 #: app/src/features/collections/pages/CollectionsPage.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/lib/kinds.ts
 msgid "Collections"
 msgstr "合集"
@@ -251,19 +249,17 @@ msgid "Find anything"
 msgstr "查找任何内容"
 
 #: app/src/app/shortcuts.ts
-msgid "Find on this page"
-msgstr "在本页查找"
+msgid "in the Library and Collections"
+msgstr "在文献库和合集中"
 
 #: app/src/app/shortcuts.ts
-msgid "in the Library and Knowledge"
-msgstr "在文献库和知识中"
+msgid "Find on this page"
+msgstr "在本页查找"
 
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/docs/editor/selection-menu.ts
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/paper/ItemRow.tsx
 #: app/src/features/library/notes/NoteEditor.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
@@ -319,14 +315,12 @@ msgstr "换行"
 
 #. verb
 #. verb, in the keyboard shortcut list
-#. verb: rename a topic
 #: app/src/app/shortcuts.ts
 #: app/src/components/rename-input.tsx
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/collections/components/CollectionMenu.tsx
 #: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/docs/actions.ts
-#: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Rename"
 msgstr "重命名"
 
@@ -336,12 +330,10 @@ msgstr "在文档列表中"
 
 #. verb, in the keyboard shortcut list
 #. verb: delete a highlight
-#. verb: delete a topic
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/collections/components/CollectionMenu.tsx
 #: app/src/features/docs/actions.ts
-#: app/src/features/knowledge/components/TopicMenu.tsx
 #: app/src/features/library/components/HighlightsList.tsx
 #: apps/desktop/src/main.ts
 msgid "Delete"
@@ -427,7 +419,6 @@ msgstr "已拷贝"
 
 #: app/src/components/fade-clip.tsx
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show less"
 msgstr "收起"
@@ -446,8 +437,6 @@ msgid "About this"
 msgstr "关于此项"
 
 #: app/src/components/marks.tsx
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Changed since you last looked"
 msgstr "自你上次查看后有改动"
 
@@ -477,8 +466,6 @@ msgid "Breadcrumb"
 msgstr "路径导航"
 
 #: app/src/components/segmented-control.tsx
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "New since you last looked"
 msgstr "你上次查看后新增"
 
@@ -487,7 +474,6 @@ msgstr "你上次查看后新增"
 #: app/src/features/collections/components/CompareDialog.tsx
 #: app/src/features/docs/editor/reader-comments.ts
 #: app/src/features/docs/share/ShareDialog.tsx
-#: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/components/ImportDialog.tsx
@@ -576,11 +562,6 @@ msgstr "不包含 {name}"
 msgid "Don't include the selection"
 msgstr "不包含所选内容"
 
-#. chip: a passage quoted from a line of a Knowledge topic
-#: app/src/features/agent/page-context.ts
-msgid "Line"
-msgstr "条目"
-
 #. chip: a passage quoted from the paper's note
 #: app/src/features/agent/page-context.ts
 msgid "Note"
@@ -599,7 +580,6 @@ msgstr "导读"
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
 #: app/src/features/collections/components/AnswerRows.tsx
-#: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "p. {page}"
 msgstr "第 {page} 页"
 
@@ -617,8 +597,8 @@ msgid "Ask about this doc…"
 msgstr "问问这篇文档…"
 
 #: app/src/features/agent/page-context.ts
-msgid "Ask about this topic…"
-msgstr "问问这个主题…"
+msgid "Ask about this collection…"
+msgstr "问关于这个合集的问题…"
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this paper, or anything else."
@@ -629,8 +609,8 @@ msgid "Ask about this doc, or anything else."
 msgstr "问问这篇文档，或任何其他问题。"
 
 #: app/src/features/agent/page-context.ts
-msgid "Ask about this topic, or anything else."
-msgstr "问问这个主题，或任何其他问题。"
+msgid "Ask about this collection, or anything else."
+msgstr "问关于这个合集的问题，或别的任何事。"
 
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
@@ -911,7 +891,6 @@ msgid "No agent"
 msgstr "不用智能体"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "Manage agents…"
 msgstr "管理智能体…"
 
@@ -1108,7 +1087,6 @@ msgstr "重新生成"
 
 #. a doc an edit mostly replaced
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/knowledge/format.ts
 msgid "Rewritten"
 msgstr "已重写"
 
@@ -1149,9 +1127,7 @@ msgid "{papers, plural, one {paper} other {papers}}"
 msgstr "{papers, plural, other {篇论文}}"
 
 #. a collection the agent changed without adding papers
-#. a topic Owlit changed from a chat
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/knowledge/components/ChatUpdates.tsx
 msgid "Updated"
 msgstr "已更新"
 
@@ -1160,17 +1136,15 @@ msgstr "已更新"
 msgid "Keep it separate"
 msgstr "单独成集"
 
-#. a paper the agent added to the library
-#: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/knowledge/format.ts
-msgid "Added"
-msgstr "已添加"
-
 #. a paper the agent took out of the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/knowledge/format.ts
 msgid "Removed"
 msgstr "已移除"
+
+#. a paper the agent added to the library
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Added"
+msgstr "已添加"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{docs, plural, one {edited a doc} other {edited # docs}}"
@@ -1204,11 +1178,6 @@ msgstr "{0, plural, other {新建了 # 个合集}}"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {added a paper to a collection} other {added # papers to collections}}"
 msgstr "{0, plural, other {往合集里加了 # 篇论文}}"
-
-#. placeholder {0}: n("knowledge")
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "{0, plural, one {updated a topic} other {updated # topics}}"
-msgstr "{0, plural, other {更新了 # 个主题}}"
 
 #. placeholder {0}: n("digest")
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1467,7 +1436,6 @@ msgstr "就绪"
 
 #. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
-#: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "Connected"
 msgstr "已连接"
 
@@ -2246,8 +2214,11 @@ msgid "Not in your Library"
 msgstr "不在你的文献库中"
 
 #. a page of a paper
+#. a page of a paper
 #. placeholder {0}: answer.passage.page
+#. placeholder {0}: row.page
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 msgid "p. {0}"
 msgstr "第 {0} 页"
 
@@ -2257,12 +2228,10 @@ msgid "Also in"
 msgstr "也在"
 
 #. take a paper off this collection
-#. verb: remove a topic's line
 #. verb: remove the paper from the library
 #. verb: remove the selected papers from the library
 #: app/src/features/collections/components/AnswerRows.tsx
 #: app/src/features/collections/components/Memo.tsx
-#: app/src/features/knowledge/components/LineRow.tsx
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Remove"
@@ -2358,7 +2327,6 @@ msgstr "都不相干"
 
 #. group a collection's papers by Owlit's groups
 #: app/src/features/collections/components/CollectionTable.tsx
-#: app/src/features/knowledge/mentions.ts
 msgid "Topic"
 msgstr "主题"
 
@@ -2407,12 +2375,12 @@ msgstr "最新在前"
 msgid "Paper"
 msgstr "论文"
 
-#. placeholder {0}: kinds.paper.size
 #. placeholder {0}: p.total
 #. placeholder {0}: papers.length
+#. placeholder {0}: s.total.length
 #: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/collections/pages/CollectionsPage.tsx
-#: app/src/features/knowledge/store.ts
+#: app/src/features/docs/lib/mentions.ts
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 msgid "{0, plural, one {# paper} other {# papers}}"
@@ -2436,7 +2404,6 @@ msgid "Hide column"
 msgstr "隐藏这一列"
 
 #: app/src/features/collections/components/CollectionTable.tsx
-#: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Merge into"
 msgstr "合并到"
 
@@ -2531,7 +2498,9 @@ msgid "Sentence removed"
 msgstr "已移除这句"
 
 #. after a sentence of Owlit's that the user rewrote
+#. after a sentence of Owlit's that the user rewrote
 #: app/src/features/collections/components/Memo.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 msgid "you edited"
 msgstr "你改过"
 
@@ -2677,6 +2646,7 @@ msgid "Owlit watches for new papers on this question."
 msgstr "Owlit 会留意这个问题的新论文。"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 msgid "Collect papers on…"
 msgstr "收集关于…的论文"
 
@@ -2938,8 +2908,6 @@ msgid "The passage this note was on has changed: “{passage}”"
 msgstr "这条批注所在的段落已经改变：“{passage}”"
 
 #: app/src/features/docs/editor/agent-notes.ts
-#: app/src/features/home/SinceYouLeft.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
 msgid "Chat about this"
 msgstr "就此对话"
 
@@ -3238,15 +3206,19 @@ msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
 
-#. placeholder {0}: lines.length
+#. placeholder {0}: shown.rows.length
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {New topic, # line} other {New topic, # lines}}"
-msgstr "{0, plural, other {新主题，# 个条目}}"
+msgid "{0, plural, one {New collection · # paper} other {New collection · # papers}}"
+msgstr "{0, plural, other {新合集 · # 篇论文}}"
 
-#. placeholder {0}: lines.length
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# line changed} other {# lines changed}}"
-msgstr "{0, plural, other {# 个条目有改动}}"
+msgid "{added, plural, one {# new paper} other {# new papers}}"
+msgstr "{added, plural, other {新增 # 篇论文}}"
+
+#. a collection Owlit changed without adding papers
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "Changed"
+msgstr "有改动"
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left on {left}"
@@ -3259,10 +3231,6 @@ msgstr "{when}完成"
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
 msgstr "{added, plural, other {Owlit 向你的文献库添加了 # 篇论文}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Open topic"
-msgstr "打开主题"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "in “{title}”"
@@ -3360,708 +3328,6 @@ msgstr "{what} {where}：{label}"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what}: {label}"
 msgstr "{what}：{label}"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "your doc"
-msgstr "你的文档"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "No topics yet"
-msgstr "还没有主题"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "Owlit keeps its understanding of your research here, as topics. A topic starts once two things you read, highlighted, wrote or said are about the same question."
-msgstr "Owlit 会把它对你研究的理解以主题的形式放在这里。当你读过、高亮过、写过或说过的两样东西涉及同一个问题时，一个主题就开始了。"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "There’s nothing to do here; it fills in by itself."
-msgstr "这里不需要你做任何事，它会自己慢慢充实。"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "Topics start from what you’ve touched. None has started from these yet; one will once two of them are about the same question."
-msgstr "主题从你接触过的内容开始。这些内容还没有形成主题；一旦其中两样涉及同一个问题，就会形成一个。"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "and {more} more"
-msgstr "还有 {more} 项"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "Owlit can’t read your material while {problem}."
-msgstr "{problem}，Owlit 无法读取你的资料。"
-
-#: app/src/features/knowledge/components/KnowledgeEmpty.tsx
-msgid "Owlit last read your workspace {when}."
-msgstr "Owlit {when}读取过你的工作区。"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-msgid "Line removed"
-msgstr "条目已移除"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-msgid "Updates won’t bring it back."
-msgstr "之后的更新不会把它加回来。"
-
-#. verb: edit a topic's line
-#. verb: edit a topic's line
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/paper/ItemRow.tsx
-#: apps/desktop/src/main.ts
-msgid "Edit"
-msgstr "编辑"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-msgid "Line actions"
-msgstr "内容操作"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/knowledge/components/TopicLine.tsx
-msgid "Was: “{was}”"
-msgstr "原为：“{was}”"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-msgid "You said: “{said}”"
-msgstr "你说：“{said}”"
-
-#: app/src/features/knowledge/components/LineRow.tsx
-msgid "In this topic since it began"
-msgstr "自主题开始就在其中"
-
-#: app/src/features/knowledge/components/SplitDialog.tsx
-msgid "Split {topicName}"
-msgstr "拆分 {topicName}"
-
-#: app/src/features/knowledge/components/SplitDialog.tsx
-msgid "New topic"
-msgstr "新主题"
-
-#. label: the new workspace folder's name
-#. placeholder: the new topic's name
-#: app/src/features/knowledge/components/SplitDialog.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Name"
-msgstr "名称"
-
-#. verb: split a topic in two
-#: app/src/features/knowledge/components/SplitDialog.tsx
-msgid "Split"
-msgstr "拆分"
-
-#: app/src/features/knowledge/components/TopicLine.tsx
-msgid "abstract only"
-msgstr "仅摘要"
-
-#: app/src/features/knowledge/components/TopicLog.tsx
-msgid "Sources · {from}"
-msgstr "来源 · {from}"
-
-#: app/src/features/knowledge/components/TopicLog.tsx
-msgid "A line"
-msgstr "某个条目"
-
-#. placeholder {0}: history.length
-#: app/src/features/knowledge/components/TopicLog.tsx
-msgid "{0, plural, one {# change} other {# changes}}"
-msgstr "{0, plural, other {# 处改动}}"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Owlit is updating Knowledge"
-msgstr "Owlit 正在更新知识"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "It reads what changed since the last update."
-msgstr "它会读取上次更新以来的变化。"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Updated · {name}"
-msgstr "已更新 · {name}"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Nothing new"
-msgstr "没有新内容"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Nothing has changed in its sources since {day}."
-msgstr "自{day}以来，它的来源没有变化。"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Nothing has changed in its sources."
-msgstr "它的来源没有变化。"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Merged into {into}"
-msgstr "已合并到 {into}"
-
-#. verb: split a topic in two
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Split…"
-msgstr "拆分…"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Unarchive"
-msgstr "取消归档"
-
-#. verb: archive a topic
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Archive"
-msgstr "归档"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Update now"
-msgstr "立即更新"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Resume updates"
-msgstr "恢复更新"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Pause updates"
-msgstr "暂停更新"
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Deleted {name}"
-msgstr "已删除 {name}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{highlights, plural, one {# highlight and a note} other {# highlights and a note}}"
-msgstr "{highlights, plural, other {# 处高亮和一条笔记}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{highlights, plural, one {# highlight, a note} other {# highlights, a note}}"
-msgstr "{highlights, plural, other {# 处高亮、一条笔记}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{highlights, plural, one {# highlight} other {# highlights}}"
-msgstr "{highlights, plural, other {# 处高亮}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "a note"
-msgstr "一条笔记"
-
-#. the speaker of a topic's line: You wrote, You said
-#. the speaker of a topic's line: You wrote, You said
-#: app/src/features/knowledge/format.ts
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "You"
-msgstr "你"
-
-#. after a speaker in a topic: You wrote
-#: app/src/features/knowledge/format.ts
-msgid "wrote"
-msgstr "写道"
-
-#. after a speaker in a topic: You said (in a chat)
-#: app/src/features/knowledge/format.ts
-msgid "said"
-msgstr "说"
-
-#. after a speaker in a topic: Schick 2023 reported
-#: app/src/features/knowledge/format.ts
-msgid "reported"
-msgstr "报告"
-
-#. after a speaker in a topic: You rewrote (the line)
-#: app/src/features/knowledge/format.ts
-msgid "rewrote"
-msgstr "改写"
-
-#. after a paper in a topic: Schick 2023 found
-#: app/src/features/knowledge/format.ts
-msgid "found"
-msgstr "发现"
-
-#. after a paper in a topic: Schick 2023 says (in its abstract)
-#: app/src/features/knowledge/format.ts
-msgid "says"
-msgstr "称"
-
-#. after a speaker in a topic: Owlit thinks
-#: app/src/features/knowledge/format.ts
-msgid "thinks"
-msgstr "认为"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "added"
-msgstr "已添加"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "rewritten"
-msgstr "已改写"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "removed"
-msgstr "已移除"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "speaker changed"
-msgstr "发言者已更改"
-
-#: app/src/features/knowledge/format.ts
-msgid "Speaker changed"
-msgstr "已更改发言者"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "source changed"
-msgstr "来源已更改"
-
-#: app/src/features/knowledge/format.ts
-msgid "Source changed"
-msgstr "已更改来源"
-
-#. after a question's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "question added"
-msgstr "问题已添加"
-
-#: app/src/features/knowledge/format.ts
-msgid "Question added"
-msgstr "已添加问题"
-
-#. after a question's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "question updated"
-msgstr "问题已更新"
-
-#: app/src/features/knowledge/format.ts
-msgid "Question updated"
-msgstr "已更新问题"
-
-#. after a question's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "question removed"
-msgstr "问题已移除"
-
-#: app/src/features/knowledge/format.ts
-msgid "Question removed"
-msgstr "已移除问题"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "you rewrote it"
-msgstr "已被你改写"
-
-#: app/src/features/knowledge/format.ts
-msgid "You rewrote it"
-msgstr "你改写了这个条目"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "you removed it"
-msgstr "已被你移除"
-
-#: app/src/features/knowledge/format.ts
-msgid "You removed it"
-msgstr "你移除了它"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "you added a condition"
-msgstr "已被你加上条件"
-
-#: app/src/features/knowledge/format.ts
-msgid "You added a condition"
-msgstr "你添加了条件"
-
-#. after a line's opening words in a topic's change log
-#: app/src/features/knowledge/format.ts
-msgid "anchored to its passage"
-msgstr "已锚定到原文段落"
-
-#: app/src/features/knowledge/format.ts
-msgid "Anchored to its passage"
-msgstr "已锚定到原文段落"
-
-#. a topic's first change: it started
-#: app/src/features/knowledge/format.ts
-msgid "Started"
-msgstr "开始"
-
-#: app/src/features/knowledge/format.ts
-msgid "Summary rewritten"
-msgstr "概述已改写"
-
-#: app/src/features/knowledge/format.ts
-msgid "Renamed from “{name}”"
-msgstr "由“{name}”重命名而来"
-
-#: app/src/features/knowledge/format.ts
-msgid "Merged in “{name}”"
-msgstr "并入了“{name}”"
-
-#: app/src/features/knowledge/format.ts
-msgid "Split from “{name}”"
-msgstr "从“{name}”拆分而来"
-
-#. placeholder {0}: Number(moved[1])
-#: app/src/features/knowledge/format.ts
-msgid "{0, plural, one {# line moved to “{name}”} other {# lines moved to “{name}”}}"
-msgstr "{0, plural, other {# 条移至“{name}”}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "edited on the topic page"
-msgstr "在主题页上编辑"
-
-#: app/src/features/knowledge/format.ts
-msgid "it won’t come back on an update"
-msgstr "更新时不会再出现"
-
-#: app/src/features/knowledge/format.ts
-msgid "you renamed it"
-msgstr "你重命名了它"
-
-#: app/src/features/knowledge/format.ts
-msgid "you merged the two topics"
-msgstr "你合并了两个主题"
-
-#: app/src/features/knowledge/format.ts
-msgid "you split the topic"
-msgstr "你拆分了主题"
-
-#: app/src/features/knowledge/format.ts
-msgid "what you said in chat"
-msgstr "你在对话中说的"
-
-#: app/src/features/knowledge/format.ts
-msgid "you highlighted it in {paper}"
-msgstr "你在 {paper} 中高亮了它"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# line added} other {# lines added}}"
-msgstr "{n, plural, other {新增 # 条}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# added} other {# added}}"
-msgstr "{n, plural, other {新增 # 条}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# line rewritten} other {# lines rewritten}}"
-msgstr "{n, plural, other {改写 # 条}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# rewritten} other {# rewritten}}"
-msgstr "{n, plural, other {改写 # 条}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# line removed} other {# lines removed}}"
-msgstr "{n, plural, other {移除 # 条}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# removed} other {# removed}}"
-msgstr "{n, plural, other {移除 # 条}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# line’s source changed} other {# lines’ sources changed}}"
-msgstr "{n, plural, other {# 条更换了来源}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# source changed} other {# sources changed}}"
-msgstr "{n, plural, other {# 条更换了来源}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# line’s speaker changed} other {# lines’ speakers changed}}"
-msgstr "{n, plural, other {# 条更换了说话人}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# speaker changed} other {# speakers changed}}"
-msgstr "{n, plural, other {# 条更换了说话人}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# line anchored to its passage} other {# lines anchored to their passages}}"
-msgstr "{n, plural, other {# 条锚定到原文段落}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# anchored} other {# anchored}}"
-msgstr "{n, plural, other {# 条已锚定}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# question added} other {# questions added}}"
-msgstr "{n, plural, other {新增 # 个问题}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# question updated} other {# questions updated}}"
-msgstr "{n, plural, other {更新 # 个问题}}"
-
-#: app/src/features/knowledge/format.ts
-msgid "{n, plural, one {# question removed} other {# questions removed}}"
-msgstr "{n, plural, other {移除 # 个问题}}"
-
-#: app/src/features/knowledge/mentions.ts
-msgid "Question · {name}"
-msgstr "问题 · {name}"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "This week"
-msgstr "本周"
-
-#. group of topics updated more than a week ago
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "Earlier"
-msgstr "更早"
-
-#. placeholder {0}: archived.length
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "{0, plural, one {# archived} other {# archived}}"
-msgstr "{0, plural, other {已归档 # 个}}"
-
-#. placeholder {0}: loose.length
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "{0, plural, one {# loose passage} other {# loose passages}}"
-msgstr "{0, plural, other {# 个零散段落}}"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/knowledge/pages/LoosePage.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/onboarding/demos/ReadDemo.tsx
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-#: app/src/lib/kinds.ts
-msgid "Knowledge"
-msgstr "知识"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "Find a topic, a line or a question"
-msgstr "查找主题、条目或问题"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "Find in Knowledge"
-msgstr "在知识中查找"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "No topics match."
-msgstr "没有匹配的主题。"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "Set aside · {asideList}"
-msgstr "搁置 · {asideList}"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-msgid "{count, plural, one {Not in a topic yet · # passage} other {Not in a topic yet · # passages}}"
-msgstr "{count, plural, other {尚未归入主题 · # 个段落}}"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
-msgstr "{n, plural, other {{when}更新 · # 个主题}}"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Topic name"
-msgstr "主题名称"
-
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Topic actions"
-msgstr "主题操作"
-
-#: app/src/features/knowledge/pages/LoosePage.tsx
-msgid "Not in a topic yet"
-msgstr "尚未归入主题"
-
-#: app/src/features/knowledge/pages/LoosePage.tsx
-msgid "Passages from your docs and chats that no topic holds. Owlit files them when a topic needs them; nothing here needs doing."
-msgstr "来自你的文档和对话、还没有归入任何主题的段落。主题需要时，Owlit 会把它们归进去；这里没有需要你处理的事。"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "This topic is gone"
-msgstr "这个主题已不存在"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "It may have been merged, deleted or renamed outside owlit."
-msgstr "它可能已被合并、删除，或在 owlit 之外被重命名。"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Back to Knowledge"
-msgstr "返回知识"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Updated {updated} · updates paused"
-msgstr "{updated}更新 · 已暂停更新"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Updated {updated}"
-msgstr "{updated}更新"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Owlit keeps this topic from your notes, papers and chats. Each line says who it comes from. Click a line to see where it came from and how it changed. Edit a line and it stays in your words."
-msgstr "Owlit 根据你的笔记、论文和对话维护这个主题。每一条都注明出自谁。点击一条，可以查看它的出处和改动。编辑过的条目会保留你的措辞。"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Cited in <0/>"
-msgstr "被 <0/> 引用"
-
-#. placeholder {0}: freshIds.length
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "{0, plural, one {# line changed since you last looked on {lastLook}} other {# lines changed since you last looked on {lastLook}}}"
-msgstr "{0, plural, other {自你 {lastLook} 查看以来，有 # 条改动}}"
-
-#. placeholder {0}: freshIds.length
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "{0, plural, one {# line changed since you last looked} other {# lines changed since you last looked}}"
-msgstr "{0, plural, other {自你上次查看以来，有 # 条改动}}"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Your questions"
-msgstr "你的问题"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "In {name}"
-msgstr "在 {name} 中"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "Show {hidden} more"
-msgstr "再显示 {hidden} 个"
-
-#: app/src/features/knowledge/pages/TopicPage.tsx
-msgid "So far"
-msgstr "目前所知"
-
-#. a passage of a paper, when it has no section or page
-#. button that shows the paper's passage behind an item
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Passage"
-msgstr "原文"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "You wrote in <0/> · {date}"
-msgstr "你在 <0/> 中写道 · {date}"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Your question in <0/>"
-msgstr "你在 <0/> 中的问题"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "In {at}"
-msgstr "在 {at} 中"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "You {verb} in {at}"
-msgstr "你在 {at} 中{verb}"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Owlit thinks in {at}"
-msgstr "Owlit 在 {at} 中认为"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "You took from {speaker} in {at}"
-msgstr "你在 {at} 中采用了 {speaker} 的说法"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Hide passage"
-msgstr "收起原文"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Find it in the paper"
-msgstr "在论文中定位"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Found by you"
-msgstr "由你找到"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "{section} is the passage you highlighted. Owlit rewrites the line from it when you close the paper."
-msgstr "{section} 是你高亮的段落。关闭论文时，Owlit 会据此改写这一条。"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "From the abstract only."
-msgstr "仅来自摘要。"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Its passage isn’t in this copy of the paper."
-msgstr "这份论文里找不到它对应的段落。"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "A passage not in this copy"
-msgstr "不在这份论文里的段落"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "It now sits under Backs what you have."
-msgstr "它现在归在“支持你已有的观点”下。"
-
-#. verb: accept Owlit's guess that a passage connects to what you have
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Connect"
-msgstr "关联"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Marked as not related"
-msgstr "已标记为不相关"
-
-#: app/src/features/knowledge/paper/ItemRow.tsx
-msgid "Not related"
-msgstr "不相关"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Challenges what you have"
-msgstr "挑战你已有的观点"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Backs what you have"
-msgstr "支持你已有的观点"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Might connect"
-msgstr "可能相关"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Taken into your topics"
-msgstr "已纳入你的主题"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Each item pairs a passage of this paper with something you already have: your words, a question, a line in a topic. Challenges and Backs say which way it cuts. Might connect holds Owlit’s guesses until you connect them. Taken into your topics are lines that come from this paper; edit one and it stays in your words."
-msgstr "每一项都把这篇论文的一段原文和你已有的内容配对：你的文字、一个问题，或主题中的一条。“挑战”和“支持”表明它偏向哪一边。“可能相关”里是 Owlit 的猜测，等你确认关联。“已纳入你的主题”是来自这篇论文的条目；编辑过的条目会保留你的措辞。"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Owlit found something new"
-msgstr "Owlit 有新发现"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "About the Knowledge tab"
-msgstr "关于“知识”标签页"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Nothing connected yet"
-msgstr "还没有关联"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "You have {touched} here. Owlit connects them to your other papers, docs and questions once a topic starts, and a topic starts once two of them are about the same question."
-msgstr "你在这里有 {touched}。主题建立后，Owlit 会把它们和你的其他论文、文档和问题关联起来；当其中两项涉及同一个问题时，主题就会建立。"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Highlight, cite or talk about this paper, and Owlit connects it to your other papers, docs and questions once two of them are about the same question."
-msgstr "高亮、引用或讨论这篇论文后，当其中两项涉及同一个问题时，Owlit 就会把它和你的其他论文、文档和问题关联起来。"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "Used in"
-msgstr "出现在"
-
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-msgid "chat, {date}"
-msgstr "对话，{date}"
-
-#: app/src/features/knowledge/runner.ts
-msgid "One line anchored to the passage you highlighted"
-msgstr "一条已锚定到你高亮的段落"
-
-#. placeholder {0}: kinds.doc.size
-#: app/src/features/knowledge/store.ts
-msgid "{0, plural, one {# doc} other {# docs}}"
-msgstr "{0, plural, other {# 篇文档}}"
-
-#. placeholder {0}: kinds.chat.size
-#: app/src/features/knowledge/store.ts
-msgid "{0, plural, one {# chat} other {# chats}}"
-msgstr "{0, plural, other {# 个对话}}"
-
-#: app/src/features/knowledge/store.ts
-msgid "nothing yet"
-msgstr "暂无内容"
 
 #. placeholder {0}: papers.length
 #: app/src/features/library/actions.ts
@@ -4729,6 +3995,10 @@ msgstr "{unreadCount} 篇无法读取"
 msgid "{0, plural, one {Added # paper} other {Added # papers}}"
 msgstr "{0, plural, other {已添加 # 篇论文}}"
 
+#: app/src/features/library/lib/filter.ts
+msgid "Earlier"
+msgstr "更早"
+
 #. Library papers no collection holds
 #: app/src/features/library/lib/filter.ts
 msgid "Not from a collection"
@@ -5293,10 +4563,10 @@ msgstr "写作"
 msgid "Ask"
 msgstr "提问"
 
-#. an onboarding step: Owlit's Knowledge
+#. an onboarding step: Owlit gathers papers for a question
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Remember"
-msgstr "记住"
+msgid "Collect"
+msgstr "收集"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "About you"
@@ -5356,12 +4626,12 @@ msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>han
 msgstr "在任何地方按 <0>⌘J</0>，就屏幕上的内容提问。在对话里，可以把<1>耗时的活交给它</1>，比如找论文，你接着忙你的。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Owlit keeps notes."
-msgstr "Owlit 会记笔记。"
+msgid "Owlit gathers papers."
+msgstr "Owlit 收集论文。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "From what you read, highlight and write, Owlit keeps notes on your research, by topic. <0>Every line says who said it</0>, and you can correct any of it."
-msgstr "Owlit 从你读的、划的、写的内容里，按主题为你的研究记笔记。<0>每一行都写明是谁说的</0>，哪一行都可以改。"
+msgid "Give Owlit a question and it gathers papers on it, with <0>what each one says</0> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer."
+msgstr "给 Owlit 一个问题，它会收集相关论文，写明<0>每篇说了什么</0>，以及它读到了哪一层。论文在你用到之前不进你的文献库，任何答案你都可以改。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "A little about you."
@@ -5461,40 +4731,9 @@ msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers 
 msgstr "{kept, plural, other {已把 # 篇论文加入文献库}}"
 
 #: app/src/features/onboarding/demos/ReadDemo.tsx
-#: app/src/features/onboarding/demos/RememberDemo.tsx
 #: app/src/lib/time.ts
 msgid "just now"
 msgstr "刚刚"
-
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "Highlight · {highlight}"
-msgstr "高亮 · {highlight}"
-
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "Your doc · {doc}"
-msgstr "你的文档 · {doc}"
-
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "Chat · {chat}"
-msgstr "对话 · {chat}"
-
-#. the speaker of a topic's line: the paper it came from
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "The paper"
-msgstr "论文"
-
-#. the speaker of a topic's line: Owlit's own reading
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "Owlit thinks"
-msgstr "Owlit 认为"
-
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "Owlit is reading what you’ve touched…"
-msgstr "Owlit 正在读你碰过的内容…"
-
-#: app/src/features/onboarding/demos/RememberDemo.tsx
-msgid "You corrected Owlit’s line"
-msgstr "你改了 Owlit 的这一行"
 
 #: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
@@ -5617,6 +4856,12 @@ msgstr "添加智能体"
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Add agent"
 msgstr "添加智能体"
+
+#. label: the new workspace folder's name
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Name"
+msgstr "名称"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "My agent"
@@ -5746,8 +4991,8 @@ msgid "Automatic"
 msgstr "自动"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Writes digests and keeps Knowledge up to date."
-msgstr "写导读，并让知识保持最新。"
+msgid "Writes digests and gathers papers into collections."
+msgstr "写导读，并把论文收集进合集。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Agent for background work"
@@ -5799,8 +5044,8 @@ msgid "Remember what I do in owlit"
 msgstr "记住我在 owlit 中的操作"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you open, highlight and write keeps Knowledge and Home current."
-msgstr "你打开、高亮和写下的内容会让知识和主页保持最新。"
+msgid "What you open, highlight and write keeps Home current."
+msgstr "你打开、高亮和写的内容会让主页保持最新。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
@@ -6380,6 +5625,10 @@ msgid "Close Window"
 msgstr "关闭窗口"
 
 #: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr "编辑"
+
+#: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Cut"
 msgstr "剪切"
@@ -6718,7 +5967,6 @@ msgstr "智能体编辑后 {name} 又有了改动，所以 owlit 没有动它。
 #: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts
 #: packages/core/src/core.ts
-#: packages/core/src/knowledge/knowledge.ts
 msgid "Open a folder as the workspace first."
 msgstr "请先打开一个文件夹作为工作区。"
 
@@ -6943,29 +6191,6 @@ msgstr "{name} 已不在磁盘上。"
 #: packages/core/src/docs/docs.ts
 msgid "{name} changed on disk."
 msgstr "{name} 在磁盘上有改动。"
-
-#: packages/core/src/knowledge/knowledge.ts
-msgid "There is no such version of Knowledge."
-msgstr "知识没有这个版本。"
-
-#. placeholder {0}: n.added
-#: packages/core/src/knowledge/knowledge.ts
-msgid "{0, plural, one {One line added} other {# lines added}}"
-msgstr "{0, plural, other {新增 # 行}}"
-
-#. placeholder {0}: n.rewritten
-#: packages/core/src/knowledge/knowledge.ts
-msgid "{0, plural, one {One line rewritten} other {# lines rewritten}}"
-msgstr "{0, plural, other {改写 # 行}}"
-
-#. placeholder {0}: n.removed
-#: packages/core/src/knowledge/knowledge.ts
-msgid "{0, plural, one {One line removed} other {# lines removed}}"
-msgstr "{0, plural, other {删除 # 行}}"
-
-#: packages/core/src/knowledge/knowledge.ts
-msgid "Sources updated"
-msgstr "来源已更新"
 
 #: packages/core/src/library/bulk/imports.ts
 #: packages/core/src/library/library.ts

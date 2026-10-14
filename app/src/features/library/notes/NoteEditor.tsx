@@ -29,7 +29,7 @@ const MENU_HEIGHT = 30
 const live = (editor: Editor | null): editor is Editor => !!editor && !editor.isDestroyed
 
 // One note per paper, kept as Markdown. Markdown shortcuts as you type (#, -, >, **), @ to
-// mention a paper, doc or knowledge item. Saved on every change; nothing says "saved".
+// mention a paper, doc or collection. Saved on every change; nothing says "saved".
 // The note is the user's, so Owlit works on it as on a doc: a selection offers "Ask Owlit",
 // and an edit Owlit proposes is shown in the note before anything changes.
 export function NoteEditor({ paperId }: { paperId: string }) {

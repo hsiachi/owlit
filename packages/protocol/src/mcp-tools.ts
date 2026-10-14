@@ -280,36 +280,9 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
-    name: "knowledge_read",
-    description:
-      "The user's Knowledge: topic files Owlit keeps of what the user has come to understand, each line said by You, Owlit or a paper. Without a topic, lists the topics and shows the file format; with one, gives its file and the lines the user rewrote (keep them word for word) or removed (never bring them back).",
-    inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic's id or name (optional)" } } },
-    annotations: { readOnlyHint: true },
-  },
-  {
-    name: "knowledge_write",
-    description:
-      "Write a whole topic file, new or changed. owlit checks it and refuses with what to fix: every line starts with its speaker; ids stay; at most 7 Understanding lines of 30 words, 5 questions and a two-sentence summary; the user's rewritten lines stay word for word and removed ones stay out; a line that speaks for a paper cites owlit://library/<id>#passage=<name>, with that passage quoted word for word in passages.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        topic: { type: "string", description: "The topic's id or name; a new name starts a new topic" },
-        content: { type: "string", description: "The whole file, as knowledge_read shows the format" },
-        why: { type: "string", description: "One plain sentence to the user, shown in the topic's history: “You highlighted two passages of Lewis et al. 2020, so …”. Not how you worked." },
-        remove: { type: "string", description: "Ids of lines or questions removed on purpose, comma-separated (optional)" },
-        passages: {
-          type: "string",
-          description: 'JSON array of the passages cited: [{"id": "rag-token", "paper": "arxiv-2005.11401", "quote": "In the RAG-Token model we can draw…", "section": "§2.1"}] (optional)',
-        },
-      },
-      required: ["topic", "content", "why"],
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false },
-  },
-  {
     name: "owlit_help",
     description:
-      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, Knowledge, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, collections, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
     inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic from the list, or a word to look for (optional)" } } },
     annotations: { readOnlyHint: true },
   },

@@ -77,11 +77,6 @@ export function reportDocEdited(fileId: string) {
   })
 }
 
-// The user rewrote or removed a line of a topic by hand; Owlit restates the topic around it at once
-export function reportKnowledgeEdited(topic: string, id: string) {
-  emit({ kind: "knowledge.edited", topic, id })
-}
-
 // ---- What is open: from the route, the agent window and the stores ----
 
 interface Open {

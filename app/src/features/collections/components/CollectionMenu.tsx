@@ -13,7 +13,7 @@ export function useProjects(): string[] {
   const top = new Set<string>()
   for (const f of Object.values(files)) if (f.path.includes("/")) top.add(f.path.split("/")[0]!)
   for (const f of folders) top.add(f.split("/")[0]!)
-  return [...top].filter((p) => !p.startsWith(".") && p !== "library" && p !== "knowledge").sort((a, b) => a.localeCompare(b))
+  return [...top].filter((p) => !p.startsWith(".") && p !== "library").sort((a, b) => a.localeCompare(b))
 }
 
 // One collection's actions, the same from its row's ⋯, a right-click and the page's ⋯

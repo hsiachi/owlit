@@ -4,7 +4,6 @@ import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptI
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
-import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { Collection, CollectionEdit, CollectionPaper, CollectionSize, CollectionSummary, CollectionWrite } from "./collections.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -163,27 +162,6 @@ export interface Methods {
   // The author's reply, under the profile's name
   "share.reply": { params: { path: string; parent: string; text: string }; result: ShareComment }
   "share.resolve": { params: { path: string; id: string; resolved: boolean }; result: null }
-
-  // ---- Knowledge: topic files in knowledge/ (read and written as docs), and beside them in .owlit/knowledge/
-  // what the user did to them, which no run may undo
-  // Every topic's sidecar and every paper's passages, and the last run that changed something
-  "knowledge.state": { params: void; result: { topics: Record<string, TopicSidecar>; papers: Record<string, PaperKnowledge>; lastRun: KnowledgeRun | null } }
-  // The window's own changes: an edit or removal of a line, a passage found, a topic seen
-  "knowledge.putTopic": { params: { id: string; sidecar: TopicSidecar }; result: null }
-  "knowledge.putPaper": { params: { id: string; paper: PaperKnowledge }; result: null }
-  "knowledge.topics": { params: void; result: TopicSummary[] }
-  // One topic's file, with the lines the user rewrote (kept word for word) and removed (never back)
-  "knowledge.read": {
-    params: { topic: string }
-    result: { id: string; path: string; name: string; content: string; edited: { id: string; text: string }[]; removed: string[]; paused: boolean }
-  }
-  // An agent's write, checked against the rules; InvalidParams lists every problem
-  "knowledge.write": { params: KnowledgeWrite; result: { id: string; path: string; name: string; changes: string[] } }
-  // Update now: a run as soon as the agent lane is free
-  "knowledge.update": { params: void; result: Task }
-  "knowledge.versions": { params: void; result: KnowledgeVersion[] }
-  // knowledge/ back as a version had it; versionId is the version kept of how it was just before
-  "knowledge.revert": { params: { id: string }; result: { files: string[]; versionId: string } }
 
   // ---- Collections: papers Owlit gathered for a question and what it makes of them, in .owlit/collections/
   "collections.list": { params: void; result: CollectionSummary[] }
@@ -488,13 +466,13 @@ export interface Notifications {
   "notes.removed": { path: string; id: string }
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
-  // An agent in a chat left a note, added a paper or changed a Knowledge topic; versionId undoes it.
-  // label names what changed (the doc, the paper's title, the topic).
+  // An agent in a chat left a note, added a paper or wrote to a collection; versionId undoes it.
+  // label names what changed (the doc, the paper's title, the collection's title).
   // op "removed": an agent took back a paper it added (absent: an addition or a write)
   // kind "collection": path is the collection's id; created when the write started it, rows the papers it
   // added and updated how many it changed, asked the question it was for
   "agent.changed": {
-    kind: "note" | "paper" | "knowledge" | "collection"
+    kind: "note" | "paper" | "collection"
     op?: "removed"
     versionId: string
     path: string
@@ -511,10 +489,6 @@ export interface Notifications {
   "library.changed": LibraryChange
   // A paper's note changed outside the window (an agent's edit, another program); null when it was emptied
   "library.noteChanged": { paperId: string; note: PaperNote | null }
-  // Core changed a topic's sidecar or a paper's passages (an agent wrote to Knowledge)
-  "knowledge.changed": { topics?: Record<string, TopicSidecar>; papers?: Record<string, PaperKnowledge> }
-  // A Knowledge run ended; items is empty when it changed nothing
-  "knowledge.updated": KnowledgeRun
   // A collection changed (an agent wrote to it, the user changed it in another window, an undo); null:
   // it was deleted
   "collections.changed": { id: string; collection: Collection | null }

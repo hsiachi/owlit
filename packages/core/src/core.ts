@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -16,8 +16,7 @@ import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
-import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
-import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
+import { Background } from "./agents/background.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
 import { pickFromText } from "./library/library.ts"
@@ -64,8 +63,6 @@ export interface CoreOptions {
   // of Claude Code's and Codex's adapters (agents/setup.ts)
   node?: { command: string; args: string[]; env?: Record<string, string> }
   npm?: string
-  // How long Knowledge waits after the user's activity before a run (tests shorten it)
-  knowledgeTimings?: KnowledgeTimings
   // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
   lateQuietMs?: number
   // The share server new links are made on (apps/share-server), e.g. https://share.example.org; without
@@ -155,10 +152,6 @@ export class Core {
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its digest comes first
     this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
-    // What the user does feeds Knowledge: a run once things have been quiet for a while
-    this.activity.subscribe(["doc.edited", "chat.sent", "chat.ended", "highlight.added", "note.edited", "paper.closed", "knowledge.edited"], (event) =>
-      this.workspace?.knowledge.heard(event),
-    )
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
@@ -606,29 +599,6 @@ export class Core {
       )
     }
 
-    const knowledge = () => this.requireWorkspace().knowledge
-    const sidecar = z.looseObject({ seenAt: z.number(), history: z.array(z.looseObject({})), edits: z.record(z.string(), z.looseObject({ text: z.string() })), removed: z.record(z.string(), z.looseObject({ text: z.string() })) }) as unknown as z.ZodType<TopicSidecar>
-    const paperKnowledge = z.looseObject({ passages: z.record(z.string(), z.looseObject({})), connections: z.array(z.looseObject({})) }) as unknown as z.ZodType<PaperKnowledge>
-    this.router.register("knowledge.state", noParams, () => knowledge().state())
-    this.router.register("knowledge.putTopic", z.object({ id: z.string().min(1), sidecar }), ({ id, sidecar }) => knowledge().putTopic(id, sidecar))
-    this.router.register("knowledge.putPaper", z.object({ id: z.string().min(1), paper: paperKnowledge }), ({ id, paper }) => knowledge().putPaper(id, paper))
-    this.router.register("knowledge.topics", noParams, () => knowledge().summaries())
-    this.router.register("knowledge.read", z.object({ topic: z.string().min(1) }), ({ topic }) => knowledge().read(topic))
-    this.router.register(
-      "knowledge.write",
-      z.object({
-        topic: z.string().min(1),
-        content: z.string().min(1),
-        why: z.string().min(1),
-        remove: z.array(z.string()).optional(),
-        passages: z.array(z.object({ id: z.string().regex(/^[\w.-]+$/, "letters, digits, - and _"), paper: z.string(), quote: z.string().min(1), section: z.string().optional() })).optional(),
-        chatId: z.string().optional(),
-      }),
-      (params) => knowledge().write(params),
-    )
-    this.router.register("knowledge.update", noParams, () => knowledge().update())
-    this.router.register("knowledge.versions", noParams, () => knowledge().versions())
-    this.router.register("knowledge.revert", z.object({ id: z.string().min(1) }), ({ id }) => knowledge().revert(id))
     const collections = () => this.requireWorkspace().collections
     const cellWrite = z.object({
       text: z.string(),
@@ -803,21 +773,6 @@ export class Core {
                   return chosen ? normalizeNoteLanguage(chosen) : defaultNoteLanguage(settings, this.systemLanguages)
                 },
               },
-              knowledge: {
-                agent: async (prompt, signal) => {
-                  // Without owlit's tools (the socket isn't served yet when restored tasks start) the
-                  // agent can't change Knowledge, and a run that ended anyway would skip what it was given
-                  const mcpServers = this.mcpServers(root)
-                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
-                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow: KNOWLEDGE_TOOLS })
-                },
-                changed: (change) => this.notifier.notify("knowledge.changed", change),
-                updated: (run) => this.notifier.notify("knowledge.updated", run),
-                timings: this.options.knowledgeTimings,
-                journalFlushed: () => this.journal.flush(),
-                // A chat's agent changed a topic: the window offers Undo, as for any agent write
-                wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
-              },
               collections: {
                 agent: async (prompt, signal, allow) => {
                   // Without owlit's tools the agent couldn't write the collection at all
@@ -978,7 +933,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.knowledge.tasks(), ...workspace.collections.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.collections.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

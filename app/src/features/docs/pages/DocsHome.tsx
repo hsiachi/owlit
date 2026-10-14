@@ -11,7 +11,7 @@ import { useDocsUiStore } from "../ui-store"
 import { useNewDoc } from "../use-new-doc"
 
 // Docs has no landing page of its own: it goes back to the doc you were in, or the latest one. Only docs the
-// tree shows count; Knowledge topics are Markdown too and Owlit edits them often, so they would win otherwise.
+// tree shows count.
 const isDoc = (f: WorkspaceFile | undefined): f is WorkspaceFile => !!f && isMarkdown(f.path) && !isHidden(f.path)
 
 export function DocsHome() {

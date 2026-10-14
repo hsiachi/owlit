@@ -13,8 +13,7 @@ export { chatOnScreen } from "./status"
 
 // What a reply changed outside its chat: papers added, notes left on a doc, a file written. Core reports
 // each change with its version (so it can be undone) and the chat it came from; the change is pinned to
-// the reply that was running then, and shows under that answer as a result row. Knowledge changes are
-// left out here: they already show from the reply's own tool calls (knowledge/components/ChatUpdates).
+// the reply that was running then, and shows under that answer as a result row.
 export type ResultKind = "paper" | "note" | "file" | "collection"
 
 export interface AgentResult {
@@ -141,7 +140,6 @@ export function recordResult(chatId: string | undefined, result: AgentResult) {
 
 if (isDesktop) {
   onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId, created, rows, updated, asked }) => {
-    if (kind === "knowledge") return
     recordResult(chatId, {
       kind,
       versionId,

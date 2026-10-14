@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils"
 import { FoldButton } from "@/components/fold"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
 import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsList"
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
@@ -42,7 +41,8 @@ function ResizeHandle() {
 export function DetailsPanel({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const width = usePrefsStore((s) => s.panelWidth)
-  const tab = usePrefsStore((s) => s.panelTab)
+  // A panel last left on the Knowledge tab, which is gone, opens on About
+  const tab = usePrefsStore((s) => ((s.panelTab as string) === "knowledge" ? "about" : s.panelTab))
   const setTab = usePrefsStore((s) => s.setPanelTab)
   const highlightCount = useHighlightCount(paper.id)
 
@@ -70,9 +70,6 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
                 {t({ message: "Highlights", comment: "tab: the passages highlighted in a paper" })}
                 {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
               </TabsTrigger>
-              <TabsTrigger value="knowledge" className="px-1.5">
-                <KnowledgeTabLabel paper={paper} />
-              </TabsTrigger>
               <TabsTrigger value="about" className="px-1.5">{t({ message: "About", comment: "tab: a paper's abstract and details" })}</TabsTrigger>
             </TabsList>
             {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
@@ -82,9 +79,6 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
           </TabsContent>
           <TabsContent value="highlights">
             <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
-          </TabsContent>
-          <TabsContent value="knowledge">
-            <KnowledgeTab key={paper.id} paper={paper} />
           </TabsContent>
           <TabsContent value="about">
             <About paper={paper} />

@@ -1,4 +1,4 @@
-// A note, paper, topic or collection an agent in a chat changed over owlit-mcp, said in a toast with Undo. An agent's
+// A note, paper or collection an agent in a chat changed over owlit-mcp, said in a toast with Undo. An agent's
 // doc edits have their own toast (docs/fs.ts), from the editor when the doc is open.
 
 import { t } from "@lingui/core/macro"
@@ -11,7 +11,6 @@ import { undoChange } from "@/lib/versions"
 const titles = (): Record<Notifications["agent.changed"]["kind"], string> => ({
   note: t`Note added`,
   paper: t`Paper added`,
-  knowledge: t`Knowledge updated`,
   collection: t`Papers collected`,
 })
 

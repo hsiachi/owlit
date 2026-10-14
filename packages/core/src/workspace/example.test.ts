@@ -11,8 +11,8 @@ async function source() {
   await writeFile(path.join(dir, ".owlit", "workspace.json"), JSON.stringify({ version: 1, layout: {} }))
   await writeFile(path.join(dir, ".owlit", "papers", "p1", "state.json"), JSON.stringify({ addedAt: 1_760_000_000_000, status: "read", page: 3 }))
   await writeFile(path.join(dir, ".owlit", "papers", "p1", "highlights.jsonl"), JSON.stringify({ createdAt: 1_760_000_500_000, page: 2 }) + "\n")
-  await mkdir(path.join(dir, ".owlit", "knowledge", "topics"), { recursive: true })
-  await writeFile(path.join(dir, ".owlit", "knowledge", "topics", "t.json"), JSON.stringify({ seenAt: 1_760_000_100_000, changedAt: { s1: 1_760_000_100_000 } }))
+  await mkdir(path.join(dir, ".owlit", "collections", "c1"), { recursive: true })
+  await writeFile(path.join(dir, ".owlit", "collections", "c1", "collection.json"), JSON.stringify({ seenAt: 1_760_000_100_000, changedAt: { "memo:s1": 1_760_000_100_000 } }))
   await writeFile(path.join(dir, "Draft.md"), "# Draft\n")
   return dir
 }
@@ -30,9 +30,9 @@ describe("copyExample", () => {
     // Not a time: left alone
     expect(state.page).toBe(3)
     // A map of times moves with the rest
-    const topic = JSON.parse(await readFile(path.join(folder, ".owlit", "knowledge", "topics", "t.json"), "utf8"))
-    expect(topic.changedAt.s1).toBe(topic.seenAt)
-    expect(topic.seenAt).toBe(now - 3_600_000 - 400_000)
+    const collection = JSON.parse(await readFile(path.join(folder, ".owlit", "collections", "c1", "collection.json"), "utf8"))
+    expect(collection.changedAt["memo:s1"]).toBe(collection.seenAt)
+    expect(collection.seenAt).toBe(now - 3_600_000 - 400_000)
     expect((await stat(path.join(folder, "Draft.md"))).mtimeMs).toBeLessThanOrEqual(now)
   })
 

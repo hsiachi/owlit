@@ -22,7 +22,6 @@ import { startUiActions } from "@/lib/ui-actions"
 import { startWorkspace } from "@/lib/workspace"
 // These keep their stores in step with the workspace from the moment they load
 import "@/features/library/disk"
-import "@/features/knowledge/disk"
 import "@/features/collections/disk"
 import "./index.css"
 

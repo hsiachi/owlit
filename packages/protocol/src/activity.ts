@@ -1,5 +1,5 @@
 // What the user does in the interface, as the renderer reports it to core. It feeds the workspace
-// journal (Knowledge reads its delta from there) and, later, a live agent that follows along.
+// journal (what an agent can ask about the user's recent work) and, later, a live agent that follows along.
 // Every event carries the time it happened, in ms since the epoch.
 
 export type ActivityEvent =
@@ -18,8 +18,6 @@ export type ActivityEvent =
   | { kind: "chat.sent"; at: number; chatId: string }
   // The user left a chat they had written in
   | { kind: "chat.ended"; at: number; chatId: string }
-  // id is the sentence's block id (^s1) in the topic file
-  | { kind: "knowledge.edited"; at: number; topic: string; id: string }
   // The window has been in the background this long
   | { kind: "idle"; at: number; seconds: number }
 
@@ -33,7 +31,6 @@ export const JOURNALED_KINDS = [
   "chat.ended",
   "highlight.added",
   "note.edited",
-  "knowledge.edited",
   "paper.closed",
 ] as const satisfies readonly ActivityKind[]
 

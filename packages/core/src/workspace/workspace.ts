@@ -12,9 +12,8 @@ import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
-import { Knowledge, type KnowledgeServices } from "../knowledge/knowledge.ts"
 import { Collections, type CollectionsServices } from "../collections/collections.ts"
-import { findQuote } from "../knowledge/check.ts"
+import { findQuote } from "../library/quotes.ts"
 import { isPaperId, paperDir } from "../library/paths.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
 import { Shares, type SharesServices } from "../share/shares.ts"
@@ -34,7 +33,6 @@ export function workspaceDataDir(userDataDir: string, workspacePath: string) {
 export interface WorkspaceOptions {
   host?: Host
   library?: LibraryServices
-  knowledge?: KnowledgeServices
   collections?: CollectionsServices
   tasks?: WorkspaceTasks
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
@@ -60,7 +58,6 @@ export class Workspace {
   readonly library: Library
   readonly tasks: Scheduler
   readonly search: SearchIndex
-  readonly knowledge: Knowledge
   readonly collections: Collections
   readonly shares: Shares
   private release: () => Promise<void>
@@ -76,7 +73,6 @@ export class Workspace {
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.search = new SearchIndex(root, dataDir, this.library)
-    this.knowledge = new Knowledge(root, path.join(root, OWLIT_DIR), { docs: this.docs, library: this.library, chats: this.chats, versions: this.versions }, options.knowledge)
     this.collections = new Collections(path.join(root, OWLIT_DIR), { versions: this.versions }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
@@ -94,7 +90,6 @@ export class Workspace {
       limits: tasks.limits,
     })
     this.library.attach(this.tasks)
-    this.knowledge.attach(this.tasks)
     this.collections.attach(this.tasks)
     this.shares = new Shares({
       server: () => null,

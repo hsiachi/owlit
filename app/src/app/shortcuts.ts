@@ -21,7 +21,7 @@ export const SHORTCUT_GROUPS: { title: MessageDescriptor; shortcuts: Shortcut[] 
     title: msg`Everywhere`,
     shortcuts: [
       { id: "palette", label: msg`Find anything`, keys: ["⌘", "K"] },
-      { id: "find", label: msg`Find on this page`, where: msg`in the Library and Knowledge`, keys: ["/"] },
+      { id: "find", label: msg`Find on this page`, where: msg`in the Library and Collections`, keys: ["/"] },
       { id: "owlit", label: msg`Ask Owlit`, where: msg`outside Chat`, keys: ["⌘", "J"] },
       { id: "owlit-panel", label: msg`Show or hide the current chat`, where: msg`outside Chat`, keys: ["⇧", "⌘", "J"] },
       { id: "settings", label: msg`Settings`, keys: ["⌘", ","] },

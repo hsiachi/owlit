@@ -3,7 +3,7 @@ import { ReactNodeViewRenderer, ReactRenderer } from "@tiptap/react"
 import type { Editor } from "@tiptap/core"
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion"
 import type { Mentionable, SourceKind } from "../../types"
-// The same items as @ in a doc: Library papers, workspace docs, knowledge
+// The same items as @ in a doc: Library papers, workspace docs, collections
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { MentionList, type MentionListHandle, type MentionListProps } from "@/components/mention/mention-list"
 import { MentionChip } from "./MentionChip"

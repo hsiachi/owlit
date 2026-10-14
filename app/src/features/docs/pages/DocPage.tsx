@@ -25,7 +25,7 @@ export function DocPage() {
   const { fileGroups } = useDocActions()
 
   // The panel follows the open doc: its folder opens (and folders opened only for the last doc close), and
-  // new docs land beside it. A file the tree hides (a Knowledge topic opened from a link) leaves both alone.
+  // new docs land beside it. A file the tree hides leaves both alone.
   useEffect(() => {
     if (!file || isHidden(file.path)) return
     const ui = useDocsUiStore.getState()

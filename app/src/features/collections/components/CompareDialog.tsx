@@ -40,7 +40,7 @@ export function CompareDialog({ collectionId, open, onOpenChange }: { collection
   const docs = useMemo(
     () =>
       Object.values(files)
-        .filter((f) => /\.(md|markdown)$/i.test(f.path) && !f.path.startsWith("knowledge/"))
+        .filter((f) => /\.(md|markdown)$/i.test(f.path))
         .sort((a, b) => b.modifiedAt - a.modifiedAt),
     [files],
   )

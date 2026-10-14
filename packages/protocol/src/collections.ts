@@ -1,5 +1,6 @@
 import type { PaperIds, PaperKind } from "./library.ts"
-import { sameWords } from "./knowledge.ts"
+// Two texts with the same words, whatever the spacing
+export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim()
 
 // A collection: papers Owlit gathered for a question, what each says about it (one cell per column), the
 // groups Owlit put them in, and a short memo of its reading. Owlit's own record, in
