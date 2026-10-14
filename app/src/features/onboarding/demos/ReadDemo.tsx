@@ -240,7 +240,6 @@ function PaperView({ st, reg }: { st: ReadState; reg: Reg }) {
                 {st.highlighted ? 1 : 0}
               </b>
             </span>
-            <span data-item>{t`Knowledge`}</span>
             <span data-item>{t`About`}</span>
             <i ref={tabsLine} className={s.ul} />
           </div>

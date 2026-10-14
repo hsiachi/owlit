@@ -18,6 +18,8 @@ import { addPdfFiles } from "../lib/add-pdfs"
 import { openImportDialog, reviewImport } from "../imports"
 import { filePath } from "@/lib/rpc"
 import { groupPapers, matchesQuery, visiblePapers } from "../lib/filter"
+import { useCollectionsStore } from "@/features/collections/store"
+import { collectionsByPaper } from "@/features/collections/lib"
 import { useTextHits } from "@/features/search/full-text"
 import { looksLikeRef } from "../lib/ref"
 import { usePaperListKeys } from "../lib/use-list-keys"
@@ -61,7 +63,10 @@ export function LibraryPage() {
     return new Map(visible.flatMap((p) => (!matchesQuery(p, q) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : [])))
   }, [visible, textHits, searchText])
   const order = useMemo(() => visible.map((p) => p.id), [visible])
-  const groups = useMemo(() => groupPapers(visible, sort, searchText.trim().length > 0), [visible, sort, searchText])
+  const collections = useCollectionsStore((s) => s.collections)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const byCollection = useMemo(() => (sort.key === "collection" ? collectionsByPaper(collections, papers, aliases) : undefined), [sort.key, collections, papers, aliases])
+  const groups = useMemo(() => groupPapers(visible, sort, searchText.trim().length > 0, Date.now(), byCollection), [visible, sort, searchText, byCollection])
   const { scroller, listProps } = usePaperListKeys(order)
   const table = layout === "table"
   const empty = Object.keys(papers).length === 0

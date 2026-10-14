@@ -18,7 +18,7 @@ export interface FileNode {
 
 export type TreeNode = FolderNode | FileNode
 
-// The workspace's paper library, Owlit's Knowledge and dot-folders are not docs
+// The workspace's paper library and dot-folders are not docs
 export const isHidden = isHiddenFromDocs
 
 // Folders first, then files; each by last edit, newest first. A folder's time is its newest file's.

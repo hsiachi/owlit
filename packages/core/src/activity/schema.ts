@@ -27,6 +27,5 @@ export const activityEvent: z.ZodType<ActivityEvent> = z.discriminatedUnion("kin
   z.object({ kind: z.literal("doc.edited"), at, path: id }),
   z.object({ kind: z.literal("chat.sent"), at, chatId: id }),
   z.object({ kind: z.literal("chat.ended"), at, chatId: id }),
-  z.object({ kind: z.literal("knowledge.edited"), at, topic: id, id }),
   z.object({ kind: z.literal("idle"), at, seconds: z.number().nonnegative() }),
 ])

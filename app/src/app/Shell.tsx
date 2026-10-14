@@ -30,8 +30,6 @@ import { useChatNotifications } from "@/features/chat/use-notify"
 import { useDigestNotices } from "@/features/library/digests"
 // Serves workspace files to agents (ACP fs/*), so it is in place before any chat runs
 import "@/features/docs/fs"
-// Serves Knowledge to agents the same way
-import "@/features/knowledge/agent"
 
 // Until a workspace is open the window shows the first-launch flow, on a machine where no workspace has
 // opened yet, or else the welcome page; while the last one is still opening at launch it shows only the

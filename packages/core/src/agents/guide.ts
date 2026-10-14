@@ -15,7 +15,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "workspace",
     title: "The workspace",
-    text: `The workspace is one folder on the user's Mac. Their docs are the Markdown files in it, papers live in library/, Owlit's topics in knowledge/, and owlit's own state in .owlit/. File › Open Workspace… (⌘O) opens another folder and File › Open Recent lists earlier ones. Other programs (Finder, Obsidian, git) can change the folder too; owlit follows along.`,
+    text: `The workspace is one folder on the user's Mac. Their docs are the Markdown files in it, papers live in library/, and owlit's own state in .owlit/ (the collections among it). File › Open Workspace… (⌘O) opens another folder and File › Open Recent lists earlier ones. Other programs (Finder, Obsidian, git) can change the folder too; owlit follows along.`,
   },
   {
     id: "papers",
@@ -30,7 +30,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "reading",
     title: "Reading and highlighting",
-    text: `Open a paper from the Library to read it. Selecting text brings up a small bar: four highlight colours (keys 1–4), Copy (⌘C), Comment, and Ask Owlit, which sends the passage to Owlit. ⌘F finds in the PDF. The panel beside the PDF has Notes (one Markdown note per paper), Highlights, Knowledge and About. Status (Unread, Reading, Read), the star and tags are set from the paper's menu or the paper page.`,
+    text: `Open a paper from the Library to read it. Selecting text brings up a small bar: four highlight colours (keys 1–4), Copy (⌘C), Comment, and Ask Owlit, which sends the passage to Owlit. ⌘F finds in the PDF. The panel beside the PDF has Notes (one Markdown note per paper), Highlights and About; About lists the collections that hold the paper. Status (Unread, Reading, Read), the star and tags are set from the paper's menu or the paper page.`,
   },
   {
     id: "citing",
@@ -53,9 +53,9 @@ const TOPICS: GuideTopic[] = [
     text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as digests.`,
   },
   {
-    id: "knowledge",
-    title: "Knowledge",
-    text: `Knowledge holds Owlit's topics: what the user has come to understand, one line per sentence, each saying who said it. Owlit writes and updates them in the background from what the user read, highlighted, wrote and said; a topic starts once two separate things the user touched are about the same question, so Knowledge is empty at first. On a line: Edit (the line becomes the user's, kept word for word), Ask Owlit, Remove (for good). A topic's menu has Update now, Pause updates, Rename, Merge into…, Split…, Archive and Delete.`,
+    id: "collections",
+    title: "Collections",
+    text: `A collection is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Collections page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the collection; opening one or Add to Library brings it into the Library. On a collection: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. Grey answers come from an abstract; a page number points to the words an answer rests on. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Watch for new papers, Move to project, Export as CSV and Delete.`,
   },
   {
     id: "undo",

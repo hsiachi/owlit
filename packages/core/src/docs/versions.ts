@@ -9,7 +9,8 @@ import { writeFileAtomic } from "../fs-util.ts"
 //   file    a doc or topic file's text before the write
 //   note    a note left on a doc (added, or removed by an undo), with the note itself
 //   paper   a paper added to the library (or removed by an undo)
-export type VersionKind = "file" | "note" | "paper"
+//   collection  a collection's collection.json before an agent wrote to it (path is the collection's id)
+export type VersionKind = "file" | "note" | "paper" | "collection"
 
 export interface Version {
   id: string
@@ -20,7 +21,7 @@ export interface Version {
   chatId?: string
   // agent: a change an agent made; undo: the state an undo replaced, so the undo can be undone
   by: "agent" | "undo"
-  // file: whether the file existed before; restoring a version of a file that didn't removes it
+  // file and collection: whether it existed before; restoring a version of one that didn't removes it
   existed?: boolean
   // file: sha1 of what was written, so a restore can tell whether anyone changed the file since
   after?: string
@@ -71,6 +72,11 @@ export class Versions {
 
   savePaper(id: string, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
     return this.save({ kind: "paper", path: id, op }, "", meta)
+  }
+
+  // before is null when the write started the collection
+  saveCollection(id: string, before: string | null, meta: { chatId?: string; by?: Version["by"] } = {}) {
+    return this.save({ kind: "collection", path: id, existed: before !== null }, before ?? "", meta)
   }
 
   // The version and what it kept, or null when it isn't there

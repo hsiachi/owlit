@@ -1,4 +1,7 @@
-import { t } from "@lingui/core/macro"
+import { plural, t } from "@lingui/core/macro"
+import { useCollectionsStore } from "@/features/collections/store"
+import { collectionHolding } from "@/features/collections/lib"
+import { collectionUri, shownCollection } from "@owlit/protocol"
 import type { Mentionable } from "@/features/chat/types"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
@@ -7,7 +10,6 @@ import { hasAllWords, queryWords } from "@/lib/words"
 import { paperUri, parseOwlitUri } from "@owlit/protocol"
 import { whenReaderReady } from "@/features/library/reader/reader-store"
 import { fileAt, useDocsStore } from "../store"
-import { knowledgeMentionables, knowledgeRoute, knowledgeTitle } from "@/features/knowledge/mentions"
 import { isHidden } from "./tree"
 import { useWorkspace } from "@/lib/workspace"
 import { displayName, docUri, isMarkdown, parentPath, type WorkspaceFile } from "../types"
@@ -43,7 +45,7 @@ export function allDocMentions(selfId?: string): DocMention[] {
     .filter((f) => f.id !== selfId && isMarkdown(f.path) && !isHidden(f.path))
     .sort((x, y) => y.modifiedAt - x.modifiedAt)
     .map((f) => ({ ...docMentionable(f), label: displayName(f.path) }))
-  return [...papers, ...docs, ...knowledgeMentionables().map((k) => ({ ...k, label: k.title }))]
+  return [...papers, ...docs, ...collectionMentionables().map((c) => ({ ...c, label: c.title }))]
 }
 
 // The items whose name or where they live holds every word of the query
@@ -77,9 +79,17 @@ export const usePaperUnread = (uri: string | null | undefined) => useLibraryStor
 // Where a mention leads inside the app
 export function mentionRoute(uri: string): string | null {
   const u = parseOwlitUri(uri)
-  if (u?.kind === "paper") return `/library/${paperOf(u.id)?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
-  if (u?.kind === "knowledge") return knowledgeRoute(u)
+  if (u?.kind === "paper") {
+    const paper = paperOf(u.id)
+    // A paper Owlit found and the user hasn't taken in lives on its collection: the link opens it there
+    if (!paper) {
+      const holder = collectionHolding(useCollectionsStore.getState().collections, u.id)
+      if (holder) return `/collections/${holder.id}?paper=${encodeURIComponent(u.id)}`
+    }
+    return `/library/${paper?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
+  }
   if (u?.kind === "chat") return `/chat/${u.id}`
+  if (u?.kind === "collection") return `/collections/${u.id}${u.group ? `?group=${encodeURIComponent(u.group)}` : ""}`
   if (u?.kind !== "doc") return null
   const file = fileAt(u.path)
   return file ? `/docs/${file.id}` : null
@@ -124,7 +134,7 @@ export function docUriOfLink(href: string): string | null {
 // The name a mention shows when its text is empty
 export function mentionTitle(uri: string): string | undefined {
   const u = parseOwlitUri(uri)
-  if (u?.kind === "knowledge") return knowledgeTitle(u)
+  if (u?.kind === "collection") return collectionTitle(u.id)
   return u?.kind === "paper" ? paperOf(u.id)?.title : undefined
 }
 
@@ -165,6 +175,21 @@ export function mentionLabel(uri: string): string | undefined {
     return page ? t({ message: `${cite}, p. ${page}`, comment: "a paper cited at a page: Chan et al. 2026, p. 13" }) : cite
   }
   if (u?.kind === "doc") return u.path.split("/").pop()?.replace(/\.md$/, "")
-  if (u?.kind === "knowledge") return knowledgeTitle(u)
+  if (u?.kind === "collection") return collectionTitle(u.id)
   return undefined
+}
+
+// The collections @ reaches, most recently changed first
+function collectionMentionables(): Mentionable[] {
+  return Object.values(useCollectionsStore.getState().collections)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map((c) => {
+      const shown = shownCollection(c)
+      return { id: c.id, kind: "collection", title: shown.title, subtitle: plural(shown.rows.length, { one: "# paper", other: "# papers" }), uri: collectionUri(c.id) }
+    })
+}
+
+const collectionTitle = (id: string) => {
+  const c = useCollectionsStore.getState().collections[id]
+  return c ? shownCollection(c).title : undefined
 }

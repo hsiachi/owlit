@@ -646,8 +646,7 @@ export class Docs {
   }
 }
 
-// Paths Docs reaches: anything in the workspace but library/ (the Library's) and dot-folders. knowledge/
-// is listed too: Docs hides it in its tree, Knowledge reads its topics from it.
+// Paths Docs reaches: anything in the workspace but library/ (the Library's) and dot-folders.
 export function isDocsPath(rel: string) {
   const segments = rel.split("/")
   if (segments.some((s) => !s || s === "." || s === ".." || s.startsWith("."))) return false

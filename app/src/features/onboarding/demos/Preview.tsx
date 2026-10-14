@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
-import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, RememberDemo, WriteDemo, type DemoPlace } from "."
+import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, CollectDemo, WriteDemo, type DemoPlace } from "."
 
 // A throwaway sheet of every demo side by side, each in its own window, to look at them while the flow is
 // being built; plus one window that steps through them, as the flow will. Not part of the app.
@@ -12,7 +12,7 @@ export function DemosPreview() {
     { place: "library", node: <ReadDemo key="read" /> },
     { place: "docs", node: <WriteDemo key="write" /> },
     { place: "chat", node: <AskDemo key="ask" /> },
-    { place: "knowledge", node: <RememberDemo key="remember" /> },
+    { place: "collections", node: <CollectDemo key="collect" /> },
     { place: "chat", node: <GreetingDemo key="you" name={name} agentName={agentName} /> },
     { place: "chat", node: <HelloDemo key="agent" name={name} agentName={agentName} /> },
     { place: "library", node: <LibraryPreview key="look" /> },

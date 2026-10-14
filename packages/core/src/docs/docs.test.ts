@@ -40,7 +40,7 @@ async function setup(files: Record<string, string> = {}) {
 }
 
 describe("docs.list", () => {
-  it("lists docs and folders, hiding library/ and dot-folders but not knowledge/", async () => {
+  it("lists docs and folders, hiding library/ and dot-folders but not an old knowledge/ folder", async () => {
     const { call } = await setup({
       "a.md": "# A",
       "notes/b.md": "b",

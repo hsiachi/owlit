@@ -7,17 +7,15 @@ import { takesRules } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
-// whose answer is the result (a digest, later a Knowledge update). Nobody is there to answer
+// whose answer is the result (a digest), or whose work goes through owlit's tools (a collection). Nobody is there to answer
 // questions, so the only tools it may use are owlit's own read-only ones; anything else is refused, and
 // it can't write files: core writes what the answer says.
 
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[background] ${line}`)
 
 // owlit-mcp tools a background session may use without asking
-const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|knowledge_read|owlit_help)$/
+const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|collection_(list|read)|owlit_help)$/
 
-// What a Knowledge run may use besides
-export const KNOWLEDGE_TOOLS = /^(mcp__owlit__)?knowledge_write$/
 
 export interface BackgroundRun {
   prompt: string
@@ -30,7 +28,7 @@ export interface BackgroundRun {
   signal: AbortSignal
   // An agent to use; the first one that is set up when not given
   connectorId?: string
-  // Further tools this run may use (a Knowledge run writes topics)
+  // Further tools this run may use (a collection run writes the collection)
   allow?: RegExp
   // The model each agent uses here, when not its default (Settings › Owlit › Background work)
   models?: Record<string, string>

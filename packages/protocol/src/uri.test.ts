@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { docUri, MENTION_LINK, paperUri, parseOwlitUri, topicUri } from "./uri.ts"
+import { collectionUri, docUri, MENTION_LINK, paperUri, parseOwlitUri } from "./uri.ts"
 
 describe("parseOwlitUri", () => {
   it.each([
@@ -8,8 +8,8 @@ describe("parseOwlitUri", () => {
     ["owlit://library/p6#abstract", { kind: "paper", id: "p6", abstract: true }],
     ["owlit://library/p6#p12", { kind: "paper", id: "p6", page: 12 }],
     [docUri("writing/Related work.md"), { kind: "doc", path: "writing/Related work.md" }],
-    [topicUri("when-to-call"), { kind: "knowledge", topicId: "when-to-call", block: undefined }],
-    [topicUri("when-to-call", "q1"), { kind: "knowledge", topicId: "when-to-call", block: "q1" }],
+    [collectionUri("uist-2026-papers"), { kind: "collection", id: "uist-2026-papers" }],
+    [collectionUri("uist-2026-papers", "eval"), { kind: "collection", id: "uist-2026-papers", group: "eval" }],
     ["owlit://chat/c1", { kind: "chat", id: "c1" }],
     ["owlit://settings/proxy", { kind: "settings", section: "proxy" }],
     ["owlit://settings", { kind: "settings", section: undefined }],

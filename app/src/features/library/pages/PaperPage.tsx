@@ -8,8 +8,6 @@ import { IconButton } from "@/components/icon-button"
 import { SegmentedControl } from "@/components/segmented-control"
 import { reportPaperView } from "@/app/activity"
 import { useAgentWindow } from "@/features/agent/store"
-import { paperClosed } from "@/features/knowledge/runner"
-import { useKnowledgeStore } from "@/features/knowledge/store"
 import { useDigestState } from "../digests"
 import { visiblePapers } from "../lib/filter"
 import { useReadingVisit } from "../lib/reading"
@@ -68,12 +66,6 @@ export function PaperPage() {
   // Opening a paper isn't reading it: it turns Reading once the person has read in it (lib/reading.ts)
   useReadingVisit(paperId, !!paper?.pdf)
 
-  // Closing a paper is when Owlit takes in what was found in it
-  useEffect(() => {
-    const id = paperId
-    return () => paperClosed(id)
-  }, [paperId])
-
   // The digest or the PDF. A paper with a digest opens on it, since most of the time the digest is
   // enough; the choice holds until the next paper.
   const writing = useWritingDigest(paperId)
@@ -97,7 +89,7 @@ export function PaperPage() {
     showView("pdf")
     void whenReaderReady(paperId).then((api) => api.showPage(page), () => undefined)
   }
-  // A jump into the PDF from elsewhere (a highlight in the list, a passage from Knowledge) shows the PDF
+  // A jump into the PDF from elsewhere (a highlight in the list, a collection's answer) shows the PDF
   useEffect(
     () =>
       useReaderStore.subscribe((s, prev) => {
@@ -108,13 +100,18 @@ export function PaperPage() {
     [paperId],
   )
 
-  // Opened from a passage link (a topic line's "§2"): go to the passage once the reader is ready
-  useTakeParam("passage", (passageId) => {
-    const passage = useKnowledgeStore.getState().paper(paperId).passages[passageId]
-    if (!passage) return
-    setChosen({ paperId, view: "pdf" })
-    void whenReaderReady(paperId).then((api) => api.showPassage(passage, "jump"), () => undefined)
-  })
+  // Opened at a quote (a collection's answer that rests on it): go to those words on that page
+  useTakeParam(
+    "quote",
+    (quote, params) => {
+      const page = Number(params.get("page")) || undefined
+      const words = quote.trim().split(/\s+/)
+      const n = Math.min(8, words.length)
+      setChosen({ paperId, view: "pdf" })
+      void whenReaderReady(paperId).then((api) => api.showPassage({ id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), page: page ? page - 1 : undefined }, "jump"), () => undefined)
+    },
+    ["page"],
+  )
 
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) return <NotFound title={t`This paper is not in the library`} detail={t`It may have been removed.`} back={{ label: t`Back to library`, to: "/library" }} />
