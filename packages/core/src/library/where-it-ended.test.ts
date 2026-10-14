@@ -13,6 +13,10 @@ describe("where a tab in the user's browser ended", () => {
     expect(whereItEnded({ url: "https://www.tandfonline.com/doi/pdf/10.1080/09507116.2025.2463156?download=true", title: "Editorial: Welding International: Vol 39 , No 2 - Get Access" }, { address: "https://www.tandfonline.com/doi/pdf/10.1080/09507116.2025.2463156?download=true" })).toBe("no-access")
     expect(whereItEnded({ url: "https://dl.acm.org/doi/pdf/10.1145/3698204.3716449?download=true&__cf_chl_tk=x", title: "Just a moment..." }, acm)).toBe("check")
     expect(whereItEnded({ url: "https://dl.acm.org/doi/pdf/10.1145/3698204.3716449?download=true", title: "dl.acm.org" }, acm)).toBe("on-pdf")
+
+    // An ACL paper the ACM lists without its PDF: nothing there to answer
+    expect(whereItEnded({ url: "https://dl.acm.org/doi/pdf/10.3115/1654595.1654614?download=true", title: "ACM Error: 404" }, { address: "https://dl.acm.org/doi/pdf/10.3115/1654595.1654614?download=true" })).toBe("missing")
+    expect(whereItEnded({ url: "https://journals.sagepub.com/doi/pdf/10.1177/x?download=true", title: "Page Not Found | SAGE Journals" }, sage)).toBe("missing")
   })
 
   it("reads a proxy's rewrite of the publisher as the publisher", () => {

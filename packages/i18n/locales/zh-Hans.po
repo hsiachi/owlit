@@ -4534,6 +4534,22 @@ msgid "Its proxy turned the paper away."
 msgstr "图书馆代理拒绝了这篇论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} 上没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "出版方没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "那边显示“{title}”。这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No access through your library"
 msgstr "通过你的图书馆无法访问"
 

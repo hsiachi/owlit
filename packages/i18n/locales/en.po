@@ -4534,6 +4534,22 @@ msgid "Its proxy turned the paper away."
 msgstr "Its proxy turned the paper away."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} has no PDF of this paper"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "The publisher has no PDF of this paper"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "The paper may be kept somewhere else: drop its PDF here if you find it."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No access through your library"
 msgstr "No access through your library"
 

@@ -9,13 +9,16 @@ import { siteOf } from "./browser-routes.ts"
 // What a real run showed (2026-10-14, Dia, tlink off campus): SAGE answering an institution without the
 // journal with its abstract page; T&F with "Get Access"; tlink with /ui/unauthorized for a resource the
 // library hasn't got; its proxy with /ui/minute-limit ("Access Denied") when asked too often; the
-// school's sign-in on id.tsinghua.edu.cn; Cloudflare's "Just a moment..." in front of a download.
+// school's sign-in on id.tsinghua.edu.cn; Cloudflare's "Just a moment..." in front of a download; the
+// ACM's "ACM Error: 404" at the PDF address of an ACL paper it lists without the PDF.
 export type Ended =
   // A check in front of the page (Cloudflare and the like)
   | "check"
   // Still at the PDF's address with no file: something on the page wants an answer (Safari's "allow
   // downloads?"), or the download is stuck
   | "on-pdf"
+  // A "not found" page: nothing there to save, and nothing for the user to answer
+  | "missing"
   // At the publisher, but sent on from the PDF to its abstract or its access page
   | "no-access"
   // A sign-in: the school's, the proxy's
@@ -42,6 +45,7 @@ const CHECK = /just a moment|attention required|security check|checking your bro
 const LIMIT = /(minute|rate|request|access)-?limit|too-?many/i
 const SIGN_IN = /log-?in|sign-?in|sso|saml|\bcas\b|\/idp\/|shibboleth|openathens|wayf|\bauth|登录|认证|身份/i
 const PAYWALL = /get access|access options|purchase|buy article|\brent\b|subscribe|institutional access|购买|订阅/i
+const MISSING = /\b(404|410)\b|not found|page (doesn't|does not) exist|找不到|不存在/i
 const REFUSED = /unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限/i
 
 export function whereItEnded(tab: { url: string; title: string }, sent: Sent): Ended {
@@ -64,6 +68,8 @@ export function whereItEnded(tab: { url: string; title: string }, sent: Sent): E
   }
   const where = `${at.hostname}${path}`
   if (CHECK.test(title)) return "check"
+  // By the title only: a not-found page keeps the address it was asked for
+  if (MISSING.test(title)) return "missing"
   const publisher = siteOf(to.hostname)
   if (mentions(at, publisher)) {
     // Still where the PDF is (directly, or as the end of a proxy's rewritten path), unless the page

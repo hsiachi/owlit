@@ -18,6 +18,8 @@ export interface PaperIds {
   s2?: string
   // OpenAlex work id: W2741809807
   openalex?: string
+  // ACL Anthology id, which also names its PDF there: W06-1314, 2023.acl-long.1
+  acl?: string
   url?: string
 }
 
@@ -67,8 +69,9 @@ export interface Paper {
       page?: { title: string; host: string }
     }
     // The user's browser reached the publisher and it said no (refused: the library proxy said it
-    // hasn't got it), with the page it showed. Kept until a PDF comes or the paper is tried again.
-    noAccess?: { refused: boolean; host?: string; title?: string; at: number }
+    // hasn't got it; missing: the publisher has no PDF at that address), with the page it showed. Kept
+    // until a PDF comes or the paper is tried again.
+    noAccess?: { refused: boolean; missing?: boolean; host?: string; title?: string; at: number }
     // A PDF that arrived in Downloads (file name) owlit isn't sure is this paper's, for them to confirm
     offered?: string
   }
