@@ -177,6 +177,8 @@ export function yourBrowser(doi: string, host?: string, proxy?: ProxySettings): 
   const proxied = !!proxy?.base && !row?.open
   return {
     url: proxied ? throughProxy(address, proxy) : address,
+    address,
+    ...(proxied ? { proxy: proxy.scheme === "host-rewrite" ? proxy.base : `${proxy.base.replace(/\/+$/, "")}${proxy.path ?? "/login"}` } : {}),
     // Through the proxy, its sign-in stands in front of every publisher: the proxy's site is the one
     site: siteOf(hostOf(proxied ? proxy.base : address)),
     opens: row?.download ? "pdf" : "page",
@@ -186,6 +188,10 @@ export function yourBrowser(doi: string, host?: string, proxy?: ProxySettings): 
 export interface YourBrowser {
   // What to open in the user's browser, through the library's proxy when there is one
   url: string
+  // The same, before the proxy
+  address: string
+  // The proxy's entry it goes through, if it does
+  proxy?: string
   // The site the user's browser goes to first: the publisher's, or the library proxy's
   site: string
   // The PDF itself, which their browser saves by itself, or the article page, where they save it

@@ -64,6 +64,18 @@ function paperOf(id: string) {
   return papers[id] ?? (aliases[id] ? papers[aliases[id]] : undefined)
 }
 
+// A paper mention whose paper is still Unread in the Library: nobody has read in it but Owlit, so it is
+// drawn lighter until the person does (lib/reading.ts turns it Reading). A paper outside the library has
+// no state here and is drawn as usual.
+export function paperUnread(uri: string, papers = useLibraryStore.getState().papers, aliases = useLibraryStore.getState().aliases): boolean {
+  const u = parseOwlitUri(uri)
+  if (u?.kind !== "paper") return false
+  return (papers[u.id] ?? (aliases[u.id] ? papers[aliases[u.id]] : undefined))?.status === "unread"
+}
+
+// The same, kept current as the paper is read
+export const usePaperUnread = (uri: string | null | undefined) => useLibraryStore((s) => !!uri && paperUnread(uri, s.papers, s.aliases))
+
 // Where a mention leads inside the app
 export function mentionRoute(uri: string): string | null {
   const u = parseOwlitUri(uri)

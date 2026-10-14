@@ -261,7 +261,8 @@ export class Collections {
       // Every item the write changed goes in the history; dot: false leaves it without Owlit's dot
       const mark = (item: string, dot = true) => {
         changed.add(item)
-        if (dot && !fresh && looked) c.changedAt[item] = now
+        // Later than the user's last look even within the same millisecond, or the dot would never show
+        if (dot && !fresh && looked) c.changedAt[item] = Math.max(now, c.seenAt + 1)
       }
 
       if (existing && input.title?.trim() && input.title.trim() !== c.title) {

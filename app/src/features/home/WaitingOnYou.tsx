@@ -12,7 +12,7 @@ import { brokenReply, pendingAsk, useSeenStore } from "@/features/chat/status"
 import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useLibraryStore } from "@/features/library/store"
-import { getInBrowser, showBrowser, useFromBrowserRun } from "@/features/library/from-browser"
+import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useStoppedOn, useWaitingForBrowser } from "@/features/library/from-browser"
 import { useLibraryUi } from "@/features/library/ui-store"
 import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@/features/library/types"
@@ -56,6 +56,8 @@ function useWaiting(): Waiting[] {
   const imports = useImports((s) => s.list)
   const tasks = useTasksStore((s) => s.byId)
   const fromBrowser = useFromBrowserRun()
+  const stoppedOn = useStoppedOn()
+  const waiting = useWaitingForBrowser()
 
   return useMemo(() => {
     const out: Waiting[] = []
@@ -120,8 +122,7 @@ function useWaiting(): Waiting[] {
       .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
     const browser = forBrowser.find((p) => p.noPdf?.fromBrowser?.browser)?.noPdf?.fromBrowser?.browser
     const pages = forBrowser.filter((p) => p.noPdf?.fromBrowser?.state === "page")
-    const waiting = forBrowser.filter((p) => !p.noPdf?.fromBrowser || p.noPdf.fromBrowser.state === "missed")
-    const show = { label: t`Show browser`, run: () => void showBrowser() }
+    const show = { label: t`Show browser`, run: () => void showBrowser(stoppedOn?.id) }
     if (fromBrowser) {
       const done = fromBrowser.progress?.done ?? 0
       const total = fromBrowser.progress?.total ?? done
@@ -129,11 +130,11 @@ function useWaiting(): Waiting[] {
         out.push({
           key: "papers:from-browser",
           icon: KIND_ICON.paper,
-          what: browser ? t`${browser} may be asking you something` : t`Your browser may be asking you something`,
+          what: stoppedLine(stoppedOn),
           where: t`· getting PDFs, ${done} of ${total}`,
           detail: fromBrowser.waiting?.detail,
           open: show,
-          action: { label: t({ message: "Continue", context: "carry on getting PDFs from the browser" }), run: () => void resumeTask(fromBrowser.id) },
+          action: { label: continueLabel(stoppedOn), run: () => void resumeTask(fromBrowser.id) },
         })
       } else {
         out.push({
@@ -182,7 +183,7 @@ function useWaiting(): Waiting[] {
       })
     }
     return out
-  }, [chats, streaming, connectors, selected, background, dismissed, papers, imports, tasks, fromBrowser, navigate])
+  }, [chats, streaming, connectors, selected, background, dismissed, papers, imports, tasks, fromBrowser, stoppedOn, waiting, navigate])
 }
 
 // "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"

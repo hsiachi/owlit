@@ -87,6 +87,10 @@ await build({
       entitlements: "resources/entitlements.mac.plist",
       entitlementsInherit: "resources/entitlements.mac.plist",
       notarize: false,
+      // What macOS shows when owlit first asks to control the user's browser (getting PDFs there)
+      extendInfo: {
+        NSAppleEventsUsageDescription: "Owlit opens papers in your browser and reads where each page ended, to get PDFs your library gives only to a browser.",
+      },
     },
     dmg: {
       title: "Owlit ${version}",

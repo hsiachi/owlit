@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { syntaxTree } from "@codemirror/language"
-import type { EditorState, Extension, Range } from "@codemirror/state"
+import { StateEffect, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view"
 import type { SyntaxNode } from "@lezer/common"
 import katex from "katex"
@@ -13,21 +13,27 @@ class MentionWidget extends WidgetType {
   readonly label: string
   readonly uri: string
   readonly title?: string
-  constructor(label: string, uri: string, title?: string) {
+  readonly unread: boolean
+  constructor(label: string, uri: string, title: string | undefined, unread: boolean) {
     super()
     this.label = label
     this.uri = uri
     this.title = title
+    this.unread = unread
   }
   eq(other: MentionWidget) {
-    return other.label === this.label && other.uri === this.uri && other.title === this.title
+    return other.label === this.label && other.uri === this.uri && other.title === this.title && other.unread === this.unread
   }
   toDOM() {
     const span = document.createElement("span")
     span.className = "cm-mention"
     span.textContent = this.label || this.title || this.uri
     span.dataset.uri = this.uri
-    if (this.title && this.title !== this.label) span.title = this.title
+    const title = this.title && this.title !== this.label ? this.title : undefined
+    if (this.unread) {
+      span.dataset.unread = ""
+      span.title = title ? `${title} · ${t`Unread`}` : t`Unread`
+    } else if (title) span.title = title
     return span
   }
   ignoreEvent() {
@@ -179,11 +185,13 @@ const CALLOUT = /^(\s*>\s*)(\[!(\w+)\][+-]?\s*)(.*)$/
 
 interface Resolvers {
   describe: (uri: string) => string | undefined
+  // A paper mention whose paper hasn't been read yet, drawn lighter
+  unread: (uri: string) => boolean
   // The route of the doc a [[wikilink]] names, if there is one
   wikilink: (name: string) => string | null
 }
 
-function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
+function build(view: EditorView, { describe, unread, wikilink }: Resolvers): Built {
   const state: EditorState = view.state
   const doc = state.doc
   const decos: Range<Decoration>[] = []
@@ -265,7 +273,7 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
             const labelTo = marks[1].from
             // A mention is one token, drawn like every other mention and deleted as a unit
             if (href.startsWith("owlit://")) {
-              const widget = new MentionWidget(doc.sliceString(labelFrom, labelTo), href, describe(href))
+              const widget = new MentionWidget(doc.sliceString(labelFrom, labelTo), href, describe(href), unread(href))
               mentions.push(Decoration.replace({ widget }).range(ref.from, ref.to))
               return false
             }
@@ -381,18 +389,45 @@ function build(view: EditorView, { describe, wikilink }: Resolvers): Built {
   return { decorations: Decoration.set(decos, true), mentions: Decoration.set(mentions, true) }
 }
 
-export function livePreview({ describe, wikilink, onOpenMention, onOpenRoute }: Resolvers & { onOpenMention: (uri: string) => void; onOpenRoute: (route: string) => void }): Extension {
-  const resolvers = { describe, wikilink }
+// What the resolvers answer changed outside the text (a paper was read): draw the mentions again
+const redraw = StateEffect.define<null>()
+
+export function livePreview({
+  describe,
+  unread,
+  wikilink,
+  onOpenMention,
+  onOpenRoute,
+  resolversChange,
+}: Resolvers & {
+  onOpenMention: (uri: string) => void
+  onOpenRoute: (route: string) => void
+  // Calls back when the resolvers may answer differently; returns an unsubscribe
+  resolversChange?: (changed: () => void) => () => void
+}): Extension {
+  const resolvers = { describe, unread, wikilink }
   const plugin = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
       mentions: DecorationSet
+      stop?: () => void
       constructor(view: EditorView) {
         ;({ decorations: this.decorations, mentions: this.mentions } = build(view, resolvers))
+        this.stop = resolversChange?.(() => view.dispatch({ effects: redraw.of(null) }))
       }
       update(u: ViewUpdate) {
-        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || syntaxTree(u.startState) !== syntaxTree(u.state))
+        if (
+          u.docChanged ||
+          u.viewportChanged ||
+          u.selectionSet ||
+          u.focusChanged ||
+          syntaxTree(u.startState) !== syntaxTree(u.state) ||
+          u.transactions.some((tr) => tr.effects.some((e) => e.is(redraw)))
+        )
           ({ decorations: this.decorations, mentions: this.mentions } = build(u.view, resolvers))
+      }
+      destroy() {
+        this.stop?.()
       }
     },
     {

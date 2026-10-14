@@ -4,7 +4,8 @@ import path from "node:path"
 import type { ActivityBus } from "./bus.ts"
 
 // Appends the coarse events to <workspace>/.owlit/journal.jsonl, one JSON object per line, in the
-// order they arrived. Fine-grained ones (page turns, idle, opening a paper) never reach the disk.
+// order they arrived. Fine-grained ones (page turns, idle, closing a doc) never reach the disk; reading
+// time does, already settled into 30-second pieces by the window.
 export class Journal {
   private writing: Promise<void> = Promise.resolve()
   private unsubscribe: () => void

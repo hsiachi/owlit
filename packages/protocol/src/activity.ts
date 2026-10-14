@@ -1,12 +1,27 @@
+import type { ReadStatus } from "./library.ts"
+
 // What the user does in the interface, as the renderer reports it to core. It feeds the workspace
-// journal (what an agent can ask about the user's recent work) and, later, a live agent that follows along.
-// Every event carries the time it happened, in ms since the epoch.
+// journal (core's reading.ts reads what was read from there) and, later, a live agent that follows
+// along. Every event carries the time it happened, in ms since the epoch.
+
+// Which side of a paper's page was in view: Owlit's digest or the paper itself
+export type PaperView = "digest" | "pdf"
+
+// A change the user made to a paper's star, status or tags (the whole new set)
+export type PaperMark = { what: "starred"; to: boolean } | { what: "status"; to: ReadStatus } | { what: "tags"; to: string[] }
 
 export type ActivityEvent =
   | { kind: "paper.opened"; at: number; paperId: string }
   | { kind: "paper.closed"; at: number; paperId: string }
   // 1-based page that came to the top while reading
   | { kind: "paper.page"; at: number; paperId: string; page: number }
+  // Time on the paper's page with the window in front and the person not away, settled every 30
+  // seconds of it and when they leave the paper, the view or the window
+  | { kind: "paper.focus"; at: number; paperId: string; view: PaperView; seconds: number }
+  // Time a page of the PDF spent at the top, once that stay reached 5 seconds; a long stay comes in
+  // parts, settled with paper.focus
+  | { kind: "paper.dwell"; at: number; paperId: string; page: number; seconds: number }
+  | { kind: "paper.marked"; at: number; paperId: string; mark: PaperMark }
   | { kind: "highlight.added"; at: number; paperId: string; highlightId: string }
   | { kind: "highlight.removed"; at: number; paperId: string; highlightId: string }
   // The paper's own note, once typing has paused
@@ -25,8 +40,14 @@ export type ActivityKind = ActivityEvent["kind"]
 
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
-// What goes into .owlit/journal.jsonl. The rest (page turns, idle, opening) is only for live listeners.
+// What goes into .owlit/journal.jsonl. The rest (page turns, idle, closing a doc, removing a highlight,
+// sending a message) is only for live listeners.
 export const JOURNALED_KINDS = [
+  "paper.opened",
+  "paper.focus",
+  "paper.dwell",
+  "paper.marked",
+  "doc.opened",
   "doc.edited",
   "chat.ended",
   "highlight.added",

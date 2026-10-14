@@ -396,8 +396,9 @@ export interface Methods {
   // Joins the run going on, or resumes it when it stopped for the user. Runs as the task
   // papers.fromBrowser; the papers come back with noPdf.fromBrowser.
   "library.getInBrowser": { params: { ids: string[] }; result: Paper[] }
-  // Brings the user's browser to the front, where a page may be asking them something
-  "library.showBrowser": { params: void; result: null }
+  // Brings the user's browser to the front, at the paper's tab when owlit opened one for it (or the tab
+  // the run is stopped on), where a page may be asking them something
+  "library.showBrowser": { params: { id?: string }; result: null }
   // The user's answer about a downloaded PDF owlit offered (noPdf.offered): take it, or not
   "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file

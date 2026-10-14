@@ -32,6 +32,8 @@
     --color-sidebar: var(--sidebar);
     --color-sidebar-panel: var(--sidebar-panel);
     --color-mention: var(--mention);
+    /* A paper mention nobody but Owlit has read yet: the same blue, a step lighter */
+    --color-mention-unread: color-mix(in oklch, var(--mention) 62%, transparent);
     --color-star: var(--star);
     --color-tag-red: var(--tag-red);
     --color-tag-orange: var(--tag-orange);

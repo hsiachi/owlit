@@ -1,25 +1,30 @@
+import { t } from "@lingui/core/macro"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
 // One look for a mentioned workspace item wherever it appears. In the editor it carries a faint fill so
 // it reads as one unit you can delete; in text it is plain coloured words that fill only on hover, and a
 // button when it opens something. Inline-flex keeps the text baseline (an overflow-hidden inline-block
-// would sit on its bottom edge).
+// would sit on its bottom edge). A paper nobody but Owlit has read yet is a step lighter (unread).
 export function MentionToken({
   label,
   variant = "inline",
   className,
   title,
+  unread,
   onClick,
 }: {
   label: React.ReactNode
   variant?: "field" | "inline"
   className?: string
   title?: string
+  unread?: boolean
   onClick?: () => void
 }) {
+  if (unread) title = title ? `${title} · ${t`Unread`}` : t`Unread`
   const look = cn(
-    "inline-flex max-w-80 items-baseline rounded-[0.3em] px-[0.2em] align-baseline text-mention transition-colors",
+    "inline-flex max-w-80 items-baseline rounded-[0.3em] px-[0.2em] align-baseline transition-colors",
+    unread ? "text-mention-unread" : "text-mention",
     variant === "field" ? "bg-mention/8" : "-mx-[0.2em] hover:bg-mention/10",
     className,
   )
