@@ -1,4 +1,4 @@
-import { plural, t } from "@lingui/core/macro"
+import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { shortDate } from "@/lib/time"
 import { useState } from "react"
@@ -6,7 +6,6 @@ import { PencilIcon } from "lucide-react"
 import { PROXY_PRESETS, proxyFromLink, type ProxyPreset, type ProxySettings } from "@owlit/protocol"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { resumeTask, useLoginTasks } from "@/features/tasks/store"
 import { RpcError } from "@/lib/rpc"
 import { useFoldWhile } from "../form-state"
 import { Group, IconAction, List, Note, Picker, Row } from "../parts"
@@ -131,14 +130,11 @@ function LinkForm({ onDone }: { onDone: () => void }) {
 
 function SignIn({ signedInAt }: { signedInAt?: number }) {
   const [busy, setBusy] = useState(false)
-  // Fetches stopped at the library's sign-in page; they go on once the user has signed in
-  const waiting = useLoginTasks()
   const when = signedInAt ? shortDate(signedInAt) : ""
   const signIn = async () => {
     setBusy(true)
     try {
       await signInToProxy()
-      for (const task of waiting) void resumeTask(task.id).catch(() => undefined)
     } finally {
       setBusy(false)
     }
@@ -149,21 +145,13 @@ function SignIn({ signedInAt }: { signedInAt?: number }) {
       info={t`owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it.`}
       control={
         <>
-          <span className="mr-1 text-detail text-muted-foreground">{busy ? t`Waiting for the sign-in window…` : signedInAt && !waiting.length ? t`Signed in ${when}` : t`Not signed in`}</span>
+          <span className="mr-1 text-detail text-muted-foreground">{busy ? t`Waiting for the sign-in window…` : signedInAt ? t`Signed in ${when}` : t`Not signed in`}</span>
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void signIn()}>
-            {signedInAt && !waiting.length ? t`Sign in again…` : t`Sign in…`}
+            {signedInAt ? t`Sign in again…` : t`Sign in…`}
           </Button>
         </>
       }
     >
-      {waiting.length > 0 && !busy && (
-        <Note tone="bad">
-          {plural(waiting.length, {
-            one: "The library asked for sign-in while fetching a PDF. It continues once you're signed in.",
-            other: "The library asked for sign-in while fetching # PDFs. They continue once you're signed in.",
-          })}
-        </Note>
-      )}
       {busy && <Note>{t`Sign in in the window that opened, then close it.`}</Note>}
     </Row>
   )

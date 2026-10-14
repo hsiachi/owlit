@@ -381,21 +381,15 @@ export interface Methods {
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with noPdf saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
-  // The publisher's page with the user there (Check now): shown where the window reserved room for it
-  // (window.owlit.publisherView), waiting for them to pass a check or sign in. Resolves with the paper
-  // once the run ends; cancelling its task (paper.pdf.check) ends it.
-  "library.checkPublisher": { params: { id: string }; result: Paper }
-  // The paper in the user's own browser (its publisher won't let owlit's through); a PDF of it saved to
-  // their Downloads in the next while becomes its file. The paper comes back with noPdf.inBrowser.
-  "library.openInBrowser": { params: { id: string }; result: Paper }
-  // Papers whose publisher only lets the user's own browser in (noPdf.needs "browser"), got from that
-  // browser one at a time: each PDF's address opened there behind owlit's window, a few seconds apart,
-  // and taken from Downloads as it lands. Joins the run going on, or resumes it when it stopped for the
-  // user. Runs as the task papers.fromBrowser; the papers come back with noPdf.fromBrowser.
+  // Papers owlit couldn't get alone (noPdf), got from the user's own browser one at a time, behind
+  // owlit's window and a few seconds apart: first those whose PDF their browser saves by itself, taken
+  // from Downloads as each lands, then the article pages of the rest, for them to save the PDF from.
+  // Joins the run going on, or resumes it when it stopped for the user. Runs as the task
+  // papers.fromBrowser; the papers come back with noPdf.fromBrowser.
   "library.getInBrowser": { params: { ids: string[] }; result: Paper[] }
   // Brings the user's browser to the front, where a page may be asking them something
   "library.showBrowser": { params: void; result: null }
-  // The user's answer about a downloaded PDF owlit offered (noPdf.inBrowser.offered): take it, or not
+  // The user's answer about a downloaded PDF owlit offered (noPdf.offered): take it, or not
   "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
@@ -523,8 +517,6 @@ export interface OwlitBridge {
   chooseFolder(options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }): Promise<string | null>
   // The system's file picker, showing only files with these extensions (without the dot); null when cancelled
   chooseFile(options: { title: string; message?: string; buttonLabel?: string; extensions: string[] }): Promise<string | null>
-  // Where the publisher's page shows during Check now, in the window's CSS pixels; null takes it away
-  setPublisherView(bounds: { x: number; y: number; width: number; height: number } | null): void
   // A right-click the page leaves to the system's text menu: whether what is selected can be handed to
   // Owlit, so the menu starts with "Ask Owlit". Told synchronously, so the app knows before it draws the menu.
   textMenuAsk(ask: boolean): void

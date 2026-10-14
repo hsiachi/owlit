@@ -16,32 +16,15 @@ export interface LibraryClient {
   fetchPdf(paper: Paper): Promise<Paper["pdf"]>
   // A PDF the user has, as the paper's file
   attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]>
-  // The publisher's page shown to the user (Check now), in the room window.owlit.setPublisherView was
-  // given; resolves with the paper once they're through or have cancelled. Desktop only.
-  checkPublisher?(paper: Paper): Promise<Paper>
-  // The paper in the user's own browser; a PDF of it they save to Downloads soon after becomes its file.
-  // Resolves with the paper (noPdf.inBrowser). Desktop only.
-  openInBrowser?(paper: Paper): Promise<Paper>
-  // The user's answer about a downloaded PDF owlit offered (noPdf.inBrowser.offered)
+  // The user's answer about a downloaded PDF owlit offered (noPdf.offered)
   takeDownload?(paper: Paper, take: boolean): Promise<Paper>
 }
 
-type Needs = NonNullable<NonNullable<Paper["noPdf"]>["needs"]>
-
-// fetchPdf found no PDF because the publisher wants the user first, or isn't letting owlit's browser in,
-// or lets only the user's own browser in
+// fetchPdf found no PDF owlit can get alone: the user's own browser is the way
 export class PublisherNeedsUser extends Error {
-  readonly needs: Needs
-  constructor(needs: Needs) {
-    super(
-      needs === "sign-in"
-        ? t`The publisher wants you to sign in.`
-        : needs === "blocked"
-          ? t`The publisher isn't letting owlit in.`
-          : needs === "browser"
-            ? t`ACM gives this PDF to your browser.`
-            : t`The publisher wants a quick check.`,
-    )
+  readonly needs: "browser"
+  constructor(needs: "browser") {
+    super(t`Your browser can get this PDF.`)
     this.name = "PublisherNeedsUser"
     this.needs = needs
   }

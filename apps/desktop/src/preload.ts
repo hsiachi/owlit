@@ -20,7 +20,6 @@ const bridge: OwlitBridge = {
   pathForFile: (file) => webUtils.getPathForFile(file as File),
   // Asked once, synchronously, so the first frame already leaves the right room
   controlsRoom: ipcRenderer.sendSync("controls-room") as number,
-  setPublisherView: (bounds) => ipcRenderer.send("publisher-view", bounds),
   chooseFolder: (options) => ipcRenderer.invoke("choose-folder", options) as Promise<string | null>,
   chooseFile: (options) => ipcRenderer.invoke("choose-file", options) as Promise<string | null>,
   onControlsRoom(listener) {

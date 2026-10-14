@@ -46,20 +46,21 @@ export interface Paper {
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
-  // whether the publisher's page wants the user for it (a check that a person is there, a sign-in), or
-  // the site isn't letting owlit's browser through and the user's own browser is the way (blocked), or
-  // the publisher only ever hands its PDFs to the user's own browser, which owlit can open at the PDF
-  // itself (browser: the ACM)
+  // whether the user's own browser is the way (browser): the publisher's page wanted a person (a check,
+  // a sign-in), or the publisher lets only that browser in (the ACM)
   noPdf?: {
     tried: string[]
     at: number
-    needs?: "check" | "sign-in" | "blocked" | "browser"
-    // Opened in the user's own browser: until when owlit looks for its PDF in their Downloads, and a
-    // downloaded PDF (file name) it isn't sure is this paper's, for them to confirm
-    inBrowser?: { until: number; offered?: string }
+    needs?: "browser"
+    // What owlit opens in the user's browser for it: the PDF, which their browser saves by itself, or
+    // the article page, where they save it
+    browserOpens?: "pdf" | "page"
     // Being got from the user's browser (library.getInBrowser): waiting its turn, opened there and
-    // waiting for the file, or opened with nothing arriving; browser is that browser's name
-    fromBrowser?: { state: "queued" | "opened" | "missed"; browser?: string }
+    // waiting for the file, its article page opened there for them to save the PDF from, or opened with
+    // nothing arriving; browser is that browser's name
+    fromBrowser?: { state: "queued" | "opened" | "page" | "missed"; browser?: string }
+    // A PDF that arrived in Downloads (file name) owlit isn't sure is this paper's, for them to confirm
+    offered?: string
   }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers

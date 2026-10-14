@@ -29,9 +29,9 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { appendFile, copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { NeedsUser, Refused, type BrowserHost } from "../host.ts"
+import { NeedsUser, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
-import { browserRoutes, ownBrowserUrl, siteOf, throughProxy } from "./browser-routes.ts"
+import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
 import { DownloadWatch } from "./downloads.ts"
 import { Publishers } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -92,7 +92,7 @@ const SETTLE_MS = 300
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
 // The steps that find a paper's PDF or read it: a PDF the user puts in stops them
-const PDF_STEPS = ["paper.pdf", "paper.pdf.browser", "paper.pdf.check", "paper.parse", "paper.figures"]
+const PDF_STEPS = ["paper.pdf", "paper.pdf.browser", "paper.parse", "paper.figures"]
 
 // Getting PDFs from the user's own browser (getInBrowser): one run at a time, for whichever papers
 const FROM_BROWSER = "papers.fromBrowser"
@@ -189,7 +189,7 @@ export class Library {
   // Papers being got from the user's browser, in their turn, and what each is doing; when the last
   // was opened there; that browser's name, for saying what it may be asking; a placed PDF ends a wait
   private browserQueue: string[] = []
-  private fromBrowser = new Map<string, "queued" | "opened" | "missed">()
+  private fromBrowser = new Map<string, "queued" | "opened" | "page" | "missed">()
   private browserOpenedAt = 0
   private browserRunning = false
   private browserLabel: string | undefined
@@ -264,27 +264,23 @@ export class Library {
       const tried = acquisition?.tried.filter((t) => !t.error?.startsWith("Not tried")).map((t) => t.route)
       if (acquisition?.result === "no_pdf") {
         paper.noPdf = { tried: [...new Set(tried)], at: acquisition.at }
-        if (acquisition.needs) paper.noPdf.needs = await this.needsOf(acquisition.needs, record.ids.doi)
-        const from = this.fromBrowser.get(id)
+        // Whatever the publisher's page wanted (a check, a sign-in) or a publisher that lets only the
+        // user's browser in, the way is the same: their own browser
+        if (acquisition.needs) paper.noPdf.needs = "browser"
+        if (record.ids.doi) paper.noPdf.browserOpens = yourBrowser(record.ids.doi, acquisition.needs?.host).opens
+        let from = this.fromBrowser.get(id)
+        // An article page opened for the user is looked for in Downloads a while; after that it is just
+        // a paper waiting again
+        if (from === "page" && !this.downloadWatch?.until(id)) {
+          this.fromBrowser.delete(id)
+          from = undefined
+        }
         if (from) paper.noPdf.fromBrowser = { state: from, ...(this.browserLabel ? { browser: this.browserLabel } : {}) }
-        const until = this.downloadWatch?.until(id)
         const offered = this.offered.get(id)
-        if (until || offered) paper.noPdf.inBrowser = { until: until ?? Date.now(), ...(offered ? { offered: path.basename(offered) } : {}) }
+        if (offered) paper.noPdf.offered = path.basename(offered)
       }
     }
     return paper
-  }
-
-  // What a publisher's note asks of the user. A site that refused owlit's browser after a check was
-  // passed asks for the user's own browser, for as long as it is held, whichever paper found it out.
-  // A publisher that lets only the user's browser in asks for it always, also on a paper noted before
-  // owlit knew that (a check or a refusal at the ACM).
-  private async needsOf(needs: NonNullable<Acquisition["needs"]>, doi: string | undefined): Promise<NonNullable<Paper["noPdf"]>["needs"]> {
-    if (needs.reason === "login") return "sign-in"
-    if (needs.reason === "browser" || (doi && ownBrowserUrl(doi, needs.host))) return "browser"
-    const hold = needs.host ? await this.publishers.held(siteOf(needs.host)) : undefined
-    // Once the hold is over, a refusal is just a check again: the next Check now may pass
-    return hold?.reason === "refused" ? "blocked" : "check"
   }
 
   // ---- Looking up
@@ -636,19 +632,6 @@ export class Library {
     return paper
   }
 
-  // The publisher's page with the user there (Check now); waits for the run, which the user ends by
-  // passing the check, signing in, or cancelling its task
-  async checkPublisher(id: string): Promise<Paper> {
-    if (!(await readRecord(this.root, id))) throw notFound(id)
-    if (!this.scheduler?.knows("paper.pdf.check")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't open publishers' pages here.`)
-    const task = await this.scheduler.run("paper.pdf.check", id, "asked")
-    // Under the library's lock, as in fetchPdf
-    const paper = await this.serial(() => this.get(id))
-    if (!paper) throw notFound(id)
-    if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? t`owlit couldn't open the publisher's page.`)
-    return paper
-  }
-
   // How well the paper's text was read: full (MinerU, now or from pitta) or basic (pdfium only).
   // Read from which files exist, not from text.json, which can be large.
   private async textQuality(id: string): Promise<Paper["text"]> {
@@ -741,13 +724,13 @@ export class Library {
     })
   }
 
-  // The publisher's page in a browser, directly and then through the library's proxy. Nobody looking
-  // (paper.pdf.browser), a page that wants a person is noted in acquisition.json for Check now, and its
-  // site is held: owlit doesn't go back on its own until the hold is over or the user got through
-  // there. Unattended visits to one site are spaced out (publishers.ts). With the user there
-  // (paper.pdf.check), it waits for them, once per site.
-  private browserTask(browser: BrowserHost, kind: string, withUser: boolean) {
-    return defineTask(kind, {
+  // The publisher's page in owlit's hidden browser, directly and then through the library's proxy, with
+  // nobody looking. A page that wants a person (a check, a sign-in) is noted in acquisition.json, and the
+  // paper waits for the user's own browser (getInBrowser); a check also holds the site: owlit doesn't
+  // go back on its own until the hold is over. Unattended visits to one site are spaced out
+  // (publishers.ts). A publisher that lets only the user's browser in isn't visited at all.
+  private browserTask(browser: BrowserHost) {
+    return defineTask("paper.pdf.browser", {
       lane: "browser",
       retries: 0,
       run: async (ctx) => {
@@ -762,23 +745,21 @@ export class Library {
         const registered = await registeredUrl(this.services.http, record.ids.doi, ctx.signal)
         const routes = browserRoutes(record.ids.doi, settings.proxy, registered)
         const { sites } = routes[0]
-        // A publisher that lets only the user's own browser in isn't visited, with them there or not: the
-        // paper waits for them to get it there (getInBrowser)
-        const own = routes[0].ownBrowser
-        if (own) {
+        if (routes[0].browserOnly) {
           if (previous?.result === "no_pdf" && previous.needs?.reason === "browser") return
-          tried.push({ route: routes[0].name, url: own, error: `Not tried: ${hostOf(own)} only lets your own browser in.`, at: Date.now() })
-          needs = { reason: "browser", route: routes[0].name, at: Date.now(), host: hostOf(own), url: own }
+          const host = hostOf(routes[0].landing)
+          tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${host} only lets your own browser in.`, at: Date.now() })
+          needs = { reason: "browser", route: routes[0].name, at: Date.now(), host }
           const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
           if (noted) await this.announce([id])
           return
         }
         // The user waiting on this very paper (Find PDF, Try again) gets one visit now; everything else
         // keeps to the site's hold and its turn
-        if (!withUser && ctx.task.priority !== "waiting") {
+        if (ctx.task.priority !== "waiting") {
           const hold = await this.publishers.heldAny(sites)
           if (hold) {
-            // Noted for Check now without a visit; a paper already noted stays as it is
+            // Noted for the user's browser without a visit; a paper already noted stays as it is
             if (previous?.result === "no_pdf" && previous.needs) return
             tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${hold.site} asked for a person recently.`, at: Date.now() })
             needs = { reason: hold.reason, route: routes[0].name, at: Date.now(), host: hold.site }
@@ -790,8 +771,6 @@ export class Library {
           if (wait > 0) ctx.later(wait)
         }
         for (const site of sites) this.publishers.visited(site)
-        // Each site asks the user once in this run, whichever route it comes up on
-        const askedSites = new Set<string>()
         // Sites that just turned an unattended visit away: the proxy leading back to one is stopped
         const avoid: string[] = []
         for (const route of routes) {
@@ -804,22 +783,9 @@ export class Library {
               pdfOnPageHost: proxied,
               proxyHost: proxied && settings.proxy ? hostOf(settings.proxy.base) : undefined,
               allowHosts: route.allowHosts,
-              avoidSites: withUser ? undefined : [...avoid],
-              askedSites,
+              avoidSites: [...avoid],
               signal: ctx.signal,
-              withUser,
-              needUser: async (reason, detail, settled) => {
-                if (proxied && reason === "login") this.services.proxySignedIn?.(false)
-                const waiting = ctx.waitForUser(reason, detail)
-                // The page moved on (check passed, signed in): the task goes on
-                settled.then(
-                  () => this.scheduler?.resume(ctx.task.id),
-                  () => this.scheduler?.resume(ctx.task.id),
-                )
-                await waiting
-                await settled
-              },
-              report: (event) => void this.publishers.log({ paper: id, route: route.name, withUser, ...event }),
+              report: (event) => void this.publishers.log({ paper: id, route: route.name, ...event }),
             })
             if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
@@ -835,11 +801,10 @@ export class Library {
             })
             for (const next of ["paper.text", "index.paper"]) this.queue(next, id, ctx.task.priority)
             await this.announce([id])
-            // The site let owlit through (the user got past it, or a run they waited on did): its hold
-            // is over, and its other papers that wanted the user may now come unattended (their turns
-            // spaced out)
-            const passed = new Set([...askedSites, ...sites, ...(previous?.needs?.host ? [siteOf(previous.needs.host)] : [])])
-            if (withUser || (await this.publishers.heldAny([...passed]))) {
+            // The site let owlit through (a run the user waited on): its hold is over, and its other papers
+            // that waited for the user may now come unattended (their turns spaced out)
+            const passed = new Set([...sites, ...(previous?.needs?.host ? [siteOf(previous.needs.host)] : [])])
+            if (await this.publishers.heldAny([...passed])) {
               for (const site of passed) await this.publishers.release(site)
               await this.retrySites(passed, id)
             }
@@ -848,20 +813,15 @@ export class Library {
             if (ctx.signal.aborted) throw error
             if (proxied && error instanceof NeedsUser && error.reason === "login") this.services.proxySignedIn?.(false)
             tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
-            if (error instanceof Refused) {
-              // Passed and asked again: the site isn't letting owlit's browser through for now
-              await this.publishers.hold(siteOf(error.host), "refused")
-              needs = { reason: "refused", route: route.name, at: Date.now(), host: error.host }
-              break
-            }
             if (error instanceof NeedsUser) {
-              needs ??= { reason: error.reason, route: route.name, at: Date.now(), ...(error.host ? { host: error.host } : {}) }
-              if (!withUser && error.reason === "challenge" && error.host) {
+              // The proxy's own sign-in stands for the publisher behind it: noted as the publisher's, so
+              // the user's browser is sent to that publisher (through the proxy) and not to the proxy
+              const host = proxied && error.reason === "login" ? hostOf(routes[0].landing) : error.host
+              needs ??= { reason: error.reason, route: route.name, at: Date.now(), ...(host ? { host } : {}) }
+              if (error.reason === "challenge" && error.host) {
                 await this.publishers.hold(siteOf(error.host), "challenge")
                 avoid.push(siteOf(error.host))
               }
-              // With the user, it means they went away: the next route would only wait for them again
-              if (withUser) break
             }
           }
         }
@@ -1084,23 +1044,6 @@ export class Library {
     })
   }
 
-  // The paper in the user's own browser, for a publisher that won't let owlit's through: a PDF of it
-  // that lands in their Downloads folder in the next while becomes its file. On campus the library
-  // proxy passes straight through; off campus it is how the browser gets the subscription.
-  async openInBrowser(id: string): Promise<Paper> {
-    const record = await readRecord(this.root, id)
-    if (!record) throw notFound(id)
-    const open = this.services.openExternal
-    if (!open) throw new RpcFailure(RpcErrorCode.Unavailable, t`Opening your browser needs the owlit desktop app.`)
-    const { doi, arxiv } = record.ids
-    const address = doi ? `https://doi.org/${doi}` : arxiv ? `https://arxiv.org/abs/${arxiv}` : undefined
-    if (!address) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit doesn't know where this paper lives online.`)
-    const proxy = (await this.services.settings()).proxy
-    this.watchDownloads()?.watch({ id, doi, title: record.title })
-    await open(doi && proxy?.base ? throughProxy(address, proxy) : address)
-    return (await this.get(id))!
-  }
-
   private watchDownloads() {
     const dir = this.services.downloadsDir?.()
     if (!dir) return undefined
@@ -1108,7 +1051,7 @@ export class Library {
     return this.downloadWatch
   }
 
-  // Papers whose publisher lets only the user's own browser in, got from that browser in turn (the
+  // Papers owlit looked for and couldn't get alone, got from the user's own browser in turn (the
   // papers.fromBrowser task): ones already waiting keep their place, one that came to nothing goes again
   // after them. A run stopped for the user goes on.
   async getInBrowser(ids: string[]): Promise<Paper[]> {
@@ -1119,7 +1062,7 @@ export class Library {
     for (const id of ids) {
       const record = await readRecord(this.root, id)
       if (!record) throw notFound(id)
-      if ((await hasPdfFile(this.root, id)) || !(await this.ownBrowserAddress(id, record))) continue
+      if ((await hasPdfFile(this.root, id)) || !(await this.addressFor(id, record))) continue
       taken.push(id)
     }
     // Added to the queue together, with nothing awaited between, so a run can't end in the middle
@@ -1153,17 +1096,40 @@ export class Library {
     }
   }
 
-  // Where the user's browser gets this paper's PDF, for a publisher that lets only that browser in
-  private async ownBrowserAddress(id: string, record: PaperRecord) {
+  // Where the user's browser goes for this paper (its PDF, or its article page), through the library's
+  // proxy when there is one; only for a paper owlit looked for and didn't get
+  private async addressFor(id: string, record: PaperRecord): Promise<YourBrowser | undefined> {
     if (!record.ids.doi) return undefined
     const acquisition = await readAcquisition(this.root, id)
     if (acquisition?.result !== "no_pdf") return undefined
-    return acquisition.needs?.url ?? ownBrowserUrl(record.ids.doi, acquisition.needs?.host)
+    return yourBrowser(record.ids.doi, acquisition.needs?.host, (await this.services.settings()).proxy)
   }
 
-  // Opens each queued paper's PDF in the user's browser behind owlit's window and waits for the file to
-  // land in Downloads. Two in a row that don't come stop the run until the user has looked at their
-  // browser (Safari asks once per site whether it may download files; a check may want a click).
+  // The queued paper to open next: one whose PDF the browser saves by itself before any article page,
+  // which waits on the user. Papers that got a PDF meanwhile leave the queue.
+  private async nextFromBrowser() {
+    let page: { id: string; record: PaperRecord; address: YourBrowser } | undefined
+    for (const id of [...this.browserQueue]) {
+      const record = await readRecord(this.root, id)
+      const address = record && !(await hasPdfFile(this.root, id)) ? await this.addressFor(id, record) : undefined
+      if (!record || !address) {
+        this.browserQueue.splice(this.browserQueue.indexOf(id), 1)
+        this.fromBrowser.delete(id)
+        continue
+      }
+      if (address.opens === "pdf") return { id, record, address }
+      page ??= { id, record, address }
+    }
+    return page
+  }
+
+  // Opens each queued paper in the user's browser behind owlit's window, one at a time and a while
+  // apart. A PDF the browser saves by itself is waited for until it lands in Downloads; an article page
+  // is left open for the user to save the PDF from, and Downloads is watched for it a while. A site whose
+  // first two PDFs in the run don't come stops the run until the user has looked at their browser:
+  // it is likely asking something (Safari asks once per site whether it may download files; a check
+  // may want a click; the library's proxy, a sign-in). Once a site has given a PDF, a paper of it that
+  // doesn't come is one the user has no access to, and the run goes on.
   private fromBrowserTask(open: NonNullable<LibraryServices["openExternal"]>) {
     return defineTask(FROM_BROWSER, {
       // Not the browser lane: owlit's own hidden browser shouldn't hold up what the user just asked for
@@ -1175,45 +1141,55 @@ export class Library {
         this.browserRunning = true
         this.browserLabel = await this.services.browserName?.().catch(() => undefined)
         let done = 0
-        let missedInARow = 0
+        let current: string | undefined
+        const gave = new Set<string>()
+        const missed = new Map<string, number>()
         try {
-          while (this.browserQueue.length) {
-            const id = this.browserQueue[0]
+          for (;;) {
+            const next = await this.nextFromBrowser()
+            if (!next) break
+            const { id, record, address } = next
             ctx.progress(done, done + this.browserQueue.length)
-            const record = await readRecord(this.root, id)
-            const url = record && !(await hasPdfFile(this.root, id)) ? await this.ownBrowserAddress(id, record) : undefined
-            let came = true
-            if (record && url) {
-              await sleep(Math.max(0, this.browserOpenedAt + openGap() - Date.now()), ctx.signal)
-              const arrived = new Promise<void>((resolve) => this.arrivals.set(id, resolve))
-              watch.watch({ id, doi: record.ids.doi, title: record.title })
-              this.fromBrowser.set(id, "opened")
+            current = id
+            this.browserQueue.splice(this.browserQueue.indexOf(id), 1)
+            await sleep(Math.max(0, this.browserOpenedAt + openGap() - Date.now()), ctx.signal)
+            watch.watch({ id, doi: record.ids.doi, title: record.title })
+            if (address.opens === "page") {
+              this.fromBrowser.set(id, "page")
               await this.announce([id])
               this.browserOpenedAt = Date.now()
-              await open(url, { background: true })
-              came = await this.arrival(arrived, ctx.signal)
-              this.arrivals.delete(id)
+              await open(address.url, { background: true })
+              done++
+              continue
             }
-            this.browserQueue.shift()
+            const arrived = new Promise<void>((resolve) => this.arrivals.set(id, resolve))
+            this.fromBrowser.set(id, "opened")
+            await this.announce([id])
+            this.browserOpenedAt = Date.now()
+            await open(address.url, { background: true })
+            const came = await this.arrival(arrived, ctx.signal)
+            this.arrivals.delete(id)
             done++
             if (came) {
               this.fromBrowser.delete(id)
-              missedInARow = 0
-            } else {
-              this.fromBrowser.set(id, "missed")
-              await this.announce([id])
-              missedInARow++
+              gave.add(address.site)
+              continue
             }
-            if (missedInARow >= 2 && this.browserQueue.length) {
+            this.fromBrowser.set(id, "missed")
+            await this.announce([id])
+            const misses = (missed.get(address.site) ?? 0) + 1
+            missed.set(address.site, misses)
+            if (!gave.has(address.site) && misses >= 2 && this.browserQueue.length) {
               ctx.progress(done, done + this.browserQueue.length)
               const browser = this.browserLabel
+              const site = address.site
               await ctx.waitForUser(
                 "browser",
                 browser
-                  ? t`${browser} may be asking you something: ACM's check, or whether dl.acm.org may download files.`
-                  : t`Your browser may be asking you something: ACM's check, or whether dl.acm.org may download files.`,
+                  ? t`${browser} may be asking you something: a check, a sign-in, or whether ${site} may download files.`
+                  : t`Your browser may be asking you something: a check, a sign-in, or whether ${site} may download files.`,
               )
-              missedInARow = 0
+              missed.set(address.site, 0)
             }
           }
         } finally {
@@ -1221,6 +1197,7 @@ export class Library {
           // Stopped: the papers that hadn't had their turn are as they were before (the one opened last
           // is still looked for in Downloads a while)
           const left = this.browserQueue.splice(0)
+          if (current && this.fromBrowser.get(current) === "opened") left.push(current)
           for (const id of left) if (this.fromBrowser.get(id) !== "missed") this.fromBrowser.delete(id)
           for (const id of left) this.arrivals.delete(id)
           if (left.length) void this.announce(left)
@@ -1373,6 +1350,9 @@ export class Library {
     this.pdfHashes?.set(sha, id)
     for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, priority)
     this.arrivals.get(id)?.()
+    // Saved from a page owlit opened, or after it didn't come: nothing left to wait for
+    const state = this.fromBrowser.get(id)
+    if (state === "page" || state === "missed") this.fromBrowser.delete(id)
   }
 
   // The paper whose PDF is this file, by its SHA-256 (kept in acquisition.json, or worked out once)
@@ -1723,10 +1703,10 @@ export class Library {
           await this.announce([id])
         },
       }),
-      // The publisher's page in the hidden browser, directly and then through the library's proxy. A
-      // challenge or a sign-in form shows the window and waits for the user (5 minutes at most).
+      // The publisher's page in the hidden browser, directly and then through the library's proxy, with
+      // nobody looking
       ...(this.services.browser
-        ? [this.browserTask(this.services.browser, "paper.pdf.browser", false), this.browserTask(this.services.browser, "paper.pdf.check", true)]
+        ? [this.browserTask(this.services.browser)]
         : []),
       // The user's own browser, for publishers that let only it in
       ...(this.services.openExternal ? [this.fromBrowserTask(this.services.openExternal)] : []),

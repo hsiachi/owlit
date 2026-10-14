@@ -5,7 +5,7 @@ import { cancelTask, resumeTask } from "@/features/tasks/store"
 import { getInBrowser, showBrowser, useFromBrowserRun, useWaitingForBrowser } from "../from-browser"
 import { useLibraryUi } from "../ui-store"
 
-// Getting the ACM's PDFs from the user's own browser, in the import's place at the top of the Library and
+// Getting PDFs from the user's own browser, in the import's place at the top of the Library and
 // on the same ladder (DESIGN.md): while it runs, one quiet grey line with how far it has got and Stop;
 // stopped on the user, the amber dot and what their browser may be asking, with Show browser and
 // Continue. Under Needs you, with no run going, the dot again with the papers waiting for it and Get them.
@@ -42,12 +42,12 @@ export function FromBrowserLine() {
       )
     } else {
       mark = <LoaderCircleIcon className="size-3.5 animate-spin" />
-      words = t`Getting ACM PDFs in your browser · ${done} of ${total}`
+      words = t`Getting PDFs in your browser · ${done} of ${total}`
       actions = stop
     }
   } else {
     mark = <span className="size-2 rounded-full bg-warning" />
-    words = plural(waiting.length, { one: "# ACM paper waits for your browser", other: "# ACM papers wait for your browser" })
+    words = plural(waiting.length, { one: "# paper waits for your browser", other: "# papers wait for your browser" })
     actions = (
       <Button variant="text" size="inline" onClick={() => void getInBrowser(waiting.map((p) => p.id))}>
         {plural(waiting.length, { one: "Get it", other: "Get them" })}

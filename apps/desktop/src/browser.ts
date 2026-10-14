@@ -1,29 +1,24 @@
 // The browser core uses for publishers that hand a PDF only to a real browser, in one persistent
-// session (cookies and library logins survive restarts). Nobody looking, it works in a window that is
-// never shown and only visits the hosts it was told about; a page that wants a person ends that run
-// (core notes it for Check now). With the user there, the page shows inside owlit's own window, in the
-// room the renderer reserved for it, and waits for them.
+// session (cookies and library logins survive restarts). It works in a window that is never shown and
+// only visits the hosts it was told about; a page that wants a person ends the run, and core leaves the
+// paper to the user's own browser.
 //
 // It goes about it as a reader would, so sites have no reason to take it for a script: the PDF is
 // opened from the article page, as a click on its link opens it, and saved from that one response;
 // a site that asks for a person and asks again once that was done is left alone (2026-10-13: Cloudflare
-// in front of ScienceDirect and the ACM put up a new check every time the old one was passed, five
-// times in one Check now).
+// in front of ScienceDirect and the ACM put up a new check every time the old one was passed).
 
 import { t } from "@lingui/core/macro"
-import { NeedsUser, pdfLinkOn, Refused, siteOf, type BrowserHost, type BrowserRequest } from "@owlit/core"
-import { app, BrowserWindow, session as electronSession, WebContentsView, type DownloadItem, type Rectangle, type WebContents } from "electron"
+import { NeedsUser, pdfLinkOn, siteOf, type BrowserHost, type BrowserRequest } from "@owlit/core"
+import { app, BrowserWindow, session as electronSession, type DownloadItem, type WebContents } from "electron"
 import { readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
 const PARTITION = "persist:owlit-browser"
 const LOAD_TIMEOUT_MS = 60_000
-// Nobody looking: how long a check may take to pass by itself (Cloudflare's often does)
+// How long a check may take to pass by itself (Cloudflare's often does)
 const SETTLE_MS = 20_000
-// With the user: how long the page may be out of sight (the renderer reloaded, the paper was left
-// without a goodbye) before the run gives up on them
-const AWAY_MS = 30_000
 // A page without citation_pdf_url: how long its own PDF link may take to appear
 const PDF_LINK_WAIT_MS = 15_000
 // Opening the PDF: how long the page may stay put without a download starting before it counts as no
@@ -52,12 +47,7 @@ const PAGE_PROBE = `(() => {
 
 type PageState = "ok" | "challenge" | "login"
 
-export interface PublisherBrowser extends BrowserHost {
-  // Where the renderer of `owner` wants the page shown during Check now; null takes it away
-  setView(owner: BrowserWindow, bounds: Rectangle | null): void
-}
-
-export function createBrowserHost(): PublisherBrowser {
+export function createBrowserHost(): BrowserHost {
   let hidden: BrowserWindow | null = null
   // Quitting closes it for real; otherwise its close handler would stop the app from quitting
   let quitting = false
@@ -70,19 +60,6 @@ export function createBrowserHost(): PublisherBrowser {
   let avoided: string[] = []
   let stopped: { host: string; avoided: boolean } | undefined
 
-  // The page the user sees during Check now, and where it goes
-  let view: WebContentsView | null = null
-  let place: { owner: BrowserWindow; bounds: Rectangle } | null = null
-  let shownIn: BrowserWindow | null = null
-  // A Check now run is using the view
-  let active = false
-  // Told when the view has been out of sight for AWAY_MS during a run
-  const away = new Set<() => void>()
-  let awayTimer: ReturnType<typeof setTimeout> | undefined
-  // The view stayed out of sight that long: a check or a sign-in asked for later in the run ends it too
-  let wentAway = false
-  // Windows whose page reloads take the view away
-  const watched = new WeakSet<BrowserWindow>()
   // Downloads go to the run working in that page; one nobody waits for isn't saved
   const downloads = new Map<number, (item: DownloadItem) => void>()
   let sessionReady = false
@@ -106,8 +83,7 @@ export function createBrowserHost(): PublisherBrowser {
     })
   }
 
-  // The PDF this page downloads during a run, whoever started it (owlit, or the user clicking the
-  // page's own link during Check now)
+  // The PDF this page downloads during a run
   function catchPdf(contents: WebContents) {
     let resolve!: (bytes: Uint8Array) => void
     const pdf = new Promise<Uint8Array>((r) => (resolve = r))
@@ -177,58 +153,16 @@ export function createBrowserHost(): PublisherBrowser {
     return hidden
   }
 
-  const shownView = () => {
-    if (!view || view.webContents.isDestroyed()) {
-      view = new WebContentsView({ webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true } })
-      view.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
-    }
-    placeView()
-    return view
-  }
-
-  // Puts the view where the renderer last asked, or takes it away
-  function placeView() {
-    if (!view) return
-    const target = active && place && !place.owner.isDestroyed() ? place : null
-    if (shownIn && shownIn !== target?.owner && !shownIn.isDestroyed()) shownIn.contentView.removeChildView(view)
-    if (!target) {
-      if (shownIn && process.env.OWLIT_LOG_BROWSER) console.log("[publisher-view] removed")
-      shownIn = null
-      if (active && !awayTimer && !wentAway) {
-        awayTimer = setTimeout(() => {
-          awayTimer = undefined
-          wentAway = true
-          away.forEach((tell) => tell())
-        }, AWAY_MS)
-      }
-      return
-    }
-    clearTimeout(awayTimer)
-    awayTimer = undefined
-    wentAway = false
-    if (shownIn !== target.owner) target.owner.contentView.addChildView(view)
-    view.setBounds(target.bounds)
-    shownIn = target.owner
-    if (process.env.OWLIT_LOG_BROWSER) console.log("[publisher-view]", JSON.stringify(target.bounds))
-  }
-
   async function fetchPdf(request: BrowserRequest): Promise<Uint8Array> {
     prepareSession()
-    let contents: WebContents
-    if (request.withUser) {
-      active = true
-      wentAway = false
-      contents = shownView().webContents
-    } else {
-      contents = hiddenWindow().webContents
-      allowed = request.allowHosts
-      avoided = request.avoidSites ?? []
-    }
+    const contents = hiddenWindow().webContents
+    allowed = request.allowHosts
+    avoided = request.avoidSites ?? []
     stopped = undefined
     // OWLIT_LOG_BROWSER: where a run's time goes
     const started = Date.now()
     const trace = (step: string) => process.env.OWLIT_LOG_BROWSER && console.log(`[publisher] +${((Date.now() - started) / 1000).toFixed(1)}s ${step} ${contents.getURL()}`)
-    const run: Run = { asked: request.askedSites ?? new Set(), cleared: new Set() }
+    const run: Run = { cleared: new Set() }
     // The run's own signal: ended once the PDF is in, however it came
     const done = new AbortController()
     const signal = AbortSignal.any([request.signal, done.signal])
@@ -264,14 +198,6 @@ export function createBrowserHost(): PublisherBrowser {
       signal.removeEventListener("abort", abort)
       contents.off("did-navigate", opened)
       caught.dispose()
-      if (request.withUser) {
-        active = false
-        placeView()
-        clearTimeout(awayTimer)
-        awayTimer = undefined
-        // Out of sight, the publisher's page would keep running its scripts until quit
-        if (!contents.isDestroyed()) void contents.loadURL("about:blank").catch(() => undefined)
-      }
     }
   }
 
@@ -290,16 +216,15 @@ export function createBrowserHost(): PublisherBrowser {
         open()
         bytes = await pdfWithin(contents, request, caught)
       }
-      // A check back again ends the run here (NeedsUser, Refused)
+      // A check back again ends the run here (NeedsUser)
       if (!bytes) await waitUntilClear(contents, request, run)
     }
     if (!bytes) throw new Error(`${hostOf(url)} didn't give a PDF to this reader.`)
     return bytes
   }
 
-  // A check or a sign-in: nobody looking, give it a moment to pass by itself and otherwise end the run;
-  // with the user there, wait for them. Either way a check that comes back once it was passed is
-  // final: waiting or asking again only repeats it.
+  // A check or a sign-in: give it a moment to pass by itself and otherwise end the run. A check that
+  // comes back once it was passed is final: waiting again only repeats it.
   async function waitUntilClear(contents: WebContents, request: BrowserRequest, run: Run) {
     for (let round = 0; round < 3; round++) {
       request.signal.throwIfAborted()
@@ -308,67 +233,25 @@ export function createBrowserHost(): PublisherBrowser {
       const host = hostOf(contents.getURL())
       const site = siteOf(host)
       request.report?.({ kind: "asked", host, reason: state })
-      if (!request.withUser) {
-        if (run.cleared.has(site)) {
-          request.report?.({ kind: "back", host })
-          throw new NeedsUser(state, host)
-        }
-        await untilClear(contents, request, SETTLE_MS).catch((error) => {
-          if (request.signal.aborted) throw error
-          throw new NeedsUser(state, host)
-        })
-        run.cleared.add(site)
-        request.report?.({ kind: "cleared", host, by: "itself" })
-        await settle(contents, request)
-        continue
-      }
-      // The page out of sight too long ends the run; core keeps the note for the next Check now
-      if (wentAway) throw new NeedsUser(state, host)
-      // A sign-in may take several pages; a check asked of the user once is enough
-      if (state === "challenge" && run.asked.has(site)) {
+      if (run.cleared.has(site)) {
         request.report?.({ kind: "back", host })
-        throw new Refused(host)
+        throw new NeedsUser(state, host)
       }
-      if (state === "challenge") run.asked.add(site)
-      let left: () => void = () => {}
-      const gone = new Promise<never>((_, reject) => (left = () => reject(new NeedsUser(state, host))))
-      away.add(left)
-      try {
-        await request.needUser(
-          state,
-          state === "login" ? t`Sign in to the library or publisher on the page.` : t`The publisher wants to check this is a person.`,
-          Promise.race([untilClear(contents, request), gone]),
-        )
-      } finally {
-        away.delete(left)
-      }
-      request.report?.({ kind: "cleared", host, by: "user" })
-      // Past the check the page goes on to the article: let it arrive before looking for the PDF
-      // (2026-10-11: read the moment the user got through, a SAGE page had no PDF link)
+      await untilClear(contents, request, SETTLE_MS).catch((error) => {
+        if (request.signal.aborted) throw error
+        throw new NeedsUser(state, host)
+      })
+      run.cleared.add(site)
+      request.report?.({ kind: "cleared", host, by: "itself" })
       await settle(contents, request)
     }
     const state = await pageState(contents, request)
     if (state === "ok") return
-    const host = hostOf(contents.getURL())
-    throw request.withUser && state === "challenge" ? new Refused(host) : new NeedsUser(state, host)
+    throw new NeedsUser(state, hostOf(contents.getURL()))
   }
 
   return {
     fetchPdf,
-    setView(owner, bounds) {
-      place = bounds ? { owner, bounds } : null
-      placeView()
-      // A reload of owlit's page runs no goodbyes: take the view away when one starts
-      if (!watched.has(owner)) {
-        watched.add(owner)
-        owner.webContents.on("did-start-navigation", (details) => {
-          if (details.isMainFrame && !details.isSameDocument && place?.owner === owner) {
-            place = null
-            placeView()
-          }
-        })
-      }
-    },
     async showLogin(url) {
       const w = hiddenWindow()
       await w.loadURL(url).catch(() => undefined)
@@ -511,10 +394,8 @@ async function pdfWithin(contents: WebContents, request: BrowserRequest, caught:
   return caught.busy() ? caught.pdf : undefined
 }
 
-// What one run has seen: sites whose check the user was asked to pass, and checks that passed by
-// themselves
+// What one run has seen: checks that passed by themselves
 interface Run {
-  asked: Set<string>
   cleared: Set<string>
 }
 

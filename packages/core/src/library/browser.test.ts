@@ -5,10 +5,10 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, onTestFinished } from "vitest"
 import { Core } from "../core.ts"
-import { NeedsUser, Refused, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
+import { NeedsUser, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
 import { makePdf } from "./text/make-pdf.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, ownBrowserUrl, pdfLinkOn, siteOf, throughProxy } from "./browser-routes.ts"
+import { browserRoutes, pdfLinkOn, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
 
@@ -20,18 +20,33 @@ describe("browser routes", () => {
       ["browser:sage:proxied", "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/0956797620904990", "https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990"],
     ])
     expect(routes[1].allowHosts).toContain("tlink.lib.tsinghua.edu.cn")
-    expect(routes[0].ownBrowser).toBeUndefined()
+    expect(routes[0].browserOnly).toBeUndefined()
     expect(browserRoutes("10.9999/x", undefined)).toMatchObject([{ name: "browser:doi", landing: "https://doi.org/10.9999/x" }])
   })
 
-  it("leaves the ACM to the user's own browser, at the PDF itself", () => {
+  it("leaves the ACM to the user's own browser alone", () => {
     const routes = browserRoutes("10.1145/3613904.3642549", { base: "https://tlink.lib.tsinghua.edu.cn/", scheme: "login-url", path: "/go" })
     expect(routes).toHaveLength(1)
-    expect(routes[0]).toMatchObject({ name: "browser:acm", ownBrowser: "https://dl.acm.org/doi/pdf/10.1145/3613904.3642549?download=true" })
-    expect(ownBrowserUrl("10.1145/3613904.3642549")).toBe("https://dl.acm.org/doi/pdf/10.1145/3613904.3642549?download=true")
+    expect(routes[0]).toMatchObject({ name: "browser:acm", browserOnly: true })
+  })
+
+  it("sends the user's browser to the PDF where it saves itself, else to the article page, through the proxy", () => {
+    const tlink = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url" as const, path: "/go" }
+    expect(yourBrowser("10.1145/3613904.3642549")).toEqual({ url: "https://dl.acm.org/doi/pdf/10.1145/3613904.3642549?download=true", site: "acm.org", opens: "pdf" })
     // ACL's DOIs at the ACM, by where the paper was found to be
-    expect(ownBrowserUrl("10.3115/1654595.1654614", "dl.acm.org")).toBe("https://dl.acm.org/doi/pdf/10.3115/1654595.1654614?download=true")
-    expect(ownBrowserUrl("10.1177/0956797620904990")).toBeUndefined()
+    expect(yourBrowser("10.3115/1654595.1654614", "dl.acm.org").url).toBe("https://dl.acm.org/doi/pdf/10.3115/1654595.1654614?download=true")
+    // The ACM is open to all: never through the proxy
+    expect(yourBrowser("10.1145/3613904.3642549", undefined, tlink).url).toBe("https://dl.acm.org/doi/pdf/10.1145/3613904.3642549?download=true")
+    expect(yourBrowser("10.1177/0956797620904990", undefined, tlink)).toEqual({
+      url: "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990?download=true",
+      site: "tsinghua.edu.cn",
+      opens: "pdf",
+    })
+    expect(yourBrowser("10.1002/ijop.13191").url).toBe("https://onlinelibrary.wiley.com/doi/pdfdirect/10.1002/ijop.13191?download=true")
+    expect(yourBrowser("10.1002/ijop.13191", "doi.org").opens).toBe("pdf")
+    expect(yourBrowser("10.1177/0956797620904990", "tlink.lib.tsinghua.edu.cn").opens).toBe("pdf")
+    expect(yourBrowser("10.1016/j.cell.2020.01.001")).toEqual({ url: "https://doi.org/10.1016/j.cell.2020.01.001", site: "doi.org", opens: "page" })
+    expect(yourBrowser("10.1007/s10586-023-04231-3")).toMatchObject({ url: "https://link.springer.com/article/10.1007/s10586-023-04231-3", opens: "page" })
   })
 
   it("follows the site a DOI is registered to, and lets the page go there", () => {
@@ -180,61 +195,36 @@ describe("paper.pdf.browser", () => {
     const proxy = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" }
     const { call } = await setup(browser, { proxy, proxySignedInAt: 1 })
     await call("library.add", { paper: sage })
-    expect((await call("library.fetchPdf", { id: sage.id })).noPdf).toMatchObject({ needs: "sign-in" })
+    expect((await call("library.fetchPdf", { id: sage.id })).noPdf).toMatchObject({ needs: "browser", browserOpens: "pdf" })
     await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeUndefined()
     signedIn = true
     expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
     await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeGreaterThan(1)
   })
 
-  it("notes a page that wants a person instead of waiting, while nobody is looking", async () => {
-    const { browser, asked } = fakeBrowser(async (request) => {
-      if (!request.withUser) throw new NeedsUser("challenge")
-      return new Uint8Array(PDF)
+  it("leaves a page that wants a person to the user's own browser instead of waiting", async () => {
+    const { browser } = fakeBrowser(async () => {
+      throw new NeedsUser("challenge")
     })
     const { root, call, heard } = await setup(browser)
     await call("library.add", { paper: sage })
     const paper = await call("library.fetchPdf", { id: sage.id })
     expect(paper.pdf).toBeUndefined()
-    expect(paper.noPdf).toMatchObject({ needs: "check" })
-    expect(asked.every((r) => !r.withUser)).toBe(true)
+    expect(paper.noPdf).toMatchObject({ needs: "browser", browserOpens: "pdf" })
     expect(heard.filter((t) => t.kind === "paper.pdf.browser").map((t) => t.state)).not.toContain("waiting_for_you")
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
     expect(acquisition.needs).toMatchObject({ reason: "challenge", route: "browser:sage" })
   })
 
-  it("shows the page to the user on Check now, waits for them, then goes on by itself", async () => {
-    const { browser, asked } = fakeBrowser(async (request) => {
-      if (!request.withUser) throw new NeedsUser("login")
-      await request.needUser("login", "Sign in.", new Promise((r) => setTimeout(r, 500)))
-      return new Uint8Array(PDF)
-    })
-    const { root, call, heard } = await setup(browser)
-    await call("library.add", { paper: sage })
-    expect((await call("library.fetchPdf", { id: sage.id })).noPdf).toMatchObject({ needs: "sign-in" })
-    const paper = await call("library.checkPublisher", { id: sage.id })
-    expect(paper.pdf).toBeDefined()
-    expect(paper.noPdf).toBeUndefined()
-    expect(asked.at(-1)?.withUser).toBe(true)
-    await new Promise((r) => setTimeout(r, 300))
-    const states = heard.filter((t) => t.kind === "paper.pdf.check").map((t) => t.state)
-    expect(states).toContain("waiting_for_you")
-    expect(states.at(-1)).toBe("done")
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "ok", route: "browser:sage" })
-    expect(acquisition.needs).toBeUndefined()
-  })
-
-  it("after one Check now, gets the same publisher's other papers by itself and leaves the rest noted", async () => {
+  it("once a run the user waited on gets through, gets the same publisher's other papers by itself", async () => {
     // Their turns at the site are spaced out; here, not at all
     process.env.OWLIT_VISIT_GAP_MS = "0"
     onTestFinished(() => void delete process.env.OWLIT_VISIT_GAP_MS)
-    // The session keeps what the user's check left: past it once, the publisher's pages open unattended
+    // The site's check lets owlit's browser through again after a while
     let passed = false
     const { browser, asked } = fakeBrowser(async (request) => {
       const host = new URL(request.landing).hostname
-      if (request.withUser) passed = true
-      else if (!passed || host !== "journals.sagepub.com") throw new NeedsUser("challenge", host)
+      if (!passed || host !== "journals.sagepub.com") throw new NeedsUser("challenge", host)
       return new Uint8Array(PDF)
     })
     const sibling = { id: "doi-10.1177-0956797619877311", title: "Same publisher", authors: [], ids: { doi: "10.1177/0956797619877311" } }
@@ -246,7 +236,9 @@ describe("paper.pdf.browser", () => {
     }
     const needs = (id: string) => JSON.parse(readFileSync(path.join(root, "library/papers", id, "acquisition.json"), "utf8")).needs
     expect(needs(sage.id)).toMatchObject({ reason: "challenge", host: "journals.sagepub.com" })
-    expect((await call("library.checkPublisher", { id: sage.id })).pdf).toBeDefined()
+    passed = true
+    // Try again on the paper: a visit now, whatever the hold
+    expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
     let papers: Record<string, { pdf?: unknown; noPdf?: unknown }> = {}
     for (let i = 0; i < 100; i++) {
       papers = Object.fromEntries((await call("library.list")).papers.map((p: { id: string }) => [p.id, p]))
@@ -254,26 +246,8 @@ describe("paper.pdf.browser", () => {
       await new Promise((r) => setTimeout(r, 20))
     }
     expect(papers[sibling.id].pdf).toBeDefined()
-    expect(papers[other.id]).toMatchObject({ noPdf: { needs: "check" } })
+    expect(papers[other.id]).toMatchObject({ noPdf: { needs: "browser" } })
     expect(asked.filter((r) => r.landing.includes("tandfonline") || r.landing.includes("10.1080"))).toHaveLength(1)
-  })
-
-  it("keeps the note when the user cancels Check now", async () => {
-    const { browser } = fakeBrowser(async (request) => {
-      if (!request.withUser) throw new NeedsUser("challenge")
-      await request.needUser("challenge", "Check.", new Promise(() => {}))
-      return new Uint8Array(PDF)
-    })
-    const { call, workspace } = await setup(browser)
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    const checking = call("library.checkPublisher", { id: sage.id })
-    let task
-    for (let i = 0; i < 100 && !(task = workspace.tasks.list().find((t) => t.kind === "paper.pdf.check" && t.state === "waiting_for_you")); i++) await new Promise((r) => setTimeout(r, 20))
-    await call("tasks.cancel", { id: task!.id })
-    const paper = await checking
-    expect(paper.pdf).toBeUndefined()
-    expect(paper.noPdf).toMatchObject({ needs: "check" })
   })
 
   it("ends with no PDF, saying what it tried and that there is no proxy", async () => {
@@ -320,29 +294,9 @@ describe("visiting publishers' sites", () => {
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8"))
     expect(acquisition.needs).toMatchObject({ reason: "challenge", host: "sagepub.com" })
     const papers = (await call("library.list")).papers
-    expect(papers.find((p: { id: string }) => p.id === sibling.id).noPdf).toMatchObject({ needs: "check" })
+    expect(papers.find((p: { id: string }) => p.id === sibling.id).noPdf).toMatchObject({ needs: "browser" })
     const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
     expect(JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites["sagepub.com"]).toMatchObject({ heldFor: "challenge" })
-  })
-
-  it("stops asking when a check comes back after the user passed it, and says the site isn't letting owlit in", async () => {
-    const { browser, asked } = fakeBrowser(async (request) => {
-      if (request.withUser) throw new Refused("journals.sagepub.com")
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
-    const { call } = await setup(browser, { proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" } })
-    for (const paper of [sage, sibling]) {
-      await call("library.add", { paper })
-      await call("library.fetchPdf", { id: paper.id })
-    }
-    const before = asked.length
-    const paper = await call("library.checkPublisher", { id: sage.id })
-    expect(paper.noPdf).toMatchObject({ needs: "blocked" })
-    // Not the proxy route after it: on campus it leads to the same site
-    expect(asked.slice(before).filter((r) => r.withUser)).toHaveLength(1)
-    // The publisher's other papers say the same
-    const papers = (await call("library.list")).papers
-    expect(papers.find((p: { id: string }) => p.id === sibling.id).noPdf).toMatchObject({ needs: "blocked" })
   })
 
   it("keeps the proxy route from leading back to a site that just asked for a person", async () => {
@@ -365,7 +319,7 @@ describe("visiting publishers' sites", () => {
     for (const paper of [sage, sibling]) workspace.tasks.enqueue("paper.pdf.browser", paper.id, "background")
     const waiting = await until(async () => workspace.tasks.list().find((t) => t.kind === "paper.pdf.browser" && t.state === "queued" && (t.notBefore ?? 0) > Date.now() + 60_000))
     expect([sage.id, sibling.id]).toContain(waiting.subject)
-    expect(asked.filter((r) => !r.withUser)).toHaveLength(1)
+    expect(asked).toHaveLength(1)
   })
 
   it("leaves a site that answers plain downloads with a check to the browser", async () => {
@@ -462,49 +416,11 @@ describe("publishers' APIs", () => {
   })
 })
 
-describe("open in your browser", () => {
-  it("takes the PDF the user saves from their browser, by the DOI on it", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
-    const downloads = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-downloads-")))
-    writeFileSync(path.join(downloads, "old.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1177/0956797620904990" }]]))
-    const opened: string[] = []
-    const { call } = await setup(browser, {}, {}, { host: { openExternal: async (url) => void opened.push(url), downloadsDir: () => downloads } })
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    const paper = await call("library.openInBrowser", { id: sage.id })
-    expect(opened).toEqual(["https://doi.org/10.1177/0956797620904990"])
-    expect(paper.noPdf.inBrowser.until).toBeGreaterThan(Date.now())
-    // A file that was there before isn't taken; one that arrives (written under another name, then
-    // renamed, as browsers do) is
-    await new Promise((r) => setTimeout(r, 300))
-    writeFileSync(path.join(downloads, "3613904.3642549.pdf.crdownload"), makePdf([[{ x: 72, y: 72, size: 10, text: "https://doi.org/10.1177/0956797620904990" }]]))
-    renameSync(path.join(downloads, "3613904.3642549.pdf.crdownload"), path.join(downloads, "3613904.3642549.pdf"))
-    await until(async () => (await call("library.list")).papers.find((p: { id: string; pdf?: unknown }) => p.id === sage.id && p.pdf))
-  })
-
-  it("asks before taking a PDF that names no paper", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
-    const downloads = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-downloads-")))
-    const { call } = await setup(browser, {}, {}, { host: { openExternal: async () => {}, downloadsDir: () => downloads } })
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    await call("library.openInBrowser", { id: sage.id })
-    await new Promise((r) => setTimeout(r, 300))
-    writeFileSync(path.join(downloads, "fulltext.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "Some paper or other" }]]))
-    const offered = await until(async () => (await call("library.list")).papers.find((p: { id: string; noPdf?: { inBrowser?: { offered?: string } } }) => p.id === sage.id && p.noPdf?.inBrowser?.offered))
-    expect(offered.noPdf.inBrowser.offered).toBe("fulltext.pdf")
-    expect((await call("library.takeDownload", { id: sage.id, take: true })).pdf).toBeDefined()
-  })
-})
-
-describe("the ACM through your own browser", () => {
+describe("your own browser", () => {
   const acm = { id: "doi-10.1145-3613904.3642549", title: "Proactive Agents in Everyday Life", authors: [], ids: { doi: "10.1145/3613904.3642549" } }
   const second = { id: "doi-10.1145-3706598.3713300", title: "Second", authors: [], ids: { doi: "10.1145/3706598.3713300" } }
   const third = { id: "doi-10.1145-3706598.3713332", title: "Third", authors: [], ids: { doi: "10.1145/3706598.3713332" } }
+  const cell = { id: "doi-10.1016-j.cell.2020.01.001", title: "A Cell paper", authors: [], ids: { doi: "10.1016/j.cell.2020.01.001" } }
   const pdfOf = (doi: string) => `https://dl.acm.org/doi/pdf/${doi}?download=true`
 
   function quick(gap: number, wait: number) {
@@ -516,10 +432,13 @@ describe("the ACM through your own browser", () => {
     })
   }
 
+  // owlit's own browser gets nowhere: every publisher's page wants a person
   async function withDownloads() {
     const downloads = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-downloads-")))
     const opened: { url: string; background?: boolean; at: number }[] = []
-    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
+    const { browser, asked } = fakeBrowser(async (request) => {
+      throw new NeedsUser("challenge", new URL(request.landing).hostname)
+    })
     const ctx = await setup(browser, {}, {}, {
       host: {
         openExternal: async (url, options) => void opened.push({ url, background: options?.background, at: Date.now() }),
@@ -539,10 +458,10 @@ describe("the ACM through your own browser", () => {
     expect(paper.noPdf).toMatchObject({ needs: "browser" })
     expect(asked).toEqual([])
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
-    expect(acquisition.needs).toMatchObject({ reason: "browser", host: "dl.acm.org", url: pdfOf(acm.ids.doi) })
+    expect(acquisition.needs).toMatchObject({ reason: "browser", host: "dl.acm.org" })
   })
 
-  it("asks for the user's browser on an ACM paper noted before owlit knew", async () => {
+  it("asks for the user's browser on a paper noted for Check now before", async () => {
     const { root, call } = await withDownloads()
     await call("library.add", { paper: acm })
     await call("library.fetchPdf", { id: acm.id })
@@ -614,4 +533,78 @@ describe("the ACM through your own browser", () => {
     expect((await paperIn(call, second.id)).noPdf.needs).toBe("browser")
     expect(opened).toHaveLength(1)
   })
+
+  it("takes a PDF the user saves by the DOI on its pages", async () => {
+    quick(0, 5_000)
+    const { call, downloads } = await withDownloads()
+    writeFileSync(path.join(downloads, "old.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1145/3613904.3642549" }]]))
+    await call("library.add", { paper: acm })
+    await call("library.fetchPdf", { id: acm.id })
+    await call("library.getInBrowser", { ids: [acm.id] })
+    // A file that was there before isn't taken; one that arrives (written under another name, then
+    // renamed, as browsers do) is
+    await new Promise((r) => setTimeout(r, 300))
+    writeFileSync(path.join(downloads, "paper.pdf.crdownload"), makePdf([[{ x: 72, y: 72, size: 10, text: "https://doi.org/10.1145/3613904.3642549" }]]))
+    renameSync(path.join(downloads, "paper.pdf.crdownload"), path.join(downloads, "paper.pdf"))
+    await until(async () => (await paperIn(call, acm.id)).pdf)
+  })
+
+  it("opens the PDFs that save themselves first, then the article pages, which wait for the user", async () => {
+    quick(30, 150)
+    const { call, opened, heard, downloads } = await withDownloads()
+    for (const paper of [cell, acm]) {
+      await call("library.add", { paper })
+      await call("library.fetchPdf", { id: paper.id })
+    }
+    expect((await paperIn(call, cell.id)).noPdf).toMatchObject({ needs: "browser", browserOpens: "page" })
+    await call("library.getInBrowser", { ids: [cell.id, acm.id] })
+    await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
+    expect(opened.map((o) => o.url)).toEqual([pdfOf(acm.ids.doi), "https://doi.org/10.1016/j.cell.2020.01.001"])
+    // The run doesn't wait on the page; the user saves its PDF there, and it is taken
+    expect((await paperIn(call, cell.id)).noPdf.fromBrowser).toMatchObject({ state: "page" })
+    writeFileSync(path.join(downloads, "cell.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1016/j.cell.2020.01.001" }]]))
+    const got = await until(async () => {
+      const paper = await paperIn(call, cell.id)
+      return paper.pdf ? paper : undefined
+    })
+    expect(got.noPdf).toBeUndefined()
+  })
+
+  it("asks before taking a PDF that names no paper", async () => {
+    quick(0, 150)
+    const { call, heard, downloads } = await withDownloads()
+    await call("library.add", { paper: cell })
+    await call("library.fetchPdf", { id: cell.id })
+    await call("library.getInBrowser", { ids: [cell.id] })
+    await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
+    await new Promise((r) => setTimeout(r, 300))
+    writeFileSync(path.join(downloads, "fulltext.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "Some paper or other" }]]))
+    const offered = await until(async () => {
+      const paper = await paperIn(call, cell.id)
+      return paper.noPdf?.offered ? paper : undefined
+    })
+    expect(offered.noPdf.offered).toBe("fulltext.pdf")
+    expect((await call("library.takeDownload", { id: cell.id, take: true })).pdf).toBeDefined()
+  })
+
+  it("goes on past a paper that doesn't come once the site has given one", async () => {
+    // Downloads takes a file once it has been still for 1.5 s: each wait outlasts that
+    quick(0, 2_500)
+    const { call, opened, heard, downloads } = await withDownloads()
+    for (const paper of [acm, second, third]) {
+      await call("library.add", { paper })
+      await call("library.fetchPdf", { id: paper.id })
+    }
+    await call("library.getInBrowser", { ids: [acm.id, second.id, third.id] })
+    // The first comes; the next two don't (no access), and the run doesn't stop for them
+    await until(async () => opened.length === 1)
+    await new Promise((r) => setTimeout(r, 300))
+    writeFileSync(path.join(downloads, "first.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1145/3613904.3642549" }]]))
+    // Two misses of 2.5 s each: longer than until() looks
+    await expect.poll(() => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"), { timeout: 20_000 }).toBe(true)
+    expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
+    expect(opened).toHaveLength(3)
+    expect((await paperIn(call, acm.id)).pdf).toBeDefined()
+    expect((await paperIn(call, third.id)).noPdf.fromBrowser).toMatchObject({ state: "missed" })
+  }, 30_000)
 })
