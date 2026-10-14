@@ -149,7 +149,7 @@ function MemoryRow() {
     <List>
       <Row
         name={t`Remember what I do in owlit`}
-        help={t`What you open, highlight and write keeps Knowledge and Home current.`}
+        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work.`}
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>

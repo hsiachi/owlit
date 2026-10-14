@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { NotFound, PageHeader } from "@/components/page"
 import { IconButton } from "@/components/icon-button"
 import { SegmentedControl } from "@/components/segmented-control"
+import { reportPaperView } from "@/app/activity"
 import { useAgentWindow } from "@/features/agent/store"
 import { paperClosed } from "@/features/knowledge/runner"
 import { useKnowledgeStore } from "@/features/knowledge/store"
@@ -81,6 +82,9 @@ export function PaperPage() {
   const hasDigest = !!paper?.hasDigest
   const view: PaperView = chosen?.paperId === paperId ? chosen.view : hasDigest ? "digest" : "pdf"
   const showView = (next: PaperView) => setChosen({ paperId, view: next })
+  // Which side is being read, for the reading time core keeps (app/activity.ts)
+  const hasPdf = !!paper?.pdf
+  useEffect(() => reportPaperView(paperId, view === "pdf" && !hasPdf ? null : view), [paperId, view, hasPdf])
   // Settled when the paper opens: a digest that arrives while the PDF is being read doesn't take its place
   // (once the library has the paper: after a reload it arrives a moment later)
   const known = !!paper

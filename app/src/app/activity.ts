@@ -1,9 +1,10 @@
 // Reports what the user does to core as activity events (protocol's ActivityEvent): which paper or doc
-// is open, page turns, highlights, note and doc edits, chats written in and left, the window going idle.
+// is open, time spent reading it and on which pages, page turns, stars, status and tags, highlights,
+// note and doc edits, chats written in and left, the window going idle.
 // Core journals the coarse ones and hands all of them to live listeners. Nothing is sent without the
 // desktop app or while activity is turned off (settings.activity.enabled).
 
-import type { ActivityEvent } from "@owlit/protocol"
+import type { ActivityEvent, PaperMark, PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
 import { isChatsFromDisk } from "@/features/chat/disk"
@@ -12,6 +13,7 @@ import { useDocsStore } from "@/features/docs/store"
 import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { ReadingClock } from "@/app/reading-clock"
 
 type Event = ActivityEvent extends infer E ? (E extends ActivityEvent ? Omit<E, "at"> : never) : never
 
@@ -19,6 +21,9 @@ type Event = ActivityEvent extends infer E ? (E extends ActivityEvent ? Omit<E, 
 const EDIT_PAUSE = 2000
 // How long the window must sit in the background before it counts as idle
 const IDLE_AFTER = 30_000
+// No key, click, scroll or pointer move for this long with the window in front: the person is away.
+// Long enough for a dense page read without touching anything
+const STILL_AFTER = 5 * 60_000
 
 // null until core has said whether activity is on; events from that moment wait in `early`
 let enabled: boolean | null = null
@@ -82,6 +87,32 @@ export function reportKnowledgeEdited(topic: string, id: string) {
   emit({ kind: "knowledge.edited", topic, id })
 }
 
+// ---- Reading time: the open paper, with the window in front and the person there ----
+
+let reading: ReadingClock | null = null
+// The paper page says which view it shows; it may say so before or after the paper counts as open
+let shownView: { paperId: string; view: PaperView | null } | null = null
+let lastInput = Date.now()
+
+function startReading(paperId: string) {
+  const view = shownView?.paperId === paperId ? shownView.view : null
+  const page = useLibraryStore.getState().papers[paperId]?.position?.page ?? 1
+  reading = new ReadingClock(paperId, view, page, emit)
+}
+
+function stopReading() {
+  reading?.settle()
+  reading = null
+}
+
+const present = () => document.visibilityState === "visible" && document.hasFocus() && Date.now() - lastInput <= STILL_AFTER
+
+// Called by the paper page whenever it shows the digest or the PDF; null when the PDF side has no PDF
+export function reportPaperView(paperId: string, view: PaperView | null) {
+  shownView = { paperId, view }
+  if (reading?.paperId === paperId) reading.setView(view)
+}
+
 // ---- What is open: from the route, the agent window and the stores ----
 
 interface Open {
@@ -112,6 +143,7 @@ function openFromRoute(pathname: string): Open {
 
 function closePaper(paperId: string) {
   flushPending(`note:${paperId}`)
+  stopReading()
   emit({ kind: "paper.closed", paperId })
 }
 
@@ -132,7 +164,10 @@ function leaveChats(stillOpen: Set<string>) {
 function update(next: Open) {
   if (open.paperId !== next.paperId) {
     if (open.paperId) closePaper(open.paperId)
-    if (next.paperId) emit({ kind: "paper.opened", paperId: next.paperId })
+    if (next.paperId) {
+      emit({ kind: "paper.opened", paperId: next.paperId })
+      startReading(next.paperId)
+    }
   }
   if (open.doc?.id !== next.doc?.id) {
     if (open.doc) closeDoc(open.doc)
@@ -158,15 +193,24 @@ export function startActivity(router: typeof appRouter) {
   useAgentWindow.subscribe(refresh)
   refresh()
 
-  // Page turns in the open paper, highlights and the paper's note
+  // Page turns in the open paper, marks, highlights and the paper's note
   useLibraryStore.subscribe((state, prev) => {
     if (open.paperId) {
       const page = state.papers[open.paperId]?.position?.page
-      if (page && page !== prev.papers[open.paperId]?.position?.page)
+      if (page && page !== prev.papers[open.paperId]?.position?.page) {
         emit({ kind: "paper.page", paperId: open.paperId, page })
+        reading?.setPage(page)
+      }
     }
     // What loading the library (or another program's change) put in the store isn't something the user did
     if (isLibraryFromCore()) return
+    if (state.papers !== prev.papers) {
+      for (const p of Object.values(state.papers)) {
+        const before = prev.papers[p.id]
+        if (!before || before === p) continue
+        for (const mark of marksBetween(before, p)) emit({ kind: "paper.marked", paperId: p.id, mark })
+      }
+    }
     // A highlight Owlit made when asked is the user's to keep, but not something they marked themselves
     if (state.highlights !== prev.highlights) {
       for (const h of Object.values(state.highlights))
@@ -206,9 +250,33 @@ export function startActivity(router: typeof appRouter) {
   window.addEventListener("blur", away)
   window.addEventListener("focus", () => clearTimeout(idleTimer))
 
+  // Reading time, a second at a time; leaving the window settles what was read so far
+  setInterval(() => {
+    if (present()) reading?.tick(1000)
+  }, 1000)
+  const settle = () => reading?.settle()
+  window.addEventListener("blur", settle)
+  document.addEventListener("visibilitychange", settle)
+  const there = () => {
+    lastInput = Date.now()
+  }
+  for (const type of ["keydown", "pointerdown", "pointermove", "wheel"]) window.addEventListener(type, there, { capture: true, passive: true })
+
   // Closing or reloading the window closes what was open
   window.addEventListener("pagehide", () => {
     for (const entry of [...pending.values()]) entry.fire()
     update({ chats: new Set() })
   })
+}
+
+type Marked = Pick<ReturnType<typeof useLibraryStore.getState>["papers"][string], "starred" | "status" | "tags" | "lastOpenedAt">
+
+// What the person changed of a paper's star, status and tags. A status that moved together with the
+// last-read time is the app's own markReading (lib/reading.ts), not a mark the person set.
+function marksBetween(before: Marked, after: Marked): PaperMark[] {
+  const marks: PaperMark[] = []
+  if (after.starred !== before.starred) marks.push({ what: "starred", to: after.starred })
+  if (after.status !== before.status && after.lastOpenedAt === before.lastOpenedAt) marks.push({ what: "status", to: after.status })
+  if (after.tags !== before.tags && after.tags.join("\n") !== before.tags.join("\n")) marks.push({ what: "tags", to: after.tags })
+  return marks
 }
