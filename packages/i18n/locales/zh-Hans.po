@@ -1403,9 +1403,7 @@ msgid "Checking…"
 msgstr "正在检查…"
 
 #. an agent's status
-#. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
-#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Ready"
 msgstr "就绪"
 
@@ -4630,11 +4628,6 @@ msgstr "未找到 PDF。如果你有，拖到这里即可。"
 #: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr "Owlit 用的智能体"
-
-#. placeholder {0}: c.version
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "Ready · {0}"
-msgstr "就绪 · {0}"
 
 #. placeholder {0}: Math.round(progress * 100)
 #: app/src/features/onboarding/AgentChoice.tsx

@@ -79,10 +79,9 @@ export function AgentChoice() {
                     {t({ message: "Checking…", comment: "an agent's status: checking whether it is installed" })}
                   </>
                 ) : ready ? (
-                  <>
-                    <span className="size-1.5 rounded-full bg-owlit-mark" />
-                    {c.version && c.version !== "unknown" ? t`Ready · ${c.version}` : t({ message: "Ready", comment: "an agent's status" })}
-                  </>
+                  // Fine is no mark at all (green is Owlit's hand, not "healthy"): its version, as Settings
+                  // › Agents shows it; only an agent that can't run says why
+                  c.version !== "unknown" && c.version
                 ) : failed ? (
                   <span className="truncate text-destructive">{c.setup?.error}</span>
                 ) : (

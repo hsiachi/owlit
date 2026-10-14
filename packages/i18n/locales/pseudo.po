@@ -1403,9 +1403,7 @@ msgid "Checking…"
 msgstr ""
 
 #. an agent's status
-#. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
-#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Ready"
 msgstr ""
 
@@ -4629,11 +4627,6 @@ msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
-msgstr ""
-
-#. placeholder {0}: c.version
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "Ready · {0}"
 msgstr ""
 
 #. placeholder {0}: Math.round(progress * 100)
