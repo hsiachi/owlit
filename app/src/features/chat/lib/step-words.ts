@@ -470,10 +470,12 @@ export function agentDone(calls: ToolCall[]) {
   return shown ? plural(shown, { one: "# step", other: "# steps" }) : undefined
 }
 
-// The step an agent is at now, in the steps' own words ("Searching your Library for “…”")
-export function agentNow(calls: ToolCall[], thinking: boolean) {
+// The step an agent is at now, in the steps' own words ("Searching your Library for “…”"). Between steps,
+// while it writes its report or runs a hidden step, it is thinking: Starting is only before its first step,
+// or the row would fall back to it mid-run.
+export function agentNow(calls: ToolCall[], started: boolean) {
   const running = calls
     .map((call) => ({ call, words: stepWords(call) }))
     .findLast((s) => !s.words.hidden && (s.call.status === "in_progress" || s.call.status === "pending"))
-  return running ? running.words.now : thinking ? t`Thinking` : t`Starting`
+  return running ? running.words.now : started ? t`Thinking` : t`Starting`
 }

@@ -41,7 +41,7 @@ function AgentRow({ agent, steps, streaming, asks }: { agent: AgentPart; steps: 
   const working = agent.status === "working" && streaming
   let right: React.ReactNode
   if (waiting) right = <WaitingLabel />
-  else if (working) right = <span className="truncate">{agentNow(calls, steps.at(-1)?.type === "thought")}</span>
+  else if (working) right = <span className="truncate">{agentNow(calls, steps.length > 0)}</span>
   else if (agent.status === "stopped" || (agent.status === "working" && !streaming)) right = t({ message: "Stopped", comment: "a helper agent's status: it stopped before it was done" })
   else if (agent.status === "done") right = agentDone(calls)
   return (
