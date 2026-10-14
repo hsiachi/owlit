@@ -2,9 +2,8 @@ import { msg, t } from "@lingui/core/macro"
 import { ago } from "@/lib/time"
 import { i18n } from "@/lib/i18n"
 import { MARK_CLOSE, MARK_OPEN } from "@owlit/protocol"
-import { useLayoutEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
-import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
@@ -24,22 +23,9 @@ import { PaperRow } from "./PaperRow"
 import { StarButton, StarMark } from "./StarButton"
 import { TagDot } from "./TagsEditor"
 
-// Click selects and peeks, ⌘-click toggles, ⇧-click extends, double-click opens. A row reads only whether
-// it is selected, so selecting one re-renders two rows, not the list.
-function useRowHandlers(paper: Paper, order: string[], open: (id: string) => void) {
-  const selected = useLibraryUi((s) => s.selectedIds.includes(paper.id))
-  return {
-    selected,
-    handlers: {
-      "data-paper-id": paper.id,
-      onClick: (e: React.MouseEvent) => {
-        if ((e.target as HTMLElement).closest("button")) return
-        if (e.detail === 2) return open(paper.id)
-        useLibraryUi.getState().click(paper.id, e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single", order)
-      },
-    },
-  }
-}
+// What a click on a row does is the list's (lib/use-list-keys.ts), found by the row's data-paper-id. A row
+// reads only whether it is selected, so selecting one re-renders two rows, not the list.
+const useSelected = (id: string) => useLibraryUi((s) => s.selectedIds.includes(id))
 
 // The menu's items are built only while it is open (PaperRowMenu), so closed rows run none of its hooks
 function RowMenu({ id, children }: { id: string; children: React.ReactNode }) {
@@ -63,17 +49,20 @@ function RowActions({ paper, className }: { paper: Paper; className?: string }) 
 
 // The list row's end slot: the ellipsis, then the star at the far end, where a starred paper's star stays
 // so the stars of a list line up. Both hold their place while hidden, so the details never shift.
+// On an open card they show while the pointer is anywhere on it, so the card reads as one surface.
 const ON_HOVER = "invisible group-hover/row:visible group-has-focus-key/row:visible group-has-data-menu-up/row:visible"
+const ON_CARD_HOVER = "group-hover/card:visible"
 
-function RowSlot({ paper }: { paper: Paper }) {
+function RowSlot({ paper, open }: { paper: Paper; open: boolean }) {
+  const onHover = cn(ON_HOVER, open && ON_CARD_HOVER)
   return (
     <span className="flex shrink-0 items-center">
-      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label={t`More actions`} menuClassName="w-48" className={cn("flex", ON_HOVER, "data-menu-up:visible")} />
+      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label={t`More actions`} menuClassName="w-48" className={cn("flex", onHover, "data-menu-up:visible")} />
       <StarButton
         size="icon-xs"
         starred={paper.starred}
         onToggle={() => useLibraryStore.getState().setStarred([paper.id], !paper.starred)}
-        className={paper.starred ? undefined : ON_HOVER}
+        className={paper.starred ? undefined : onHover}
       />
     </span>
   )
@@ -126,53 +115,51 @@ function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState 
   )
 }
 
-function ListRow({ paper, order, open, snippet }: { paper: Paper; order: string[]; open: (id: string) => void; snippet?: string }) {
-  const { selected, handlers } = useRowHandlers(paper, order, open)
+// A paper in the list, and the card it opens into in place. Closed, the card's shell is invisible: it
+// overhangs the row by 6px a side, its border and padding taking those 6px, so the row sits where every row
+// does. Open, the shell is the card (a peek's material, 6px of sheet above and below), the row its first
+// line, and the details unfold under it, so the paper clicked stays under the pointer and a second click
+// lands on it again. The card's padding is a peek's: the row's own 8px and 10px plus the shell's.
+function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; snippet?: string }) {
+  const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   return (
-    <RowMenu id={paper.id}>
-      <PaperRow
-        {...handlers}
-        className={cn(selected && "bg-accent hover:bg-accent")}
-        mark={<PaperStatusMark paper={paper} digest={digest} />}
-        title={paper.title}
-        // A publisher waiting on the user, or a digest that stopped, says so in words, first among the
-        // row's details
-        meta={[paper.noPdf?.needs && t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" }), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
-        slot={<RowSlot paper={paper} />}
-        below={snippet && <TextSnippet text={snippet} className="pr-14 pl-7" />}
-      />
-    </RowMenu>
-  )
-}
-
-// A paper in the list: its row, and the peek that opens in its place. The row folds as the peek unfolds, so
-// the rows below move down over the one change and the eye keeps its place; the peek's card overhangs the
-// row by 6px a side, so the fold's clip box is widened by as much.
-function ListItem({ paper, peeked, ...rest }: { paper: Paper; peeked: boolean; order: string[]; open: (id: string) => void; snippet?: string }) {
-  return (
-    <div>
-      <Unfold open={!peeked} keepMounted>
-        <ListRow paper={paper} {...rest} />
-      </Unfold>
-      <Unfold open={peeked} innerClassName="-mx-1.5 px-1.5">
-        <PaperPeek paper={paper} />
+    <div
+      className={cn(
+        "group/card -mx-1.5 rounded-xl border border-transparent px-[5px] transition-[background-color,border-color,box-shadow,margin,padding] duration-(--t-layout) ease-(--ease) motion-reduce:transition-none",
+        peeked && "my-1.5 border-border bg-card py-1.5 shadow-sm",
+      )}
+    >
+      <RowMenu id={paper.id}>
+        <PaperRow
+          data-paper-id={paper.id}
+          open={peeked}
+          className={cn(selected && !peeked && "bg-accent hover:bg-accent")}
+          mark={<PaperStatusMark paper={paper} digest={digest} />}
+          title={paper.title}
+          // A publisher waiting on the user, or a digest that stopped, says so in words, first among the
+          // row's details
+          meta={[paper.noPdf?.needs && t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" }), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
+          slot={<RowSlot paper={paper} open={peeked} />}
+          below={snippet && <TextSnippet text={snippet} className={cn("pr-14", peeked ? "pb-1.5" : "pl-7")} />}
+        />
+      </RowMenu>
+      <Unfold open={peeked}>
+        <PaperPeek paper={paper} className="px-2.5 pb-1.5" />
       </Unfold>
     </div>
   )
 }
 
-export function PaperList({ groups, order, snippets }: { groups: PaperGroup[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
+export function PaperList({ groups, snippets }: { groups: PaperGroup[]; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useLibraryUi((s) => s.peekId)
-  const navigate = useNavigate()
-  const open = (id: string) => navigate(`/library/${id}`)
   return (
     <div className="flex flex-col gap-6">
       {groups.map((g, i) => (
         <section key={g.label ?? i}>
           {g.label && <GroupLabel>{g.label}</GroupLabel>}
           {g.papers.map((p) => (
-            <ListItem key={p.id} paper={p} peeked={p.id === peekId} order={order} open={open} snippet={snippets?.get(p.id)} />
+            <ListItem key={p.id} paper={p} peeked={p.id === peekId} snippet={snippets?.get(p.id)} />
           ))}
         </section>
       ))}
@@ -242,24 +229,33 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
   return useMemo(() => kept.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [kept, hidden])
 }
 
-function TableRow({ paper, order, open, columns, snippet, tagFilter }: { paper: Paper; order: string[]; open: (id: string) => void; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[] }) {
-  const { selected, handlers } = useRowHandlers(paper, order, open)
+function TableRow({ paper, peeked, last, columns, snippet, tagFilter }: { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[] }) {
+  const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   const tags = tagsFirst(paper.tags, tagFilter)
-  // Square cells with a hairline under each row (none under the last), as in answer tables
-  const td = cn("h-9 truncate border-b px-2.5 text-detail text-muted-foreground group-last/row:border-b-0 group-hover/row:bg-muted", selected && "bg-accent group-hover/row:bg-accent")
+  // Square cells with a hairline under each row (none under the last, nor over an open card), as in answer
+  // tables. Cells hold their text at the top, so an open row's wrapped title keeps its first line in place.
+  const td = cn(
+    "h-9 truncate border-b px-2.5 py-2 align-top text-detail leading-5 text-muted-foreground group-hover/row:bg-muted",
+    (last || peeked) && "border-b-transparent",
+    selected && "bg-accent group-hover/row:bg-accent",
+  )
   const venue = paper.venue && shortVenue(paper.venue)
   // Status says "Read" in its own column; only when that column has given way does the title recede instead
   const muted = paper.status === "read" && !columns.has("status")
   return (
     <RowMenu id={paper.id}>
-      <tr {...handlers} className="group/row cursor-default select-none">
-        <td className={cn(td, "text-sm text-foreground", muted && "text-muted-foreground")}>
-          <span className="flex items-center gap-2">
-            <span className="truncate">{paper.title}</span>
+      <tr data-paper-id={paper.id} className="group/row cursor-default select-none">
+        <td className={cn(td, "text-sm text-foreground", muted && "text-muted-foreground", peeked && "whitespace-normal")}>
+          <span className="flex items-start gap-2">
+            {/* Open, the row is its card's title line: the whole title, which underlines on hover since a click
+                on it now opens the paper (as the list's open row does) */}
+            <span className={cn(peeked ? "font-medium text-balance decoration-foreground/30 underline-offset-3 group-hover/row:underline" : "truncate")}>{paper.title}</span>
             {/* The table has no status slot: the digest's mark follows the title, as the star does */}
-            <DigestMark state={digest} />
-            {paper.starred && <StarMark />}
+            <span className="flex h-5 shrink-0 items-center gap-2">
+              <DigestMark state={digest} />
+              {paper.starred && <StarMark />}
+            </span>
           </span>
           {snippet && <TextSnippet text={snippet} className="max-w-xl pb-1.5" />}
         </td>
@@ -314,15 +310,28 @@ function TableRow({ paper, order, open, columns, snippet, tagFilter }: { paper: 
   )
 }
 
+// A row's card in the table: a full-width row under it that unfolds, the paper's row staying where it was
+// as its title line. Every paper has one, closed and empty until opened, so a card can fold away again.
+// The card overhangs the row by 6px a side, so the fold's clip box is widened by as much.
+function PeekRow({ paper, open, span }: { paper: Paper; open: boolean; span: number }) {
+  return (
+    <tr>
+      <td colSpan={span} className="px-1.5">
+        <Unfold open={open} innerClassName="-mx-1.5 px-1.5">
+          <PaperPeek paper={paper} rowActions className="my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 shadow-sm" />
+        </Unfold>
+      </td>
+    </tr>
+  )
+}
+
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
-// Column headers sort; clicking a row peeks in a full-width row beneath it.
-export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order: string[]; snippets?: ReadonlyMap<string, string> }) {
+// Column headers sort; clicking a row opens its card in a full-width row beneath it.
+export function PaperTable({ papers, snippets }: { papers: Paper[]; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useLibraryUi((s) => s.peekId)
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
   const tagFilter = useLibraryUi((s) => s.tags)
-  const navigate = useNavigate()
-  const open = (id: string) => navigate(`/library/${id}`)
   const table = useRef<HTMLTableElement>(null)
   const columns = useColumns(table, papers)
   const shown = useMemo(() => new Set(columns.map((c) => c.key)), [columns])
@@ -367,20 +376,12 @@ export function PaperTable({ papers, order, snippets }: { papers: Paper[]; order
         </tr>
       </thead>
       <tbody>
-        {papers.map((p) =>
-          p.id === peekId ? (
-            <tr key={p.id}>
-              <td colSpan={columns.length} className="px-1.5">
-                {/* A table row can't fold, so the peek unfolds where the row was, and the row comes back at once */}
-                <Unfold open appear innerClassName="-mx-1.5 px-1.5">
-                  <PaperPeek paper={p} />
-                </Unfold>
-              </td>
-            </tr>
-          ) : (
-            <TableRow key={p.id} paper={p} order={order} open={open} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} />
-          ),
-        )}
+        {papers.map((p, i) => (
+          <Fragment key={p.id}>
+            <TableRow paper={p} peeked={p.id === peekId} last={i === papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} />
+            <PeekRow paper={p} open={p.id === peekId} span={columns.length} />
+          </Fragment>
+        ))}
       </tbody>
     </table>
   )

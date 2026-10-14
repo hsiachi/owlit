@@ -21,7 +21,10 @@ export function usePaperActions() {
   const setEditingId = useLibraryUi((s) => s.setEditingId)
   const clearSelection = useLibraryUi((s) => s.clearSelection)
 
-  const open = (id: string) => navigate(`/library/${id}`)
+  const open = (id: string) => {
+    useLibraryUi.getState().leaveFor(id)
+    navigate(`/library/${id}`)
+  }
 
   // APA, one reference per line
   const copyCitation = async (papers: Paper[]) => {

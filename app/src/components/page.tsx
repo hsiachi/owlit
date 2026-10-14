@@ -9,19 +9,19 @@ import { EmptyPlace } from "@/components/empty-place"
 // A list page: scrolls whole, header included, so switching tabs or layouts never moves the header. The
 // Library, which has a table, takes the wide column; a page of rows alone (Knowledge) takes Home's
 // reading column, so one line doesn't run the width of the window.
+// The rest of the props are the scroller's own listeners (a list's keys and clicks).
 export function PageShell({
   width = "wide",
   scroller,
-  onKeyDown,
   children,
+  ...props
 }: {
   width?: "wide" | "narrow"
   scroller?: React.Ref<HTMLDivElement>
-  onKeyDown?: (e: React.KeyboardEvent) => void
   children: React.ReactNode
-}) {
+} & Omit<React.ComponentProps<"div">, "ref" | "className" | "children">) {
   return (
-    <div ref={scroller} tabIndex={-1} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto outline-none">
+    <div ref={scroller} tabIndex={-1} {...props} className="min-h-0 flex-1 overflow-y-auto outline-none">
       <div className={cn("mx-auto w-full pt-10 pb-24", width === "wide" ? "max-w-6xl px-6" : "max-w-3xl px-4")}>{children}</div>
     </div>
   )

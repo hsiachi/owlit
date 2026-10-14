@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useMemo, useRef } from "react"
+import { useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { DropCard, EmptyPlace } from "@/components/empty-place"
 import { DropOverlay, PdfFileInput } from "@/components/file-drop"
@@ -61,7 +61,7 @@ export function LibraryPage() {
   }, [visible, textHits, searchText])
   const order = useMemo(() => visible.map((p) => p.id), [visible])
   const groups = useMemo(() => groupPapers(visible, sort, searchText.trim().length > 0), [visible, sort, searchText])
-  const { scroller, onKeyDown } = usePaperListKeys(order)
+  const { scroller, listProps } = usePaperListKeys(order)
   const table = layout === "table"
   const empty = Object.keys(papers).length === 0
   const noMatch = words.length > 0 && visible.length === 0
@@ -79,13 +79,9 @@ export function LibraryPage() {
     else if (noMatch) askOwlit()
   }
 
-  // The open peek belongs to this visit: it folds when the page is left, so coming back from a paper (or
-  // from Up next) shows the list at rest instead of a card the person has already read
-  useEffect(() => () => useLibraryUi.getState().closePeek(), [])
-
   return (
     <div className="relative flex min-h-0 flex-1 flex-col" {...dropProps}>
-      <PageShell scroller={scroller} onKeyDown={onKeyDown}>
+      <PageShell scroller={scroller} {...listProps}>
         <LibraryHeader
           actions={
             !empty && (
@@ -113,9 +109,9 @@ export function LibraryPage() {
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">{t`No papers match.`}</p>
               ) : table ? (
-                <PaperTable papers={visible} order={order} snippets={snippets} />
+                <PaperTable papers={visible} snippets={snippets} />
               ) : (
-                <PaperList groups={groups} order={order} snippets={snippets} />
+                <PaperList groups={groups} snippets={snippets} />
               )}
             </div>
           </>
