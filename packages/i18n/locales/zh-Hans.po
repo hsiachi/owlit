@@ -2263,6 +2263,138 @@ msgstr "Owlit 有个问题"
 msgid "In “{title}”: {error}"
 msgstr "在“{title}”中：{error}"
 
+#: app/src/features/collections/components/About.tsx
+msgid "About this collection"
+msgstr "关于这个合集"
+
+#. a later question Owlit answered by adding to this collection
+#: app/src/features/collections/components/About.tsx
+msgid "Then <0>“{later}”</0>, {on}."
+msgstr "后来又问<0>“{later}”</0>，{on}。"
+
+#: app/src/features/collections/components/About.tsx
+msgid "Read {read} of the {papers} papers in full; the rest are from their abstracts."
+msgstr "{papers} 篇里读了全文的有 {read} 篇，其余来自摘要。"
+
+#: app/src/features/collections/components/About.tsx
+msgid "Owlit watches for new papers on this question."
+msgstr "Owlit 会留意这个问题的新论文。"
+
+#: app/src/features/collections/components/About.tsx
+msgid "a chat"
+msgstr "一个对话"
+
+#: app/src/features/collections/components/About.tsx
+msgid "another collection"
+msgstr "另一个合集"
+
+#. a collection the user made from one of another collection's groups
+#: app/src/features/collections/components/About.tsx
+msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
+msgstr "由 {originLink} 里的分组<0>“{asked}”</0>建成，{when}。"
+
+#: app/src/features/collections/components/About.tsx
+msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
+msgstr "你在 <1/> 里问过<0>“{asked}”</0>，{when}。"
+
+#: app/src/features/collections/components/About.tsx
+msgid "You asked <0>“{asked}”</0>, {when}."
+msgstr "你问过<0>“{asked}”</0>，{when}。"
+
+#. after the question: its papers were first added to another collection, then kept apart
+#: app/src/features/collections/components/About.tsx
+msgid "Kept separate from {originLink}."
+msgstr "已从 {originLink} 分出来。"
+
+#: app/src/features/collections/components/About.tsx
+msgid "{searched, plural, one {Searched once} other {Searched # times}}"
+msgstr "{searched, plural, other {检索 # 次}}"
+
+#: app/src/features/collections/components/About.tsx
+msgid "{followed, plural, one {followed the citations of # paper} other {followed the citations of # papers}}"
+msgstr "{followed, plural, other {顺着 # 篇论文的引用找过}}"
+
+#. fold: the searches Owlit made for one batch of a collection
+#: app/src/features/collections/components/About.tsx
+msgid "Searches"
+msgstr "检索明细"
+
+#: app/src/features/collections/components/About.tsx
+msgid "{added, plural, one {# paper} other {# papers}}"
+msgstr "{added, plural, other {# 篇}}"
+
+#: app/src/features/collections/components/About.tsx
+msgid "{added, plural, one {+# paper} other {+# papers}}"
+msgstr "{added, plural, other {+# 篇}}"
+
+#: app/src/features/collections/components/About.tsx
+msgid "{answered, plural, one {# answer} other {# answers}}"
+msgstr "{answered, plural, other {# 条回答}}"
+
+#. a batch of Owlit's work on a collection that added nothing
+#: app/src/features/collections/components/About.tsx
+msgid "nothing new"
+msgstr "没有新内容"
+
+#. a batch of a collection: Owlit added papers in a chat, for a later question
+#: app/src/features/collections/components/About.tsx
+msgid "In {link}, for “{asked}” · {what}"
+msgstr "在 {link} 里，为「{asked}」· {what}"
+
+#. a batch of a collection: Owlit added papers in a chat
+#: app/src/features/collections/components/About.tsx
+msgid "In {link} · {what}"
+msgstr "在 {link} 里 · {what}"
+
+#. a batch of a collection: the user asked Owlit to find more
+#: app/src/features/collections/components/About.tsx
+msgid "Found more papers"
+msgstr "找更多论文"
+
+#. a batch of a collection: Owlit's watch looked for new papers
+#: app/src/features/collections/components/About.tsx
+msgid "Checked for new papers"
+msgstr "查找新论文"
+
+#. a batch of a collection: Owlit read the papers' full texts
+#: app/src/features/collections/components/About.tsx
+msgid "Read in full"
+msgstr "读全文"
+
+#. a batch of a collection: Owlit answered a column's question for every paper
+#: app/src/features/collections/components/About.tsx
+msgid "Answered “{column}”"
+msgstr "回答「{column}」"
+
+#. a batch of a collection: Owlit's first search for papers
+#: app/src/features/collections/components/About.tsx
+msgid "Gathered"
+msgstr "收集"
+
+#. a batch of a collection Owlit made without saying why
+#: app/src/features/collections/components/About.tsx
+#: app/src/features/settings/store.ts
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Owlit"
+msgstr "Owlit"
+
+#. of the papers a search found, how many became rows
+#: app/src/features/collections/components/About.tsx
+msgid "kept {kept} of {found}"
+msgstr "{found} 篇留下 {kept} 篇"
+
+#: app/src/features/collections/components/About.tsx
+msgid "References of {of}"
+msgstr "{of} 的参考文献"
+
+#: app/src/features/collections/components/About.tsx
+msgid "Papers citing {of}"
+msgstr "引用 {of} 的论文"
+
+#: app/src/features/collections/components/About.tsx
+msgid "Papers like {of}"
+msgstr "与 {of} 相似的论文"
+
 #: app/src/features/collections/components/AnswerRows.tsx
 msgid "You've read some of it"
 msgstr "你读过一部分"
@@ -2702,65 +2834,6 @@ msgstr "合集操作"
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Collection name"
 msgstr "合集名称"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit looked in {where} and read {read} of the {papers} papers in full; the rest are from their abstracts."
-msgstr "Owlit 查了 {where}，{papers} 篇里读了 {read} 篇全文，其余来自摘要。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit looked in {where}."
-msgstr "Owlit 查了 {where}。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit read {read} of the {papers} papers in full; the rest are from their abstracts."
-msgstr "{papers} 篇里 Owlit 读了 {read} 篇全文，其余来自摘要。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "The table above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
-msgstr "上面的表格是 Owlit 对它们的解读。页码指向答案所依据的原文；没有页码的答案来自摘要。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "The list above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
-msgstr "上面是 Owlit 对它们的解读。页码指向答案所依据的原文；没有页码的答案来自摘要。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "a chat"
-msgstr "一个对话"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "another collection"
-msgstr "另一个合集"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "About this collection"
-msgstr "关于这个合集"
-
-#. a collection the user made from one of another collection's groups
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
-msgstr "由 {originLink} 里的分组<0>“{asked}”</0>建成，{when}。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
-msgstr "你在 <1/> 里问过<0>“{asked}”</0>，{when}。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "You asked <0>“{asked}”</0>, {when}."
-msgstr "你问过<0>“{asked}”</0>，{when}。"
-
-#. after the question: its papers were first added to another collection, then kept apart
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Kept separate from {originLink}."
-msgstr "已从 {originLink} 分出来。"
-
-#. a later question Owlit answered by adding to this collection
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Then <0>“{later}”</0>, {on}."
-msgstr "后来又问<0>“{later}”</0>，{on}。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit watches for new papers on this question."
-msgstr "Owlit 会留意这个问题的新论文。"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Find a collection, or collect papers on…"
@@ -5503,11 +5576,6 @@ msgstr "OpenAlex API 密钥"
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Only needed past the free daily allowance."
 msgstr "仅在超出每日免费额度时需要。"
-
-#: app/src/features/settings/store.ts
-#: app/src/features/tour/TourOverlay.tsx
-msgid "Owlit"
-msgstr "Owlit"
 
 #: app/src/features/settings/store.ts
 msgid "Agents"

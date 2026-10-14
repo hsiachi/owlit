@@ -2263,6 +2263,138 @@ msgstr ""
 msgid "In “{title}”: {error}"
 msgstr ""
 
+#: app/src/features/collections/components/About.tsx
+msgid "About this collection"
+msgstr ""
+
+#. a later question Owlit answered by adding to this collection
+#: app/src/features/collections/components/About.tsx
+msgid "Then <0>“{later}”</0>, {on}."
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "Read {read} of the {papers} papers in full; the rest are from their abstracts."
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "Owlit watches for new papers on this question."
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "a chat"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "another collection"
+msgstr ""
+
+#. a collection the user made from one of another collection's groups
+#: app/src/features/collections/components/About.tsx
+msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "You asked <0>“{asked}”</0>, {when}."
+msgstr ""
+
+#. after the question: its papers were first added to another collection, then kept apart
+#: app/src/features/collections/components/About.tsx
+msgid "Kept separate from {originLink}."
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "{searched, plural, one {Searched once} other {Searched # times}}"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "{followed, plural, one {followed the citations of # paper} other {followed the citations of # papers}}"
+msgstr ""
+
+#. fold: the searches Owlit made for one batch of a collection
+#: app/src/features/collections/components/About.tsx
+msgid "Searches"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "{added, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "{added, plural, one {+# paper} other {+# papers}}"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "{answered, plural, one {# answer} other {# answers}}"
+msgstr ""
+
+#. a batch of Owlit's work on a collection that added nothing
+#: app/src/features/collections/components/About.tsx
+msgid "nothing new"
+msgstr ""
+
+#. a batch of a collection: Owlit added papers in a chat, for a later question
+#: app/src/features/collections/components/About.tsx
+msgid "In {link}, for “{asked}” · {what}"
+msgstr ""
+
+#. a batch of a collection: Owlit added papers in a chat
+#: app/src/features/collections/components/About.tsx
+msgid "In {link} · {what}"
+msgstr ""
+
+#. a batch of a collection: the user asked Owlit to find more
+#: app/src/features/collections/components/About.tsx
+msgid "Found more papers"
+msgstr ""
+
+#. a batch of a collection: Owlit's watch looked for new papers
+#: app/src/features/collections/components/About.tsx
+msgid "Checked for new papers"
+msgstr ""
+
+#. a batch of a collection: Owlit read the papers' full texts
+#: app/src/features/collections/components/About.tsx
+msgid "Read in full"
+msgstr ""
+
+#. a batch of a collection: Owlit answered a column's question for every paper
+#: app/src/features/collections/components/About.tsx
+msgid "Answered “{column}”"
+msgstr ""
+
+#. a batch of a collection: Owlit's first search for papers
+#: app/src/features/collections/components/About.tsx
+msgid "Gathered"
+msgstr ""
+
+#. a batch of a collection Owlit made without saying why
+#: app/src/features/collections/components/About.tsx
+#: app/src/features/settings/store.ts
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Owlit"
+msgstr ""
+
+#. of the papers a search found, how many became rows
+#: app/src/features/collections/components/About.tsx
+msgid "kept {kept} of {found}"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "References of {of}"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "Papers citing {of}"
+msgstr ""
+
+#: app/src/features/collections/components/About.tsx
+msgid "Papers like {of}"
+msgstr ""
+
 #: app/src/features/collections/components/AnswerRows.tsx
 msgid "You've read some of it"
 msgstr ""
@@ -2701,65 +2833,6 @@ msgstr ""
 #: app/src/features/collections/pages/CollectionPage.tsx
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Collection name"
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit looked in {where} and read {read} of the {papers} papers in full; the rest are from their abstracts."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit looked in {where}."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit read {read} of the {papers} papers in full; the rest are from their abstracts."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "The table above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "The list above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "a chat"
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "another collection"
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "About this collection"
-msgstr ""
-
-#. a collection the user made from one of another collection's groups
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "You asked <0>“{asked}”</0>, {when}."
-msgstr ""
-
-#. after the question: its papers were first added to another collection, then kept apart
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Kept separate from {originLink}."
-msgstr ""
-
-#. a later question Owlit answered by adding to this collection
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Then <0>“{later}”</0>, {on}."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "Owlit watches for new papers on this question."
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
@@ -5502,11 +5575,6 @@ msgstr ""
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Only needed past the free daily allowance."
-msgstr ""
-
-#: app/src/features/settings/store.ts
-#: app/src/features/tour/TourOverlay.tsx
-msgid "Owlit"
 msgstr ""
 
 #: app/src/features/settings/store.ts

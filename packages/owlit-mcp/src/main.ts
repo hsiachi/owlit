@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// owlit-mcp --workspace <folder> [--chat <id>]: owlit's tools over stdio, for an agent. owlit starts it
+// owlit-mcp --workspace <folder> [--chat <id>] [--run <kind:task>]: owlit's tools over stdio, for an agent. owlit starts it
 // for its own agents; to use it from an agent outside owlit, point that agent's MCP config at this
 // command with the workspace owlit has open.
 
@@ -30,7 +30,7 @@ async function main(workspace: string) {
     if (error instanceof OwlitNotRunning) console.error(`owlit-mcp: ${error.message}`)
     else throw error
   }
-  const server = createServer({ workspace, socketDir, chatId: flag("chat") ?? process.env.OWLIT_CHAT_ID, instructions })
+  const server = createServer({ workspace, socketDir, chatId: flag("chat") ?? process.env.OWLIT_CHAT_ID, run: flag("run"), instructions })
   await server.connect(new StdioServerTransport())
 }
 

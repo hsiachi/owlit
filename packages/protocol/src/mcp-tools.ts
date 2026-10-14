@@ -250,7 +250,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "collection_write",
     description:
-      "Gather papers you found into a collection, new (no id) or existing, instead of adding them to the library: the user sees it under Collections and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper found about the question, from its whole abstract (library_get gives it; a search's line cuts it short) (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what is missing and where you looked. It describes the papers; it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the collection's link.",
+      "Gather papers you found into a collection, new (no id) or existing, instead of adding them to the library: the user sees it under Collections and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper found about the question, from its whole abstract (library_get gives it; a search's line cuts it short) (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what none of them covers. It describes the papers, not your search (that goes in note); it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the collection's link.",
     inputSchema: {
       type: "object",
       properties: {
@@ -258,7 +258,11 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         asked: { type: "string", description: "The user's question in their own words: needed to start one, and given too when you add to one for a new question" },
         title: { type: "string", description: "A short neutral title for what it gathers, in the user's language, naming the topic rather than repeating the question: 回放式标注作为研究方法, not 我的研究方法该怎么设计？ (needed to start one)" },
         project: { type: "string", description: "The workspace's top-level folder the work belongs to, when it plainly belongs to one (optional)" },
-        sources: { type: "array", items: { type: "string" }, description: "Where you looked: Semantic Scholar, OpenAlex, arXiv, a journal's issues… (optional)" },
+        note: {
+          type: "string",
+          description:
+            "One plain sentence on what this search couldn't reach, shown with it under the collection's About: a source that failed, an index that misses part of a venue, papers with no abstract. Leave out when nothing was missed; owlit records your searches itself. (optional)",
+        },
         rows: {
           type: "string",
           description:

@@ -219,8 +219,44 @@ export interface CollectionWrite {
   // Rows Owlit takes out (the user's own removals are separate and stay)
   removeRows?: string[]
   why?: string
+  // One sentence on what this batch couldn't reach (a source that failed, an index that is incomplete,
+  // papers without an abstract), kept with the batch in About
+  note?: string
   chatId?: string
+  // The background run writing, as "<kind>:<task id>": its searches and writes are one batch
+  run?: string
   docPath?: string
+}
+
+// One batch of Owlit's work on a collection, for About: what set it going, what it added or answered,
+// the searches it made and what it said it couldn't reach. Worked out from the collection's history.
+export interface CollectionBatch {
+  at: number
+  // Its first gathering, Find more papers, a watch check, reading in full, a column, a chat, or Owlit
+  // without saying (collections from before batches were recorded)
+  trigger: "gather" | "more" | "check" | "read" | "fill" | "chat" | "agent"
+  chatId?: string
+  // A later question in a chat that Owlit answered by adding here
+  asked?: string
+  added: number
+  // Answers written for papers that were there already, and the questions they answer (not the
+  // collection's own)
+  answered: number
+  columns: string[]
+  searches: CollectionSearch[]
+  notes: string[]
+}
+
+export interface CollectionSearch {
+  // search: words in a source; references / cited_by / similar: following a paper (of, its title);
+  // listing: a venue's or a journal's papers
+  kind: "search" | "references" | "cited_by" | "similar" | "listing"
+  query: string
+  of?: string
+  source: string
+  found: number
+  // Of what it found, how many became rows in this batch
+  kept: number
 }
 
 export interface CollectionRowWrite {
@@ -330,7 +366,8 @@ export function applyCollectionEdit(c: Collection, edit: CollectionEdit, now: nu
       c.project = edit.project
       return { items: [] }
     case "seen":
-      c.seenAt = now
+      // Covers every change so far, even one dated a moment ahead so that it got its dot
+      c.seenAt = Math.max(now, ...Object.values(c.changedAt))
       return { items: [] }
   }
 }

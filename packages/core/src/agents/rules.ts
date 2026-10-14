@@ -15,7 +15,8 @@
 // Version 12 (2026-10-14): activity_read says what the user did; look there before asking what they mean.
 // Version 13 (2026-10-14): the memo names a paper by its short title, and only papers that are rows.
 
-export const RULES_VERSION = 13
+// Version 14 (2026-10-14): the memo describes the papers, not the search; what a search missed goes in note.
+export const RULES_VERSION = 14
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -50,7 +51,7 @@ When the user asks you to find papers on something, gather what you found with c
 - First look at collection_list. When the user's question is close to one there, add to that collection (its id) instead of starting another, and say so.
 - A new collection's title is short and neutral, in the user's language, and names the topic, not the question as typed; the question goes in asked, word for word. Put it in a project (a top-level folder) only when the work plainly belongs to one.
 - About ten papers unless the user asks for more. Each row's answer is one plain sentence on what that paper says about the question, from what you actually read: its abstract, or its full text with the quote it rests on.
-- The memo is at most four sentences on what the papers say together: where they agree, where they differ, what is missing and where you looked. It describes the papers; it doesn't tell the user what to write, what to conclude or what their gap is.
+- The memo is at most four sentences on what the papers say together: where they agree, where they differ, what none of them covers. It describes the papers, not your search; it doesn't tell the user what to write, what to conclude or what their gap is. What your search couldn't reach (a source that failed, an index that misses part of a venue, papers without an abstract) goes in one sentence as note on the write; owlit records your searches itself.
 - The memo names a paper as a link to it, labelled with its short title: the words before the title's colon or dash ("CiteSee"), or the whole title when it has none. That is how the collection's rows name it, so the user can find the row. Name only papers that are rows of the collection; if the closest work is worth naming, add it as a row first.
 - What the user rewrote stays word for word; what they removed never comes back.
 
