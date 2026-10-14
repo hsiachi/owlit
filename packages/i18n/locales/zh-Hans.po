@@ -128,10 +128,12 @@ msgstr "什么也没找到。"
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
+#. verb: open the exported doc
 #. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/export.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
 #: app/src/features/home/WaitingOnYou.tsx
@@ -2283,6 +2285,10 @@ msgid "No project"
 msgstr "不属于项目"
 
 #: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Export as a doc"
+msgstr "导出为文档"
+
+#: app/src/features/collections/components/CollectionMenu.tsx
 msgid "Export as CSV"
 msgstr "导出为 CSV"
 
@@ -2383,7 +2389,9 @@ msgstr "标题"
 msgid "Newest first"
 msgstr "最新在前"
 
+#. table header in an exported collection
 #: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/export.ts
 msgid "Paper"
 msgstr "论文"
 
@@ -2426,6 +2434,10 @@ msgstr "取消分组"
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Make it a collection of its own"
 msgstr "单独成为一个合集"
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Made a collection of its own"
+msgstr "已单独成为一个合集"
 
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Group name"
@@ -2588,6 +2600,32 @@ msgstr "对照一篇文档…"
 #: app/src/features/collections/components/Work.tsx
 msgid "Each question becomes a column; Owlit answers it from the abstracts."
 msgstr "每个问题成为一列；Owlit 根据摘要回答。"
+
+#. heading in an exported collection: papers in no group
+#: app/src/features/collections/export.ts
+msgid "Other papers"
+msgstr "其他论文"
+
+#. last line of a doc exported from a collection
+#: app/src/features/collections/export.ts
+msgid "From the collection {from}, {date}."
+msgstr "来自合集 {from}，{date}。"
+
+#. sort: group the Library's papers by the collection they came from
+#. table column: the collection a paper came from
+#: app/src/features/collections/export.ts
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Collection"
+msgstr "合集"
+
+#: app/src/features/collections/export.ts
+msgid "owlit couldn't make the doc."
+msgstr "owlit 无法创建该文档。"
+
+#: app/src/features/collections/export.ts
+msgid "Exported as a doc"
+msgstr "已导出为文档"
 
 #. group of collections that belong to no project folder
 #: app/src/features/collections/lib.ts
@@ -3781,11 +3819,6 @@ msgstr "最近添加"
 #: app/src/features/library/components/PaperList.tsx
 msgid "Authors"
 msgstr "作者"
-
-#. sort: group the Library's papers by the collection they came from
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Collection"
-msgstr "合集"
 
 #. how often a paper is cited by other works
 #. how often a paper is cited by other works
@@ -6249,6 +6282,14 @@ msgstr "合集里已经没有这一项了。"
 #: packages/core/src/collections/collections.ts
 msgid "Those papers aren't in the collection any more."
 msgstr "那些论文已不在合集中。"
+
+#: packages/core/src/collections/collections.ts
+msgid "This collection wasn't kept separate from another."
+msgstr "这个合集不是从别的合集里分出来的。"
+
+#: packages/core/src/collections/collections.ts
+msgid "The collection these papers came from is gone."
+msgstr "这些论文原来所在的合集已经不在了。"
 
 #: packages/core/src/collections/collections.ts
 msgid "That collection is already here."

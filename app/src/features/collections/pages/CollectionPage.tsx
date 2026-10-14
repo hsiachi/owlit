@@ -29,8 +29,14 @@ import { useCollectionsUi } from "../ui-store"
 // After this long on the page, what Owlit changed counts as seen; its dots stay for this visit
 const SEEN_AFTER_MS = 1500
 
+// One visit per collection: going from one to another (a group made its own, Undo, a link) starts at the
+// top with that collection's own idea of what changed since the user looked
 export function CollectionPage() {
   const { collectionId } = useParams()
+  return <CollectionVisit key={collectionId} collectionId={collectionId} />
+}
+
+function CollectionVisit({ collectionId }: { collectionId: string | undefined }) {
   const navigate = useNavigate()
   const collection = useCollection(collectionId)
   const loaded = useCollectionsStore((s) => s.loaded)

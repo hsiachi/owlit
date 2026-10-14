@@ -8,7 +8,7 @@ import { type PickMode, range, toggle } from "@/lib/multi-select"
 
 // "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF
 export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs"
-// collection: grouped by the collection a paper came from (the list only), newest added first in each
+// collection: grouped by the collection a paper came from, newest added first in each
 export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue" | "citations" | "collection"
 
 export interface Sort {

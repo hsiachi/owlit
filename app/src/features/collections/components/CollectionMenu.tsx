@@ -4,7 +4,8 @@ import { useDocsStore } from "@/features/docs/store"
 import type { MenuGroups } from "@/components/action-menu"
 import { deleteCollection, editCollection } from "../store"
 import { useCollectionsUi } from "../ui-store"
-import { downloadCsv } from "../export"
+import { useNavigate } from "react-router-dom"
+import { downloadCsv, exportAsDoc } from "../export"
 
 // The workspace's top-level folders, which are its projects
 export function useProjects(): string[] {
@@ -19,6 +20,7 @@ export function useProjects(): string[] {
 // One collection's actions, the same from its row's ⋯, a right-click and the page's ⋯
 export function useCollectionMenu(c: Collection | undefined, opts: { afterDelete?: () => void } = {}): MenuGroups {
   const projects = useProjects()
+  const navigate = useNavigate()
   if (!c) return []
   const rename = useCollectionsUi.getState().set
   return [
@@ -38,7 +40,10 @@ export function useCollectionMenu(c: Collection | undefined, opts: { afterDelete
         ],
       },
     ],
-    [{ label: t`Export as CSV`, onSelect: () => downloadCsv(shownCollection(c)) }],
+    [
+      { label: t`Export as a doc`, onSelect: () => exportAsDoc(shownCollection(c), navigate) },
+      { label: t`Export as CSV`, onSelect: () => downloadCsv(shownCollection(c)) },
+    ],
     [
       {
         label: t`Delete`,

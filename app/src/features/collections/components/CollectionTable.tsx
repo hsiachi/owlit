@@ -17,6 +17,7 @@ import { Unfold } from "@/components/unfold"
 import { displayName } from "@/features/docs/types"
 import { useTasksStore } from "@/features/tasks/store"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { isTaskFinished } from "@owlit/protocol"
 import { citeOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
@@ -33,7 +34,7 @@ import { AskEach, CollectionActions } from "./Work"
 // Rows a group shows before "Show N more"
 const SHOWN = 8
 
-const REL_WORDS = (): Record<Relation, string> => ({
+export const REL_WORDS = (): Record<Relation, string> => ({
   supports: t({ message: "Supports", comment: "a paper's findings back one of the user's sentences" }),
   challenges: t({ message: "Challenges", comment: "a paper's findings cut against or qualify one of the user's sentences" }),
   related: t({ message: "Related", comment: "a paper on the same matter as one of the user's sentences, without settling it" }),
@@ -311,9 +312,19 @@ function GroupRow({ collection, section, open, span, count, rels, onToggle }: { 
             onSelect: async () => {
               if (!isDesktop) return
               const rows = collection.rows.filter((r) => r.group === g.id || collection.groups.some((c) => c.parent === g.id && c.id === r.group)).map((r) => r.id)
-              const c = await rpc.collections.split({ id: collection.id, rows, asked: section.label })
-              put(c)
-              navigate(`/collections/${c.id}`)
+              try {
+                const c = await rpc.collections.split({ id: collection.id, rows, asked: section.label })
+                put(c)
+                navigate(`/collections/${c.id}`)
+                toastUndo(t`Made a collection of its own`, async () => {
+                  const from = await rpc.collections.unsplit({ id: c.id }).catch((error) => void toast.error(error instanceof Error ? error.message : String(error)))
+                  if (!from) return
+                  put(from)
+                  navigate(`/collections/${from.id}`)
+                })
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : String(error))
+              }
             },
           },
         ],

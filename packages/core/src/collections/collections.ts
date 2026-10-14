@@ -40,8 +40,8 @@ import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from ".
 
 export interface CollectionsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
-  // is a line on what it did
-  agent?: (prompt: string, signal: AbortSignal, allow: RegExp) => Promise<{ text: string }>
+  // is a line on what it did. Null while the workspace is still opening and its tools can't be reached.
+  agent?: (prompt: string, signal: AbortSignal, allow: RegExp) => Promise<{ text: string } | null>
   // What a paper is, by its id: the Library's record, or what a recent search found
   paper?: (id: string) => Promise<CollectionPaper | undefined>
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
@@ -130,6 +130,8 @@ export class Collections {
           ctx.progress(0, undefined, kind)
           // What it did is in the collection, with Owlit's dots; its answer is only a line for the log
           const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow)
+          // Queued tasks start with the workspace, a moment before its socket opens: try again then
+          if (!done) return ctx.later(1000)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[collections] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },
@@ -456,8 +458,10 @@ export class Collections {
           return { ...r, cells: answer ? { [QUESTION_COLUMN]: answer } : {} }
         }),
       }
+      const taken = from.alsoAsked?.find((a) => sameWords(a.text, question))
+      c.splitFrom = { id: from.id, rows, ...(taken ? { asked: taken } : {}) }
       from.rows = from.rows.filter((r) => !rowIds.includes(r.id))
-      from.alsoAsked = from.alsoAsked?.filter((a) => !sameWords(a.text, question))
+      from.alsoAsked = from.alsoAsked?.filter((a) => a !== taken)
       from.updatedAt = now
       await this.save(c)
       await this.save(from)
@@ -466,6 +470,37 @@ export class Collections {
       this.services.changed?.(from.id, from)
       this.services.changed?.(c.id, c)
       return c
+    })
+  }
+
+  // Undo of split(): the rows go back as they were in the collection they came from, with what the user
+  // wrote in their answers since; one they removed here stays out, and so does one already back there
+  unsplit(id: string) {
+    return this.serial(async () => {
+      const c = await this.get(id)
+      if (!c.splitFrom) throw new RpcFailure(RpcErrorCode.NotFound, t`This collection wasn't kept separate from another.`)
+      const from = await this.load(c.splitFrom.id)
+      if (!from) throw new RpcFailure(RpcErrorCode.NotFound, t`The collection these papers came from is gone.`)
+      const now = Date.now()
+      const back = c.splitFrom.rows.filter((r) => !c.yours.removed[itemId.row(r.id)] && !from.rows.some((have) => have.id === r.id))
+      for (const r of back) {
+        const group = r.group && from.groups.some((g) => g.id === r.group) ? r.group : undefined
+        const { group: _group, ...rest } = r
+        from.rows.push(group ? { ...rest, group } : rest)
+        const cell = itemId.cell(r.id, QUESTION_COLUMN)
+        const edit = c.yours.edits[cell]
+        if (edit) from.yours.edits[cell] = edit
+        delete from.yours.removed[itemId.row(r.id)]
+      }
+      if (c.splitFrom.asked && !from.alsoAsked?.some((a) => sameWords(a.text, c.splitFrom!.asked!.text))) from.alsoAsked = [...(from.alsoAsked ?? []), c.splitFrom.asked]
+      from.updatedAt = now
+      await this.save(from)
+      await this.record(from.id, { at: now, by: "you", why: `Put back from ${c.id}`, items: back.map((r) => itemId.row(r.id)) })
+      await mkdir(this.trashDir, { recursive: true })
+      await rename(path.join(this.dir, c.id), path.join(this.trashDir, `${now}-collection-${c.id}`))
+      this.services.changed?.(c.id, null)
+      this.services.changed?.(from.id, from)
+      return from
     })
   }
 
@@ -606,7 +641,10 @@ export function uniqueId(title: string, taken: string[]) {
     .filter(Boolean)
     .slice(0, 6)
     .join("-")
-  const base = words.length >= 3 ? words.slice(0, 48).replace(/-+$/, "") : `c-${randomBytes(3).toString("hex")}`
+  // A mostly Chinese title would be named after its one English word ("adhd"): random instead
+  const letters = title.match(/\p{L}/gu)?.length ?? 0
+  const latin = title.normalize("NFKD").match(/[a-z]/gi)?.length ?? 0
+  const base = words.length >= 3 && latin * 2 >= letters ? words.slice(0, 48).replace(/-+$/, "") : `c-${randomBytes(3).toString("hex")}`
   let id = base
   for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`
   return id

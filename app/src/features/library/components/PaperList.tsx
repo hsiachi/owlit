@@ -174,6 +174,7 @@ const COLUMNS = [
   { key: "year", label: msg`Year`, width: 64, sort: "year" },
   { key: "venue", label: msg`Venue`, width: 160, sort: "venue" },
   { key: "citations", label: msg({ message: "Citations", comment: "how often a paper is cited by other works" }), width: 88, sort: "citations" },
+  { key: "collection", label: msg({ message: "Collection", comment: "table column: the collection a paper came from" }), width: 160, sort: "collection" },
   { key: "tags", label: msg`Tags`, width: 144 },
   { key: "status", label: msg`Status`, width: 104 },
   { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
@@ -186,7 +187,10 @@ type ColumnKey = Column["key"]
 // can't fit every column, they give way least-needed first; Year and Added (which holds the
 // row's actions) always stay.
 const TITLE_MIN = 320
-const GIVE_WAY: ColumnKey[] = ["citations", "venue", "status", "tags", "authors"]
+const GIVE_WAY: ColumnKey[] = ["citations", "venue", "collection", "status", "tags", "authors"]
+
+// The collections that hold each paper, most recently changed first
+type ByCollection = ReadonlyMap<string, { id: string; title: string }[]>
 
 // Columns no paper in view fills (no tags yet, every paper unread) are left out rather than shown blank
 const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
@@ -199,13 +203,14 @@ const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
 // Added says "Oct 8 · Owlit" for a paper Owlit added, which needs a wider cell than a date alone
 const ADDED_BY_OWLIT_WIDTH = 136
 
-function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[]): Column[] {
+function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byCollection: ByCollection | undefined): Column[] {
   const kept = useMemo(() => {
     const byOwlit = papers.some((p) => p.addedBy === "agent")
-    return COLUMNS.filter((c) => !FILLED[c.key] || papers.some(FILLED[c.key]!)).map((c) =>
+    const filled = { ...FILLED, collection: (p: Paper) => !!byCollection?.get(p.id)?.length }
+    return COLUMNS.filter((c) => !filled[c.key] || papers.some(filled[c.key]!)).map((c) =>
       c.key === "added" && byOwlit ? { ...c, width: ADDED_BY_OWLIT_WIDTH } : c,
     ) as Column[]
-  }, [papers])
+  }, [papers, byCollection])
   // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
   // before paint, so the table never shows a frame with every column squeezed in; and it only
   // re-renders when a column actually comes or goes.
@@ -229,7 +234,7 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
   return useMemo(() => kept.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [kept, hidden])
 }
 
-function TableRow({ paper, peeked, last, columns, snippet, tagFilter }: { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[] }) {
+function TableRow({ paper, peeked, last, columns, snippet, tagFilter, holding }: { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[]; holding?: { id: string; title: string }[] }) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   const tags = tagsFirst(paper.tags, tagFilter)
@@ -269,6 +274,16 @@ function TableRow({ paper, peeked, last, columns, snippet, tagFilter }: { paper:
         {columns.has("citations") && (
           <td className={cn(td, "tabular-nums")} title={paper.citations && `${citationsText(paper.citations.count)} · ${citationsSource(paper.citations)}`}>
             {paper.citations && citationsShort(paper.citations.count)}
+          </td>
+        )}
+        {columns.has("collection") && (
+          <td className={td} title={holding && holding.length > 1 ? holding.map((c) => c.title).join("\n") : holding?.[0]?.title}>
+            {holding?.length ? (
+              <span className="flex items-center gap-1.5">
+                <span className="truncate">{holding[0]!.title}</span>
+                {holding.length > 1 && <span className="shrink-0">+{holding.length - 1}</span>}
+              </span>
+            ) : null}
           </td>
         )}
         {columns.has("tags") && (
@@ -326,14 +341,15 @@ function PeekRow({ paper, open, span }: { paper: Paper; open: boolean; span: num
 }
 
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
-// Column headers sort; clicking a row opens its card in a full-width row beneath it.
-export function PaperTable({ papers, snippets }: { papers: Paper[]; snippets?: ReadonlyMap<string, string> }) {
+// Column headers sort; clicking a row opens its card in a full-width row beneath it. Sorted by
+// collection, the table falls into the list's groups, each under its collection's title.
+export function PaperTable({ papers, groups, byCollection, snippets }: { papers: Paper[]; groups?: PaperGroup[]; byCollection?: ByCollection; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useLibraryUi((s) => s.peekId)
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
   const tagFilter = useLibraryUi((s) => s.tags)
   const table = useRef<HTMLTableElement>(null)
-  const columns = useColumns(table, papers)
+  const columns = useColumns(table, papers, byCollection)
   const shown = useMemo(() => new Set(columns.map((c) => c.key)), [columns])
   return (
     <table ref={table} className="w-full table-fixed border-separate border-spacing-0">
@@ -376,10 +392,21 @@ export function PaperTable({ papers, snippets }: { papers: Paper[]; snippets?: R
         </tr>
       </thead>
       <tbody>
-        {papers.map((p, i) => (
-          <Fragment key={p.id}>
-            <TableRow paper={p} peeked={p.id === peekId} last={i === papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} />
-            <PeekRow paper={p} open={p.id === peekId} span={columns.length} />
+        {(groups ?? [{ label: null, papers }]).map((g, gi) => (
+          <Fragment key={g.label ?? ""}>
+            {g.label && (
+              <tr>
+                <td colSpan={columns.length} className={cn("px-0 pb-0", gi > 0 ? "pt-6" : "pt-2")}>
+                  <GroupLabel as="div">{g.label}</GroupLabel>
+                </td>
+              </tr>
+            )}
+            {g.papers.map((p, i) => (
+              <Fragment key={p.id}>
+                <TableRow paper={p} peeked={p.id === peekId} last={i === g.papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} holding={byCollection?.get(p.id)} />
+                <PeekRow paper={p} open={p.id === peekId} span={columns.length} />
+              </Fragment>
+            ))}
           </Fragment>
         ))}
       </tbody>

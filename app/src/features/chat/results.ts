@@ -45,7 +45,8 @@ interface ResultsState {
   // Each undone change with what puts it back, when there is a way
   markUndone: (messageId: string, redoIds: Record<string, string | undefined>) => void
   markRedone: (messageId: string, versionIds: string[]) => void
-  markSeparate: (messageId: string, versionIds: string[], to: { id: string; title: string }) => void
+  // null: the split was undone, the papers are back in the collection the reply wrote to
+  markSeparate: (messageId: string, versionIds: string[], to: { id: string; title: string } | null) => void
 }
 
 // Old replies drop out first; a result row is a confirmation, the version itself stays in core
@@ -75,7 +76,7 @@ export const useResultsStore = create<ResultsState>()(
         set((s) => ({
           byMessage: {
             ...s.byMessage,
-            [messageId]: (s.byMessage[messageId] ?? []).map((r) => (versionIds.includes(r.versionId) ? { ...r, separate: to } : r)),
+            [messageId]: (s.byMessage[messageId] ?? []).map((r) => (versionIds.includes(r.versionId) ? { ...r, separate: to ?? undefined } : r)),
           },
         })),
       markRedone: (messageId, versionIds) =>

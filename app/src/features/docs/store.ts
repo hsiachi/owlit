@@ -57,7 +57,7 @@ interface DocsState {
 }
 
 // A path is taken by a file, a folder the user made, or a folder that exists because it holds files
-function pathTaken(files: Record<string, WorkspaceFile>, folders: string[], selfId?: string) {
+export function pathTaken(files: Record<string, WorkspaceFile>, folders: string[], selfId?: string) {
   const lower = (p: string) => p.toLowerCase()
   return (path: string) =>
     Object.values(files).some((f) => f.id !== selfId && (lower(f.path) === lower(path) || lower(f.path).startsWith(lower(path) + "/"))) ||

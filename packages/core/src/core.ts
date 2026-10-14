@@ -674,6 +674,7 @@ export class Core {
       ({ id, edit }) => collections().edit(id, edit),
     )
     this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
+    this.router.register("collections.unsplit", z.object({ id: z.string().min(1) }), ({ id }) => collections().unsplit(id))
     this.router.register(
       "collections.gather",
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),
@@ -798,9 +799,11 @@ export class Core {
               },
               collections: {
                 agent: async (prompt, signal, allow) => {
-                  // Without owlit's tools the agent couldn't write the collection at all
+                  // Without owlit's tools the agent couldn't write the collection at all. The workspace
+                  // becomes the open one only once its socket is up (or failed to open, for good).
                   const mcpServers = this.mcpServers(root)
-                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
+                  if (!mcpServers.length && this.workspace?.root !== root) return null
+                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
                   return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
                 },
                 changed: (id, collection) => {
@@ -900,8 +903,11 @@ export class Core {
 
   async dispose() {
     this.started = false
-    this.agents.dispose()
     await this.switching
+    // Background work stops before the agents it runs on: a run cut off by its agent closing would count
+    // as a failed try, where one stopped by closing stays running, to run again next time
+    await this.workspace?.tasks.dispose()
+    this.agents.dispose()
     await this.journal.dispose()
     await this.socket?.close().catch(() => undefined)
     this.socket = null

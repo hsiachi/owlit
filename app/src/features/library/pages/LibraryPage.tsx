@@ -62,13 +62,17 @@ export function LibraryPage() {
     const q = searchText.trim()
     return new Map(visible.flatMap((p) => (!matchesQuery(p, q) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : [])))
   }, [visible, textHits, searchText])
-  const order = useMemo(() => visible.map((p) => p.id), [visible])
   const collections = useCollectionsStore((s) => s.collections)
   const aliases = useLibraryStore((s) => s.aliases)
-  const byCollection = useMemo(() => (sort.key === "collection" ? collectionsByPaper(collections, papers, aliases) : undefined), [sort.key, collections, papers, aliases])
-  const groups = useMemo(() => groupPapers(visible, sort, searchText.trim().length > 0, Date.now(), byCollection), [visible, sort, searchText, byCollection])
-  const { scroller, listProps } = usePaperListKeys(order)
+  // The table's Collection column wants it whatever the order; the list only when grouped by collection
   const table = layout === "table"
+  const byCollection = useMemo(() => (table || sort.key === "collection" ? collectionsByPaper(collections, papers, aliases) : undefined), [table, sort.key, collections, papers, aliases])
+  const searching = searchText.trim().length > 0
+  const groups = useMemo(() => groupPapers(visible, sort, searching, Date.now(), byCollection), [visible, sort, searching, byCollection])
+  // Grouped by collection, papers show in their groups' order, which the keys follow
+  const byGroups = sort.key === "collection" && !searching
+  const order = useMemo(() => (byGroups ? groups.flatMap((g) => g.papers.map((p) => p.id)) : visible.map((p) => p.id)), [byGroups, groups, visible])
+  const { scroller, listProps } = usePaperListKeys(order)
   const empty = Object.keys(papers).length === 0
   const noMatch = words.length > 0 && visible.length === 0
   const unfiltered = !refInput && !words && filter === "all" && tags.length === 0 && !only
@@ -116,7 +120,7 @@ export function LibraryPage() {
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">{t`No papers match.`}</p>
               ) : table ? (
-                <PaperTable papers={visible} snippets={snippets} />
+                <PaperTable papers={visible} groups={byGroups ? groups : undefined} byCollection={byCollection} snippets={snippets} />
               ) : (
                 <PaperList groups={groups} snippets={snippets} />
               )}
