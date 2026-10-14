@@ -128,6 +128,9 @@ export interface Collection {
   changedAt: Record<string, number>
   seenAt: number
   yours: CollectionYours
+  // Kept separate from another collection: the rows as they were there (groups, every column) and the
+  // question taken with them, so Undo can put them back
+  splitFrom?: { id: string; rows: CollectionRow[]; asked?: CollectionAsked }
 }
 
 export type CollectionSize = "few" | "many"

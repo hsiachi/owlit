@@ -156,6 +156,22 @@ describe("Collections, a close question", () => {
     expect(from.rows.map((r) => r.id)).toEqual(["doi-10.1145-1", "doi-10.1145-2"])
     expect(from.alsoAsked).toEqual([])
   })
+
+  it("puts kept-apart rows back as they were, with the user's rewrite, and the new collection in the trash", async () => {
+    const { collections } = setup()
+    const { id } = await start(collections)
+    await collections.write({ id, asked: "偏差方向？", groups: [{ id: "g", name: "G" }], columns: [{ id: "m", question: "Method" }], rows: [{ id: "doi-10.1145-3", group: "g", cells: { q: { text: "Lower.", depth: "abstract" }, m: { text: "Survey", depth: "abstract" } } }] })
+    const split = await collections.split(id, ["doi-10.1145-3"], "偏差方向？")
+    await collections.edit(split.id, { op: "rewrite", item: itemId.cell("doi-10.1145-3", "q"), text: "Lower, by a third." })
+    const back = await collections.unsplit(split.id)
+    expect(back.id).toBe(id)
+    const row = back.rows.find((r) => r.id === "doi-10.1145-3")!
+    expect(row).toMatchObject({ group: "g", cells: { m: expect.objectContaining({ text: "Survey" }) } })
+    expect(shownCollection(back).rows.find((r) => r.id === "doi-10.1145-3")?.cells.q?.text).toBe("Lower, by a third.")
+    expect(back.alsoAsked?.map((a) => a.text)).toEqual(["偏差方向？"])
+    expect((await collections.list()).map((c) => c.id)).toEqual([id])
+    await expect(collections.unsplit(id)).rejects.toThrow(/wasn't kept separate/)
+  })
 })
 
 describe("Collections, the user's side", () => {

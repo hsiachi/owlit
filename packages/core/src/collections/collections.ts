@@ -458,8 +458,10 @@ export class Collections {
           return { ...r, cells: answer ? { [QUESTION_COLUMN]: answer } : {} }
         }),
       }
+      const taken = from.alsoAsked?.find((a) => sameWords(a.text, question))
+      c.splitFrom = { id: from.id, rows, ...(taken ? { asked: taken } : {}) }
       from.rows = from.rows.filter((r) => !rowIds.includes(r.id))
-      from.alsoAsked = from.alsoAsked?.filter((a) => !sameWords(a.text, question))
+      from.alsoAsked = from.alsoAsked?.filter((a) => a !== taken)
       from.updatedAt = now
       await this.save(c)
       await this.save(from)
@@ -468,6 +470,37 @@ export class Collections {
       this.services.changed?.(from.id, from)
       this.services.changed?.(c.id, c)
       return c
+    })
+  }
+
+  // Undo of split(): the rows go back as they were in the collection they came from, with what the user
+  // wrote in their answers since; one they removed here stays out, and so does one already back there
+  unsplit(id: string) {
+    return this.serial(async () => {
+      const c = await this.get(id)
+      if (!c.splitFrom) throw new RpcFailure(RpcErrorCode.NotFound, t`This collection wasn't kept separate from another.`)
+      const from = await this.load(c.splitFrom.id)
+      if (!from) throw new RpcFailure(RpcErrorCode.NotFound, t`The collection these papers came from is gone.`)
+      const now = Date.now()
+      const back = c.splitFrom.rows.filter((r) => !c.yours.removed[itemId.row(r.id)] && !from.rows.some((have) => have.id === r.id))
+      for (const r of back) {
+        const group = r.group && from.groups.some((g) => g.id === r.group) ? r.group : undefined
+        const { group: _group, ...rest } = r
+        from.rows.push(group ? { ...rest, group } : rest)
+        const cell = itemId.cell(r.id, QUESTION_COLUMN)
+        const edit = c.yours.edits[cell]
+        if (edit) from.yours.edits[cell] = edit
+        delete from.yours.removed[itemId.row(r.id)]
+      }
+      if (c.splitFrom.asked && !from.alsoAsked?.some((a) => sameWords(a.text, c.splitFrom!.asked!.text))) from.alsoAsked = [...(from.alsoAsked ?? []), c.splitFrom.asked]
+      from.updatedAt = now
+      await this.save(from)
+      await this.record(from.id, { at: now, by: "you", why: `Put back from ${c.id}`, items: back.map((r) => itemId.row(r.id)) })
+      await mkdir(this.trashDir, { recursive: true })
+      await rename(path.join(this.dir, c.id), path.join(this.trashDir, `${now}-collection-${c.id}`))
+      this.services.changed?.(c.id, null)
+      this.services.changed?.(from.id, from)
+      return from
     })
   }
 

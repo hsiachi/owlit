@@ -174,6 +174,9 @@ export interface Methods {
   // Keep it separate: the rows an agent added to this collection become a collection of their own, for
   // the question they were found for
   "collections.split": { params: { id: string; rows: string[]; asked: string }; result: Collection }
+  // Undo of a split: the rows go back where they came from, as they were there, and this collection to
+  // the trash; the collection they went back to
+  "collections.unsplit": { params: { id: string }; result: Collection }
   // Owlit gathers papers for a question, in the background: the collection is there at once (empty,
   // titled by the question until Owlit names it) and fills as the task runs
   "collections.gather": { params: { question: string; project?: string; size: CollectionSize }; result: Collection }

@@ -658,6 +658,7 @@ export class Core {
       ({ id, edit }) => collections().edit(id, edit),
     )
     this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
+    this.router.register("collections.unsplit", z.object({ id: z.string().min(1) }), ({ id }) => collections().unsplit(id))
     this.router.register(
       "collections.gather",
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),

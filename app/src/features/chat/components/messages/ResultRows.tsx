@@ -250,7 +250,20 @@ function useResultRows(message: ChatMessage): ResultRow[] {
       ) : (
         (answers ?? t({ message: "Updated", comment: "a collection the agent changed without adding papers" }))
       ),
-      ...(separate ? { undone: false } : of(list)),
+      // Kept separate, Undo puts the papers back where the reply wrote them
+      ...(separate
+        ? {
+            undone: false,
+            undo: async () => {
+              try {
+                await rpc.collections.unsplit({ id: separate.id })
+                useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), null)
+              } catch (error) {
+                failed(error)
+              }
+            },
+          }
+        : of(list)),
       view: () => navigate(`/collections/${separate?.id ?? id}`),
       // Owlit added to a collection whose question was close; the user may want these papers on their own
       ...(!created && !separate && rowIds.length && isDesktop
