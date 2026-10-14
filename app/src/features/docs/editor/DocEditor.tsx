@@ -12,7 +12,8 @@ import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { allDocMentions, docMentionable, mentionLabel, mentionTooltip, openMention } from "../lib/mentions"
+import { allDocMentions, docMentionable, mentionLabel, mentionTooltip, openMention, paperUnread } from "../lib/mentions"
+import { useLibraryStore } from "@/features/library/store"
 import { freshDocIds, useDocsStore } from "../store"
 import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
@@ -144,6 +145,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           docHighlight,
           livePreview({
             describe: mentionTooltip,
+            unread: (uri) => paperUnread(uri),
+            // A paper read meanwhile (or renamed) shows at once in the doc's mentions
+            resolversChange: (changed) =>
+              useLibraryStore.subscribe((s, prev) => {
+                if (s.papers !== prev.papers) changed()
+              }),
             wikilink: wikilinkRoute,
             onOpenMention: (uri) => openMention(uri, (to) => navigateRef.current(to)),
             onOpenRoute: (route) => navigateRef.current(route),

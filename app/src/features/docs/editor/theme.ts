@@ -33,6 +33,7 @@ export const docTheme = EditorView.theme({
     transition: "background-color 0.15s",
   },
   ".cm-mention:hover": { backgroundColor: "color-mix(in oklch, var(--mention) 10%, transparent)" },
+  ".cm-mention[data-unread]": { color: "var(--color-mention-unread)" },
   ".cm-link": { textDecoration: "underline", textUnderlineOffset: "3px", textDecorationColor: "color-mix(in oklch, var(--foreground) 35%, transparent)" },
   ".cm-highlight": { backgroundColor: "var(--text-highlight)", borderRadius: "3px" },
   ".cm-inline-code": { fontFamily: mono, fontSize: "0.85em", backgroundColor: "var(--muted)", borderRadius: "4px", padding: "0.1em 0.3em" },

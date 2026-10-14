@@ -5,7 +5,8 @@ import { readFile } from "node:fs/promises"
 // never scores: whatever weighs them (whether a paper counts as read, what an agent is told) does so
 // here, where it can change without rewriting anyone's history.
 
-// Two minutes on the paper itself is reading it; a highlight, a note or a star is too, at any length
+// Two minutes on the paper, its PDF or Owlit's digest of it, is reading it; a highlight, a note or a star
+// is too, at any length
 export const READ_AFTER_SECONDS = 120
 
 export interface PaperReading {
@@ -23,7 +24,7 @@ export interface PaperReading {
   starred: boolean
   firstAt: number
   lastAt: number
-  // Read by the person, not only opened and not only through the digest: the summary is not the reading
+  // Read by the person, not only opened
   read: boolean
 }
 
@@ -76,7 +77,7 @@ export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: stri
   for (const { opened, closed, ...p } of papers.values()) {
     // Journals from before paper.opened was kept have only the closing
     p.visits = Math.max(opened, closed)
-    p.read = p.pdfSeconds >= READ_AFTER_SECONDS || p.highlights > 0 || p.noted || p.starred
+    p.read = p.pdfSeconds + p.digestSeconds >= READ_AFTER_SECONDS || p.highlights > 0 || p.noted || p.starred
     out.set(p.paperId, p)
   }
   return out

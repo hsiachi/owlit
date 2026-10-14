@@ -468,6 +468,15 @@ msgstr "没有匹配项"
 msgid "Show all {total}"
 msgstr "显示全部 {total} 项"
 
+#. reading status of a paper
+#. reading status of a paper
+#: app/src/components/mention/mention-token.tsx
+#: app/src/features/docs/editor/live-preview.ts
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+msgid "Unread"
+msgstr "未读"
+
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
 msgstr "路径导航"
@@ -3984,13 +3993,6 @@ msgstr "在读"
 #: app/src/features/library/components/StarButton.tsx
 msgid "Starred"
 msgstr "已加星标"
-
-#. reading status of a paper
-#. reading status of a paper
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-msgid "Unread"
-msgstr "未读"
 
 #. reading status of a paper: finished reading (past participle)
 #. reading status of a paper: finished reading (past participle)
