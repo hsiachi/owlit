@@ -545,13 +545,13 @@ msgid "Last chat"
 msgstr "上一个对话"
 
 #: app/src/features/agent/AgentWindow.tsx
-msgid "Ask anything."
-msgstr "想问什么都可以。"
-
-#: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "Ask a follow-up…"
 msgstr "继续追问…"
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Ask anything."
+msgstr "想问什么都可以。"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "No chats yet"
@@ -624,6 +624,54 @@ msgstr "问问这篇文档，或任何其他问题。"
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this collection, or anything else."
 msgstr "问关于这个合集的问题，或别的任何事。"
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper"
+msgstr "总结这篇论文"
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper: its question, method and main findings."
+msgstr "总结这篇论文：它的问题、方法和主要发现。"
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s the method?"
+msgstr "用了什么方法？"
+
+#: app/src/features/agent/page-context.ts
+msgid "What method does this paper use, and how does it evaluate it?"
+msgstr "这篇论文用了什么方法，又是如何评估的？"
+
+#: app/src/features/agent/page-context.ts
+msgid "Review this draft"
+msgstr "审阅这篇文档"
+
+#: app/src/features/agent/page-context.ts
+msgid "Review where this draft overstates a finding or misreads a paper."
+msgstr "找出这篇文档中夸大结论或误读论文的地方。"
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers to cite"
+msgstr "找可引用的论文"
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers that support or challenge the claims in this doc."
+msgstr "找出支持或质疑这篇文档中观点的论文。"
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do they disagree?"
+msgstr "分歧在哪里？"
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do the papers in this collection disagree, and why?"
+msgstr "这个合集里的论文在哪些地方有分歧，为什么？"
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s left open?"
+msgstr "还有哪些悬而未决？"
+
+#: app/src/features/agent/page-context.ts
+msgid "Which questions do the papers in this collection leave open?"
+msgstr "这个合集里的论文还留下了哪些悬而未决的问题？"
 
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
