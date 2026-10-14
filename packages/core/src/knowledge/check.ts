@@ -1,8 +1,8 @@
 import { parseTopic, type Line, type Passage, type Question, type Topic, type TopicSidecar } from "@owlit/protocol"
 
-// What core holds an agent's topic write to (README › Knowledge 运行规则): the parts of the rules that a
-// program can check. A write that breaks one is refused with every problem in a sentence the agent can act
-// on; the judgement calls (what counts as the user's view, when to open a topic) stay in the prompt.
+// What core holds an agent's topic write to: the parts of Knowledge's rules (the prompt in knowledge.ts)
+// that a program can check. A write that breaks one is refused with every problem in a sentence the agent
+// can act on; the judgement calls (what counts as the user's view, when to open a topic) stay in the prompt.
 
 export const LIMITS = { summarySentences: 2, lines: 7, lineWords: 30, questions: 5 }
 

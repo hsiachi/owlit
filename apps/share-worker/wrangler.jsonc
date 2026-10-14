@@ -1,5 +1,5 @@
-// The share server on Cloudflare (see README › Sharing docs by link). `pnpm --filter @owlit/share-worker deploy`
-// builds the reader's page and deploys both; links point at whatever address the worker is reached by.
+// The share server on Cloudflare (see README.md here). `pnpm --filter @owlit/share-worker deploy` builds the
+// reader's page and deploys both; links point at whatever address the worker is reached by.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "owlit-share",
@@ -23,6 +23,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShareRoom", "Limiter"] }],
   "observability": { "enabled": true },
-  // Your own address (recommended; workers.dev isn't reliably reachable from mainland China)
-  "routes": [{ "pattern": "share.hsiachi.dev", "custom_domain": true }]
+  // Always on workers.dev; your own domain (recommended, workers.dev isn't reliably reachable from mainland
+  // China) comes from OWLIT_SHARE_SERVER at deploy time (scripts/deploy.mjs), not from this file
+  "workers_dev": true
 }

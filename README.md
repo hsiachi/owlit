@@ -1,70 +1,118 @@
-# owlit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/lockup-dark.svg">
+    <img src=".github/readme/lockup-light.svg" width="300" alt="owlit">
+  </picture>
+</p>
 
-A pnpm workspace: `app/` is the renderer (React + Vite), `packages/protocol/` the wire types,
-`packages/core/` the backend (plain Node, never imports Electron or React), `apps/desktop/` the
-Electron shell that wires them together, `packages/client/` a Node client for a running owlit, and
-`packages/owlit-mcp/` the MCP server that gives agents owlit's library, docs and chats. `apps/share-worker/` (on
-Cloudflare) or `apps/share-server/` (plain Node), with `apps/share-web/`, are the server and the browser page behind
-sharing a doc by link.
+<h3 align="center">Read, write and think through papers with Owlit.</h3>
+
+<p align="center">
+  A research workspace for macOS where you and an assistant develop ideas together,<br>
+  from first reading to written argument. Everything is files in a folder you own.
+</p>
+
+<p align="center">
+  <a href="https://github.com/hsiachi/owlit/releases/latest">Download for Mac</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#your-data">Your data</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+![A paper in owlit: Owlit's digest on the left, your own notes on the right](.github/readme/paper.png)
+
+> [!NOTE]
+> owlit is early. It runs on Macs with Apple silicon, it's used by a few people, and things will change.
+> If something breaks, Help › Copy Diagnostics and [open an issue](https://github.com/hsiachi/owlit/issues).
+
+## What it is
+
+owlit is the app; **Owlit** is the assistant inside it. Owlit works through an agent you may already have:
+Claude Code, Codex or Gemini CLI, or owlit's own engine.
+
+- **Library**: collect papers (import from Zotero, a BibTeX file or a folder of PDFs, or search). Owlit
+  writes a digest of each one; your highlights and notes sit beside it.
+- **Chat**: ask about your papers, docs and notes, or hand work off. Answers cite the page they came from.
+- **Docs**: write in Markdown. Ask Owlit about a passage, or let it suggest an edit you can see and undo.
+- **Knowledge**: Owlit's own account of your research, built from what you read, write and say. It's
+  plain text, so you can read it and correct it.
+- **Home**: where you land, with what you were in the middle of.
+
+![A chat in owlit: Owlit compares the detection papers in a library in a table, citing pages](.github/readme/chat.png)
+
+## How Owlit works with you
+
+- **Owlit understands your work, and you can correct that understanding.** It keeps a running account of
+  what you're trying to figure out, what you believe so far and what you read, built from your work, never
+  something you maintain. It's text you can read, and correcting it is just writing.
+- **Owlit takes initiative, and everything it does can be undone.** Instead of asking permission, it does
+  the thing, so you see exactly what it means, and you undo it in one step.
+- **You stay aware of what Owlit does.** Each change shows where it happened, signed, with what was there
+  before one step away. You can leave for a month and read from the work what moved.
+- **Owlit leaves room for your thinking.** There is always a place where only your words live, and your
+  views and Owlit's are never blurred. It offers material for thinking before conclusions.
+
+## Install
+
+1. [Download the latest dmg](https://github.com/hsiachi/owlit/releases/latest), open it and drag Owlit
+   into Applications.
+2. The first time, macOS says it can't check Owlit (it isn't notarised by Apple yet). Open System Settings ›
+   Privacy & Security, scroll down, click **Open Anyway** and confirm. Each new version asks once more.
+3. Owlit works through Claude Code or Codex. If one is on your Mac, Owlit offers to set it up for itself
+   (about 300 MB; no Node or npm needed). Not signed in? Run `claude` (or `codex`) in Terminal once.
+   You can also use Gemini CLI, or owlit's own engine with a ChatGPT sign-in or an API key.
+4. On first launch, pick a folder for your workspace, or explore the example workspace first.
+
+After an update, macOS may ask once for your password so Owlit can read its saved keys: choose
+**Always Allow**. owlit doesn't check for updates yet; watch this repo's releases to hear about new ones.
+
+## Your data
+
+- **A folder is the workspace.** Docs are Markdown files, papers are in `library/`, Owlit's Knowledge is in
+  `knowledge/`, chats sit beside them. Back it up, sync it or put it in git like any folder. Exporting is
+  copying it.
+- **Other programs are welcome.** Edit your docs in any editor; owlit follows changes on disk and never
+  overwrites them. Opening a file in owlit changes nothing.
+- **What leaves your Mac:**
+  - What you ask, and the files Owlit reads to answer, go to the agent you chose and from there to its
+    provider (Anthropic for Claude Code, OpenAI for Codex, and so on), under your own account.
+  - Paper lookups go to public catalogues (OpenAlex, Crossref, Semantic Scholar, arXiv, Unpaywall) and to
+    publishers when you fetch a PDF.
+  - PDFs are uploaded only if you turn on MinerU cloud parsing in Settings.
+  - Sharing a doc by link sends the share server only what readers see: the doc, and the digests of the
+    papers it cites (and your notes, if you allow it). PDFs never go there, and the key that changes a
+    link stays on your Mac. Nothing is shared until you press Share. The dmg on the releases page uses a
+    share server the maintainer runs on Cloudflare; a build from source has no share server unless you
+    [run your own](apps/share-worker/README.md).
+
+## Use owlit's tools from another agent
+
+owlit gives its agents tools for your library, docs and chats (an MCP server). Other agents can use them too,
+while owlit has the workspace open. Install the `owlit` command (Owlit › Install Command Line Tool…), then,
+for Claude Code:
+
+```bash
+claude mcp add owlit -- owlit mcp --workspace ~/Research
+```
+
+`--workspace` is the folder open in owlit. The same command works in a terminal: `owlit --help` lists
+what it can do (search the library, add a paper, read a digest, import).
+
+## Contributing
+
+owlit is a pnpm workspace (React, Vite, Electron, plain Node). To run it from source:
 
 ```bash
 pnpm install
-pnpm dev          # Electron window, renderer from Vite with HMR; main/preload rebuild restarts Electron
-pnpm dev:web      # the renderer alone in a browser, on mock data
-pnpm build        # unsigned apps/desktop/release/mac-arm64/owlit.app
-pnpm test         # vitest across packages/*
-pnpm lint         # oxlint everywhere; also enforces core/protocol's import boundary
-pnpm typecheck
+pnpm dev
 ```
 
-`pnpm dev -- --remote-debugging-port=9333` passes flags through to Electron. `OWLIT_USER_DATA=<dir>`
-points the app data directory (settings, per-workspace data, the single-instance lock) somewhere
-other than `~/Library/Application Support/owlit`, e.g. to try a first launch. `OWLIT_LOG_ACTIVITY=1`
-prints every activity event the renderer reports; `OWLIT_LOG_DOCS=1` prints what the workspace watcher reports.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the layout, the commands and how releases are made. The share
+server's own notes are in [apps/share-worker](apps/share-worker/README.md).
 
-The build tooling is Vite (renderer) plus esbuild (main and preload, bundled with core) driven by
-`apps/desktop/scripts/`; electron-vite does not support Vite 8 yet. Behind an HTTP proxy, Electron's
-binary download needs `NODE_USE_ENV_PROXY=1 pnpm install`.
+## License
 
-Claude Code's preview pane cannot host Electron: its `.claude/launch.json` entries run the renderer
-alone (`pnpm --dir app dev --port <port>`), the same as `pnpm dev:web`.
+[AGPL-3.0-or-later](LICENSE). You may use, change and share owlit; if you share a changed version, or run
+one as a service for others (such as the share server), you share its source under the same license.
 
-## owlit's tools in an agent outside owlit
-
-owlit hands owlit-mcp to the agents it runs. Any other MCP client can use it too, while owlit has the
-workspace open (it talks to owlit over the workspace's socket). For Claude Code, in this repo:
-
-```bash
-claude mcp add owlit -- node "$PWD/packages/owlit-mcp/src/main.ts" --workspace ~/Research
-```
-
-`--workspace` is the folder open in owlit. With owlit closed, every tool answers that owlit isn't open.
-
-## Sharing docs by link
-
-A doc's Share button makes a link anyone can open in a browser, without owlit: they read the doc and the
-papers it cites (Owlit's digests, and the author's notes if allowed) and comment; comments come back into the
-doc. owlit pushes every change as it is made. The server keeps only what readers see and their comments; PDFs
-never go there, and the key that changes a link stays on the computer that made it.
-
-The server runs on Cloudflare (`apps/share-worker`: a Worker, one Durable Object per shared doc, readers' pages
-kept live over hibernating WebSockets, so an open page costs nothing while nothing changes; the free plan is
-plenty). It is deployed at https://share.hsiachi.dev (the route in `apps/share-worker/wrangler.jsonc`), and
-builds make links there unless told otherwise. To deploy a change:
-
-```bash
-pnpm --filter @owlit/share-worker exec wrangler login
-pnpm --filter @owlit/share-worker run deploy          # builds the reader's page and deploys both
-```
-
-On another Cloudflare account, put your own domain in `routes` (`workers.dev` isn't reliably reachable from
-mainland China) and build with `OWLIT_SHARE_SERVER=https://your.domain pnpm build`; `OWLIT_SHARE_SERVER= pnpm
-build` makes an app without sharing. Locally, `pnpm --filter @owlit/share-worker dev` runs the same worker in
-workerd at http://localhost:8787, and `OWLIT_SHARE_SERVER=http://localhost:8787 pnpm dev` points owlit at it.
-
-`apps/share-server` is the same API on plain Node with one SQLite file, for a machine of your own (Node 22.13+,
-sudo for the systemd service); both pass the same tests (`apps/share-server/src/contract.ts`):
-
-```bash
-apps/share-server/deploy/deploy.sh algernon https://share.example.org   # behind Caddy: apps/share-server/deploy/Caddyfile
-```
+The name "owlit" and the feather logo aren't covered by the license: please give a fork its own name.
