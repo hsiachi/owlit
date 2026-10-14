@@ -77,7 +77,7 @@ function SplitForm({ topic, onDone }: { topic: Topic; onDone: (id: string | null
           />
         </label>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onDone(null)}>
+          <Button type="button" variant="outline" onClick={() => onDone(null)}>
             {t`Cancel`}
           </Button>
           <Button type="submit" disabled={!ok}>

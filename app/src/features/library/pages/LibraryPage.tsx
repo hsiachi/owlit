@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { DropCard, EmptyPlace } from "@/components/empty-place"
 import { DropOverlay, PdfFileInput } from "@/components/file-drop"
+import { InlineLink } from "@/components/inline-link"
 import { PageShell } from "@/components/page"
 import { Button } from "@/components/ui/button"
 import { useFileDrop } from "@/hooks/use-file-drop"
@@ -176,11 +177,8 @@ function EmptyLibrary() {
           </>
         }
       >
-        <p className="text-sm text-muted-foreground">
-          {t`Coming from Zotero or BibTeX?`}{" "}
-          <button type="button" onClick={openImportDialog} className="text-foreground underline decoration-foreground/30 underline-offset-3 hover:decoration-foreground/60">
-            {t`Import your collection`}
-          </button>
+        <p className="text-detail text-muted-foreground">
+          {t`Coming from Zotero or BibTeX?`} <InlineLink onClick={openImportDialog}>{t`Import your collection`}</InlineLink>
         </p>
       </DropCard>
       <PdfFileInput ref={fileInput} multiple onFiles={(files) => void addPdfFiles(files)} />

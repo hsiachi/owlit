@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import type { ShareAnchor, ShareBundle, ShareComment, SharedPaper } from "@owlit/protocol"
-import { ArrowLeftIcon, ArrowUpRightIcon, LockIcon, MessageSquareIcon, XIcon } from "lucide-react"
+import { ArrowLeftIcon, ArrowUpRightIcon, LockIcon, XIcon } from "lucide-react"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { anchorOfRange, paint, rangeAtPoint, rangesFor } from "./anchors"
 import { follow, loadComments, loadShare, postComment, storedName, storeName, type Loaded } from "./api"
@@ -83,7 +83,7 @@ export function App() {
   if (loaded.kind === "offline" || !view)
     return (
       <Empty title={t`Couldn't reach the server`} detail={t`Check your connection.`}>
-        <button type="button" onClick={() => void reload()} className="mt-2 h-8 rounded-[10px] border border-input bg-card px-3 font-medium hover:bg-muted">
+        <button type="button" onClick={() => void reload()} className="mt-2 h-8 rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted">
           {t`Try again`}
         </button>
       </Empty>
@@ -133,8 +133,8 @@ export function App() {
           </span>
         )}
         {threads.length > 0 && (
-          <button type="button" onClick={() => setPanel({ kind: "threads" })} className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-detail text-muted-foreground hover:bg-muted hover:text-foreground">
-            <MessageSquareIcon className="size-3.5" />
+          // Words only, as the doc header's "2 notes" and "3 comments" are in owlit
+          <button type="button" onClick={() => setPanel({ kind: "threads" })} className="flex h-7 items-center rounded-lg px-2 text-detail text-muted-foreground hover:bg-muted hover:text-foreground">
             {openThreads.length ? plural(openThreads.length, { one: "# comment", other: "# comments" }) : t`Comments`}
           </button>
         )}
@@ -301,15 +301,19 @@ function DocView(props: {
     [],
   )
 
-  // A passage reached from a paper's citations: scrolled to, and lit for a moment
+  // A passage reached from a paper's citations: scrolled to, and ringed twice the way owlit rings a passage
+  // reached from a list (DESIGN.md › passage ring), 4px out from its words, then gone
+  const [ring, setRing] = useState<{ key: number; top: number; left: number; width: number; height: number } | null>(null)
   useEffect(() => {
-    if (!flash || !article.current) return
+    if (!flash || !article.current || !frame.current) return
     const range = rangesFor(article.current, [{ id: "flash", anchor: flash.anchor }]).get("flash")
     if (!range) return
     const el = range.startContainer.parentElement
     el?.scrollIntoView({ block: "center", behavior: "smooth" })
-    paint("share-flash", [range])
-    const timer = setTimeout(() => paint("share-flash", []), 1600)
+    const rect = range.getBoundingClientRect()
+    const at = frame.current.getBoundingClientRect()
+    setRing({ key: flash.key, top: rect.top - at.top - 4, left: rect.left - at.left - 4, width: rect.width + 8, height: rect.height + 8 })
+    const timer = setTimeout(() => setRing(null), 1600)
     return () => clearTimeout(timer)
   }, [flash])
 
@@ -326,7 +330,7 @@ function DocView(props: {
       if (!anchor) return setPicked(null)
       const rect = range.getBoundingClientRect()
       const at = box.getBoundingClientRect()
-      setPicked({ anchor, top: rect.bottom - at.top + 6, left: Math.min(Math.max(rect.left - at.left, 0), at.width - 110) })
+      setPicked({ anchor, top: rect.bottom - at.top + 8, left: Math.min(Math.max(rect.left - at.left, 0), at.width - 96) })
     }
     document.addEventListener("selectionchange", update)
     return () => document.removeEventListener("selectionchange", update)
@@ -350,21 +354,29 @@ function DocView(props: {
       >
         <Markdown text={bundle.markdown} className="markdown share-doc" onCite={onCite} titleOf={titleOf} pageHref={(id, page) => pageHref(bundle.papers[id], page)} />
       </div>
+      {ring && (
+        <div
+          key={ring.key}
+          aria-hidden
+          style={{ top: ring.top, left: ring.left, width: ring.width, height: ring.height }}
+          className="pointer-events-none absolute animate-passage-ring rounded-[5px] border-2 border-mention"
+        />
+      )}
+      {/* owlit's selection menu (index.css): one words-only row in a 2px frame, 8px off the selection */}
       {picked && (
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            onComment(picked.anchor)
-            window.getSelection()?.removeAllRanges()
-            setPicked(null)
-          }}
-          style={{ top: picked.top, left: picked.left }}
-          className="menu-surface absolute z-10 flex h-7 items-center gap-1.5 rounded-[8px] px-2.5 text-detail"
-        >
-          <MessageSquareIcon className="size-3.5" />
-          {t({ message: "Comment", context: "verb: say something about the selected words" })}
-        </button>
+        <div style={{ top: picked.top, left: picked.left }} className="selection-menu absolute z-10">
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onComment(picked.anchor)
+              window.getSelection()?.removeAllRanges()
+              setPicked(null)
+            }}
+          >
+            {t({ message: "Comment", context: "verb: say something about the selected words" })}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -382,12 +394,13 @@ function PapersList({ bundle, onOpen }: { bundle: ShareBundle; onOpen: (id: stri
           const paper = bundle.papers[id]
           const count = citationsOf(bundle.markdown, id).length
           return (
-            <button key={id} type="button" onClick={() => onOpen(id)} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-1.5 text-left hover:bg-muted">
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm">{paper.title}</span>
-                <span className="block text-detail text-muted-foreground">{meta(paper)}</span>
+            // owlit's row: one line, the title, its details muted inline, a count at the right end
+            <button key={id} type="button" onClick={() => onOpen(id)} title={paper.title} className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-left hover:bg-muted">
+              <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="truncate text-sm">{paper.title}</span>
+                <span className="hidden shrink-0 text-detail text-muted-foreground sm:inline">{meta(paper)}</span>
               </span>
-              <span className="shrink-0 text-detail text-muted-foreground">{plural(count, { one: "Cited once", other: "Cited # times" })}</span>
+              <span className="shrink-0 text-detail text-muted-foreground tabular-nums">{plural(count, { one: "Cited once", other: "Cited # times" })}</span>
             </button>
           )
         })}
@@ -402,7 +415,7 @@ function PaperView({ paper, bundle, full, onCite, onGoTo }: { paper: SharedPaper
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h1 className={full ? "text-title font-medium tracking-[-0.015em] text-balance" : "text-base font-semibold leading-snug text-balance"}>{paper.title}</h1>
+        <h1 className={full ? "text-title font-medium tracking-[-0.015em] text-balance" : "text-lg leading-snug font-medium text-balance"}>{paper.title}</h1>
         <p className="text-detail text-muted-foreground">{meta(paper)}</p>
         {paper.url && (
           <a href={paper.url} target="_blank" rel="noreferrer noopener" className="mt-0.5 flex w-fit items-center gap-1 text-detail text-mention hover:underline">
@@ -413,7 +426,7 @@ function PaperView({ paper, bundle, full, onCite, onGoTo }: { paper: SharedPaper
       </div>
       {paper.digest && (
         <section className="flex flex-col gap-1">
-          <h2 className="text-xs text-muted-foreground">{t`Digest · written by Owlit`}</h2>
+          <h2 className="text-xs text-muted-foreground">{t({ message: "Digest · Owlit", comment: "signs Owlit's digest of a paper, as in owlit" })}</h2>
           <Markdown text={paper.digest} className="markdown text-sm" onCite={onCite} titleOf={titleOf} pageHref={(id, page) => pageHref(bundle.papers[id], page)} />
         </section>
       )}
@@ -444,7 +457,8 @@ function PaperView({ paper, bundle, full, onCite, onGoTo }: { paper: SharedPaper
 function Quote({ text, lost }: { text: string; lost?: boolean }) {
   const shown = text.length > 160 ? `${text.slice(0, 160)}…` : text
   return (
-    <div className="border-l-2 border-person-mark pl-2.5 text-detail text-muted-foreground">
+    // owlit's quoted passage: one muted line behind a thin rule; the person's mark is the thread card's
+    <div className="border-l-2 border-border pl-2.5 text-detail text-muted-foreground">
       {lost && <p className="mb-0.5">{t`The words this was on have changed since:`}</p>}
       <p className="line-clamp-4">{shown}</p>
     </div>
@@ -467,7 +481,8 @@ function ThreadView({ thread, lost, canComment, name, onSend }: { thread: Thread
   return (
     <div className="flex flex-col gap-3">
       <Quote text={thread.root.anchor.quote} lost={lost} />
-      <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-card p-3">
+      {/* The same card as a comment opened in owlit: a 3px rule in the person's ink at its left */}
+      <div className="flex flex-col gap-3 rounded-[4px_10px_10px_4px] border border-l-[3px] border-border border-l-person-mark bg-card p-3">
         <Comment comment={thread.root} />
         {thread.replies.map((r) => (
           <div key={r.id} className="border-t border-border pt-3">
@@ -526,7 +541,7 @@ function Composer({ name, placeholder, action, onSend, onCancel, autoFocus }: { 
             value={who}
             maxLength={60}
             onChange={(e) => setWho(e.target.value)}
-            className="h-8 rounded-[10px] border border-input bg-background px-2.5 text-sm outline-none focus:border-ring"
+            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none focus:border-foreground/30"
           />
         </label>
       ) : (
@@ -548,7 +563,7 @@ function Composer({ name, placeholder, action, onSend, onCancel, autoFocus }: { 
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void send()
         }}
-        className="resize-none rounded-[10px] border border-input bg-background px-2.5 py-2 text-sm leading-relaxed outline-none focus:border-ring"
+        className="resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm leading-relaxed transition-colors outline-none focus:border-foreground/30"
       />
       {problem && <p className="text-xs text-destructive">{problem}</p>}
       <div className="flex justify-end gap-2">

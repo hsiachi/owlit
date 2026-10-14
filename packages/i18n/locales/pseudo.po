@@ -12,6 +12,11 @@ msgid "A paper needs you"
 msgstr ""
 
 #: app/src/app/AppSidebar.tsx
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An import asks about MinerU"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
 msgid "A chat needs you"
 msgstr ""
 
@@ -662,18 +667,20 @@ msgstr ""
 msgid "Rename chat"
 msgstr ""
 
-#. a chat's status: waiting on the user
-#: app/src/features/chat/components/ChatListPanel.tsx
-msgid "Waiting"
-msgstr ""
-
 #. a chat's status: the agent stopped with an error
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
+#. an import that broke
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "Stopped"
+msgstr ""
+
+#. a chat's status: waiting on the user
+#: app/src/features/chat/components/ChatListPanel.tsx
+msgid "Waiting"
 msgstr ""
 
 #: app/src/features/chat/components/ChatListPanel.tsx
@@ -1016,6 +1023,7 @@ msgstr ""
 #: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -1036,13 +1044,16 @@ msgid "Owlit stopped"
 msgstr ""
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
 msgstr ""
 
 #. verb: leave a broken reply as it is
+#. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
 msgstr ""
 
@@ -2409,15 +2420,16 @@ msgid "Saved as doc"
 msgstr ""
 
 #: app/src/features/docs/share/DocShareControls.tsx
-msgid "Readers don't have your latest changes yet"
-msgstr ""
-
-#: app/src/features/docs/share/DocShareControls.tsx
 msgid "Shared"
 msgstr ""
 
 #: app/src/features/docs/share/DocShareControls.tsx
 msgid "Share"
+msgstr ""
+
+#. your latest changes didn't reach the shared doc's readers
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Not sent"
 msgstr ""
 
 #: app/src/features/docs/share/ShareDialog.tsx
@@ -2675,10 +2687,6 @@ msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "An import asks about MinerU"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3661,6 +3669,11 @@ msgid "from the {name} folder"
 msgstr ""
 
 #: app/src/features/library/components/ImportBanner.tsx
+msgctxt "carry on with a stopped import"
+msgid "Continue"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "{fresh, plural, one {Import {origin}: should MinerU read the new paper's PDF?} other {Import {origin}: should MinerU read the PDFs of # new papers?}}"
 msgstr ""
 
@@ -3672,9 +3685,12 @@ msgstr ""
 msgid "Not this time"
 msgstr ""
 
-#. placeholder {0}: task.error ?? ""
 #: app/src/features/library/components/ImportBanner.tsx
-msgid "The import {origin} stopped: {0}"
+msgid "The import {origin} couldn't go on after {done} of {total}."
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin} couldn't go on."
 msgstr ""
 
 #: app/src/features/library/components/ImportBanner.tsx
@@ -3683,18 +3699,6 @@ msgstr ""
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Import stopped"
-msgstr ""
-
-#. button: go on reading a paper
-#. carry on with a stopped import
-#: app/src/features/library/components/ImportBanner.tsx
-#: app/src/features/library/components/PaperPeek.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Continue"
-msgstr ""
-
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Put away"
 msgstr ""
 
 #: app/src/features/library/components/ImportBanner.tsx
@@ -3822,9 +3826,13 @@ msgstr ""
 msgid "Reading…"
 msgstr ""
 
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Collections become tags"
+msgstr ""
+
 #. placeholder {0}: preview.collections
 #: app/src/features/library/components/ImportDialog.tsx
-msgid "{0, plural, one {Collections become tags (# collection)} other {Collections become tags (# collections)}}"
+msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr ""
 
 #: app/src/features/library/components/ImportDialog.tsx
@@ -4033,6 +4041,12 @@ msgstr ""
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
+msgstr ""
+
+#. button: go on reading a paper
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Continue"
 msgstr ""
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
@@ -4324,6 +4338,12 @@ msgstr ""
 msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr ""
 
+#. signs Owlit's digest of a paper, as in owlit
+#: app/src/features/library/pages/paper/Digest.tsx
+#: apps/share-web/src/App.tsx
+msgid "Digest · Owlit"
+msgstr ""
+
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
@@ -4331,10 +4351,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper again…"
-msgstr ""
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Digest · Owlit"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -4474,6 +4490,7 @@ msgid "Choose file"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: apps/share-web/src/App.tsx
@@ -5954,10 +5971,6 @@ msgstr ""
 
 #: apps/share-web/src/App.tsx
 msgid "Read the paper"
-msgstr ""
-
-#: apps/share-web/src/App.tsx
-msgid "Digest · written by Owlit"
 msgstr ""
 
 #. placeholder {0}: bundle.author

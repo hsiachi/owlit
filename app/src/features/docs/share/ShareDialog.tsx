@@ -1,14 +1,15 @@
 import { plural, t } from "@lingui/core/macro"
 import { citedPaperIds, type WorkspaceFile } from "@owlit/protocol"
-import { BookOpenIcon, CheckIcon, CopyIcon, LinkIcon, StickyNoteIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
-import { RowList, RowIcon, rowClass } from "@/components/row-list"
 import { ChoiceMenu } from "@/components/choice-menu"
+import { FormRow } from "@/components/form-row"
+import { GroupLabel } from "@/components/group-label"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { copyText } from "@/lib/clipboard"
 import { ago } from "@/lib/time"
@@ -42,33 +43,26 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
     setTimeout(() => setCopied(false), 1200)
   }
 
+  // What goes along with the doc, as Settings rows: the papers (always), the notes (a switch)
   const paperRows = (
-    <RowList>
-      <div className={cn("flex items-center gap-3 py-2", rowClass)}>
-        <RowIcon>
-          <BookOpenIcon />
-        </RowIcon>
-        <div className="min-w-0 flex-1">
-          <p>{cited ? plural(cited, { one: "The paper it cites", other: "The # papers it cites" }) : t`The papers it cites`}</p>
-          <p className="text-detail text-muted-foreground">{t`Owlit's digest of each and a link to read it. Papers you cite later join them.`}</p>
-        </div>
-      </div>
-      <label className={cn("flex items-center gap-3 py-2", rowClass)}>
-        <RowIcon>
-          <StickyNoteIcon />
-        </RowIcon>
-        <div className="min-w-0 flex-1">
-          <p>{t`Your notes on those papers`}</p>
-          <p className="text-detail text-muted-foreground">{(share ? share.notes : notes) ? t`Readers see them beside each paper` : t`Kept to yourself`}</p>
-        </div>
-        <Switch
-          checked={share ? share.notes : notes}
-          disabled={busy || share?.foreign}
-          onCheckedChange={(on) => (share ? void run(() => shares.update(file.path, { notes: on })) : setNotes(on))}
-          aria-label={t`Share your notes on the papers`}
-        />
-      </label>
-    </RowList>
+    <div className="divide-y">
+      <FormRow
+        name={cited ? plural(cited, { one: "The paper it cites", other: "The # papers it cites" }) : t`The papers it cites`}
+        help={t`Owlit's digest of each and a link to read it. Papers you cite later join them.`}
+      />
+      <FormRow
+        name={t`Your notes on those papers`}
+        help={(share ? share.notes : notes) ? t`Readers see them beside each paper` : t`Kept to yourself`}
+        control={
+          <Switch
+            checked={share ? share.notes : notes}
+            disabled={busy || share?.foreign}
+            onCheckedChange={(on) => (share ? void run(() => shares.update(file.path, { notes: on })) : setNotes(on))}
+            aria-label={t`Share your notes on the papers`}
+          />
+        }
+      />
+    </div>
   )
 
   return (
@@ -78,12 +72,14 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
         {!share ? (
           <>
             <p className="text-detail text-muted-foreground">{t`Make a link to send. Whoever opens it reads the doc and comments in their browser.`}</p>
-            <div className="flex flex-col gap-1">
-              <p className="px-1 text-xs text-muted-foreground">{t`They also see`}</p>
+            <div>
+              <GroupLabel as="div" flush className="mb-0">
+                {t`They also see`}
+              </GroupLabel>
               {paperRows}
             </div>
-            <p className="px-1 text-detail text-muted-foreground">{t`Your changes reach readers as you make them. Your chats, highlights and other docs stay here.`}</p>
-            {!server && <p className="px-1 text-detail text-destructive">{t`No share server is set up, so owlit can't make links yet.`}</p>}
+            <p className="text-detail text-muted-foreground">{t`Your changes reach readers as you make them. Your chats, highlights and other docs stay here.`}</p>
+            {!server && <p className="text-detail text-destructive">{t`No share server is set up, so owlit can't make links yet.`}</p>}
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 {t`Cancel`}
@@ -110,22 +106,24 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
               />
             </div>
             <div className="flex gap-2">
-              <input readOnly value={share.url} onFocus={(e) => e.currentTarget.select()} aria-label={t`Link`} className="h-8 min-w-0 flex-1 rounded-[10px] border border-input bg-transparent px-2.5 font-mono text-detail outline-none focus:border-ring" />
+              <Input readOnly value={share.url} onFocus={(e) => e.currentTarget.select()} aria-label={t`Link`} className="min-w-0 flex-1 font-mono text-detail md:text-detail" />
               <Button variant="outline" onClick={() => void copy()}>
                 {copied ? <CheckIcon /> : <CopyIcon />}
                 {copied ? t`Copied` : t`Copy link`}
               </Button>
             </div>
-            <div className="flex flex-col gap-1">
-              <p className="px-1 text-xs text-muted-foreground">{t`Readers also see`}</p>
+            <div>
+              <GroupLabel as="div" flush className="mb-0">
+                {t`Readers also see`}
+              </GroupLabel>
               {paperRows}
             </div>
             {share.foreign ? (
-              <p className="px-1 text-detail text-muted-foreground">{t`This doc was shared from another computer; only that one can change its link.`}</p>
+              <p className="text-detail text-muted-foreground">{t`This doc was shared from another computer; only that one can change its link.`}</p>
             ) : share.problem ? (
-              <p className="px-1 text-detail text-destructive">{share.problem}</p>
+              <p className="text-detail text-destructive">{share.problem}</p>
             ) : (
-              <p className="px-1 text-detail text-muted-foreground">{share.pushedAt ? t`Readers have the doc as it was ${ago(share.pushedAt, { inSentence: true })}.` : t`Readers have the latest version.`}</p>
+              <p className="text-detail text-muted-foreground">{share.pushedAt ? t`Readers have the doc as it was ${ago(share.pushedAt, { inSentence: true })}.` : t`Readers have the latest version.`}</p>
             )}
             <DialogFooter className="sm:justify-between">
               <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={busy || share.foreign} onClick={() => void run(() => shares.stop(file.path).then(() => onOpenChange(false)))}>

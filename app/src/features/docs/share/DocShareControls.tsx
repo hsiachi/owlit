@@ -34,15 +34,12 @@ export function DocShareControls({ file }: { file: WorkspaceFile }) {
           {commentCount(threads.length)}
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setOpen(true)}
-        title={problem ? t`Readers don't have your latest changes yet` : undefined}
-        className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground"
-      >
+      {/* Changes that didn't reach readers are broken, so the ladder's red word, not a tooltip alone; the
+          dialog says why */}
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
         <UsersIcon />
         {shared ? t`Shared` : t`Share`}
+        {problem && <span className="text-destructive">· {t({ message: "Not sent", comment: "your latest changes didn't reach the shared doc's readers" })}</span>}
       </Button>
       <ShareDialog file={file} open={open} onOpenChange={setOpen} />
     </>

@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { RowIcon, RowList, rowClass, rowHover } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { FormRow } from "@/components/form-row"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { RpcError } from "@/lib/rpc"
@@ -127,27 +127,29 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
           {t`Reading…`}
         </p>
       ) : (
-        <div className="flex flex-col gap-3.5">
+        <div className="flex flex-col gap-1.5">
           <p className="text-sm">{summary(source, preview)}</p>
-          {source === "zotero" && preview.collections > 0 && (
-            <label className="flex items-center gap-2.5 text-sm">
-              <Checkbox checked={tags} onCheckedChange={(v) => setTags(v === true)} />
-              {plural(preview.collections, { one: "Collections become tags (# collection)", other: "Collections become tags (# collections)" })}
-            </label>
-          )}
-          {preview.asksParse && (
-            <label className="flex items-start gap-3 text-sm">
-              <span className="min-w-0 flex-1">
-                <span className="block">{plural(fresh, { one: "MinerU reads the new paper's PDF", other: "MinerU reads the PDFs of the # new papers" })}</span>
-                <span className="block text-detail text-muted-foreground">{t`Each one is paid for by your MinerU account. Off: pdfium alone, for this import.`}</span>
-              </span>
-              <Switch checked={parse} onCheckedChange={setParse} className="mt-0.5" />
-            </label>
-          )}
+          {/* The choices as Settings rows, one switch each */}
+          <div className="divide-y">
+            {source === "zotero" && preview.collections > 0 && (
+              <FormRow
+                name={t`Collections become tags`}
+                help={plural(preview.collections, { one: "# collection", other: "# collections" })}
+                control={<Switch checked={tags} onCheckedChange={setTags} />}
+              />
+            )}
+            {preview.asksParse && (
+              <FormRow
+                name={plural(fresh, { one: "MinerU reads the new paper's PDF", other: "MinerU reads the PDFs of the # new papers" })}
+                help={t`Each one is paid for by your MinerU account. Off: pdfium alone, for this import.`}
+                control={<Switch checked={parse} onCheckedChange={setParse} />}
+              />
+            )}
+          </div>
         </div>
       )}
       <DialogFooter>
-        <Button variant="ghost" onClick={closeImportDialog}>
+        <Button variant="outline" onClick={closeImportDialog}>
           {t`Cancel`}
         </Button>
         <Button disabled={!preview || fresh === 0 || starting} onClick={() => void start()}>

@@ -1,12 +1,13 @@
 import { plural, t } from "@lingui/core/macro"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import type { ImportSummary, Task } from "@owlit/protocol"
-import { CheckIcon, LoaderCircleIcon, XIcon } from "lucide-react"
+import { CheckIcon, CircleXIcon, LoaderCircleIcon, XIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
+import { InlineLink } from "@/components/inline-link"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, useTasksStore } from "@/features/tasks/store"
-import { answerImport, continueImport, dismissImport, useImports } from "../imports"
+import { answerImport, continueImport, dismissImport, importAsks, useImports } from "../imports"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
 
@@ -16,10 +17,12 @@ export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
   return i.source === "zotero" ? t`from Zotero` : i.source === "bibtex" ? t`from ${name}` : t`from the ${name} folder`
 }
 
-// The newest import the person hasn't put away, at the top of the Library. While it runs it is one quiet
-// line (working is grey, DESIGN.md); when it stopped or asks something, the line says so with its one or
-// two answers; once it is done it becomes the one card on the page, since a whole collection arriving is
-// news worth seeing, with Show the 104 as its button. It stays until put away.
+// The newest import the person hasn't dismissed, at the top of the Library. It sits on the ladder like any
+// other work (DESIGN.md): while it runs, one quiet grey line; asking, the same line led by the amber dot
+// with its two answers; broken, a red "Stopped" with why in owlit's words and the error behind Details. One
+// the person stopped is not an error and stays muted. Once it is done it becomes the one card on the page,
+// since a whole collection arriving is news worth seeing, with Show the 104 as its button. It stays until
+// dismissed.
 export function ImportBanner() {
   const list = useImports((s) => s.list)
   const current = list.find((i) => !i.dismissed)
@@ -30,17 +33,32 @@ export function ImportBanner() {
 }
 
 function Line({ summary, task }: { summary: ImportSummary; task: Task | undefined }) {
+  const [details, setDetails] = useState(false)
   const origin = importOrigin(summary)
   const done = summary.added.length + summary.existed + summary.failed.length
   const total = summary.total
   // A task that came back to the window as finished before the summary did
   const stopped = !task || task.state === "cancelled" || task.state === "failed"
-  const asks = task?.state === "waiting_for_you" && task.waiting?.reason === "confirm_spend"
+  const broken = task?.state === "failed"
+  const asks = !!task && importAsks(task)
   const fresh = total !== undefined ? total - summary.existed : 0
 
+  const dismiss = (
+    <Button variant="text" size="inline" onClick={() => void dismissImport(summary.id)}>
+      {t({ message: "Dismiss", comment: "verb: put a stopped import away" })}
+    </Button>
+  )
+  const carryOn = (
+    <Button variant="text" size="inline" onClick={() => void continueImport(summary.id)}>
+      {t({ message: "Continue", context: "carry on with a stopped import" })}
+    </Button>
+  )
+
+  let mark: React.ReactNode = null
   let words: React.ReactNode
   let actions: React.ReactNode
   if (asks) {
+    mark = <span className="size-2 rounded-full bg-warning" />
     words = plural(fresh, { one: `Import ${origin}: should MinerU read the new paper's PDF?`, other: `Import ${origin}: should MinerU read the PDFs of # new papers?` })
     actions = (
       <>
@@ -52,25 +70,37 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
         </Button>
       </>
     )
-  } else if (stopped) {
-    words = task?.state === "failed" ? t`The import ${origin} stopped: ${task.error ?? ""}` : total ? t`Import stopped after ${done} of ${total}` : t`Import stopped`
+  } else if (broken) {
+    mark = <CircleXIcon className="size-3.5 text-destructive" />
+    words = (
+      <span className="truncate">
+        <span className="text-destructive">{t({ message: "Stopped", comment: "an import that broke" })}</span>
+        {" · "}
+        {total ? t`The import ${origin} couldn't go on after ${done} of ${total}.` : t`The import ${origin} couldn't go on.`}
+      </span>
+    )
     actions = (
       <>
-        <Button variant="text" size="inline" onClick={() => void continueImport(summary.id)}>
-          {t({ message: "Continue", comment: "carry on with a stopped import" })}
-        </Button>
-        <IconButton label={t`Put away`} onClick={() => void dismissImport(summary.id)}>
-          <XIcon />
-        </IconButton>
+        {task?.error && (
+          <Button variant="text" size="inline" aria-expanded={details} onClick={() => setDetails((d) => !d)}>
+            {t`Details`}
+          </Button>
+        )}
+        {dismiss}
+        {carryOn}
+      </>
+    )
+  } else if (stopped) {
+    words = total ? t`Import stopped after ${done} of ${total}` : t`Import stopped`
+    actions = (
+      <>
+        {dismiss}
+        {carryOn}
       </>
     )
   } else {
-    words = (
-      <>
-        <LoaderCircleIcon className="size-3.5 shrink-0 animate-spin" />
-        {total === undefined ? t`Reading the collection ${origin}…` : t`Importing ${origin} · ${done} of ${total}`}
-      </>
-    )
+    mark = <LoaderCircleIcon className="size-3.5 animate-spin" />
+    words = total === undefined ? t`Reading the collection ${origin}…` : t`Importing ${origin} · ${done} of ${total}`
     actions = (
       <Button variant="text" size="inline" onClick={() => task && void cancelTask(task.id)}>
         {t`Cancel`}
@@ -78,9 +108,18 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
     )
   }
   return (
-    <div className="mt-3 -mb-1 flex min-h-7 items-center gap-3 text-detail text-muted-foreground" role="status">
-      <span className="flex min-w-0 flex-1 items-center gap-2 tabular-nums">{words}</span>
-      <span className="flex shrink-0 items-center gap-1">{actions}</span>
+    <div className="mt-3 -mb-1 text-detail text-muted-foreground" role="status">
+      <div className="flex min-h-7 items-center gap-3">
+        <span className="flex min-w-0 flex-1 items-center gap-2 tabular-nums">
+          {mark && <span className="grid size-3.5 shrink-0 place-items-center">{mark}</span>}
+          {words}
+        </span>
+        <span className="-mr-1.5 flex shrink-0 items-center gap-0.5">{actions}</span>
+      </div>
+      {/* The error in the library's or the network's own words, a detail as under a broken reply */}
+      {details && broken && task?.error && (
+        <p className="mt-1 ml-5.5 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">{task.error}</p>
+      )}
     </div>
   )
 }
@@ -127,7 +166,7 @@ function Done({ summary }: { summary: ImportSummary }) {
           {plural(added, { one: "Show it", other: "Show the #" })}
         </Button>
       )}
-      <IconButton label={t`Put away`} onClick={() => void dismissImport(summary.id)}>
+      <IconButton label={t`Dismiss`} onClick={() => void dismissImport(summary.id)}>
         <XIcon />
       </IconButton>
     </div>
@@ -139,8 +178,8 @@ function Failures({ summary }: { summary: ImportSummary }) {
   const n = summary.failed.length
   return (
     <Popover>
-      <PopoverTrigger className="underline decoration-foreground/30 underline-offset-3 hover:text-foreground">
-        {plural(n, { one: "# couldn't be added", other: "# couldn't be added" })}
+      <PopoverTrigger asChild>
+        <InlineLink>{plural(n, { one: "# couldn't be added", other: "# couldn't be added" })}</InlineLink>
       </PopoverTrigger>
       <PopoverContent align="start" className="max-h-72 w-96 overflow-y-auto p-3">
         <ul className="flex flex-col gap-2.5 text-detail">

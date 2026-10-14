@@ -4,6 +4,7 @@ import { Facet, StateEffect, StateField, type EditorState, type Extension, type 
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
 import { ago } from "@/lib/time"
 import type { Thread } from "../share/store"
+import { sideCardTheme, washOpen } from "./side-card"
 
 // Readers' comments on a shared doc. They come from the share link's readers (core's share.*), who saw the
 // doc drawn in a browser; their passage is found again in the Markdown by its words (protocol's
@@ -97,7 +98,7 @@ class ThreadWidget extends WidgetType {
       form.hidden = true
       actions.hidden = false
     })
-    const row = el("div", "cm-person-reply-row")
+    const row = el("div", "cm-person-actions cm-person-reply-row")
     row.append(cancel, send)
     form.append(field, row)
     form.hidden = true
@@ -217,62 +218,17 @@ export function readerComments(actions: Actions): Extension {
     },
   ])
   const theme = EditorView.theme({
-    // A person's ink (index.css --person-mark): neither Owlit's green nor a link's blue
-    ".cm-person-mark": {
-      textDecorationLine: "underline",
-      textDecorationColor: "var(--person-mark)",
-      textDecorationThickness: "2px",
-      textUnderlineOffset: "5px",
-      textDecorationSkipInk: "none",
-    },
-    ".cm-person-mark-open": { backgroundColor: "var(--person-wash)" },
-    ".cm-person-fold": { marginLeft: "-16px" },
-    ".cm-person": {
-      margin: "4px 0 14px",
-      padding: "8px 12px 6px 13px",
-      backgroundColor: "var(--card)",
-      border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--person-mark)",
-      borderRadius: "4px 10px 10px 4px",
-      fontSize: "14px",
-      lineHeight: "1.55",
-      cursor: "default",
-    },
-    ".cm-person p": { margin: "0" },
+    // The card and the underline in a person's ink (index.css --person-mark), neither Owlit's green nor a
+    // link's blue; the shape is Owlit's note's (side-card.ts)
+    ...sideCardTheme("cm-person", "var(--person-mark)"),
+    ".cm-person-mark-open": { backgroundColor: "var(--person-wash)", animation: washOpen },
     ".cm-person-said + .cm-person-said": { marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--border)" },
-    ".cm-person-head": { fontSize: "12px", color: "var(--muted-foreground)", marginBottom: "2px" },
     ".cm-person-text": { whiteSpace: "pre-wrap" },
-    ".cm-person-lost": { fontSize: "13px", color: "var(--muted-foreground)", marginBottom: "6px !important" },
     ".cm-person-reply": { display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" },
     ".cm-person-reply[hidden]": { display: "none" },
-    ".cm-person-reply textarea": {
-      resize: "none",
-      font: "inherit",
-      fontSize: "14px",
-      padding: "6px 10px",
-      borderRadius: "10px",
-      border: "1px solid var(--input)",
-      background: "var(--background)",
-      color: "var(--foreground)",
-      outline: "none",
-    },
-    ".cm-person-reply textarea:focus": { borderColor: "var(--ring)" },
-    ".cm-person-reply-row, .cm-person-actions": { display: "flex", justifyContent: "flex-end", gap: "2px", marginRight: "-6px" },
-    ".cm-person-actions": { marginTop: "4px" },
-    ".cm-person-actions[hidden]": { display: "none" },
-    ".cm-person button": {
-      height: "26px",
-      padding: "0 8px",
-      borderRadius: "8px",
-      fontSize: "13px",
-      background: "none",
-      border: "none",
-      color: "var(--muted-foreground)",
-      cursor: "pointer",
-    },
-    ".cm-person button:hover": { backgroundColor: "var(--accent)", color: "var(--foreground)" },
-    ".cm-person button.cm-person-send": { background: "var(--primary)", color: "var(--primary-foreground)", fontWeight: "500", marginLeft: "4px" },
-    ".cm-person button.cm-person-send:disabled": { opacity: "0.5" },
+    ".cm-person-reply-row": { marginTop: "0" },
+    ".cm-person-actions button.cm-person-send": { background: "var(--primary)", color: "var(--primary-foreground)", fontWeight: "500", marginLeft: "4px" },
+    ".cm-person-actions button.cm-person-send:disabled": { opacity: "0.5" },
   })
   return [commentActions.of(actions), commentsField, clicks, esc, theme]
 }

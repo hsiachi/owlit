@@ -5,6 +5,7 @@ import type { Connector } from "@owlit/protocol"
 import { CopyIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
+import { InlineLink } from "@/components/inline-link"
 import { KindIcon } from "@/components/kind-icon"
 import { Button } from "@/components/ui/button"
 import { canRun, canSetUp, connectorProblem, problemSentence, settingUp } from "@/features/chat/lib/connector-status"
@@ -139,8 +140,9 @@ export function AgentCheck() {
       <Line>
         <div className="min-w-0 flex-1">
           <span className="text-foreground">{t`${name} is on this Mac.`}</span> {t`Set it up for Owlit (about ${size} MB).`}
-          <div className="mt-2">
-            <Button size="sm" onClick={() => void setUp(settable.id)}>
+          {/* A text button, as Set up is in Settings and in the first launch's agent choice */}
+          <div className="mt-1 -ml-1.5 flex gap-0.5">
+            <Button variant="text" size="inline" onClick={() => void setUp(settable.id)}>
               {t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
             </Button>
           </div>
@@ -206,11 +208,7 @@ export function AgentCheck() {
           {engine && (
             <p className="mt-2">
               <Trans>
-                Or{" "}
-                <button type="button" className="text-foreground underline decoration-foreground/30 underline-offset-3 hover:decoration-foreground/60" onClick={() => openSettings("agents")}>
-                  sign in with ChatGPT
-                </button>{" "}
-                to use the Owlit engine (Beta).
+                Or <InlineLink onClick={() => openSettings("agents")}>sign in with ChatGPT</InlineLink> to use the Owlit engine (Beta).
               </Trans>
             </p>
           )}
