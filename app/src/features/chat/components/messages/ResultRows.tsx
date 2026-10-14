@@ -227,6 +227,8 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     const last = list.at(-1)!
     const created = list.some((r) => r.created)
     const papers = new Set(list.flatMap((r) => r.rows ?? [])).size
+    const updated = list.reduce((n, r) => n + (r.updated ?? 0), 0)
+    const answers = updated ? plural(updated, { one: "# answer updated", other: "# answers updated" }) : undefined
     const separate = last.separate
     const asked = list.find((r) => r.asked)?.asked
     const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
@@ -244,9 +246,10 @@ function useResultRows(message: ChatMessage): ResultRow[] {
       ) : papers ? (
         <span className="tabular-nums">
           <span className="text-owlit">+{papers}</span> {plural(papers, { one: "paper", other: "papers" })}
+          {answers && ` · ${answers}`}
         </span>
       ) : (
-        t({ message: "Updated", comment: "a collection the agent changed without adding papers" })
+        (answers ?? t({ message: "Updated", comment: "a collection the agent changed without adding papers" }))
       ),
       ...(separate ? { undone: false } : of(list)),
       view: () => navigate(`/collections/${separate?.id ?? id}`),

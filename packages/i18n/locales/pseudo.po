@@ -1126,6 +1126,10 @@ msgstr ""
 msgid "Your note on {name}"
 msgstr ""
 
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{updated, plural, one {# answer updated} other {# answers updated}}"
+msgstr ""
+
 #. papers the agent added to a collection, moved by the user into a collection of their own
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Kept separate"

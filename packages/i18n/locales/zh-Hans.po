@@ -1126,6 +1126,10 @@ msgstr "{0, plural, other {# 条批注}}"
 msgid "Your note on {name}"
 msgstr "你的笔记：{name}"
 
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{updated, plural, one {# answer updated} other {# answers updated}}"
+msgstr "{updated, plural, other {更新了 # 条答案}}"
+
 #. papers the agent added to a collection, moved by the user into a collection of their own
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Kept separate"

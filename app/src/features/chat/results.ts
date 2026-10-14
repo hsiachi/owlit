@@ -33,6 +33,8 @@ export interface AgentResult {
   // collection those papers went to when the user kept them separate
   created?: boolean
   rows?: string[]
+  // Rows already there whose answers the write changed
+  updated?: number
   asked?: string
   separate?: { id: string; title: string }
 }
@@ -138,7 +140,7 @@ export function recordResult(chatId: string | undefined, result: AgentResult) {
 }
 
 if (isDesktop) {
-  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId, created, rows, asked }) => {
+  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId, created, rows, updated, asked }) => {
     if (kind === "knowledge") return
     recordResult(chatId, {
       kind,
@@ -147,7 +149,7 @@ if (isDesktop) {
       label,
       at: Date.now(),
       ...(op === "removed" ? { removed: true } : {}),
-      ...(kind === "collection" ? { created: !!created, rows: rows ?? [], ...(asked ? { asked } : {}) } : {}),
+      ...(kind === "collection" ? { created: !!created, rows: rows ?? [], updated: updated ?? 0, ...(asked ? { asked } : {}) } : {}),
     })
   })
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {
