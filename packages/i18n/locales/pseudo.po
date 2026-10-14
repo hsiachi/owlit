@@ -549,6 +549,11 @@ msgstr ""
 msgid "Ask a follow-up…"
 msgstr ""
 
+#. label over the chats about the page beside the Owlit panel
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Earlier here"
+msgstr ""
+
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Ask anything."
 msgstr ""

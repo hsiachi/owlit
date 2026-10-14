@@ -549,6 +549,11 @@ msgstr "上一个对话"
 msgid "Ask a follow-up…"
 msgstr "继续追问…"
 
+#. label over the chats about the page beside the Owlit panel
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Earlier here"
+msgstr "之前在这里"
+
 #: app/src/features/agent/AgentWindow.tsx
 msgid "Ask anything."
 msgstr "想问什么都可以。"
