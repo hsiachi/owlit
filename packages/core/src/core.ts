@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -16,8 +16,7 @@ import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
-import { Background, KNOWLEDGE_TOOLS } from "./agents/background.ts"
-import type { KnowledgeTimings } from "./knowledge/knowledge.ts"
+import { Background } from "./agents/background.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
@@ -65,8 +64,6 @@ export interface CoreOptions {
   // of Claude Code's and Codex's adapters (agents/setup.ts)
   node?: { command: string; args: string[]; env?: Record<string, string> }
   npm?: string
-  // How long Knowledge waits after the user's activity before a run (tests shorten it)
-  knowledgeTimings?: KnowledgeTimings
   // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
   lateQuietMs?: number
   // The share server new links are made on (apps/share-server), e.g. https://share.example.org; without
@@ -156,10 +153,6 @@ export class Core {
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its digest comes first
     this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
-    // What the user does feeds Knowledge: a run once things have been quiet for a while
-    this.activity.subscribe(["doc.edited", "chat.sent", "chat.ended", "highlight.added", "note.edited", "paper.closed", "knowledge.edited"], (event) =>
-      this.workspace?.knowledge.heard(event),
-    )
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
@@ -396,6 +389,9 @@ export class Core {
 
     const library = () => this.requireWorkspace().library
     this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
+    // A search's results are kept for hours, a collection's papers for good: an agent filling a column a day
+    // later still gets the whole abstract
+    this.router.register("library.found", z.object({ id: z.string().min(1) }), async ({ id }) => (await library().snapshot(id)) ?? (await this.requireWorkspace().collections.paperOf(id)) ?? null)
     this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), ({ inputs }) => library().known(inputs))
     this.router.register("library.list", noParams, () => library().list())
     const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
@@ -609,29 +605,74 @@ export class Core {
       )
     }
 
-    const knowledge = () => this.requireWorkspace().knowledge
-    const sidecar = z.looseObject({ seenAt: z.number(), history: z.array(z.looseObject({})), edits: z.record(z.string(), z.looseObject({ text: z.string() })), removed: z.record(z.string(), z.looseObject({ text: z.string() })) }) as unknown as z.ZodType<TopicSidecar>
-    const paperKnowledge = z.looseObject({ passages: z.record(z.string(), z.looseObject({})), connections: z.array(z.looseObject({})) }) as unknown as z.ZodType<PaperKnowledge>
-    this.router.register("knowledge.state", noParams, () => knowledge().state())
-    this.router.register("knowledge.putTopic", z.object({ id: z.string().min(1), sidecar }), ({ id, sidecar }) => knowledge().putTopic(id, sidecar))
-    this.router.register("knowledge.putPaper", z.object({ id: z.string().min(1), paper: paperKnowledge }), ({ id, paper }) => knowledge().putPaper(id, paper))
-    this.router.register("knowledge.topics", noParams, () => knowledge().summaries())
-    this.router.register("knowledge.read", z.object({ topic: z.string().min(1) }), ({ topic }) => knowledge().read(topic))
+    const collections = () => this.requireWorkspace().collections
+    const cellWrite = z.object({
+      text: z.string(),
+      depth: z.enum(["abstract", "full"]),
+      passage: z.object({ quote: z.string().min(1), page: z.number().int().min(1) }).optional(),
+      rel: z.enum(["supports", "challenges", "related"]).optional(),
+      sentence: z.string().optional(),
+    })
+    const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
+    const item = z.string().regex(/^(title|memo:[\w-]+|cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+)$/, "an item: title, memo:<id>, cell:<paper>:<column>, row:<paper> or group:<id>")
+    this.router.register("collections.list", noParams, () => collections().list())
+    this.router.register("collections.get", z.object({ id: z.string().min(1) }), ({ id }) => collections().get(id))
     this.router.register(
-      "knowledge.write",
+      "collections.write",
       z.object({
-        topic: z.string().min(1),
-        content: z.string().min(1),
-        why: z.string().min(1),
-        remove: z.array(z.string()).optional(),
-        passages: z.array(z.object({ id: z.string().regex(/^[\w.-]+$/, "letters, digits, - and _"), paper: z.string(), quote: z.string().min(1), section: z.string().optional() })).optional(),
+        id: z.string().optional(),
+        asked: z.string().optional(),
+        title: z.string().optional(),
+        project: z.string().optional(),
+        sources: z.array(z.string()).optional(),
+        memo: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), text: z.string() })).optional(),
+        columns: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), question: z.string() })).optional(),
+        rows: z.array(z.object({ id: z.string().min(1), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), foundBy: z.string().optional() })).optional(),
+        groups: z.array(group).optional(),
+        removeRows: z.array(z.string()).optional(),
+        why: z.string().optional(),
         chatId: z.string().optional(),
+        docPath: z.string().optional(),
       }),
-      (params) => knowledge().write(params),
+      (params) => collections().write(params),
     )
-    this.router.register("knowledge.update", noParams, () => knowledge().update())
-    this.router.register("knowledge.versions", noParams, () => knowledge().versions())
-    this.router.register("knowledge.revert", z.object({ id: z.string().min(1) }), ({ id }) => knowledge().revert(id))
+    this.router.register(
+      "collections.edit",
+      z.object({
+        id: z.string().min(1),
+        edit: z.discriminatedUnion("op", [
+          z.object({ op: z.literal("rename"), title: z.string() }),
+          z.object({ op: z.literal("rewrite"), item, text: z.string() }),
+          z.object({ op: z.literal("revert"), item }),
+          z.object({ op: z.literal("remove"), item }),
+          z.object({ op: z.literal("unremove"), item }),
+          z.object({ op: z.literal("move"), row: z.string().min(1), group: z.string().nullable() }),
+          z.object({ op: z.literal("ungroup"), group: z.string().min(1) }),
+          z.object({ op: z.literal("merge"), group: z.string().min(1), into: z.string().min(1) }),
+          z.object({ op: z.literal("watch"), on: z.boolean() }),
+          z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
+          z.object({ op: z.literal("project"), project: z.string() }),
+          z.object({ op: z.literal("seen") }),
+        ]),
+      }),
+      ({ id, edit }) => collections().edit(id, edit),
+    )
+    this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
+    this.router.register(
+      "collections.gather",
+      z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),
+      (params) => collections().gather(params),
+    )
+    this.router.register("collections.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read", "check"]) }), ({ id, run }) => collections().start(id, run))
+    this.router.register(
+      "collections.compare",
+      z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }),
+      ({ id, doc, sentences }) => collections().compare(id, doc, sentences),
+    )
+    this.router.register("collections.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), ({ id, column }) => collections().fill(id, column))
+    this.router.register("collections.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => collections().ask(id, question))
+    this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
+    this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())
     this.router.register("notes.add", z.object({ path: rel, note, agent: z.object({ chatId: z.string().optional() }).optional() }), async ({ path, note, agent }) => {
       await docs().addNote(path, note)
@@ -739,20 +780,18 @@ export class Core {
                   return chosen ? normalizeNoteLanguage(chosen) : defaultNoteLanguage(settings, this.systemLanguages)
                 },
               },
-              knowledge: {
-                agent: async (prompt, signal) => {
-                  // Without owlit's tools (the socket isn't served yet when restored tasks start) the
-                  // agent can't change Knowledge, and a run that ended anyway would skip what it was given
+              collections: {
+                agent: async (prompt, signal, allow) => {
+                  // Without owlit's tools the agent couldn't write the collection at all
                   const mcpServers = this.mcpServers(root)
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
-                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow: KNOWLEDGE_TOOLS })
+                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
                 },
-                changed: (change) => this.notifier.notify("knowledge.changed", change),
-                updated: (run) => this.notifier.notify("knowledge.updated", run),
-                timings: this.options.knowledgeTimings,
-                journalFlushed: () => this.journal.flush(),
-                // A chat's agent changed a topic: the window offers Undo, as for any agent write
-                wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
+                changed: (id, collection) => {
+                  if (this.workspace?.root === root) this.notifier.notify("collections.changed", { id, collection })
+                },
+                // A chat's agent gathered papers into a collection: the chat shows it with Undo, as for any agent write
+                wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "collection", path: id, ...change }),
               },
               shares: {
                 server: () => this.options.shareServer ?? null,
@@ -795,6 +834,8 @@ export class Core {
               change.reload || change.folders.deleted.length ? undefined : { docs: [...change.changed.map((f) => f.path), ...change.deleted.map((f) => f.path)] },
             )
           })
+          // Collections the user watches get their daily look
+          void next.collections.checkWatched().catch((error) => console.error("[core] couldn't check watched collections", error))
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)
@@ -899,7 +940,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.knowledge.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.collections.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

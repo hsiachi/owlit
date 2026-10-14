@@ -69,10 +69,10 @@ export function stepMeta(call: ToolCall): string | undefined {
 }
 
 // owlit's own tools whose outcome the reply's result card already shows: papers added or taken out, a note
-// left on a doc, a Knowledge topic changed. What they send back is written for the agent ("Cite it as …;
+// left on a doc, papers gathered into a collection. What they send back is written for the agent ("Cite it as …;
 // keep a digest with library_write_digest"), so a step that worked is its sentence alone and doesn't
 // open; the card's row is where the person sees and undoes it. One that failed still opens to why.
-const SHOWN_AS_RESULT = new Set(["library_add", "library_remove", "docs_add_note", "knowledge_write"])
+const SHOWN_AS_RESULT = new Set(["library_add", "library_remove", "docs_add_note", "collection_write"])
 
 export function shownAsResult(call: ToolCall) {
   if (call.status === "failed") return false

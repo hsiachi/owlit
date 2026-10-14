@@ -19,7 +19,7 @@ import { updateSettings, useSettings } from "@/features/settings/store"
 import { tourWhenExampleOpens } from "@/features/tour/store"
 import { AgentChoice } from "@/features/onboarding/AgentChoice"
 import { EXAMPLE_PAPERS } from "@/features/onboarding/content"
-import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, RememberDemo, WriteDemo, type DemoPlace } from "@/features/onboarding/demos"
+import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, CollectDemo, WriteDemo, type DemoPlace } from "@/features/onboarding/demos"
 import { WelcomeLockup } from "@/features/onboarding/WelcomeLockup"
 import { KIND_ICON } from "@/lib/kinds"
 import { bridge, rpc } from "@/lib/rpc"
@@ -33,8 +33,8 @@ import { useControlsRoom } from "@/lib/window-frame"
 // can be revisited from the progress bar. Help › How owlit works shows the four introduction steps again
 // over the app (mode "replay").
 
-type StepId = "welcome" | "read" | "write" | "ask" | "remember" | "you" | "agent" | "look" | "start"
-const INTRO: StepId[] = ["read", "write", "ask", "remember"]
+type StepId = "welcome" | "read" | "write" | "ask" | "collect" | "you" | "agent" | "look" | "start"
+const INTRO: StepId[] = ["read", "write", "ask", "collect"]
 const FIRST: StepId[] = ["welcome", ...INTRO, "you", "agent", "look", "start"]
 
 const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
@@ -153,8 +153,8 @@ function stepName(step: StepId) {
       return t({ message: "Write", comment: "an onboarding step: writing docs" })
     case "ask":
       return t({ message: "Ask", comment: "an onboarding step: asking Owlit" })
-    case "remember":
-      return t({ message: "Remember", comment: "an onboarding step: Owlit's Knowledge" })
+    case "collect":
+      return t({ message: "Collect", comment: "an onboarding step: Owlit gathers papers for a question" })
     case "you":
       return t`About you`
     case "agent":
@@ -234,17 +234,17 @@ function lesson(step: StepId): Lesson | null {
         ),
         place: "library",
       }
-    case "remember":
+    case "collect":
       return {
-        icon: KIND_ICON.knowledge,
-        kicker: t`Knowledge`,
-        title: t`Owlit keeps notes.`,
+        icon: KIND_ICON.collection,
+        kicker: t`Collections`,
+        title: t`Owlit gathers papers.`,
         body: (
           <Trans>
-            From what you read, highlight and write, Owlit keeps notes on your research, by topic. <b>Every line says who said it</b>, and you can correct any of it.
+            Give Owlit a question and it gathers papers on it, with <b>what each one says</b> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer.
           </Trans>
         ),
-        place: "knowledge",
+        place: "collections",
       }
     case "you":
       return { icon: UserIcon, kicker: t`About you`, title: t`A little about you.`, body: t`So Owlit knows what to call you and how to reach your papers. All of it can wait.`, place: "chat" }
@@ -293,7 +293,7 @@ function Teach({ step }: { step: StepId }) {
           {step === "read" && <ReadDemo />}
           {step === "write" && <WriteDemo />}
           {step === "ask" && <AskDemo />}
-          {step === "remember" && <RememberDemo />}
+          {step === "collect" && <CollectDemo />}
           {step === "you" && <GreetingDemo name={name} agentName={agentName} />}
           {step === "agent" && <HelloDemo name={name} agentName={agentName} />}
           {step === "look" && <LibraryPreview />}

@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils"
 
 // A place with nothing in it yet, or a thing that is missing: a 15px medium line and a muted sentence,
 // centred in a narrow column, then what to do (`children`) and at most one 13px line (`note`). At panel
-// size (the paper page's Knowledge tab) the two lines step down to 14px and 13px.
+// size (a panel beside a page) the two lines step down to 14px and 13px.
 export function EmptyPlace({
   title,
   detail,

@@ -30,6 +30,7 @@ export function compare(a: Paper, b: Paper, sort: Sort): number {
   let r = 0
   switch (sort.key) {
     case "addedAt":
+    case "collection":
       r = a.addedAt - b.addedAt
       break
     case "title":
@@ -101,8 +102,24 @@ const ageBands = (): [string, number][] => [
 
 // The list layout's groups, in the spirit of the chat history: by age when sorted by date added,
 // by year when sorted by year, one count while searching, and none for the alphabetical sorts
-export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now()): PaperGroup[] {
+export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now(), collections?: Map<string, { id: string; title: string }[]>): PaperGroup[] {
   if (searching) return [{ label: plural(papers.length, { one: "# paper", other: "# papers" }), papers }]
+  // By the collection that holds a paper (the most recently changed one, when several do); papers that
+  // came some other way last
+  if (sort.key === "collection") {
+    const groups = new Map<string, PaperGroup>()
+    const outside: Paper[] = []
+    for (const p of papers) {
+      const c = collections?.get(p.id)?.[0]
+      if (!c) {
+        outside.push(p)
+        continue
+      }
+      if (!groups.has(c.id)) groups.set(c.id, { label: c.title, papers: [] })
+      groups.get(c.id)!.papers.push(p)
+    }
+    return [...groups.values(), ...(outside.length ? [{ label: t({ message: "Not from a collection", comment: "Library papers no collection holds" }), papers: outside }] : [])]
+  }
   if (sort.key === "addedAt") {
     const bands = ageBands()
     const groups = bands.map(([label]) => ({ label, papers: [] as Paper[] }))

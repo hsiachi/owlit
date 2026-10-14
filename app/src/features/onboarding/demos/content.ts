@@ -102,15 +102,15 @@ export const ASK = {
   ],
 }
 
-// Remember: three things you touched flow into a topic; one of Owlit's lines gets corrected
-export const REMEMBER = {
-  sources: ["Self-RAG, p. 1", "Related work", "How does it decide…"],
-  topic: "When should a model retrieve?",
-  lines: [
-    { text: "Retrieval should happen on demand, not before every answer.", source: "Related work, your doc" },
-    { text: "Self-RAG decides with a learned Retrieve token, and grades passages after.", source: "Asai et al. 2023, p. 4" },
-    { text: "On-demand retrieval alone doesn't stop unsupported claims.", source: "From RAGTruth and Self-RAG" },
+// Collect: a question becomes papers with what each says; one of Owlit's answers gets corrected
+export const COLLECT = {
+  question: "When should a model retrieve?",
+  title: "Deciding when to retrieve",
+  rows: [
+    { text: "A learned Retrieve token decides per segment, and passages are graded after.", cite: "Asai et al. 2023", page: 4 },
+    { text: "Retrieving before every answer helps knowledge-heavy tasks most.", cite: "Lewis et al. 2020", page: 0 },
+    { text: "Retrieving when confidence drops beats retrieving every time on long answers.", cite: "Jiang et al. 2023", page: 6 },
   ],
-  correctedStart: "On-demand retrieval lowers unsupported claims",
-  correctedEnd: ", but RAGTruth still finds some.",
+  memo: ["Most methods decide per step whether to retrieve.", "None compares a learned decision with a fixed rule on the same tasks."],
+  corrected: "Retrieving every time helps most on open-domain QA.",
 }

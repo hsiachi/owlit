@@ -7,8 +7,8 @@ describe("citedPaperIds", () => {
     expect(citedPaperIds(doc)).toEqual(["zheng23", "wang23"])
   })
 
-  it("leaves out pictures, docs and Knowledge", () => {
-    expect(citedPaperIds("![a](owlit://library/p1) [b](owlit://docs/x.md) [c](owlit://knowledge/t)")).toEqual([])
+  it("leaves out pictures, docs and collections", () => {
+    expect(citedPaperIds("![a](owlit://library/p1) [b](owlit://docs/x.md) [c](owlit://collections/t)")).toEqual([])
   })
 })
 
@@ -21,7 +21,7 @@ describe("shareableMarkdown", () => {
   })
 
   it("turns links into the workspace into their words", () => {
-    const doc = "[draft](owlit://docs/a%20b.md), [topic](owlit://knowledge/t), [chat](owlit://chat/c1), [file](notes/x.md), [[Ideas]], [[folder/Plan|the plan]], [kept back](owlit://library/secret), ![local](figs/a.png)"
+    const doc = "[draft](owlit://docs/a%20b.md), [topic](owlit://collections/t), [chat](owlit://chat/c1), [file](notes/x.md), [[Ideas]], [[folder/Plan|the plan]], [kept back](owlit://library/secret), ![local](figs/a.png)"
     expect(shareableMarkdown(doc, shared)).toBe("draft, topic, chat, file, Ideas, the plan, kept back, local")
   })
 

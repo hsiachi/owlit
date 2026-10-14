@@ -4,7 +4,7 @@ import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptI
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
-import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
+import type { Collection, CollectionEdit, CollectionPaper, CollectionSize, CollectionSummary, CollectionWrite } from "./collections.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -163,26 +163,32 @@ export interface Methods {
   "share.reply": { params: { path: string; parent: string; text: string }; result: ShareComment }
   "share.resolve": { params: { path: string; id: string; resolved: boolean }; result: null }
 
-  // ---- Knowledge: topic files in knowledge/ (read and written as docs), and beside them in .owlit/knowledge/
-  // what the user did to them, which no run may undo
-  // Every topic's sidecar and every paper's passages, and the last run that changed something
-  "knowledge.state": { params: void; result: { topics: Record<string, TopicSidecar>; papers: Record<string, PaperKnowledge>; lastRun: KnowledgeRun | null } }
-  // The window's own changes: an edit or removal of a line, a passage found, a topic seen
-  "knowledge.putTopic": { params: { id: string; sidecar: TopicSidecar }; result: null }
-  "knowledge.putPaper": { params: { id: string; paper: PaperKnowledge }; result: null }
-  "knowledge.topics": { params: void; result: TopicSummary[] }
-  // One topic's file, with the lines the user rewrote (kept word for word) and removed (never back)
-  "knowledge.read": {
-    params: { topic: string }
-    result: { id: string; path: string; name: string; content: string; edited: { id: string; text: string }[]; removed: string[]; paused: boolean }
-  }
-  // An agent's write, checked against the rules; InvalidParams lists every problem
-  "knowledge.write": { params: KnowledgeWrite; result: { id: string; path: string; name: string; changes: string[] } }
-  // Update now: a run as soon as the agent lane is free
-  "knowledge.update": { params: void; result: Task }
-  "knowledge.versions": { params: void; result: KnowledgeVersion[] }
-  // knowledge/ back as a version had it; versionId is the version kept of how it was just before
-  "knowledge.revert": { params: { id: string }; result: { files: string[]; versionId: string } }
+  // ---- Collections: papers Owlit gathered for a question and what it makes of them, in .owlit/collections/
+  "collections.list": { params: void; result: CollectionSummary[] }
+  // As stored: Owlit's text with the user's changes beside it (shownCollection gives what the user sees)
+  "collections.get": { params: { id: string }; result: Collection }
+  // An agent's write, merged so the user's changes stay; left names rows not written because the user
+  // removed them
+  "collections.write": { params: CollectionWrite; result: { id: string; title: string; added: number; updated: number; left: string[] } }
+  "collections.edit": { params: { id: string; edit: CollectionEdit }; result: Collection }
+  // Keep it separate: the rows an agent added to this collection become a collection of their own, for
+  // the question they were found for
+  "collections.split": { params: { id: string; rows: string[]; asked: string }; result: Collection }
+  // Owlit gathers papers for a question, in the background: the collection is there at once (empty,
+  // titled by the question until Owlit names it) and fills as the task runs
+  "collections.gather": { params: { question: string; project?: string; size: CollectionSize }; result: Collection }
+  // More of Owlit's work on a collection: find more papers, read the abstract-only ones in full, check
+  // for new papers now
+  "collections.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
+  // A new column: a question Owlit answers for every paper
+  "collections.ask": { params: { id: string; question: string }; result: Collection }
+  // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
+  "collections.fill": { params: { id: string; column: string }; result: Task }
+  // A column that sets every paper against sentences the user picked from a doc of theirs
+  "collections.compare": { params: { id: string; doc: string; sentences: string[] }; result: Collection }
+  // Moves the collection to .owlit/trash/
+  "collections.delete": { params: { id: string }; result: null }
+  "collections.undelete": { params: { id: string }; result: Collection }
 
   // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
   // Most recently updated first, without messages
@@ -296,6 +302,9 @@ export interface Methods {
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
   // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
   "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
+  // A paper a search showed lately, as it showed it (the whole abstract), or the Library's record of it;
+  // null when owlit knows nothing of it
+  "library.found": { params: { id: string }; result: CollectionPaper | null }
   // For each input, the id of the paper in the library it names, or null; asks no one
   "library.known": { params: { inputs: string[] }; result: (string | null)[] }
   // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
@@ -459,20 +468,32 @@ export interface Notifications {
   "notes.removed": { path: string; id: string }
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
-  // An agent in a chat left a note, added a paper or changed a Knowledge topic; versionId undoes it.
-  // label names what changed (the doc, the paper's title, the topic).
+  // An agent in a chat left a note, added a paper or wrote to a collection; versionId undoes it.
+  // label names what changed (the doc, the paper's title, the collection's title).
   // op "removed": an agent took back a paper it added (absent: an addition or a write)
-  "agent.changed": { kind: "note" | "paper" | "knowledge"; op?: "removed"; versionId: string; path: string; label: string; chatId?: string }
+  // kind "collection": path is the collection's id; created when the write started it, rows the papers it
+  // added and updated how many it changed, asked the question it was for
+  "agent.changed": {
+    kind: "note" | "paper" | "collection"
+    op?: "removed"
+    versionId: string
+    path: string
+    label: string
+    chatId?: string
+    created?: boolean
+    rows?: string[]
+    updated?: number
+    asked?: string
+  }
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are
   "library.changed": LibraryChange
   // A paper's note changed outside the window (an agent's edit, another program); null when it was emptied
   "library.noteChanged": { paperId: string; note: PaperNote | null }
-  // Core changed a topic's sidecar or a paper's passages (an agent wrote to Knowledge)
-  "knowledge.changed": { topics?: Record<string, TopicSidecar>; papers?: Record<string, PaperKnowledge> }
-  // A Knowledge run ended; items is empty when it changed nothing
-  "knowledge.updated": KnowledgeRun
+  // A collection changed (an agent wrote to it, the user changed it in another window, an undo); null:
+  // it was deleted
+  "collections.changed": { id: string; collection: Collection | null }
   // A shared doc's state changed (pushed, couldn't push, renamed); share null: no longer shared
   "share.changed": { path: string; share: DocShare | null }
   // New or changed comments on a shared doc: all of them, as they are now

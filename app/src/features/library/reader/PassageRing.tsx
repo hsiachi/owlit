@@ -5,7 +5,7 @@ import { useReaderStore } from "./reader-store"
 // Air between a passage's text and its outline, in screen pixels
 const PAD = 4
 
-// The outline around a passage a Knowledge item points at: shown while the item is hovered, rung twice when
+// The outline around a passage something points at: shown while the item is hovered, rung twice when
 // it is clicked. It never stays: the PDF itself gets no lasting mark. Fixed colour, since the page is white
 // in both themes.
 export function PassageRing({ documentId, pageIndex }: { documentId: string; pageIndex: number }) {

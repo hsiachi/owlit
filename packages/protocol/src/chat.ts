@@ -4,14 +4,14 @@
 import type { FileKind } from "./files.ts"
 import type { Role } from "./roles.ts"
 
-export type SourceKind = "paper" | "doc" | "knowledge"
+export type SourceKind = "paper" | "doc" | "collection"
 
-// Something the user can @-mention from Library (papers), Docs or Knowledge
+// Something the user can @-mention: a paper, a doc or a collection
 export interface Mentionable {
   id: string
   kind: SourceKind
   title: string
-  // paper: authors · year; doc: relative path; knowledge: item kind label
+  // paper: authors · year; doc: relative path; collection: how many papers
   subtitle?: string
   uri: string
 }

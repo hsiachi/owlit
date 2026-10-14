@@ -129,7 +129,7 @@ export class AgentFs {
   private docPath(file: string) {
     const rel = this.workspace().docs.resolve(file)
     const top = rel.split("/")[0].toLowerCase()
-    if (top === ".owlit" || top === "library" || top === "knowledge") throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't delete or move it.`, { path: rel })
+    if (top === ".owlit" || top === "library") throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't delete or move it.`, { path: rel })
     return rel
   }
 
@@ -194,6 +194,11 @@ export class AgentFs {
       else await ws.library.restore([version.path])
       const redo = await ws.versions.savePaper(version.path, version.op === "added" ? "removed" : "added", meta)
       return { path: version.path, kind: "paper", redoId: redo.id }
+    }
+
+    if (version.kind === "collection") {
+      const { redoId } = await ws.collections.restoreVersion(version.path, version.content, version.existed !== false, version.chatId ? { chatId: version.chatId } : {})
+      return { path: version.path, kind: "collection", redoId }
     }
 
     const notePaper = ws.library.noteOf(version.path)

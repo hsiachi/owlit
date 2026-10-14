@@ -1,4 +1,4 @@
-import { docUri, MENTION_LINK, paperUri, parseOwlitUri, topicUri } from "@owlit/protocol"
+import { collectionUri, docUri, MENTION_LINK, paperUri, parseOwlitUri } from "@owlit/protocol"
 import { WorkspaceMention } from "@/features/chat/components/composer/mention-extension"
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { useDocsStore, fileAt } from "@/features/docs/store"
@@ -6,20 +6,19 @@ import type { SourceKind } from "@/features/chat/types"
 
 // In a note, @ reaches the same workspace items as in a doc. In Markdown a mention is a link to its
 // owlit:// address, the same form agents write in their answers, so a note reads correctly anywhere.
-// A mention's id is a paper id, a doc's file id, or a Knowledge topic id (a question's: topic/question).
+// A mention's id is a paper id, a doc's file id, or a collection's id.
 
 function uriFor(kind: SourceKind, id: string): string {
   if (kind === "paper") return paperUri(id)
   if (kind === "doc") return docUri(useDocsStore.getState().files[id]?.path ?? id)
-  const [topicId, block] = id.split("/")
-  return topicUri(topicId, block)
+  return collectionUri(id)
 }
 
 function kindFor(uri: string): { kind: SourceKind; id: string } | null {
   const u = parseOwlitUri(uri)
   if (u?.kind === "paper") return { kind: "paper", id: u.id }
   if (u?.kind === "doc") return { kind: "doc", id: fileAt(u.path)?.id ?? u.path }
-  if (u?.kind === "knowledge") return { kind: "knowledge", id: u.block ? `${u.topicId}/${u.block}` : u.topicId }
+  if (u?.kind === "collection") return { kind: "collection", id: u.id }
   return null
 }
 

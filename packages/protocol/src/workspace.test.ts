@@ -5,7 +5,8 @@ describe("isHiddenFromDocs", () => {
   it.each([
     ["library", true],
     ["library/papers/arxiv-1/paper.json", true],
-    ["knowledge/agents.md", true],
+    // A workspace from before collections keeps its old topics as ordinary docs
+    ["knowledge/agents.md", false],
     [".owlit/workspace.json", true],
     ["notes/.obsidian/app.json", true],
     [".DS_Store", true],

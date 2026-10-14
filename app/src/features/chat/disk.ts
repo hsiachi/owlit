@@ -22,7 +22,7 @@ const diskFlag = createDiskFlag()
 export const isChatsFromDisk = diskFlag.isOn
 const fromDisk = diskFlag.apply
 
-// The list first, then every chat's messages: the list shows at once, and Knowledge, ⌘K and docs'
+// The list first, then every chat's messages: the list shows at once, and ⌘K and docs'
 // pending edits see whole chats
 async function load() {
   const sameWorkspace = queue.tracker()

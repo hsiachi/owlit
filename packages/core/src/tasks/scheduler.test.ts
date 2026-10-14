@@ -243,10 +243,10 @@ describe("Scheduler", () => {
 
   it("debounces: each call pushes a queued run back", async () => {
     const run = vi.fn()
-    const { scheduler } = await newScheduler([defineTask("fake.knowledge", { lane: "agent", run })])
-    const first = scheduler.debounce("fake.knowledge", "workspace", 30)
+    const { scheduler } = await newScheduler([defineTask("fake.debounced", { lane: "agent", run })])
+    const first = scheduler.debounce("fake.debounced", "workspace", 30)
     await tick(15)
-    const second = scheduler.debounce("fake.knowledge", "workspace", 30)
+    const second = scheduler.debounce("fake.debounced", "workspace", 30)
     expect(second.id).toBe(first.id)
     await tick(20)
     expect(run).not.toHaveBeenCalled()

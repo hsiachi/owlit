@@ -1,7 +1,7 @@
 import type { HighlightColor } from "./library.ts"
 import type { InterfaceLanguage } from "./languages.ts"
 
-// A workspace is one folder. What lives inside it (docs, library/, knowledge/, .owlit/) travels with
+// A workspace is one folder. What lives inside it (docs, library/, .owlit/) travels with
 // it; what is derived or tied to this machine lives in the app data directory instead.
 
 export interface WorkspaceInfo {
@@ -140,10 +140,10 @@ export interface ProbedConnector {
 }
 
 // Top-level names in a workspace that are owlit's or hidden: the Docs tree never shows them
-export const DOCS_HIDDEN_FOLDERS = ["library", "knowledge"] as const
+export const DOCS_HIDDEN_FOLDERS = ["library"] as const
 
-// Whether a workspace-relative path ("a/b.md") is outside what Docs shows: under library/ or
-// knowledge/ at the root, or under any dot-folder (or a dot-file) at any depth
+// Whether a workspace-relative path ("a/b.md") is outside what Docs shows: under library/ at the root,
+// or under any dot-folder (or a dot-file) at any depth
 export function isHiddenFromDocs(relativePath: string) {
   const segments = relativePath.split("/").filter(Boolean)
   if (segments.length === 0) return false
@@ -158,7 +158,7 @@ export interface UiActions {
   "fs.read": { params: { path: string }; result: { content: string | null } }
   // The agent's write, applied in the doc's editor; false: not open after all
   "fs.write": { params: { path: string; content: string; versionId: string }; result: { applied: boolean } }
-  // Shows a paper, doc, chat or Knowledge topic (an owlit:// link). chatId (on open, jump and mark) is
+  // Shows a paper, doc, chat or collection (an owlit:// link). chatId (on open, jump and mark) is
   // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
   open: { params: { uri: string; chatId?: string }; result: { title: string } }
   // Shows a paper or doc at a place: a 1-based page of a paper, or a passage quoted from either. The

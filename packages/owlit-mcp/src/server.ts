@@ -4,7 +4,23 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
-import { OWLIT_TOOLS, type AgentNote, type ConsentAction, type FoundPaper, type FoundPapers, type HighlightColor, type Paper, type ToolSpec } from "@owlit/protocol"
+import {
+  collectionUri,
+  OWLIT_TOOLS,
+  QUESTION_COLUMN,
+  shownCollection,
+  type AgentNote,
+  type Collection,
+  type CollectionCell,
+  type CollectionGroup,
+  type CollectionRowWrite,
+  type ConsentAction,
+  type FoundPaper,
+  type FoundPapers,
+  type HighlightColor,
+  type Paper,
+  type ToolSpec,
+} from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 
 export interface OwlitMcpOptions {
@@ -53,32 +69,6 @@ export function createServer(options: OwlitMcpOptions) {
   return server
 }
 
-// How a topic file reads; shown with the list so a first topic can be written
-const TOPIC_FORMAT = `A topic file:
-
-# Name of the topic
-
-One or two sentences saying where the user's understanding stands.
-
-## Understanding
-
-- Lewis et al. 2020: RAG-Token can draw a different retrieved document for each token it generates. ^s1
-  - [§2.1](owlit://library/arxiv-2005.11401#passage=rag-token) — Only when generating with a top-K retriever.
-- You: I think per-token retrieval is what makes multi-document answers possible. ^s2
-  - [Related work](owlit://docs/Related%20work.md)
-- Owlit thinks: … (only Owlit's own inference, said as such) ^s3
-
-## Questions
-
-- You: When does per-token retrieval beat per-sequence retrieval? ^q1
-  - [Chat](owlit://chat/<id>) — From your chat on Oct 9. Nothing answers it yet.
-
-## Sources
-
-- 2026-10-09 · [Lewis et al. 2020](owlit://library/arxiv-2005.11401) · you highlighted §2.1
-
-A line's one sub-bullet holds its sources, then " — " and a sentence: when the line holds, or where a question stands. A You line is the user speaking, first person ("I", "my draft"); Owlit's lines and the summary may say "your". New lines may leave out ^id; owlit gives them one.`
-
 async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions): Promise<string> {
   const str = (key: string) => args[key] as string
   const num = (key: string) => args[key] as number | undefined
@@ -104,7 +94,12 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_get": {
       const { papers, notes } = await owlit.rpc.library.list()
       const paper = papers.find((p) => p.id === str("id"))
-      if (!paper) return `There is no paper ${str("id")} in the library.`
+      if (!paper) {
+        // A paper a search found: its whole abstract, which the search's line cuts short
+        const found = await owlit.rpc.library.found({ id: str("id") })
+        if (!found) return `There is no paper ${str("id")} in the library, and no recent search showed it.`
+        return JSON.stringify({ id: str("id"), ...found, inLibrary: false, note: "Not in the user's library: a search found it. Gather it into a collection with collection_write; add it with library_add only to read its full text." }, null, 2)
+      }
       const highlights = await owlit.rpc.library.highlights({ id: paper.id })
       return JSON.stringify(
         {
@@ -260,39 +255,42 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const { title, page } = await owlit.rpc.ui.mark({ uri: `owlit://library/${str("id")}`, ...asker, quote: str("quote"), ...(optStr("color") ? { color: optStr("color") as HighlightColor } : {}) })
       return `Highlighted the passage on p. ${page} of ${title}. The user can remove it from the paper's Highlights.`
     }
-    case "knowledge_read": {
-      const topic = optStr("topic")
-      if (!topic) {
-        const topics = await owlit.rpc.knowledge.topics()
-        const list = topics.length
-          ? topics.map((t) => `- ${t.id} · ${t.name} · ${t.lines} line${t.lines === 1 ? "" : "s"}, ${t.questions} question${t.questions === 1 ? "" : "s"} · updated ${new Date(t.updatedAt).toISOString().slice(0, 10)}${t.paused ? " · paused by the user: leave it" : ""}`).join("\n")
-          : "There are no topics yet."
-        return `${list}\n\n${TOPIC_FORMAT}`
-      }
-      const t = await owlit.rpc.knowledge.read({ topic })
-      const notes = [
-        t.paused ? "The user paused updates to this topic: don't write to it." : "",
-        t.edited.length ? `Lines the user rewrote (keep word for word): ${t.edited.map((e) => `^${e.id}`).join(", ")}` : "",
-        t.removed.length ? `Lines the user removed (never bring back):\n${t.removed.map((r) => `- ${r}`).join("\n")}` : "",
-      ].filter(Boolean)
-      return `${t.path} (id ${t.id})\n\n${t.content}${notes.length ? `\n---\n${notes.join("\n\n")}` : ""}`
+    case "collection_list": {
+      const all = await owlit.rpc.collections.list()
+      if (!all.length) return "There are no collections yet."
+      const lines = await Promise.all(
+        all.map(async (c) => {
+          const asked = (await owlit.rpc.collections.get({ id: c.id })).asked.text
+          const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
+          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${asked}`
+        }),
+      )
+      return lines.join("\n")
     }
-    case "knowledge_write": {
-      let passages: { id: string; paper: string; quote: string; section?: string }[] | undefined
-      if (optStr("passages")) {
-        try {
-          passages = JSON.parse(str("passages"))
-        } catch {
-          return "passages should be a JSON array: [{\"id\": …, \"paper\": …, \"quote\": …}]."
-        }
-        if (!Array.isArray(passages)) return "passages should be a JSON array."
-      }
-      const remove = optStr("remove")
-        ?.split(/[\s,]+/)
-        .map((id) => id.replace(/^\^/, ""))
-        .filter(Boolean)
-      const done = await owlit.rpc.knowledge.write({ topic: str("topic"), content: str("content"), why: str("why"), ...(remove?.length ? { remove } : {}), ...(passages ? { passages } : {}), ...asker })
-      return `Wrote ${done.path}${done.changes.length ? `: ${done.changes.join(", ")}` : " (nothing changed)"}.`
+    case "collection_read":
+      return collectionText(await owlit.rpc.collections.get({ id: str("id") }))
+    case "collection_write": {
+      const parsed = parseJsonArgs(args, ["rows", "memo", "groups"])
+      if (typeof parsed === "string") return parsed
+      const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
+      if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
+      const done = await owlit.rpc.collections.write({
+        ...(optStr("id") ? { id: str("id") } : {}),
+        ...(optStr("asked") ? { asked: str("asked") } : {}),
+        ...(optStr("title") ? { title: str("title") } : {}),
+        ...(optStr("project") ? { project: str("project") } : {}),
+        ...(Array.isArray(args.sources) ? { sources: args.sources as string[] } : {}),
+        ...(rows ? { rows: rows as CollectionRowWrite[] } : {}),
+        ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
+        ...(parsed.groups ? { groups: parsed.groups as CollectionGroup[] } : {}),
+        ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
+        ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
+        ...(optStr("why") ? { why: str("why") } : {}),
+        ...asker,
+      })
+      const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
+      const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
+      return `Wrote “${done.title}” (${collectionUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${collectionUri(done.id)}).`
     }
     case "chats_list": {
       const chats = await owlit.rpc.chats.list()
@@ -306,6 +304,82 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
   }
   return `owlit has no tool called ${tool}.`
+}
+
+interface RowArg {
+  id?: string
+  answer?: string
+  depth?: string
+  quote?: string
+  group?: string
+  cells?: Record<string, { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }>
+}
+
+// A row as the agent gives it (answer, depth and quote for the question; other columns in cells), as
+// core takes it; or what to tell the agent
+function rowWrite(r: RowArg): CollectionRowWrite | string {
+  if (!r.id) return "Every row needs the paper's id, as a search gave it."
+  // The page is found by owlit from the quote
+  const cell = (c: { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }): Omit<CollectionCell, "at"> => ({
+    text: c.text ?? "",
+    depth: c.depth === "full" ? "full" : "abstract",
+    ...(c.quote ? { passage: { quote: c.quote, page: 1 } } : {}),
+    ...(c.rel === "supports" || c.rel === "challenges" || c.rel === "related" ? { rel: c.rel } : {}),
+    ...(c.sentence ? { sentence: c.sentence } : {}),
+  })
+  const cells = Object.fromEntries(Object.entries(r.cells ?? {}).map(([col, c]) => [col, cell(c)]))
+  if (r.answer) cells[QUESTION_COLUMN] = cell({ text: r.answer, depth: r.depth, quote: r.quote })
+  return { id: r.id, ...(Object.keys(cells).length ? { cells } : {}), ...(r.group ? { group: r.group } : {}) }
+}
+
+function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<string, unknown[] | undefined> | string {
+  const out: Record<string, unknown[] | undefined> = {}
+  for (const key of keys) {
+    const raw = args[key]
+    if (raw === undefined || raw === "") continue
+    let value: unknown = raw
+    if (typeof raw === "string") {
+      try {
+        value = JSON.parse(raw)
+      } catch {
+        return `${key} should be a JSON array.`
+      }
+    }
+    if (!Array.isArray(value)) return `${key} should be a JSON array.`
+    out[key] = value
+  }
+  return out
+}
+
+// A collection as the agent reads it: what the user sees, then what of it is the user's
+function collectionText(stored: Collection) {
+  const c = shownCollection(stored)
+  const columns = c.columns.filter((col) => !col.hidden)
+  const groups = new Map(c.groups.map((g) => [g.id, g]))
+  const lines = [
+    `${c.title} (${collectionUri(c.id)})`,
+    `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
+    `Columns: ${columns.map((col) => `${col.id} = ${col.question}`).join("; ")}`,
+    ...(c.groups.length ? [`Groups: ${c.groups.map((g) => `${g.id} = ${g.name}${g.parent ? ` (in ${g.parent})` : ""}`).join("; ")}`] : []),
+    "",
+    "Memo:",
+    ...(c.memo.length ? c.memo.map((s) => `- [${s.id}] ${s.text}`) : ["(none yet)"]),
+    "",
+    `Papers (${c.rows.length}):`,
+  ]
+  for (const r of c.rows) {
+    const p = r.paper
+    lines.push(`- ${r.id} · ${p.title} · ${[p.authors[0], p.year, p.venue].filter(Boolean).join(", ")}${r.group ? ` · group ${groups.get(r.group)?.name ?? r.group}` : ""}`)
+    for (const col of columns) {
+      const cell = r.cells[col.id]
+      if (cell) lines.push(`  ${col.id}: ${cell.rel ? `${cell.rel} ` : ""}${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`)
+    }
+  }
+  const edits = Object.keys(stored.yours.edits)
+  const removed = Object.values(stored.yours.removed).map((r) => r.text)
+  if (edits.length) lines.push("", `The user rewrote (keep their words): ${edits.join(", ")}`)
+  if (removed.length) lines.push("", "The user removed (never bring back):", ...removed.map((t) => `- ${t}`))
+  return lines.join("\n")
 }
 
 // The passage as it is in the doc, with a little text either side so it can be found again after edits

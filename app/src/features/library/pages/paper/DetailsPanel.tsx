@@ -1,12 +1,14 @@
 import { plural, t } from "@lingui/core/macro"
-import { useState } from "react"
+import { MentionToken } from "@/components/mention/mention-token"
+import { useCollectionsStore } from "@/features/collections/store"
+import { collectionsByPaper } from "@/features/collections/lib"
+import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { FoldButton } from "@/components/fold"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { KnowledgeTab, KnowledgeTabLabel } from "@/features/knowledge/paper/KnowledgeTab"
 import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsList"
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
@@ -39,7 +41,8 @@ function ResizeHandle() {
 export function DetailsPanel({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const width = usePrefsStore((s) => s.panelWidth)
-  const tab = usePrefsStore((s) => s.panelTab)
+  // A panel last left on the Knowledge tab, which is gone, opens on About
+  const tab = usePrefsStore((s) => ((s.panelTab as string) === "knowledge" ? "about" : s.panelTab))
   const setTab = usePrefsStore((s) => s.setPanelTab)
   const highlightCount = useHighlightCount(paper.id)
 
@@ -67,9 +70,6 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
                 {t({ message: "Highlights", comment: "tab: the passages highlighted in a paper" })}
                 {highlightCount > 0 && <span className="font-normal text-muted-foreground tabular-nums">{highlightCount}</span>}
               </TabsTrigger>
-              <TabsTrigger value="knowledge" className="px-1.5">
-                <KnowledgeTabLabel paper={paper} />
-              </TabsTrigger>
               <TabsTrigger value="about" className="px-1.5">{t({ message: "About", comment: "tab: a paper's abstract and details" })}</TabsTrigger>
             </TabsList>
             {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
@@ -79,9 +79,6 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
           </TabsContent>
           <TabsContent value="highlights">
             <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
-          </TabsContent>
-          <TabsContent value="knowledge">
-            <KnowledgeTab key={paper.id} paper={paper} />
           </TabsContent>
           <TabsContent value="about">
             <About paper={paper} />
@@ -102,6 +99,9 @@ function About({ paper }: { paper: Paper }) {
   const links = externalLinks(paper)
   const when = ago(paper.addedAt)
   const pages = paper.pdf?.pages
+  const collections = useCollectionsStore((s) => s.collections)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const inCollections = useMemo(() => collectionsByPaper(collections, { [paper.id]: paper }, aliases).get(paper.id) ?? [], [collections, paper, aliases])
   return (
     <div>
       {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">{t`No abstract.`}</p>}
@@ -129,6 +129,19 @@ function About({ paper }: { paper: Paper }) {
         ))}
         <dt className="text-muted-foreground">{t({ message: "Added", context: "when the paper was added to the library" })}</dt>
         <dd>{paper.addedBy === "agent" ? t`${when} by Owlit` : when}</dd>
+        {inCollections.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">{t({ message: "In", context: "label before the collections that hold this paper" })}</dt>
+            <dd className="min-w-0">
+              {inCollections.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && ", "}
+                  <MentionToken label={c.title} onClick={() => navigate(`/collections/${c.id}?paper=${encodeURIComponent(paper.id)}`)} />
+                </span>
+              ))}
+            </dd>
+          </>
+        )}
         <dt className="text-muted-foreground">{t({ message: "File", comment: "the paper's PDF file" })}</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (pages ? plural(pages, { one: "PDF, # page", other: "PDF, # pages" }) : "PDF") : t`No PDF`}</dd>
         {paper.text && (

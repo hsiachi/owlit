@@ -11,7 +11,7 @@ import { messageText } from "@/features/chat/lib/message-text"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
-// highlighted or noted. Topic files are Owlit's, so they belong to Knowledge, not here.
+// highlighted or noted.
 
 export interface Place {
   kind: Extract<Kind, "doc" | "chat" | "paper">
@@ -69,7 +69,7 @@ export function usePlaces(): Place[] {
     const markByPath = new Map((marks ?? []).map((m) => [m.path, m]))
     const owlitByPath = new Map((owlitMarks ?? []).map((m) => [m.path, m.at]))
     for (const f of Object.values(files)) {
-      if (!isMarkdown(f.path) || f.path.startsWith("knowledge/")) continue
+      if (!isMarkdown(f.path)) continue
       const mark = markByPath.get(f.path)
       const owlitAt = owlitByPath.get(f.path)
       out.push({
