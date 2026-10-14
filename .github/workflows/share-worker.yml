@@ -1,0 +1,46 @@
+# Deploys the share server when main changes it. main only moves at a release (pnpm release:ship), so
+# readers' pages change together with the app that was just sent out.
+#
+# Needs, in the repo's settings: the secrets CLOUDFLARE_API_TOKEN (the "Edit Cloudflare Workers" template; until it is set, the job only warns)
+# and CLOUDFLARE_ACCOUNT_ID, and the variable OWLIT_SHARE_SERVER, the address deployed as a custom domain
+# (scripts/deploy.mjs); without it the worker goes to workers.dev only.
+name: Share server
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/share-worker/**
+      - apps/share-web/**
+      - packages/protocol/**
+      - pnpm-lock.yaml
+  workflow_dispatch:
+concurrency:
+  group: share-worker
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OWLIT_SHARE_SERVER: ${{ vars.OWLIT_SHARE_SERVER }}
+    # A fork deploys its own way; here, until the token is added, every step but the warning is skipped
+    if: ${{ github.repository == 'hsiachi/owlit' }}
+    steps:
+      - name: Cloudflare token
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo "::warning::CLOUDFLARE_API_TOKEN isn't set, so the share server wasn't deployed" && exit 0
+      - uses: actions/checkout@v4
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - uses: actions/setup-node@v4
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - run: pnpm --filter @owlit/share-worker run deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}

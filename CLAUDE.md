@@ -5,3 +5,5 @@ Read `docs/vision.md` before any feature work; `docs/decisions/` has the reasons
 Backend work is organised as tasks in `.agents/tasks/` (read its README first). Don't create docs in this repo unless asked.
 
 Running and building: see `CONTRIBUTING.md`. Claude Code's preview pane cannot host Electron: its `.claude/launch.json` entries run the renderer alone (`pnpm --dir app dev --port <port>`), the same as `pnpm dev:web`.
+
+Feature work happens in a worktree under `.claude/worktrees/` branched from dev. Once it is merged into dev, push dev, then remove that worktree and delete its branch in the same session, so finished ones don't pile up. Releases: `CONTRIBUTING.md` › Releases.

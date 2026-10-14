@@ -13,6 +13,7 @@
     "typecheck": "pnpm -r typecheck",
     "i18n:extract": "lingui extract --clean",
     "release": "pnpm --filter @owlit/desktop release",
+    "release:ship": "node apps/desktop/scripts/ship.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "devDependencies": {
