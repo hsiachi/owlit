@@ -58,16 +58,16 @@ The build tooling is Vite (renderer) plus esbuild (main and preload, bundled wit
 
 A release is an arm64 dmg, signed with a self-signed certificate so macOS keeps a user's Keychain and folder
 grants across versions; it isn't notarised. It is built on the maintainer's Mac, where the certificate
-lives, and uploaded to GitHub Releases by hand:
+lives. `main` is the latest release: it only moves when one goes out, and pushing it deploys the share
+server (`.github/workflows/share-worker.yml`).
 
-1. Add a section for the version to `apps/desktop/CHANGELOG.md` and bump `apps/desktop/package.json`.
-2. `pnpm release` builds the dmg and `Owlit <version> - read me first.txt` (install steps plus the
-   changelog section) in `apps/desktop/release/`.
-3. Make the GitHub release, with the read-me as its notes:
+1. Add a `## <version>` section to `apps/desktop/CHANGELOG.md` on dev and commit it.
+2. `pnpm release:ship <version>` from the checkout of dev. It bumps the version, runs `pnpm check`, builds
+   and signs the dmg with `Owlit <version> - read me first.txt` (install steps plus the changelog section),
+   then moves `main` up to dev, tags `v<version>`, pushes, and makes the GitHub release. Nothing leaves the
+   Mac until the checks and the build have passed.
 
-   ```bash
-   gh release create v<version> "apps/desktop/release/Owlit <version>.dmg" --notes-file "apps/desktop/release/Owlit <version> - read me first.txt"
-   ```
+`pnpm release` alone builds the dmg and the read-me in `apps/desktop/release/` without publishing.
 
 `pnpm release` reads `.env.release.local` at the repo root (ignored by git), and the environment wins over
 it, so CI can set the same values later:
@@ -75,4 +75,5 @@ it, so CI can set the same values later:
 ```bash
 OWLIT_SHARE_SERVER=https://share.example.org   # required: the share server links are made on; empty for none
 OWLIT_SIGN_IDENTITY="Owlit Self-Signed"        # the certificate in the login keychain; without it, ad hoc
+OWLIT_RELEASE_ARCHIVE=/Users/me/releases        # optional: release:ship copies each dmg and read-me here
 ```
