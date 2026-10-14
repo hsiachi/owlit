@@ -128,10 +128,12 @@ msgstr "Nothing found."
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
+#. verb: open the exported doc
 #. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/export.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
 #: app/src/features/home/WaitingOnYou.tsx
@@ -2283,6 +2285,10 @@ msgid "No project"
 msgstr "No project"
 
 #: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Export as a doc"
+msgstr "Export as a doc"
+
+#: app/src/features/collections/components/CollectionMenu.tsx
 msgid "Export as CSV"
 msgstr "Export as CSV"
 
@@ -2383,7 +2389,9 @@ msgstr "Title"
 msgid "Newest first"
 msgstr "Newest first"
 
+#. table header in an exported collection
 #: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/export.ts
 msgid "Paper"
 msgstr "Paper"
 
@@ -2426,6 +2434,10 @@ msgstr "Ungroup"
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Make it a collection of its own"
 msgstr "Make it a collection of its own"
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Made a collection of its own"
+msgstr "Made a collection of its own"
 
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Group name"
@@ -2588,6 +2600,32 @@ msgstr "Compare with a doc…"
 #: app/src/features/collections/components/Work.tsx
 msgid "Each question becomes a column; Owlit answers it from the abstracts."
 msgstr "Each question becomes a column; Owlit answers it from the abstracts."
+
+#. heading in an exported collection: papers in no group
+#: app/src/features/collections/export.ts
+msgid "Other papers"
+msgstr "Other papers"
+
+#. last line of a doc exported from a collection
+#: app/src/features/collections/export.ts
+msgid "From the collection {from}, {date}."
+msgstr "From the collection {from}, {date}."
+
+#. sort: group the Library's papers by the collection they came from
+#. table column: the collection a paper came from
+#: app/src/features/collections/export.ts
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Collection"
+msgstr "Collection"
+
+#: app/src/features/collections/export.ts
+msgid "owlit couldn't make the doc."
+msgstr "owlit couldn't make the doc."
+
+#: app/src/features/collections/export.ts
+msgid "Exported as a doc"
+msgstr "Exported as a doc"
 
 #. group of collections that belong to no project folder
 #: app/src/features/collections/lib.ts
@@ -3781,11 +3819,6 @@ msgstr "Recently added"
 #: app/src/features/library/components/PaperList.tsx
 msgid "Authors"
 msgstr "Authors"
-
-#. sort: group the Library's papers by the collection they came from
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Collection"
-msgstr "Collection"
 
 #. how often a paper is cited by other works
 #. how often a paper is cited by other works
@@ -6249,6 +6282,14 @@ msgstr "That isn't in the collection any more."
 #: packages/core/src/collections/collections.ts
 msgid "Those papers aren't in the collection any more."
 msgstr "Those papers aren't in the collection any more."
+
+#: packages/core/src/collections/collections.ts
+msgid "This collection wasn't kept separate from another."
+msgstr "This collection wasn't kept separate from another."
+
+#: packages/core/src/collections/collections.ts
+msgid "The collection these papers came from is gone."
+msgstr "The collection these papers came from is gone."
 
 #: packages/core/src/collections/collections.ts
 msgid "That collection is already here."
