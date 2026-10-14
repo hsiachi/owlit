@@ -172,6 +172,19 @@ const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That pa
 // .owlit/papers/<id>/ (the rest of what the user thinks of it: state, highlights). Changes from the app
 // are answered, not echoed; changes core makes on its own (a task) or another program makes go out
 // through onChange.
+// One search in .owlit/searches.jsonl: what was asked where, by whom (chat:<id>, run:<kind>:<task>, agent,
+// you), and the ids of what it found
+export interface SearchLine {
+  at: number
+  query: string
+  source: string
+  filters?: object
+  by: string
+  results: string[]
+}
+
+const RECENT_SEARCHES = 2000
+
 export class Library {
   readonly root: string
   // This workspace's folder in owlit's data directory (machine-specific state)
@@ -182,6 +195,7 @@ export class Library {
   // Every paper a search, a neighbour list or a journal list showed lately, as it showed it: what a
   // collection's row takes when the paper isn't in the Library
   private found = new Map<string, { paper: FoundPaper; at: number; query: string }>()
+  private searchLog: SearchLine[] | null = null
   // Journal lists fetched a moment ago, by ISSN and years, for the next page
   private journals = new Map<string, { articles: JournalArticle[]; issn: string; at: number }>()
   private scheduler: Scheduler | undefined
@@ -1044,9 +1058,32 @@ export class Library {
     const now = Date.now()
     for (const [id, kept] of this.found) if (now - kept.at >= FOUND_TTL_MS) this.found.delete(id)
     for (const p of papers) if (p.id) this.found.set(p.id, { paper: p, at: now, query: asked.query })
-    const line = { at: Date.now(), ...asked, by, results: papers.map((f) => f.id) }
+    const line: SearchLine = { at: Date.now(), ...asked, by, results: papers.flatMap((f) => (f.id ? [f.id] : [])) }
+    ;(await this.recentSearches()).push(line)
     await mkdir(path.join(this.root, OWLIT_DIR), { recursive: true })
     await appendFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), JSON.stringify(line) + "\n")
+  }
+
+  // The searches one chat or background run made since a moment, for the collection it writes to
+  async searchesBy(by: string, since: number): Promise<SearchLine[]> {
+    return (await this.recentSearches()).filter((s) => s.by === by && s.at > since)
+  }
+
+  // The latest searches, read from the log once (a run that outlived a restart keeps its earlier ones)
+  private async recentSearches() {
+    if (!this.searchLog) {
+      const text = await readFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), "utf8").catch(() => "")
+      const lines = text.split("\n").slice(-RECENT_SEARCHES).flatMap((l) => {
+        try {
+          return l ? [JSON.parse(l) as SearchLine] : []
+        } catch {
+          return []
+        }
+      })
+      this.searchLog ??= lines
+    }
+    if (this.searchLog.length > RECENT_SEARCHES * 2) this.searchLog.splice(0, this.searchLog.length - RECENT_SEARCHES)
+    return this.searchLog
   }
 
   async highlights(id: string): Promise<Highlight[]> {

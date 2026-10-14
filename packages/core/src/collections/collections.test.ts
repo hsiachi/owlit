@@ -262,21 +262,46 @@ describe("uniqueId", () => {
 describe("Collections, Owlit's work in the background", () => {
   function withRuns({ opening = 0 } = {}) {
     const prompts: { prompt: string; allow: string }[] = []
+    // What the run and a chat searched, as the Library logs it
+    const searched: { by: string; at: number; query: string; source: string; results: string[] }[] = []
     const ctx = setup({
+      searches: async (by, since) => searched.filter((s) => s.by === by && s.at > since),
       // The agent writes the way it would through owlit-mcp: a row and a title on the first write
-      agent: async (prompt, _signal, allow) => {
+      agent: async (prompt, _signal, allow, run) => {
         // The workspace still opening: owlit's tools not reachable yet
         if (opening-- > 0) return null
         prompts.push({ prompt, allow: allow.source })
         const id = /collection_write,? id ([\w-]+)/.exec(prompt)?.[1]
-        if (id && prompt.includes("gathering")) await ctx.collections.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }] })
+        searched.push(
+          { by: `run:${run}`, at: Date.now(), query: "replay ratings validity", source: "openalex", results: ["doi-10.1145-1", "doi-10.1145-9"] },
+          { by: `run:${run}`, at: Date.now(), query: "cited_by of doi-10.1145-1", source: "openalex", results: ["doi-10.1145-8"] },
+        )
+        if (id && prompt.includes("gathering"))
+          await ctx.collections.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", run })
         return { text: "Gathered one paper." }
       },
     })
     const scheduler = new Scheduler({ store: new TaskStore(mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))), definitions: ctx.collections.tasks(), retryDelay: () => 5 })
     ctx.collections.attach(scheduler)
-    return { ...ctx, scheduler, prompts }
+    return { ...ctx, scheduler, prompts, searched }
   }
+
+  it("tells its batches apart for About: the run's searches and note, then a chat's later question", async () => {
+    const { collections, scheduler, searched } = withRuns()
+    const c = await collections.gather({ question: "回放评价可靠吗？", size: "few" })
+    await scheduler.wait((await scheduler.list()).find((t) => t.subject === c.id)!.id)
+    searched.push({ by: "chat:c9", at: Date.now(), query: "lifelog video recall", source: "arxiv", results: ["doi-10.1145-2"] })
+    await collections.write({ id: c.id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-2", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" })
+
+    const [gathered, chat, ...rest] = await collections.about(c.id)
+    expect(rest).toEqual([])
+    expect(gathered).toMatchObject({ trigger: "gather", added: 1, answered: 0, notes: ["Semantic Scholar wasn't reachable."] })
+    expect(gathered!.searches).toEqual([
+      { kind: "search", query: "replay ratings validity", source: "openalex", found: 2, kept: 1 },
+      { kind: "cited_by", query: "doi-10.1145-1", of: "Replay or Live? Validity of Retrospective Ratings", source: "openalex", found: 1, kept: 0 },
+    ])
+    expect(chat).toMatchObject({ trigger: "chat", chatId: "c9", asked: "Does lifelog video help recall?", added: 1, searches: [{ query: "lifelog video recall", kept: 1 }] })
+  })
 
   it("starts a collection at once and fills it in the background", async () => {
     const { collections, scheduler, prompts } = withRuns()

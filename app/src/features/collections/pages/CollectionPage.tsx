@@ -1,23 +1,15 @@
 import { t } from "@lingui/core/macro"
-import { Trans } from "@lingui/react/macro"
-import { QUESTION_COLUMN, shownCollection, type Collection } from "@owlit/protocol"
+import { QUESTION_COLUMN, shownCollection } from "@owlit/protocol"
 import { CollectionTable } from "../components/CollectionTable"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ActionsDropdownContent } from "@/components/action-menu"
-import { GroupLabel } from "@/components/group-label"
-import { MentionLink } from "@/components/mention/mention-token"
 import { NotFound, PageHeader, PageTitle } from "@/components/page"
 import { RenameInput } from "@/components/rename-input"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { chatUri } from "@owlit/protocol"
-import { mentionRoute } from "@/features/docs/lib/mentions"
-import { useChatStore } from "@/features/chat/store"
-import { isDesktop } from "@/lib/rpc"
-import { shortDate } from "@/lib/time"
-import { joinAnd } from "@/lib/words"
+import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
 import { CollectionActions, WorkLine } from "../components/Work"
 import { useCollectionMenu } from "../components/CollectionMenu"
@@ -122,89 +114,10 @@ function CollectionVisit({ collectionId }: { collectionId: string | undefined })
             </div>
           )}
           <div className="mx-auto w-full max-w-3xl px-4">
-            <About collection={collection} table={table} />
+            <About collection={collection} />
           </div>
         </article>
       </div>
     </div>
-  )
-}
-
-// Where the collection came from and how far Owlit looked: kept, but at the end, so the page opens on the
-// reading itself. Only what is true of this page: no "list above" without papers, "table" for a table.
-function About({ collection: c, table }: { collection: Collection; table: boolean }) {
-  // A collection made from another keeps the question it was really asked; a group made a collection of its
-  // own was asked nothing, so it says where it came from instead of quoting the group's name back
-  const question = c.splitFrom?.asked ?? c.asked
-  const fromGroup = !!c.splitFrom && !c.splitFrom.asked
-  const origin = useCollectionsStore((s) => (c.splitFrom ? s.collections[c.splitFrom.id] : undefined))
-  const chat = useChatStore((s) => (question.chatId ? s.chats[question.chatId] : undefined))
-  const rows = shownCollection(c).rows
-  const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
-  const where = c.sources.length ? joinAnd(c.sources) : undefined
-  const papers = rows.length
-  const looked = where
-    ? papers
-      ? t`Owlit looked in ${where} and read ${read} of the ${papers} papers in full; the rest are from their abstracts.`
-      : t`Owlit looked in ${where}.`
-    : papers
-      ? t`Owlit read ${read} of the ${papers} papers in full; the rest are from their abstracts.`
-      : undefined
-  const legend = papers
-    ? table
-      ? t`The table above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract.`
-      : t`The list above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract.`
-    : undefined
-  const asked = question.text
-  const when = shortDate(question.at)
-  const from = question.chatId && (chat || !isDesktop) ? chatUri(question.chatId) : undefined
-  const chatTitle = chat?.title || t`a chat`
-  const originLink = origin ? <MentionLink label={shownCollection(origin).title} to={`/collections/${origin.id}`} /> : t`another collection`
-  return (
-    <section className="mt-12 max-w-[68ch] text-detail leading-relaxed text-muted-foreground">
-      <GroupLabel className="px-0">{t`About this collection`}</GroupLabel>
-      {fromGroup ? (
-        <p>
-          <Trans comment="a collection the user made from one of another collection's groups">
-            Made from the group <span className="text-foreground/80">“{asked}”</span> in {originLink}, {when}.
-          </Trans>
-        </p>
-      ) : (
-        <p>
-          {from ? (
-            <Trans>
-              You asked <span className="text-foreground/80">“{asked}”</span> in <MentionLink label={chatTitle} to={mentionRoute(from)} />, {when}.
-            </Trans>
-          ) : (
-            <Trans>
-              You asked <span className="text-foreground/80">“{asked}”</span>, {when}.
-            </Trans>
-          )}
-          {c.splitFrom && (
-            <>
-              {" "}
-              <Trans comment="after the question: its papers were first added to another collection, then kept apart">Kept separate from {originLink}.</Trans>
-            </>
-          )}
-        </p>
-      )}
-      {(c.alsoAsked ?? []).map((a, i) => {
-        const later = a.text
-        const on = shortDate(a.at)
-        return (
-          <p key={i}>
-            <Trans comment="a later question Owlit answered by adding to this collection">
-              Then <span className="text-foreground/80">“{later}”</span>, {on}.
-            </Trans>
-          </p>
-        )
-      })}
-      {looked && (
-        <p className="mt-0.5">
-          {looked} {legend}
-        </p>
-      )}
-      {c.watch && <p className="mt-0.5">{t`Owlit watches for new papers on this question.`}</p>}
-    </section>
   )
 }

@@ -81,6 +81,7 @@ export class Workspace {
         const text = await readFile(path.join(paperDir(root, id), "text.md"), "utf8").catch(() => null)
         return text === null ? undefined : findQuote(text, quote)
       },
+      searches: (by, since) => this.library.searchesBy(by, since),
       ...options.collections,
     })
     this.tasks = new Scheduler({

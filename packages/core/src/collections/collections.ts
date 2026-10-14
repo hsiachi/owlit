@@ -9,8 +9,10 @@ import {
   shownCollection,
   summarize,
   type Collection,
+  type CollectionBatch,
   type CollectionCell,
   type CollectionEdit,
+  type CollectionSearch,
   type CollectionPaper,
   type CollectionRun,
   type CollectionSize,
@@ -41,7 +43,9 @@ import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from ".
 export interface CollectionsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
   // is a line on what it did. Null while the workspace is still opening and its tools can't be reached.
-  agent?: (prompt: string, signal: AbortSignal, allow: RegExp) => Promise<{ text: string } | null>
+  agent?: (prompt: string, signal: AbortSignal, allow: RegExp, run: string) => Promise<{ text: string } | null>
+  // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
+  searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
   paper?: (id: string) => Promise<CollectionPaper | undefined>
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
@@ -56,9 +60,22 @@ export interface CollectionsServices {
 interface HistoryLine {
   at: number
   by: string
+  // The background run that wrote it, "<kind>:<task id>"
+  run?: string
   why?: string
   items: string[]
+  // Rows the write added, the question it was for when that was a later one, Owlit's note on what it
+  // couldn't reach, and the searches it rests on (made since the same chat's or run's last write)
+  added?: string[]
+  asked?: string
+  note?: string
+  searches?: { at: number; query: string; source: string; results: string[] }[]
 }
+
+// How far back a write looks for the searches it rests on, when nothing of the same chat or run came before
+const SEARCHES_SINCE_MS = 6 * 3_600_000
+// Writes of one chat this close together are one batch
+const BATCH_GAP_MS = 30 * 60_000
 
 const FILE = "collection.json"
 const DAY = 24 * 3_600_000
@@ -76,6 +93,8 @@ export class Collections {
   private readonly services: CollectionsServices
   private writing: Promise<unknown> = Promise.resolve()
   private scheduler: Scheduler | null = null
+  // When each chat's or run's searches were last given to a write
+  private attributed = new Map<string, number>()
 
   constructor(owlitDir: string, parts: { versions: Versions }, services: CollectionsServices = {}) {
     this.dir = path.join(owlitDir, "collections")
@@ -129,7 +148,7 @@ export class Collections {
           if (!c) throw new TaskFailure("The collection is gone.")
           ctx.progress(0, undefined, kind)
           // What it did is in the collection, with Owlit's dots; its answer is only a line for the log
-          const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow)
+          const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow, `${kind}:${ctx.task.id}`)
           // Queued tasks start with the workspace, a moment before its socket opens: try again then
           if (!done) return ctx.later(1000)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[collections] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
@@ -405,7 +424,18 @@ export class Collections {
       c.updatedAt = now
       const version = await this.versions.saveCollection(c.id, before, { ...(input.chatId ? { chatId: input.chatId } : {}) })
       await this.save(c)
-      await this.record(c.id, { at: now, by: input.chatId ? `chat:${input.chatId}` : "agent", ...(input.why ? { why: input.why } : {}), items: [...changed] })
+      const searches = await this.searchesFor(c.id, input, now)
+      await this.record(c.id, {
+        at: now,
+        by: input.chatId ? `chat:${input.chatId}` : "agent",
+        ...(input.run && !input.chatId ? { run: input.run } : {}),
+        ...(input.why ? { why: input.why } : {}),
+        items: [...changed],
+        ...(added.length ? { added } : {}),
+        ...(asked && changed.has("asked") ? { asked } : {}),
+        ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+        ...(searches.length ? { searches } : {}),
+      })
       this.services.changed?.(c.id, c)
       const title = shownCollection(c).title
       if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, created: fresh, rows: added, updated, ...(asked ? { asked } : {}) })
@@ -554,6 +584,67 @@ export class Collections {
     })
   }
 
+  // ---- About: Owlit's work in batches ----
+
+  // The searches a write rests on: those its chat or run made since it last wrote (here or to another
+  // collection), or in the last hours when it hasn't
+  private async searchesFor(id: string, input: CollectionWrite, now: number) {
+    const by = input.chatId ? `chat:${input.chatId}` : input.run ? `run:${input.run}` : undefined
+    if (!by || !this.services.searches) return []
+    let since = this.attributed.get(by)
+    if (since === undefined) {
+      // After a restart: the same run's or chat's last write here
+      const key = input.chatId ? `chat:${input.chatId}` : undefined
+      const last = (await this.history(id)).findLast((l) => (input.run ? l.run === input.run : l.by === key))
+      since = Math.max(last?.at ?? 0, now - SEARCHES_SINCE_MS)
+    }
+    this.attributed.set(by, now)
+    return (await this.services.searches(by, since)).map(({ at, query, source, results }) => ({ at, query, source, results }))
+  }
+
+  // Owlit's writes in batches: a background run's writes are one, a chat's writes close together are one.
+  // Collections from before runs were recorded group Owlit's writes the same way by time.
+  async about(id: string): Promise<CollectionBatch[]> {
+    const c = await this.get(id)
+    const columns = new Map(c.columns.map((col) => [col.id, col]))
+    const titles = new Map(c.rows.map((r) => [r.id, r.paper.title]))
+    const batches: (CollectionBatch & { key: string; last: number; rows: Set<string>; lines: HistoryLine[] })[] = []
+    for (const line of await this.history(id)) {
+      if (line.by === "you" || line.by === "undo") continue
+      const key = line.run ?? line.by
+      let batch = batches.at(-1)
+      if (!batch || batch.key !== key || (!line.run && line.at - batch.last > BATCH_GAP_MS)) {
+        const kind = line.run?.split(":")[0]?.replace(/^collections\./, "")
+        const trigger: CollectionBatch["trigger"] = kind && ["gather", "more", "check", "read", "fill"].includes(kind) ? (kind as CollectionBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
+        batch = { key, last: line.at, rows: new Set(), lines: [], at: line.at, trigger, added: 0, answered: 0, columns: [], searches: [], notes: [] }
+        if (trigger === "chat") batch.chatId = line.by.slice("chat:".length)
+        batches.push(batch)
+      }
+      batch.last = line.at
+      batch.lines.push(line)
+      // Rows a line added: recorded since batches were; before, the rows that came in at that moment
+      for (const r of line.added ?? c.rows.filter((r) => r.addedAt === line.at).map((r) => r.id)) batch.rows.add(r)
+      if (line.asked) batch.asked = line.asked
+      if (line.note) batch.notes.push(line.note)
+    }
+    return batches
+      .map(({ key: _key, last: _last, rows, lines, ...batch }) => {
+        const answered = new Set<string>()
+        const asked = new Set<string>()
+        for (const line of lines)
+          for (const item of line.items) {
+            const m = /^cell:(.+):([^:]+)$/.exec(item)
+            if (!m || rows.has(m[1]!)) continue
+            answered.add(m[1]!)
+            const col = columns.get(m[2]!)
+            if (col && col.id !== QUESTION_COLUMN) asked.add(col.kind === "compare" ? (col.doc ?? col.question) : col.question)
+          }
+        const searches: CollectionSearch[] = lines.flatMap((l) => l.searches ?? []).map((s) => searchOf(s, rows, titles))
+        return { ...batch, added: rows.size, answered: answered.size, columns: [...asked], searches }
+      })
+      .filter((b) => b.added || b.answered || b.searches.length || b.notes.length)
+  }
+
   // ---- Inside ----
 
   private async blank(input: CollectionWrite, now: number): Promise<Collection> {
@@ -648,4 +739,12 @@ export function uniqueId(title: string, taken: string[]) {
   let id = base
   for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`
   return id
+}
+
+// A logged search as About says it: a paper followed by its references or citations is named by its title
+function searchOf(s: { query: string; source: string; results: string[] }, kept: Set<string>, titles: Map<string, string>): CollectionSearch {
+  const follow = /^(references|cited_by|similar) of (.+)$/.exec(s.query)
+  const base = { source: s.source, found: s.results.length, kept: s.results.filter((id) => kept.has(id)).length }
+  if (follow) return { ...base, kind: follow[1] as "references" | "cited_by" | "similar", query: follow[2]!, of: titles.get(follow[2]!) ?? follow[2]! }
+  return { ...base, kind: s.source === "crossref" ? "listing" : "search", query: s.query }
 }

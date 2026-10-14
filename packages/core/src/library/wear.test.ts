@@ -83,6 +83,50 @@ describe("library.wear", () => {
     await call("chats.patchMessage", { id: "c1", message: answer("a1", 25, `[R](owlit://library/p1 "Second.")`), final: true })
     expect((await call("library.wear", { id: "p1" })).cited.map((c: any) => c.quote)).toEqual(["Second."])
     await call("chats.delete", { id: "c1" })
-    expect(await call("library.wear", { id: "p1" })).toEqual({ cited: [], pages: {} })
+    expect(await call("library.wear", { id: "p1" })).toEqual({ cited: [], collected: [], pages: {} })
+  })
+})
+
+describe("library.wear, collections", () => {
+  it("gathers the passages a collection's answers read in full rest on, not abstract ones nor removed rows", async () => {
+    const { call, root } = await open()
+    const row = (id: string, cells: object) => ({ id, paper: { title: id, authors: [], ids: {} }, cells })
+    const collection = {
+      version: 1,
+      id: "replay",
+      title: "Replay ratings",
+      asked: { text: "Are replay ratings reliable?", at: 1 },
+      project: "",
+      sources: [],
+      memo: [],
+      columns: [
+        { id: "q", question: "Are replay ratings reliable?", kind: "ask" },
+        { id: "c2", question: "Method", kind: "ask" },
+      ],
+      rows: [
+        row("p1", {
+          q: { text: "Lower.", depth: "full", passage: { quote: "Replay ratings ran lower.", page: 5 } },
+          c2: { text: "Diary study.", depth: "full", passage: { quote: "We ran a diary study.", page: 2 } },
+        }),
+        row("p2", { q: { text: "Same.", depth: "full", passage: { quote: "Not this paper.", page: 1 } } }),
+        row("p3", { q: { text: "From the abstract.", depth: "abstract" } }),
+      ],
+      groups: [],
+      watch: false,
+      createdAt: 1,
+      updatedAt: 40,
+      changedAt: { "cell:p1:q": 30 },
+      seenAt: 0,
+      yours: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
+    }
+    mkdirSync(path.join(root, ".owlit/collections/replay"), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/collections/replay/collection.json"), JSON.stringify(collection))
+
+    expect((await call("library.wear", { id: "p1" })).collected).toEqual([
+      { quote: "Replay ratings ran lower.", page: 5, collectionId: "replay", collectionTitle: "My replay papers", row: "p1", at: 30 },
+      { quote: "We ran a diary study.", page: 2, collectionId: "replay", collectionTitle: "My replay papers", row: "p1", column: "Method", at: 40 },
+    ])
+    expect((await call("library.wear", { id: "p2" })).collected).toEqual([])
+    expect((await call("library.wear", { id: "p3" })).collected).toEqual([])
   })
 })

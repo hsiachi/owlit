@@ -28,6 +28,8 @@ export interface OwlitMcpOptions {
   workspace: string
   // The chat this agent is answering in, when owlit started it for one
   chatId?: string
+  // The background run it works for ("<kind>:<task id>"), which signs its searches and collection writes
+  run?: string
   // Where the socket is when not in the temp folder (tests)
   socketDir?: string
   // Told to the agent when it connects; owlit's rules for agents
@@ -133,7 +135,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const found = await owlit.rpc.library.searchOnline({
         q: str("query"),
         limit: num("limit") ?? 10,
-        by: options.chatId ? `chat:${options.chatId}` : "agent",
+        by: searcher(options),
         ...pickArgs(args, { source: "source", year: "year", sort: "sort", minCitations: "min_citations", type: "type", author: "author", venue: "venue", openAccess: "open_access" }),
       })
       return foundText(found, "Nothing found.")
@@ -144,7 +146,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         ref: str("id"),
         kind,
         limit: num("limit") ?? 20,
-        by: options.chatId ? `chat:${options.chatId}` : "agent",
+        by: searcher(options),
         ...pickArgs(args, { year: "year", sort: "sort" }),
       })
       const what = { references: "References of", cited_by: "Papers citing", similar: "Papers like" }[kind]
@@ -157,7 +159,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         year: str("year"),
         offset,
         limit: num("limit") ?? 50,
-        by: options.chatId ? `chat:${options.chatId}` : "agent",
+        by: searcher(options),
         ...pickArgs(args, { query: "query" }),
       })
       const total = found.total ?? found.papers.length
@@ -280,7 +282,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         ...(optStr("asked") ? { asked: str("asked") } : {}),
         ...(optStr("title") ? { title: str("title") } : {}),
         ...(optStr("project") ? { project: str("project") } : {}),
-        ...(Array.isArray(args.sources) ? { sources: args.sources as string[] } : {}),
+        ...(optStr("note") ? { note: str("note") } : {}),
+        ...(options.run && !options.chatId ? { run: options.run } : {}),
         ...(rows ? { rows: rows as CollectionRowWrite[] } : {}),
         ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
         ...(parsed.groups ? { groups: parsed.groups as CollectionGroup[] } : {}),
@@ -495,3 +498,6 @@ export function checkArgs(spec: ToolSpec, args: Record<string, unknown>): string
 
 const text = (body: string): CallToolResult => ({ content: [{ type: "text", text: body }] })
 const failure = (message: string): CallToolResult => ({ content: [{ type: "text", text: message }], isError: true })
+
+// Who a search is by, so a collection's About can tell its batches apart
+const searcher = (options: OwlitMcpOptions) => (options.chatId ? `chat:${options.chatId}` : options.run ? `run:${options.run}` : "agent")

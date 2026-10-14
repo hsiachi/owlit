@@ -290,7 +290,7 @@ describe("owlit-mcp", () => {
 
     const rows = JSON.stringify([{ id: "arxiv-2005.11401", answer: "Each token may draw on its own retrieved document.", depth: "full", quote: "a different latent document for each target token" }])
     const memo = JSON.stringify([{ text: "One paper so far: [Lewis et al. 2020](owlit://library/arxiv-2005.11401) retrieves per token." }])
-    const wrote = await tool("collection_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, sources: ["OpenAlex"] })
+    const wrote = await tool("collection_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, note: "Semantic Scholar was not reachable." })
     const id = /owlit:\/\/collections\/([\w-]+)/.exec(wrote.text)![1]!
     expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/collections\/c-[0-9a-f]{6}\): added 1\./)
     expect(changed).toMatchObject([{ kind: "collection", label: "检索粒度", created: true, rows: ["arxiv-2005.11401"] }])
@@ -299,7 +299,7 @@ describe("owlit-mcp", () => {
 
     await call("collections.edit", { id, edit: { op: "rename", title: "Retrieval granularity" } })
     expect((await tool("collection_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper · asked: 检索粒度有什么研究？`)
-    expect((await tool("collection_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/collections\/.+\)\nAsked: 检索粒度有什么研究？ · looked in OpenAlex\nColumns: q = 检索粒度有什么研究？\n\nMemo:\n- \[s1\] One paper so far/)
+    expect((await tool("collection_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/collections\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nMemo:\n- \[s1\] One paper so far/)
     expect((await tool("collection_read", { id })).text).toMatch(/q: Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
     expect((await tool("collection_read", { id })).text).toMatch(/The user rewrote \(keep their words\): title$/)
 

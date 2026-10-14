@@ -4,7 +4,7 @@ import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptI
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
-import type { Collection, CollectionEdit, CollectionPaper, CollectionSize, CollectionSummary, CollectionWrite } from "./collections.ts"
+import type { Collection, CollectionBatch, CollectionEdit, CollectionPaper, CollectionSize, CollectionSummary, CollectionWrite } from "./collections.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -179,6 +179,8 @@ export interface Methods {
   // Undo of a split: the rows go back where they came from, as they were there, and this collection to
   // the trash; the collection they went back to
   "collections.unsplit": { params: { id: string }; result: Collection }
+  // Owlit's work on the collection in batches, oldest first, for About
+  "collections.about": { params: { id: string }; result: CollectionBatch[] }
   // Owlit gathers papers for a question, in the background: the collection is there at once (empty,
   // titled by the question until Owlit names it) and fills as the task runs
   "collections.gather": { params: { question: string; project?: string; size: CollectionSize }; result: Collection }

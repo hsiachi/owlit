@@ -210,7 +210,7 @@ export class Core {
       const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias })
       // A paper's history also says which of its sentences Owlit's answers rested on
       if (query.mode === "of" && query.paper) {
-        const { cited } = await wearOf(query.paper, { chats: ws.chats, journal: ws.owlitPath("journal.jsonl"), aliases })
+        const { cited } = await wearOf(query.paper, { chats: ws.chats, collections: ws.collections, journal: ws.owlitPath("journal.jsonl"), aliases })
         if (cited.length) return { recording: true, ...answer, cited: cited.map(({ quote, page, chatId, chatTitle, at }) => ({ quote, ...(page ? { page } : {}), chatId, chatTitle, at })) }
       }
       return { recording: true, ...answer }
@@ -574,7 +574,7 @@ export class Core {
     // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
     this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
       const ws = this.requireWorkspace()
-      return wearOf(id, { chats: ws.chats, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
+      return wearOf(id, { chats: ws.chats, collections: ws.collections, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
     })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.getInBrowser", z.object({ ids: z.array(paperId).min(1) }), ({ ids }) => library().getInBrowser(ids))
@@ -647,7 +647,9 @@ export class Core {
         groups: z.array(group).optional(),
         removeRows: z.array(z.string()).optional(),
         why: z.string().optional(),
+        note: z.string().optional(),
         chatId: z.string().optional(),
+        run: z.string().optional(),
         docPath: z.string().optional(),
       }),
       (params) => collections().write(params),
@@ -675,6 +677,7 @@ export class Core {
     )
     this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
     this.router.register("collections.unsplit", z.object({ id: z.string().min(1) }), ({ id }) => collections().unsplit(id))
+    this.router.register("collections.about", z.object({ id: z.string().min(1) }), ({ id }) => collections().about(id))
     this.router.register(
       "collections.gather",
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),
@@ -798,10 +801,11 @@ export class Core {
                 },
               },
               collections: {
-                agent: async (prompt, signal, allow) => {
+                agent: async (prompt, signal, allow, run) => {
                   // Without owlit's tools the agent couldn't write the collection at all. The workspace
                   // becomes the open one only once its socket is up (or failed to open, for good).
-                  const mcpServers = this.mcpServers(root)
+                  // The run's tools sign its searches and writes, so About can show them as one batch.
+                  const mcpServers = this.mcpServers(root, undefined, run)
                   if (!mcpServers.length && this.workspace?.root !== root) return null
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
                   return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
@@ -934,14 +938,14 @@ export class Core {
   }
 
   // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)
-  private mcpServers(root: string, chatId?: string) {
+  private mcpServers(root: string, chatId?: string, run?: string) {
     const mcp = this.options.mcp
     if (!mcp || !this.socket) return []
     return [
       {
         name: "owlit",
         command: mcp.command,
-        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : [])],
+        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : []), ...(run ? ["--run", run] : [])],
         env: Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })),
       },
     ]
