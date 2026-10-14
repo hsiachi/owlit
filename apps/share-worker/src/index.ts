@@ -1,5 +1,5 @@
 import { BODY_LIMITS, checkNewShare, hashToken, HttpFailure, newId, PAGE_HEADERS, RATES, SHARE_ID } from "@owlit/share-server/rules"
-import { json, readJson } from "./http.ts"
+import { json, readBody, readJson } from "./http.ts"
 import { Limiter } from "./limiter.ts"
 import { ShareRoom } from "./room.ts"
 
@@ -24,7 +24,10 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json(201, { id: shareId, token, url: `${url.origin}/s/${shareId}` })
   }
   if (!SHARE_ID.test(id)) throw new HttpFailure(404, "There is no share at this link.")
-  return env.ROOMS.get(env.ROOMS.idFromName(id)).fetch(request)
+  // The body is read here, whole, before the room sees it: a body still streaming into the room after it has
+  // answered (a refusal that never reads it) breaks the connection under wrangler's local runtime
+  const body = request.method === "GET" || request.method === "HEAD" ? null : await readBody(request, BODY_LIMITS.share)
+  return env.ROOMS.get(env.ROOMS.idFromName(id)).fetch(new Request(request, { body }))
 }
 
 // The reader's one page, with what keeps it to itself
