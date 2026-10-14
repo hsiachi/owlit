@@ -11,8 +11,9 @@
 // by ^id.
 // Version 9 (2026-10-14): papers found for a question go into a collection, not the library.
 // Version 10 (2026-10-14): Knowledge is gone; collections are Owlit's reading of papers.
+// Version 11 (2026-10-14): a citation in an answer gives the sentence it rests on as its link's title.
 
-export const RULES_VERSION = 10
+export const RULES_VERSION = 11
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
