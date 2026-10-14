@@ -49,18 +49,18 @@ never go there, and the key that changes a link stays on the computer that made 
 
 The server runs on Cloudflare (`apps/share-worker`: a Worker, one Durable Object per shared doc, readers' pages
 kept live over hibernating WebSockets, so an open page costs nothing while nothing changes; the free plan is
-plenty). Once, with a Cloudflare account:
+plenty). It is deployed at https://share.hsiachi.dev (the route in `apps/share-worker/wrangler.jsonc`), and
+builds make links there unless told otherwise. To deploy a change:
 
 ```bash
 pnpm --filter @owlit/share-worker exec wrangler login
-pnpm --filter @owlit/share-worker run deploy          # builds the reader's page, prints https://owlit-share.<you>.workers.dev
-OWLIT_SHARE_SERVER=https://owlit-share.<you>.workers.dev pnpm build   # bakes the server into the app
+pnpm --filter @owlit/share-worker run deploy          # builds the reader's page and deploys both
 ```
 
-`workers.dev` isn't reliably reachable from mainland China: for readers there, add a domain to Cloudflare, put
-it in `routes` in `apps/share-worker/wrangler.jsonc` (the commented line) and deploy again; links then use that
-address. Locally, `pnpm --filter @owlit/share-worker dev` runs the same worker in workerd at
-http://localhost:8787, and `OWLIT_SHARE_SERVER=http://localhost:8787 pnpm dev` points owlit at it.
+On another Cloudflare account, put your own domain in `routes` (`workers.dev` isn't reliably reachable from
+mainland China) and build with `OWLIT_SHARE_SERVER=https://your.domain pnpm build`; `OWLIT_SHARE_SERVER= pnpm
+build` makes an app without sharing. Locally, `pnpm --filter @owlit/share-worker dev` runs the same worker in
+workerd at http://localhost:8787, and `OWLIT_SHARE_SERVER=http://localhost:8787 pnpm dev` points owlit at it.
 
 `apps/share-server` is the same API on plain Node with one SQLite file, for a machine of your own (Node 22.13+,
 sudo for the systemd service); both pass the same tests (`apps/share-server/src/contract.ts`):

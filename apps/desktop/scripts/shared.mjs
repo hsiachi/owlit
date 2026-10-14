@@ -25,9 +25,10 @@ export function esbuildOptions({ production }) {
     define: {
       "process.env.NODE_ENV": JSON.stringify(production ? "production" : "development"),
       "import.meta.url": "__importMetaUrl",
-      // The share server links are made on, baked in at build time (OWLIT_SHARE_SERVER=https://… pnpm build);
-      // a run can still name another in its own environment
-      __OWLIT_SHARE_SERVER__: JSON.stringify(process.env.OWLIT_SHARE_SERVER ?? ""),
+      // The share server links are made on, baked in at build time: share.hsiachi.dev unless the build names
+      // another (OWLIT_SHARE_SERVER=https://… pnpm build) or none (OWLIT_SHARE_SERVER= ); a run can still name
+      // another in its own environment
+      __OWLIT_SHARE_SERVER__: JSON.stringify(process.env.OWLIT_SHARE_SERVER ?? "https://share.hsiachi.dev"),
     },
     // ES modules bundled into CommonJS (pdfium's loader) ask where they are through import.meta.url
     // (no require here: the sandboxed preload shares the banner and may not require node modules)
