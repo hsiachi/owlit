@@ -21,6 +21,11 @@ export const HOLD_MS = 24 * 60 * 60 * 1000
 const PLAIN_REFUSED_MS = 7 * 24 * 60 * 60 * 1000
 const LOG_MAX_BYTES = 2 * 1024 * 1024
 
+// Sites that only send a link on to the publisher's own site: what happens after the redirect is the
+// publisher's doing, so they are never held, and a record kept for one (before 2026-10-14 a doi.org
+// route that landed on a check refused doi.org itself) is ignored
+const REDIRECTORS = new Set(["doi.org", "handle.net"])
+
 export type HoldReason = "challenge" | "refused"
 
 interface SiteRecord {
@@ -51,6 +56,7 @@ export class Publishers {
 
   // The hold on a site, while it lasts
   async held(site: string): Promise<{ until: number; reason: HoldReason } | undefined> {
+    if (REDIRECTORS.has(site)) return undefined
     const record = (await this.load())[site]
     if (!record?.heldUntil || record.heldUntil <= Date.now()) return undefined
     return { until: record.heldUntil, reason: record.heldFor ?? "challenge" }
@@ -74,6 +80,7 @@ export class Publishers {
   }
 
   async plainRefused(site: string) {
+    if (REDIRECTORS.has(site)) return false
     const until = (await this.load())[site]?.plainRefusedUntil
     return !!until && until > Date.now()
   }
@@ -112,6 +119,7 @@ export class Publishers {
   }
 
   private async change(site: string, patch: Partial<SiteRecord>) {
+    if (REDIRECTORS.has(site)) return
     const sites = await this.load()
     const record = { ...sites[site], ...patch }
     for (const key of Object.keys(record) as (keyof SiteRecord)[]) if (record[key] === undefined) delete record[key]
