@@ -1,0 +1,1158 @@
+/* The small owlit window and its scenes: the app drawn at about four fifths of its size, with the app's own
+   tokens, so the page's theme and paper tone repaint it live. Materials (card, floating, shadows) come from
+   Tailwind classes in the components; what is here is the miniature's measures and the scenes' motion,
+   whose timings are the approved prototype's (onboarding-flow.html). Every move uses the app's easing. */
+
+.mini {
+  position: relative;
+  width: 640px;
+  height: 470px;
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--foreground);
+  transition: background-color 0.35s var(--ease);
+}
+.mini * {
+  transition-timing-function: var(--ease);
+}
+
+/* Title bar: three quiet dots, the feather that toggles the agent window at the right */
+.tb {
+  height: 30px;
+  position: relative;
+}
+.lights {
+  position: absolute;
+  left: 11px;
+  top: 10px;
+  display: flex;
+  gap: 6px;
+}
+.lights i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--foreground);
+  opacity: 0.14;
+}
+.feather {
+  position: absolute;
+  right: 10px;
+  top: 7px;
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+
+/* Rail: five places; the lifted one travels */
+.rail {
+  position: absolute;
+  left: 0;
+  top: 30px;
+  bottom: 0;
+  width: 40px;
+}
+.ic {
+  position: absolute;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  z-index: 1;
+  transition: color 0.3s;
+}
+.ic svg {
+  width: 13px;
+  height: 13px;
+}
+.ic[data-on] {
+  color: var(--foreground);
+}
+.lift {
+  position: absolute;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--card);
+  transition:
+    top 0.45s var(--ease),
+    opacity 0.3s;
+}
+.railDot {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--owlit-mark);
+  transform: scale(0);
+  transition: transform 0.2s;
+}
+.railDot[data-on] {
+  transform: scale(1);
+}
+
+.sheet {
+  position: absolute;
+  left: 40px;
+  top: 30px;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 9px;
+  background: var(--background);
+  box-shadow: 0 0 0 1px var(--border);
+  overflow: hidden;
+  transition: background-color 0.35s var(--ease);
+}
+
+/* Pictures cross-fade: a scene's views, a loop starting again, one step's scene giving way to the next */
+.layer {
+  position: absolute;
+  inset: 0;
+}
+.entering {
+  animation: layer-in 0.3s var(--ease) both;
+}
+.leaving {
+  animation: layer-out 0.3s var(--ease) both;
+  pointer-events: none;
+}
+@keyframes layer-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes layer-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The pointer */
+.cur {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 20px;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.2, 1), var(--ease);
+  filter: drop-shadow(0 1px 1.5px oklch(0 0 0 / 35%));
+}
+.cur[data-on] {
+  opacity: 1;
+}
+.cur svg {
+  width: 14px;
+  height: 20px;
+  transition: transform 0.12s;
+  transform-origin: 2px 2px;
+}
+.cur[data-press] svg {
+  transform: scale(0.82);
+}
+
+/* ---- Shared bits ---- */
+.h {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.mut {
+  color: var(--muted-foreground);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+.row .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.row .m {
+  color: var(--muted-foreground);
+  flex: none;
+  margin-left: auto;
+}
+.row svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted-foreground);
+  flex: none;
+}
+.row[data-sel] {
+  background: var(--muted);
+}
+.grow {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s var(--ease);
+}
+.grow > * {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s 0.1s;
+}
+.grow[data-open] {
+  grid-template-rows: 1fr;
+}
+.grow[data-open] > * {
+  opacity: 1;
+}
+/* What floats in fades and scales in from 95% */
+.pop {
+  opacity: 0;
+  transform: scale(0.95);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+}
+.pop[data-on] {
+  opacity: 1;
+  transform: none;
+}
+/* What arrives rises 4px into place as it fades in */
+.fadein {
+  animation: rise 0.35s var(--ease) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.wordIn {
+  animation: word-in 0.2s var(--ease) both;
+}
+@keyframes word-in {
+  from {
+    opacity: 0;
+  }
+}
+.ring {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--owlit-mark);
+  flex: none;
+  transition: background-color 0.15s;
+}
+.ring[data-working] {
+  animation: breathe 1.6s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+.ring[data-done] {
+  background: var(--owlit-mark);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.chip svg {
+  width: 10px;
+  height: 10px;
+}
+.cite {
+  color: var(--mention);
+}
+
+/* ---- Library ---- */
+.lib {
+  padding: 20px 22px;
+}
+.find {
+  margin: 12px 0 10px;
+  height: 30px;
+  border-radius: 9px;
+  box-shadow: 0 0 0 1px var(--border);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: var(--muted-foreground);
+}
+.find svg {
+  width: 12px;
+  height: 12px;
+}
+.pdfFile {
+  position: absolute;
+  right: 70px;
+  top: -70px;
+  width: 44px;
+  height: 56px;
+  border-radius: 4px;
+  background: var(--card);
+  box-shadow:
+    0 6px 16px -6px oklch(0.2 0.01 60 / 18%),
+    0 1px 3px oklch(0.2 0.01 60 / 8%),
+    0 0 0 1px var(--border);
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6px;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: oklch(0.55 0.17 25);
+  transition:
+    transform 0.9s cubic-bezier(0.3, 0.1, 0.2, 1),
+    opacity 0.3s;
+  z-index: 5;
+}
+.pdfFile::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 9px;
+  height: 18px;
+  background: repeating-linear-gradient(var(--border) 0 2px, transparent 2px 5px);
+}
+.pdfFile[data-dropped] {
+  transform: translate(0, 150px) rotate(-6deg);
+}
+.pdfFile[data-gone] {
+  opacity: 0;
+}
+.dropRing {
+  position: absolute;
+  inset: 8px;
+  border: 1.5px dashed var(--muted-foreground);
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.25s;
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  background: color-mix(in oklch, var(--background) 80%, transparent);
+  z-index: 4;
+}
+.dropRing[data-on] {
+  opacity: 0.9;
+}
+
+/* ---- Paper: header with the Digest / PDF switch, the page on its well, the details panel ---- */
+.phead {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+.sp {
+  flex: 1;
+}
+.mseg {
+  position: relative;
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--muted);
+  margin-right: 6px;
+}
+.mseg > span:not(.th) {
+  position: relative;
+  z-index: 1;
+  height: 20px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+  border-radius: 5px;
+  transition: color 0.2s;
+}
+.mseg > span[data-on] {
+  color: var(--foreground);
+  font-weight: 500;
+}
+.th {
+  position: absolute;
+  top: 2px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--card);
+  transition:
+    left 0.25s var(--ease),
+    width 0.25s var(--ease);
+}
+.sdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--owlit-mark);
+  transform: scale(0);
+  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+  display: inline-block;
+}
+.sdot[data-on] {
+  transform: scale(1);
+}
+.reader {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr 196px;
+  transition: opacity 0.3s;
+}
+.reader[data-head] {
+  top: 34px;
+}
+.reader[data-dim] {
+  opacity: 0.45;
+}
+.pagewrap {
+  background: var(--sidebar-panel);
+  padding: 16px 18px 0;
+  overflow: hidden;
+  position: relative;
+  transition: background-color 0.35s var(--ease);
+}
+/* A rendered page is white in both themes, under a light shade in the dark one */
+.page {
+  background: #fff;
+  color: #1d1d1f;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--pdf-page-edge);
+  padding: 22px 24px;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 10.5px;
+  line-height: 1.42;
+  height: 100%;
+  text-align: justify;
+  hyphens: auto;
+}
+:global(.dark) .page {
+  background: #e9e7e3;
+}
+.page h4 {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 4px;
+  line-height: 1.25;
+}
+.au {
+  text-align: center;
+  font-size: 9px;
+  color: #555;
+  margin-bottom: 10px;
+}
+.sec {
+  font-weight: 700;
+  margin: 8px 0 3px;
+}
+.page p {
+  margin: 0;
+}
+.selTarget {
+  background-image: linear-gradient(var(--pdf-selection), var(--pdf-selection));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition:
+    background-size 1s linear,
+    background-color 0.25s;
+  padding: 1px 0;
+}
+.selTarget[data-selecting] {
+  background-size: 100% 100%;
+}
+.selTarget[data-hl] {
+  background-image: none;
+  background-color: var(--highlight-yellow);
+}
+.hlBar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  z-index: 6;
+  border-radius: 9px;
+}
+.hlBar i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: inset 0 0 0 1px var(--pdf-page-edge);
+}
+.hlBar .bsep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+}
+.hlBar svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted-foreground);
+}
+.side {
+  padding: 14px;
+  border-left: 1px solid var(--border);
+  background: var(--background);
+  overflow: hidden;
+}
+.pt {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.tabs {
+  display: flex;
+  gap: 7px;
+  margin: 12px 0 10px;
+  position: relative;
+  font-size: 10px;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+.tabs span[data-on] {
+  color: var(--foreground);
+}
+.ul {
+  position: absolute;
+  bottom: -4px;
+  height: 1.5px;
+  background: var(--foreground);
+  transition:
+    left 0.3s,
+    width 0.3s;
+}
+.count {
+  display: inline-block;
+  font-weight: 700;
+  transition: transform 0.2s;
+}
+.count[data-bump] {
+  transform: scale(1.35);
+}
+.sideBody {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.digestView {
+  position: absolute;
+  inset: 0;
+  background: var(--background);
+  padding: 18px 30px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  opacity: 0;
+  transition: opacity 0.3s;
+  overflow: hidden;
+}
+.digestView[data-on] {
+  opacity: 1;
+}
+.digestView > * {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.35s,
+    transform 0.35s;
+}
+.digestView > [data-in] {
+  opacity: 1;
+  transform: none;
+}
+.dmeta {
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  margin-bottom: 8px;
+}
+.dh {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin: 10px 0 2px;
+}
+.digestView p {
+  margin: 0;
+}
+.digestView b {
+  font-weight: 600;
+}
+.plink {
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+.dfig {
+  margin: 10px 0 2px;
+  height: 54px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #333;
+}
+.dfig span {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+.dfig i {
+  width: 18px;
+  height: 1px;
+  background: #999;
+  position: relative;
+}
+.dfig i::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -2.5px;
+  border: 3px solid transparent;
+  border-left-color: #999;
+  border-right: 0;
+}
+.dcap {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+/* ---- Docs ---- */
+.doc {
+  padding: 16px 40px;
+}
+.crumb {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin: 0 0 22px -18px;
+}
+.dt {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+.para {
+  font-size: 13px;
+  line-height: 1.7;
+  position: relative;
+}
+.caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 15px;
+  background: var(--foreground);
+  vertical-align: -3px;
+  margin-left: 1px;
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+.mentionPop {
+  position: absolute;
+  width: 250px;
+  padding: 4px;
+  font-size: 12px;
+  z-index: 6;
+  border-radius: 11px;
+}
+.mi {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.mi[data-act] {
+  background: var(--accent);
+}
+.mi svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted-foreground);
+  flex: none;
+}
+.mi .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.mi .m {
+  color: var(--muted-foreground);
+  margin-left: auto;
+  padding-left: 6px;
+  font-size: 11px;
+  flex: none;
+}
+.citeIn {
+  color: var(--mention);
+  display: inline-block;
+  animation: rise 0.35s var(--ease);
+}
+.txtsel {
+  background: var(--pdf-selection);
+  border-radius: 2px;
+}
+:global(.dark) .txtsel {
+  background: color-mix(in oklch, var(--mention) 35%, transparent);
+}
+/* Owlit's proposed edit, as a doc draws it (index.css › suggest-*): the old words muted with a strike in
+   Owlit's green, the new ones in the green with an underline, a rule at the left, and the bar under them */
+.old {
+  transition: color 0.3s;
+}
+.old[data-struck] {
+  color: var(--muted-foreground);
+  text-decoration: line-through 1.5px var(--owlit);
+}
+.ins {
+  color: var(--owlit);
+  text-decoration: underline 1px var(--owlit);
+  text-underline-offset: 3px;
+  transition:
+    color 0.5s,
+    text-decoration-color 0.5s;
+}
+.ins[data-applied] {
+  color: var(--foreground);
+  text-decoration-color: transparent;
+}
+.ruled::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--owlit);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.ruled[data-rule]::before {
+  opacity: 1;
+}
+.suggestBar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.suggestBar > span:first-child {
+  flex: 1;
+}
+.suggestBar .b {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+}
+.suggestBar .pri {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 500;
+}
+.selmenu {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  font-size: 11.5px;
+  z-index: 6;
+  border-radius: 8px;
+}
+.selmenu span {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.selmenu span[data-act] {
+  background: var(--accent);
+}
+.selmenu svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---- Ask ---- */
+.keys {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 8px;
+  z-index: 8;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.keys[data-on] {
+  opacity: 1;
+}
+.keys span {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 3px 0 var(--border),
+    0 6px 16px -6px oklch(0.2 0.01 60 / 18%);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 500;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+.keys[data-down] span {
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 0 var(--border);
+}
+.askbar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  width: 360px;
+  margin-left: -180px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 6px 0 7px;
+  z-index: 7;
+  border-radius: 12px;
+}
+.askbar .q {
+  flex: 1;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.send {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.send svg {
+  width: 11px;
+  height: 11px;
+}
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 250px;
+  background: var(--sidebar-panel);
+  border-left: 1px solid var(--border);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform: translateX(100%);
+  transition: transform 0.45s var(--ease);
+  z-index: 6;
+  font-size: 11.5px;
+}
+.panel[data-on] {
+  transform: none;
+}
+.bubble {
+  align-self: flex-end;
+  background: var(--muted);
+  border-radius: 12px;
+  padding: 7px 10px;
+  max-width: 90%;
+  line-height: 1.4;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-foreground);
+}
+.answer {
+  line-height: 1.55;
+}
+.chat {
+  position: absolute;
+  inset: 0;
+  padding: 22px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+}
+.result {
+  margin-top: 10px;
+  padding: 4px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.rh {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 8px;
+  font-weight: 500;
+}
+.rh .u {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.rr {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.rr svg {
+  width: 11px;
+  height: 11px;
+  color: var(--muted-foreground);
+  flex: none;
+}
+.rr .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.rr .m {
+  color: var(--muted-foreground);
+  margin-left: auto;
+}
+.composer {
+  margin-top: auto;
+  border-radius: 12px;
+  padding: 10px 10px 8px 12px;
+}
+.ct {
+  min-height: 18px;
+  font-size: 12px;
+}
+.ct[data-ph] {
+  color: var(--muted-foreground);
+}
+.cf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.cf > svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---- Knowledge ---- */
+.kn {
+  padding: 20px 26px;
+}
+.src {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    transform 0.5s var(--ease),
+    opacity 0.4s;
+}
+.src svg {
+  width: 11px;
+  height: 11px;
+  color: var(--muted-foreground);
+}
+.src[data-shown] {
+  opacity: 1;
+  transform: none;
+}
+.src[data-flown] {
+  opacity: 0;
+  transition:
+    transform 0.9s cubic-bezier(0.5, 0, 0.2, 1),
+    opacity 0.5s;
+}
+.topic {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--border);
+  background: var(--card);
+}
+.topicHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.topicHead i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--owlit-mark);
+}
+.kline {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 10px;
+  padding: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.who {
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  padding-top: 1px;
+}
+.txt {
+  transition: color 0.4s;
+}
+.kline[data-owl] .txt {
+  color: var(--owlit);
+}
+.src2 {
+  display: block;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+.editBox {
+  box-shadow: 0 0 0 1.5px var(--foreground);
+  border-radius: 4px;
+  padding: 0 3px;
+  margin: 0 -3px;
+}
+
+/* ---- Setup previews ---- */
+.greet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 60px 30px;
+}
+.greet .composer {
+  width: 100%;
+  margin-top: 0;
+}
+.g {
+  font-size: 30px;
+  line-height: 1;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.hello {
+  position: absolute;
+  inset: 0;
+  padding: 26px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12.5px;
+}
+.ans {
+  line-height: 1.6;
+}
+.lookpage {
+  position: absolute;
+  inset: 0;
+  padding: 20px 22px;
+}
+
+/* Reduced motion: nothing moves in size or place; the fades stay */
+@media (prefers-reduced-motion: reduce) {
+  .lift,
+  .th,
+  .ul,
+  .panel,
+  .grow,
+  .cur,
+  .src,
+  .pdfFile {
+    transition-property: opacity, color, background-color;
+  }
+  .ring[data-working],
+  .caret {
+    animation: none;
+  }
+  .fadein,
+  .citeIn {
+    animation-name: word-in;
+  }
+}

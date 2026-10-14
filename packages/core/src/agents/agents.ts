@@ -9,6 +9,7 @@ import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
 import { AcpProcess, endingSentence } from "./process.ts"
 import { cannotRead } from "./profiles.ts"
+import { AgentSetups, type SetupOptions } from "./setup.ts"
 
 const IDLE_MS = 10 * 60_000
 
@@ -92,6 +93,9 @@ export interface AgentsOptions {
   searchPath?: () => Promise<string>
   // How to start the Owlit engine; without it the engine isn't offered
   engine?: Launch
+  // Where and how owlit sets up its own copy of Claude Code's and Codex's adapters; without it the user
+  // installs them
+  setup?: Omit<SetupOptions, "changed" | "searchPath">
 }
 
 // Live state on top of what settings remember
@@ -108,9 +112,17 @@ export class Agents {
   private readonly options: AgentsOptions
   private processes = new Map<string, AcpProcess>()
   private live = new Map<string, Live>()
+  private readonly setups: AgentSetups | undefined
 
   constructor(options: AgentsOptions) {
     this.options = options
+    this.setups =
+      options.setup &&
+      new AgentSetups({
+        ...options.setup,
+        searchPath: options.searchPath ?? userPath,
+        changed: (id) => void this.def(id).then((def) => this.connectorOf(def)).then(options.notify, () => undefined),
+      })
   }
 
   async list(): Promise<Connector[]> {
@@ -144,6 +156,7 @@ export class Agents {
   // signed in and what it offers. The answer is remembered in settings.
   async check(id: string): Promise<Connector> {
     const def = await this.def(id)
+    await this.setups?.look(id)
     const proc = await this.process(id).catch((error: Error) => {
       if (error instanceof NotInstalled) return null
       throw error
@@ -218,19 +231,42 @@ export class Agents {
     return this.check(id)
   }
 
-  // The running process for an agent, started if needed (T10 opens sessions on it)
+  // Fetches owlit's own copy of the agent's adapter, or a newer one. The agent's process keeps running
+  // on the old copy until it next starts; one that wasn't there is checked as soon as it is.
+  async setUp(id: string): Promise<Connector> {
+    const def = await this.def(id)
+    if (!this.setups) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't set agents up here.`)
+    void this.setups.setUp(id).then(async () => {
+      if (!this.processes.get(id)?.running && (await this.setups?.installed(id))) {
+        this.processes.get(id)?.stop()
+        this.processes.delete(id)
+        await this.check(id).catch(() => undefined)
+      }
+    })
+    return this.connectorOf(def)
+  }
+
+  async cancelSetUp(id: string): Promise<Connector> {
+    this.setups?.cancel(id)
+    return this.connectorOf(await this.def(id))
+  }
+
+  // The running process for an agent, started if needed (T10 opens sessions on it). owlit's own copy of
+  // an adapter comes before one on PATH: it is the one owlit set up and keeps up to date.
   async process(id: string): Promise<AcpProcess> {
     const running = this.processes.get(id)
     if (running) return running
     const def = await this.def(id)
-    const [name, ...args] = def.launch ? [def.launch.command, ...def.launch.args] : splitCommand(def.command)
+    const own = !def.launch && this.options.setup ? await this.setups?.installed(id) : null
+    const launch: Launch | undefined = def.launch ?? (own && this.options.setup ? { ...this.options.setup.node, args: [...this.options.setup.node.args, own.entry] } : undefined)
+    const [name, ...args] = launch ? [launch.command, ...launch.args] : splitCommand(def.command)
     const searchPath = await (this.options.searchPath ?? userPath)()
-    const file = def.launch ? def.launch.command : name ? await resolveExecutable(name, searchPath) : null
+    const file = launch ? launch.command : name ? await resolveExecutable(name, searchPath) : null
     if (!file) throw new NotInstalled(def.name)
     const proc = new AcpProcess({
       file,
       args,
-      env: { ...process.env, PATH: searchPath, ...def.launch?.env },
+      env: { ...process.env, PATH: searchPath, ...launch?.env },
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
       onCrash: (_detail, ending) => {
@@ -302,6 +338,7 @@ export class Agents {
       defaultModeId: probed?.defaultModeId ?? "default",
       defaultEffortId: probed?.defaultEffortId,
       ...(cannotRead(def.id).length ? { cannotRead: cannotRead(def.id) } : {}),
+      ...(this.setups && def.builtIn && !def.launch ? await this.setups.view(def.id).then((setup) => (setup ? { setup } : {})) : {}),
     }
   }
 }

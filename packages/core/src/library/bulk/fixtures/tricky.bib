@@ -1,0 +1,65 @@
+% A .bib written the many ways people and tools write them
+This line is outside any entry: it is a comment, even with an email like someone@example.org.
+
+@comment{jabref-meta: databaseType:bibtex; {nested} braces}
+@preamble{ "\newcommand{\noopsort}[1]{} " }
+
+@string{ chi = "Proceedings of the CHI Conference on Human Factors in Computing Systems" }
+@STRING(acm = {ACM})
+
+@article{mueller2020,
+  author    = {M{\"u}ller, J{\"o}rg and Garc\'{i}a, Mar{\'\i}a and {\O}rsted, Hans Christian and {World Health Organization}},
+  title     = {{Deep} Learning for {\LaTeX}: {A {Nested} Study} of Na\"ive \& Fa\c{c}ade Pages --- 50\% Faster},
+  journal   = "Journal of " # acm # " {Things}",
+  year      = 2020,
+  month     = jan,
+  doi       = {https://doi.org/10.1145/ABC.123\_456},
+  abstract  = {We study \emph{many} things~in depth, pages 10--20.},
+  file      = {:/Users/someone/papers/mueller.pdf:PDF},
+}
+
+@inproceedings{Zheng2024DiscipLink,
+  title = "DiscipLink: Unfolding Interdisciplinary Information Seeking",
+  author = "Chengbo Zheng and Yuanhao Zhang and Others",
+  booktitle = chi,
+  year = {2024},
+  eprint = {2408.00447v2},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.HC},
+}
+
+@misc{oldhep,
+  title = {Large N field theories, string theory and gravity},
+  author = {Aharony, Ofer and Gubser, Steven S. and Maldacena, Juan and Ooguri, Hirosi and Oz, Yaron},
+  url = {https://arxiv.org/abs/hep-th/9905111v3},
+  date = {1999-05-16},
+}
+
+@book{brokenentry,
+  title = {This one never closes,
+  author = {Nobody}
+
+@techreport{Doe:2021-x,
+  author = {Doe, Jr., John and Ng, Andrew Y.},
+  title = {A Report with a Web Page Only},
+  institution = {Somewhere},
+  year = {2021},
+  url = {https://example.org/report?id=1\&v=2},
+}
+
+@article{
+  title = {An Entry without a Key},
+  year = {2019}
+}
+
+@inproceedings{withcrossref,
+  author = {Smith, Ann},
+  title = {Inheriting a Venue},
+  crossref = {conf2022},
+}
+
+@proceedings{conf2022,
+  title = {Proceedings of the 2022 Conference},
+  booktitle = {Conf '22},
+  year = {2022},
+}

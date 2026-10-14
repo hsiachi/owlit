@@ -10,6 +10,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notificati
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
+import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
 // The share server named at build time (scripts/shared.mjs); "" when none was
@@ -93,6 +94,14 @@ ipcMain.on("locale", (event) => {
 ipcMain.handle("choose-folder", async (event, options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   const dialogOptions: Electron.OpenDialogOptions = { ...options, properties: ["openDirectory", "createDirectory"] }
+  const result = await (win ? dialog.showOpenDialog(win, dialogOptions) : dialog.showOpenDialog(dialogOptions))
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+
+ipcMain.handle("choose-file", async (event, options: { title: string; message?: string; buttonLabel?: string; extensions: string[] }) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  const { extensions, ...rest } = options
+  const dialogOptions: Electron.OpenDialogOptions = { ...rest, properties: ["openFile"], filters: [{ name: extensions.join(", "), extensions }] }
   const result = await (win ? dialog.showOpenDialog(win, dialogOptions) : dialog.showOpenDialog(dialogOptions))
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
@@ -314,6 +323,7 @@ async function updateMenu(core: Core) {
             { role: "about", label: t`About ${name}` },
             { type: "separator" },
             settingsItem,
+            { label: t`Install Command Line Tool…`, click: () => void installCliTool() },
             { type: "separator" },
             { role: "services", label: t`Services` },
             { type: "separator" },
@@ -346,6 +356,7 @@ async function updateMenu(core: Core) {
           ],
         },
         { type: "separator" },
+        { label: t`Import Papers…`, enabled: !!current, click: () => send("import") },
         { label: t`Import a pitta Library…`, enabled: !!current, click: () => void importPitta(core) },
         // Elsewhere the convention is File › Settings
         ...(isMac ? [] : [{ type: "separator" as const }, settingsItem]),
@@ -410,9 +421,16 @@ async function updateMenu(core: Core) {
       role: "help",
       label: t`Help`,
       submenu: [
+        // The tour runs in the example workspace, which it opens when another one is open
+        { label: t`Take the Tour`, click: () => send("tour") },
+        // The first launch's four introduction steps again, over the app
+        { label: t`How owlit Works`, enabled: !!current, click: () => send("intro") },
+        { type: "separator" },
         { label: t`Keyboard Shortcuts`, accelerator: "CmdOrCtrl+/", click: () => send("shortcuts") },
         // Owlit answers questions about owlit itself; it needs a workspace to run in
         { label: t`Ask Owlit How To…`, enabled: !!current, click: () => send("how-to") },
+        { type: "separator" },
+        { label: t`Copy Diagnostics`, click: () => send("diagnostics") },
       ],
     },
   ]
@@ -434,6 +452,16 @@ async function systemProxy(): Promise<Record<string, string>> {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
+  // A folder handed to the app (open -a Owlit <folder>, which `owlit open` runs; the Dock's recent
+  // workspaces) opens as the workspace. One handed over while starting takes the last workspace's place.
+  let handed: string | null = null
+  let openHanded: ((folder: string) => void) | null = null
+  app.on("open-file", (event, file) => {
+    event.preventDefault()
+    if (openHanded) openHanded(file)
+    else handed = file
+  })
+
   app.on("second-instance", () => {
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) return
@@ -457,10 +485,15 @@ if (!app.requestSingleInstanceLock()) {
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way
       engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
+      // Claude Code's and Codex's adapters, set up by owlit with its own npm and run the same way. A
+      // packaged app keeps npm outside the asar archive (asarUnpack), since npm runs its own scripts.
+      node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
+      npm: path.join(__dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked"), "npm", "bin", "npm-cli.js"),
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       // Where doc links are made (apps/share-server); none means docs can't be shared yet
       shareServer: process.env.OWLIT_SHARE_SERVER || __OWLIT_SHARE_SERVER__ || undefined,
+      exampleDir: path.join(__dirname, "example-workspace"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: (input, init) => net.fetch(input as string, init),
@@ -526,8 +559,11 @@ if (!app.requestSingleInstanceLock()) {
     // Reopen the last workspace. It starts opening before the window loads, so the window waits for it
     // instead of showing the welcome page; on a first launch, or when the folder is gone, the window
     // shows the welcome page.
-    const last = await core.lastWorkspace()
+    const last = handed ?? (await core.lastWorkspace())
     if (last) void openWorkspace(core, last)
+    openHanded = (folder) => void openWorkspace(core, folder)
+    // The owlit command's script, pointing at this copy of the app
+    void writeCliScript(path.join(__dirname, "owlit.cjs")).catch((error) => console.error("[cli] couldn't write the owlit script:", error))
 
     const win = createWindow()
     // The first window is listening once it has loaded; that is when core says hello

@@ -1,0 +1,6628 @@
+{
+  "version": 1,
+  "source": "pdfium",
+  "pages": [
+    {
+      "index": 0,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 120.27,
+            "y": 96.45,
+            "w": 370.89,
+            "h": 42.4
+          },
+          "lines": [
+            {
+              "text": "ClashEval: Quantifying the tug-of-war between an",
+              "rect": {
+                "x": 120.27,
+                "y": 96.45,
+                "w": 370.89,
+                "h": 22.47
+              }
+            },
+            {
+              "text": "LLM’s internal prior and external evidence",
+              "rect": {
+                "x": 146.28,
+                "y": 116.45,
+                "w": 319.45,
+                "h": 22.4
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 191.18,
+            "y": 179.17,
+            "w": 47.54,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Kevin Wu*",
+              "rect": {
+                "x": 191.18,
+                "y": 179.17,
+                "w": 47.54,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 134.44,
+            "y": 190.44,
+            "w": 161.03,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "Department of Biomedical Data Science",
+              "rect": {
+                "x": 134.44,
+                "y": 190.44,
+                "w": 161.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "Stanford University",
+              "rect": {
+                "x": 175.72,
+                "y": 201.35,
+                "w": 78.47,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 160.05,
+            "y": 212.25,
+            "w": 109.62,
+            "h": 23.71
+          },
+          "lines": [
+            {
+              "text": "Stanford, CA 94305",
+              "rect": {
+                "x": 174.69,
+                "y": 212.25,
+                "w": 80.53,
+                "h": 12
+              }
+            },
+            {
+              "text": "kevinywu@stanford.edu",
+              "rect": {
+                "x": 160.05,
+                "y": 224.02,
+                "w": 109.62,
+                "h": 11.94
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 382.35,
+            "y": 179.17,
+            "w": 40.74,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Eric Wu*",
+              "rect": {
+                "x": 382.35,
+                "y": 179.17,
+                "w": 40.74,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 327.88,
+            "y": 190.44,
+            "w": 149.68,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "Department of Electrical Engineering",
+              "rect": {
+                "x": 327.88,
+                "y": 190.44,
+                "w": 149.68,
+                "h": 12
+              }
+            },
+            {
+              "text": "Stanford University",
+              "rect": {
+                "x": 363.49,
+                "y": 201.35,
+                "w": 78.47,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 360.89,
+            "y": 212.25,
+            "w": 83.53,
+            "h": 23.71
+          },
+          "lines": [
+            {
+              "text": "Stanford, CA 94305",
+              "rect": {
+                "x": 362.46,
+                "y": 212.25,
+                "w": 80.53,
+                "h": 12
+              }
+            },
+            {
+              "text": "wue@stanford.edu",
+              "rect": {
+                "x": 360.89,
+                "y": 224.02,
+                "w": 83.53,
+                "h": 11.94
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 282.97,
+            "y": 250.98,
+            "w": 46.07,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "James Zou",
+              "rect": {
+                "x": 282.97,
+                "y": 250.98,
+                "w": 46.07,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 225.49,
+            "y": 262.25,
+            "w": 161.03,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "Department of Biomedical Data Science",
+              "rect": {
+                "x": 225.49,
+                "y": 262.25,
+                "w": 161.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "Stanford University",
+              "rect": {
+                "x": 266.77,
+                "y": 273.16,
+                "w": 78.47,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 256.32,
+            "y": 284.07,
+            "w": 99.19,
+            "h": 23.71
+          },
+          "lines": [
+            {
+              "text": "Stanford, CA 94305",
+              "rect": {
+                "x": 265.74,
+                "y": 284.07,
+                "w": 80.53,
+                "h": 12
+              }
+            },
+            {
+              "text": "jamesz@stanford.edu",
+              "rect": {
+                "x": 256.32,
+                "y": 295.84,
+                "w": 99.19,
+                "h": 11.94
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 283.76,
+            "y": 333.89,
+            "w": 44.49,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "Abstract",
+              "rect": {
+                "x": 283.76,
+                "y": 333.89,
+                "w": 44.49,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 143.4,
+            "y": 359.34,
+            "w": 326.48,
+            "h": 262.91
+          },
+          "lines": [
+            {
+              "text": "Retrieval augmented generation (RAG) is frequently used to mitigate hallucinations",
+              "rect": {
+                "x": 143.87,
+                "y": 359.34,
+                "w": 324.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "and provide up-to-date knowledge for large language models (LLMs). However,",
+              "rect": {
+                "x": 143.87,
+                "y": 370.25,
+                "w": 325.52,
+                "h": 12
+              }
+            },
+            {
+              "text": "given that document retrieval is an imprecise task and sometimes results in erro­neous or even harmful content being presented in context, this raises the question of",
+              "rect": {
+                "x": 143.87,
+                "y": 381.16,
+                "w": 324.76,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "how LLMs handle retrieved information: If the provided content is incorrect, does",
+              "rect": {
+                "x": 143.87,
+                "y": 402.98,
+                "w": 324.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "the model know to ignore it, or does it recapitulate the error? Conversely, when the",
+              "rect": {
+                "x": 143.87,
+                "y": 413.88,
+                "w": 324.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "model’s initial response is incorrect, does it always know to use the retrieved infor­mation to correct itself, or does it insist on its wrong prior response? To answer this,",
+              "rect": {
+                "x": 143.87,
+                "y": 424.79,
+                "w": 325.51,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "we curate a dataset of over 1200 questions across six domains (e.g., drug dosages,",
+              "rect": {
+                "x": 143.51,
+                "y": 446.61,
+                "w": 325.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Olympic records, locations) along with content relevant to answering each question.",
+              "rect": {
+                "x": 143.87,
+                "y": 457.52,
+                "w": 326.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "We further apply precise perturbations to the answers in the content that range",
+              "rect": {
+                "x": 143.4,
+                "y": 468.43,
+                "w": 324.73,
+                "h": 12
+              }
+            },
+            {
+              "text": "from subtle to blatant errors. We benchmark six top-performing LLMs, including",
+              "rect": {
+                "x": 143.87,
+                "y": 479.34,
+                "w": 324.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "GPT-4o, on this dataset and find that LLMs are susceptible to adopting incorrect re­trieved content, overriding their own correct prior knowledge over 60% of the time.",
+              "rect": {
+                "x": 143.87,
+                "y": 490.25,
+                "w": 326.01,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "However, the more unrealistic the retrieved content is (i.e. more deviated from",
+              "rect": {
+                "x": 143.87,
+                "y": 512.07,
+                "w": 324.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "truth), the less likely the model is to adopt it. Also, the less confident a model is in",
+              "rect": {
+                "x": 143.87,
+                "y": 522.98,
+                "w": 324.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "its initial response (via measuring token probabilities), the more likely it is to adopt",
+              "rect": {
+                "x": 143.87,
+                "y": 533.88,
+                "w": 324.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "the information in the retrieved content. We exploit this finding and demonstrate",
+              "rect": {
+                "x": 143.87,
+                "y": 544.79,
+                "w": 324.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "simple methods for improving model accuracy where there is conflicting retrieved",
+              "rect": {
+                "x": 143.87,
+                "y": 555.7,
+                "w": 324.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "content. Our results highlight a difficult task and benchmark for LLMs – namely,",
+              "rect": {
+                "x": 143.87,
+                "y": 566.61,
+                "w": 325.51,
+                "h": 12
+              }
+            },
+            {
+              "text": "their ability to correctly discern when it is wrong in light of correct retrieved content",
+              "rect": {
+                "x": 143.87,
+                "y": 577.52,
+                "w": 324.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "and to reject cases when the provided content is incorrect. Our dataset, called",
+              "rect": {
+                "x": 143.87,
+                "y": 588.43,
+                "w": 324.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "ClashEval, and evaluations are open-sourced to allow for future benchmarking on",
+              "rect": {
+                "x": 143.54,
+                "y": 599.34,
+                "w": 324.59,
+                "h": 12
+              }
+            },
+            {
+              "text": "top-performing models at https://github.com/kevinwu23/StanfordClashEval.",
+              "rect": {
+                "x": 143.87,
+                "y": 610.25,
+                "w": 303.69,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 645.25,
+            "w": 82.81,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "1 Introduction",
+              "rect": {
+                "x": 108,
+                "y": 645.25,
+                "w": 82.81,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 670.48,
+            "w": 397.24,
+            "h": 44.72
+          },
+          "lines": [
+            {
+              "text": "Large language models (LLMs) are prone to hallucinations and incorrect answers [Pal et al., 2023,",
+              "rect": {
+                "x": 108,
+                "y": 670.48,
+                "w": 397.24,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sun et al., 2024, Ahmad et al., 2023]. Additionally, they are constrained to knowledge contained",
+              "rect": {
+                "x": 108,
+                "y": 681.38,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "in their training corpus and are unable to answer queries about recent events or publicly restricted",
+              "rect": {
+                "x": 108,
+                "y": 692.29,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "information. Retrieval augmented generation (RAG) is a commonly used framework that provides",
+              "rect": {
+                "x": 108,
+                "y": 703.2,
+                "w": 396,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 731.59,
+            "w": 397.57,
+            "h": 10.8
+          },
+          "lines": [
+            {
+              "text": "38th Conference on Neural Information Processing Systems (NeurIPS 2024) Track on Datasets and Benchmarks.",
+              "rect": {
+                "x": 108,
+                "y": 731.59,
+                "w": 397.57,
+                "h": 10.8
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 14.44,
+            "y": 218.36,
+            "w": 22.54,
+            "h": 336.64
+          },
+          "lines": [
+            {
+              "text": "arXiv:2404.10198v3 [cs.CL] 7 Feb 2025",
+              "rect": {
+                "x": 14.44,
+                "y": 218.36,
+                "w": 22.54,
+                "h": 336.64
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 206.4,
+            "w": 396,
+            "h": 44.73
+          },
+          "lines": [
+            {
+              "text": "Figure 1: A schematic of generating modified documents for each dataset. A question is posed to",
+              "rect": {
+                "x": 108,
+                "y": 206.4,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the LLM with and without a reference document containing information relevant to the query. This",
+              "rect": {
+                "x": 108,
+                "y": 217.31,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "document is then perturbed to contain modified information and given as context to the LLM. We",
+              "rect": {
+                "x": 108,
+                "y": 228.22,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "then observe whether the LLM prefers the modified information or its own prior answer.",
+              "rect": {
+                "x": 108,
+                "y": 239.13,
+                "w": 352.11,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 277.3,
+            "w": 396,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "relevant retrieved content in the LLM prompt and can significantly improve model accuracy [Mao",
+              "rect": {
+                "x": 108,
+                "y": 277.3,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "et al., 2020, Chen et al., 2024a, Lewis et al., 2020].",
+              "rect": {
+                "x": 108,
+                "y": 288.21,
+                "w": 203.13,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.64,
+            "y": 315.5,
+            "w": 397.61,
+            "h": 344.76
+          },
+          "lines": [
+            {
+              "text": "Most commercial LLMs, like ChatGPT [OpenAI, 2023], Gemini [Gemini Team, 2023], and Perplex­ity.ai, already employ RAG in their Web interfaces. For example, ChatGPT employs a Bing search,",
+              "rect": {
+                "x": 108,
+                "y": 315.5,
+                "w": 397.25,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "whereas Gemini accesses Google Search results. While this can greatly enhance the model’s ability",
+              "rect": {
+                "x": 107.64,
+                "y": 337.32,
+                "w": 396.71,
+                "h": 12
+              }
+            },
+            {
+              "text": "to answer questions, it also raises concern for when the retrieved documents or webpages contain",
+              "rect": {
+                "x": 108,
+                "y": 348.23,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "incorrect or harmful information [Dash et al., 2023, Daws, 2020, Nastasi et al., 2023]. Indeed, exam­ples of this behavior have already surfaced in widely deployed LLMs. For example, recent headlines",
+              "rect": {
+                "x": 108,
+                "y": 359.14,
+                "w": 396,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "showed Google’s AI Summary recommending people to \"eat rocks\" or \"put glue on their pizza\" [Hart,",
+              "rect": {
+                "x": 108,
+                "y": 380.96,
+                "w": 397.24,
+                "h": 12
+              }
+            },
+            {
+              "text": "2024, Williams, 2024], presumably due to erroneous or satirical webpages being retrieved. While",
+              "rect": {
+                "x": 108,
+                "y": 391.87,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "stricter document filtering or improved retrieval may help reduce this occurrence, it by no means is",
+              "rect": {
+                "x": 108,
+                "y": 402.78,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "a cure-all against this problem. At its core, LLMs should not blindly repeat information presented",
+              "rect": {
+                "x": 108,
+                "y": 413.69,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "in context but should be able to arbitrate when external information conflicts with its own internal",
+              "rect": {
+                "x": 108,
+                "y": 424.59,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge. While the aforementioned example is one in which the retrieved document is the source",
+              "rect": {
+                "x": 108,
+                "y": 435.5,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "of error, the converse is also a significant problem: when the LLM insists on its own incorrect prior",
+              "rect": {
+                "x": 108,
+                "y": 446.41,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "answer despite correct external information.",
+              "rect": {
+                "x": 108,
+                "y": 457.32,
+                "w": 175.53,
+                "h": 12
+              }
+            },
+            {
+              "text": "Some studies have previously investigated the nature of this tension between a model’s internal prior",
+              "rect": {
+                "x": 108,
+                "y": 473.71,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge and contextual information. Longpre et al. [2021] found that LLMs exhibited a strong",
+              "rect": {
+                "x": 108,
+                "y": 484.62,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "preference for information in the training data even when facts in the context were substituted with",
+              "rect": {
+                "x": 108,
+                "y": 495.53,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "similar but incorrect information. More recently, Xie et al. [2023] showed that models can either",
+              "rect": {
+                "x": 108,
+                "y": 506.44,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "be highly susceptible to context or very biased towards its priors depending on how the context",
+              "rect": {
+                "x": 108,
+                "y": 517.35,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "is framed. Our study extends these works in two important ways. First, we present a dataset that",
+              "rect": {
+                "x": 108,
+                "y": 528.26,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "contains examples not only when the context is wrong and the model is right but the converse (where",
+              "rect": {
+                "x": 108,
+                "y": 539.16,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the context is right but the model is wrong). This is important since a dataset that only measures the",
+              "rect": {
+                "x": 108,
+                "y": 550.07,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "LLM’s ability to reject wrong context can trivially excel at this task by simply always ignoring the",
+              "rect": {
+                "x": 108,
+                "y": 560.98,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "context. Instead, our dataset uniquely tests the LLM’s ability to arbitrate between its own parametric",
+              "rect": {
+                "x": 108,
+                "y": 571.89,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge and the contextual information to determine the most accurate response. Second, we",
+              "rect": {
+                "x": 108,
+                "y": 582.8,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "elicit a quantitative relationship between the LLM’s preference of prior or context and two important",
+              "rect": {
+                "x": 108,
+                "y": 593.71,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "variables: (1) the model’s confidence in its prior response (via measuring the token probabilities of",
+              "rect": {
+                "x": 107.75,
+                "y": 604.62,
+                "w": 396.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "the initial response), and (2) the degree to which the contextual information provided deviates from",
+              "rect": {
+                "x": 108,
+                "y": 615.53,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the reference answer. Measuring these two dynamics is important for understanding how models",
+              "rect": {
+                "x": 108,
+                "y": 626.44,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "transition between choosing the prior and the context and their inherent biases towards their priors or",
+              "rect": {
+                "x": 108,
+                "y": 637.35,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "the context.",
+              "rect": {
+                "x": 108,
+                "y": 648.26,
+                "w": 46.34,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 676.65,
+            "w": 77.02,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Our contributions",
+              "rect": {
+                "x": 108,
+                "y": 676.65,
+                "w": 77.02,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 135.4,
+            "y": 699.89,
+            "w": 368.61,
+            "h": 22.9
+          },
+          "lines": [
+            {
+              "text": "• We introduce ClashEval, a question-answering benchmark dataset of over 1200 questions",
+              "rect": {
+                "x": 135.4,
+                "y": 699.89,
+                "w": 368.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "spanning six domains that include the relevant contextual document for answering each",
+              "rect": {
+                "x": 143.87,
+                "y": 710.79,
+                "w": 360.14,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "2",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 143.87,
+            "y": 72.76,
+            "w": 361.38,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "question. The answer in each document is perturbed across a range of erroneous values,",
+              "rect": {
+                "x": 143.87,
+                "y": 72.76,
+                "w": 361.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "from subtle to extreme.",
+              "rect": {
+                "x": 143.87,
+                "y": 83.67,
+                "w": 92.82,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 135.4,
+            "y": 97.82,
+            "w": 368.6,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "• We benchmark six top-performing LLMs (GPT-4o, GPT-3.5, Llama-3-8b-instruct, Gemini",
+              "rect": {
+                "x": 135.4,
+                "y": 97.82,
+                "w": 368.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "1.5, Claude Opus, and Claude Sonnet) on this dataset and report three relevant metrics.",
+              "rect": {
+                "x": 143.12,
+                "y": 108.73,
+                "w": 346.2,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 135.4,
+            "y": 122.89,
+            "w": 369.27,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "• We provide a systematic analysis of context preference rates across three models on (1)",
+              "rect": {
+                "x": 135.4,
+                "y": 122.89,
+                "w": 369.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "varying degrees of perturbation on the contextual information and (2) the token probabilities",
+              "rect": {
+                "x": 143.62,
+                "y": 133.8,
+                "w": 360.38,
+                "h": 12
+              }
+            },
+            {
+              "text": "of the prior responses.",
+              "rect": {
+                "x": 143.87,
+                "y": 144.71,
+                "w": 88.54,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 135.4,
+            "y": 158.87,
+            "w": 368.6,
+            "h": 22.9
+          },
+          "lines": [
+            {
+              "text": "• We propose a simple way to improve performance on ClashEval by incorporating token",
+              "rect": {
+                "x": 135.4,
+                "y": 158.87,
+                "w": 368.6,
+                "h": 12.01
+              }
+            },
+            {
+              "text": "probabilities.",
+              "rect": {
+                "x": 143.87,
+                "y": 169.77,
+                "w": 52.3,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 195.23,
+            "w": 93.74,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "2 Related Works",
+              "rect": {
+                "x": 108,
+                "y": 195.23,
+                "w": 93.74,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 219.95,
+            "w": 398.06,
+            "h": 197.46
+          },
+          "lines": [
+            {
+              "text": "The issue of hallucination in LLMs has been explored in multiple contexts and models [Ji et al., 2023,",
+              "rect": {
+                "x": 107.69,
+                "y": 219.95,
+                "w": 397.55,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kaddour et al., 2023]. As a response, RAG systems have been shown to reduce hallucination [Shuster",
+              "rect": {
+                "x": 108,
+                "y": 230.86,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "et al., 2021, Kang et al., 2023]. Previous works have explored automated RAG evaluation frameworks",
+              "rect": {
+                "x": 108,
+                "y": 241.77,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "in various settings [Es et al., 2023a, Hoshi et al., 2023, Saad-Falcon et al., 2023a, Zhang et al., 2024].",
+              "rect": {
+                "x": 108,
+                "y": 252.68,
+                "w": 397.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "For example, some studies use LLMs to evaluate the faithfulness, answer relevance, and context",
+              "rect": {
+                "x": 108,
+                "y": 263.59,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "relevance of RAG systems by using GPT-3.5 as an evaluator [Es et al., 2023b, Saad-Falcon et al.,",
+              "rect": {
+                "x": 108,
+                "y": 274.5,
+                "w": 397.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "2023b]. In another study, the authors propose metrics such as noise robustness, negative rejection,",
+              "rect": {
+                "x": 108,
+                "y": 285.41,
+                "w": 397.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "information integration, and counterfactual robustness [Chen et al., 2024b]. Multiple studies have",
+              "rect": {
+                "x": 108,
+                "y": 296.32,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "shown that RAG can mislead LLMs in the presence of complex or misleading search results and that",
+              "rect": {
+                "x": 108,
+                "y": 307.23,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "such models can still make mistakes even when given the correct response [Foulds et al., 2024, Shuster",
+              "rect": {
+                "x": 108,
+                "y": 318.14,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "et al., 2021]. In relation to understanding model priors, other works have used log probabilities to",
+              "rect": {
+                "x": 108,
+                "y": 329.05,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "assess the LLM’s confidence in responses [Mitchell et al., 2023, Zhao et al., 2024]. However, so far",
+              "rect": {
+                "x": 108,
+                "y": 339.95,
+                "w": 396.18,
+                "h": 12
+              }
+            },
+            {
+              "text": "there has not been a systematic exploration of a model’s confidence (via logprobs) and the model’s",
+              "rect": {
+                "x": 108,
+                "y": 350.86,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "preference for RAG-provided information. Previous work has also focused on ways to address model",
+              "rect": {
+                "x": 108,
+                "y": 361.77,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "adherence to incorrect context. For example, Longpre et al. [2021] suggests pretraining on substituted",
+              "rect": {
+                "x": 108,
+                "y": 372.68,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "facts to improve future robustness and Xiang et al. [2024] proposes ensembling isolated answers",
+              "rect": {
+                "x": 108,
+                "y": 383.59,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "across multiple documents. In this work, we focus on the case where LLMs are available only via",
+              "rect": {
+                "x": 108,
+                "y": 394.5,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "inference, and only one document is being used as context.",
+              "rect": {
+                "x": 108,
+                "y": 405.41,
+                "w": 234.76,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 430.87,
+            "w": 62.43,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "3 Methods",
+              "rect": {
+                "x": 108,
+                "y": 430.87,
+                "w": 62.43,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 455.23,
+            "w": 122.04,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "3.1 Definitions and Metrics",
+              "rect": {
+                "x": 108,
+                "y": 455.23,
+                "w": 122.04,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.25,
+            "y": 475.56,
+            "w": 396.75,
+            "h": 72.03
+          },
+          "lines": [
+            {
+              "text": "Following the notation from Longpre et al. [2021], Xie et al. [2023], we start with a QA instance",
+              "rect": {
+                "x": 108,
+                "y": 475.56,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "x = (q, c) where q is the query and c is the context provided to answer the query. A model’s",
+              "rect": {
+                "x": 108,
+                "y": 486.47,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "prior response is r(q), where the model is asked to answer the question with only its parametric",
+              "rect": {
+                "x": 107.25,
+                "y": 497.38,
+                "w": 396.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge. A model’s contextual response is r(q|c), where its response to the query is conditioned",
+              "rect": {
+                "x": 108,
+                "y": 508.29,
+                "w": 396,
+                "h": 18.77
+              }
+            },
+            {
+              "text": "on the provided context.",
+              "rect": {
+                "x": 108,
+                "y": 519.2,
+                "w": 96.55,
+                "h": 12
+              }
+            },
+            {
+              "text": "In our study, we define the following metrics:",
+              "rect": {
+                "x": 108,
+                "y": 535.59,
+                "w": 181.18,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 135.4,
+            "y": 554.49,
+            "w": 366.87,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "• Accuracy = P r­ r(q|c) is right | c is right or r(q) is right",
+              "rect": {
+                "x": 135.4,
+                "y": 554.49,
+                "w": 240.57,
+                "h": 18.77
+              }
+            },
+            {
+              "text": ", the probability the model re­sponds correctly given that either the context is right or the prior is right.",
+              "rect": {
+                "x": 143.87,
+                "y": 554.49,
+                "w": 358.4,
+                "h": 22.91
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 135.4,
+            "y": 579.56,
+            "w": 368.6,
+            "h": 22.9
+          },
+          "lines": [
+            {
+              "text": "• Prior Bias = P r­ r(q|c) is wrong | c is right and r(q) is wrong , the probability the model",
+              "rect": {
+                "x": 135.4,
+                "y": 579.56,
+                "w": 368.6,
+                "h": 18.77
+              }
+            },
+            {
+              "text": "uses its prior while the context is correct.",
+              "rect": {
+                "x": 143.87,
+                "y": 590.46,
+                "w": 163.66,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.64,
+            "y": 604.62,
+            "w": 398.1,
+            "h": 118.17
+          },
+          "lines": [
+            {
+              "text": "• Context Bias = P r­ r(q|c) is wrong | c is wrong and r(q) is right , the probability the model",
+              "rect": {
+                "x": 135.4,
+                "y": 604.62,
+                "w": 368.6,
+                "h": 18.77
+              }
+            },
+            {
+              "text": "uses the context while the prior is correct.",
+              "rect": {
+                "x": 143.87,
+                "y": 615.53,
+                "w": 166.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "Our main analysis consists of evaluating the RAG question-answering capabilities of six LLMs when",
+              "rect": {
+                "x": 108,
+                "y": 634.43,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "introducing varying levels of perturbations on the RAG documents. For this study, our dataset consists",
+              "rect": {
+                "x": 108,
+                "y": 645.34,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "of 1,294 total questions across 6 different domains. We evaluate the following models: GPT-4o,",
+              "rect": {
+                "x": 108,
+                "y": 656.25,
+                "w": 397.74,
+                "h": 12
+              }
+            },
+            {
+              "text": "GPT3.5 (gpt-3.5-turbo-0125), Llama-3 (Llama-3-7B-Instruct), Claude Opus, Claude Sonnet, and",
+              "rect": {
+                "x": 107.64,
+                "y": 667.16,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "Gemini 1.5 Flash. For our contextual responses, we use a standard prompt template that is based on",
+              "rect": {
+                "x": 107.64,
+                "y": 678.07,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "RAG prompts used on popular LLM open-source libraries, with over 800k downloads as of March",
+              "rect": {
+                "x": 108,
+                "y": 688.98,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "2024 (LangChain and LlamaIndex). In addition to this standard prompt, we experiment with \"strict\"",
+              "rect": {
+                "x": 108,
+                "y": 699.89,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "and \"loose\" prompts, with results in 6. Full prompts used are provided in our GitHub repository.",
+              "rect": {
+                "x": 108,
+                "y": 710.79,
+                "w": 383.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "3",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 72.4,
+            "w": 54.51,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "3.2 Dataset",
+              "rect": {
+                "x": 108,
+                "y": 72.4,
+                "w": 54.51,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 113.98,
+            "y": 101.08,
+            "w": 296.51,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Dataset Name # Questions # Perturbations Example Question",
+              "rect": {
+                "x": 113.98,
+                "y": 101.08,
+                "w": 296.51,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 117.35,
+            "w": 396.31,
+            "h": 268.61
+          },
+          "lines": [
+            {
+              "text": "Drug Dosage 249 10 What is the maximum daily dosage in mg",
+              "rect": {
+                "x": 113.98,
+                "y": 117.35,
+                "w": 388.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "for extended release oxybutynin in adults",
+              "rect": {
+                "x": 332.16,
+                "y": 128.25,
+                "w": 170.08,
+                "h": 12
+              }
+            },
+            {
+              "text": "with overactive bladder?",
+              "rect": {
+                "x": 331.8,
+                "y": 139.16,
+                "w": 97.79,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 238 10 How many points did Paige Bueckers score",
+              "rect": {
+                "x": 113.98,
+                "y": 155.07,
+                "w": 388.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "in the Big East Tournament title game on",
+              "rect": {
+                "x": 332.16,
+                "y": 165.98,
+                "w": 170.08,
+                "h": 12
+              }
+            },
+            {
+              "text": "March 6, 2023?",
+              "rect": {
+                "x": 332.16,
+                "y": 176.89,
+                "w": 62.8,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wikipedia Dates 200 10 In which year was the census conducted that",
+              "rect": {
+                "x": 113.98,
+                "y": 192.8,
+                "w": 388.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "reported the population of Lukhi village in",
+              "rect": {
+                "x": 332.16,
+                "y": 203.71,
+                "w": 170.08,
+                "h": 12
+              }
+            },
+            {
+              "text": "Iran as 35, in 8 families?",
+              "rect": {
+                "x": 332.16,
+                "y": 214.62,
+                "w": 98.4,
+                "h": 12
+              }
+            },
+            {
+              "text": "Sports Records 191 10 What is the Olympic record for Men’s 100",
+              "rect": {
+                "x": 113.98,
+                "y": 230.53,
+                "w": 388.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "metres in athletics (time)?",
+              "rect": {
+                "x": 332.16,
+                "y": 241.44,
+                "w": 103.76,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 200 3 Which former United States Senator, born",
+              "rect": {
+                "x": 113.98,
+                "y": 257.35,
+                "w": 388.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "in 1955, also shares the surname with other",
+              "rect": {
+                "x": 332.16,
+                "y": 268.26,
+                "w": 170.27,
+                "h": 12
+              }
+            },
+            {
+              "text": "senators at the state level in Wisconsin, Min­nesota, Massachusetts, Puerto Rico, and",
+              "rect": {
+                "x": 332.16,
+                "y": 279.17,
+                "w": 170.08,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "New York City?",
+              "rect": {
+                "x": 332.16,
+                "y": 300.99,
+                "w": 64.51,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 200 3 What is the name of the hamlet in Canada",
+              "rect": {
+                "x": 113.98,
+                "y": 316.9,
+                "w": 388.26,
+                "h": 12
+              }
+            },
+            {
+              "text": "that shares its name with a Scottish sur­name?",
+              "rect": {
+                "x": 332.16,
+                "y": 327.81,
+                "w": 168.56,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "Table 1: Statistics for each dataset, including number of questions, number of perturbations applied",
+              "rect": {
+                "x": 107.69,
+                "y": 363.05,
+                "w": 396.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "to each question, and an example question.",
+              "rect": {
+                "x": 108,
+                "y": 373.96,
+                "w": 170.85,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 408.19,
+            "w": 398.21,
+            "h": 121.09
+          },
+          "lines": [
+            {
+              "text": "We generate questions from six subject domains (summarized in 1. To generate a large set of question­and-answer pairs, we extract a corpus of content webpages and then query GPT-4o to generate a",
+              "rect": {
+                "x": 107.53,
+                "y": 408.19,
+                "w": 396.47,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "question based on the text, along with the ground truth answer and the excerpt used to generate the",
+              "rect": {
+                "x": 108,
+                "y": 430.01,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "question. Additionally, we select six different datasets to cover diverse knowledge domains and",
+              "rect": {
+                "x": 108,
+                "y": 440.91,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "difficulties. For example, news articles are included as examples of out-of-distribution questions that",
+              "rect": {
+                "x": 108,
+                "y": 451.82,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "cannot be answered properly without context. For each dataset below, we provide the full prompts",
+              "rect": {
+                "x": 108,
+                "y": 462.73,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "used to generate questions in our GitHub repository. Generated questions significantly transform the",
+              "rect": {
+                "x": 108,
+                "y": 473.64,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "original data and are covered under fair use; full document content may be covered under copyright,",
+              "rect": {
+                "x": 108,
+                "y": 484.55,
+                "w": 397.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "but we provide the accompanying code to reproduce the data. As our data is sourced from the",
+              "rect": {
+                "x": 108,
+                "y": 495.46,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "Associated Press and Wikipedia, there is no personally identifiable information or offensive content to",
+              "rect": {
+                "x": 107.64,
+                "y": 506.37,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "our knowledge. UpToDate contains drug information and does not contain PHI or offensive content.",
+              "rect": {
+                "x": 108,
+                "y": 517.28,
+                "w": 397.74,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 541.42,
+            "w": 396.35,
+            "h": 66.91
+          },
+          "lines": [
+            {
+              "text": "Drug Dosages We initially randomly sampled 500 drug information pages from UpToDate.com, a",
+              "rect": {
+                "x": 108,
+                "y": 541.42,
+                "w": 396,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "medical reference website widely used by clinicians. To constrain the scope of questions, we specify",
+              "rect": {
+                "x": 108,
+                "y": 552.69,
+                "w": 396.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "in the prompt that the answer must be numerical and in milligrams. To filter out generated questions",
+              "rect": {
+                "x": 108,
+                "y": 563.6,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "that did not meet the specified criteria (e.g. ambiguous question, incorrect units, etc.), we perform an",
+              "rect": {
+                "x": 108,
+                "y": 574.51,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "additional quality control step, where we ask GPT-4o to verify that the generated question fulfills all",
+              "rect": {
+                "x": 108,
+                "y": 585.42,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "criteria. After this step, we have 249 question-answer pairs.",
+              "rect": {
+                "x": 108,
+                "y": 596.33,
+                "w": 237.36,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.64,
+            "y": 620.48,
+            "w": 397.6,
+            "h": 45.08
+          },
+          "lines": [
+            {
+              "text": "Sports Records We pulled Olympic records pages from Wikipedia.org across 9 sports: athletics,",
+              "rect": {
+                "x": 108,
+                "y": 620.48,
+                "w": 397.24,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "weightlifting, swimming, archery, track cycling, rowing, shooting, short-track speed skating, and",
+              "rect": {
+                "x": 107.64,
+                "y": 631.74,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "speed skating. Records are extracted in a table format, from which questions are generated for each",
+              "rect": {
+                "x": 108,
+                "y": 642.65,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "record entry. In total, after filtering, we extracted 191 unique questions and answers.",
+              "rect": {
+                "x": 108,
+                "y": 653.56,
+                "w": 335.69,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 677.71,
+            "w": 396.19,
+            "h": 45.08
+          },
+          "lines": [
+            {
+              "text": "News Top headlines are pulled from the Associated Press RSS feed for dates ranging from 03/15/24",
+              "rect": {
+                "x": 108,
+                "y": 677.71,
+                "w": 396,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "to 03/25/24. From an initial corpus of 1486 news articles, we use GPT-4o to generate one question per",
+              "rect": {
+                "x": 108,
+                "y": 688.98,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "article, instructing it to produce questions for which there is a clear numerical answer. We performed",
+              "rect": {
+                "x": 108,
+                "y": 699.89,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "another GPT-4o quality control step, which resulted in 238 unique question-answer pairs.",
+              "rect": {
+                "x": 108,
+                "y": 710.79,
+                "w": 355.75,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "4",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.75,
+            "y": 387.01,
+            "w": 396.25,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Figure 2: Examples from three datasets demonstrating differential LLM responses (GPT-4o) across",
+              "rect": {
+                "x": 108,
+                "y": 387.01,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "various types of context modifications. Responses in red indicate wrong responses (different than the",
+              "rect": {
+                "x": 107.75,
+                "y": 397.92,
+                "w": 396.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "answer); responses in green indicate correct responses.",
+              "rect": {
+                "x": 108,
+                "y": 408.83,
+                "w": 218.28,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 444.03,
+            "w": 396.66,
+            "h": 88.73
+          },
+          "lines": [
+            {
+              "text": "Dates, Names, and Cities We begin with a random sample of 1000 articles from Huggingface’s",
+              "rect": {
+                "x": 108,
+                "y": 444.03,
+                "w": 396,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Wikipedia dataset (20220301.en, [Foundation]). We use GPT-4o to generate questions related to",
+              "rect": {
+                "x": 107.53,
+                "y": 455.3,
+                "w": 396.46,
+                "h": 12
+              }
+            },
+            {
+              "text": "each field (dates, names, and cities) and filter out responses where the excerpt is not exactly found in",
+              "rect": {
+                "x": 108,
+                "y": 466.21,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the context. To reduce ambiguity when matching groundtruth answers, we restrict the answers to",
+              "rect": {
+                "x": 108,
+                "y": 477.12,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "fit certain formats. For dates, we require that the answer adheres to a four-digit year (YYYY). For",
+              "rect": {
+                "x": 108,
+                "y": 488.03,
+                "w": 396.18,
+                "h": 12
+              }
+            },
+            {
+              "text": "names, we require a first and last name (eg. George Washington). For cities, we remove any other",
+              "rect": {
+                "x": 108,
+                "y": 498.94,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "identities (eg. Seattle, not Seattle, WA). For each domain, among the remaining question-answer",
+              "rect": {
+                "x": 108,
+                "y": 509.85,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "pairs that fit these criteria, we randomly sample 200 for our evaluation set.",
+              "rect": {
+                "x": 108,
+                "y": 520.76,
+                "w": 296.12,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 547.56,
+            "w": 176.29,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "3.3 Modifying the Retrieved Documents",
+              "rect": {
+                "x": 108,
+                "y": 547.56,
+                "w": 176.29,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 568.98,
+            "w": 398.21,
+            "h": 153.81
+          },
+          "lines": [
+            {
+              "text": "We perform systematic perturbations on each question/answer pair (as visualized in Figure 1. In three",
+              "rect": {
+                "x": 107.53,
+                "y": 568.98,
+                "w": 396.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "datasets with numerical answers (Drug Dosages, Sports Records, Latest News), we produce ten mod­ifications that act as multipliers on the original value: 0.1, 0.2, 0.4, 0.8, 1.2, 1.5, 2.0, 3.0, 5.0, 10.0. In",
+              "rect": {
+                "x": 108,
+                "y": 579.89,
+                "w": 396,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "the Wikipedia Years dataset, we perform ten absolute modifications in increments of 20 years for",
+              "rect": {
+                "x": 108,
+                "y": 601.7,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "a range of [−100, 100]. For the Wikipedia Names and Locations, the discrete categories required",
+              "rect": {
+                "x": 108,
+                "y": 612.61,
+                "w": 396,
+                "h": 18.77
+              }
+            },
+            {
+              "text": "more hand-crafted levels of variation. For each, we performed three categorical perturbations via",
+              "rect": {
+                "x": 108,
+                "y": 623.52,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "prompting: slight, significant, and comical. We provide the full prompts used in our study in our",
+              "rect": {
+                "x": 108,
+                "y": 634.43,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "GitHub repository. For example, for a name like Bob Green, a slight modification implies a small",
+              "rect": {
+                "x": 108,
+                "y": 645.34,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "tweak to another real name (Rob Greene), whereas a significant modification produces a similar but",
+              "rect": {
+                "x": 108,
+                "y": 656.25,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "fictitious name (Bilgorn Grevalle), and a comical modification is an absurd variant (Blob Lawnface).",
+              "rect": {
+                "x": 108,
+                "y": 667.16,
+                "w": 397.74,
+                "h": 12
+              }
+            },
+            {
+              "text": "For a city name like Miami, a slight modification changes the name of the most similar city (Fort",
+              "rect": {
+                "x": 108,
+                "y": 678.07,
+                "w": 396.18,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lauderdale), a significant modification produces a fictitious city name (Marisole), and a comical",
+              "rect": {
+                "x": 107.65,
+                "y": 688.98,
+                "w": 396.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "modification produces an absurd variant (Miameme). Because of differences in how each modified",
+              "rect": {
+                "x": 108,
+                "y": 699.89,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "fact might appear in the retrieved text, we utilize GPT-4o to generate the perturbed excerpts for",
+              "rect": {
+                "x": 108,
+                "y": 710.79,
+                "w": 396.19,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "5",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 72.76,
+            "w": 396.49,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "drug dosages and news. Each modified fact is replaced in the original retrieved text. Then, both the",
+              "rect": {
+                "x": 108,
+                "y": 72.76,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "question and context are posed to GPT-4, from which the answers, along with the log probabilities of",
+              "rect": {
+                "x": 108,
+                "y": 83.67,
+                "w": 396.49,
+                "h": 12
+              }
+            },
+            {
+              "text": "the output tokens, are collected.",
+              "rect": {
+                "x": 108,
+                "y": 94.58,
+                "w": 126.62,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 130.94,
+            "w": 55.13,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "4 Results",
+              "rect": {
+                "x": 108,
+                "y": 130.94,
+                "w": 55.13,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 159.8,
+            "y": 160.74,
+            "w": 286.35,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Model Chosen Prior Correct Context Correct",
+              "rect": {
+                "x": 159.8,
+                "y": 160.74,
+                "w": 286.35,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 159.8,
+            "y": 187.56,
+            "w": 55.64,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Claude Opus",
+              "rect": {
+                "x": 159.8,
+                "y": 187.56,
+                "w": 55.64,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 234.03,
+            "y": 177.01,
+            "w": 218.17,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Prior 0.585 (0.550, 0.619) 0.042 (0.027, 0.058)",
+              "rect": {
+                "x": 234.03,
+                "y": 177.01,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Context 0.313 (0.282, 0.346) 0.901 (0.879, 0.923)",
+              "rect": {
+                "x": 234.03,
+                "y": 187.92,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neither 0.102 (0.082, 0.125) 0.057 (0.040, 0.075)",
+              "rect": {
+                "x": 234.03,
+                "y": 198.83,
+                "w": 218.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 159.8,
+            "y": 225.29,
+            "w": 62.28,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Claude Sonnet",
+              "rect": {
+                "x": 159.8,
+                "y": 225.29,
+                "w": 62.28,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 234.03,
+            "y": 214.74,
+            "w": 218.17,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Prior 0.436 (0.403, 0.469) 0.051 (0.037, 0.067)",
+              "rect": {
+                "x": 234.03,
+                "y": 214.74,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Context 0.401 (0.374, 0.434) 0.881 (0.859, 0.903)",
+              "rect": {
+                "x": 234.03,
+                "y": 225.65,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neither 0.163 (0.138, 0.186) 0.068 (0.052, 0.086)",
+              "rect": {
+                "x": 234.03,
+                "y": 236.56,
+                "w": 218.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 159.8,
+            "y": 263.02,
+            "w": 46.5,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Gemini 1.5",
+              "rect": {
+                "x": 159.8,
+                "y": 263.02,
+                "w": 46.5,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 234.03,
+            "y": 252.47,
+            "w": 218.17,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Prior 0.388 (0.362, 0.416) 0.074 (0.058, 0.091)",
+              "rect": {
+                "x": 234.03,
+                "y": 252.47,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Context 0.490 (0.461, 0.521) 0.860 (0.838, 0.881)",
+              "rect": {
+                "x": 234.03,
+                "y": 263.38,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neither 0.122 (0.103, 0.143) 0.066 (0.051, 0.082)",
+              "rect": {
+                "x": 234.03,
+                "y": 274.29,
+                "w": 218.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 159.8,
+            "y": 300.75,
+            "w": 32.85,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "GPT-4o",
+              "rect": {
+                "x": 159.8,
+                "y": 300.75,
+                "w": 32.85,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 234.03,
+            "y": 290.2,
+            "w": 218.17,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Prior 0.327 (0.293, 0.358) 0.041 (0.027, 0.056)",
+              "rect": {
+                "x": 234.03,
+                "y": 290.2,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Context 0.608 (0.571, 0.643) 0.903 (0.881, 0.923)",
+              "rect": {
+                "x": 234.03,
+                "y": 301.11,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neither 0.065 (0.047, 0.083) 0.056 (0.040, 0.072)",
+              "rect": {
+                "x": 234.03,
+                "y": 312.02,
+                "w": 218.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 159.8,
+            "y": 338.48,
+            "w": 35.34,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "GPT-3.5",
+              "rect": {
+                "x": 159.8,
+                "y": 338.48,
+                "w": 35.34,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 234.03,
+            "y": 327.93,
+            "w": 218.17,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Prior 0.237 (0.213, 0.263) 0.057 (0.043, 0.072)",
+              "rect": {
+                "x": 234.03,
+                "y": 327.93,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Context 0.626 (0.598, 0.657) 0.841 (0.817, 0.865)",
+              "rect": {
+                "x": 234.03,
+                "y": 338.84,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neither 0.137 (0.113, 0.160) 0.102 (0.082, 0.123)",
+              "rect": {
+                "x": 234.03,
+                "y": 349.75,
+                "w": 218.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 159.8,
+            "y": 376.21,
+            "w": 35.97,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Llama-3",
+              "rect": {
+                "x": 159.8,
+                "y": 376.21,
+                "w": 35.97,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 234.03,
+            "y": 365.66,
+            "w": 218.17,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Prior 0.208 (0.185, 0.230) 0.041 (0.029, 0.054)",
+              "rect": {
+                "x": 234.03,
+                "y": 365.66,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Context 0.529 (0.499, 0.558) 0.793 (0.767, 0.818)",
+              "rect": {
+                "x": 234.03,
+                "y": 376.57,
+                "w": 218.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neither 0.263 (0.236, 0.291) 0.166 (0.145, 0.191)",
+              "rect": {
+                "x": 234.03,
+                "y": 387.48,
+                "w": 218.17,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 411.81,
+            "w": 396.32,
+            "h": 44.72
+          },
+          "lines": [
+            {
+              "text": "Table 2: We report model behavior given a subset of the data where either the prior or the context is",
+              "rect": {
+                "x": 107.69,
+                "y": 411.81,
+                "w": 396.3,
+                "h": 12
+              }
+            },
+            {
+              "text": "correct. A model exhibits prior bias by choosing its prior when only the context is correct, while it",
+              "rect": {
+                "x": 108,
+                "y": 422.72,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "exhibits context bias by choosing the context when only the prior is correct. We also report when",
+              "rect": {
+                "x": 108,
+                "y": 433.63,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "neither the prior nor context answer is used in the model response.",
+              "rect": {
+                "x": 108,
+                "y": 444.53,
+                "w": 264.37,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 483.06,
+            "w": 179.91,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "4.1 Prior vs. Context Conflict Resolution",
+              "rect": {
+                "x": 108,
+                "y": 483.06,
+                "w": 179.91,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 503.39,
+            "w": 397.74,
+            "h": 99.28
+          },
+          "lines": [
+            {
+              "text": "In Table 2, Table 4, Table 5, and Figure 5, we report the responses for each of the six models when",
+              "rect": {
+                "x": 108,
+                "y": 503.39,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "only the prior is correct or only the context is correct. On one end, models like Llama-3 and GPT-3.5",
+              "rect": {
+                "x": 108,
+                "y": 514.3,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "are at near random accuracy at the task of discerning when to use the prior or context answer. On the",
+              "rect": {
+                "x": 108,
+                "y": 525.21,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "other hand, the top performing model on all three metrics is Claude Opus, with an accuracy of 74.3%,",
+              "rect": {
+                "x": 108,
+                "y": 536.12,
+                "w": 397.24,
+                "h": 12
+              }
+            },
+            {
+              "text": "a context bias of 15.7%, and a prior bias of 2.1%. Interestingly, while GPT-4o is the current highest",
+              "rect": {
+                "x": 108,
+                "y": 547.03,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "performing model on LMSYS Chatbot Area (as of June 2024), it has a higher context bias than all",
+              "rect": {
+                "x": 108,
+                "y": 557.94,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "other models but GPT-3.5. While Llama-3 has a lower context bias than GPT-4o, it also has a lower",
+              "rect": {
+                "x": 108,
+                "y": 568.85,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "accuracy because it has a higher rate of choosing neither the prior nor the context in its response.",
+              "rect": {
+                "x": 108,
+                "y": 579.76,
+                "w": 397.74,
+                "h": 12
+              }
+            },
+            {
+              "text": "Examples of questions and model responses are shown in 2.",
+              "rect": {
+                "x": 108,
+                "y": 590.67,
+                "w": 238.82,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 614.1,
+            "w": 195.4,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "4.2 Multi-document Contextual Information",
+              "rect": {
+                "x": 108,
+                "y": 614.1,
+                "w": 195.4,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 634.43,
+            "w": 398.21,
+            "h": 88.36
+          },
+          "lines": [
+            {
+              "text": "We further examine how model adherence to context changes when there are more than one document.",
+              "rect": {
+                "x": 107.53,
+                "y": 634.43,
+                "w": 398.21,
+                "h": 12
+              }
+            },
+            {
+              "text": "We analyze responses from GPT-4o and Claude Opus by adding four additional documents for each",
+              "rect": {
+                "x": 107.53,
+                "y": 645.34,
+                "w": 396.46,
+                "h": 12
+              }
+            },
+            {
+              "text": "query based on embedding cosine similarity. We find that adding more contextual documents lowers",
+              "rect": {
+                "x": 108,
+                "y": 656.25,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "overall model accuracy and increases the rate of responses that are neither the prior nor the context",
+              "rect": {
+                "x": 108,
+                "y": 667.16,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "(Table 6, Table 7). At the same time, due to the lower rate of adherence to context, multi-document",
+              "rect": {
+                "x": 107.67,
+                "y": 678.07,
+                "w": 396.34,
+                "h": 12
+              }
+            },
+            {
+              "text": "RAG also reduces the context bias found in models. These findings are consistent with related works,",
+              "rect": {
+                "x": 108,
+                "y": 688.98,
+                "w": 397.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "where models generally perform worse on longer contexts Levy et al. [2024] but multiple documents",
+              "rect": {
+                "x": 107.64,
+                "y": 699.89,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "can also protect against hallucination Xiang et al. [2024].",
+              "rect": {
+                "x": 108,
+                "y": 710.79,
+                "w": 227.94,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "6",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 361.15,
+            "w": 397.24,
+            "h": 55.64
+          },
+          "lines": [
+            {
+              "text": "Figure 3: We observe an inverse relationship between the context preference rate (y-axis) and the",
+              "rect": {
+                "x": 108,
+                "y": 361.15,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "amount of deviation from the prior (x-axis). Each plot visualizes absolute deviation from the reference",
+              "rect": {
+                "x": 108,
+                "y": 372.06,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "information (for numerical datasets, up to two log-fold changes (along with the trendline); for \"Years\",",
+              "rect": {
+                "x": 108,
+                "y": 382.97,
+                "w": 397.24,
+                "h": 12
+              }
+            },
+            {
+              "text": "the absolute number of years; for categorical datasets, a total of four modification categories) against",
+              "rect": {
+                "x": 108,
+                "y": 393.88,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "context preference rate.",
+              "rect": {
+                "x": 108,
+                "y": 404.79,
+                "w": 93.62,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 452.4,
+            "w": 277,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "4.3 Context Preference Rate vs. Degree of Context Modification",
+              "rect": {
+                "x": 108,
+                "y": 452.4,
+                "w": 277,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 479.4,
+            "w": 396.47,
+            "h": 77.45
+          },
+          "lines": [
+            {
+              "text": "We consider the degree of deviation between the model’s prior response and the value contained in",
+              "rect": {
+                "x": 107.53,
+                "y": 479.4,
+                "w": 396.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "the retrieved context (Figure 3). After fitting a linear model over the data, we find a clear negative",
+              "rect": {
+                "x": 108,
+                "y": 490.31,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "correlation between the degree of modification in the context to the context preference rate. Models",
+              "rect": {
+                "x": 108,
+                "y": 501.22,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "that perform stronger on ClashEval exhibit both a lower intercept and a more negative slope, indicating",
+              "rect": {
+                "x": 108,
+                "y": 512.12,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "higher resistance to incorrect context. For example, Claude Opus adheres to incorrect contextual",
+              "rect": {
+                "x": 108,
+                "y": 523.03,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "information 30% less than GPT-4o for the same degrees of modification. Interestingly, these results",
+              "rect": {
+                "x": 108,
+                "y": 533.94,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "suggest that each model has a different prior distribution over truthfulness across each domain.",
+              "rect": {
+                "x": 108,
+                "y": 544.85,
+                "w": 377.21,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 585.61,
+            "w": 245.3,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "4.4 Context Preference Rate vs. Prior Token Probability",
+              "rect": {
+                "x": 108,
+                "y": 585.61,
+                "w": 245.3,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 612.61,
+            "w": 396.75,
+            "h": 110.18
+          },
+          "lines": [
+            {
+              "text": "In Figure 4, we observe a consistent negative relationship between the token probability of the",
+              "rect": {
+                "x": 108,
+                "y": 612.61,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "model’s prior answer and the associated RAG preference rate for all six QA datasets. To visualize an",
+              "rect": {
+                "x": 108,
+                "y": 623.52,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "even distribution across probabilities, we bin the probabilities into ten equidistant bins in the range of",
+              "rect": {
+                "x": 108,
+                "y": 634.43,
+                "w": 396.49,
+                "h": 12
+              }
+            },
+            {
+              "text": "[0.0, 1.0]. The slope indicates the effect of stronger model confidence on the model’s preference for",
+              "rect": {
+                "x": 108,
+                "y": 645.34,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "the information presented in the retrieved context; we observe different slopes (ranging from -0.1",
+              "rect": {
+                "x": 108,
+                "y": 656.25,
+                "w": 396.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "to -0.45), suggesting that the effectiveness of RAG in different QA domains can be characterized",
+              "rect": {
+                "x": 108,
+                "y": 667.16,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "as being relatively susceptible (e.g., with Dates questions) or robust (e.g., with News questions) to",
+              "rect": {
+                "x": 108,
+                "y": 678.07,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the model’s internal prior knowledge confidence. Specifically, a slope of -0.45, for instance, can",
+              "rect": {
+                "x": 108,
+                "y": 688.98,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "be interpreted as expecting a 4.5% decrease in the likelihood of the LLM preferring the contextual",
+              "rect": {
+                "x": 108,
+                "y": 699.89,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "information for every 10% increase in the probability of the model’s prior response.",
+              "rect": {
+                "x": 108,
+                "y": 710.79,
+                "w": 333.57,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "7",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 336.7,
+            "w": 396.67,
+            "h": 77.45
+          },
+          "lines": [
+            {
+              "text": "Figure 4: We additionally observe an inverse relationship between the context preference rate (y­axis) and the model’s prior response probability (x-axis). Context preference rate is defined as the",
+              "rect": {
+                "x": 108,
+                "y": 336.7,
+                "w": 395.99,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "proportion of responses that align with the information presented in the prompt as context. The",
+              "rect": {
+                "x": 108,
+                "y": 358.51,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "model’s prior response probability is computed from the average log probability of the response",
+              "rect": {
+                "x": 108,
+                "y": 369.42,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "tokens queried without context. Each plot visualizes the prior probability (grouped into 10 bins)",
+              "rect": {
+                "x": 108,
+                "y": 380.33,
+                "w": 396.67,
+                "h": 12
+              }
+            },
+            {
+              "text": "against the context preference rate, along with the best-fit trend line and slope. Models that allow",
+              "rect": {
+                "x": 108,
+                "y": 391.24,
+                "w": 396.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "access to token probabilities are shown.",
+              "rect": {
+                "x": 108,
+                "y": 402.15,
+                "w": 157.92,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 457.69,
+            "w": 318.04,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "4.4.1 Initial Methods for Improving Prior vs. Context Conflict Resolution",
+              "rect": {
+                "x": 108,
+                "y": 457.69,
+                "w": 318.04,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 486.91,
+            "w": 398.22,
+            "h": 197.46
+          },
+          "lines": [
+            {
+              "text": "Based on our observations from the relationship between the token probabilities and the rates of",
+              "rect": {
+                "x": 108,
+                "y": 486.91,
+                "w": 396.51,
+                "h": 12
+              }
+            },
+            {
+              "text": "preference for context, we posit that comparing token probabilities between r(q) and r(q|c) can",
+              "rect": {
+                "x": 108,
+                "y": 497.82,
+                "w": 396,
+                "h": 18.77
+              }
+            },
+            {
+              "text": "improve the abilities of models to resolve conflicts. In Table 3, Token Probability Correction is",
+              "rect": {
+                "x": 108,
+                "y": 508.37,
+                "w": 396,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "done by comparing the mean token probabilities of the model’s response with and without context.",
+              "rect": {
+                "x": 108,
+                "y": 519.64,
+                "w": 397.74,
+                "h": 12
+              }
+            },
+            {
+              "text": "If the probability is higher for the prior than the contextual response, then we use the model’s",
+              "rect": {
+                "x": 108,
+                "y": 530.55,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "generation without context as its final response. Otherwise, we just use the response with context.",
+              "rect": {
+                "x": 108,
+                "y": 541.46,
+                "w": 397.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "We find that this method improves the overall accuracy of all three models with a moderate increase",
+              "rect": {
+                "x": 107.53,
+                "y": 552.37,
+                "w": 396.46,
+                "h": 12
+              }
+            },
+            {
+              "text": "in the prior bias of each model. Next, we observe that the probability distributions between prior",
+              "rect": {
+                "x": 108,
+                "y": 563.28,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "responses and context-given responses are uncalibrated, where context-given response probabilities",
+              "rect": {
+                "x": 108,
+                "y": 574.19,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "are extremely right-tailed while prior probabilities are nearly uniform. As a simple adjustment, we",
+              "rect": {
+                "x": 108,
+                "y": 585.1,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "compare the percentiles rather than raw probability scores of each score, or the Calibrated Token",
+              "rect": {
+                "x": 108,
+                "y": 595.65,
+                "w": 396,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Probability Correction. We find that calibrated token probability correction improves all models’",
+              "rect": {
+                "x": 108,
+                "y": 606.56,
+                "w": 397.65,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "overall accuracy by 14% and context bias by 20%. At the same time, this introduces more prior bias,",
+              "rect": {
+                "x": 108,
+                "y": 617.82,
+                "w": 397.24,
+                "h": 12
+              }
+            },
+            {
+              "text": "from 2% to 8.5%. However, this method outperforms a baseline of randomly replacing the final",
+              "rect": {
+                "x": 108,
+                "y": 628.73,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "response with its prior – at the same bias rate of 8.5%, the random baseline has an accuracy of 57.5%",
+              "rect": {
+                "x": 108,
+                "y": 639.64,
+                "w": 396.83,
+                "h": 12
+              }
+            },
+            {
+              "text": "as compared to the 75.4% from the method. While this paper focuses on developing the ClashEval",
+              "rect": {
+                "x": 108,
+                "y": 650.55,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "benchmark, these results suggest that probability calibration is a promising approach to reduce prior",
+              "rect": {
+                "x": 108,
+                "y": 661.46,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "and context bias deserving further investigation. It also is a natural baseline for future methods.",
+              "rect": {
+                "x": 108,
+                "y": 672.37,
+                "w": 379.48,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "8",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 85.63,
+            "y": 73.66,
+            "w": 448.07,
+            "h": 19.13
+          },
+          "lines": [
+            {
+              "text": "Model Correction Accuracy ↑ Context Bias ↓ Prior Bias ↓",
+              "rect": {
+                "x": 85.63,
+                "y": 73.66,
+                "w": 448.07,
+                "h": 19.13
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 85.63,
+            "y": 100.84,
+            "w": 31.18,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "GPT-4o",
+              "rect": {
+                "x": 85.63,
+                "y": 100.84,
+                "w": 31.18,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 131.34,
+            "y": 89.57,
+            "w": 417.58,
+            "h": 34.78
+          },
+          "lines": [
+            {
+              "text": "No correction (Baseline) 0.615 (0.595, 0.636) 0.304 (0.287, 0.321) 0.021 (0.014, 0.028)",
+              "rect": {
+                "x": 131.34,
+                "y": 89.57,
+                "w": 417.58,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Token Probability Correction 0.693 (0.672, 0.714) 0.194 (0.177, 0.210) 0.043 (0.032, 0.053)",
+              "rect": {
+                "x": 131.34,
+                "y": 100.84,
+                "w": 417.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "Calibrated Token Prob. Correction 0.754 (0.733, 0.775) 0.107 (0.093, 0.122) 0.085 (0.072, 0.098)",
+              "rect": {
+                "x": 131.34,
+                "y": 111.39,
+                "w": 417.58,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 85.63,
+            "y": 138.57,
+            "w": 33.67,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "GPT-3.5",
+              "rect": {
+                "x": 85.63,
+                "y": 138.57,
+                "w": 33.67,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 131.34,
+            "y": 127.3,
+            "w": 417.58,
+            "h": 34.78
+          },
+          "lines": [
+            {
+              "text": "No correction (Baseline) 0.539 (0.521, 0.557) 0.313 (0.298, 0.328) 0.028 (0.021, 0.036)",
+              "rect": {
+                "x": 131.34,
+                "y": 127.3,
+                "w": 417.58,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Token Probability Correction 0.596 (0.575, 0.616) 0.253 (0.237, 0.269) 0.056 (0.046, 0.067)",
+              "rect": {
+                "x": 131.34,
+                "y": 138.57,
+                "w": 417.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "Calibrated Token Prob. Correction 0.701 (0.678, 0.722) 0.110 (0.098, 0.124) 0.147 (0.132, 0.164)",
+              "rect": {
+                "x": 131.34,
+                "y": 149.12,
+                "w": 417.58,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 85.63,
+            "y": 176.29,
+            "w": 33.75,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "Llama-3",
+              "rect": {
+                "x": 85.63,
+                "y": 176.29,
+                "w": 33.75,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 131.34,
+            "y": 165.03,
+            "w": 417.58,
+            "h": 34.77
+          },
+          "lines": [
+            {
+              "text": "No correction (Baseline) 0.500 (0.483, 0.515) 0.264 (0.250, 0.279) 0.021 (0.015, 0.027)",
+              "rect": {
+                "x": 131.34,
+                "y": 165.03,
+                "w": 417.58,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Token Probability Correction 0.556 (0.537, 0.574) 0.235 (0.220, 0.249) 0.046 (0.037, 0.055)",
+              "rect": {
+                "x": 131.34,
+                "y": 176.29,
+                "w": 417.58,
+                "h": 12
+              }
+            },
+            {
+              "text": "Calibrated Token Prob. Correction 0.649 (0.627, 0.669) 0.111 (0.099, 0.122) 0.188 (0.173, 0.204)",
+              "rect": {
+                "x": 131.34,
+                "y": 186.84,
+                "w": 417.58,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 211.53,
+            "w": 396.97,
+            "h": 33.82
+          },
+          "lines": [
+            {
+              "text": "Table 3: For models which provide token probabilities, we evaluate the accuracy, context bias, and",
+              "rect": {
+                "x": 107.69,
+                "y": 211.53,
+                "w": 396.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "prior bias under three conditions: (1) No correction, which is the baseline result from this paper, (2)",
+              "rect": {
+                "x": 108,
+                "y": 222.44,
+                "w": 396.66,
+                "h": 12
+              }
+            },
+            {
+              "text": "the token probability correction, and (3) the calibrated token probability correction.",
+              "rect": {
+                "x": 108,
+                "y": 233.35,
+                "w": 331.82,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 273.54,
+            "w": 71.74,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "5 Discussion",
+              "rect": {
+                "x": 108,
+                "y": 273.54,
+                "w": 71.74,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.53,
+            "y": 300.49,
+            "w": 398.22,
+            "h": 344.8
+          },
+          "lines": [
+            {
+              "text": "The ClashEval benchmark dataset and evaluations provide novel insights into how LLMs arbitrate",
+              "rect": {
+                "x": 107.69,
+                "y": 300.49,
+                "w": 396.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "between their own internal knowledge and contextual information when the two are in conflict.",
+              "rect": {
+                "x": 108,
+                "y": 311.4,
+                "w": 378.32,
+                "h": 12
+              }
+            },
+            {
+              "text": "A key finding is that even the most advanced LLMs like GPT-4o exhibit a strong context bias,",
+              "rect": {
+                "x": 107.64,
+                "y": 327.79,
+                "w": 397.6,
+                "h": 12
+              }
+            },
+            {
+              "text": "overriding their own correct prior knowledge over 60% of the time when presented with incorrect",
+              "rect": {
+                "x": 108,
+                "y": 338.7,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "information in the retrieved documents. However, this bias is not absolute - the degree to which",
+              "rect": {
+                "x": 108,
+                "y": 349.6,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the retrieved content deviates from truth negatively correlates with the context preference rate.",
+              "rect": {
+                "x": 108,
+                "y": 360.51,
+                "w": 397.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "Interestingly, each LLM exhibits a different prior distribution over truthfulness across domains, such",
+              "rect": {
+                "x": 108,
+                "y": 371.42,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "that the same perturbation level affects each model differently. For instance, for a given magnitude",
+              "rect": {
+                "x": 108,
+                "y": 382.33,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "of deviation, Claude Opus adheres to incorrect contextual information 30% less often than GPT-4o.",
+              "rect": {
+                "x": 108,
+                "y": 393.24,
+                "w": 397.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "While GPT-4o achieves state-of-the-art results on general-purpose tasks, it exhibits higher context",
+              "rect": {
+                "x": 107.53,
+                "y": 404.15,
+                "w": 396.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "bias compared to smaller models like Claude Sonnet. This finding suggests that performance on",
+              "rect": {
+                "x": 108,
+                "y": 415.06,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "knowledge-based benchmarks may not automatically mean it is most suitable for RAG settings.",
+              "rect": {
+                "x": 108,
+                "y": 425.97,
+                "w": 397.74,
+                "h": 12
+              }
+            },
+            {
+              "text": "Additionally, we find that LLMs are calibrated to selectively defer to external evidence when they are",
+              "rect": {
+                "x": 107.64,
+                "y": 436.88,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "less certain about a given query. However, each model differs in how well-calibrated they are. While",
+              "rect": {
+                "x": 108,
+                "y": 447.79,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "strong priors are not inherently problematic, the lack of explicit expectations around how models",
+              "rect": {
+                "x": 108,
+                "y": 458.7,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "will decide to use contextual information remains a risk. We propose a simple method for improving",
+              "rect": {
+                "x": 107.64,
+                "y": 469.6,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "models under ClashEval, and hope that future work can improve upon this baseline.",
+              "rect": {
+                "x": 108,
+                "y": 480.51,
+                "w": 334.41,
+                "h": 12
+              }
+            },
+            {
+              "text": "Our analyses have several key limitations. First, RAG systems can be deployed to many more",
+              "rect": {
+                "x": 108,
+                "y": 496.9,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "domains than can be covered by our analyses. Second, to make our experiments tractable, our",
+              "rect": {
+                "x": 108,
+                "y": 507.81,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "question-generation process is strictly fact-based and does not require multi-step logic, document",
+              "rect": {
+                "x": 108,
+                "y": 518.72,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "synthesis, or other higher-level reasoning. Third, our dataset contains an enriched rate of contextual",
+              "rect": {
+                "x": 108,
+                "y": 529.63,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "errors, so the reported metrics are not meant to represent bias rates in the wild. Fourth, our proposed",
+              "rect": {
+                "x": 108,
+                "y": 540.54,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "token probability method only applies to models which provide probability outputs. Finally, even",
+              "rect": {
+                "x": 108,
+                "y": 551.45,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "though this dataset is intended to improve an LLM’s ability to provide users with accurate information,",
+              "rect": {
+                "x": 108,
+                "y": 562.36,
+                "w": 397.24,
+                "h": 12
+              }
+            },
+            {
+              "text": "bad actors could use such information to exploit the shortcomings of certain models described in this",
+              "rect": {
+                "x": 108,
+                "y": 573.27,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "paper.",
+              "rect": {
+                "x": 108,
+                "y": 584.18,
+                "w": 24.07,
+                "h": 12
+              }
+            },
+            {
+              "text": "As retrieval-augmented AI systems become increasingly prevalent, we hope our dataset and insights",
+              "rect": {
+                "x": 107.64,
+                "y": 600.56,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "spur further research into improving the robustness and calibration of such models. Resolving the",
+              "rect": {
+                "x": 108,
+                "y": 611.47,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "tension between parametric priors and retrieved information is a crucial challenge on the path to safe",
+              "rect": {
+                "x": 108,
+                "y": 622.38,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "and trustworthy language models.",
+              "rect": {
+                "x": 108,
+                "y": 633.29,
+                "w": 134.88,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 662.03,
+            "w": 98.83,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "Acknowledgements",
+              "rect": {
+                "x": 108,
+                "y": 662.03,
+                "w": 98.83,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 688.98,
+            "w": 396.31,
+            "h": 33.81
+          },
+          "lines": [
+            {
+              "text": "The authors acknowledge the use of UpToDate® and/or any of its content is subject to licensing",
+              "rect": {
+                "x": 107.69,
+                "y": 688.98,
+                "w": 396.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "agreements and is only permitted as set forth in those agreements or otherwise expressly authorized",
+              "rect": {
+                "x": 108,
+                "y": 699.89,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "by Wolters Kluwer and UpToDate, Inc. in writing.",
+              "rect": {
+                "x": 108,
+                "y": 710.79,
+                "w": 200.99,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 303.51,
+            "y": 740.68,
+            "w": 4.98,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "9",
+              "rect": {
+                "x": 303.51,
+                "y": 740.68,
+                "w": 4.98,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 70.49,
+            "w": 55.54,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "References",
+              "rect": {
+                "x": 108,
+                "y": 70.49,
+                "w": 55.54,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 90.66,
+            "w": 566.54,
+            "h": 424.71
+          },
+          "lines": [
+            {
+              "text": "Muhammad Aurangzeb Ahmad, Ilker Yaramis, and Taposh Dutta Roy. Creating trustworthy LLMs:",
+              "rect": {
+                "x": 108,
+                "y": 90.66,
+                "w": 397.39,
+                "h": 12
+              }
+            },
+            {
+              "text": "Dealing with hallucinations in healthcare AI. September 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 101.57,
+                "w": 250.4,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jiawei Chen, Hongyu Lin, Xianpei Han, and Le Sun. Benchmarking large language models in",
+              "rect": {
+                "x": 108,
+                "y": 121.23,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "Retrieval-Augmented generation. AAAI, 38(16):17754–17762, March 2024a.",
+              "rect": {
+                "x": 117.96,
+                "y": 132.14,
+                "w": 307.45,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jiawei Chen, Hongyu Lin, Xianpei Han, and Le Sun. Benchmarking large language models in",
+              "rect": {
+                "x": 108,
+                "y": 151.81,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "retrieval-augmented generation. In Proceedings of the AAAI Conference on Artificial Intelligence,",
+              "rect": {
+                "x": 117.96,
+                "y": 162.72,
+                "w": 387.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "volume 38, pages 17754–17762, 2024b.",
+              "rect": {
+                "x": 117.71,
+                "y": 173.63,
+                "w": 159.47,
+                "h": 12
+              }
+            },
+            {
+              "text": "Debadutta Dash, Rahul Thapa, Juan M Banda, Akshay Swaminathan, Morgan Cheatham, Mehr",
+              "rect": {
+                "x": 108,
+                "y": 193.3,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kashyap, Nikesh Kotecha, Jonathan H Chen, Saurabh Gombar, Lance Downing, Rachel Pedreira,",
+              "rect": {
+                "x": 117.96,
+                "y": 204.21,
+                "w": 387.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ethan Goh, Angel Arnaout, Garret Kenn Morris, Honor Magon, Matthew P Lungren, Eric Horvitz,",
+              "rect": {
+                "x": 117.96,
+                "y": 215.11,
+                "w": 387.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "and Nigam H Shah. Evaluation of GPT-3.5 and GPT-4 for supporting real-world information needs",
+              "rect": {
+                "x": 117.96,
+                "y": 226.02,
+                "w": 386.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "in healthcare delivery. April 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 236.93,
+                "w": 137.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ryan Daws. Medical chatbot using OpenAI’s GPT-3 told a fake patient to kill",
+              "rect": {
+                "x": 108,
+                "y": 256.6,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "themselves. https://www.artificialintelligence-news.com/2020/10/28/",
+              "rect": {
+                "x": 117.96,
+                "y": 267.51,
+                "w": 386.59,
+                "h": 12.79
+              }
+            },
+            {
+              "text": "medical-chatbot-openai-gpt3-patient-kill-themselves/, October 2020. Accessed:",
+              "rect": {
+                "x": 117.92,
+                "y": 278.42,
+                "w": 387.46,
+                "h": 12.79
+              }
+            },
+            {
+              "text": "2024-1-19.",
+              "rect": {
+                "x": 117.96,
+                "y": 289.33,
+                "w": 43.99,
+                "h": 12
+              }
+            },
+            {
+              "text": "Shahul Es, Jithin James, Luis Espinosa-Anke, and Steven Schockaert. RAGAS: Automated evaluation",
+              "rect": {
+                "x": 108,
+                "y": 309,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "of retrieval augmented generation. September 2023a.",
+              "rect": {
+                "x": 117.96,
+                "y": 319.9,
+                "w": 212.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "Shahul Es, Jithin James, Luis Espinosa-Anke, and Steven Schockaert. Ragas: Automated evaluation",
+              "rect": {
+                "x": 108,
+                "y": 339.57,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "of retrieval augmented generation. arXiv preprint arXiv:2309.15217, 2023b.",
+              "rect": {
+                "x": 117.96,
+                "y": 350.48,
+                "w": 304.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Philip Feldman Foulds, R James, and Shimei Pan. Ragged edges: The double-edged sword of",
+              "rect": {
+                "x": 108,
+                "y": 370.15,
+                "w": 396.51,
+                "h": 12
+              }
+            },
+            {
+              "text": "retrieval-augmented chatbots. arXiv preprint arXiv:2403.01193, 2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 381.06,
+                "w": 281.08,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wikimedia Foundation. Wikimedia downloads. URL https://dumps.wikimedia.org.",
+              "rect": {
+                "x": 108,
+                "y": 400.73,
+                "w": 359.14,
+                "h": 12.79
+              }
+            },
+            {
+              "text": "Gemini Team. Gemini: A family of highly capable multimodal models. December 2023.",
+              "rect": {
+                "x": 108,
+                "y": 420.39,
+                "w": 355.08,
+                "h": 12
+              }
+            },
+            {
+              "text": "Robert Hart. Google restricts ai search tool after “nonsensical” an­swers told people to eat rocks and put glue on pizza, May 2024.",
+              "rect": {
+                "x": 108,
+                "y": 440.06,
+                "w": 397.74,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "URL https://www.forbes.com/sites/roberthart/2024/05/31/",
+              "rect": {
+                "x": 117.96,
+                "y": 461.88,
+                "w": 386.63,
+                "h": 12.79
+              }
+            },
+            {
+              "text": "google-restricts-ai-search-tool-after-nonsensical-answers-told-people-to-eat-rocks-and-put-glue-on-pizza/",
+              "rect": {
+                "x": 117.96,
+                "y": 473.65,
+                "w": 556.58,
+                "h": 11.94
+              }
+            },
+            {
+              "text": "?sh=64183b617f61.",
+              "rect": {
+                "x": 117.96,
+                "y": 483.7,
+                "w": 86.16,
+                "h": 12.79
+              }
+            },
+            {
+              "text": "Yasuto Hoshi, Daisuke Miyashita, Youyang Ng, Kento Tatsuno, Yasuhiro Morioka, Osamu Torii,",
+              "rect": {
+                "x": 108,
+                "y": 503.37,
+                "w": 397.25,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 514.27,
+            "w": 397.52,
+            "h": 208.52
+          },
+          "lines": [
+            {
+              "text": "and Jun Deguchi. RaLLe: A framework for developing and evaluating Retrieval-Augmented large",
+              "rect": {
+                "x": 117.96,
+                "y": 514.27,
+                "w": 386.04,
+                "h": 12
+              }
+            },
+            {
+              "text": "language models. August 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 525.18,
+                "w": 127,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan Su, Yan Xu, Etsuko Ishii, Ye Jin Bang,",
+              "rect": {
+                "x": 108,
+                "y": 544.85,
+                "w": 397.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "Andrea Madotto, and Pascale Fung. Survey of hallucination in natural language generation. ACM",
+              "rect": {
+                "x": 117.6,
+                "y": 555.76,
+                "w": 386.79,
+                "h": 12
+              }
+            },
+            {
+              "text": "Computing Surveys, 55(12):1–38, 2023.",
+              "rect": {
+                "x": 117.63,
+                "y": 566.67,
+                "w": 159.09,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jean Kaddour, Joshua Harris, Maximilian Mozes, Herbie Bradley, Roberta Raileanu, and Robert",
+              "rect": {
+                "x": 108,
+                "y": 586.34,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "McHardy. Challenges and applications of large language models. arXiv preprint arXiv:2307.10169,",
+              "rect": {
+                "x": 117.96,
+                "y": 597.25,
+                "w": 387.28,
+                "h": 12
+              }
+            },
+            {
+              "text": "2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 608.16,
+                "w": 22.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "Haoqiang Kang, Juntong Ni, and Huaxiu Yao. Ever: Mitigating hallucination in large language",
+              "rect": {
+                "x": 108,
+                "y": 627.82,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "models through real-time verification and rectification. arXiv preprint arXiv:2311.09114, 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 638.73,
+                "w": 381.06,
+                "h": 12
+              }
+            },
+            {
+              "text": "Mosh Levy, Alon Jacoby, and Yoav Goldberg. Same task, more tokens: the impact of input length on",
+              "rect": {
+                "x": 108,
+                "y": 658.4,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "the reasoning performance of large language models. arXiv preprint arXiv:2402.14848, 2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 669.31,
+                "w": 374.63,
+                "h": 12
+              }
+            },
+            {
+              "text": "Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal,",
+              "rect": {
+                "x": 108,
+                "y": 688.98,
+                "w": 397.25,
+                "h": 12
+              }
+            },
+            {
+              "text": "Heinrich Küttler, Mike Lewis, Wen-Tau Yih, Tim Rocktäschel, and Others. Retrieval-augmented",
+              "rect": {
+                "x": 117.96,
+                "y": 699.89,
+                "w": 386.04,
+                "h": 12
+              }
+            },
+            {
+              "text": "generation for knowledge-intensive nlp tasks. Adv. Neural Inf. Process. Syst., 33:9459–9474, 2020.",
+              "rect": {
+                "x": 117.96,
+                "y": 710.79,
+                "w": 387.56,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 301.02,
+            "y": 740.68,
+            "w": 9.96,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "10",
+              "rect": {
+                "x": 301.02,
+                "y": 740.68,
+                "w": 9.96,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 72.76,
+            "w": 397.75,
+            "h": 559.94
+          },
+          "lines": [
+            {
+              "text": "Shayne Longpre, Kartik Perisetla, Anthony Chen, Nikhil Ramesh, Chris DuBois, and Sameer Singh.",
+              "rect": {
+                "x": 108,
+                "y": 72.76,
+                "w": 397.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "Entity-based knowledge conflicts in question answering. arXiv preprint arXiv:2109.05052, 2021.",
+              "rect": {
+                "x": 117.96,
+                "y": 83.67,
+                "w": 387.78,
+                "h": 12
+              }
+            },
+            {
+              "text": "Yuning Mao, Pengcheng He, Xiaodong Liu, Yelong Shen, Jianfeng Gao, Jiawei Han, and Weizhu",
+              "rect": {
+                "x": 108,
+                "y": 102.55,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "Chen. Generation-Augmented retrieval for open-domain question answering. September 2020.",
+              "rect": {
+                "x": 117.96,
+                "y": 113.45,
+                "w": 378.82,
+                "h": 12
+              }
+            },
+            {
+              "text": "E Mitchell, Yoonho Lee, Alexander Khazatsky, Christopher D Manning, and Chelsea Finn. De­tectGPT: Zero-shot machine-generated text detection using probability curvature. ICML, pages",
+              "rect": {
+                "x": 108,
+                "y": 132.33,
+                "w": 396,
+                "h": 22.91
+              }
+            },
+            {
+              "text": "24950–24962, January 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 154.15,
+                "w": 115.67,
+                "h": 12
+              }
+            },
+            {
+              "text": "Anthony J Nastasi, Katherine R Courtright, Scott D Halpern, and Gary E Weissman. Does ChatGPT",
+              "rect": {
+                "x": 108,
+                "y": 173.03,
+                "w": 396.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "provide appropriate and equitable medical advice?: A vignette-based, clinical evaluation across",
+              "rect": {
+                "x": 117.96,
+                "y": 183.94,
+                "w": 386.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "care contexts. March 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 194.85,
+                "w": 109.12,
+                "h": 12
+              }
+            },
+            {
+              "text": "OpenAI. GPT-4 technical report. March 2023.",
+              "rect": {
+                "x": 108,
+                "y": 213.73,
+                "w": 186.09,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ankit Pal, Logesh Kumar Umapathi, and Malaikannan Sankarasubbu. Med-HALT: Medical domain",
+              "rect": {
+                "x": 108,
+                "y": 232.61,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "hallucination test for large language models. July 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 243.52,
+                "w": 222.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jon Saad-Falcon, Omar Khattab, Christopher Potts, and Matei Zaharia. ARES: An automated",
+              "rect": {
+                "x": 108,
+                "y": 262.4,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "evaluation framework for Retrieval-Augmented generation systems. November 2023a.",
+              "rect": {
+                "x": 117.96,
+                "y": 273.31,
+                "w": 345.02,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jon Saad-Falcon, Omar Khattab, Christopher Potts, and Matei Zaharia. Ares: An automated evaluation",
+              "rect": {
+                "x": 108,
+                "y": 292.18,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "framework for retrieval-augmented generation systems. arXiv preprint arXiv:2311.09476, 2023b.",
+              "rect": {
+                "x": 117.96,
+                "y": 303.09,
+                "w": 387.78,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kurt Shuster, Spencer Poff, Moya Chen, Douwe Kiela, and Jason Weston. Retrieval augmentation",
+              "rect": {
+                "x": 108,
+                "y": 321.97,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "reduces hallucination in conversation. arXiv preprint arXiv:2104.07567, 2021.",
+              "rect": {
+                "x": 117.96,
+                "y": 332.88,
+                "w": 313.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lichao Sun, Yue Huang, Haoran Wang, Siyuan Wu, Qihui Zhang, Chujie Gao, Yixin Huang, Wenhan",
+              "rect": {
+                "x": 108,
+                "y": 351.76,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "Lyu, Yixuan Zhang, Xiner Li, Zhengliang Liu, Yixin Liu, Yijue Wang, Zhikun Zhang, Bhavya",
+              "rect": {
+                "x": 117.96,
+                "y": 362.67,
+                "w": 386.04,
+                "h": 12
+              }
+            },
+            {
+              "text": "Kailkhura, Caiming Xiong, Chaowei Xiao, Chunyuan Li, Eric Xing, Furong Huang, Hao Liu, Heng",
+              "rect": {
+                "x": 117.96,
+                "y": 373.58,
+                "w": 386.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ji, Hongyi Wang, Huan Zhang, Huaxiu Yao, Manolis Kellis, Marinka Zitnik, Meng Jiang, Mohit",
+              "rect": {
+                "x": 117.77,
+                "y": 384.49,
+                "w": 386.23,
+                "h": 12
+              }
+            },
+            {
+              "text": "Bansal, James Zou, Jian Pei, Jian Liu, Jianfeng Gao, Jiawei Han, Jieyu Zhao, Jiliang Tang, Jindong",
+              "rect": {
+                "x": 117.96,
+                "y": 395.4,
+                "w": 386.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "Wang, John Mitchell, Kai Shu, Kaidi Xu, Kai-Wei Chang, Lifang He, Lifu Huang, Michael Backes,",
+              "rect": {
+                "x": 117.49,
+                "y": 406.31,
+                "w": 387.75,
+                "h": 12
+              }
+            },
+            {
+              "text": "Neil Zhenqiang Gong, Philip S Yu, Pin-Yu Chen, Quanquan Gu, Ran Xu, Rex Ying, Shuiwang",
+              "rect": {
+                "x": 117.96,
+                "y": 417.22,
+                "w": 386.04,
+                "h": 12
+              }
+            },
+            {
+              "text": "Ji, Suman Jana, Tianlong Chen, Tianming Liu, Tianyi Zhou, Willian Wang, Xiang Li, Xiangliang",
+              "rect": {
+                "x": 117.77,
+                "y": 428.12,
+                "w": 386.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "Zhang, Xiao Wang, Xing Xie, Xun Chen, Xuyu Wang, Yan Liu, Yanfang Ye, Yinzhi Cao, Yong",
+              "rect": {
+                "x": 117.96,
+                "y": 439.03,
+                "w": 386.04,
+                "h": 12
+              }
+            },
+            {
+              "text": "Chen, and Yue Zhao. TrustLLM: Trustworthiness in large language models. January 2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 449.94,
+                "w": 362.31,
+                "h": 12
+              }
+            },
+            {
+              "text": "Rhiannon Williams. Why google’s AI overviews gets things wrong. MIT Technology Review, May",
+              "rect": {
+                "x": 108,
+                "y": 468.82,
+                "w": 396.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 479.73,
+                "w": 22.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "Chong Xiang, Tong Wu, Zexuan Zhong, David Wagner, Danqi Chen, and Prateek Mittal. Certifiably",
+              "rect": {
+                "x": 108,
+                "y": 498.61,
+                "w": 396.35,
+                "h": 12
+              }
+            },
+            {
+              "text": "robust rag against retrieval corruption. arXiv preprint arXiv:2405.15556, 2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 509.52,
+                "w": 315.42,
+                "h": 12
+              }
+            },
+            {
+              "text": "Jian Xie, Kai Zhang, Jiangjie Chen, Renze Lou, and Yu Su. Adaptive chameleon or stubborn",
+              "rect": {
+                "x": 108,
+                "y": 528.4,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "sloth: Unraveling the behavior of large language models in knowledge conflicts. arXiv preprint",
+              "rect": {
+                "x": 117.96,
+                "y": 539.31,
+                "w": 386.22,
+                "h": 12
+              }
+            },
+            {
+              "text": "arXiv:2305.13300, 2023.",
+              "rect": {
+                "x": 117.96,
+                "y": 550.22,
+                "w": 100.17,
+                "h": 12
+              }
+            },
+            {
+              "text": "Zihan Zhang, Meng Fang, and Ling Chen. RetrievalQA: Assessing adaptive Retrieval-Augmented",
+              "rect": {
+                "x": 108,
+                "y": 569.1,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "generation for short-form Open-Domain question answering. February 2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 580,
+                "w": 307.39,
+                "h": 12
+              }
+            },
+            {
+              "text": "Qinyu Zhao, Ming Xu, Kartik Gupta, Akshay Asthana, Liang Zheng, and Stephen Gould. The first to",
+              "rect": {
+                "x": 108,
+                "y": 598.88,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "know: How token distributions reveal hidden knowledge in large Vision-Language models? March",
+              "rect": {
+                "x": 117.96,
+                "y": 609.79,
+                "w": 386.03,
+                "h": 12
+              }
+            },
+            {
+              "text": "2024.",
+              "rect": {
+                "x": 117.96,
+                "y": 620.7,
+                "w": 22.42,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "heading",
+          "rect": {
+            "x": 108,
+            "y": 651.81,
+            "w": 70.12,
+            "h": 15.55
+          },
+          "lines": [
+            {
+              "text": "A Appendix",
+              "rect": {
+                "x": 108,
+                "y": 651.81,
+                "w": 70.12,
+                "h": 15.55
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 301.02,
+            "y": 740.68,
+            "w": 9.96,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "11",
+              "rect": {
+                "x": 301.02,
+                "y": 740.68,
+                "w": 9.96,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 136.58,
+            "y": 121.08,
+            "w": 338.67,
+            "h": 82.45
+          },
+          "lines": [
+            {
+              "text": "Model Context Bias ↓ Prior Bias ↓ Accuracy ↑",
+              "rect": {
+                "x": 136.58,
+                "y": 121.08,
+                "w": 320.46,
+                "h": 18.77
+              }
+            },
+            {
+              "text": "Claude Opus 0.157 (0.141, 0.174) 0.021 (0.014, 0.029) 0.743 (0.723, 0.763)",
+              "rect": {
+                "x": 136.75,
+                "y": 136.63,
+                "w": 338.5,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Claude Sonnet 0.201 (0.184, 0.215) 0.025 (0.018, 0.033) 0.658 (0.641, 0.678)",
+              "rect": {
+                "x": 136.75,
+                "y": 147.9,
+                "w": 338.5,
+                "h": 12
+              }
+            },
+            {
+              "text": "Gemini 1.5 0.245 (0.231, 0.260) 0.037 (0.029, 0.046) 0.624 (0.607, 0.641)",
+              "rect": {
+                "x": 136.75,
+                "y": 158.8,
+                "w": 338.5,
+                "h": 12
+              }
+            },
+            {
+              "text": "GPT-4o 0.304 (0.287, 0.321) 0.021 (0.013, 0.028) 0.615 (0.594, 0.633)",
+              "rect": {
+                "x": 136.75,
+                "y": 169.71,
+                "w": 338.5,
+                "h": 12
+              }
+            },
+            {
+              "text": "GPT-3.5 0.313 (0.298, 0.329) 0.028 (0.021, 0.036) 0.539 (0.522, 0.558)",
+              "rect": {
+                "x": 136.75,
+                "y": 180.62,
+                "w": 338.5,
+                "h": 12
+              }
+            },
+            {
+              "text": "Llama-3 0.264 (0.250, 0.280) 0.021 (0.015, 0.027) 0.500 (0.482, 0.518)",
+              "rect": {
+                "x": 136.68,
+                "y": 191.53,
+                "w": 338.57,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.64,
+            "y": 215.86,
+            "w": 396.55,
+            "h": 55.64
+          },
+          "lines": [
+            {
+              "text": "Table 4: We compare six top-performing models across three metrics. Context bias is when the model",
+              "rect": {
+                "x": 107.69,
+                "y": 215.86,
+                "w": 396.3,
+                "h": 12
+              }
+            },
+            {
+              "text": "chooses the context answer when its prior was correct. Prior bias is when the model chooses its prior",
+              "rect": {
+                "x": 108,
+                "y": 226.77,
+                "w": 396.19,
+                "h": 12
+              }
+            },
+            {
+              "text": "when the context answer is correct. Finally, accuracy is a straightforward measure of the fraction",
+              "rect": {
+                "x": 107.64,
+                "y": 237.68,
+                "w": 396.36,
+                "h": 12
+              }
+            },
+            {
+              "text": "of times it can produce the correct answer. We find that Claude Opus performs the best across all",
+              "rect": {
+                "x": 108,
+                "y": 248.59,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "metrics with a context bias rate of 0.157.",
+              "rect": {
+                "x": 108,
+                "y": 259.5,
+                "w": 162.27,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 108,
+            "y": 649.55,
+            "w": 396.01,
+            "h": 22.91
+          },
+          "lines": [
+            {
+              "text": "Figure 5: We plot the data from Table 4 – each model’s performance across three metrics in different",
+              "rect": {
+                "x": 108,
+                "y": 649.55,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "colors, along with 95% confidence intervals.",
+              "rect": {
+                "x": 108,
+                "y": 660.46,
+                "w": 177.12,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 301.02,
+            "y": 740.68,
+            "w": 9.96,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "12",
+              "rect": {
+                "x": 301.02,
+                "y": 740.68,
+                "w": 9.96,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.64,
+            "y": 506.95,
+            "w": 396.55,
+            "h": 66.55
+          },
+          "lines": [
+            {
+              "text": "Figure 6: Effect of different prompts using GPT-4 on context preference rate vs prior probability. The",
+              "rect": {
+                "x": 108,
+                "y": 506.95,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "\"Strict\" prompt strongly enforces literal adherence to the retrieved context, while the \"Loose\" prompt",
+              "rect": {
+                "x": 108,
+                "y": 517.86,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "encourages the model to make a reasonable judgment in light of the provided context. We observe",
+              "rect": {
+                "x": 108,
+                "y": 528.77,
+                "w": 396,
+                "h": 12
+              }
+            },
+            {
+              "text": "lower and steeper drops in context preference with the loose vs strict prompts, suggesting that prompt",
+              "rect": {
+                "x": 108,
+                "y": 539.68,
+                "w": 396.01,
+                "h": 12
+              }
+            },
+            {
+              "text": "wording plays a significant factor in controlling context preference. Full prompts are provided in our",
+              "rect": {
+                "x": 107.64,
+                "y": 550.59,
+                "w": 396.55,
+                "h": 12
+              }
+            },
+            {
+              "text": "GitHub repository.",
+              "rect": {
+                "x": 108,
+                "y": 561.5,
+                "w": 74.62,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 301.02,
+            "y": 740.68,
+            "w": 9.96,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "13",
+              "rect": {
+                "x": 301.02,
+                "y": 740.68,
+                "w": 9.96,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 161.89,
+            "y": 102.52,
+            "w": 288.23,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Claude Opus Acc. Without Context Acc. With Correct Context",
+              "rect": {
+                "x": 161.89,
+                "y": 102.52,
+                "w": 288.23,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 161.89,
+            "y": 114.18,
+            "w": 242.05,
+            "h": 68.54
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.566 0.827",
+              "rect": {
+                "x": 161.89,
+                "y": 114.18,
+                "w": 242.05,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.550 0.935",
+              "rect": {
+                "x": 161.89,
+                "y": 125.49,
+                "w": 242.05,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.400 0.995",
+              "rect": {
+                "x": 161.89,
+                "y": 136.8,
+                "w": 242.05,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.109 0.966",
+              "rect": {
+                "x": 161.89,
+                "y": 148.11,
+                "w": 242.05,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.717 0.953",
+              "rect": {
+                "x": 161.89,
+                "y": 159.41,
+                "w": 242.05,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.490 0.980",
+              "rect": {
+                "x": 161.89,
+                "y": 170.72,
+                "w": 242.05,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 158.57,
+            "y": 193.03,
+            "w": 294.86,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Claude Sonnet Acc. Without Context Acc. With Correct Context",
+              "rect": {
+                "x": 158.57,
+                "y": 193.03,
+                "w": 294.86,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 158.57,
+            "y": 204.69,
+            "w": 248.69,
+            "h": 68.54
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.534 0.775",
+              "rect": {
+                "x": 158.57,
+                "y": 204.69,
+                "w": 248.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.405 0.930",
+              "rect": {
+                "x": 158.57,
+                "y": 216,
+                "w": 248.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.285 0.995",
+              "rect": {
+                "x": 158.57,
+                "y": 227.31,
+                "w": 248.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.0966 0.937",
+              "rect": {
+                "x": 158.57,
+                "y": 238.62,
+                "w": 248.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.508 0.880",
+              "rect": {
+                "x": 158.57,
+                "y": 249.92,
+                "w": 248.69,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.215 0.980",
+              "rect": {
+                "x": 158.57,
+                "y": 261.23,
+                "w": 248.69,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 153.59,
+            "y": 283.54,
+            "w": 304.82,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Gemini 1.5 Flash Acc. Without Context Acc. With Correct Context",
+              "rect": {
+                "x": 153.59,
+                "y": 283.54,
+                "w": 304.82,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 153.59,
+            "y": 295.2,
+            "w": 258.65,
+            "h": 68.54
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.213 0.735",
+              "rect": {
+                "x": 153.59,
+                "y": 295.2,
+                "w": 258.65,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.325 0.920",
+              "rect": {
+                "x": 153.59,
+                "y": 306.51,
+                "w": 258.65,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.200 0.995",
+              "rect": {
+                "x": 153.59,
+                "y": 317.82,
+                "w": 258.65,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.0840 0.958",
+              "rect": {
+                "x": 153.59,
+                "y": 329.13,
+                "w": 258.65,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.508 0.843",
+              "rect": {
+                "x": 153.59,
+                "y": 340.43,
+                "w": 258.65,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.205 0.990",
+              "rect": {
+                "x": 153.59,
+                "y": 351.74,
+                "w": 258.65,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 127.45,
+            "y": 374.05,
+            "w": 357.1,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "GPT-4o Acc. Without Context Acc. With Correct Context Mean Prior Prob",
+              "rect": {
+                "x": 127.45,
+                "y": 374.05,
+                "w": 357.1,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 127.45,
+            "y": 385.71,
+            "w": 331.87,
+            "h": 79.85
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.578 0.863 0.818",
+              "rect": {
+                "x": 127.45,
+                "y": 385.71,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.575 0.925 0.877",
+              "rect": {
+                "x": 127.45,
+                "y": 397.02,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.445 0.990 0.847",
+              "rect": {
+                "x": 127.45,
+                "y": 408.33,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.0882 0.971 0.469",
+              "rect": {
+                "x": 127.45,
+                "y": 419.64,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.628 0.921 0.498",
+              "rect": {
+                "x": 127.45,
+                "y": 430.94,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.540 0.990 0.773",
+              "rect": {
+                "x": 127.45,
+                "y": 442.25,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "All 0.467 0.941 0.675",
+              "rect": {
+                "x": 127.45,
+                "y": 453.56,
+                "w": 331.87,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 127.45,
+            "y": 475.86,
+            "w": 357.1,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "GPT-3.5 Acc. Without Context Acc. With Correct Context Mean Prior Prob",
+              "rect": {
+                "x": 127.45,
+                "y": 475.86,
+                "w": 357.1,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 127.45,
+            "y": 487.53,
+            "w": 331.87,
+            "h": 79.85
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.446 0.751 0.727",
+              "rect": {
+                "x": 127.45,
+                "y": 487.53,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.410 0.875 0.838",
+              "rect": {
+                "x": 127.45,
+                "y": 498.84,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.295 0.985 0.819",
+              "rect": {
+                "x": 127.45,
+                "y": 510.15,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.0630 0.908 0.232",
+              "rect": {
+                "x": 127.45,
+                "y": 521.45,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.592 0.796 0.578",
+              "rect": {
+                "x": 127.45,
+                "y": 532.76,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.295 0.980 0.596",
+              "rect": {
+                "x": 127.45,
+                "y": 544.07,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "All 0.344 0.879 0.573",
+              "rect": {
+                "x": 127.45,
+                "y": 555.38,
+                "w": 331.87,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 127.45,
+            "y": 577.68,
+            "w": 357.1,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Llama 3 Acc. Without Context Acc. With Correct Context Mean Prior Prob",
+              "rect": {
+                "x": 127.45,
+                "y": 577.68,
+                "w": 357.1,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 127.45,
+            "y": 589.35,
+            "w": 341.33,
+            "h": 91.15
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.317 0.598 0.793",
+              "rect": {
+                "x": 127.45,
+                "y": 589.35,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.290 0.915 0.853",
+              "rect": {
+                "x": 127.45,
+                "y": 600.66,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.165 0.925 0.770",
+              "rect": {
+                "x": 127.45,
+                "y": 611.96,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.0714 0.912 0.608",
+              "rect": {
+                "x": 127.45,
+                "y": 623.27,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.377 0.524 0.757",
+              "rect": {
+                "x": 127.45,
+                "y": 634.58,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.160 0.975 0.720",
+              "rect": {
+                "x": 127.45,
+                "y": 645.89,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "All 0.228 0.805 0.732",
+              "rect": {
+                "x": 127.45,
+                "y": 657.19,
+                "w": 331.87,
+                "h": 12
+              }
+            },
+            {
+              "text": "Table 5: Accuracy and Mean Prior Prob Comparison Across Models and Datasets",
+              "rect": {
+                "x": 142.91,
+                "y": 668.5,
+                "w": 325.87,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 301.02,
+            "y": 740.68,
+            "w": 9.96,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "14",
+              "rect": {
+                "x": 301.02,
+                "y": 740.68,
+                "w": 9.96,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "width": 612,
+      "height": 792,
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 114.38,
+            "y": 97.1,
+            "w": 449.65,
+            "h": 24.27
+          },
+          "lines": [
+            {
+              "text": "GPT-4o",
+              "rect": {
+                "x": 322.78,
+                "y": 97.1,
+                "w": 32.85,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Dataset Acc. Without Context Acc. With Correct Context (k=1) Acc. With Correct Context (k=5)",
+              "rect": {
+                "x": 114.38,
+                "y": 108.41,
+                "w": 449.65,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 114.38,
+            "y": 120.08,
+            "w": 390.81,
+            "h": 79.84
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.578 0.863 0.819",
+              "rect": {
+                "x": 114.38,
+                "y": 120.08,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.575 0.925 0.925",
+              "rect": {
+                "x": 114.38,
+                "y": 131.38,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.445 0.990 0.985",
+              "rect": {
+                "x": 114.38,
+                "y": 142.69,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.088 0.971 0.924",
+              "rect": {
+                "x": 114.38,
+                "y": 154,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.628 0.921 0.911",
+              "rect": {
+                "x": 114.38,
+                "y": 165.31,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.540 0.990 0.990",
+              "rect": {
+                "x": 114.38,
+                "y": 176.62,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "All 0.467 0.941 0.922",
+              "rect": {
+                "x": 114.38,
+                "y": 187.92,
+                "w": 390.81,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 114.38,
+            "y": 210.23,
+            "w": 449.65,
+            "h": 24.27
+          },
+          "lines": [
+            {
+              "text": "Claude Opus",
+              "rect": {
+                "x": 311.38,
+                "y": 210.23,
+                "w": 55.64,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Dataset Acc. Without Context Acc. With Correct Context (k=1) Acc. With Correct Context (k=5)",
+              "rect": {
+                "x": 114.38,
+                "y": 221.54,
+                "w": 449.65,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 233.2,
+            "w": 397.5,
+            "h": 102.07
+          },
+          "lines": [
+            {
+              "text": "Drugs 0.566 0.827 0.719",
+              "rect": {
+                "x": 114.38,
+                "y": 233.2,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Locations 0.550 0.935 0.875",
+              "rect": {
+                "x": 114.38,
+                "y": 244.51,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Names 0.400 0.995 0.880",
+              "rect": {
+                "x": 114.38,
+                "y": 255.82,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "News 0.109 0.966 0.853",
+              "rect": {
+                "x": 114.38,
+                "y": 267.13,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Records 0.717 0.953 0.822",
+              "rect": {
+                "x": 114.38,
+                "y": 278.43,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Years 0.490 0.980 0.935",
+              "rect": {
+                "x": 114.38,
+                "y": 289.74,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "All 0.463 0.939 0.843",
+              "rect": {
+                "x": 114.38,
+                "y": 301.05,
+                "w": 390.81,
+                "h": 12
+              }
+            },
+            {
+              "text": "Table 6: Accuracy comparison of GPT-4o and Claude Opus datasets without context, with correct",
+              "rect": {
+                "x": 107.69,
+                "y": 312.36,
+                "w": 396.32,
+                "h": 12
+              }
+            },
+            {
+              "text": "context for k=1, and with correct context for k=5.",
+              "rect": {
+                "x": 108,
+                "y": 323.27,
+                "w": 197.42,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 267.59,
+            "y": 402.42,
+            "w": 159.96,
+            "h": 24.27
+          },
+          "lines": [
+            {
+              "text": "Claude Opus, k=1",
+              "rect": {
+                "x": 267.59,
+                "y": 402.42,
+                "w": 76.82,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Prior Correct Context Correct",
+              "rect": {
+                "x": 270.13,
+                "y": 413.73,
+                "w": 157.42,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 178.39,
+            "y": 425.04,
+            "w": 255.21,
+            "h": 58.24
+          },
+          "lines": [
+            {
+              "text": "Prior Chosen 0.608 (0.575, 0.646) 0.042 (0.028, 0.058)",
+              "rect": {
+                "x": 178.39,
+                "y": 425.04,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Context Chosen 0.287 (0.255, 0.318) 0.901 (0.878, 0.923)",
+              "rect": {
+                "x": 178.39,
+                "y": 436.35,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Neither Chosen 0.105 (0.082, 0.129) 0.057 (0.039, 0.074)",
+              "rect": {
+                "x": 178.39,
+                "y": 447.65,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Claude Opus, k=5",
+              "rect": {
+                "x": 267.59,
+                "y": 470.32,
+                "w": 76.82,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 270.13,
+            "y": 481.63,
+            "w": 157.42,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Prior Correct Context Correct",
+              "rect": {
+                "x": 270.13,
+                "y": 481.63,
+                "w": 157.42,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 178.39,
+            "y": 492.93,
+            "w": 255.21,
+            "h": 58.24
+          },
+          "lines": [
+            {
+              "text": "Prior Chosen 0.618 (0.584, 0.652) 0.067 (0.050, 0.085)",
+              "rect": {
+                "x": 178.39,
+                "y": 492.93,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Context Chosen 0.237 (0.209, 0.267) 0.778 (0.747, 0.810)",
+              "rect": {
+                "x": 178.39,
+                "y": 504.24,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Neither Chosen 0.145 (0.121, 0.172) 0.155 (0.130, 0.181)",
+              "rect": {
+                "x": 178.39,
+                "y": 515.55,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "GPT-4o, k=1",
+              "rect": {
+                "x": 278.99,
+                "y": 538.21,
+                "w": 54.03,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 270.13,
+            "y": 549.52,
+            "w": 157.42,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Prior Correct Context Correct",
+              "rect": {
+                "x": 270.13,
+                "y": 549.52,
+                "w": 157.42,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 178.39,
+            "y": 560.83,
+            "w": 255.21,
+            "h": 58.24
+          },
+          "lines": [
+            {
+              "text": "Prior Chosen 0.355 (0.321, 0.388) 0.041 (0.027, 0.057)",
+              "rect": {
+                "x": 178.39,
+                "y": 560.83,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Context Chosen 0.582 (0.549, 0.617) 0.903 (0.881, 0.925)",
+              "rect": {
+                "x": 178.39,
+                "y": 572.14,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Neither Chosen 0.064 (0.048, 0.081) 0.056 (0.039, 0.074)",
+              "rect": {
+                "x": 178.39,
+                "y": 583.44,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "GPT-4o, k=5",
+              "rect": {
+                "x": 278.99,
+                "y": 606.11,
+                "w": 54.03,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "other",
+          "rect": {
+            "x": 270.13,
+            "y": 617.42,
+            "w": 157.42,
+            "h": 12.96
+          },
+          "lines": [
+            {
+              "text": "Prior Correct Context Correct",
+              "rect": {
+                "x": 270.13,
+                "y": 617.42,
+                "w": 157.42,
+                "h": 12.96
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 107.69,
+            "y": 628.72,
+            "w": 396.3,
+            "h": 57.2
+          },
+          "lines": [
+            {
+              "text": "Prior Chosen 0.535 (0.498, 0.569) 0.044 (0.029, 0.060)",
+              "rect": {
+                "x": 178.39,
+                "y": 628.72,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Context Chosen 0.383 (0.349, 0.416) 0.868 (0.843, 0.894)",
+              "rect": {
+                "x": 178.39,
+                "y": 640.03,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Neither Chosen 0.082 (0.061, 0.102) 0.088 (0.069, 0.111)",
+              "rect": {
+                "x": 178.39,
+                "y": 651.34,
+                "w": 255.21,
+                "h": 12.96
+              }
+            },
+            {
+              "text": "Table 7: Comparison of prior and context choices between Claude Opus and GPT-4o for k=1 and k=5",
+              "rect": {
+                "x": 107.69,
+                "y": 663.01,
+                "w": 396.3,
+                "h": 12
+              }
+            },
+            {
+              "text": "documents within the context.",
+              "rect": {
+                "x": 108,
+                "y": 673.92,
+                "w": 119.95,
+                "h": 12
+              }
+            }
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "rect": {
+            "x": 301.02,
+            "y": 740.68,
+            "w": 9.96,
+            "h": 12
+          },
+          "lines": [
+            {
+              "text": "15",
+              "rect": {
+                "x": 301.02,
+                "y": 740.68,
+                "w": 9.96,
+                "h": 12
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -25,6 +25,30 @@ msgid "{place} · {needsYou}"
 msgstr ""
 
 #: app/src/app/AppSidebar.tsx
+#: apps/desktop/src/main.ts
+msgid "Help"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
+msgid "Take the tour"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
+msgid "How owlit works"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
+#: app/src/app/ShortcutsDialog.tsx
+#: app/src/app/app-links.ts
+#: app/src/app/shortcuts.ts
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
+msgid "Ask Owlit how to…"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
 #: app/src/app/app-links.ts
 #: app/src/app/shortcuts.ts
 #: app/src/features/settings/SettingsDialog.tsx
@@ -51,6 +75,8 @@ msgstr ""
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/nav.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Docs"
 msgstr ""
@@ -105,6 +131,7 @@ msgstr ""
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
 #: app/src/features/library/digests.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/main.ts
 msgid "Open"
@@ -123,23 +150,20 @@ msgstr ""
 #: app/src/components/ui/sheet.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/library/reader/ReaderControls.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
 #: apps/share-web/src/App.tsx
 msgid "Close"
 msgstr ""
 
+#. verb: the step before
 #: app/src/app/Shell.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Back"
 msgstr ""
 
 #: app/src/app/Shell.tsx
 msgid "Forward"
-msgstr ""
-
-#: app/src/app/ShortcutsDialog.tsx
-#: app/src/app/app-links.ts
-#: app/src/app/shortcuts.ts
-msgid "Keyboard shortcuts"
 msgstr ""
 
 #: app/src/app/ShortcutsDialog.tsx
@@ -166,12 +190,25 @@ msgstr ""
 msgid "Settings › {place}"
 msgstr ""
 
+#: app/src/app/menu.ts
+msgid "Copied diagnostics"
+msgstr ""
+
+#: app/src/app/menu.ts
+msgid "Paste them into a message to whoever helps you."
+msgstr ""
+
+#: app/src/app/menu.ts
+msgid "The diagnostics couldn't be copied."
+msgstr ""
+
 #: app/src/app/nav.ts
 #: app/src/features/home/HomePage.tsx
 msgid "Home"
 msgstr ""
 
 #: app/src/app/nav.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Chat"
 msgstr ""
 
@@ -180,6 +217,9 @@ msgstr ""
 #: app/src/features/knowledge/pages/LoosePage.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 #: app/src/lib/kinds.ts
 msgid "Knowledge"
 msgstr ""
@@ -187,6 +227,10 @@ msgstr ""
 #: app/src/app/nav.ts
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Library"
 msgstr ""
@@ -216,6 +260,7 @@ msgstr ""
 #: app/src/features/library/notes/NoteEditor.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
 msgstr ""
@@ -332,6 +377,7 @@ msgstr ""
 #. verb: take back what was just done
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/lib/toast.ts
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
@@ -472,6 +518,7 @@ msgid "Ask anything."
 msgstr ""
 
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "Ask a follow-up…"
 msgstr ""
 
@@ -506,9 +553,11 @@ msgid "Note"
 msgstr ""
 
 #. a view of the paper page: Owlit's digest of the paper
+#. a view of the paper page: Owlit's digest of the paper
 #. chip: a passage quoted from the paper's digest
 #: app/src/features/agent/page-context.ts
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr ""
 
@@ -552,34 +601,42 @@ msgid "How do I… (about owlit)"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Up late, {name}"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good morning, {name}"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good afternoon, {name}"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good evening, {name}"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Up late"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good morning"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good afternoon"
 msgstr ""
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good evening"
 msgstr ""
 
@@ -794,13 +851,15 @@ msgstr ""
 msgid "Skip"
 msgstr ""
 
+#. button: the next question
+#. the tour's next stop
 #: app/src/features/chat/components/WaitingDock.tsx
-msgid "Submit"
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Next"
 msgstr ""
 
-#. button: the next question
 #: app/src/features/chat/components/WaitingDock.tsx
-msgid "Next"
+msgid "Submit"
 msgstr ""
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
@@ -886,6 +945,8 @@ msgid "Remove {name}"
 msgstr ""
 
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Ask about your papers, docs or notes…"
 msgstr ""
 
@@ -897,8 +958,14 @@ msgstr ""
 msgid "Or type your own answer…"
 msgstr ""
 
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
 #. verb: set up the agent in Settings
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Set up"
 msgstr ""
 
@@ -946,9 +1013,14 @@ msgstr ""
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
 #: apps/share-web/src/App.tsx
 msgid "Cancel"
 msgstr ""
@@ -1313,12 +1385,16 @@ msgid "Not checked"
 msgstr ""
 
 #. an agent's status: checking whether it is installed
+#. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Checking…"
 msgstr ""
 
 #. an agent's status
+#. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Ready"
 msgstr ""
 
@@ -1330,6 +1406,10 @@ msgstr ""
 
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t installed"
+msgstr ""
+
+#: app/src/features/chat/lib/connector-status.ts
+msgid "{agent} isn’t set up for Owlit"
 msgstr ""
 
 #: app/src/features/chat/lib/connector-status.ts
@@ -1393,6 +1473,7 @@ msgstr ""
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
+#: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
 msgstr ""
 
@@ -2014,16 +2095,21 @@ msgid "a paper's note"
 msgstr ""
 
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Suggested by Owlit"
 msgstr ""
 
 #. verb: discard an edit Owlit suggested
+#. verb: discard an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Discard"
 msgstr ""
 
 #. verb: apply an edit Owlit suggested
+#. verb: apply an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Apply"
 msgstr ""
 
@@ -2314,6 +2400,7 @@ msgid "In a doc, type @ to cite a paper."
 msgstr ""
 
 #: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Answer"
 msgstr ""
 
@@ -2434,7 +2521,11 @@ msgstr ""
 msgid "Stop sharing"
 msgstr ""
 
+#. closes How owlit works
+#. ends the tour
 #: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Done"
 msgstr ""
 
@@ -2466,6 +2557,7 @@ msgid "Recent"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Drop PDFs to add them to your Library"
 msgstr ""
 
@@ -2583,6 +2675,10 @@ msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An import asks about MinerU"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -2848,7 +2944,9 @@ msgid "a note"
 msgstr ""
 
 #. the speaker of a topic's line: You wrote, You said
+#. the speaker of a topic's line: You wrote, You said
 #: app/src/features/knowledge/format.ts
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 msgid "You"
 msgstr ""
 
@@ -3146,6 +3244,7 @@ msgid "{count, plural, one {Not in a topic yet · # passage} other {Not in a top
 msgstr ""
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 msgid "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
 msgstr ""
 
@@ -3354,8 +3453,10 @@ msgid "{0, plural, one {# doc} other {# docs}}"
 msgstr ""
 
 #. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
 #. placeholder {0}: papers.length
 #: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr ""
@@ -3509,10 +3610,12 @@ msgid "Copy all as Markdown"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Page {page}"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Select text in the PDF to highlight it."
 msgstr ""
 
@@ -3543,6 +3646,218 @@ msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight actions"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from Zotero"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from {name}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from the {name} folder"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{fresh, plural, one {Import {origin}: should MinerU read the new paper's PDF?} other {Import {origin}: should MinerU read the PDFs of # new papers?}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Read them"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Not this time"
+msgstr ""
+
+#. placeholder {0}: task.error ?? ""
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin} stopped: {0}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped after {done} of {total}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped"
+msgstr ""
+
+#. button: go on reading a paper
+#. carry on with a stopped import
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Continue"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Put away"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Reading the collection {origin}…"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Importing {origin} · {done} of {total}"
+msgstr ""
+
+#. placeholder {0}: summary.existed
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{0, plural, one {# was here already} other {# were here already}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{withoutPdf, plural, one {# without a PDF} other {# without a PDF}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {# paper came in {origin}} other {# papers came in {origin}}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Nothing new came in {origin}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "From this import"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {Show it} other {Show the #}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{n, plural, one {# couldn't be added} other {# couldn't be added}}"
+msgstr ""
+
+#. button of the folder picker
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Your Zotero folder"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Zotero"
+msgstr ""
+
+#. placeholder {0}: tilde(zotero)
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Found at {0}"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Choose its folder…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "From Zotero, Mendeley, JabRef or Google Scholar"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Every PDF in it and its subfolders"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import Papers"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Bring in papers from Zotero, a BibTeX file or a folder of PDFs"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "That collection couldn't be read."
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import from Zotero"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a BibTeX file"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a folder of PDFs"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "The import couldn't start."
+msgstr ""
+
+#. pick another collection to import
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Change…"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Reading…"
+msgstr ""
+
+#. placeholder {0}: preview.collections
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {Collections become tags (# collection)} other {Collections become tags (# collections)}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {MinerU reads the new paper's PDF} other {MinerU reads the PDFs of the # new papers}}"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Each one is paid for by your MinerU account. Off: pdfium alone, for this import."
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Nothing new to import"
+msgstr ""
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {Import # paper} other {Import # papers}}"
+msgstr ""
+
+#. placeholder {0}: p.total
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# PDF} other {# PDFs}}"
+msgstr ""
+
+#. placeholder {0}: p.total
+#. placeholder {1}: p.withPdf
+#. placeholder {2}: p.withPdf
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PDF}}"
+msgstr ""
+
+#. placeholder {0}: p.known
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr ""
 
 #. Library tab: the papers to read next
@@ -3581,6 +3896,8 @@ msgid "Layout"
 msgstr ""
 
 #: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Search, or paste a DOI, arXiv id or link to add"
 msgstr ""
 
@@ -3598,6 +3915,7 @@ msgstr ""
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
 msgstr ""
 
@@ -3618,6 +3936,7 @@ msgstr ""
 #. reading status of a paper: finished reading (past participle)
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Read"
 msgstr ""
 
@@ -3628,6 +3947,11 @@ msgstr ""
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Needs you"
+msgstr ""
+
+#. placeholder {0}: only.label
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Stop showing only {0}"
 msgstr ""
 
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -3709,11 +4033,6 @@ msgstr ""
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
-msgstr ""
-
-#. button: go on reading a paper
-#: app/src/features/library/components/PaperPeek.tsx
-msgid "Continue"
 msgstr ""
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
@@ -3854,7 +4173,7 @@ msgid "No papers match."
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
-msgid "Drop PDF to add"
+msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
@@ -3885,6 +4204,14 @@ msgstr ""
 msgid "Ask Owlit to find papers"
 msgstr ""
 
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Coming from Zotero or BibTeX?"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Import your collection"
+msgstr ""
+
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "This paper is not in the library"
 msgstr ""
@@ -3898,6 +4225,7 @@ msgid "Back to library"
 msgstr ""
 
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "{position} of {total}"
 msgstr ""
 
@@ -3931,16 +4259,19 @@ msgstr ""
 
 #. tab: the user's notes on a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Notes"
 msgstr ""
 
 #. tab: the passages highlighted in a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Highlights"
 msgstr ""
 
 #. tab: a paper's abstract and details
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "About"
 msgstr ""
 
@@ -3994,11 +4325,12 @@ msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is reading this paper again…"
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+msgid "Digest · Owlit, {when}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
-msgid "Digest · Owlit, {when}"
+msgid "Owlit is reading this paper again…"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -4142,6 +4474,8 @@ msgid "Choose file"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 #: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr ""
@@ -4276,6 +4610,273 @@ msgstr ""
 msgid "No PDF found. Drop one here if you have it."
 msgstr ""
 
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Agent for Owlit"
+msgstr ""
+
+#. placeholder {0}: c.version
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Ready · {0}"
+msgstr ""
+
+#. placeholder {0}: Math.round(progress * 100)
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Setting up… {0}%"
+msgstr ""
+
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Copy the install command"
+msgstr ""
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Copy the sign-in command"
+msgstr ""
+
+#. verb
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Check again"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Steps"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Skip intro"
+msgstr ""
+
+#. an onboarding step: writing docs
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Write"
+msgstr ""
+
+#. an onboarding step: asking Owlit
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Ask"
+msgstr ""
+
+#. an onboarding step: Owlit's Knowledge
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Remember"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "About you"
+msgstr ""
+
+#. an onboarding step: the agent Owlit runs on
+#. an onboarding step: the agent Owlit runs on
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Agent"
+msgstr ""
+
+#. an onboarding step: theme and paper tone
+#. an onboarding step: theme and paper tone
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Look"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Where to begin"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read, write and think through papers with <0>Owlit</0>."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Get started"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Takes about a minute. You can skip any of it."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read closely."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Write with your sources."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Ask, or hand it off."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Owlit keeps notes."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "From what you read, highlight and write, Owlit keeps notes on your research, by topic. <0>Every line says who said it</0>, and you can correct any of it."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "A little about you."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "So Owlit knows what to call you and how to reach your papers. All of it can wait."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Pick Owlit's engine."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Owlit runs on a coding agent you already have. Here's what's on this Mac."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Make it yours."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Pick a theme and a paper tone. You can change both in Settings."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Your name"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Where the Workspace Goes"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Open a Folder"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Where to begin?"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Look around a workspace that's already set up, or start with an empty folder of your own. You can do the other one later."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Explore an example"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Takes a short tour"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Eight papers on hallucination and retrieval, with digests, highlights, a draft and Owlit's notes."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Start fresh"
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "An empty folder for your own papers and notes. Drop in PDFs, or ask Owlit to find some."
+msgstr ""
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Or <0>open a folder you have</0>: notes, an Obsidian vault, PDFs."
+msgstr ""
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Read {paper}, pages {pages}"
+msgstr ""
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Reading {paper}, pages {pages}"
+msgstr ""
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Searched arXiv and Semantic Scholar · {found} found, {kept} kept"
+msgstr ""
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Searching arXiv and Semantic Scholar"
+msgstr ""
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
+msgstr ""
+
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/lib/time.ts
+msgid "just now"
+msgstr ""
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Highlight · {highlight}"
+msgstr ""
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Your doc · {doc}"
+msgstr ""
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Chat · {chat}"
+msgstr ""
+
+#. the speaker of a topic's line: the paper it came from
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "The paper"
+msgstr ""
+
+#. the speaker of a topic's line: Owlit's own reading
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Owlit thinks"
+msgstr ""
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Owlit is reading what you’ve touched…"
+msgstr ""
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "You corrected Owlit’s line"
+msgstr ""
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+msgstr ""
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+msgstr ""
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi!"
+msgstr ""
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Answered through {agentName}"
+msgstr ""
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
 msgstr ""
@@ -4353,10 +4954,16 @@ msgstr ""
 msgid "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
 msgstr ""
 
-#. verb
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Check again"
+msgid "Setting up… {percent}%"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Not set up · about {size} MB"
+msgstr ""
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Update to {latest}"
 msgstr ""
 
 #. verb: check whether the agent is installed and works
@@ -4492,11 +5099,6 @@ msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Your name"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
 msgstr ""
 
@@ -4506,10 +5108,6 @@ msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Agent"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -4774,6 +5372,7 @@ msgid "Only needed past the free daily allowance."
 msgstr ""
 
 #: app/src/features/settings/store.ts
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Owlit"
 msgstr ""
 
@@ -4785,13 +5384,78 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Owlit will use <0>{name}</0>"
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The example's papers"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Eight papers on hallucination and retrieval are already here. Click one to see its summary in place, then Open to read it."
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Try Self-RAG: click it, then Open…"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Owlit's digest"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Try switching to the PDF…"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Select to highlight or ask"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Select any sentence: pick a colour to highlight it, comment on it, or ask Owlit about it."
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Cite as you write"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The draft cites papers from the Library. Type <0>@</0> in any doc to add one."
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Ask from anywhere"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Press <0>⌘J</0> on any page to ask Owlit about what's on screen. It answers beside the page."
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "That's it"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Help is here"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own."
+msgstr ""
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: STOPS.length
+#: app/src/features/tour/TourOverlay.tsx
+msgid "{0} of {1}"
+msgstr ""
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Skip tour"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Change…"
+msgid "Owlit will use <0>{name}</0>"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
@@ -4799,7 +5463,23 @@ msgid "Looking for an agent on this Mac…"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "Setting up {name}… {percent}%"
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{name} couldn't be set up."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{name} is on this Mac."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set it up for Owlit (about {size} MB)."
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
@@ -4811,6 +5491,14 @@ msgid "Use another agent…"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "Owlit works through Claude Code or Codex."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Install one in Terminal, then sign in:"
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit needs a coding agent on this Mac."
 msgstr ""
 
@@ -4819,24 +5507,7 @@ msgid "To use {name}, run this in Terminal:"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "Copy the install command"
-msgstr ""
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Open a Folder"
-msgstr ""
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr ""
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Where the Workspace Goes"
-msgstr ""
-
-#. button of the folder picker
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose"
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
 msgstr ""
 
 #: app/src/features/welcome/WelcomePage.tsx
@@ -4907,10 +5578,6 @@ msgid "Just now"
 msgstr ""
 
 #: app/src/lib/time.ts
-msgid "just now"
-msgstr ""
-
-#: app/src/lib/time.ts
 #: apps/share-web/src/time.ts
 msgid "{minutes} min ago"
 msgstr ""
@@ -4956,6 +5623,35 @@ msgstr ""
 msgid "The publisher wants to check this is a person."
 msgstr ""
 
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command is installed"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Run “owlit --help” in Terminal to see what it can do."
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+#: apps/desktop/src/main.ts
+msgid "OK"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace the owlit command?"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "{LINK} already exists. Replacing it makes it run this copy of Owlit."
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace"
+msgstr ""
+
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command couldn't be installed"
+msgstr ""
+
 #: apps/desktop/src/main.ts
 msgid "Couldn't open the folder"
 msgstr ""
@@ -4997,15 +5693,15 @@ msgid "The pitta library couldn't be imported"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "OK"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "About {name}"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Install Command Line Tool…"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -5042,6 +5738,10 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Clear Menu"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Import Papers…"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -5128,7 +5828,11 @@ msgid "Bring All to Front"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "Help"
+msgid "Take the Tour"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "How owlit Works"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -5137,6 +5841,10 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Copy Diagnostics"
 msgstr ""
 
 #: apps/desktop/src/text-menu.ts
@@ -5361,6 +6069,10 @@ msgid "The agent"
 msgstr ""
 
 #: packages/core/src/agents/agents.ts
+msgid "owlit can't set agents up here."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
 msgid "owlit doesn't know that agent."
 msgstr ""
 
@@ -5409,6 +6121,22 @@ msgstr ""
 
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}"
+msgstr ""
+
+#: packages/core/src/agents/setup.ts
+msgid "npm finished, but the adapter isn't there."
+msgstr ""
+
+#: packages/core/src/agents/setup.ts
+msgid "Couldn't reach the npm registry. Check the network or proxy, then try again."
+msgstr ""
+
+#: packages/core/src/agents/setup.ts
+msgid "There isn't enough space on this Mac."
+msgstr ""
+
+#: packages/core/src/agents/setup.ts
+msgid "The setup failed."
 msgstr ""
 
 #: packages/core/src/agents/turns.ts
@@ -5478,6 +6206,10 @@ msgstr ""
 
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "This copy of owlit has no example workspace."
 msgstr ""
 
 #: packages/core/src/core.ts
@@ -5560,8 +6292,62 @@ msgstr ""
 msgid "Sources updated"
 msgstr ""
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr ""
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr ""
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr ""
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
 msgstr ""
 
 #: packages/core/src/library/library.ts
@@ -5578,10 +6364,6 @@ msgstr ""
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
 msgstr ""
 
 #: packages/core/src/library/library.ts

@@ -16,7 +16,9 @@ import { useCheckQueue } from "@/features/library/check-queue"
 import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@/features/library/types"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { useLoginTasks } from "@/features/tasks/store"
+import { useTasksStore, useLoginTasks } from "@/features/tasks/store"
+import { useImports } from "@/features/library/imports"
+import { importOrigin } from "@/features/library/components/ImportBanner"
 
 // Everything stuck on the user, in one list: a permission a chat waits for, a publisher that wants a
 // check, handed-off work that broke, an agent that can't run, a library sign-in. Each line is the thing
@@ -51,6 +53,8 @@ function useWaiting(): Waiting[] {
   const papers = useLibraryStore((s) => s.papers)
   const background = useSettings((s) => s.view?.backgroundAgent)
   const loginTask = useLoginTasks()[0]
+  const imports = useImports((s) => s.list)
+  const tasks = useTasksStore((s) => s.byId)
 
   return useMemo(() => {
     const out: Waiting[] = []
@@ -101,6 +105,13 @@ function useWaiting(): Waiting[] {
     }
     if (loginTask) {
       out.push({ key: "login", icon: LibraryIcon, what: t`Your library wants you to sign in`, where: t`to fetch PDFs`, open: { label: t`Library proxy`, run: () => openSettings("proxy") } })
+    }
+    // An import started from the CLI stops to ask about MinerU; the Library's line has the answers
+    for (const i of imports) {
+      const task = tasks[i.taskId]
+      if (task?.state !== "waiting_for_you" || task.waiting?.reason !== "confirm_spend") continue
+      const origin = importOrigin(i)
+      out.push({ key: `import:${i.id}`, icon: LibraryIcon, what: t`An import asks about MinerU`, where: origin, open: { label: t`Answer`, run: () => navigate("/library") } })
     }
     const waitingPapers = Object.values(papers)
       .filter((p) => p.noPdf?.needs && !p.pdf)
@@ -158,7 +169,7 @@ function useWaiting(): Waiting[] {
       })
     }
     return out
-  }, [chats, streaming, connectors, selected, background, dismissed, papers, loginTask, navigate])
+  }, [chats, streaming, connectors, selected, background, dismissed, papers, loginTask, imports, tasks, navigate])
 }
 
 // "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"

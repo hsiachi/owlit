@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/h+ciWm9t/KLFNabWFHqQlId2lpw</id>
+  <title>arXiv Query: search_query=&amp;id_list=2303.08896&amp;start=0&amp;max_results=10</title>
+  <updated>2026-10-13T13:45:08Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=2303.08896" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2303.08896v3</id>
+    <title>SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models</title>
+    <updated>2023-10-11T17:43:28Z</updated>
+    <link href="https://arxiv.org/abs/2303.08896v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2303.08896v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Generative Large Language Models (LLMs) such as GPT-3 are capable of generating highly fluent responses to a wide variety of user prompts. However, LLMs are known to hallucinate facts and make non-factual statements which can undermine trust in their output. Existing fact-checking approaches either require access to the output probability distribution (which may not be available for systems such as ChatGPT) or external databases that are interfaced via separate, often complex, modules. In this work, we propose "SelfCheckGPT", a simple sampling-based approach that can be used to fact-check the responses of black-box models in a zero-resource fashion, i.e. without an external database. SelfCheckGPT leverages the simple idea that if an LLM has knowledge of a given concept, sampled responses are likely to be similar and contain consistent facts. However, for hallucinated facts, stochastically sampled responses are likely to diverge and contradict one another. We investigate this approach by using GPT-3 to generate passages about individuals from the WikiBio dataset, and manually annotate the factuality of the generated passages. We demonstrate that SelfCheckGPT can: i) detect non-factual and factual sentences; and ii) rank passages in terms of factuality. We compare our approach to several baselines and show that our approach has considerably higher AUC-PR scores in sentence-level hallucination detection and higher correlation scores in passage-level factuality assessment compared to grey-box methods.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-03-15T19:31:21Z</published>
+    <arxiv:comment>EMNLP 2023 (main conference)</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Potsawee Manakul</name>
+    </author>
+    <author>
+      <name>Adian Liusie</name>
+    </author>
+    <author>
+      <name>Mark J. F. Gales</name>
+    </author>
+  </entry>
+</feed>

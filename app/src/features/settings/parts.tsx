@@ -1,5 +1,6 @@
-// The pieces every Settings section is made of: one bordered list with dividers, one setting per row,
-// the control at the right, and a second line only for a problem or a form that is open.
+// The pieces every Settings section is made of: groups under a heading, one setting per row with a hairline
+// between rows and nothing around them, the control at the right, and a second line only for a problem or a
+// form that is open.
 //
 // Every control ends on the same right edge. Text and icon buttons that come last are pulled out by
 // their own padding, so their text lines up with a switch or a field and only their hover fill reaches
@@ -12,7 +13,6 @@ import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
 import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { BorderedList } from "@/components/bordered-list"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
@@ -23,22 +23,25 @@ import { Tip } from "@/components/tip"
 import { useFoldWhile, useCheck } from "./form-state"
 import { setSecret, useSettings } from "./store"
 
-export const List = BorderedList
+// A group's rows: a hairline between them, none around them
+export function List({ children }: { children: React.ReactNode }) {
+  return <div className="divide-y">{children}</div>
+}
 
 // A group of rows in a section: an optional label, the rows, and a muted line under them for what the
 // whole group shares (where its keys are kept, what it is for when nothing is set up). A link can open
-// Settings at a group by its id. The label and the note follow the list's edge, 4px in: flush, they would
-// sit right against the rounded corner just below and look as if they hang outside it.
+// Settings at a group by its id. The label is a heading in the body's colour, with room above it, so groups
+// part by space rather than by boxes.
 export function Group({ id, label, info, note, children }: { id?: string; label?: string; info?: string; note?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section data-settings-group={id} className="scroll-mt-1 not-first:mt-6">
+    <section data-settings-group={id} className="scroll-mt-1 not-first:mt-9">
       {label && (
-        <GroupLabel as="h3" flush info={info} className="px-1">
+        <GroupLabel as="h3" flush info={info} className="mb-0.5 text-sm font-medium text-foreground">
           {label}
         </GroupLabel>
       )}
       {children}
-      {note && <p className="mt-1.5 px-1 text-detail leading-5 text-muted-foreground">{note}</p>}
+      {note && <p className="mt-1 text-detail leading-5 text-muted-foreground">{note}</p>}
     </section>
   )
 }
@@ -65,7 +68,7 @@ export function Row({
   className?: string
 }) {
   return (
-    <div className={cn("group/row flex min-h-12 flex-col justify-center px-3.5 py-2.5", className)}>
+    <div className={cn("group/row flex min-h-14 flex-col justify-center py-3", className)}>
       {/* The control is centred on the name and its help together, so a switch never floats at the top
           of a two-line row */}
       <div className="flex items-center gap-3">

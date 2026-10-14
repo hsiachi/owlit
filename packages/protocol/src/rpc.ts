@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -61,6 +61,9 @@ export const RpcErrorCode = {
 export interface Methods {
   "core.ping": { params: void; result: { ok: true } }
   "core.version": { params: void; result: CoreVersion }
+  // A short plain-text report for someone helping with a problem: versions, the agents and what keeps
+  // them from running, where owlit keeps its data. No keys, no paper titles, no file contents.
+  "core.diagnostics": { params: void; result: string }
   // The open workspace, or null before one is chosen
   "workspace.current": { params: void; result: WorkspaceInfo | null }
   // The open workspace, and whether one is opening right now
@@ -69,6 +72,9 @@ export interface Methods {
   "workspace.welcome": { params: void; result: WelcomeInfo }
   // Makes a new folder name in parent and opens it; refuses a name that is taken
   "workspace.create": { params: { parent: string; name: string }; result: WorkspaceInfo }
+  // Copies the example workspace the app ships into the folder Create would use (Documents), or opens the
+  // copy made before, and opens it
+  "workspace.createExample": { params: void; result: WorkspaceInfo }
   // Takes a workspace off the recent list (one that was moved, once it has been found elsewhere)
   "workspace.forget": { params: { path: string }; result: null }
   // Open a folder as the workspace, closing the current one; creates .owlit/ if missing
@@ -218,6 +224,10 @@ export interface Methods {
   "agents.guide": { params: { topic?: string }; result: string }
   // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
   "agents.check": { params: { id: string }; result: Connector }
+  // Fetches owlit's own copy of the agent's adapter (or a newer one) into owlit's data folder; returns at
+  // once, and agents.changed carries the progress and the end
+  "agents.setUp": { params: { id: string }; result: Connector }
+  "agents.cancelSetUp": { params: { id: string }; result: Connector }
   "agents.add": { params: { name: string; command: string }; result: Connector }
   // Removes one the user added
   "agents.remove": { params: { id: string }; result: null }
@@ -348,6 +358,24 @@ export interface Methods {
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
   // here are skipped. Waits until it is done; progress shows as an import.pitta task.
   "library.importPitta": { params: { root: string }; result: { added: number; skipped: number; failed: string[] } }
+  // Brings in a collection: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
+  // export), a BibTeX file, or a folder of PDFs. Returns once it has started; the import.<source> task
+  // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the
+  // library has are skipped; nothing gets a digest. parse answers ahead whether MinerU reads every new PDF.
+  "library.import": { params: { source: ImportSource; path: string; collectionsAsTags?: boolean; parse?: boolean }; result: ImportSummary }
+  // The Zotero library in its usual place (~/Zotero), or null when there is none
+  "library.findZotero": { params: void; result: string | null }
+  // What importing that collection would do, without adding anything
+  "library.previewImport": { params: { source: ImportSource; path: string }; result: ImportPreview }
+  // A cancelled or stopped import goes on, skipping what it did
+  "library.continueImport": { params: { id: string }; result: ImportSummary }
+  // Recent imports, newest first
+  "library.imports": { params: void; result: ImportSummary[] }
+  // The user's answer when an import asks before MinerU reads every PDF (confirm_spend): parse false
+  // imports without MinerU for this import's papers. The import carries on either way.
+  "library.importAnswer": { params: { id: string; parse: boolean }; result: ImportSummary }
+  // The Library's line about a finished import is put away
+  "library.dismissImport": { params: { id: string }; result: null }
   // The paper's full text, line by line with where each sits (text.json), or null before it is read
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
@@ -463,7 +491,7 @@ export interface CoreVersion {
   node: string
 }
 
-export type MenuCommand = "settings" | "shortcuts" | "how-to"
+export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics"
 
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {
@@ -486,6 +514,8 @@ export interface OwlitBridge {
   onMenu(listener: (command: MenuCommand) => void): () => void
   // The system's folder picker; the chosen folder, or null when cancelled
   chooseFolder(options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }): Promise<string | null>
+  // The system's file picker, showing only files with these extensions (without the dot); null when cancelled
+  chooseFile(options: { title: string; message?: string; buttonLabel?: string; extensions: string[] }): Promise<string | null>
   // Where the publisher's page shows during Check now, in the window's CSS pixels; null takes it away
   setPublisherView(bounds: { x: number; y: number; width: number; height: number } | null): void
   // A right-click the page leaves to the system's text menu: whether what is selected can be handed to

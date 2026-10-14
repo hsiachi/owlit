@@ -66,6 +66,13 @@ describe("the welcome page's requests", () => {
     ])
   })
 
+  it("shows the first-launch flow until a workspace has opened on this machine", async () => {
+    const { base, call } = setup()
+    expect((await call("settings.get")).onboarded).toBe(false)
+    await call("workspace.create", { parent: base, name: "Research" })
+    expect((await call("settings.get")).onboarded).toBe(true)
+  })
+
   it("lists a workspace that moved, and forgets it once found", async () => {
     const { base, call } = setup()
     const ws = path.join(base, "tool-use")

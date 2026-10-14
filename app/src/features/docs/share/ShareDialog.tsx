@@ -3,7 +3,8 @@ import { citedPaperIds, type WorkspaceFile } from "@owlit/protocol"
 import { BookOpenIcon, CheckIcon, CopyIcon, LinkIcon, StickyNoteIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { BorderedList } from "@/components/bordered-list"
+import { cn } from "@/lib/utils"
+import { RowList, RowIcon, rowClass } from "@/components/row-list"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
@@ -42,16 +43,20 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
   }
 
   const paperRows = (
-    <BorderedList>
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <BookOpenIcon className="size-4 shrink-0 text-muted-foreground" />
+    <RowList>
+      <div className={cn("flex items-center gap-3 py-2", rowClass)}>
+        <RowIcon>
+          <BookOpenIcon />
+        </RowIcon>
         <div className="min-w-0 flex-1">
           <p>{cited ? plural(cited, { one: "The paper it cites", other: "The # papers it cites" }) : t`The papers it cites`}</p>
           <p className="text-detail text-muted-foreground">{t`Owlit's digest of each and a link to read it. Papers you cite later join them.`}</p>
         </div>
       </div>
-      <label className="flex items-center gap-3 px-3 py-2.5">
-        <StickyNoteIcon className="size-4 shrink-0 text-muted-foreground" />
+      <label className={cn("flex items-center gap-3 py-2", rowClass)}>
+        <RowIcon>
+          <StickyNoteIcon />
+        </RowIcon>
         <div className="min-w-0 flex-1">
           <p>{t`Your notes on those papers`}</p>
           <p className="text-detail text-muted-foreground">{(share ? share.notes : notes) ? t`Readers see them beside each paper` : t`Kept to yourself`}</p>
@@ -63,7 +68,7 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
           aria-label={t`Share your notes on the papers`}
         />
       </label>
-    </BorderedList>
+    </RowList>
   )
 
   return (

@@ -2,7 +2,7 @@
   "name": "@owlit/desktop",
   "productName": "Owlit",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Owlit desktop shell",
   "type": "module",
   "main": "dist/main.cjs",
@@ -10,7 +10,8 @@
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
     "lint": "oxlint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "node scripts/build.mjs --release"
   },
   "devDependencies": {
     "@lingui/cli": "6.9.1",
@@ -18,6 +19,7 @@
     "@lingui/core": "6.9.1",
     "@lingui/native-tools": "0.1.6",
     "@owlit/agent": "workspace:*",
+    "@owlit/cli": "workspace:*",
     "@owlit/core": "workspace:*",
     "@owlit/i18n": "workspace:*",
     "@owlit/mcp": "workspace:*",
@@ -28,5 +30,9 @@
     "esbuild": "0.28.2",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2"
-  }
+  },
+  "dependencies": {
+    "npm": "12.2.0"
+  },
+  "author": "hsiachi"
 }

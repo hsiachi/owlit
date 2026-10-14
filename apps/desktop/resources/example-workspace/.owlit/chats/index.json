@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "chats": [
+    {
+      "id": "9192e0e5-7910-439e-8d76-8045ee386811",
+      "title": "In ClashEval, how does the calibrated token-probability method decide between…",
+      "createdAt": 1791900179273,
+      "updatedAt": 1791900179274,
+      "pinned": false,
+      "connectorId": "claude-code",
+      "modelId": "opus",
+      "role": "assistant",
+      "effortId": "medium"
+    },
+    {
+      "id": "2cd85522-7934-47c5-a56b-6aa328f604ae",
+      "title": "Make a table comparing how the detection papers in my library decide a claim is…",
+      "createdAt": 1791900087417,
+      "updatedAt": 1791900087418,
+      "pinned": false,
+      "connectorId": "claude-code",
+      "modelId": "opus",
+      "role": "assistant",
+      "effortId": "medium"
+    }
+  ]
+}

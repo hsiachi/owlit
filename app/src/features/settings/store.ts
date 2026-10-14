@@ -94,7 +94,7 @@ export async function setActivity(enabled: boolean) {
 function webView(appearance = storedAppearance()): SettingsView {
   const locale = interfaceLocale(appearance.language, navigator.languages)
   const digestLanguageSystem = appearance.language === "system" ? noteLanguageFor(navigator.languages) : noteLanguageOfLocale(locale)
-  return { appearance, locale, profile: {}, library: { digestLanguageSystem }, parsing: { auto: true }, secrets: {}, activity: { enabled: true } }
+  return { appearance, locale, profile: {}, library: { digestLanguageSystem }, parsing: { auto: true }, secrets: {}, activity: { enabled: true }, onboarded: true }
 }
 
 export function startSettings() {

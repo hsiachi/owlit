@@ -1,6 +1,8 @@
 import { t } from "@lingui/core/macro"
 import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
+import { homedir } from "node:os"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
@@ -26,6 +28,7 @@ import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
+import { copyExample } from "./workspace/example.ts"
 import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 import { OWLIT_DIR } from "./workspace/paths.ts"
@@ -57,6 +60,10 @@ export interface CoreOptions {
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
   // How to start the Owlit engine (packages/owlit-agent); without it the engine isn't offered
   engine?: { command: string; args: string[]; env?: Record<string, string> }
+  // How to run a JavaScript file as plain Node, and npm's CLI script: with both, owlit sets up its own copy
+  // of Claude Code's and Codex's adapters (agents/setup.ts)
+  node?: { command: string; args: string[]; env?: Record<string, string> }
+  npm?: string
   // How long Knowledge waits after the user's activity before a run (tests shorten it)
   knowledgeTimings?: KnowledgeTimings
   // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
@@ -66,6 +73,8 @@ export interface CoreOptions {
   shareServer?: string
   // How long changes settle before a shared doc is pushed, and how often comments are fetched (tests)
   shareTimings?: { settleMs?: number; pollMs?: number }
+  // The example workspace the app ships, which workspace.createExample copies
+  exampleDir?: string
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -106,6 +115,7 @@ export class Core {
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
     this.agents = new Agents({
       settings: this.settings,
+      setup: options.node && options.npm ? { dir: path.join(options.userDataDir, "agents"), node: options.node, npm: options.npm, fetchJson: async (url) => JSON.parse(await this.http.text(url)) } : undefined,
       probeDir: path.join(options.userDataDir, "agents", "probe"),
       cwd: () => this.workspace?.root ?? null,
       notify: (connector) => this.notifier.notify("agents.changed", connector),
@@ -155,6 +165,7 @@ export class Core {
     this.router.register("agents.rules", noParams, () => AGENT_RULES)
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
+    this.router.register("core.diagnostics", noParams, () => this.diagnostics())
 
     this.router.register("workspace.current", noParams, () => this.workspace?.info ?? null)
     this.router.register("workspace.open", z.object({ path: z.string().min(1) }), ({ path }) => this.openWorkspace(path))
@@ -170,6 +181,11 @@ export class Core {
     this.router.register("workspace.create", z.object({ parent: z.string().min(1), name: z.string() }), async ({ parent, name }) =>
       this.openWorkspace(await createFolder(parent, name)),
     )
+    this.router.register("workspace.createExample", noParams, async () => {
+      const source = this.options.exampleDir
+      if (!source || !existsSync(source)) throw new RpcFailure(RpcErrorCode.NotFound, t`This copy of owlit has no example workspace.`)
+      return this.openWorkspace(await copyExample(source, suggestFolder().parent))
+    })
     this.router.register("workspace.forget", z.object({ path: z.string().min(1) }), async ({ path }) => {
       await this.settings.forgetWorkspace(path)
       return null
@@ -314,6 +330,8 @@ export class Core {
 
     this.router.register("agents.list", noParams, () => this.agents.list())
     this.router.register("agents.check", z.object({ id: z.string() }), ({ id }) => this.agents.check(id))
+    this.router.register("agents.setUp", z.object({ id: z.string() }), ({ id }) => this.agents.setUp(id))
+    this.router.register("agents.cancelSetUp", z.object({ id: z.string() }), ({ id }) => this.agents.cancelSetUp(id))
     this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), ({ name, command }) => this.agents.add(name, command))
     this.router.register("agents.remove", z.object({ id: z.string() }), ({ id }) => this.agents.remove(id))
     this.router.register("agents.signIn", z.object({ id: z.string(), methodId: z.string(), apiKey: z.string().optional() }), ({ id, methodId, apiKey }) => this.agents.signIn(id, methodId, apiKey))
@@ -523,6 +541,22 @@ export class Core {
     )
     this.router.register("library.highlights", z.object({ id: paperId }), ({ id }) => library().highlights(id))
     this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
+    this.router.register(
+      "library.import",
+      z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1), collectionsAsTags: z.boolean().optional(), parse: z.boolean().optional() }),
+      ({ source, path, collectionsAsTags, parse }) => library().imports.start(source, path, { collectionsAsTags, parse }),
+    )
+    this.router.register("library.previewImport", z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1) }), ({ source, path }) =>
+      library().imports.preview(source, path),
+    )
+    this.router.register("library.continueImport", z.object({ id: z.string().min(1) }), ({ id }) => library().imports.continue(id))
+    this.router.register("library.imports", noParams, () => library().imports.list())
+    this.router.register("library.findZotero", noParams, () => library().imports.findZotero())
+    this.router.register("library.importAnswer", z.object({ id: z.string().min(1), parse: z.boolean() }), ({ id, parse }) => library().imports.answer(id, parse))
+    this.router.register("library.dismissImport", z.object({ id: z.string().min(1) }), async ({ id }) => {
+      await library().imports.dismiss(id)
+      return null
+    })
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.checkPublisher", z.object({ id: paperId }), ({ id }) => library().checkPublisher(id))
@@ -859,6 +893,21 @@ export class Core {
   private requireWorkspace() {
     if (!this.workspace) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     return this.workspace
+  }
+
+  private async diagnostics(): Promise<string> {
+    const macos = await new Promise<string>((resolve) => execFile("sw_vers", ["-productVersion"], (error, out) => resolve(error ? process.platform : `macOS ${out.trim()}`)))
+    const home = (p: string) => p.replace(homedir(), "~")
+    const lines = [`Owlit ${this.version().version} (${process.arch}) · ${macos} · Node ${process.versions.node}`]
+    for (const c of await this.agents.list()) {
+      const state = c.setup?.progress !== undefined ? "setting up" : c.status === "not_installed" ? (c.setup?.cliFound ? "on this Mac, not set up" : "not found") : c.authenticated === false ? "signed out" : c.status
+      const copy = c.setup?.installed ? `, owlit's copy ${c.setup.installed}` : ""
+      lines.push(`${c.name}: ${state}${c.version ? `, ${c.version}` : ""}${copy}${c.error ? ` · ${c.error}` : ""}${c.setup?.error ? ` · setup: ${c.setup.error}` : ""}`)
+    }
+    const ws = this.workspace
+    lines.push(ws ? `Workspace: ${home(ws.root)}` : "Workspace: none open")
+    lines.push(`Data: ${home(this.options.userDataDir)}${ws ? ` · ${home(ws.dataDir)}` : ""}`)
+    return lines.join("\n")
   }
 
   private version(): CoreVersion {

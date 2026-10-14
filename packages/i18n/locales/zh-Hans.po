@@ -25,6 +25,30 @@ msgid "{place} · {needsYou}"
 msgstr "{place} · {needsYou}"
 
 #: app/src/app/AppSidebar.tsx
+#: apps/desktop/src/main.ts
+msgid "Help"
+msgstr "帮助"
+
+#: app/src/app/AppSidebar.tsx
+msgid "Take the tour"
+msgstr "带我看一圈"
+
+#: app/src/app/AppSidebar.tsx
+msgid "How owlit works"
+msgstr "owlit 怎么用"
+
+#: app/src/app/AppSidebar.tsx
+#: app/src/app/ShortcutsDialog.tsx
+#: app/src/app/app-links.ts
+#: app/src/app/shortcuts.ts
+msgid "Keyboard shortcuts"
+msgstr "键盘快捷键"
+
+#: app/src/app/AppSidebar.tsx
+msgid "Ask Owlit how to…"
+msgstr "问 Owlit 怎么做…"
+
+#: app/src/app/AppSidebar.tsx
 #: app/src/app/app-links.ts
 #: app/src/app/shortcuts.ts
 #: app/src/features/settings/SettingsDialog.tsx
@@ -51,6 +75,8 @@ msgstr "对话"
 
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/nav.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Docs"
 msgstr "文档"
@@ -105,6 +131,7 @@ msgstr "什么也没找到。"
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
 #: app/src/features/library/digests.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/main.ts
 msgid "Open"
@@ -123,24 +150,21 @@ msgstr "选择"
 #: app/src/components/ui/sheet.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/library/reader/ReaderControls.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
 #: apps/share-web/src/App.tsx
 msgid "Close"
 msgstr "关闭"
 
+#. verb: the step before
 #: app/src/app/Shell.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Back"
 msgstr "后退"
 
 #: app/src/app/Shell.tsx
 msgid "Forward"
 msgstr "前进"
-
-#: app/src/app/ShortcutsDialog.tsx
-#: app/src/app/app-links.ts
-#: app/src/app/shortcuts.ts
-msgid "Keyboard shortcuts"
-msgstr "键盘快捷键"
 
 #: app/src/app/ShortcutsDialog.tsx
 msgid "Every keyboard shortcut in owlit"
@@ -166,12 +190,25 @@ msgstr "已移除论文"
 msgid "Settings › {place}"
 msgstr "设置 › {place}"
 
+#: app/src/app/menu.ts
+msgid "Copied diagnostics"
+msgstr "已复制诊断信息"
+
+#: app/src/app/menu.ts
+msgid "Paste them into a message to whoever helps you."
+msgstr "粘贴到消息里发给帮你的人。"
+
+#: app/src/app/menu.ts
+msgid "The diagnostics couldn't be copied."
+msgstr "没能复制诊断信息。"
+
 #: app/src/app/nav.ts
 #: app/src/features/home/HomePage.tsx
 msgid "Home"
 msgstr "主页"
 
 #: app/src/app/nav.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Chat"
 msgstr "对话"
 
@@ -180,6 +217,9 @@ msgstr "对话"
 #: app/src/features/knowledge/pages/LoosePage.tsx
 #: app/src/features/knowledge/pages/TopicPage.tsx
 #: app/src/features/knowledge/paper/KnowledgeTab.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 #: app/src/lib/kinds.ts
 msgid "Knowledge"
 msgstr "知识"
@@ -187,6 +227,10 @@ msgstr "知识"
 #: app/src/app/nav.ts
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Library"
 msgstr "文献库"
@@ -216,6 +260,7 @@ msgstr "在文献库和知识中"
 #: app/src/features/library/notes/NoteEditor.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
 msgid "Ask Owlit"
 msgstr "问 Owlit"
@@ -332,6 +377,7 @@ msgstr "关闭弹出框"
 #. verb: take back what was just done
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/lib/toast.ts
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
@@ -472,6 +518,7 @@ msgid "Ask anything."
 msgstr "想问什么都可以。"
 
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "Ask a follow-up…"
 msgstr "继续追问…"
 
@@ -506,9 +553,11 @@ msgid "Note"
 msgstr "笔记"
 
 #. a view of the paper page: Owlit's digest of the paper
+#. a view of the paper page: Owlit's digest of the paper
 #. chip: a passage quoted from the paper's digest
 #: app/src/features/agent/page-context.ts
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr "导读"
 
@@ -552,34 +601,42 @@ msgid "How do I… (about owlit)"
 msgstr "怎么做…（关于 owlit）"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Up late, {name}"
 msgstr "夜深了，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good morning, {name}"
 msgstr "早上好，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good afternoon, {name}"
 msgstr "下午好，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good evening, {name}"
 msgstr "晚上好，{name}"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Up late"
 msgstr "夜深了"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good morning"
 msgstr "早上好"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good afternoon"
 msgstr "下午好"
 
 #: app/src/features/chat/components/ChatEmpty.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Good evening"
 msgstr "晚上好"
 
@@ -794,14 +851,16 @@ msgstr "在下方输入你的回答"
 msgid "Skip"
 msgstr "跳过"
 
+#. button: the next question
+#. the tour's next stop
+#: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Next"
+msgstr "下一个"
+
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Submit"
 msgstr "提交"
-
-#. button: the next question
-#: app/src/features/chat/components/WaitingDock.tsx
-msgid "Next"
-msgstr "下一个"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Agent: {agent}"
@@ -886,6 +945,8 @@ msgid "Remove {name}"
 msgstr "移除 {name}"
 
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/demos/AskDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Ask about your papers, docs or notes…"
 msgstr "问问你的论文、文档或笔记…"
 
@@ -897,8 +958,14 @@ msgstr "也可以告诉 Owlit 改做什么…"
 msgid "Or type your own answer…"
 msgstr "也可以输入你自己的回答…"
 
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
 #. verb: set up the agent in Settings
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Set up"
 msgstr "设置"
 
@@ -946,9 +1013,14 @@ msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
 #: apps/share-web/src/App.tsx
 msgid "Cancel"
 msgstr "取消"
@@ -1313,12 +1385,16 @@ msgid "Not checked"
 msgstr "未检查"
 
 #. an agent's status: checking whether it is installed
+#. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Checking…"
 msgstr "正在检查…"
 
 #. an agent's status
+#. an agent's status
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Ready"
 msgstr "就绪"
 
@@ -1331,6 +1407,10 @@ msgstr "已连接"
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t installed"
 msgstr "{agent} 未安装"
+
+#: app/src/features/chat/lib/connector-status.ts
+msgid "{agent} isn’t set up for Owlit"
+msgstr "{agent} 还没为 Owlit 设置好"
 
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t signed in"
@@ -1393,6 +1473,7 @@ msgstr "阅读、回答并留下批注。不会改动你的文件或文献库。
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
+#: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
 msgstr "助理"
 
@@ -2014,16 +2095,21 @@ msgid "a paper's note"
 msgstr "一篇论文的笔记"
 
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Suggested by Owlit"
 msgstr "Owlit 的建议"
 
 #. verb: discard an edit Owlit suggested
+#. verb: discard an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Discard"
 msgstr "放弃"
 
 #. verb: apply an edit Owlit suggested
+#. verb: apply an edit Owlit suggested
 #: app/src/features/chat/pending-edits.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "Apply"
 msgstr "应用"
 
@@ -2314,6 +2400,7 @@ msgid "In a doc, type @ to cite a paper."
 msgstr "在文档中输入 @ 即可引用论文。"
 
 #: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Answer"
 msgstr "回答"
 
@@ -2434,7 +2521,11 @@ msgstr "读者看到的是最新版本。"
 msgid "Stop sharing"
 msgstr "停止分享"
 
+#. closes How owlit works
+#. ends the tour
 #: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Done"
 msgstr "完成"
 
@@ -2466,6 +2557,7 @@ msgid "Recent"
 msgstr "最近"
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Drop PDFs to add them to your Library"
 msgstr "拖入 PDF，添加到文献库"
 
@@ -2584,6 +2676,10 @@ msgstr "图书馆需要你登录"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
 msgstr "以获取 PDF"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An import asks about MinerU"
+msgstr "一次导入在问 MinerU 的事"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
@@ -2848,7 +2944,9 @@ msgid "a note"
 msgstr "一条笔记"
 
 #. the speaker of a topic's line: You wrote, You said
+#. the speaker of a topic's line: You wrote, You said
 #: app/src/features/knowledge/format.ts
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 msgid "You"
 msgstr "你"
 
@@ -3146,6 +3244,7 @@ msgid "{count, plural, one {Not in a topic yet · # passage} other {Not in a top
 msgstr "{count, plural, other {尚未归入主题 · # 个段落}}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
 msgid "{n, plural, one {Updated {when} · # topic} other {Updated {when} · # topics}}"
 msgstr "{n, plural, other {{when}更新 · # 个主题}}"
 
@@ -3354,8 +3453,10 @@ msgid "{0, plural, one {# doc} other {# docs}}"
 msgstr "{0, plural, other {# 篇文档}}"
 
 #. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
 #. placeholder {0}: papers.length
 #: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr "{0, plural, other {# 篇论文}}"
@@ -3509,10 +3610,12 @@ msgid "Copy all as Markdown"
 msgstr "全部复制为 Markdown"
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Page {page}"
 msgstr "第 {page} 页"
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Select text in the PDF to highlight it."
 msgstr "在 PDF 中选中文本即可高亮。"
 
@@ -3544,6 +3647,218 @@ msgstr "由 Owlit 添加"
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight actions"
 msgstr "高亮操作"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from Zotero"
+msgstr "来自 Zotero"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from {name}"
+msgstr "来自 {name}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "from the {name} folder"
+msgstr "来自文件夹 {name}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{fresh, plural, one {Import {origin}: should MinerU read the new paper's PDF?} other {Import {origin}: should MinerU read the PDFs of # new papers?}}"
+msgstr "{fresh, plural, one {导入（{origin}）：要让 MinerU 读这篇新论文的 PDF 吗？} other {导入（{origin}）：要让 MinerU 读这 # 篇新论文的 PDF 吗？}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Read them"
+msgstr "读"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Not this time"
+msgstr "这次不用"
+
+#. placeholder {0}: task.error ?? ""
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin} stopped: {0}"
+msgstr "导入（{origin}）停下了：{0}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped after {done} of {total}"
+msgstr "导入在 {done}/{total} 处停下了"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Import stopped"
+msgstr "导入停下了"
+
+#. button: go on reading a paper
+#. carry on with a stopped import
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Continue"
+msgstr "继续阅读"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Put away"
+msgstr "收起"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Reading the collection {origin}…"
+msgstr "正在读取文献集（{origin}）…"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Importing {origin} · {done} of {total}"
+msgstr "正在导入（{origin}）· {done}/{total}"
+
+#. placeholder {0}: summary.existed
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{0, plural, one {# was here already} other {# were here already}}"
+msgstr "{0, plural, other {# 篇已在库中}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{withoutPdf, plural, one {# without a PDF} other {# without a PDF}}"
+msgstr "{withoutPdf, plural, other {# 篇没有 PDF}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {# paper came in {origin}} other {# papers came in {origin}}}"
+msgstr "{added, plural, other {导入了 # 篇论文（{origin}）}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Nothing new came in {origin}"
+msgstr "没有新论文（{origin}）"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "From this import"
+msgstr "这次导入的"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{added, plural, one {Show it} other {Show the #}}"
+msgstr "{added, plural, one {查看} other {查看这 # 篇}}"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{n, plural, one {# couldn't be added} other {# couldn't be added}}"
+msgstr "{n, plural, other {# 篇没能加入}}"
+
+#. button of the folder picker
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose"
+msgstr "选取"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Your Zotero folder"
+msgstr "你的 Zotero 文件夹"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Zotero"
+msgstr "Zotero"
+
+#. placeholder {0}: tilde(zotero)
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Found at {0}"
+msgstr "在 {0}"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Choose its folder…"
+msgstr "选择它的文件夹…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file…"
+msgstr "BibTeX 文件…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "From Zotero, Mendeley, JabRef or Google Scholar"
+msgstr "Zotero、Mendeley、JabRef 或 Google Scholar 导出的"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A BibTeX file"
+msgstr "BibTeX 文件"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs…"
+msgstr "一个装着 PDF 的文件夹…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Every PDF in it and its subfolders"
+msgstr "其中及子文件夹里的所有 PDF"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "A folder of PDFs"
+msgstr "装着 PDF 的文件夹"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import Papers"
+msgstr "导入论文"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Bring in papers from Zotero, a BibTeX file or a folder of PDFs"
+msgstr "从 Zotero、BibTeX 文件或 PDF 文件夹导入论文"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "That collection couldn't be read."
+msgstr "无法读取这个文献集。"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import from Zotero"
+msgstr "从 Zotero 导入"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a BibTeX file"
+msgstr "导入 BibTeX 文件"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Import a folder of PDFs"
+msgstr "导入 PDF 文件夹"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "The import couldn't start."
+msgstr "导入没能开始。"
+
+#. pick another collection to import
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Change…"
+msgstr "更改…"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Reading…"
+msgstr "正在读取…"
+
+#. placeholder {0}: preview.collections
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {Collections become tags (# collection)} other {Collections become tags (# collections)}}"
+msgstr "{0, plural, other {把分类变成标签（# 个分类）}}"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {MinerU reads the new paper's PDF} other {MinerU reads the PDFs of the # new papers}}"
+msgstr "{fresh, plural, one {MinerU 读这篇新论文的 PDF} other {MinerU 读这 # 篇新论文的 PDF}}"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Each one is paid for by your MinerU account. Off: pdfium alone, for this import."
+msgstr "每一篇都由你的 MinerU 账户付费。关掉：这次导入只用 pdfium。"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Nothing new to import"
+msgstr "没有新的可导入"
+
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{fresh, plural, one {Import # paper} other {Import # papers}}"
+msgstr "{fresh, plural, other {导入 # 篇论文}}"
+
+#. placeholder {0}: p.total
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# PDF} other {# PDFs}}"
+msgstr "{0, plural, other {# 个 PDF}}"
+
+#. placeholder {0}: p.total
+#. placeholder {1}: p.withPdf
+#. placeholder {2}: p.withPdf
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PDF}}"
+msgstr "{0, plural, one {# 篇论文，{1} 篇有 PDF} other {# 篇论文，{2} 篇有 PDF}}"
+
+#. placeholder {0}: p.known
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
+msgstr "{0, plural, other {其中 # 篇已在库中。}}"
 
 #. Library tab: the papers to read next
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -3581,6 +3896,8 @@ msgid "Layout"
 msgstr "布局"
 
 #: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Search, or paste a DOI, arXiv id or link to add"
 msgstr "搜索，或粘贴 DOI、arXiv 编号或链接来添加"
 
@@ -3598,6 +3915,7 @@ msgstr "添加 PDF 文件"
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
 msgstr "在读"
 
@@ -3618,6 +3936,7 @@ msgstr "未读"
 #. reading status of a paper: finished reading (past participle)
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Read"
 msgstr "已读"
 
@@ -3629,6 +3948,11 @@ msgstr "已读"
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Needs you"
 msgstr "需要你处理"
+
+#. placeholder {0}: only.label
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Stop showing only {0}"
+msgstr "不再只看「{0}」"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Stop filtering by {tag}"
@@ -3710,11 +4034,6 @@ msgstr "无法请求导读。"
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
 msgstr "{0, plural, other {移除 # 篇论文}}"
-
-#. button: go on reading a paper
-#: app/src/features/library/components/PaperPeek.tsx
-msgid "Continue"
-msgstr "继续阅读"
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
@@ -3854,8 +4173,8 @@ msgid "No papers match."
 msgstr "没有匹配的论文。"
 
 #: app/src/features/library/pages/LibraryPage.tsx
-msgid "Drop PDF to add"
-msgstr "拖放 PDF 以添加"
+msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
+msgstr "拖入 PDF 来添加，或拖入 BibTeX 文件、文件夹来导入"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "No papers match “{words}”"
@@ -3885,6 +4204,14 @@ msgstr "选择 PDF"
 msgid "Ask Owlit to find papers"
 msgstr "让 Owlit 找论文"
 
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Coming from Zotero or BibTeX?"
+msgstr "从 Zotero 或 BibTeX 来？"
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Import your collection"
+msgstr "导入你的文献集"
+
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "This paper is not in the library"
 msgstr "这篇论文不在文献库中"
@@ -3898,6 +4225,7 @@ msgid "Back to library"
 msgstr "返回文献库"
 
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "{position} of {total}"
 msgstr "{position} / {total}"
 
@@ -3931,16 +4259,19 @@ msgstr "调整详情栏宽度"
 
 #. tab: the user's notes on a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Notes"
 msgstr "笔记"
 
 #. tab: the passages highlighted in a paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Highlights"
 msgstr "高亮"
 
 #. tab: a paper's abstract and details
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "About"
 msgstr "信息"
 
@@ -3994,12 +4325,13 @@ msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr "你可以继续阅读，导读写好后 Owlit 会告诉你。"
 
 #: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is reading this paper again…"
-msgstr "Owlit 正在重新阅读这篇论文…"
-
-#: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
 msgstr "导读 · Owlit，{when}"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr "Owlit 正在重新阅读这篇论文…"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Digest · Owlit"
@@ -4142,6 +4474,8 @@ msgid "Choose file"
 msgstr "选择文件"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 #: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr "重试"
@@ -4276,6 +4610,273 @@ msgstr "owlit 无法查找 PDF。"
 msgid "No PDF found. Drop one here if you have it."
 msgstr "未找到 PDF。如果你有，拖到这里即可。"
 
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Agent for Owlit"
+msgstr "Owlit 用的智能体"
+
+#. placeholder {0}: c.version
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Ready · {0}"
+msgstr "就绪 · {0}"
+
+#. placeholder {0}: Math.round(progress * 100)
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Setting up… {0}%"
+msgstr "正在设置… {0}%"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Copy the install command"
+msgstr "拷贝安装命令"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Copy the sign-in command"
+msgstr "拷贝登录命令"
+
+#. verb
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Check again"
+msgstr "重新检查"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Steps"
+msgstr "步骤"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Skip intro"
+msgstr "跳过介绍"
+
+#. an onboarding step: writing docs
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Write"
+msgstr "写作"
+
+#. an onboarding step: asking Owlit
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Ask"
+msgstr "提问"
+
+#. an onboarding step: Owlit's Knowledge
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Remember"
+msgstr "记住"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "About you"
+msgstr "关于你"
+
+#. an onboarding step: the agent Owlit runs on
+#. an onboarding step: the agent Owlit runs on
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Agent"
+msgstr "智能体"
+
+#. an onboarding step: theme and paper tone
+#. an onboarding step: theme and paper tone
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Look"
+msgstr "外观"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Where to begin"
+msgstr "从哪里开始"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read, write and think through papers with <0>Owlit</0>."
+msgstr "和 <0>Owlit</0> 一起读论文、写作、想问题。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Get started"
+msgstr "开始"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Takes about a minute. You can skip any of it."
+msgstr "大约一分钟，每一步都可以跳过。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read closely."
+msgstr "细细读。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+msgstr "拖进 PDF，或粘贴 DOI、arXiv 编号。边读边划重点，你打开的每篇论文，<0>Owlit 都会写一份导读</0>。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Write with your sources."
+msgstr "带着文献写。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
+msgstr "文档就是你文件夹里的 Markdown 文件。输入 <0>@</0> 引用论文。Owlit <1>只在你开口时</1>才提修改建议，留不留由你定。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Ask, or hand it off."
+msgstr "问它，或者交给它。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+msgstr "在任何地方按 <0>⌘J</0>，就屏幕上的内容提问。在对话里，可以把<1>耗时的活交给它</1>，比如找论文，你接着忙你的。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Owlit keeps notes."
+msgstr "Owlit 会记笔记。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "From what you read, highlight and write, Owlit keeps notes on your research, by topic. <0>Every line says who said it</0>, and you can correct any of it."
+msgstr "Owlit 从你读的、划的、写的内容里，按主题为你的研究记笔记。<0>每一行都写明是谁说的</0>，哪一行都可以改。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "A little about you."
+msgstr "说说你自己。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "So Owlit knows what to call you and how to reach your papers. All of it can wait."
+msgstr "好让 Owlit 知道怎么称呼你、怎么拿到你的论文。这些都可以以后再填。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Pick Owlit's engine."
+msgstr "给 Owlit 选个引擎。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Owlit runs on a coding agent you already have. Here's what's on this Mac."
+msgstr "Owlit 用你已经装好的编程智能体来运行。这台 Mac 上有这些："
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Make it yours."
+msgstr "按你的喜好来。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Pick a theme and a paper tone. You can change both in Settings."
+msgstr "选一个主题和纸张色调，之后都能在设置里改。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Your name"
+msgstr "你的名字"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Where the Workspace Goes"
+msgstr "工作区存放位置"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Open a Folder"
+msgstr "打开文件夹"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Where to begin?"
+msgstr "从哪里开始？"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Look around a workspace that's already set up, or start with an empty folder of your own. You can do the other one later."
+msgstr "先逛逛一个已经布置好的工作区，或者从你自己的空文件夹开始。另一个以后也能再选。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Explore an example"
+msgstr "看看示例"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Takes a short tour"
+msgstr "附带简短导览"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Eight papers on hallucination and retrieval, with digests, highlights, a draft and Owlit's notes."
+msgstr "八篇关于幻觉与检索的论文，带导读、高亮、一篇草稿和 Owlit 的笔记。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Start fresh"
+msgstr "从头开始"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "An empty folder for your own papers and notes. Drop in PDFs, or ask Owlit to find some."
+msgstr "一个空文件夹，放你自己的论文和笔记。拖进 PDF，或者让 Owlit 帮你找。"
+
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Or <0>open a folder you have</0>: notes, an Obsidian vault, PDFs."
+msgstr "或者<0>打开已有的文件夹</0>：笔记、Obsidian 库、一堆 PDF 都行。"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Read {paper}, pages {pages}"
+msgstr "读了 {paper}，第 {pages} 页"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Reading {paper}, pages {pages}"
+msgstr "正在读 {paper}，第 {pages} 页"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Searched arXiv and Semantic Scholar · {found} found, {kept} kept"
+msgstr "搜索了 arXiv 和 Semantic Scholar · 找到 {found} 篇，留下 {kept} 篇"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Searching arXiv and Semantic Scholar"
+msgstr "正在搜索 arXiv 和 Semantic Scholar"
+
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
+msgstr "{kept, plural, other {已把 # 篇论文加入文献库}}"
+
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/lib/time.ts
+msgid "just now"
+msgstr "刚刚"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Highlight · {highlight}"
+msgstr "高亮 · {highlight}"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Your doc · {doc}"
+msgstr "你的文档 · {doc}"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Chat · {chat}"
+msgstr "对话 · {chat}"
+
+#. the speaker of a topic's line: the paper it came from
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "The paper"
+msgstr "论文"
+
+#. the speaker of a topic's line: Owlit's own reading
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Owlit thinks"
+msgstr "Owlit 认为"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "Owlit is reading what you’ve touched…"
+msgstr "Owlit 正在读你碰过的内容…"
+
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+msgid "You corrected Owlit’s line"
+msgstr "你改了 Owlit 的这一行"
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+msgstr "你好，{who}。我是 Owlit，会通过这台 Mac 上的 {agentName} 工作。可以问我关于论文的问题，也可以把耗时的活交给我，比如找论文、做表格。"
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
+msgstr "你好，我是 Owlit，会通过这台 Mac 上的 {agentName} 工作。可以问我关于论文的问题，也可以把耗时的活交给我，比如找论文、做表格。"
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Hi!"
+msgstr "你好！"
+
+#: app/src/features/onboarding/demos/SetupDemos.tsx
+msgid "Answered through {agentName}"
+msgstr "通过 {agentName} 回答"
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
 msgstr "Owlit 怎么称呼你、没人等着时它做的工作，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
@@ -4353,11 +4954,17 @@ msgstr "登录方式"
 msgid "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
 msgstr "{engineName} 可以同时登录多个服务商。每个对话都可以在输入框中从中任选模型。"
 
-#. verb
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Check again"
-msgstr "重新检查"
+msgid "Setting up… {percent}%"
+msgstr "正在设置… {percent}%"
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Not set up · about {size} MB"
+msgstr "未设置 · 约 {size} MB"
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Update to {latest}"
+msgstr "更新到 {latest}"
 
 #. verb: check whether the agent is installed and works
 #: app/src/features/settings/sections/AgentsSection.tsx
@@ -4492,11 +5099,6 @@ msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr "owlit 记住的内容只保存在这个工作区，绝不会发送到任何地方。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Your name"
-msgstr "你的名字"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
 msgstr "Owlit 怎么称呼你"
 
@@ -4507,10 +5109,6 @@ msgstr "自动（{fallbackName}）"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic"
 msgstr "自动"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Agent"
-msgstr "智能体"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Writes digests and keeps Knowledge up to date."
@@ -4774,6 +5372,7 @@ msgid "Only needed past the free daily allowance."
 msgstr "仅在超出每日免费额度时需要。"
 
 #: app/src/features/settings/store.ts
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Owlit"
 msgstr "Owlit"
 
@@ -4785,22 +5384,103 @@ msgstr "智能体"
 msgid "Appearance"
 msgstr "外观"
 
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The example's papers"
+msgstr "示例的论文"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Eight papers on hallucination and retrieval are already here. Click one to see its summary in place, then Open to read it."
+msgstr "八篇关于幻觉与检索的论文已经在这里了。点一篇就地看摘要，再点“打开”阅读。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Try Self-RAG: click it, then Open…"
+msgstr "试试 Self-RAG：点它，再点“打开”…"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Owlit's digest"
+msgstr "Owlit 的导读"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+msgstr "论文打开时先显示 Owlit 的导读：它问了什么、怎么做、发现了什么，附页码链接。切到 PDF 就能读原文。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Try switching to the PDF…"
+msgstr "试着切到 PDF…"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Select to highlight or ask"
+msgstr "选中即可高亮或提问"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Select any sentence: pick a colour to highlight it, comment on it, or ask Owlit about it."
+msgstr "选中任意一句：挑个颜色高亮、写条批注，或者问 Owlit。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Cite as you write"
+msgstr "边写边引用"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The draft cites papers from the Library. Type <0>@</0> in any doc to add one."
+msgstr "这篇草稿引用了文献库里的论文。在任何文档里输入 <0>@</0> 就能加引用。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Ask from anywhere"
+msgstr "随处可问"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Press <0>⌘J</0> on any page to ask Owlit about what's on screen. It answers beside the page."
+msgstr "在任何页面按 <0>⌘J</0>，就屏幕上的内容问 Owlit，它在页面旁边回答。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "That's it"
+msgstr "就这些"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Help is here"
+msgstr "帮助在这里"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own."
+msgstr "可以再看一遍导览、查所有快捷键，或者问 Owlit 怎么做。准备好了，用 文件 › 打开工作区 打开你自己的文件夹。"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: STOPS.length
+#: app/src/features/tour/TourOverlay.tsx
+msgid "{0} of {1}"
+msgstr "{0}/{1}"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Skip tour"
+msgstr "跳过导览"
+
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
 msgstr "Owlit 将使用 <0>{name}</0>"
-
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Change…"
-msgstr "更改…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Looking for an agent on this Mac…"
 msgstr "正在这台 Mac 上查找智能体…"
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "Setting up {name}… {percent}%"
+msgstr "正在设置 {name}… {percent}%"
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 msgstr "<0>{problem}。</0>在终端中运行 <1>{command}</1> 以登录。"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{name} couldn't be set up."
+msgstr "{name} 没能设置好。"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{name} is on this Mac."
+msgstr "这台 Mac 上有 {name}。"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set it up for Owlit (about {size} MB)."
+msgstr "为 Owlit 设置它（约 {size} MB）。"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "{problem}."
@@ -4811,6 +5491,14 @@ msgid "Use another agent…"
 msgstr "使用其他智能体…"
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "Owlit works through Claude Code or Codex."
+msgstr "Owlit 通过 Claude Code 或 Codex 工作。"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Install one in Terminal, then sign in:"
+msgstr "在终端里装一个，再登录："
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit needs a coding agent on this Mac."
 msgstr "Owlit 需要这台 Mac 上有一个编程智能体。"
 
@@ -4819,25 +5507,8 @@ msgid "To use {name}, run this in Terminal:"
 msgstr "要使用 {name}，请在终端中运行："
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "Copy the install command"
-msgstr "拷贝安装命令"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Open a Folder"
-msgstr "打开文件夹"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Where the Workspace Goes"
-msgstr "工作区存放位置"
-
-#. button of the folder picker
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose"
-msgstr "选取"
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+msgstr "或者<0>用 ChatGPT 登录</0>，使用 Owlit engine (Beta)。"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
@@ -4907,10 +5578,6 @@ msgid "Just now"
 msgstr "刚刚"
 
 #: app/src/lib/time.ts
-msgid "just now"
-msgstr "刚刚"
-
-#: app/src/lib/time.ts
 #: apps/share-web/src/time.ts
 msgid "{minutes} min ago"
 msgstr "{minutes} 分钟前"
@@ -4956,6 +5623,35 @@ msgstr "请在页面上登录图书馆或出版商。"
 msgid "The publisher wants to check this is a person."
 msgstr "出版商想确认你是真人。"
 
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command is installed"
+msgstr "owlit 命令已安装"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Run “owlit --help” in Terminal to see what it can do."
+msgstr "在终端中运行“owlit --help”，看看它能做什么。"
+
+#: apps/desktop/src/cli-tool.ts
+#: apps/desktop/src/main.ts
+msgid "OK"
+msgstr "好"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace the owlit command?"
+msgstr "要替换 owlit 命令吗？"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "{LINK} already exists. Replacing it makes it run this copy of Owlit."
+msgstr "{LINK} 已存在。替换后，它会运行这一份 Owlit。"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "Replace"
+msgstr "替换"
+
+#: apps/desktop/src/cli-tool.ts
+msgid "The owlit command couldn't be installed"
+msgstr "无法安装 owlit 命令"
+
 #: apps/desktop/src/main.ts
 msgid "Couldn't open the folder"
 msgstr "无法打开文件夹"
@@ -4997,16 +5693,16 @@ msgid "The pitta library couldn't be imported"
 msgstr "无法导入 pitta 文献库"
 
 #: apps/desktop/src/main.ts
-msgid "OK"
-msgstr "好"
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr "设置…"
 
 #: apps/desktop/src/main.ts
 msgid "About {name}"
 msgstr "关于 {name}"
+
+#: apps/desktop/src/main.ts
+msgid "Install Command Line Tool…"
+msgstr "安装命令行工具…"
 
 #: apps/desktop/src/main.ts
 msgid "Services"
@@ -5043,6 +5739,10 @@ msgstr "没有最近使用的工作区"
 #: apps/desktop/src/main.ts
 msgid "Clear Menu"
 msgstr "清除菜单"
+
+#: apps/desktop/src/main.ts
+msgid "Import Papers…"
+msgstr "导入论文…"
 
 #: apps/desktop/src/main.ts
 msgid "Import a pitta Library…"
@@ -5128,8 +5828,12 @@ msgid "Bring All to Front"
 msgstr "前置全部窗口"
 
 #: apps/desktop/src/main.ts
-msgid "Help"
-msgstr "帮助"
+msgid "Take the Tour"
+msgstr "带我看一圈"
+
+#: apps/desktop/src/main.ts
+msgid "How owlit Works"
+msgstr "owlit 怎么用"
 
 #: apps/desktop/src/main.ts
 msgid "Keyboard Shortcuts"
@@ -5138,6 +5842,10 @@ msgstr "键盘快捷键"
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
 msgstr "问 Owlit 怎么做…"
+
+#: apps/desktop/src/main.ts
+msgid "Copy Diagnostics"
+msgstr "复制诊断信息"
 
 #: apps/desktop/src/text-menu.ts
 msgid "No Guesses Found"
@@ -5361,6 +6069,10 @@ msgid "The agent"
 msgstr "智能体"
 
 #: packages/core/src/agents/agents.ts
+msgid "owlit can't set agents up here."
+msgstr "owlit 在这里无法设置 agent。"
+
+#: packages/core/src/agents/agents.ts
 msgid "owlit doesn't know that agent."
 msgstr "owlit 不认识这个智能体。"
 
@@ -5410,6 +6122,22 @@ msgstr "{name} 已退出，代码 {code}。发送下一条消息时会重新启�
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
+
+#: packages/core/src/agents/setup.ts
+msgid "npm finished, but the adapter isn't there."
+msgstr "npm 跑完了，但适配器不在。"
+
+#: packages/core/src/agents/setup.ts
+msgid "Couldn't reach the npm registry. Check the network or proxy, then try again."
+msgstr "连不上 npm 源。检查网络或代理后再试。"
+
+#: packages/core/src/agents/setup.ts
+msgid "There isn't enough space on this Mac."
+msgstr "这台 Mac 的空间不够。"
+
+#: packages/core/src/agents/setup.ts
+msgid "The setup failed."
+msgstr "设置失败了。"
 
 #: packages/core/src/agents/turns.ts
 msgid "This chat is still answering."
@@ -5479,6 +6207,10 @@ msgstr "那个对话已不在废纸篓中。"
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
 msgstr "那不是这个对话的文件。"
+
+#: packages/core/src/core.ts
+msgid "This copy of owlit has no example workspace."
+msgstr "这个 owlit 没有附带示例工作区。"
 
 #: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts
@@ -5560,9 +6292,63 @@ msgstr "{0, plural, other {删除 # 行}}"
 msgid "Sources updated"
 msgstr "来源已更新"
 
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/library.ts
+msgid "owlit can't import here."
+msgstr "owlit 在这里无法导入。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "This import's record is gone."
+msgstr "这次导入的记录不见了。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "MinerU would read the PDFs of {fresh} new papers, and each one is paid for."
+msgstr "MinerU 会读取 {fresh} 篇新论文的 PDF，每一篇都要付费。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "It has no title, identifier or PDF."
+msgstr "它没有标题、标识符或 PDF。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is no such import."
+msgstr "没有这次导入。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "There is nothing at {file}."
+msgstr "{file} 处什么都没有。"
+
+#: packages/core/src/library/bulk/imports.ts
+msgid "{file} isn't a folder."
+msgstr "{file} 不是文件夹。"
+
+#: packages/core/src/library/bulk/imports.ts
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a BibTeX file."
+msgstr "{file} 不是 BibTeX 文件。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no Zotero library at {input}."
+msgstr "{input} 处没有 Zotero 文献库。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no file at {file}."
+msgstr "{file} 处没有文件。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "{file} isn't a Better BibTeX JSON export."
+msgstr "{file} 不是 Better BibTeX 导出的 JSON。"
+
+#: packages/core/src/library/bulk/sources.ts
+msgid "There is no folder at {dir}."
+msgstr "{dir} 处没有文件夹。"
+
 #: packages/core/src/library/library.ts
 msgid "That paper is not in the library."
 msgstr "那篇论文不在文献库中。"
+
+#: packages/core/src/library/library.ts
+msgid "No paper with this title was found."
+msgstr "没有找到这个标题的论文。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't tell which paper that is."
@@ -5579,10 +6365,6 @@ msgstr "owlit 在这里无法查找 PDF。"
 #: packages/core/src/library/library.ts
 msgid "owlit can't open publishers' pages here."
 msgstr "owlit 在这里无法打开出版商页面。"
-
-#: packages/core/src/library/library.ts
-msgid "owlit can't import here."
-msgstr "owlit 在这里无法导入。"
 
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."

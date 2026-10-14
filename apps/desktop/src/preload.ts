@@ -22,6 +22,7 @@ const bridge: OwlitBridge = {
   controlsRoom: ipcRenderer.sendSync("controls-room") as number,
   setPublisherView: (bounds) => ipcRenderer.send("publisher-view", bounds),
   chooseFolder: (options) => ipcRenderer.invoke("choose-folder", options) as Promise<string | null>,
+  chooseFile: (options) => ipcRenderer.invoke("choose-file", options) as Promise<string | null>,
   onControlsRoom(listener) {
     const forward = (_event: IpcRendererEvent, room: number) => listener(room)
     ipcRenderer.on("controls-room", forward)

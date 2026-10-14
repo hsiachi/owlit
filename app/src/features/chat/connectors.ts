@@ -17,6 +17,10 @@ export interface ConnectorSlice {
   signOutConnector: (id: string, methodId?: string) => Promise<void>
   addCustomConnector: (name: string, command: string) => Promise<Connector>
   removeConnector: (id: string) => void
+  // owlit's own copy of the agent's adapter (Claude Code, Codex): set up or updated, or the setup stopped.
+  // Progress and the end come as agents.changed.
+  setUpConnector: (id: string) => Promise<void>
+  cancelSetUp: (id: string) => Promise<void>
 }
 
 // The list with one agent as it is now
@@ -35,6 +39,16 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
 
   async signInConnector(id, methodId, apiKey) {
     const result = await rpc.agents.signIn({ id, methodId, ...(apiKey ? { apiKey } : {}) })
+    set((s) => ({ connectors: withConnector(s.connectors, result) }))
+  },
+
+  async setUpConnector(id) {
+    const result = await rpc.agents.setUp({ id })
+    set((s) => ({ connectors: withConnector(s.connectors, result) }))
+  },
+
+  async cancelSetUp(id) {
+    const result = await rpc.agents.cancelSetUp({ id })
     set((s) => ({ connectors: withConnector(s.connectors, result) }))
   },
 

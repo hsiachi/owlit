@@ -10,7 +10,9 @@
     "test": "vitest run",
     "lint": "pnpm -r --no-bail lint",
     "typecheck": "pnpm -r typecheck",
-    "i18n:extract": "lingui extract --clean"
+    "i18n:extract": "lingui extract --clean",
+    "release": "pnpm --filter @owlit/desktop release",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "devDependencies": {
     "@lingui/cli": "6.9.1",

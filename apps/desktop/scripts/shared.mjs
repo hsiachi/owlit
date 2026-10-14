@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs"
+import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -13,7 +13,7 @@ export const distDir = path.join(desktopDir, "dist")
 export function esbuildOptions({ production }) {
   return {
     absWorkingDir: desktopDir,
-    entryPoints: { main: "src/main.ts", preload: "src/preload.ts", "owlit-mcp": "../../packages/owlit-mcp/src/main.ts", "owlit-agent": "../../packages/owlit-agent/src/main.ts" },
+    entryPoints: { main: "src/main.ts", preload: "src/preload.ts", "owlit-mcp": "../../packages/owlit-mcp/src/main.ts", "owlit-agent": "../../packages/owlit-agent/src/main.ts", owlit: "../../packages/cli/src/main.ts" },
     outdir: distDir,
     outExtension: { ".js": ".cjs" },
     bundle: true,
@@ -79,4 +79,11 @@ export function copyMainAssets() {
   const fromCore = createRequire(path.join(desktopDir, "../../packages/core/package.json"))
   mkdirSync(distDir, { recursive: true })
   copyFileSync(fromCore.resolve("@embedpdf/pdfium/pdfium.wasm"), path.join(distDir, "pdfium.wasm"))
+  // The example workspace the first-launch flow offers (workspace.createExample)
+  const example = path.join(desktopDir, "resources", "example-workspace")
+  if (existsSync(example)) cpSync(example, path.join(distDir, "example-workspace"), { recursive: true })
+  // npm, which sets up owlit's own copy of Claude Code's and Codex's adapters (core agents/setup.ts). It
+  // ships with its dependencies inside, so the folder is all it needs.
+  const npm = path.dirname(createRequire(path.join(desktopDir, "package.json")).resolve("npm/package.json"))
+  if (!existsSync(path.join(distDir, "npm", "package.json"))) cpSync(npm, path.join(distDir, "npm"), { recursive: true, dereference: true })
 }

@@ -1,0 +1,107 @@
+{
+  "seenAt": 1791900521161,
+  "history": [
+    {
+      "id": "1048420a",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "q3",
+      "what": "Question added"
+    },
+    {
+      "id": "4b239e06",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "q2",
+      "what": "Question added"
+    },
+    {
+      "id": "9a219c46",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "q1",
+      "what": "Question added"
+    },
+    {
+      "id": "100e8064",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s7",
+      "what": "Added"
+    },
+    {
+      "id": "aedec6ba",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s6",
+      "what": "Added"
+    },
+    {
+      "id": "04fa1d30",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s5",
+      "what": "Added"
+    },
+    {
+      "id": "c89466aa",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s4",
+      "what": "Added"
+    },
+    {
+      "id": "e5ec1510",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s3",
+      "what": "Added"
+    },
+    {
+      "id": "6980c6c0",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s2",
+      "what": "Added"
+    },
+    {
+      "id": "c25a442d",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "lineId": "s1",
+      "what": "Added"
+    },
+    {
+      "id": "f3969260",
+      "at": 1791900521161,
+      "by": "owlit",
+      "why": "You highlighted Self-RAG and SelfCheckGPT, wrote in your note and related-work draft, and asked for a detector comparison, so this new topic gathers how each approach decides a claim is unsupported, plus your open questions about whether they agree.",
+      "what": "Started"
+    }
+  ],
+  "edits": {},
+  "removed": {},
+  "said": {},
+  "changedAt": {
+    "s1": 1791900521161,
+    "s2": 1791900521161,
+    "s3": 1791900521161,
+    "s4": 1791900521161,
+    "s5": 1791900521161,
+    "s6": 1791900521161,
+    "s7": 1791900521161,
+    "q1": 1791900521161,
+    "q2": 1791900521161,
+    "q3": 1791900521161
+  }
+}

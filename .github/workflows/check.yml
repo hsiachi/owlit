@@ -1,0 +1,21 @@
+# Typecheck, lint and test on every push and pull request. The dmg is built and signed on the
+# maintainer's Mac (pnpm release), since the signing certificate stays in its keychain.
+name: Check
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # The tests don't start Electron
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check

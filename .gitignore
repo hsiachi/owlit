@@ -12,3 +12,6 @@ dist/
 
 # Desktop build output
 apps/desktop/release/
+
+# Product docs: not released yet, read by agents here (CLAUDE.md points at them)
+docs/

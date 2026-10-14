@@ -127,6 +127,8 @@ export function FilterBar() {
   const setFilter = useLibraryUi((s) => s.setFilter)
   const tags = useLibraryUi((s) => s.tags)
   const toggleTag = useLibraryUi((s) => s.toggleTag)
+  const only = useLibraryUi((s) => s.only)
+  const clearOnly = useLibraryUi((s) => s.clearOnly)
   const papers = useLibraryStore((s) => s.papers)
   const counts = useMemo(() => countByFilter(papers), [papers])
 
@@ -145,6 +147,12 @@ export function FilterBar() {
         </button>
       ))}
       <span className="flex-1" />
+      {only && (
+        <button type="button" onClick={clearOnly} aria-label={t`Stop showing only ${only.label}`} className={cn(chip, "bg-accent pr-2 pl-2.5 text-foreground hover:bg-accent")}>
+          {only.label}
+          <XIcon className="size-3.5 text-muted-foreground" />
+        </button>
+      )}
       {tags.map((tag) => (
         <button key={tag} type="button" onClick={() => toggleTag(tag)} aria-label={t`Stop filtering by ${tag}`} className={cn(chip, "bg-accent pr-2 pl-2.5 text-foreground hover:bg-accent")}>
           <TagDot tag={tag} />

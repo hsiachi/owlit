@@ -28,7 +28,7 @@ export function AgentToggle() {
   const togglePanel = useAgentWindow((s) => s.togglePanel)
   if (!allowed) return null
   return (
-    <IconButton label={t`Ask Owlit`} shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
+    <IconButton data-tour="ask" label={t`Ask Owlit`} shortcut="owlit-panel" aria-pressed={docked} onClick={togglePanel} className={cn("ml-auto", docked && "bg-accent text-foreground")}>
       <OwlitMark />
     </IconButton>
   )

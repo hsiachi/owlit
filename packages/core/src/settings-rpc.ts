@@ -65,6 +65,8 @@ export function settingsView(s: AppSettings, systemLanguages: readonly string[] 
     secrets,
     ...defined({ backgroundAgent: s.connectors.background, backgroundModels: s.connectors.backgroundModels }),
     activity: s.activity,
+    // Settings from before onboardedAt was kept: a recent workspace means the same
+    onboarded: !!s.onboardedAt || s.recentWorkspaces.length > 0,
   }
 }
 

@@ -42,6 +42,9 @@ export interface AppSettings {
   // Most recent first
   recentWorkspaces: string[]
   lastWorkspace?: string
+  // When a workspace first opened on this machine: from then on a launch with none open shows the welcome
+  // page, not the first-launch flow
+  onboardedAt?: number
   // Local agents: the ones the user added, and what each agent last said about itself
   connectors: ConnectorSettings
   // MinerU, which reads PDFs better than pdfium (reading order, tables, formulas, scans)

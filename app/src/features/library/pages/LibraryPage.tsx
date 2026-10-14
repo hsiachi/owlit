@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
+import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
 import { RecentlyRemoved } from "../components/RecentlyRemoved"
 import { addPdfFiles } from "../lib/add-pdfs"
+import { openImportDialog, reviewImport } from "../imports"
+import { filePath } from "@/lib/rpc"
 import { groupPapers, matchesQuery, visiblePapers } from "../lib/filter"
 import { useTextHits } from "@/features/search/full-text"
 import { looksLikeRef } from "../lib/ref"
@@ -29,9 +32,14 @@ export function LibraryPage() {
   const query = useLibraryUi((s) => s.query)
   const filter = useLibraryUi((s) => s.filter)
   const tags = useLibraryUi((s) => s.tags)
+  const only = useLibraryUi((s) => s.only)
   const sort = useLibraryUi((s) => s.sort)
   const layout = usePrefsStore((s) => s.layout)
-  const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files)))
+  const { dragging, dropProps } = useFileDrop((data) => {
+    const collection = droppedCollection(data)
+    if (collection) reviewImport(collection.source, collection.path)
+    else void addPdfFiles(Array.from(data.files))
+  })
 
   // One field, two paths: a DOI, arXiv id or link (one token, see looksLikeRef) is a reference to add and
   // shows the AddCandidate card; anything else is words that narrow the list
@@ -42,8 +50,8 @@ export function LibraryPage() {
 
   const textHits = useTextHits(searchText)
   const visible = useMemo(
-    () => visiblePapers(papers, { query: searchText, filter, tags, sort }, textHits),
-    [papers, searchText, filter, tags, sort, textHits],
+    () => visiblePapers(papers, { query: searchText, filter, tags, sort, only }, textHits),
+    [papers, searchText, filter, tags, sort, only, textHits],
   )
   // A paper found by its text, not its details, shows where the words were
   const snippets = useMemo(() => {
@@ -56,7 +64,7 @@ export function LibraryPage() {
   const table = layout === "table"
   const empty = Object.keys(papers).length === 0
   const noMatch = words.length > 0 && visible.length === 0
-  const unfiltered = !refInput && !words && filter === "all" && tags.length === 0
+  const unfiltered = !refInput && !words && filter === "all" && tags.length === 0 && !only
 
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the
   // way "Ask Owlit to find papers" hands over its stem (Chat's starter, in the interface's language), so
@@ -87,6 +95,7 @@ export function LibraryPage() {
             )
           }
         />
+        <ImportBanner />
         <LibraryFindField onSubmit={submit} onPickFiles={addPdfFiles} />
         {refInput ? (
           <AddCandidate lookup={lookup} onAdd={add} input={refInput} />
@@ -114,7 +123,7 @@ export function LibraryPage() {
         {unfiltered && <RecentlyRemoved />}
       </PageShell>
       <BulkBar />
-      {dragging && <DropOverlay label={t`Drop PDF to add`} />}
+      {dragging && <DropOverlay label={t`Drop PDFs to add, or a BibTeX file or a folder to import`} />}
     </div>
   )
 }
@@ -129,6 +138,20 @@ function NoMatch({ words, onAsk }: { words: string; onAsk: () => void }) {
       </Button>
     </EmptyPlace>
   )
+}
+
+// A .bib file or a folder dropped on the Library is a collection to import, not papers to add one by one
+function droppedCollection(data: DataTransfer): { source: "bibtex" | "folder"; path: string } | null {
+  const files = Array.from(data.files)
+  if (files.length !== 1) return null
+  const entry = data.items[0]?.webkitGetAsEntry()
+  try {
+    if (entry?.isDirectory) return { source: "folder", path: filePath(files[0]) }
+    if (/\.bib$/i.test(files[0].name)) return { source: "bibtex", path: filePath(files[0]) }
+  } catch {
+    // Not a file on disk (a browser without the desktop app)
+  }
+  return null
 }
 
 // The first papers come from the find field above or a drop; the card says both. The whole page takes the
@@ -152,7 +175,14 @@ function EmptyLibrary() {
             </Button>
           </>
         }
-      />
+      >
+        <p className="text-sm text-muted-foreground">
+          {t`Coming from Zotero or BibTeX?`}{" "}
+          <button type="button" onClick={openImportDialog} className="text-foreground underline decoration-foreground/30 underline-offset-3 hover:decoration-foreground/60">
+            {t`Import your collection`}
+          </button>
+        </p>
+      </DropCard>
       <PdfFileInput ref={fileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
     </div>
   )

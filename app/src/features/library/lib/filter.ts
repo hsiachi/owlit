@@ -54,13 +54,15 @@ interface ListParams {
   filter: StatusFilter
   tags: string[]
   sort: Sort
+  only?: { ids: string[] } | null
 }
 
 // The rows of All papers: what the search, filter chips, tag filter and sort leave. Papers found only in
 // their text (textHits, from the index, best first) follow the ones whose details match, in the index's order.
 export function visiblePapers(papers: Record<string, Paper>, params: ListParams, textHits: ReadonlyMap<string, string> = new Map()): Paper[] {
   const q = params.query.trim()
-  const kept = (p: Paper) => matchesFilter(p, params.filter) && params.tags.every((tag) => p.tags.includes(tag))
+  const only = params.only ? new Set(params.only.ids) : null
+  const kept = (p: Paper) => (!only || only.has(p.id)) && matchesFilter(p, params.filter) && params.tags.every((tag) => p.tags.includes(tag))
   const byDetails = Object.values(papers)
     .filter((p) => kept(p) && matchesQuery(p, q))
     .sort((a, b) => compare(a, b, params.sort))

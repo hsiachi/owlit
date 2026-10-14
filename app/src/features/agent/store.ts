@@ -140,3 +140,10 @@ if (isDesktop) {
     rpc.workspace.setLayout({ patch: { agentChatId: state.chatId } }).catch(() => undefined)
   })
 }
+
+// Help › Ask Owlit How To…: the ask bar with the how-to hint. The agent window isn't offered on Chat, which
+// is the same conversation at full size, so from there it goes Home first.
+export function askOwlitHowTo(pathname: string, navigate: (to: string) => unknown) {
+  const away = pathname.startsWith("/chat") ? Promise.resolve(navigate("/")) : Promise.resolve()
+  void away.then(() => useAgentWindow.getState().askHowTo())
+}

@@ -45,7 +45,7 @@ export function AppearanceSection() {
           <SegmentedControl label={t`Theme`} value={theme} options={themes()} onChange={(value) => void updateSettings({ appearance: { theme: value } })} />
         }
       />
-      <div className="px-3.5 pt-3 pb-3.5">
+      <div className="pt-3 pb-4">
         <div className="text-sm">{t`Paper tone`}</div>
         <div role="radiogroup" aria-label={t`Paper tone`} className="mt-3 grid grid-cols-4 gap-3">
           {tones().map((o) => (
