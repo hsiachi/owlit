@@ -125,7 +125,8 @@ export function recordResult(chatId: string | undefined, result: AgentResult) {
 
 if (isDesktop) {
   onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId }) => {
-    if (kind === "knowledge") return
+    // A collection isn't a result row yet: it is said in a toast (agent-changes)
+    if (kind === "knowledge" || kind === "collection") return
     recordResult(chatId, { kind, versionId, path, label, at: Date.now(), ...(op === "removed" ? { removed: true } : {}) })
   })
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {

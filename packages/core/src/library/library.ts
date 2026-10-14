@@ -3,6 +3,7 @@ import {
   DEFAULT_NOTE_LANGUAGE,
   isTaskFinished,
   RpcErrorCode,
+  type CollectionPaper,
   type FoundPaper,
   type FoundPapers,
   type Highlight,
@@ -1899,6 +1900,20 @@ export class Library {
   private recent(id: string): Resolution | undefined {
     const kept = this.kept(id)
     return kept && !kept.partial ? kept.resolution : undefined
+  }
+
+  // What a paper is, for a collection's row: the Library's record when the paper is here, otherwise what a
+  // search found a moment ago (partial or not: a collection keeps what the search showed)
+  async snapshot(id: string): Promise<CollectionPaper | undefined> {
+    const here = isPaperId(id) ? await readRecord(this.root, id) : undefined
+    const from: Resolution | PaperRecord | undefined = here ?? this.kept(id)?.resolution
+    if (!from) return undefined
+    return clean({
+      ...pick(from),
+      tldr: from.tldr,
+      citationCount: from.citationCount,
+      openPdf: (from.pdfUrls?.length ?? 0) > 0 || undefined,
+    })
   }
 
   private kept(id: string) {

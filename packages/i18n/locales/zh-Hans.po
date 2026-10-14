@@ -189,6 +189,10 @@ msgid "Knowledge updated"
 msgstr "知识已更新"
 
 #: app/src/app/agent-changes.ts
+msgid "Papers collected"
+msgstr "已收集论文"
+
+#: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr "已移除论文"
 
@@ -6263,6 +6267,34 @@ msgstr "那个对话已不在废纸篓中。"
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
 msgstr "那不是这个对话的文件。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection isn't here any more."
+msgstr "那个合集已经不在了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That isn't in the collection any more."
+msgstr "合集里已经没有这一项了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "Write something, or remove it instead."
+msgstr "写点内容，或者直接移除它。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That paper isn't in the collection any more."
+msgstr "那篇论文已不在合集中。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That group isn't there any more."
+msgstr "那个分组已经不在了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection is already here."
+msgstr "那个合集已经在这里了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection is no longer in the trash."
+msgstr "那个合集已不在废纸篓中。"
 
 #: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."

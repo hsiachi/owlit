@@ -189,6 +189,10 @@ msgid "Knowledge updated"
 msgstr ""
 
 #: app/src/app/agent-changes.ts
+msgid "Papers collected"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr ""
 
@@ -6262,6 +6266,34 @@ msgstr ""
 
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection isn't here any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That isn't in the collection any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "Write something, or remove it instead."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That paper isn't in the collection any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That group isn't there any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection is already here."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection is no longer in the trash."
 msgstr ""
 
 #: packages/core/src/core.ts

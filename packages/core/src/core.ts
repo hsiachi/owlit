@@ -626,6 +626,59 @@ export class Core {
     this.router.register("knowledge.update", noParams, () => knowledge().update())
     this.router.register("knowledge.versions", noParams, () => knowledge().versions())
     this.router.register("knowledge.revert", z.object({ id: z.string().min(1) }), ({ id }) => knowledge().revert(id))
+    const collections = () => this.requireWorkspace().collections
+    const cellWrite = z.object({
+      text: z.string(),
+      depth: z.enum(["abstract", "full"]),
+      passage: z.object({ quote: z.string().min(1), page: z.number().int().min(1) }).optional(),
+      rel: z.enum(["supports", "challenges", "related"]).optional(),
+      sentence: z.string().optional(),
+    })
+    const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
+    const item = z.string().regex(/^(title|memo:[\w-]+|cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+)$/, "an item: title, memo:<id>, cell:<paper>:<column>, row:<paper> or group:<id>")
+    this.router.register("collections.list", noParams, () => collections().list())
+    this.router.register("collections.get", z.object({ id: z.string().min(1) }), ({ id }) => collections().get(id))
+    this.router.register(
+      "collections.write",
+      z.object({
+        id: z.string().optional(),
+        asked: z.string().optional(),
+        title: z.string().optional(),
+        project: z.string().optional(),
+        sources: z.array(z.string()).optional(),
+        memo: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), text: z.string() })).optional(),
+        columns: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), question: z.string() })).optional(),
+        rows: z.array(z.object({ id: z.string().min(1), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), foundBy: z.string().optional() })).optional(),
+        groups: z.array(group).optional(),
+        removeRows: z.array(z.string()).optional(),
+        why: z.string().optional(),
+        chatId: z.string().optional(),
+        docPath: z.string().optional(),
+      }),
+      (params) => collections().write(params),
+    )
+    this.router.register(
+      "collections.edit",
+      z.object({
+        id: z.string().min(1),
+        edit: z.discriminatedUnion("op", [
+          z.object({ op: z.literal("rename"), title: z.string() }),
+          z.object({ op: z.literal("rewrite"), item, text: z.string() }),
+          z.object({ op: z.literal("revert"), item }),
+          z.object({ op: z.literal("remove"), item }),
+          z.object({ op: z.literal("unremove"), item }),
+          z.object({ op: z.literal("move"), row: z.string().min(1), group: z.string().nullable() }),
+          z.object({ op: z.literal("ungroup"), group: z.string().min(1) }),
+          z.object({ op: z.literal("merge"), group: z.string().min(1), into: z.string().min(1) }),
+          z.object({ op: z.literal("watch"), on: z.boolean() }),
+          z.object({ op: z.literal("project"), project: z.string() }),
+          z.object({ op: z.literal("seen") }),
+        ]),
+      }),
+      ({ id, edit }) => collections().edit(id, edit),
+    )
+    this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
+    this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())
     this.router.register("notes.add", z.object({ path: rel, note, agent: z.object({ chatId: z.string().optional() }).optional() }), async ({ path, note, agent }) => {
       await docs().addNote(path, note)
@@ -746,6 +799,13 @@ export class Core {
                 journalFlushed: () => this.journal.flush(),
                 // A chat's agent changed a topic: the window offers Undo, as for any agent write
                 wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
+              },
+              collections: {
+                changed: (id, collection) => {
+                  if (this.workspace?.root === root) this.notifier.notify("collections.changed", { id, collection })
+                },
+                // A chat's agent gathered papers into a collection: the chat shows it with Undo, as for any agent write
+                wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "collection", path: id, ...change }),
               },
               shares: {
                 server: () => this.options.shareServer ?? null,

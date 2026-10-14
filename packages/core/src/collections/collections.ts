@@ -1,0 +1,464 @@
+import { t } from "@lingui/core/macro"
+import {
+  itemId,
+  QUESTION_COLUMN,
+  RpcErrorCode,
+  sameWords,
+  shownCollection,
+  summarize,
+  type Collection,
+  type CollectionCell,
+  type CollectionEdit,
+  type CollectionPaper,
+  type CollectionSummary,
+  type CollectionWrite,
+} from "@owlit/protocol"
+import { randomBytes } from "node:crypto"
+import { appendFile, mkdir, readdir, readFile, rename, rm } from "node:fs/promises"
+import path from "node:path"
+import type { Versions } from "../docs/versions.ts"
+import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import { RpcFailure } from "../rpc/index.ts"
+
+// Collections: papers Owlit gathered for a question, in .owlit/collections/<id>/:
+//
+//   collection.json   the collection, with what the user did to it in `yours`
+//   history.jsonl     one line per write: who (a chat, a run, the user, an undo), which items, why
+//
+// Owlit writes its own record without asking, but never over the user: a rewrite of theirs stays word for
+// word whatever Owlit writes later, and what they removed stays out. Every agent write is kept as a
+// version, so the window can offer Undo like for any agent change; an undo takes back what Owlit did and
+// keeps what the user did since.
+
+export interface CollectionsServices {
+  // What a paper is, by its id: the Library's record, or what a recent search found
+  paper?: (id: string) => Promise<CollectionPaper | undefined>
+  // A collection changed under the windows (null: deleted)
+  changed?: (id: string, collection: Collection | null) => void
+  // An agent in a chat wrote to a collection; versionId takes the write back
+  wrote?: (change: { versionId: string; id: string; label: string; chatId?: string; added: number; updated: number }) => void
+}
+
+interface HistoryLine {
+  at: number
+  by: string
+  why?: string
+  items: string[]
+}
+
+const FILE = "collection.json"
+
+export class Collections {
+  private readonly dir: string
+  private readonly trashDir: string
+  private readonly versions: Versions
+  private readonly services: CollectionsServices
+  private writing: Promise<unknown> = Promise.resolve()
+
+  constructor(owlitDir: string, parts: { versions: Versions }, services: CollectionsServices = {}) {
+    this.dir = path.join(owlitDir, "collections")
+    this.trashDir = path.join(owlitDir, "trash")
+    this.versions = parts.versions
+    this.services = services
+  }
+
+  // Newest change first
+  async list(): Promise<CollectionSummary[]> {
+    const ids = await readdir(this.dir).catch(() => [] as string[])
+    const all = await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)))
+    return all
+      .filter((c): c is Collection => !!c)
+      .map(summarize)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+
+  async get(id: string): Promise<Collection> {
+    const c = await this.load(id)
+    if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That collection isn't here any more.`, { id })
+    return c
+  }
+
+  // ---- Owlit's writes ----
+
+  write(input: CollectionWrite) {
+    return this.serial(async () => {
+      const now = Date.now()
+      const existing = input.id ? await this.load(input.id) : undefined
+      if (input.id && !existing) throw new RpcFailure(RpcErrorCode.NotFound, `There is no collection ${input.id}; leave id out to start one.`)
+      const problems: string[] = []
+      if (!existing && !input.asked?.trim()) problems.push("A new collection needs asked: the question as the user put it.")
+      if (!existing && !input.title?.trim()) problems.push("A new collection needs a title: a short, neutral name for what it gathers.")
+      if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+
+      const before = existing ? JSON.stringify(existing) : null
+      const c: Collection = existing ? structuredClone(existing) : await this.blank(input, now)
+      const fresh = !existing
+      const changed = new Set<string>()
+      // Every item the write changed goes in the history; dot: false leaves it without Owlit's dot
+      const mark = (item: string, dot = true) => {
+        changed.add(item)
+        if (dot && !fresh) c.changedAt[item] = now
+      }
+
+      if (existing && input.title?.trim() && input.title.trim() !== c.title) {
+        c.title = input.title.trim()
+        mark(itemId.title())
+      }
+      if (input.project !== undefined && !existing) c.project = input.project
+      if (input.sources?.length) c.sources = [...new Set([...c.sources, ...input.sources])]
+
+      // Columns: new questions to ask of every paper
+      for (const col of input.columns ?? []) {
+        const question = col.question.trim()
+        if (!question) continue
+        if (c.columns.some((have) => have.id === col.id || sameWords(have.question, question))) continue
+        const id = col.id?.trim() || freshId("c", c.columns.map((x) => x.id))
+        c.columns.push({ id, question, kind: "ask" })
+        mark(`column:${id}`, false)
+      }
+
+      // Rows: new papers, and answers for the ones there
+      let added = 0
+      let updated = 0
+      const left: string[] = []
+      for (const r of input.rows ?? []) {
+        if (c.yours.removed[itemId.row(r.id)]) {
+          left.push(r.id)
+          continue
+        }
+        let row = c.rows.find((have) => have.id === r.id)
+        if (!row) {
+          const paper = r.paper ?? (await this.services.paper?.(r.id))
+          if (!paper) {
+            problems.push(`owlit doesn't know the paper ${r.id}: name papers by the id a search gave you.`)
+            continue
+          }
+          row = { id: r.id, paper, cells: {}, addedAt: now, ...(r.foundBy ? { foundBy: r.foundBy } : {}) }
+          c.rows.push(row)
+          added++
+          mark(itemId.row(r.id))
+        } else if (r.foundBy && !row.foundBy) row.foundBy = r.foundBy
+        let touched = false
+        for (const [col, cell] of Object.entries(r.cells ?? {})) {
+          if (!c.columns.some((have) => have.id === col)) {
+            problems.push(`There is no column ${col}; add it under columns first.`)
+            continue
+          }
+          const text = cell.text.trim()
+          if (!text) continue
+          const was = row.cells[col]
+          const next: CollectionCell = { ...cell, text, at: now }
+          if (was && sameCell(was, next)) continue
+          row.cells[col] = next
+          touched = true
+          // A cell the user rewrote keeps their words; Owlit's new answer waits underneath without a dot
+          mark(itemId.cell(r.id, col), !c.yours.edits[itemId.cell(r.id, col)])
+        }
+        if (r.group !== undefined && r.group !== row.group) {
+          row.group = r.group || undefined
+          touched = true
+          mark(itemId.row(r.id), false)
+        }
+        if (touched && !changed.has(itemId.row(r.id))) updated++
+      }
+      for (const id of input.removeRows ?? []) {
+        const at = c.rows.findIndex((r) => r.id === id)
+        if (at < 0) continue
+        c.rows.splice(at, 1)
+        changed.add(itemId.row(id))
+      }
+
+      // Groups: the whole grouping as Owlit means it now. Rows in a group that is gone fall out of it.
+      if (input.groups) {
+        const ids = new Set(input.groups.map((g) => g.id))
+        for (const g of input.groups) if (g.parent && !ids.has(g.parent)) problems.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
+        for (const g of input.groups) {
+          const was = c.groups.find((have) => have.id === g.id)
+          if (!was || was.name !== g.name || was.one !== g.one || was.parent !== g.parent) mark(itemId.group(g.id))
+        }
+        c.groups = input.groups.map((g) => ({ ...g }))
+        for (const row of c.rows) if (row.group && !ids.has(row.group)) delete row.group
+      }
+      for (const r of input.rows ?? []) {
+        const row = c.rows.find((have) => have.id === r.id)
+        if (row?.group && !c.groups.some((g) => g.id === row.group)) problems.push(`Row ${r.id} is put in group ${row.group}, which isn't one of the groups.`)
+      }
+
+      // The memo, whole. What the user removed doesn't come back in other words' clothing; a sentence the
+      // user rewrote stays where it was even when Owlit drops it.
+      if (input.memo) {
+        const removedTexts = Object.entries(c.yours.removed)
+          .filter(([k]) => k.startsWith("memo:"))
+          .map(([, v]) => v.text)
+        const next: Collection["memo"] = []
+        const taken = c.memo.map((s) => s.id)
+        for (const s of input.memo) {
+          const text = s.text.trim()
+          if (!text) continue
+          if (removedTexts.some((gone) => sameWords(gone, text))) continue
+          const id = s.id && !next.some((n) => n.id === s.id) ? s.id : freshId("s", [...taken, ...next.map((n) => n.id)])
+          const was = c.memo.find((have) => have.id === id)
+          if (!was || !sameWords(was.text, text)) mark(itemId.memo(id))
+          next.push({ id, text })
+        }
+        c.memo.forEach((s, i) => {
+          if (c.yours.edits[itemId.memo(s.id)] && !next.some((n) => n.id === s.id)) next.splice(Math.min(i, next.length), 0, s)
+        })
+        for (const s of c.memo) if (!next.some((n) => n.id === s.id)) changed.add(itemId.memo(s.id))
+        c.memo = next
+      }
+
+      if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+      if (!fresh && !changed.size) return { id: c.id, title: shownCollection(c).title, added: 0, updated: 0, left }
+
+      c.updatedAt = now
+      const version = await this.versions.saveCollection(c.id, before, { ...(input.chatId ? { chatId: input.chatId } : {}) })
+      await this.save(c)
+      await this.record(c.id, { at: now, by: input.chatId ? `chat:${input.chatId}` : "agent", ...(input.why ? { why: input.why } : {}), items: [...changed] })
+      this.services.changed?.(c.id, c)
+      const title = shownCollection(c).title
+      if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, added, updated })
+      return { id: c.id, title, added, updated, left }
+    })
+  }
+
+  // ---- The user's changes ----
+
+  edit(id: string, edit: CollectionEdit) {
+    return this.serial(async () => {
+      const c = await this.get(id)
+      const now = Date.now()
+      const items: string[] = []
+      switch (edit.op) {
+        case "rename":
+        case "rewrite": {
+          const item = edit.op === "rename" ? itemId.title() : edit.item
+          const owlit = owlitText(c, item)
+          if (owlit === undefined) throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the collection any more.`, { item })
+          const text = (edit.op === "rename" ? edit.title : edit.text).trim()
+          if (!text) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something, or remove it instead.`)
+          if (sameWords(text, owlit)) delete c.yours.edits[item]
+          else c.yours.edits[item] = { text, at: now, was: owlit }
+          items.push(item)
+          break
+        }
+        case "revert":
+          delete c.yours.edits[edit.item]
+          items.push(edit.item)
+          break
+        case "remove": {
+          const text = labelOf(c, edit.item)
+          if (text === undefined) throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the collection any more.`, { item: edit.item })
+          c.yours.removed[edit.item] = { text, at: now }
+          items.push(edit.item)
+          break
+        }
+        case "unremove":
+          delete c.yours.removed[edit.item]
+          items.push(edit.item)
+          break
+        case "move": {
+          const row = c.rows.find((r) => r.id === edit.row)
+          if (!row) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the collection any more.`, { row: edit.row })
+          if (edit.group && !c.groups.some((g) => g.id === edit.group)) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
+          if (edit.group) row.group = edit.group
+          else delete row.group
+          items.push(itemId.row(edit.row))
+          break
+        }
+        case "ungroup":
+        case "merge": {
+          const group = c.groups.find((g) => g.id === edit.group)
+          if (!group) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
+          const into = edit.op === "merge" ? edit.into : group.parent
+          if (edit.op === "merge" && !c.groups.some((g) => g.id === edit.into)) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
+          for (const row of c.rows) {
+            if (row.group !== group.id) continue
+            if (into) row.group = into
+            else delete row.group
+          }
+          for (const g of c.groups) if (g.parent === group.id) g.parent = into
+          c.groups = c.groups.filter((g) => g.id !== group.id)
+          items.push(itemId.group(group.id))
+          break
+        }
+        case "watch":
+          c.watch = edit.on
+          break
+        case "project":
+          c.project = edit.project
+          break
+        case "seen":
+          c.seenAt = now
+          break
+      }
+      // Looking changes nothing worth a line in the history, nor the order of the list
+      if (edit.op !== "seen") {
+        c.updatedAt = now
+        await this.record(c.id, { at: now, by: "you", items: items.length ? items : [edit.op] })
+      }
+      await this.save(c)
+      this.services.changed?.(c.id, c)
+      return c
+    })
+  }
+
+  // To .owlit/trash/<stamp>-collection-<id>/, whole, so undelete() can put it back
+  delete(id: string) {
+    return this.serial(async () => {
+      await this.get(id)
+      await mkdir(this.trashDir, { recursive: true })
+      await rename(path.join(this.dir, id), path.join(this.trashDir, `${Date.now()}-collection-${id}`))
+      this.services.changed?.(id, null)
+      return null
+    })
+  }
+
+  undelete(id: string) {
+    return this.serial(async () => {
+      if (await this.load(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That collection is already here.`, { id })
+      const suffix = `-collection-${id}`
+      const entry = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix)).sort().reverse()[0]
+      if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, t`That collection is no longer in the trash.`, { id })
+      await mkdir(this.dir, { recursive: true })
+      await rename(path.join(this.trashDir, entry), path.join(this.dir, id))
+      const c = await this.get(id)
+      this.services.changed?.(id, c)
+      return c
+    })
+  }
+
+  // Undo of an agent's write: the collection as it was before, with what the user did since kept (their
+  // rewrites and removals are theirs, not the agent's). A write that started the collection is undone by
+  // putting the collection in the trash. What it replaces is kept as a version too, so the undo can be
+  // undone.
+  restoreVersion(id: string, content: string, existed: boolean, meta: { chatId?: string }) {
+    return this.serial(async () => {
+      const now = await this.load(id)
+      const redo = await this.versions.saveCollection(id, now ? JSON.stringify(now) : null, { ...meta, by: "undo" })
+      if (!existed) {
+        if (now) {
+          await mkdir(this.trashDir, { recursive: true })
+          await rename(path.join(this.dir, id), path.join(this.trashDir, `${Date.now()}-collection-${id}`))
+        }
+        this.services.changed?.(id, null)
+      } else {
+        const back = JSON.parse(content) as Collection
+        const c: Collection = { ...back, yours: now?.yours ?? back.yours, seenAt: now?.seenAt ?? back.seenAt, watch: now?.watch ?? back.watch, updatedAt: Date.now() }
+        await this.save(c)
+        await this.record(id, { at: c.updatedAt, by: "undo", items: [] })
+        this.services.changed?.(id, c)
+      }
+      return { redoId: redo.id }
+    })
+  }
+
+  // ---- Inside ----
+
+  private async blank(input: CollectionWrite, now: number): Promise<Collection> {
+    const title = input.title!.trim()
+    const taken = await readdir(this.dir).catch(() => [] as string[])
+    return {
+      version: 1,
+      id: uniqueId(title, taken),
+      title,
+      asked: { text: input.asked!.trim(), at: now, ...(input.chatId ? { chatId: input.chatId } : {}), ...(input.docPath ? { docPath: input.docPath } : {}) },
+      project: input.project ?? "",
+      sources: [],
+      memo: [],
+      columns: [{ id: QUESTION_COLUMN, question: input.asked!.trim(), kind: "ask" }],
+      rows: [],
+      groups: [],
+      watch: false,
+      createdAt: now,
+      updatedAt: now,
+      changedAt: {},
+      seenAt: 0,
+      yours: { edits: {}, removed: {} },
+    }
+  }
+
+  private async load(id: string): Promise<Collection | undefined> {
+    if (!/^[\w-]+$/.test(id)) return undefined
+    return readJson<Collection>(path.join(this.dir, id, FILE))
+  }
+
+  private async save(c: Collection) {
+    await writeJsonAtomic(path.join(this.dir, c.id, FILE), c)
+  }
+
+  private async record(id: string, line: HistoryLine) {
+    await mkdir(path.join(this.dir, id), { recursive: true })
+    await appendFile(path.join(this.dir, id, "history.jsonl"), JSON.stringify(line) + "\n")
+  }
+
+  async history(id: string): Promise<HistoryLine[]> {
+    const text = await readFile(path.join(this.dir, id, "history.jsonl"), "utf8").catch(() => "")
+    return text
+      .split("\n")
+      .filter((l) => l.trim())
+      .flatMap((l) => {
+        try {
+          return [JSON.parse(l) as HistoryLine]
+        } catch {
+          return []
+        }
+      })
+  }
+
+  async remove(id: string) {
+    await rm(path.join(this.dir, id), { recursive: true, force: true })
+  }
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.writing.then(fn, fn)
+    this.writing = next.catch(() => undefined)
+    return next
+  }
+}
+
+// Owlit's own text for an item, before the user's rewrite
+function owlitText(c: Collection, item: string): string | undefined {
+  if (item === itemId.title()) return c.title
+  const [kind, a, b] = item.split(":")
+  if (kind === "memo") return c.memo.find((s) => s.id === a)?.text
+  if (kind === "cell") return c.rows.find((r) => r.id === a)?.cells[b!]?.text
+  if (kind === "group") return c.groups.find((g) => g.id === a)?.name
+  return undefined
+}
+
+// What a removed item was, for the record (and so the same words can be kept out)
+function labelOf(c: Collection, item: string): string | undefined {
+  const [kind, a] = item.split(":")
+  if (kind === "row") return c.rows.find((r) => r.id === a)?.paper.title
+  return owlitText(c, item)
+}
+
+function sameCell(a: CollectionCell, b: CollectionCell) {
+  return sameWords(a.text, b.text) && a.depth === b.depth && a.rel === b.rel && a.sentence === b.sentence && a.passage?.quote === b.passage?.quote
+}
+
+function freshId(prefix: string, taken: string[]) {
+  let n = taken.length + 1
+  while (taken.includes(`${prefix}${n}`)) n++
+  return `${prefix}${n}`
+}
+
+// From the title's Latin words where it has some ("UIST 2026 papers" → uist-2026-papers), otherwise a
+// short random id; unique among the collections there are
+export function uniqueId(title: string, taken: string[]) {
+  const words = title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/_/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 6)
+    .join("-")
+  const base = words.length >= 3 ? words.slice(0, 48).replace(/-+$/, "") : `c-${randomBytes(3).toString("hex")}`
+  let id = base
+  for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`
+  return id
+}

@@ -189,6 +189,10 @@ msgid "Knowledge updated"
 msgstr "Knowledge updated"
 
 #: app/src/app/agent-changes.ts
+msgid "Papers collected"
+msgstr "Papers collected"
+
+#: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr "Paper removed"
 
@@ -6263,6 +6267,34 @@ msgstr "That chat is no longer in the trash."
 #: packages/core/src/chats/chats.ts
 msgid "That isn't a file of this chat."
 msgstr "That isn't a file of this chat."
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection isn't here any more."
+msgstr "That collection isn't here any more."
+
+#: packages/core/src/collections/collections.ts
+msgid "That isn't in the collection any more."
+msgstr "That isn't in the collection any more."
+
+#: packages/core/src/collections/collections.ts
+msgid "Write something, or remove it instead."
+msgstr "Write something, or remove it instead."
+
+#: packages/core/src/collections/collections.ts
+msgid "That paper isn't in the collection any more."
+msgstr "That paper isn't in the collection any more."
+
+#: packages/core/src/collections/collections.ts
+msgid "That group isn't there any more."
+msgstr "That group isn't there any more."
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection is already here."
+msgstr "That collection is already here."
+
+#: packages/core/src/collections/collections.ts
+msgid "That collection is no longer in the trash."
+msgstr "That collection is no longer in the trash."
 
 #: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."

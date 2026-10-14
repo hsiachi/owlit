@@ -5,6 +5,7 @@ import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
+import type { Collection, CollectionEdit, CollectionSummary, CollectionWrite } from "./collections.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -183,6 +184,18 @@ export interface Methods {
   "knowledge.versions": { params: void; result: KnowledgeVersion[] }
   // knowledge/ back as a version had it; versionId is the version kept of how it was just before
   "knowledge.revert": { params: { id: string }; result: { files: string[]; versionId: string } }
+
+  // ---- Collections: papers Owlit gathered for a question and what it makes of them, in .owlit/collections/
+  "collections.list": { params: void; result: CollectionSummary[] }
+  // As stored: Owlit's text with the user's changes beside it (shownCollection gives what the user sees)
+  "collections.get": { params: { id: string }; result: Collection }
+  // An agent's write, merged so the user's changes stay; left names rows not written because the user
+  // removed them
+  "collections.write": { params: CollectionWrite; result: { id: string; title: string; added: number; updated: number; left: string[] } }
+  "collections.edit": { params: { id: string; edit: CollectionEdit }; result: Collection }
+  // Moves the collection to .owlit/trash/
+  "collections.delete": { params: { id: string }; result: null }
+  "collections.undelete": { params: { id: string }; result: Collection }
 
   // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
   // Most recently updated first, without messages
@@ -460,7 +473,8 @@ export interface Notifications {
   // An agent in a chat left a note, added a paper or changed a Knowledge topic; versionId undoes it.
   // label names what changed (the doc, the paper's title, the topic).
   // op "removed": an agent took back a paper it added (absent: an addition or a write)
-  "agent.changed": { kind: "note" | "paper" | "knowledge"; op?: "removed"; versionId: string; path: string; label: string; chatId?: string }
+  // kind "collection": path is the collection's id, and added/updated count its rows
+  "agent.changed": { kind: "note" | "paper" | "knowledge" | "collection"; op?: "removed"; versionId: string; path: string; label: string; chatId?: string; added?: number; updated?: number }
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are
@@ -471,6 +485,9 @@ export interface Notifications {
   "knowledge.changed": { topics?: Record<string, TopicSidecar>; papers?: Record<string, PaperKnowledge> }
   // A Knowledge run ended; items is empty when it changed nothing
   "knowledge.updated": KnowledgeRun
+  // A collection changed (an agent wrote to it, the user changed it in another window, an undo); null:
+  // it was deleted
+  "collections.changed": { id: string; collection: Collection | null }
   // A shared doc's state changed (pushed, couldn't push, renamed); share null: no longer shared
   "share.changed": { path: string; share: DocShare | null }
   // New or changed comments on a shared doc: all of them, as they are now
