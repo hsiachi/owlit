@@ -27,6 +27,9 @@ export interface RequestOptions {
 export class HttpError extends Error {
   readonly status: number
   readonly url: string
+  // Where the answer came from after redirects (a doi.org link answers from the publisher's site);
+  // url when there was no answer or no redirect
+  finalUrl: string
   // A 429 from a used-up quota: seconds until it comes back
   readonly quotaResetIn?: number
   // Cloudflare answered with a check for a person (cf-mitigated: challenge), not the site itself
@@ -36,6 +39,7 @@ export class HttpError extends Error {
     this.name = "HttpError"
     this.status = status
     this.url = url
+    this.finalUrl = url
     if (quotaResetIn !== undefined) this.quotaResetIn = quotaResetIn
   }
 }
@@ -87,7 +91,9 @@ export class Http {
         if (response.ok) return response
         await response.body?.cancel().catch(() => {})
         if (response.status !== 429 && response.status < 500) {
-          const error = new HttpError(response.status, url, describe(response.status, url))
+          const finalUrl = response.url || url
+          const error = new HttpError(response.status, url, describe(response.status, finalUrl))
+          error.finalUrl = finalUrl
           if (response.headers.get("cf-mitigated") === "challenge") error.challenged = true
           throw error
         }

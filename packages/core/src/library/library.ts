@@ -1503,9 +1503,12 @@ export class Library {
               if (route.name === "api:elsevier") await wholeArticle(dest, this.services.pdfiumWasm)
             } catch (error) {
               if (ctx.signal.aborted) throw error
+              // Held against the site that put up the check, not where the route starts: a doi.org
+              // link that lands on dl.acm.org says nothing about doi.org
               if (error instanceof HttpError && error.challenged) {
-                await this.publishers.refusePlain(site)
-                void this.publishers.log({ paper: id, route: route.name, kind: "plain-refused", host: hostOf(route.url), status: error.status })
+                const host = hostOf(error.finalUrl)
+                await this.publishers.refusePlain(siteOf(host))
+                void this.publishers.log({ paper: id, route: route.name, kind: "plain-refused", host, status: error.status })
               }
               tried.push({ route: route.name, url: route.url, ...describeFailure(error), at: Date.now() })
               continue

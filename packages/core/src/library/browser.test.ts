@@ -373,6 +373,41 @@ describe("visiting publishers' sites", () => {
     const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
     expect(log).toContainEqual(expect.objectContaining({ paper: acm.id, kind: "plain-refused", host: "dl.acm.org", status: 403 }))
   })
+
+  it("holds the site a doi.org link lands on, not doi.org", async () => {
+    const { browser } = fakeBrowser(async () => {
+      throw new NeedsUser("challenge", "dl.acm.org")
+    })
+    // Unpaywall's copy is a doi.org link, which doi.org sends on to dl.acm.org, where Cloudflare
+    // answers with a check
+    const challenge = (url: string) => {
+      const response = new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } })
+      return Object.defineProperty(response, "url", { value: url })
+    }
+    const { base, root, call } = await setup(browser, { contactEmail: "me@example.org" }, {}, {
+      serve: (url) => {
+        const unpaywall = url.match(/^https:\/\/api\.unpaywall\.org\/v2\/([^?]+)/)
+        if (unpaywall) return Response.json({ oa_locations: [{ url_for_pdf: `https://doi.org/${unpaywall[1]}`, host_type: "publisher" }] })
+        if (url.startsWith("https://doi.org/10.")) return challenge(`https://dl.acm.org/doi/${url.slice("https://doi.org/".length)}`)
+        return url.includes("dl.acm.org") ? challenge(url) : undefined
+      },
+    })
+    await call("library.add", { paper: acm })
+    await call("library.fetchPdf", { id: acm.id })
+    await call("library.add", { paper: sibling })
+    await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
+    const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
+    const route = (name: string) => tried.find((t: { route: string }) => t.route === name)
+    expect(route("unpaywall/publisher")).toMatchObject({ url: `https://doi.org/${sibling.ids.doi}`, status: 403 })
+    expect(route("publisher:acm").error).toBe("Not tried: acm.org only lets browsers in.")
+    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
+    const sites = JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites
+    expect(sites["acm.org"].plainRefusedUntil).toBeGreaterThan(Date.now())
+    expect(sites["doi.org"]).toBeUndefined()
+    const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
+    expect(log).toContainEqual(expect.objectContaining({ paper: acm.id, route: "unpaywall/publisher", kind: "plain-refused", host: "dl.acm.org" }))
+    expect(log.filter((entry) => entry.host === "doi.org")).toEqual([])
+  })
 })
 
 describe("publishers' APIs", () => {
