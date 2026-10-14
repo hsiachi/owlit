@@ -108,7 +108,16 @@ function followSocket(id: string, on: Listeners) {
     socket.addEventListener("close", () => {
       clearInterval(ping)
       if (done) return
-      retry = setTimeout(connect, wait)
+      // A link stopped while the socket was down refuses it with a 410, which a WebSocket can't tell from
+      // any other drop: the share itself says
+      retry = setTimeout(() => {
+        void loadShare(id).then((loaded) => {
+          if (done) return
+          if (loaded.kind !== "stopped") return connect()
+          done = true
+          on.stopped()
+        })
+      }, wait)
       wait = Math.min(wait * 2, 30_000)
     })
   }

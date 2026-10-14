@@ -34,14 +34,20 @@ export interface ImportEntry {
 export async function readSource(source: ImportSource, input: string, options: { collectionsAsTags?: boolean } = {}): Promise<ImportEntry[]> {
   const where = path.resolve(input)
   const tags = options.collectionsAsTags ?? false
-  switch (source) {
-    case "zotero":
-      return /\.json$/i.test(where) ? readBetterBibtex(where, tags) : readZotero(where, tags)
-    case "bibtex":
-      return readBibtex(where)
-    case "folder":
-      return readFolder(where)
-  }
+  const entries =
+    source === "zotero" ? await (/\.json$/i.test(where) ? readBetterBibtex(where, tags) : readZotero(where, tags)) : source === "bibtex" ? await readBibtex(where) : await readFolder(where)
+  return uniqueKeys(entries)
+}
+
+// An import keeps what it did by key, so two entries under one key (a .bib merged from two, with smith2020
+// in both) would make it skip the second: the second and later get #2, #3, the same on every read
+function uniqueKeys(entries: ImportEntry[]): ImportEntry[] {
+  const seen = new Map<string, number>()
+  return entries.map((entry) => {
+    const n = (seen.get(entry.key) ?? 0) + 1
+    seen.set(entry.key, n)
+    return n === 1 ? entry : { ...entry, key: `${entry.key}#${n}` }
+  })
 }
 
 // ---- Shared: Zotero's fields, as both zotero.sqlite and Better BibTeX's JSON name them
