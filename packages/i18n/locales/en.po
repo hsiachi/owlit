@@ -1021,10 +1021,12 @@ msgstr "Attach files"
 msgid "Add from {place}"
 msgstr "Add from {place}"
 
+#. stop Owlit's work on a collection
 #. stop getting PDFs from the browser
 #. stop getting PDFs from the browser
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/collections/components/Work.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "Stop"
@@ -1073,6 +1075,7 @@ msgstr "Dismiss"
 
 #. verb: send the question again
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/collections/components/Work.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
@@ -2276,7 +2279,9 @@ msgid "Move to project"
 msgstr "Move to project"
 
 #. a collection that belongs to no project folder
+#. a collection that belongs to no project folder
 #: app/src/features/collections/components/CollectionMenu.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "No project"
 msgstr "No project"
 
@@ -2312,6 +2317,71 @@ msgstr "you edited"
 #: app/src/features/collections/components/Memo.tsx
 msgid "Sentence actions"
 msgstr "Sentence actions"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "{papers} so far"
+msgstr "{papers} so far"
+
+#: app/src/features/collections/components/Work.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Owlit stopped."
+msgstr "Owlit stopped."
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Draft a review from the collection “{title}”. Propose an outline first, and wait for me before writing."
+msgstr "Draft a review from the collection “{title}”. Propose an outline first, and wait for me before writing."
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Searches further and adds papers to this collection"
+msgstr "Searches further and adds papers to this collection"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Find more papers"
+msgstr "Find more papers"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
+msgstr "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Read all in full"
+msgstr "Read all in full"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Owlit proposes an outline in a chat first"
+msgstr "Owlit proposes an outline in a chat first"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Draft a review…"
+msgstr "Draft a review…"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Method and sample"
+msgstr "Method and sample"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Main finding"
+msgstr "Main finding"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Limitations"
+msgstr "Limitations"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "What they built"
+msgstr "What they built"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Ask each paper…"
+msgstr "Ask each paper…"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "A question for every paper"
+msgstr "A question for every paper"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Each question becomes a column; Owlit answers it from the abstracts."
+msgstr "Each question becomes a column; Owlit answers it from the abstracts."
 
 #. group of collections that belong to no project folder
 #: app/src/features/collections/lib.ts
@@ -2382,6 +2452,35 @@ msgid "Owlit watches for new papers on this question."
 msgstr "Owlit watches for new papers on this question."
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collect papers on…"
+msgstr "Collect papers on…"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collect papers on a question"
+msgstr "Collect papers on a question"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Project"
+msgstr "Project"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "How many papers"
+msgstr "How many papers"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "About 10 papers"
+msgstr "About 10 papers"
+
+#. how many papers to collect: a whole venue or year, up to about 200
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "As many as it takes"
+msgstr "As many as it takes"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Press Enter and Owlit collects papers on it."
+msgstr "Press Enter and Owlit collects papers on it."
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "No collections yet"
 msgstr "No collections yet"
 
@@ -2408,6 +2507,34 @@ msgstr "{0, plural, one {# column} other {# columns}}"
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Found nothing"
 msgstr "Found nothing"
+
+#: app/src/features/collections/runs.ts
+msgid "Gathering papers…"
+msgstr "Gathering papers…"
+
+#: app/src/features/collections/runs.ts
+msgid "Finding more papers…"
+msgstr "Finding more papers…"
+
+#: app/src/features/collections/runs.ts
+msgid "Asking each paper “{question}”…"
+msgstr "Asking each paper “{question}”…"
+
+#: app/src/features/collections/runs.ts
+msgid "Reading papers in full…"
+msgstr "Reading papers in full…"
+
+#: app/src/features/collections/runs.ts
+msgid "Looking for new papers…"
+msgstr "Looking for new papers…"
+
+#: app/src/features/collections/runs.ts
+msgid "Owlit gathers papers in the desktop app."
+msgstr "Owlit gathers papers in the desktop app."
+
+#: app/src/features/collections/runs.ts
+msgid "Owlit works on collections in the desktop app."
+msgstr "Owlit works on collections in the desktop app."
 
 #: app/src/features/collections/store.ts
 msgid "Removed from the collection"
@@ -6512,6 +6639,18 @@ msgstr "That isn't a file of this chat."
 #: packages/core/src/collections/collections.ts
 msgid "That collection isn't here any more."
 msgstr "That collection isn't here any more."
+
+#: packages/core/src/collections/collections.ts
+msgid "Say what to collect papers on."
+msgstr "Say what to collect papers on."
+
+#: packages/core/src/collections/collections.ts
+msgid "Say what to ask of each paper."
+msgstr "Say what to ask of each paper."
+
+#: packages/core/src/collections/collections.ts
+msgid "Owlit can't work in the background here."
+msgstr "Owlit can't work in the background here."
 
 #: packages/core/src/collections/collections.ts
 msgid "Write something, or remove it instead."

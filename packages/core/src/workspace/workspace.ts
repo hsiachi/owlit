@@ -95,6 +95,7 @@ export class Workspace {
     })
     this.library.attach(this.tasks)
     this.knowledge.attach(this.tasks)
+    this.collections.attach(this.tasks)
     this.shares = new Shares({
       server: () => null,
       author: async () => undefined,

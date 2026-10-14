@@ -679,6 +679,13 @@ export class Core {
       ({ id, edit }) => collections().edit(id, edit),
     )
     this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
+    this.router.register(
+      "collections.gather",
+      z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),
+      (params) => collections().gather(params),
+    )
+    this.router.register("collections.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read", "check"]) }), ({ id, run }) => collections().start(id, run))
+    this.router.register("collections.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => collections().ask(id, question))
     this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
     this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())
@@ -803,6 +810,12 @@ export class Core {
                 wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
               },
               collections: {
+                agent: async (prompt, signal, allow) => {
+                  // Without owlit's tools the agent couldn't write the collection at all
+                  const mcpServers = this.mcpServers(root)
+                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
+                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
+                },
                 changed: (id, collection) => {
                   if (this.workspace?.root === root) this.notifier.notify("collections.changed", { id, collection })
                 },
@@ -850,6 +863,8 @@ export class Core {
               change.reload || change.folders.deleted.length ? undefined : { docs: [...change.changed.map((f) => f.path), ...change.deleted.map((f) => f.path)] },
             )
           })
+          // Collections the user watches get their daily look
+          void next.collections.checkWatched().catch((error) => console.error("[core] couldn't check watched collections", error))
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)
@@ -954,7 +969,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.knowledge.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.knowledge.tasks(), ...workspace.collections.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

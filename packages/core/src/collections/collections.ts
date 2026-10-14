@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import {
   applyCollectionEdit,
+  collectionOfSubject,
   itemId,
   QUESTION_COLUMN,
   RpcErrorCode,
@@ -11,6 +12,9 @@ import {
   type CollectionCell,
   type CollectionEdit,
   type CollectionPaper,
+  type CollectionRun,
+  type CollectionSize,
+  type TaskPriority,
   type CollectionRow,
   type CollectionSummary,
   type CollectionWrite,
@@ -21,6 +25,8 @@ import path from "node:path"
 import type { Versions } from "../docs/versions.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
+import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from "./prompts.ts"
 
 // Collections: papers Owlit gathered for a question, in .owlit/collections/<id>/:
 //
@@ -33,6 +39,9 @@ import { RpcFailure } from "../rpc/index.ts"
 // keeps what the user did since.
 
 export interface CollectionsServices {
+  // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
+  // is a line on what it did
+  agent?: (prompt: string, signal: AbortSignal, allow: RegExp) => Promise<{ text: string }>
   // What a paper is, by its id: the Library's record, or what a recent search found
   paper?: (id: string) => Promise<CollectionPaper | undefined>
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
@@ -52,6 +61,13 @@ interface HistoryLine {
 }
 
 const FILE = "collection.json"
+const DAY = 24 * 3_600_000
+
+// What each kind of run may use besides owlit's read-only tools
+const GATHER_TOOLS = /^(mcp__owlit__)?(library_(search|related|journal)|collection_write)$/
+const FILL_TOOLS = /^(mcp__owlit__)?collection_write$/
+// Reading in full means the paper is used: it joins the library
+const READ_TOOLS = /^(mcp__owlit__)?(library_add|collection_write)$/
 
 export class Collections {
   private readonly dir: string
@@ -59,6 +75,7 @@ export class Collections {
   private readonly versions: Versions
   private readonly services: CollectionsServices
   private writing: Promise<unknown> = Promise.resolve()
+  private scheduler: Scheduler | null = null
 
   constructor(owlitDir: string, parts: { versions: Versions }, services: CollectionsServices = {}) {
     this.dir = path.join(owlitDir, "collections")
@@ -83,6 +100,111 @@ export class Collections {
     return c
   }
 
+  attach(tasks: Scheduler) {
+    this.scheduler = tasks
+  }
+
+  // ---- Owlit's work in the background ----
+
+  // The task kinds, when there is an agent to run them
+  tasks(): TaskDefinition[] {
+    const agent = this.services.agent
+    if (!agent) return []
+    const run = (kind: CollectionRun, allow: RegExp, prompt: (c: Collection, subject: string) => string, after?: (c: Collection) => Promise<void>) =>
+      defineTask(kind, {
+        lane: "agent",
+        retries: 1,
+        run: async (ctx) => {
+          const c = await this.load(collectionOfSubject(ctx.task.subject))
+          if (!c) throw new TaskFailure("The collection is gone.")
+          ctx.progress(0, undefined, kind)
+          // What it did is in the collection, with Owlit's dots; its answer is only a line for the log
+          const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow)
+          if (process.env.OWLIT_LOG_AGENTS) console.log(`[collections] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
+          await after?.(c)
+        },
+      })
+    return [
+      run("collections.gather", GATHER_TOOLS, (c) => gatherPrompt(c, c.size ?? "few")),
+      run("collections.more", GATHER_TOOLS, (c) => morePrompt(c)),
+      run("collections.fill", FILL_TOOLS, (c, subject) => {
+        const column = c.columns.find((col) => col.id === subject.split(":")[1])
+        if (!column) throw new TaskFailure("The column is gone.")
+        return fillPrompt(c, column)
+      }),
+      run("collections.read", READ_TOOLS, (c) => readPrompt(c)),
+      run("collections.check", GATHER_TOOLS, (c) => checkPrompt(c, c.checkedAt ?? c.createdAt), (c) => this.checked(c.id)),
+    ]
+  }
+
+  // Owlit gathers papers for a question: the collection is there at once, titled by the question until
+  // Owlit names it, and the task fills it
+  gather(input: { question: string; project?: string; size: CollectionSize }) {
+    return this.serial(async () => {
+      const now = Date.now()
+      const question = input.question.trim()
+      if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
+      const c: Collection = { ...(await this.blank({ asked: question, title: question, project: input.project ?? "" }, now)), size: input.size }
+      await this.save(c)
+      await this.record(c.id, { at: now, by: "you", items: ["asked"] })
+      this.services.changed?.(c.id, c)
+      this.queue("collections.gather", c.id, "asked")
+      return c
+    })
+  }
+
+  async start(id: string, run: "more" | "read" | "check") {
+    await this.get(id)
+    return this.queue(`collections.${run}`, id, "asked")
+  }
+
+  // A new column: one question for every paper, answered in the background
+  ask(id: string, question: string) {
+    return this.serial(async () => {
+      const c = await this.get(id)
+      const q = question.trim()
+      if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to ask of each paper.`)
+      let column = c.columns.find((col) => sameWords(col.question, q))
+      if (!column) {
+        column = { id: freshId("c", c.columns.map((col) => col.id)), question: q, kind: "ask" }
+        c.columns.push(column)
+        c.updatedAt = Date.now()
+        await this.save(c)
+        await this.record(c.id, { at: c.updatedAt, by: "you", items: [`column:${column.id}`] })
+        this.services.changed?.(c.id, c)
+      } else if (column.hidden) {
+        column.hidden = false
+        await this.save(c)
+        this.services.changed?.(c.id, c)
+      }
+      this.queue("collections.fill", `${c.id}:${column.id}`, "asked")
+      return c
+    })
+  }
+
+  // Collections the user asked Owlit to watch get a check once a day, the first time the workspace opens
+  async checkWatched(now = Date.now()) {
+    for (const s of await this.list()) {
+      if (!s.watch) continue
+      const c = await this.load(s.id)
+      if (c && now - (c.checkedAt ?? c.createdAt) >= DAY) this.queue("collections.check", c.id, "background")
+    }
+  }
+
+  private async checked(id: string) {
+    await this.serial(async () => {
+      const c = await this.load(id)
+      if (!c) return
+      c.checkedAt = Date.now()
+      await this.save(c)
+    })
+  }
+
+  private queue(kind: string, subject: string, priority: TaskPriority) {
+    if (!this.scheduler) throw new RpcFailure(RpcErrorCode.Unavailable, t`Owlit can't work in the background here.`)
+    return this.scheduler.enqueue(kind, subject, priority)
+  }
+
   // ---- Owlit's writes ----
 
   write(input: CollectionWrite) {
@@ -98,11 +220,14 @@ export class Collections {
       const before = existing ? JSON.stringify(existing) : null
       const c: Collection = existing ? structuredClone(existing) : await this.blank(input, now)
       const fresh = !existing
+      // Until the user has looked at the collection once, all of it is new: nothing in it gets a dot of its
+      // own (the list says it is new)
+      const looked = c.seenAt > 0
       const changed = new Set<string>()
       // Every item the write changed goes in the history; dot: false leaves it without Owlit's dot
       const mark = (item: string, dot = true) => {
         changed.add(item)
-        if (dot && !fresh) c.changedAt[item] = now
+        if (dot && !fresh && looked) c.changedAt[item] = now
       }
 
       if (existing && input.title?.trim() && input.title.trim() !== c.title) {

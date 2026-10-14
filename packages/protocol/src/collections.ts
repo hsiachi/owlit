@@ -114,8 +114,12 @@ export interface Collection {
   columns: CollectionColumn[]
   rows: CollectionRow[]
   groups: CollectionGroup[]
-  // Look for new papers now and then (off unless the user turns it on)
+  // Look for new papers now and then (off unless the user turns it on), and when Owlit last did
   watch: boolean
+  checkedAt?: number
+  // How many papers the user asked for when they started it from the Collections page: about ten, or
+  // as many as the question takes (a venue's proceedings)
+  size?: CollectionSize
   createdAt: number
   updatedAt: number
   // When Owlit last changed each item, and when the user last looked: an item changed after seenAt
@@ -124,6 +128,14 @@ export interface Collection {
   seenAt: number
   yours: CollectionYours
 }
+
+export type CollectionSize = "few" | "many"
+
+// Work Owlit does on a collection in the background, as task kinds; the task's subject is the
+// collection's id, or "<id>:<column>" for filling a column
+export const COLLECTION_RUNS = ["collections.gather", "collections.more", "collections.fill", "collections.read", "collections.check"] as const
+export type CollectionRun = (typeof COLLECTION_RUNS)[number]
+export const collectionOfSubject = (subject: string) => subject.split(":")[0]!
 
 export const itemId = {
   title: () => "title",
@@ -162,7 +174,7 @@ export interface CollectionSummary {
   columns: number
   createdAt: number
   updatedAt: number
-  // Owlit changed something since the user last looked
+  // Owlit changed something since the user last looked, or they haven't looked at it yet
   fresh: boolean
   watch: boolean
 }
@@ -177,7 +189,7 @@ export function summarize(c: Collection): CollectionSummary {
     columns: c.columns.filter((col) => col.id !== QUESTION_COLUMN && !col.hidden).length,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
-    fresh: Object.values(c.changedAt).some((at) => at > c.seenAt),
+    fresh: c.seenAt === 0 || Object.values(c.changedAt).some((at) => at > c.seenAt),
     watch: c.watch,
   }
 }

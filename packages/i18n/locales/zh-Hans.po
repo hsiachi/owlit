@@ -1021,10 +1021,12 @@ msgstr "附加文件"
 msgid "Add from {place}"
 msgstr "从{place}添加"
 
+#. stop Owlit's work on a collection
 #. stop getting PDFs from the browser
 #. stop getting PDFs from the browser
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/collections/components/Work.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "Stop"
@@ -1073,6 +1075,7 @@ msgstr "忽略"
 
 #. verb: send the question again
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/collections/components/Work.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
@@ -2276,7 +2279,9 @@ msgid "Move to project"
 msgstr "移到项目"
 
 #. a collection that belongs to no project folder
+#. a collection that belongs to no project folder
 #: app/src/features/collections/components/CollectionMenu.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "No project"
 msgstr "不属于项目"
 
@@ -2312,6 +2317,71 @@ msgstr "你改过"
 #: app/src/features/collections/components/Memo.tsx
 msgid "Sentence actions"
 msgstr "这句话的操作"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "{papers} so far"
+msgstr "已有 {papers} 篇"
+
+#: app/src/features/collections/components/Work.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Owlit stopped."
+msgstr "Owlit 停下了。"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Draft a review from the collection “{title}”. Propose an outline first, and wait for me before writing."
+msgstr "根据合集“{title}”起草一份文献综述。先给出提纲，等我确认后再写。"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Searches further and adds papers to this collection"
+msgstr "继续检索，把论文加进这个合集"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Find more papers"
+msgstr "找更多论文"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
+msgstr "把只读过摘要的论文读全文（有 PDF 的），它们会加入你的文献库"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Read all in full"
+msgstr "全部读全文"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Owlit proposes an outline in a chat first"
+msgstr "Owlit 会先在对话里给出提纲"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Draft a review…"
+msgstr "起草综述…"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Method and sample"
+msgstr "方法与样本"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Main finding"
+msgstr "主要发现"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Limitations"
+msgstr "局限"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "What they built"
+msgstr "做出了什么"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Ask each paper…"
+msgstr "问每篇论文…"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "A question for every paper"
+msgstr "问每篇论文的问题"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Each question becomes a column; Owlit answers it from the abstracts."
+msgstr "每个问题成为一列；Owlit 根据摘要回答。"
 
 #. group of collections that belong to no project folder
 #: app/src/features/collections/lib.ts
@@ -2382,6 +2452,35 @@ msgid "Owlit watches for new papers on this question."
 msgstr "Owlit 会留意这个问题的新论文。"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collect papers on…"
+msgstr "收集关于…的论文"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collect papers on a question"
+msgstr "就一个问题收集论文"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Project"
+msgstr "项目"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "How many papers"
+msgstr "多少篇"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "About 10 papers"
+msgstr "10 篇左右"
+
+#. how many papers to collect: a whole venue or year, up to about 200
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "As many as it takes"
+msgstr "需要多少就多少"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Press Enter and Owlit collects papers on it."
+msgstr "按回车，Owlit 会就此收集论文。"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "No collections yet"
 msgstr "还没有合集"
 
@@ -2408,6 +2507,34 @@ msgstr "{0, plural, other {# 列}}"
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Found nothing"
 msgstr "什么也没找到"
+
+#: app/src/features/collections/runs.ts
+msgid "Gathering papers…"
+msgstr "正在收集论文…"
+
+#: app/src/features/collections/runs.ts
+msgid "Finding more papers…"
+msgstr "正在找更多论文…"
+
+#: app/src/features/collections/runs.ts
+msgid "Asking each paper “{question}”…"
+msgstr "正在问每篇论文“{question}”…"
+
+#: app/src/features/collections/runs.ts
+msgid "Reading papers in full…"
+msgstr "正在读全文…"
+
+#: app/src/features/collections/runs.ts
+msgid "Looking for new papers…"
+msgstr "正在找新论文…"
+
+#: app/src/features/collections/runs.ts
+msgid "Owlit gathers papers in the desktop app."
+msgstr "Owlit 在桌面版里收集论文。"
+
+#: app/src/features/collections/runs.ts
+msgid "Owlit works on collections in the desktop app."
+msgstr "Owlit 在桌面版里处理合集。"
 
 #: app/src/features/collections/store.ts
 msgid "Removed from the collection"
@@ -6512,6 +6639,18 @@ msgstr "那不是这个对话的文件。"
 #: packages/core/src/collections/collections.ts
 msgid "That collection isn't here any more."
 msgstr "那个合集已经不在了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "Say what to collect papers on."
+msgstr "说说要收集关于什么的论文。"
+
+#: packages/core/src/collections/collections.ts
+msgid "Say what to ask of each paper."
+msgstr "说说要问每篇论文什么。"
+
+#: packages/core/src/collections/collections.ts
+msgid "Owlit can't work in the background here."
+msgstr "Owlit 在这里无法在后台工作。"
 
 #: packages/core/src/collections/collections.ts
 msgid "Write something, or remove it instead."

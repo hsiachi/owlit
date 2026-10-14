@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { Versions } from "../docs/versions.ts"
+import { Scheduler, TaskStore } from "../tasks/index.ts"
 import { Collections, uniqueId, type CollectionsServices } from "./collections.ts"
 
 const papers: Record<string, CollectionPaper> = {
@@ -66,18 +67,22 @@ describe("Collections.write", () => {
     await expect(start(collections, { rows: [{ id: "doi-10.9999-x" }] })).rejects.toThrow(/doesn't know the paper doi-10.9999-x/)
   })
 
-  it("adds to a collection, marking only what changed", async () => {
+  it("adds to a collection, marking only what changed once the user has looked", async () => {
     const { collections } = setup()
     const { id } = await start(collections)
+    await collections.write({ id, rows: [{ id: "doi-10.1145-3" }] })
+    expect((await collections.get(id)).changedAt).toEqual({})
+    await collections.edit(id, { op: "seen" })
     const out = await collections.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Retrospective answers run lower.", depth: "abstract" } } }, { id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover more.", depth: "abstract" } } }] })
-    expect(out).toMatchObject({ added: 1, updated: 0 })
+    expect(out).toMatchObject({ added: 0, updated: 1 })
     const c = await collections.get(id)
-    expect(Object.keys(c.changedAt).sort()).toEqual([itemId.cell("doi-10.1145-3", "q"), itemId.row("doi-10.1145-3")].sort())
+    expect(Object.keys(c.changedAt)).toEqual([itemId.cell("doi-10.1145-3", "q")])
   })
 
   it("keeps the user's rewrite of a cell through Owlit's later answers, without a dot", async () => {
     const { collections } = setup()
     const { id } = await start(collections)
+    await collections.edit(id, { op: "seen" })
     await collections.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-2", "q"), text: "Lifelog replay beats diaries." })
     await collections.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Explanations from replay are more complete.", depth: "full", passage: { quote: "more complete", page: 12 } } } }] })
     const c = await collections.get(id)
@@ -166,6 +171,9 @@ describe("Collections, the user's side", () => {
   it("says in the list whether Owlit changed something since the user looked", async () => {
     const { collections } = setup()
     const { id } = await start(collections)
+    // Never looked at: new
+    expect((await collections.list())[0]?.fresh).toBe(true)
+    await collections.edit(id, { op: "seen" })
     expect((await collections.list())[0]?.fresh).toBe(false)
     await collections.write({ id, rows: [{ id: "doi-10.1145-3" }] })
     expect((await collections.list())[0]).toMatchObject({ fresh: true, papers: 3 })
@@ -221,5 +229,64 @@ describe("uniqueId", () => {
     expect(uniqueId("UIST 2026 papers", [])).toBe("uist-2026-papers")
     expect(uniqueId("UIST 2026 papers", ["uist-2026-papers"])).toBe("uist-2026-papers-2")
     expect(uniqueId("回放式标注作为研究方法", [])).toMatch(/^c-[0-9a-f]{6}$/)
+  })
+})
+
+describe("Collections, Owlit's work in the background", () => {
+  function withRuns() {
+    const prompts: { prompt: string; allow: string }[] = []
+    const ctx = setup({
+      // The agent writes the way it would through owlit-mcp: a row and a title on the first write
+      agent: async (prompt, _signal, allow) => {
+        prompts.push({ prompt, allow: allow.source })
+        const id = /collection_write,? id ([\w-]+)/.exec(prompt)?.[1]
+        if (id && prompt.includes("gathering")) await ctx.collections.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }] })
+        return { text: "Gathered one paper." }
+      },
+    })
+    const scheduler = new Scheduler({ store: new TaskStore(mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))), definitions: ctx.collections.tasks(), retryDelay: () => 5 })
+    ctx.collections.attach(scheduler)
+    return { ...ctx, scheduler, prompts }
+  }
+
+  it("starts a collection at once and fills it in the background", async () => {
+    const { collections, scheduler, prompts } = withRuns()
+    const c = await collections.gather({ question: "回放评价可靠吗？", project: "主动提醒研究", size: "few" })
+    expect(c).toMatchObject({ title: "回放评价可靠吗？", project: "主动提醒研究", size: "few", rows: [] })
+    const task = Object.values(await scheduler.list()).find((t) => t.subject === c.id)!
+    expect(task.kind).toBe("collections.gather")
+    expect((await scheduler.wait(task.id)).state).toBe("done")
+    const now = await collections.get(c.id)
+    expect(now.title).toBe("Replay ratings")
+    expect(now.rows.map((r) => r.id)).toEqual(["doi-10.1145-1"])
+    expect(prompts[0]?.prompt).toMatch(/about ten papers/)
+    expect(prompts[0]?.allow).toMatch(/library_\(search\|related\|journal\)/)
+  })
+
+  it("adds a column and asks the agent to fill it, with only collection_write besides reading", async () => {
+    const { collections, scheduler, prompts } = withRuns()
+    const { id } = await start(collections)
+    const c = await collections.ask(id, "Method and sample")
+    const column = c.columns.at(-1)!
+    expect(column).toMatchObject({ question: "Method and sample", kind: "ask" })
+    const task = (await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!
+    expect(task.kind).toBe("collections.fill")
+    await scheduler.wait(task.id)
+    expect(prompts[0]?.prompt).toMatch(new RegExp(`The column to fill: ${column.id} — «Method and sample»`))
+    expect(prompts[0]?.allow).not.toMatch(/library_add/)
+    // Asking the same again fills the same column
+    expect((await collections.ask(id, "Method  and sample")).columns).toHaveLength(2)
+  })
+
+  it("checks watched collections once a day", async () => {
+    const { collections, scheduler } = withRuns()
+    const { id } = await start(collections)
+    await collections.edit(id, { op: "watch", on: true })
+    await collections.checkWatched(Date.now())
+    expect((await scheduler.list()).filter((t) => t.kind === "collections.check")).toHaveLength(0)
+    await collections.checkWatched(Date.now() + 25 * 3_600_000)
+    const task = (await scheduler.list()).find((t) => t.kind === "collections.check")!
+    await scheduler.wait(task.id)
+    expect((await collections.get(id)).checkedAt).toBeGreaterThan(0)
   })
 })

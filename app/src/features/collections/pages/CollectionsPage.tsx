@@ -1,5 +1,9 @@
 import { plural, t } from "@lingui/core/macro"
-import type { CollectionSummary } from "@owlit/protocol"
+import type { CollectionSize, CollectionSummary } from "@owlit/protocol"
+import { useState } from "react"
+import { ChoiceMenu } from "@/components/choice-menu"
+import { FindField } from "@/components/find-field"
+import { hasAllWords, queryWords } from "@/lib/words"
 import { useNavigate } from "react-router-dom"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { EmptyPlace } from "@/components/empty-place"
@@ -8,7 +12,8 @@ import { PageShell, PageTitle } from "@/components/page"
 import { RenameInput } from "@/components/rename-input"
 import { NoteDot } from "@/components/marks"
 import { shortDate } from "@/lib/time"
-import { useCollectionMenu } from "../components/CollectionMenu"
+import { useCollectionMenu, useProjects } from "../components/CollectionMenu"
+import { gather, runWords, useCollectionWork } from "../runs"
 import { byProject } from "../lib"
 import { editCollection, useCollection, useCollectionsStore, useSummaries } from "../store"
 import { useCollectionsUi } from "../ui-store"
@@ -17,15 +22,49 @@ import { useCollectionsUi } from "../ui-store"
 // many papers (and columns, once it is a table), and when it last changed; the slot says whether Owlit
 // changed it since the user looked. No counts beyond that and nothing to clear.
 export function CollectionsPage() {
-  const summaries = useSummaries()
+  const all = useSummaries()
   const loaded = useCollectionsStore((s) => s.loaded)
+  const projects = useProjects()
+  const [query, setQuery] = useState("")
+  const [size, setSize] = useState<CollectionSize>("few")
+  const [project, setProject] = useState("")
+  // What is typed finds collections by title too; Enter asks Owlit to collect papers on it
+  const words = queryWords(query)
+  const summaries = words.length ? all.filter((c) => hasAllWords(c.title, words)) : all
   const groups = byProject(summaries)
+  const collect = async () => {
+    const question = query.trim()
+    if (!question) return
+    if (await gather(question, size, project)) setQuery("")
+  }
   return (
     <PageShell width="narrow">
       <header className="px-0.5">
         <PageTitle>{t`Collections`}</PageTitle>
       </header>
-      {loaded && !summaries.length ? (
+      <FindField value={query} onChange={setQuery} onEnter={() => void collect()} placeholder={t`Collect papers on…`} label={t`Collect papers on a question`}>
+        {projects.length > 0 && (
+          <ChoiceMenu
+            value={project}
+            onChange={setProject}
+            label={t`Project`}
+            options={[{ value: "", label: t({ message: "No project", comment: "a collection that belongs to no project folder" }) }, ...projects.map((p) => ({ value: p, label: p }))]}
+            icon={null}
+          />
+        )}
+        <ChoiceMenu
+          value={size}
+          onChange={setSize}
+          label={t`How many papers`}
+          options={[
+            { value: "few", label: t`About 10 papers` },
+            { value: "many", label: t({ message: "As many as it takes", comment: "how many papers to collect: a whole venue or year, up to about 200" }) },
+          ]}
+          icon={null}
+        />
+      </FindField>
+      {words.length > 0 && !summaries.length && loaded && <p className="mt-6 px-2.5 text-sm text-muted-foreground">{t`Press Enter and Owlit collects papers on it.`}</p>}
+      {loaded && !all.length ? (
         <EmptyPlace
           className="mt-24"
           title={t`No collections yet`}
@@ -56,6 +95,8 @@ function CollectionRow({ summary }: { summary: CollectionSummary }) {
   const renaming = useCollectionsUi((s) => s.renaming === summary.id)
   const set = useCollectionsUi((s) => s.set)
   const open = () => navigate(`/collections/${summary.id}`)
+  const work = useCollectionWork(summary.id)
+  const running = work.running[0]
   const papers = plural(summary.papers, { one: "# paper", other: "# papers" })
   const size = summary.papers
     ? summary.columns
@@ -87,9 +128,21 @@ function CollectionRow({ summary }: { summary: CollectionSummary }) {
         className="group/row flex h-9 cursor-default items-center gap-2 rounded-md pr-1 pl-2.5 text-sm outline-none select-none hover:bg-muted focus-key:bg-muted has-data-[state=open]:bg-muted data-[state=open]:bg-muted"
       >
         {/* The slot keeps titles in line; Owlit's dot fills it while something changed since the user looked */}
-        <span className="-ml-0.5 grid size-5 shrink-0 place-items-center">{summary.fresh ? <NoteDot /> : <span className="size-2 rounded-full border-[1.5px] border-muted-foreground/55" />}</span>
+        <span className="-ml-0.5 grid size-5 shrink-0 place-items-center">
+          {running ? (
+            <span className="size-2 animate-ring-breathe rounded-full bg-muted-foreground motion-reduce:animate-none" />
+          ) : work.broken ? (
+            <span className="size-2 rounded-full bg-destructive" title={t`Owlit stopped.`} />
+          ) : summary.fresh ? (
+            <NoteDot />
+          ) : (
+            <span className="size-2 rounded-full border-[1.5px] border-muted-foreground/55" />
+          )}
+        </span>
         <span className="shrink-0 truncate">{summary.title}</span>
-        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">{size}</span>
+        <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">
+          {running ? <span className="shimmer">{runWords(running, collection)}</span> : size}
+        </span>
         <span className="shrink-0 pr-1.5 text-detail text-muted-foreground tabular-nums group-hover/row:hidden group-focus-key/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(summary.updatedAt)}
         </span>

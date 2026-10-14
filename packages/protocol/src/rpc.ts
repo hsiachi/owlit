@@ -5,7 +5,7 @@ import type { ConsentAction, Role } from "./roles.ts"
 import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { KnowledgeRun, KnowledgeVersion, KnowledgeWrite, PaperKnowledge, TopicSidecar, TopicSummary } from "./knowledge.ts"
-import type { Collection, CollectionEdit, CollectionPaper, CollectionSummary, CollectionWrite } from "./collections.ts"
+import type { Collection, CollectionEdit, CollectionPaper, CollectionSize, CollectionSummary, CollectionWrite } from "./collections.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -196,6 +196,14 @@ export interface Methods {
   // Keep it separate: the rows an agent added to this collection become a collection of their own, for
   // the question they were found for
   "collections.split": { params: { id: string; rows: string[]; asked: string }; result: Collection }
+  // Owlit gathers papers for a question, in the background: the collection is there at once (empty,
+  // titled by the question until Owlit names it) and fills as the task runs
+  "collections.gather": { params: { question: string; project?: string; size: CollectionSize }; result: Collection }
+  // More of Owlit's work on a collection: find more papers, read the abstract-only ones in full, check
+  // for new papers now
+  "collections.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
+  // A new column: a question Owlit answers for every paper
+  "collections.ask": { params: { id: string; question: string }; result: Collection }
   // Moves the collection to .owlit/trash/
   "collections.delete": { params: { id: string }; result: null }
   "collections.undelete": { params: { id: string }; result: Collection }

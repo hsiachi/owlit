@@ -18,6 +18,7 @@ import { isDesktop } from "@/lib/rpc"
 import { shortDate } from "@/lib/time"
 import { joinAnd } from "@/lib/words"
 import { AnswerRows } from "../components/AnswerRows"
+import { CollectionActions, WorkLine } from "../components/Work"
 import { useCollectionMenu } from "../components/CollectionMenu"
 import { Memo } from "../components/Memo"
 import { editCollection, useCollection, useCollectionsStore } from "../store"
@@ -85,8 +86,10 @@ export function CollectionPage() {
           ) : (
             <PageTitle className="text-balance">{shown.title}</PageTitle>
           )}
+          <WorkLine collection={collection} />
           <Memo collection={collection} shown={shown} seenBefore={since} onRow={openRow} />
           <AnswerRows collection={collection} shown={shown} seenBefore={since} />
+          <CollectionActions collection={collection} />
           <About collection={collection} />
         </article>
       </div>
