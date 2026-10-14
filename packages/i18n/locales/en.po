@@ -942,8 +942,14 @@ msgstr "Or tell Owlit what to do instead…"
 msgid "Or type your own answer…"
 msgstr "Or type your own answer…"
 
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
 #. verb: set up the agent in Settings
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Set up"
 msgstr "Set up"
 
@@ -993,6 +999,8 @@ msgstr "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
 msgid "Cancel"
@@ -1380,6 +1388,10 @@ msgstr "Connected"
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t installed"
 msgstr "{agent} isn’t installed"
+
+#: app/src/features/chat/lib/connector-status.ts
+msgid "{agent} isn’t set up for Owlit"
+msgstr "{agent} isn’t set up for Owlit"
 
 #: app/src/features/chat/lib/connector-status.ts
 msgid "{agent} isn’t signed in"
@@ -4273,6 +4285,8 @@ msgid "Choose file"
 msgstr "Choose file"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -4414,6 +4428,11 @@ msgstr "Agent for Owlit"
 #: app/src/features/onboarding/AgentChoice.tsx
 msgid "Ready · {0}"
 msgstr "Ready · {0}"
+
+#. placeholder {0}: Math.round(progress * 100)
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Setting up… {0}%"
+msgstr "Setting up… {0}%"
 
 #: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -4751,6 +4770,18 @@ msgstr "Sign-ins"
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
 msgstr "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Setting up… {percent}%"
+msgstr "Setting up… {percent}%"
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Not set up · about {size} MB"
+msgstr "Not set up · about {size} MB"
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Update to {latest}"
+msgstr "Update to {latest}"
 
 #. verb: check whether the agent is installed and works
 #: app/src/features/settings/sections/AgentsSection.tsx
@@ -5249,8 +5280,24 @@ msgid "Looking for an agent on this Mac…"
 msgstr "Looking for an agent on this Mac…"
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "Setting up {name}… {percent}%"
+msgstr "Setting up {name}… {percent}%"
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 msgstr "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{name} couldn't be set up."
+msgstr "{name} couldn't be set up."
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "{name} is on this Mac."
+msgstr "{name} is on this Mac."
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set it up for Owlit (about {size} MB)."
+msgstr "Set it up for Owlit (about {size} MB)."
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "{problem}."
@@ -5261,12 +5308,24 @@ msgid "Use another agent…"
 msgstr "Use another agent…"
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "Owlit works through Claude Code or Codex."
+msgstr "Owlit works through Claude Code or Codex."
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Install one in Terminal, then sign in:"
+msgstr "Install one in Terminal, then sign in:"
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit needs a coding agent on this Mac."
 msgstr "Owlit needs a coding agent on this Mac."
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "To use {name}, run this in Terminal:"
 msgstr "To use {name}, run this in Terminal:"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+msgstr "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
@@ -5648,6 +5707,10 @@ msgid "The agent"
 msgstr "The agent"
 
 #: packages/core/src/agents/agents.ts
+msgid "owlit can't set agents up here."
+msgstr "owlit can't set agents up here."
+
+#: packages/core/src/agents/agents.ts
 msgid "owlit doesn't know that agent."
 msgstr "owlit doesn't know that agent."
 
@@ -5697,6 +5760,22 @@ msgstr "{name} exited with code {code}. It starts again with the next message."
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
+
+#: packages/core/src/agents/setup.ts
+msgid "npm finished, but the adapter isn't there."
+msgstr "npm finished, but the adapter isn't there."
+
+#: packages/core/src/agents/setup.ts
+msgid "Couldn't reach the npm registry. Check the network or proxy, then try again."
+msgstr "Couldn't reach the npm registry. Check the network or proxy, then try again."
+
+#: packages/core/src/agents/setup.ts
+msgid "There isn't enough space on this Mac."
+msgstr "There isn't enough space on this Mac."
+
+#: packages/core/src/agents/setup.ts
+msgid "The setup failed."
+msgstr "The setup failed."
 
 #: packages/core/src/agents/turns.ts
 msgid "This chat is still answering."

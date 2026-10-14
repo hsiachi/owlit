@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
 import { KindIcon } from "@/components/kind-icon"
 import { Button } from "@/components/ui/button"
-import { canRun, connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
+import { canRun, canSetUp, connectorProblem, problemSentence, settingUp } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { openSettings } from "@/features/settings/store"
 import { copyText } from "@/lib/clipboard"
@@ -47,6 +47,14 @@ export function AgentCheck() {
   const signedOut = installed.find((c) => connectorProblem(c) === "signed_out")
   const broken = installed.find((c) => connectorProblem(c) === "error")
   const first = connectors.find((c) => c.builtIn && c.installHint)
+  // owlit's own copy of an adapter: being set up, failed, or ready to set up for an agent on this Mac
+  const busy = connectors.find((c) => settingUp(c) !== undefined)
+  const failed = connectors.find((c) => c.setup?.error && !c.setup.installed)
+  const settable = connectors.find(canSetUp)
+  const ownable = connectors.filter((c) => c.setup)
+  const engine = connectors.find((c) => c.signsInHere)
+  const setUp = useChatStore((s) => s.setUpConnector)
+  const cancelSetUp = useChatStore((s) => s.cancelSetUp)
 
   const copy = (text: string) => {
     void copyText(text).then((ok) => ok && toast(t`Copied`, { description: text }))
@@ -77,6 +85,17 @@ export function AgentCheck() {
         <span>{t`Looking for an agent on this Mac…`}</span>
       </Line>
     )
+  } else if (busy) {
+    const name = busy.name
+    const percent = Math.round((settingUp(busy) ?? 0) * 100)
+    body = (
+      <Line icon={<LoaderCircleIcon className="animate-spin" />}>
+        <span className="flex-1 tabular-nums">{t`Setting up ${name}… ${percent}%`}</span>
+        <Button variant="text" size="inline" className="-my-1 -mr-1.5" onClick={() => void cancelSetUp(busy.id)}>
+          {t`Cancel`}
+        </Button>
+      </Line>
+    )
   } else if (signedOut) {
     const command = signedOut.signIn ?? signedOut.command
     const problem = problemSentence(signedOut)
@@ -93,6 +112,36 @@ export function AgentCheck() {
             </Button>
             <Button variant="text" size="inline" onClick={recheck}>
               {t`Check again`}
+            </Button>
+          </div>
+        </div>
+      </Line>
+    )
+  } else if (failed) {
+    const name = failed.name
+    body = (
+      <Line>
+        <div className="min-w-0 flex-1">
+          <span className="text-foreground">{t`${name} couldn't be set up.`}</span>
+          <div className="mt-0.5 text-destructive">{failed.setup?.error}</div>
+          <div className="mt-1 -ml-1.5 flex gap-0.5">
+            <Button variant="text" size="inline" onClick={() => void setUp(failed.id)}>
+              {t`Try again`}
+            </Button>
+          </div>
+        </div>
+      </Line>
+    )
+  } else if (settable) {
+    const name = settable.name
+    const size = settable.setup?.sizeMb ?? 300
+    body = (
+      <Line>
+        <div className="min-w-0 flex-1">
+          <span className="text-foreground">{t`${name} is on this Mac.`}</span> {t`Set it up for Owlit (about ${size} MB).`}
+          <div className="mt-2">
+            <Button size="sm" onClick={() => void setUp(settable.id)}>
+              {t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
             </Button>
           </div>
         </div>
@@ -121,15 +170,29 @@ export function AgentCheck() {
     body = (
       <Line>
         <div className="min-w-0 flex-1">
-          <span className="text-foreground">{t`Owlit needs a coding agent on this Mac.`}</span>
-          {first?.installHint && (
+          {ownable.length ? (
             <>
-              {" "}
-              {t`To use ${name}, run this in Terminal:`}
-              <div className="mt-1 flex items-start gap-1">
-                <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{first.installHint}</code>
-                <CopyButton text={first.installHint} label={t`Copy the install command`} className="mt-0.5" />
-              </div>
+              <span className="text-foreground">{t`Owlit works through Claude Code or Codex.`}</span> {t`Install one in Terminal, then sign in:`}
+              {ownable.map((c) => (
+                <div key={c.id} className="mt-1 flex items-start gap-1">
+                  <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{c.setup!.installCli}</code>
+                  <CopyButton text={c.setup!.installCli} label={t`Copy the install command`} className="mt-0.5" />
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <span className="text-foreground">{t`Owlit needs a coding agent on this Mac.`}</span>
+              {first?.installHint && (
+                <>
+                  {" "}
+                  {t`To use ${name}, run this in Terminal:`}
+                  <div className="mt-1 flex items-start gap-1">
+                    <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{first.installHint}</code>
+                    <CopyButton text={first.installHint} label={t`Copy the install command`} className="mt-0.5" />
+                  </div>
+                </>
+              )}
             </>
           )}
           <div className="mt-1 -ml-1.5 flex gap-0.5">
@@ -140,6 +203,17 @@ export function AgentCheck() {
               {t`Use another agent…`}
             </Button>
           </div>
+          {engine && (
+            <p className="mt-2">
+              <Trans>
+                Or{" "}
+                <button type="button" className="text-foreground underline decoration-foreground/30 underline-offset-3 hover:decoration-foreground/60" onClick={() => openSettings("agents")}>
+                  sign in with ChatGPT
+                </button>{" "}
+                to use the Owlit engine (Beta).
+              </Trans>
+            </p>
+          )}
         </div>
       </Line>
     )

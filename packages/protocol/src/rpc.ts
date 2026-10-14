@@ -206,6 +206,10 @@ export interface Methods {
   "agents.guide": { params: { topic?: string }; result: string }
   // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
   "agents.check": { params: { id: string }; result: Connector }
+  // Fetches owlit's own copy of the agent's adapter (or a newer one) into owlit's data folder; returns at
+  // once, and agents.changed carries the progress and the end
+  "agents.setUp": { params: { id: string }; result: Connector }
+  "agents.cancelSetUp": { params: { id: string }; result: Connector }
   "agents.add": { params: { name: string; command: string }; result: Connector }
   // Removes one the user added
   "agents.remove": { params: { id: string }; result: null }

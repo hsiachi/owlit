@@ -28,6 +28,7 @@ await build({
     electronVersion: require("electron/package.json").version,
     directories: { output: "release" },
     files: ["dist/**/*", "package.json"],
+    asarUnpack: ["dist/npm/**"],
     npmRebuild: false,
     // icon.icns comes from scripts/icon.mjs, with a heavier line at the small sizes
     mac: { identity: null, category: "public.app-category.productivity", icon: "resources/icon.icns" },

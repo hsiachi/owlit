@@ -5,7 +5,7 @@ import { LoaderCircleIcon } from "lucide-react"
 import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
-import { canRun, connectorProblem, problemSentence, statusLabel } from "@/features/chat/lib/connector-status"
+import { canRun, canSetUp, connectorProblem, problemSentence, settingUp, statusLabel } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { updateSettings, useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
@@ -18,6 +18,7 @@ const isChecking = (c: Connector) => c.status === "checking" || c.status === "un
 // since people leave to run the command in Terminal. The Owlit engine (Beta) signs in under Settings, so a
 // first run leaves it out.
 export function AgentChoice() {
+  const setUp = useChatStore((s) => s.setUpConnector)
   const connectors = useChatStore((s) => s.connectors).filter((c) => !c.signsInHere)
   const check = useChatStore((s) => s.checkConnector)
   const setSelection = useChatStore((s) => s.setSelection)
@@ -50,7 +51,11 @@ export function AgentChoice() {
         const ready = canRun(c)
         const on = c.id === chosen?.id
         const problem = connectorProblem(c)
-        const command = problem === "not_installed" ? c.installHint : problem === "signed_out" ? (c.signIn ?? c.command) : undefined
+        // owlit sets Claude Code's and Codex's adapters up itself: a missing one is a Set up, and only a
+        // missing agent is a command to copy
+        const progress = settingUp(c)
+        const command =
+          problem === "not_installed" ? (c.setup ? c.setup.installCli : c.installHint) : problem === "signed_out" ? (c.signIn ?? c.command) : undefined
         return (
           <div
             key={c.id}
@@ -82,6 +87,15 @@ export function AgentChoice() {
                 )}
               </span>
             </span>
+            {progress !== undefined ? (
+              <span className="shrink-0 text-detail text-muted-foreground tabular-nums">{t`Setting up… ${Math.round(progress * 100)}%`}</span>
+            ) : canSetUp(c) ? (
+              <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+                <Button variant="text" size="inline" onClick={() => void setUp(c.id)}>
+                  {t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
+                </Button>
+              </span>
+            ) : null}
             {command && (
               <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
                 <CopyButton text={command} label={problem === "not_installed" ? t`Copy the install command` : t`Copy the sign-in command`} />

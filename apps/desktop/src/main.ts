@@ -480,6 +480,10 @@ if (!app.requestSingleInstanceLock()) {
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way
       engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
+      // Claude Code's and Codex's adapters, set up by owlit with its own npm and run the same way. A
+      // packaged app keeps npm outside the asar archive (asarUnpack), since npm runs its own scripts.
+      node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
+      npm: path.join(__dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked"), "npm", "bin", "npm-cli.js"),
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       exampleDir: path.join(__dirname, "example-workspace"),

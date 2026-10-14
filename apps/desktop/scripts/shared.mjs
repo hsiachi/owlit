@@ -76,4 +76,8 @@ export function copyMainAssets() {
   // The example workspace the first-launch flow offers (workspace.createExample)
   const example = path.join(desktopDir, "resources", "example-workspace")
   if (existsSync(example)) cpSync(example, path.join(distDir, "example-workspace"), { recursive: true })
+  // npm, which sets up owlit's own copy of Claude Code's and Codex's adapters (core agents/setup.ts). It
+  // ships with its dependencies inside, so the folder is all it needs.
+  const npm = path.dirname(createRequire(path.join(desktopDir, "package.json")).resolve("npm/package.json"))
+  if (!existsSync(path.join(distDir, "npm", "package.json"))) cpSync(npm, path.join(distDir, "npm"), { recursive: true, dereference: true })
 }

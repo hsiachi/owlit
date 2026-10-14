@@ -268,6 +268,25 @@ export interface SignIn {
   hint?: string
 }
 
+// owlit's own copy of an agent's ACP adapter (Claude Code, Codex), kept in owlit's data folder, so someone
+// with the agent signed in needs nothing else
+export interface AgentSetup {
+  // The agent's own command (claude, codex) is on this Mac
+  cliFound: boolean
+  // What installs the agent itself, in Terminal
+  installCli: string
+  // About how big the adapter is
+  sizeMb: number
+  // The version of owlit's copy, once set up
+  installed?: string
+  // A newer adapter than the one set up
+  latest?: string
+  // Being set up now, 0 to 1
+  progress?: number
+  // Why the last setup failed
+  error?: string
+}
+
 export interface Connector {
   id: string
   name: string
@@ -297,6 +316,8 @@ export interface Connector {
   defaultEffortId?: string
   // Kinds of attached file this agent can't read (profiles.ts knows), said on a file's chip before sending
   cannotRead?: FileKind[]
+  // For the agents owlit can set up itself
+  setup?: AgentSetup
 }
 
 // ---- Session updates streamed from an agent (ACP SessionUpdate subset) ----

@@ -36,9 +36,16 @@ export const needsSignIn = (c: Connector) => !!c.signInMethods?.length && c.auth
 // Broken in a way only the user can fix outside owlit
 export const isBroken = (c: Connector) => c.status === "error" && !needsSignIn(c)
 
+// owlit can set the agent up itself (Claude Code, Codex): the agent is on this Mac, owlit's copy of its
+// adapter isn't there yet, and nothing else on the Mac runs it
+export const canSetUp = (c: Connector) => c.status === "not_installed" && !!c.setup?.cliFound && !c.setup.installed
+
+// Being set up now: its progress, 0 to 1
+export const settingUp = (c: Connector) => c.setup?.progress
+
 // What keeps an agent from running, if anything
-export function connectorProblem(c: Connector): "not_installed" | "signed_out" | "error" | undefined {
-  if (c.status === "not_installed") return "not_installed"
+export function connectorProblem(c: Connector): "not_installed" | "not_set_up" | "signed_out" | "error" | undefined {
+  if (c.status === "not_installed") return canSetUp(c) ? "not_set_up" : "not_installed"
   if (c.status !== "error") return undefined
   return c.authenticated === false ? "signed_out" : "error"
 }
@@ -48,6 +55,7 @@ export function problemSentence(c: Connector) {
   const problem = connectorProblem(c)
   const agent = c.name
   if (problem === "not_installed") return t`${agent} isn’t installed`
+  if (problem === "not_set_up") return t`${agent} isn’t set up for Owlit`
   if (problem === "signed_out") return t`${agent} isn’t signed in`
   if (problem === "error") return t`${agent} can’t run`
   return undefined

@@ -6,7 +6,8 @@ import { CopyButton } from "@/components/copy-button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ConnectorStatusChip } from "@/features/chat/components/ConnectorStatusChip"
-import { isBroken, isFound as isReady } from "@/features/chat/lib/connector-status"
+import { Button } from "@/components/ui/button"
+import { canSetUp, isBroken, isFound as isReady, settingUp } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
@@ -48,9 +49,51 @@ function Status({ c }: { c: Connector }) {
   return <ConnectorStatusChip c={c} />
 }
 
+// owlit's own copy of the agent's adapter, at the row's right end: setting it up, offering to, or offering
+// a newer one beside the version
+function SetupControl({ c }: { c: Connector }) {
+  const setUp = useChatStore((s) => s.setUpConnector)
+  const cancel = useChatStore((s) => s.cancelSetUp)
+  const progress = settingUp(c)
+  if (progress !== undefined) {
+    const percent = Math.round(progress * 100)
+    return (
+      <>
+        <span className="text-detail text-muted-foreground tabular-nums">{t`Setting up… ${percent}%`}</span>
+        <Button variant="text" size="inline" className="last:-mr-1.5" onClick={() => void cancel(c.id)}>
+          {t`Cancel`}
+        </Button>
+      </>
+    )
+  }
+  if (canSetUp(c) && !c.setup?.error) {
+    const size = c.setup?.sizeMb ?? 300
+    return (
+      <>
+        <span className="text-detail text-muted-foreground">{t`Not set up · about ${size} MB`}</span>
+        <Button variant="text" size="inline" className="last:-mr-1.5" onClick={() => void setUp(c.id)}>
+          {t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
+        </Button>
+      </>
+    )
+  }
+  if (c.setup?.latest && isReady(c)) {
+    const latest = c.setup.latest
+    return (
+      <Button variant="text" size="inline" className="last:-mr-1.5" onClick={() => void setUp(c.id)}>
+        {t`Update to ${latest}`}
+      </Button>
+    )
+  }
+  return null
+}
+
 function ConnectorRow({ connector: c }: { connector: Connector }) {
   const check = useChatStore((s) => s.checkConnector)
   const remove = useChatStore((s) => s.removeConnector)
+  const setUp = useChatStore((s) => s.setUpConnector)
+  // owlit sets this one up itself, so a missing adapter isn't a command to copy
+  const owned = settingUp(c) !== undefined || canSetUp(c)
   const busy = c.status === "checking"
   const name = c.name
 
@@ -72,24 +115,36 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
             </IconAction>
           )}
           {isReady(c) && checkAction}
-          <Status c={c} />
-          {c.status === "not_installed" && c.installHint && <CopyButton text={c.installHint} label={t`Copy install command`} size="icon-sm" className="last:-mr-1.5" />}
-          {!isReady(c) && checkAction}
+          {!owned && <Status c={c} />}
+          <SetupControl c={c} />
+          {c.status === "not_installed" && !owned && installCommand(c) && <CopyButton text={installCommand(c)!} label={t`Copy install command`} size="icon-sm" className="last:-mr-1.5" />}
+          {!isReady(c) && !owned && checkAction}
         </>
       }
     >
       {/* Only problems and user-entered commands earn a second line. A missing agent shows the
           command that fixes it, since that's the one thing the user needs here. */}
       {isBroken(c) && c.error && <Note tone="bad">{c.error}</Note>}
-      {c.status === "not_installed" && c.installHint && (
-        <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={c.installHint}>
-          {c.installHint}
+      {c.setup?.error && settingUp(c) === undefined && (
+        <Note tone="bad">
+          {c.setup.error}{" "}
+          <Button variant="text" size="inline" onClick={() => void setUp(c.id)}>
+            {t`Try again`}
+          </Button>
+        </Note>
+      )}
+      {c.status === "not_installed" && !owned && installCommand(c) && (
+        <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={installCommand(c)}>
+          {installCommand(c)}
         </div>
       )}
       {!c.builtIn && <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{c.command}</div>}
     </Row>
   )
 }
+
+// What installs a missing agent: the agent itself when owlit sets up its adapter, else the adapter
+const installCommand = (c: Connector) => (c.setup ? (c.setup.cliFound ? undefined : c.setup.installCli) : c.installHint)
 
 // The custom-agent form stays folded until asked for
 function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {

@@ -55,6 +55,10 @@ export interface CoreOptions {
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
   // How to start the Owlit engine (packages/owlit-agent); without it the engine isn't offered
   engine?: { command: string; args: string[]; env?: Record<string, string> }
+  // How to run a JavaScript file as plain Node, and npm's CLI script: with both, owlit sets up its own copy
+  // of Claude Code's and Codex's adapters (agents/setup.ts)
+  node?: { command: string; args: string[]; env?: Record<string, string> }
+  npm?: string
   // How long Knowledge waits after the user's activity before a run (tests shorten it)
   knowledgeTimings?: KnowledgeTimings
   // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
@@ -101,6 +105,7 @@ export class Core {
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
     this.agents = new Agents({
       settings: this.settings,
+      setup: options.node && options.npm ? { dir: path.join(options.userDataDir, "agents"), node: options.node, npm: options.npm, fetchJson: async (url) => JSON.parse(await this.http.text(url)) } : undefined,
       probeDir: path.join(options.userDataDir, "agents", "probe"),
       cwd: () => this.workspace?.root ?? null,
       notify: (connector) => this.notifier.notify("agents.changed", connector),
@@ -314,6 +319,8 @@ export class Core {
 
     this.router.register("agents.list", noParams, () => this.agents.list())
     this.router.register("agents.check", z.object({ id: z.string() }), ({ id }) => this.agents.check(id))
+    this.router.register("agents.setUp", z.object({ id: z.string() }), ({ id }) => this.agents.setUp(id))
+    this.router.register("agents.cancelSetUp", z.object({ id: z.string() }), ({ id }) => this.agents.cancelSetUp(id))
     this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), ({ name, command }) => this.agents.add(name, command))
     this.router.register("agents.remove", z.object({ id: z.string() }), ({ id }) => this.agents.remove(id))
     this.router.register("agents.signIn", z.object({ id: z.string(), methodId: z.string(), apiKey: z.string().optional() }), ({ id, methodId, apiKey }) => this.agents.signIn(id, methodId, apiKey))
