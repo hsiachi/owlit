@@ -4475,6 +4475,11 @@ msgstr "最近添加"
 msgid "Authors"
 msgstr "作者"
 
+#. sort: group the Library's papers by the collection they came from
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Collection"
+msgstr "合集"
+
 #. how often a paper is cited by other works
 #. how often a paper is cited by other works
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -4724,6 +4729,11 @@ msgstr "{unreadCount} 篇无法读取"
 msgid "{0, plural, one {Added # paper} other {Added # papers}}"
 msgstr "{0, plural, other {已添加 # 篇论文}}"
 
+#. Library papers no collection holds
+#: app/src/features/library/lib/filter.ts
+msgid "Not from a collection"
+msgstr "不是从合集来的"
+
 #: app/src/features/library/lib/filter.ts
 msgid "No year"
 msgstr "无年份"
@@ -4902,6 +4912,11 @@ msgstr "无摘要。"
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "{when} by Owlit"
 msgstr "{when}，由 Owlit 添加"
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgctxt "label before the collections that hold this paper"
+msgid "In"
+msgstr "合集"
 
 #. the paper's PDF file
 #: app/src/features/library/pages/paper/DetailsPanel.tsx

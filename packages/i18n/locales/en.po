@@ -4475,6 +4475,11 @@ msgstr "Recently added"
 msgid "Authors"
 msgstr "Authors"
 
+#. sort: group the Library's papers by the collection they came from
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Collection"
+msgstr "Collection"
+
 #. how often a paper is cited by other works
 #. how often a paper is cited by other works
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -4724,6 +4729,11 @@ msgstr "{unreadCount} couldn't be read"
 msgid "{0, plural, one {Added # paper} other {Added # papers}}"
 msgstr "{0, plural, one {Added # paper} other {Added # papers}}"
 
+#. Library papers no collection holds
+#: app/src/features/library/lib/filter.ts
+msgid "Not from a collection"
+msgstr "Not from a collection"
+
 #: app/src/features/library/lib/filter.ts
 msgid "No year"
 msgstr "No year"
@@ -4902,6 +4912,11 @@ msgstr "No abstract."
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "{when} by Owlit"
 msgstr "{when} by Owlit"
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgctxt "label before the collections that hold this paper"
+msgid "In"
+msgstr "In"
 
 #. the paper's PDF file
 #: app/src/features/library/pages/paper/DetailsPanel.tsx

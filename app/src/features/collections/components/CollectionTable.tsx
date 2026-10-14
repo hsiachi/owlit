@@ -23,6 +23,7 @@ import { citeOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
 import { editCollection, put } from "../store"
 import { toast } from "sonner"
 import { RowPeek } from "./AnswerRows"
+import { useCollectionsUi } from "../ui-store"
 import { AskEach, CollectionActions } from "./Work"
 
 // A collection with columns, as a ruled table like the Library's: a row per paper, a column per question
@@ -86,6 +87,9 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
   const [folded, setFolded] = useState<Set<string>>(new Set())
   const [all, setAll] = useState<Set<string>>(new Set())
   const [peek, setPeek] = useState<string | null>(null)
+  // A row asked for from elsewhere (a link to one of its papers) opens where it first appears
+  const asked = useCollectionsUi((s) => s.peek)
+  const isOpen = (key: string, rowId: string) => peek === key || (peek === null && asked === rowId)
 
   const sortRows = (rows: CollectionRow[]) => {
     if (sort === "title") return [...rows].sort((a, b) => a.paper.title.localeCompare(b.paper.title))
@@ -109,6 +113,8 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
       const own = shown.rows.filter((r) => r.group === g.id)
       const children = shown.groups.filter((c) => c.parent === g.id)
       const total = [...own, ...children.flatMap((c) => shown.rows.filter((r) => r.group === c.id))]
+      // A group whose papers all went elsewhere says nothing
+      if (!total.length) return
       sections.push({ key: g.id, group: g, label: g.name, one: g.one, rows: own, total, depth })
       for (const c of children) add(c, depth + 1)
     }
@@ -195,8 +201,19 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
                 {open &&
                   (many ? rows.slice(0, SHOWN) : rows).map((r) => (
                     <Fragment key={r.id}>
-                      <TableRow collection={collection} row={r} columns={columns} indent={s.label ? s.depth + 1 : 0} seenBefore={seenBefore} open={peek === `${s.key}:${r.id}`} onOpen={() => setPeek((p) => (p === `${s.key}:${r.id}` ? null : `${s.key}:${r.id}`))} />
-                      <PeekRow collection={collection} row={r} open={peek === `${s.key}:${r.id}`} span={span} />
+                      <TableRow
+                        collection={collection}
+                        row={r}
+                        columns={columns}
+                        indent={s.label ? s.depth + 1 : 0}
+                        seenBefore={seenBefore}
+                        open={isOpen(`${s.key}:${r.id}`, r.id)}
+                        onOpen={() => {
+                          useCollectionsUi.getState().set({ peek: null })
+                          setPeek(isOpen(`${s.key}:${r.id}`, r.id) ? "" : `${s.key}:${r.id}`)
+                        }}
+                      />
+                      <PeekRow collection={collection} row={r} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
                     </Fragment>
                   ))}
                 {open && many && (
@@ -337,7 +354,7 @@ function TableRow({ collection, row, columns, indent, seenBefore, open, onOpen }
   const fresh = (collection.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
-    <tr className="group/row">
+    <tr id={`row-${row.id}`} className="group/row">
       <td className={cn(td, "cursor-default text-sm group-hover/row:bg-muted")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>

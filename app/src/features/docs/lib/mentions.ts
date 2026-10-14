@@ -1,4 +1,6 @@
 import { t } from "@lingui/core/macro"
+import { useCollectionsStore } from "@/features/collections/store"
+import { collectionHolding } from "@/features/collections/lib"
 import type { Mentionable } from "@/features/chat/types"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
@@ -65,7 +67,15 @@ function paperOf(id: string) {
 // Where a mention leads inside the app
 export function mentionRoute(uri: string): string | null {
   const u = parseOwlitUri(uri)
-  if (u?.kind === "paper") return `/library/${paperOf(u.id)?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
+  if (u?.kind === "paper") {
+    const paper = paperOf(u.id)
+    // A paper Owlit found and the user hasn't taken in lives on its collection: the link opens it there
+    if (!paper) {
+      const holder = collectionHolding(useCollectionsStore.getState().collections, u.id)
+      if (holder) return `/collections/${holder.id}?paper=${encodeURIComponent(u.id)}`
+    }
+    return `/library/${paper?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
+  }
   if (u?.kind === "knowledge") return knowledgeRoute(u)
   if (u?.kind === "chat") return `/chat/${u.id}`
   if (u?.kind === "collection") return `/collections/${u.id}${u.group ? `?group=${encodeURIComponent(u.group)}` : ""}`

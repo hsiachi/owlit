@@ -1,5 +1,8 @@
 import { plural, t } from "@lingui/core/macro"
-import { useState } from "react"
+import { MentionToken } from "@/components/mention/mention-token"
+import { useCollectionsStore } from "@/features/collections/store"
+import { collectionsByPaper } from "@/features/collections/lib"
+import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -102,6 +105,9 @@ function About({ paper }: { paper: Paper }) {
   const links = externalLinks(paper)
   const when = ago(paper.addedAt)
   const pages = paper.pdf?.pages
+  const collections = useCollectionsStore((s) => s.collections)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const inCollections = useMemo(() => collectionsByPaper(collections, { [paper.id]: paper }, aliases).get(paper.id) ?? [], [collections, paper, aliases])
   return (
     <div>
       {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">{t`No abstract.`}</p>}
@@ -129,6 +135,19 @@ function About({ paper }: { paper: Paper }) {
         ))}
         <dt className="text-muted-foreground">{t({ message: "Added", context: "when the paper was added to the library" })}</dt>
         <dd>{paper.addedBy === "agent" ? t`${when} by Owlit` : when}</dd>
+        {inCollections.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">{t({ message: "In", context: "label before the collections that hold this paper" })}</dt>
+            <dd className="min-w-0">
+              {inCollections.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && ", "}
+                  <MentionToken label={c.title} onClick={() => navigate(`/collections/${c.id}?paper=${encodeURIComponent(paper.id)}`)} />
+                </span>
+              ))}
+            </dd>
+          </>
+        )}
         <dt className="text-muted-foreground">{t({ message: "File", comment: "the paper's PDF file" })}</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (pages ? plural(pages, { one: "PDF, # page", other: "PDF, # pages" }) : "PDF") : t`No PDF`}</dd>
         {paper.text && (

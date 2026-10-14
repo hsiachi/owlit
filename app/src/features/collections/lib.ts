@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { MENTION_LINK, type CollectionPaper, type CollectionRow, type CollectionSummary } from "@owlit/protocol"
+import { MENTION_LINK, shownCollection, type Collection, type CollectionPaper, type CollectionRow, type CollectionSummary } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
@@ -81,4 +81,29 @@ export function relinkMemo(plain: string, links: { label: string; uri: string }[
     from = at + md.length
   }
   return out
+}
+
+// Which collections hold each Library paper, newest change first: by the row's id, or a shared DOI or
+// arXiv id. Rows the user removed don't count.
+export function collectionsByPaper(collections: Record<string, Collection>, papers: Record<string, Paper>, aliases: Record<string, string>): Map<string, { id: string; title: string }[]> {
+  const out = new Map<string, { id: string; title: string }[]>()
+  const ordered = Object.values(collections).sort((a, b) => b.updatedAt - a.updatedAt)
+  for (const c of ordered) {
+    const shown = shownCollection(c)
+    for (const row of shown.rows) {
+      const paper = libraryPaperOf(row, papers, aliases)
+      if (!paper) continue
+      const list = out.get(paper.id) ?? []
+      if (!list.some((x) => x.id === c.id)) list.push({ id: c.id, title: shown.title })
+      out.set(paper.id, list)
+    }
+  }
+  return out
+}
+
+// The collection that holds a paper the Library hasn't got, so a link to the paper can open it there
+export function collectionHolding(collections: Record<string, Collection>, paperId: string): Collection | undefined {
+  return Object.values(collections)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .find((c) => c.rows.some((r) => r.id === paperId) && !c.yours.removed[`row:${paperId}`])
 }

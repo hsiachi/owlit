@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { CollectionTable } from "../components/CollectionTable"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { useEffect, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ActionsDropdownContent } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
 import { MentionLink } from "@/components/mention/mention-token"
@@ -40,6 +40,10 @@ export function CollectionPage() {
   // When the user last looked before this visit: what changed since carries the dot until they leave
   const [seenBefore, setSeenBefore] = useState<number | null>(null)
   const id = collection?.id
+  // Opened for one of its papers (a link to a paper the Library hasn't got, "In" on a paper's page): that
+  // paper's row opens, where it is in the list
+  const [params, setParams] = useSearchParams()
+  const want = params.get("paper")
   useEffect(() => {
     if (!id) return
     setSeenBefore(useCollectionsStore.getState().collections[id]?.seenAt ?? 0)
@@ -47,6 +51,13 @@ export function CollectionPage() {
     const timer = setTimeout(() => void editCollection(id, { op: "seen" }), SEEN_AFTER_MS)
     return () => clearTimeout(timer)
   }, [id, set])
+  // After the reset above, so a page opened for a paper keeps it open
+  useEffect(() => {
+    if (!id || !want) return
+    set({ peek: want })
+    setParams((p) => (p.delete("paper"), p), { replace: true })
+    requestAnimationFrame(() => document.getElementById(`row-${want}`)?.scrollIntoView({ block: "center" }))
+  }, [id, want, set, setParams])
 
   if (!collection) {
     if (!loaded) return null
