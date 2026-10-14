@@ -232,6 +232,9 @@ importers:
         specifier: 12.2.0
         version: 12.2.0
     devDependencies:
+      '@electron/osx-sign':
+        specifier: 1.3.3
+        version: 1.3.3
       '@lingui/cli':
         specifier: 6.9.1
         version: 6.9.1(esbuild@0.28.2)(rolldown@1.2.13)

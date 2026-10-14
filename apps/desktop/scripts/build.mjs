@@ -1,10 +1,13 @@
 // pnpm build: the renderer (app/, through its own tsc + vite build), main and preload, then Owlit.app in
 // apps/desktop/release/. pnpm release adds the arm64 dmg that is sent to people (T31).
 //
-// Signing: OWLIT_SIGN_IDENTITY names the code-signing certificate to sign with (the self-signed one kept
-// in the login keychain, so macOS sees every version as the same app and keeps its Keychain and folder
-// grants); without it the app is signed ad hoc, which runs but is a new app to macOS each build. Nothing
-// is notarised: there is no Apple Developer account, so Gatekeeper stops the first open of each dmg.
+// Signing: OWLIT_SIGN_IDENTITY names the code-signing certificate to sign with (the self-signed "Owlit
+// Self-Signed" in the login keychain, so macOS sees every version as the same app and keeps its Keychain
+// and folder grants); without it the app is signed ad hoc, which runs but is a new app to macOS each
+// build. electron-builder won't sign with a certificate macOS doesn't trust, and a self-signed one isn't
+// (CSSMERR_TP_NOT_TRUSTED; trusting it would change the system's trust settings), so the app is signed
+// here after packing, with Electron's own signer told not to check trust. Nothing is notarised: there is
+// no Apple Developer account, so Gatekeeper stops the first open of each dmg.
 
 import { execFileSync } from "node:child_process"
 import { cpSync, readFileSync, rmSync } from "node:fs"
@@ -25,7 +28,8 @@ await esbuild.build(esbuildOptions({ production: true }))
 copyMainAssets()
 
 const release = process.argv.includes("--release")
-const identity = process.env.OWLIT_SIGN_IDENTITY || "-"
+const identity = process.env.OWLIT_SIGN_IDENTITY
+const entitlements = path.join(desktopDir, "resources", "entitlements.mac.plist")
 
 await build({
   projectDir: desktopDir,
@@ -43,8 +47,23 @@ await build({
     asarUnpack: ["dist/npm/**"],
     npmRebuild: false,
     // icon.icns comes from scripts/icon.mjs, with a heavier line at the small sizes
+    // Signed with the certificate before the dmg is made (see above)
+    afterPack: identity
+      ? async ({ appOutDir }) => {
+          const { signAsync } = await import("@electron/osx-sign")
+          await signAsync({
+            app: path.join(appOutDir, "Owlit.app"),
+            identity,
+            identityValidation: false,
+            platform: "darwin",
+            // No timestamp: Apple's timestamp server adds nothing to a self-signed signature, and a call per file
+            optionsForFile: () => ({ hardenedRuntime: true, entitlements, timestamp: "none" }),
+          })
+        }
+      : undefined,
     mac: {
-      identity,
+      // null: electron-builder leaves signing to afterPack
+      identity: identity ? null : "-",
       category: "public.app-category.productivity",
       icon: "resources/icon.icns",
       // Electron's own entitlements (JIT for V8 and pdfium's wasm); the same ones serve a real Developer ID later
