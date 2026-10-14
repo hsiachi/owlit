@@ -39,6 +39,7 @@ import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "..
 import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
+import { citationsDue, countCitations } from "./citations.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
 import {
   describeFailure,
@@ -1241,6 +1242,38 @@ export class Library {
     }
   }
 
+  // Citation counts over a month old counted again (citations.ts), once a day at most, quietly: a count is
+  // the service's fact, not something Owlit wrote, so nothing marks it. A day the services can't be
+  // reached is tried again on the next open.
+  private async recountCitationsDaily() {
+    const file = path.join(this.dataDir, "library.json")
+    const today = new Date().toISOString().slice(0, 10)
+    if ((await readJson<{ citationsCountedOn?: string }>(file).catch(() => undefined))?.citationsCountedOn === today) return
+    const now = Date.now()
+    const due: { id: string; ids: PaperIds }[] = []
+    for (const id of await this.ids()) {
+      const record = await readRecord(this.root, id)
+      if (record && citationsDue(record, now)) due.push({ id, ids: record.ids })
+    }
+    const counted = due.length ? await countCitations(this.services.http, due, await this.services.settings(), { retries: 1 }) : new Map()
+    const changed = await this.serial(async () => {
+      const changed: string[] = []
+      for (const { id } of due) {
+        const found = counted.get(id)
+        const current = await readRecord(this.root, id)
+        if (!found || !current) continue
+        const same = current.citationCount === found.count && current.fields.citationCount === found.source
+        await writeRecord(this.root, { ...current, citationCount: found.count, citationsAt: now, fields: { ...current.fields, citationCount: found.source } })
+        if (!same) changed.push(id)
+      }
+      return changed
+    })
+    // Written after the counts, so a day they couldn't be had is tried again on the next open
+    const kept = (await readJson<Record<string, unknown>>(file).catch(() => undefined)) ?? {}
+    await writeJsonAtomic(file, { ...kept, citationsCountedOn: today })
+    if (changed.length) await this.announce(changed)
+  }
+
   // ---- Hearing about changes
 
   // Changes core makes on its own and changes other programs make under library/papers/
@@ -1248,6 +1281,7 @@ export class Library {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
+    void this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
     // Before any paper is read: imported papers skip the digest and maybe MinerU
     await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))

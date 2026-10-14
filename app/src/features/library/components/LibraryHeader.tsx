@@ -61,8 +61,8 @@ const sorts = (): { value: SortKey; label: string }[] => [
 export function SortMenu() {
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
-  // Venue is sorted from the table's header only
-  const trigger = sort.key === "venue" ? t`Venue` : undefined
+  // Venue and citations are sorted from the table's header only
+  const trigger = sort.key === "venue" ? t`Venue` : sort.key === "citations" ? t({ message: "Citations", comment: "how often a paper is cited by other works" }) : undefined
   return <ChoiceMenu label={t({ message: "Sort", comment: "menu: how the papers are ordered" })} value={sort.key} options={sorts()} onChange={sortBy} trigger={trigger} />
 }
 

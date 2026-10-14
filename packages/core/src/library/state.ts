@@ -36,6 +36,10 @@ export function toPaper(record: PaperRecord, state: PaperState, pdf: boolean): P
     venue: "venue" in o ? (o.venue ?? undefined) : record.venue,
     abstract: "abstract" in o ? (o.abstract ?? undefined) : record.abstract,
     kind: o.kind ?? record.kind,
+    citations:
+      record.citationCount !== undefined
+        ? { count: record.citationCount, source: record.fields.citationCount ?? "", at: record.citationsAt ?? record.fetchedAt ?? 0 }
+        : undefined,
     ids: clean({ ...record.ids, ...o.ids }),
     pdf: pdf ? { url: workspaceFileUrl(path.posix.join("library/papers", record.id, "paper.pdf")) } : undefined,
     addedAt: state.addedAt,

@@ -211,3 +211,33 @@ export async function findSources(http: Http, name: string, keys: Keys, request:
     issns: [...new Set([s.issn_l, ...(s.issn ?? [])].filter((i): i is string => !!i))],
   }))
 }
+
+// How often each work is cited, for many works in one request each way: by OpenAlex id, by DOI. Works
+// OpenAlex doesn't know are left out of the answer.
+export async function citationCountsOpenAlex(
+  http: Http,
+  works: { openalex?: string; doi?: string }[],
+  keys: Keys,
+  request: RequestOptions = {},
+): Promise<{ openalex: string; doi?: string; count: number }[]> {
+  const byId = works.flatMap((w) => (w.openalex ? [w.openalex] : []))
+  const byDoi = works.flatMap((w) => (!w.openalex && w.doi ? [w.doi] : []))
+  const found: { openalex: string; doi?: string; count: number }[] = []
+  for (const [filter, values] of [["openalex", byId], ["doi", byDoi]] as const) {
+    // An OR filter takes 100 values at most; 50 keeps the URL short
+    for (let i = 0; i < values.length; i += 50) {
+      const chunk = values.slice(i, i + 50)
+      const params = new URLSearchParams({ filter: `${filter}:${chunk.join("|")}`, select: "id,doi,cited_by_count", "per-page": "50" })
+      if (keys.contactEmail) params.set("mailto", keys.contactEmail)
+      if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+      const raw = await http.text(`https://${OPENALEX_HOST}/works?${params}`, request)
+      const { results } = JSON.parse(raw) as { results?: { id: string; doi?: string | null; cited_by_count?: number }[] }
+      for (const work of results ?? []) {
+        if (typeof work.cited_by_count !== "number") continue
+        const doi = work.doi?.replace(/^https?:\/\/doi\.org\//i, "").toLowerCase()
+        found.push({ openalex: work.id.replace(/^https?:\/\/openalex\.org\//, ""), ...(doi ? { doi } : {}), count: work.cited_by_count })
+      }
+    }
+  }
+  return found
+}

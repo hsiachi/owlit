@@ -159,7 +159,9 @@ export function merge(ref: Ref, records: SourceRecord[]): Resolution {
     text: published ? [openalex, s2, arxiv, crossref] : [arxiv, s2, openalex],
     abstract: [arxiv, s2, openalex, crossref],
     when: published ? [openalex, s2, arxiv, crossref] : [arxiv, s2, openalex],
-    stats: [s2, openalex, crossref],
+    // One service counts every paper it can, so counts compare across the library (Semantic Scholar's
+    // run higher than OpenAlex's for the same paper); citations.ts keeps them to the same order
+    stats: [openalex, s2, crossref],
   }
   const fields: Resolution["fields"] = {}
   const pick = <K extends MetadataField>(field: K, from: (SourceRecord | undefined)[]) => {

@@ -64,6 +64,8 @@ export interface Paper {
   status: ReadStatus
   tags: string[]
   kind?: PaperKind
+  // How often other works cite it, as a service counted it (openalex, else s2 or crossref) and when
+  citations?: { count: number; source: string; at: number }
   // When the person last read in it, which a glance doesn't count as; Up next's Reading group goes by it
   lastOpenedAt?: number
   // Reading position, so a paper reopens where it was left
@@ -229,6 +231,9 @@ export interface PaperRecord {
   // Semantic Scholar's one-sentence summary
   tldr?: string
   citationCount?: number
+  // When citationCount was counted; absent on records from before counts were kept current, which
+  // fetchedAt dates
+  citationsAt?: number
   // Open-access PDF links the services know, best first
   pdfUrls?: string[]
   // Where each field came from: "openalex" | "s2" | "arxiv" | "pdf" | …

@@ -3884,6 +3884,13 @@ msgstr "最近添加"
 msgid "Authors"
 msgstr "作者"
 
+#. how often a paper is cited by other works
+#. how often a paper is cited by other works
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Citations"
+msgstr "被引"
+
 #. menu: how the papers are ordered
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Sort"
@@ -4139,6 +4146,22 @@ msgstr "无年份"
 #: app/src/features/library/lib/filter.ts
 msgid "Not read yet"
 msgstr "还没读"
+
+#: app/src/features/library/lib/format.ts
+msgid "{count, plural, one {# citation} other {# citations}}"
+msgstr "{count, plural, other {被引 # 次}}"
+
+#: app/src/features/library/lib/format.ts
+msgid "Counted {when}"
+msgstr "{when}统计"
+
+#: app/src/features/library/lib/format.ts
+msgid "Counted by {service}, {when}"
+msgstr "{when}由 {service} 统计"
+
+#: app/src/features/library/lib/format.ts
+msgid "Counted by {service}"
+msgstr "由 {service} 统计"
 
 #. highlight colour
 #: app/src/features/library/lib/highlights.ts

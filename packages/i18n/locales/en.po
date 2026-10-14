@@ -3884,6 +3884,13 @@ msgstr "Recently added"
 msgid "Authors"
 msgstr "Authors"
 
+#. how often a paper is cited by other works
+#. how often a paper is cited by other works
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Citations"
+msgstr "Citations"
+
 #. menu: how the papers are ordered
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Sort"
@@ -4139,6 +4146,22 @@ msgstr "No year"
 #: app/src/features/library/lib/filter.ts
 msgid "Not read yet"
 msgstr "Not read yet"
+
+#: app/src/features/library/lib/format.ts
+msgid "{count, plural, one {# citation} other {# citations}}"
+msgstr "{count, plural, one {# citation} other {# citations}}"
+
+#: app/src/features/library/lib/format.ts
+msgid "Counted {when}"
+msgstr "Counted {when}"
+
+#: app/src/features/library/lib/format.ts
+msgid "Counted by {service}, {when}"
+msgstr "Counted by {service}, {when}"
+
+#: app/src/features/library/lib/format.ts
+msgid "Counted by {service}"
+msgstr "Counted by {service}"
 
 #. highlight colour
 #: app/src/features/library/lib/highlights.ts

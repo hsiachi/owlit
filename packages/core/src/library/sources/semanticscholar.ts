@@ -133,3 +133,23 @@ export async function similarS2(http: Http, paper: string, limit: number, apiKey
   const { recommendedPapers } = JSON.parse(raw) as { recommendedPapers?: S2Paper[] }
   return records(recommendedPapers ?? [])
 }
+
+// How often each paper is cited, for up to 500 papers a request; null where Semantic Scholar doesn't
+// know the paper. Ids as fetchS2 takes them: DOI:…, ARXIV:… or a paperId.
+export async function citationCountsS2(http: Http, ids: string[], apiKey: S2Key, request: RequestOptions = {}): Promise<(number | null)[]> {
+  const counts: (number | null)[] = []
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500)
+    const raw = await http.text(`https://${S2_HOST}/graph/v1/paper/batch?fields=citationCount`, {
+      ...request,
+      method: "POST",
+      body: JSON.stringify({ ids: chunk }),
+      headers: { ...request.headers, ...headersFor(apiKey), "content-type": "application/json" },
+      // Only reads, so a passing failure is tried again as a GET would be
+      retries: request.retries ?? 3,
+    })
+    const papers = JSON.parse(raw) as ({ citationCount?: number | null } | null)[]
+    counts.push(...chunk.map((_, j) => (typeof papers[j]?.citationCount === "number" ? papers[j]!.citationCount! : null)))
+  }
+  return counts
+}

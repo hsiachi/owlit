@@ -1,4 +1,6 @@
-import { t } from "@lingui/core/macro"
+import { plural, t } from "@lingui/core/macro"
+import { intlLocale } from "@owlit/i18n"
+import { shortDate } from "@/lib/time"
 import type { Paper } from "../types"
 
 // An author's family name, taken as the last word: "Aidan N. Gomez" → "Gomez"
@@ -63,4 +65,20 @@ export function externalLinks(p: Paper): ExternalLink[] {
     links.push({ kind: "url", value, href: p.ids.url })
   }
   return links
+}
+
+// "2,733 citations", under a paper's title
+export const citationsText = (count: number) => plural(count, { one: "# citation", other: "# citations" })
+
+// "2.7K" or "2733", "3.2万": short enough for a table cell, the interface language's way
+export const citationsShort = (count: number) => count.toLocaleString(intlLocale(), { notation: "compact", maximumFractionDigits: 1 })
+
+const SERVICES: Record<string, string> = { openalex: "OpenAlex", s2: "Semantic Scholar", crossref: "Crossref" }
+
+// Who counted a paper's citations and when, for the count's hover: "Counted by OpenAlex, Oct 14"
+export function citationsSource(citations: NonNullable<Paper["citations"]>) {
+  const service = SERVICES[citations.source] ?? citations.source
+  const when = citations.at ? shortDate(citations.at) : ""
+  if (!service) return when ? t`Counted ${when}` : ""
+  return when ? t`Counted by ${service}, ${when}` : t`Counted by ${service}`
 }
