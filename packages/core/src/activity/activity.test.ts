@@ -81,23 +81,27 @@ async function openCore() {
 }
 
 describe("activity.emit and the journal", () => {
-  it("journals only the coarse events, with the user as actor", async () => {
+  it("journals reading and the coarse events, with the user as actor", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
     const events: ActivityEvent[] = [
       { kind: "paper.opened", at, paperId: "arxiv-1" },
       { kind: "paper.page", at: at + 1, paperId: "arxiv-1", page: 2 },
       { kind: "paper.page", at: at + 2, paperId: "arxiv-1", page: 3 },
-      { kind: "highlight.added", at: at + 3, paperId: "arxiv-1", highlightId: "h1" },
-      { kind: "idle", at: at + 4, seconds: 30 },
-      { kind: "paper.closed", at: at + 5, paperId: "arxiv-1" },
+      { kind: "paper.focus", at: at + 3, paperId: "arxiv-1", view: "pdf", seconds: 30 },
+      { kind: "paper.dwell", at: at + 3, paperId: "arxiv-1", page: 3, seconds: 25 },
+      { kind: "highlight.added", at: at + 4, paperId: "arxiv-1", highlightId: "h1" },
+      { kind: "highlight.removed", at: at + 5, paperId: "arxiv-1", highlightId: "h1" },
+      { kind: "paper.marked", at: at + 6, paperId: "arxiv-1", mark: { what: "status", to: "read" } },
+      { kind: "idle", at: at + 7, seconds: 30 },
+      { kind: "paper.closed", at: at + 8, paperId: "arxiv-1" },
+      { kind: "doc.opened", at: at + 9, path: "a.md" },
+      { kind: "doc.closed", at: at + 10, path: "a.md" },
     ]
     for (const event of events) await call("activity.emit", { event })
     await core["journal"].flush()
-    expect(lines()).toEqual([
-      { kind: "highlight.added", at: at + 3, paperId: "arxiv-1", highlightId: "h1", actor: "user" },
-      { kind: "paper.closed", at: at + 5, paperId: "arxiv-1", actor: "user" },
-    ])
+    const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "paper.closed", "doc.opened"])
+    expect(lines()).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: "user" })))
   })
 
   it("passes every event to bus listeners", async () => {
@@ -142,5 +146,7 @@ describe("activity.emit and the journal", () => {
     await call("workspace.open", { path: ws })
     await expect(call("activity.emit", { event: { kind: "doc.edited", at } })).rejects.toMatchObject({ code: -32602 })
     await expect(call("activity.emit", { event: { kind: "doc.typed", at, path: "a" } })).rejects.toMatchObject({ code: -32602 })
+    await expect(call("activity.emit", { event: { kind: "paper.focus", at, paperId: "p", view: "pdf", seconds: 0 } })).rejects.toMatchObject({ code: -32602 })
+    await expect(call("activity.emit", { event: { kind: "paper.marked", at, paperId: "p", mark: { what: "status", to: "done" } } })).rejects.toMatchObject({ code: -32602 })
   })
 })

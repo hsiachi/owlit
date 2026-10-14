@@ -5339,8 +5339,8 @@ msgid "Remember what I do in owlit"
 msgstr "Remember what I do in owlit"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you open, highlight and write keeps Knowledge and Home current."
-msgstr "What you open, highlight and write keeps Knowledge and Home current."
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
+msgstr "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
