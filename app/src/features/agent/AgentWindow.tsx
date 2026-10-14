@@ -92,17 +92,19 @@ export function AgentPanel() {
   )
 }
 
-// A chat with nothing in it yet. In the middle, the latest chats about the page beside it, so coming back
-// to a paper (or finding the panel started afresh after a while away) puts what was said about it one
-// click away; a page never talked about leaves the middle empty. At the bottom by the composer, where the
-// eye already is: the feather and what can be asked, then starters for the page. The feather is in ink:
+// A chat with nothing in it yet: one block at the bottom by the composer, where the eye already is. From
+// the top, what was said before and what can be asked now: the latest chats about the page beside it, so
+// coming back to a paper (or finding the panel started afresh after a while away) puts them one click away;
+// then the feather and what can be asked; then starters for the page. The space above stays empty; split
+// into a list in the middle and the rest at the bottom, it read as stray pieces. The feather is in ink:
 // Owlit's green is for what Owlit has done, and here it hasn't done anything yet.
 function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (prompt: string) => void }) {
   const earlier = useChatsAbout(page?.uri)
   const showChat = useAgentWindow((s) => s.showChat)
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto py-4">
+    // mt-auto rather than justify-end, so a short panel scrolls to the top of the block instead of cutting it
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-4 pb-3">
+      <div className="mt-auto flex flex-col gap-5">
         {earlier.length > 0 && (
           <section className="-mx-2.5">
             <GroupLabel as="h3">{t({ message: "Earlier here", comment: "label over the chats about the page beside the Owlit panel" })}</GroupLabel>
@@ -111,22 +113,22 @@ function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (promp
             ))}
           </section>
         )}
-      </div>
-      <div className="flex flex-col items-start gap-3">
-        <p className="flex items-center gap-2 text-body text-muted-foreground">
-          <OwlitMark className="size-4 shrink-0" />
-          {page ? askAboutOrAnything(page.kind) : t`Ask anything.`}
-        </p>
-        {page && (
-          <div className="flex flex-wrap gap-2">
-            {/* Drawn like the Chat page's starters */}
-            {pageStarters(page.kind).map((s) => (
-              <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
-                {s.label}
-              </Button>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col items-start gap-3">
+          <p className="flex items-center gap-2 text-body text-muted-foreground">
+            <OwlitMark className="size-4 shrink-0" />
+            {page ? askAboutOrAnything(page.kind) : t`Ask anything.`}
+          </p>
+          {page && (
+            <div className="flex flex-wrap gap-2">
+              {/* Drawn like the Chat page's starters */}
+              {pageStarters(page.kind).map((s) => (
+                <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
+                  {s.label}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
