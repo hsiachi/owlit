@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "./activity.ts"
+import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
@@ -90,6 +90,8 @@ export interface Methods {
   // One thing the user did; dropped when activity is turned off or no workspace is open
   "activity.emit": { params: { event: ActivityEvent }; result: null }
   "activity.status": { params: void; result: { enabled: boolean } }
+  // What the user did lately, for an agent (owlit-mcp's activity_read)
+  "activity.query": { params: { query: ActivityQuery }; result: ActivityAnswer }
   "activity.setEnabled": { params: { enabled: boolean }; result: { enabled: boolean } }
 
   // ---- Settings: this machine's, kept in the app data directory. Keys stay in core (sealed with the

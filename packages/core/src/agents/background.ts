@@ -14,7 +14,7 @@ import { preamble } from "./rules.ts"
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[background] ${line}`)
 
 // owlit-mcp tools a background session may use without asking
-const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|collection_(list|read)|owlit_help)$/
+const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|collection_(list|read)|activity_read|owlit_help)$/
 
 
 export interface BackgroundRun {

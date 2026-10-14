@@ -60,3 +60,88 @@ export type AgentRecord = { kind: "agent.wrote"; at: number; path: string; versi
 
 // A line of .owlit/journal.jsonl: who did what, when
 export type JournalEntry = (ActivityEvent & { actor: "user" }) | (AgentRecord & { actor: "agent" })
+
+// ---- What an agent may ask about the user's activity (activity.query, owlit-mcp's activity_read) ----
+// Facts, never scores: how long, which pages, how often. Single actions aren't interpreted.
+
+export type ActivityQuery =
+  // What the user touched lately, newest first
+  | { mode: "recent"; since?: number; limit?: number }
+  // What the user spent the most on in a stretch of time
+  | { mode: "top"; since?: number; limit?: number }
+  // The history of one paper, doc or chat
+  | { mode: "of"; paper?: string; doc?: string; chat?: string }
+  // What happened, in order: a visit to a paper is one line
+  | { mode: "log"; since?: number; until?: number; actor?: "user" | "agent"; limit?: number }
+
+export interface PaperActivity {
+  kind: "paper"
+  id: string
+  title: string
+  first: number
+  last: number
+  visits: number
+  pdfSeconds: number
+  digestSeconds: number
+  // Pages that stayed at the top, by 1-based page, in seconds
+  pages: Record<number, number>
+  highlights: number
+  noted: boolean
+  // The latest of each, when the user set it in this stretch
+  starred?: boolean
+  status?: ReadStatus
+  tags?: string[]
+  read: boolean
+}
+
+export interface DocActivity {
+  kind: "doc"
+  path: string
+  first: number
+  last: number
+  opens: number
+  // Pauses in the user's typing, each one edit
+  edits: number
+  // Changes an agent made to it
+  agentEdits: number
+}
+
+export interface ChatActivity {
+  kind: "chat"
+  id: string
+  title: string
+  first: number
+  last: number
+  // Times the user wrote in it and then left it
+  sessions: number
+}
+
+export type ActivityItem = PaperActivity | DocActivity | ChatActivity
+
+// One line of the log
+export interface ActivityLine {
+  at: number
+  actor: "user" | "agent"
+  // e.g. "read" (a visit to a paper, with seconds and pages), "starred", "highlighted", "edited", "wrote"
+  what: string
+  paper?: { id: string; title: string }
+  doc?: string
+  chat?: { id: string; title: string }
+  seconds?: number
+  pages?: number[]
+  // The same thing done again right after, as one line ("edited", 5 times)
+  times?: number
+  detail?: string
+}
+
+export interface ActivityAnswer {
+  // false: the user turned off recording in Settings, and nothing is said
+  recording: boolean
+  since?: number
+  items?: ActivityItem[]
+  lines?: ActivityLine[]
+  // of: a paper's sentences Owlit cited in chats
+  cited?: { quote: string; page?: number; chatId: string; chatTitle: string; at: number }[]
+  // More happened than was given
+  more?: boolean
+}

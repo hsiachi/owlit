@@ -1,12 +1,12 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ChatMessage, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
-import { ActivityBus, activityEvent, Journal } from "./activity/index.ts"
+import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
@@ -199,6 +199,22 @@ export class Core {
       return null
     })
     this.router.register("activity.status", noParams, async () => (await this.settings.get()).activity)
+    // What the user did lately, for an agent: nothing at all while recording is turned off
+    this.router.register("activity.query", z.object({ query: activityQuery }), async ({ query }): Promise<ActivityAnswer> => {
+      const ws = this.requireWorkspace()
+      if (!(await this.settings.get()).activity.enabled) return { recording: false }
+      const [{ papers, aliases }, chats, entries] = await Promise.all([ws.library.list(), ws.chats.list(), readJournal(ws.owlitPath("journal.jsonl"))])
+      const titles = new Map(papers.map((p) => [p.id, p.title]))
+      const chatTitles = new Map(chats.map((c) => [c.id, c.title]))
+      const alias = (id: string) => aliases[id] ?? id
+      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias })
+      // A paper's history also says which of its sentences Owlit's answers rested on
+      if (query.mode === "of" && query.paper) {
+        const { cited } = await wearOf(query.paper, { chats: ws.chats, journal: ws.owlitPath("journal.jsonl"), aliases })
+        if (cited.length) return { recording: true, ...answer, cited: cited.map(({ quote, page, chatId, chatTitle, at }) => ({ quote, ...(page ? { page } : {}), chatId, chatTitle, at })) }
+      }
+      return { recording: true, ...answer }
+    })
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), async ({ enabled }) => {
       const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
       this.notifier.notify("activity.status", next.activity)

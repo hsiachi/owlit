@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@owlit/protocol"
+import type { ActivityEvent, ActivityQuery } from "@owlit/protocol"
 import { z } from "zod"
 
 const at = z.number().int().nonnegative()
@@ -28,4 +28,14 @@ export const activityEvent: z.ZodType<ActivityEvent> = z.discriminatedUnion("kin
   z.object({ kind: z.literal("chat.sent"), at, chatId: id }),
   z.object({ kind: z.literal("chat.ended"), at, chatId: id }),
   z.object({ kind: z.literal("idle"), at, seconds: z.number().nonnegative() }),
+])
+
+// What an agent may ask about the user's activity; mirrors ActivityQuery in protocol
+const time = z.number().nonnegative()
+const limit = z.number().int().positive()
+export const activityQuery: z.ZodType<ActivityQuery> = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("recent"), since: time.optional(), limit: limit.optional() }),
+  z.object({ mode: z.literal("top"), since: time.optional(), limit: limit.optional() }),
+  z.object({ mode: z.literal("of"), paper: id.optional(), doc: id.optional(), chat: id.optional() }).refine((q) => [q.paper, q.doc, q.chat].filter(Boolean).length === 1, "of takes one of paper, doc or chat"),
+  z.object({ mode: z.literal("log"), since: time.optional(), until: time.optional(), actor: z.enum(["user", "agent"]).optional(), limit: limit.optional() }),
 ])
