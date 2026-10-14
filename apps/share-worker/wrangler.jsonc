@@ -22,7 +22,7 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShareRoom", "Limiter"] }],
-  "observability": { "enabled": true }
-  // Your own address (recommended; workers.dev isn't reliably reachable from mainland China):
-  // "routes": [{ "pattern": "share.example.org", "custom_domain": true }]
+  "observability": { "enabled": true },
+  // Your own address (recommended; workers.dev isn't reliably reachable from mainland China)
+  "routes": [{ "pattern": "share.hsiachi.dev", "custom_domain": true }]
 }
