@@ -70,7 +70,7 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 11/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 12/)
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {

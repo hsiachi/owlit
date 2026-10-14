@@ -22,6 +22,7 @@ import {
   type ToolSpec,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
+import { activityQueryOf, activityText } from "./activity.ts"
 
 export interface OwlitMcpOptions {
   workspace: string
@@ -291,6 +292,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
       const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
       return `Wrote “${done.title}” (${collectionUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${collectionUri(done.id)}).`
+    }
+    case "activity_read": {
+      const query = activityQueryOf(args)
+      return activityText(await owlit.rpc.activity.query({ query }), query)
     }
     case "chats_list": {
       const chats = await owlit.rpc.chats.list()

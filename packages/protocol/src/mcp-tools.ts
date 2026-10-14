@@ -287,6 +287,26 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     annotations: { readOnlyHint: true },
   },
   {
+    name: "activity_read",
+    description:
+      "What the user did in owlit lately, as facts: which papers they read (how long, which pages, how often they came back, highlights, notes, stars and status), which docs they opened and edited, which chats they wrote in, and what agents changed. mode=recent: what they touched lately, newest first. mode=top: what they spent the most on. mode=of: the history of one paper (with the sentences Owlit's answers cited from it), doc or chat. mode=log: what happened in order, one line per visit to a paper. Says so when the user has turned recording off.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["recent", "top", "of", "log"], description: "Which question to ask" },
+        since: { type: "string", description: "From when: '24h', '7d', '2w' back from now, or a date like 2026-10-07 (default 14 days for recent, 7 for top and log)" },
+        until: { type: "string", description: "log only: up to when, the same way" },
+        paper: { type: "string", description: "of: the paper's library id" },
+        doc: { type: "string", description: "of: the doc's path in the workspace" },
+        chat: { type: "string", description: "of: the chat's id" },
+        actor: { type: "string", enum: ["user", "agent"], description: "log only: only what the user did, or only what agents did" },
+        limit: { type: "number", description: "At most this many items or lines (default 10, log 100, never more than 200)" },
+      },
+      required: ["mode"],
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
     name: "chats_list",
     description: "The user's chats with owlit, most recent first: id, title, when.",
     inputSchema: { type: "object", properties: {} },
