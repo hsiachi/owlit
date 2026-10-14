@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@lingui/vite-plugin": "6.9.1",
+    "@owlit/share-server": "workspace:*",
     "@types/node": "^24.13.3",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",

@@ -125,6 +125,7 @@ msgstr "什么也没找到。"
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/docs/save-as-doc.ts
+#: app/src/features/docs/share/store.ts
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
@@ -151,6 +152,7 @@ msgstr "选择"
 #: app/src/features/library/reader/ReaderControls.tsx
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
+#: apps/share-web/src/App.tsx
 msgid "Close"
 msgstr "关闭"
 
@@ -296,6 +298,7 @@ msgstr "在文档、笔记或消息中"
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/docs/editor/reader-comments.ts
 msgid "Send"
 msgstr "发送"
 
@@ -406,6 +409,7 @@ msgid "Copy"
 msgstr "拷贝"
 
 #: app/src/components/copy-button.tsx
+#: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copied"
@@ -1004,6 +1008,8 @@ msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/knowledge/components/SplitDialog.tsx
 #: app/src/features/knowledge/components/bits.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
@@ -1015,6 +1021,7 @@ msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
+#: apps/share-web/src/App.tsx
 msgid "Cancel"
 msgstr "取消"
 
@@ -2156,6 +2163,7 @@ msgid "Versions…"
 msgstr "版本…"
 
 #: app/src/features/docs/actions.ts
+#: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr "复制链接"
 
@@ -2181,6 +2189,10 @@ msgstr "{name} 会用系统应用打开"
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Doc actions"
 msgstr "文档操作"
+
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Shared by link"
+msgstr "已通过链接分享"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
@@ -2276,6 +2288,10 @@ msgid "Note dismissed"
 msgstr "已忽略批注"
 
 #: app/src/features/docs/editor/DocEditor.tsx
+msgid "Comment resolved"
+msgstr "评论已解决"
+
+#: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
 msgstr "文档正文"
 
@@ -2313,6 +2329,34 @@ msgstr "前置元数据"
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
 msgstr "没有这个名字的文档"
+
+#. placeholder {0}: c.name
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "{0} (you)"
+msgstr "{0}（你）"
+
+#. placeholder {0}: q.length > 90 ? `${q.slice(0, 90)}…` : q
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "The words this comment was on have changed: “{0}”"
+msgstr "这条评论所指的文字已经改动：“{0}”"
+
+#: app/src/features/docs/editor/reader-comments.ts
+#: apps/share-web/src/App.tsx
+msgid "Reply…"
+msgstr "回复…"
+
+#: app/src/features/docs/editor/reader-comments.ts
+#: apps/share-web/src/App.tsx
+msgid "Reply"
+msgstr "回复"
+
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "Resolve"
+msgstr "解决"
+
+#: app/src/features/docs/editor/reader-comments.ts
+msgid "{n, plural, one {# comment} other {# comments}}"
+msgstr "{n, plural, other {# 条评论}}"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -2363,6 +2407,144 @@ msgstr "回答"
 #: app/src/features/docs/save-as-doc.ts
 msgid "Saved as doc"
 msgstr "已存为文档"
+
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Readers don't have your latest changes yet"
+msgstr "读者还没看到你最新的改动"
+
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Shared"
+msgstr "已分享"
+
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Share"
+msgstr "分享"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "{cited, plural, one {The paper it cites} other {The # papers it cites}}"
+msgstr "{cited, plural, other {文中引用的 # 篇论文}}"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "The papers it cites"
+msgstr "文中引用的论文"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Owlit's digest of each and a link to read it. Papers you cite later join them."
+msgstr "每篇的 Owlit 导读和原文链接。之后新引用的论文也会加进来。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Your notes on those papers"
+msgstr "你对这些论文的笔记"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers see them beside each paper"
+msgstr "读者会在每篇论文旁看到"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Kept to yourself"
+msgstr "只留给自己"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Share your notes on the papers"
+msgstr "分享你对论文的笔记"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Share “{name}”"
+msgstr "分享“{name}”"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Anyone with the link reads the doc in a browser, without owlit, and can comment on it. Comments come back here."
+msgstr "拿到链接的人不用装 owlit，在浏览器里就能读这篇文档并评论。评论会回到这里。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Make a link to send. Whoever opens it reads the doc and comments in their browser."
+msgstr "生成一个链接发给别人。打开它的人在浏览器里阅读和评论。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "They also see"
+msgstr "对方还会看到"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Your changes reach readers as you make them. Your chats, highlights and other docs stay here."
+msgstr "你的改动会直接出现在读者那边。你的对话、高亮和其他文档留在这里。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+#: packages/core/src/share/shares.ts
+msgid "No share server is set up, so owlit can't make links yet."
+msgstr "还没有设置分享服务器，owlit 暂时无法生成链接。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Create link"
+msgstr "创建链接"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Anyone with the link"
+msgstr "拿到链接的人"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Who may comment"
+msgstr "谁可以评论"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Can comment"
+msgstr "可以评论"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Can only read"
+msgstr "只能查看"
+
+#. noun: a web link to the paper
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Link"
+msgstr "链接"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers also see"
+msgstr "读者还会看到"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+#: packages/core/src/share/shares.ts
+msgid "This doc was shared from another computer; only that one can change its link."
+msgstr "这篇文档是从另一台电脑分享的，只有那台电脑能修改这个链接。"
+
+#. placeholder {0}: ago(share.pushedAt, { inSentence: true })
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers have the doc as it was {0}."
+msgstr "读者看到的是{0}的版本。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Readers have the latest version."
+msgstr "读者看到的是最新版本。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Stop sharing"
+msgstr "停止分享"
+
+#. closes How owlit works
+#. ends the tour
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Done"
+msgstr "完成"
+
+#: app/src/features/docs/share/store.ts
+msgid "{name} commented on {doc}"
+msgstr "{name}评论了「{doc}」"
+
+#. placeholder {0}: fresh.length
+#: app/src/features/docs/share/store.ts
+msgid "{0} new comments on {doc}"
+msgstr "「{doc}」有 {0} 条新评论"
+
+#: app/src/features/docs/share/store.ts
+msgid "Stopped sharing"
+msgstr "已停止分享"
+
+#: app/src/features/docs/share/store.ts
+msgid "The link no longer opens."
+msgstr "这个链接已经打不开了。"
 
 #. file name of a duplicated doc: the original name, then copy
 #: app/src/features/docs/store.ts
@@ -4093,11 +4275,6 @@ msgstr "高亮"
 msgid "About"
 msgstr "信息"
 
-#. noun: a web link to the paper
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "Link"
-msgstr "链接"
-
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No abstract."
 msgstr "无摘要。"
@@ -4299,6 +4476,7 @@ msgstr "选择文件"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
+#: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr "重试"
 
@@ -4469,13 +4647,6 @@ msgstr "步骤"
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Skip intro"
 msgstr "跳过介绍"
-
-#. closes How owlit works
-#. ends the tour
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/tour/TourOverlay.tsx
-msgid "Done"
-msgstr "完成"
 
 #. an onboarding step: writing docs
 #: app/src/features/onboarding/OnboardingFlow.tsx
@@ -5402,14 +5573,17 @@ msgid "This needs the owlit desktop app."
 msgstr "这需要 owlit 桌面应用。"
 
 #: app/src/lib/time.ts
+#: apps/share-web/src/time.ts
 msgid "Just now"
 msgstr "刚刚"
 
 #: app/src/lib/time.ts
+#: apps/share-web/src/time.ts
 msgid "{minutes} min ago"
 msgstr "{minutes} 分钟前"
 
 #: app/src/lib/time.ts
+#: apps/share-web/src/time.ts
 msgid "{hours} h ago"
 msgstr "{hours} 小时前"
 
@@ -5692,6 +5866,178 @@ msgstr "在浏览器中打开链接"
 #: apps/desktop/src/text-menu.ts
 msgid "Copy Link"
 msgstr "拷贝链接"
+
+#. placeholder {0}: paper.authors[0]
+#: apps/share-web/src/App.tsx
+msgid "{0} et al."
+msgstr "{0} 等"
+
+#: apps/share-web/src/App.tsx
+msgid "Opening…"
+msgstr "正在打开…"
+
+#: apps/share-web/src/App.tsx
+msgid "There is nothing at this link"
+msgstr "这个链接下什么也没有"
+
+#: apps/share-web/src/App.tsx
+msgid "Check that the whole link was copied, or ask for it again."
+msgstr "检查链接是否复制完整，或者请对方重新发一次。"
+
+#: apps/share-web/src/App.tsx
+msgid "The author stopped sharing this doc"
+msgstr "作者已停止分享这篇文档"
+
+#: apps/share-web/src/App.tsx
+msgid "Ask them for a new link if you still need it."
+msgstr "如果还需要，请向作者要一个新链接。"
+
+#: apps/share-web/src/App.tsx
+msgid "Couldn't reach the server"
+msgstr "连不上服务器"
+
+#: apps/share-web/src/App.tsx
+msgid "Check your connection."
+msgstr "请检查网络连接。"
+
+#. placeholder {0}: bundle.author
+#: apps/share-web/src/App.tsx
+msgid "Shared by {0}"
+msgstr "{0} 分享"
+
+#: apps/share-web/src/App.tsx
+msgid "Doc"
+msgstr "文档"
+
+#: apps/share-web/src/App.tsx
+msgid "Cited papers"
+msgstr "引用的论文"
+
+#: apps/share-web/src/App.tsx
+msgid "Read only"
+msgstr "只能查看"
+
+#. placeholder {0}: openThreads.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {# 条评论}}"
+
+#: apps/share-web/src/App.tsx
+msgid "Comments"
+msgstr "评论"
+
+#: apps/share-web/src/App.tsx
+msgid "All comments"
+msgstr "全部评论"
+
+#. placeholder {0}: ago(props.updatedAt)
+#: apps/share-web/src/App.tsx
+msgid "Updated {0}"
+msgstr "{0}更新"
+
+#: apps/share-web/src/App.tsx
+msgid "Select words to comment on them."
+msgstr "选中文字即可评论。"
+
+#: apps/share-web/src/App.tsx
+msgctxt "verb: say something about the selected words"
+msgid "Comment"
+msgstr "评论"
+
+#: apps/share-web/src/App.tsx
+msgid "The papers this doc cites, in the order it first cites them."
+msgstr "这篇文档引用的论文，按第一次引用的顺序排列。"
+
+#: apps/share-web/src/App.tsx
+msgid "{count, plural, one {Cited once} other {Cited # times}}"
+msgstr "{count, plural, other {引用 # 处}}"
+
+#: apps/share-web/src/App.tsx
+msgid "Read the paper"
+msgstr "阅读原文"
+
+#: apps/share-web/src/App.tsx
+msgid "Digest · written by Owlit"
+msgstr "导读 · Owlit 写的"
+
+#. placeholder {0}: bundle.author
+#: apps/share-web/src/App.tsx
+msgid "{0}'s note"
+msgstr "{0}的笔记"
+
+#: apps/share-web/src/App.tsx
+msgid "The author's note"
+msgstr "作者的笔记"
+
+#. placeholder {0}: citations.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {Where the doc cites it} other {Where the doc cites it · #}}"
+msgstr "{0, plural, other {文中引用 · # 处}}"
+
+#: apps/share-web/src/App.tsx
+msgid "The words this was on have changed since:"
+msgstr "这条评论所指的文字后来改过："
+
+#: apps/share-web/src/App.tsx
+msgid "author"
+msgstr "作者"
+
+#: apps/share-web/src/App.tsx
+msgid "The author marked this resolved."
+msgstr "作者已将这条标为已解决。"
+
+#: apps/share-web/src/App.tsx
+msgid "Your comment…"
+msgstr "写下你的意见…"
+
+#: apps/share-web/src/App.tsx
+msgid "Your name, shown with what you write"
+msgstr "你的名字，会显示在评论旁边"
+
+#: apps/share-web/src/App.tsx
+msgid "As {who}"
+msgstr "以「{who}」的名字"
+
+#: apps/share-web/src/App.tsx
+msgid "Change"
+msgstr "更改"
+
+#. placeholder {0}: th.replies.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# reply} other {# replies}}"
+msgstr "{0, plural, other {# 条回复}}"
+
+#: apps/share-web/src/App.tsx
+msgid "words changed"
+msgstr "文字已改动"
+
+#: apps/share-web/src/App.tsx
+msgid "No open comments."
+msgstr "没有待处理的评论。"
+
+#: apps/share-web/src/App.tsx
+msgid "Resolved"
+msgstr "已解决"
+
+#: apps/share-web/src/api.ts
+msgid "Couldn't reach the server. Check your connection and try again."
+msgstr "连不上服务器。请检查网络后重试。"
+
+#: apps/share-web/src/api.ts
+msgid "This doc can be read but not commented on."
+msgstr "这篇文档只能查看，不能评论。"
+
+#: apps/share-web/src/api.ts
+msgid "The author stopped sharing this doc."
+msgstr "作者已停止分享这篇文档。"
+
+#: apps/share-web/src/api.ts
+msgid "Too many comments in a short while. Try again in a few minutes."
+msgstr "短时间内评论太多了，请过几分钟再试。"
+
+#: apps/share-web/src/api.ts
+msgid "The comment couldn't be saved. Try again."
+msgstr "评论没能保存，请重试。"
 
 #: packages/core/src/agents/agents.ts
 msgid "The command is empty."
@@ -6159,6 +6505,59 @@ msgstr "Wiley 拒绝了：令牌无效，或在当前网络下检测不到订阅
 #: packages/core/src/settings-rpc.ts
 msgid "{service} is busy; the key will be tried on the next paper."
 msgstr "{service} 正忙，会在下一篇论文时再试这个密钥。"
+
+#: packages/core/src/share/client.ts
+msgid "Couldn't reach the share server ({host})."
+msgstr "连不上分享服务器（{host}）。"
+
+#: packages/core/src/share/client.ts
+msgid "The link was stopped."
+msgstr "这个链接已被停止。"
+
+#: packages/core/src/share/client.ts
+msgid "The share server no longer has this link."
+msgstr "分享服务器上已经没有这个链接了。"
+
+#: packages/core/src/share/client.ts
+msgid "The share server refused: this computer doesn't hold the link's key."
+msgstr "分享服务器拒绝了：这台电脑没有这个链接的密钥。"
+
+#: packages/core/src/share/client.ts
+msgid "The doc and its papers are too large to share."
+msgstr "文档和它引用的论文太大，无法分享。"
+
+#: packages/core/src/share/client.ts
+msgid "The share server is asking owlit to slow down."
+msgstr "分享服务器请 owlit 放慢一点。"
+
+#. placeholder {0}: data.error
+#: packages/core/src/share/client.ts
+msgid "The share server answered: {0}"
+msgstr "分享服务器回复：{0}"
+
+#: packages/core/src/share/client.ts
+msgid "The share server answered {status}."
+msgstr "分享服务器返回了 {status}。"
+
+#: packages/core/src/share/shares.ts
+msgid "Only docs can be shared."
+msgstr "只有文档可以分享。"
+
+#: packages/core/src/share/shares.ts
+msgid "There is no {docPath} in the workspace."
+msgstr "工作区里没有 {docPath}。"
+
+#: packages/core/src/share/shares.ts
+msgid "The author"
+msgstr "作者"
+
+#: packages/core/src/share/shares.ts
+msgid "The doc isn't in the workspace any more, so readers see it as it last was."
+msgstr "这篇文档已不在工作区里，读者看到的是它最后的样子。"
+
+#: packages/core/src/share/shares.ts
+msgid "{docPath} isn't shared."
+msgstr "{docPath} 没有分享。"
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts

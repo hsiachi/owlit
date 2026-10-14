@@ -13,6 +13,9 @@ import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
+// The share server named at build time (scripts/shared.mjs); "" when none was
+declare const __OWLIT_SHARE_SERVER__: string
+
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
 
@@ -488,6 +491,8 @@ if (!app.requestSingleInstanceLock()) {
       npm: path.join(__dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked"), "npm", "bin", "npm-cli.js"),
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
+      // Where doc links are made (apps/share-server); none means docs can't be shared yet
+      shareServer: process.env.OWLIT_SHARE_SERVER || __OWLIT_SHARE_SERVER__ || undefined,
       exampleDir: path.join(__dirname, "example-workspace"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores

@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { FolderPlusIcon } from "lucide-react"
+import { FolderPlusIcon, UsersIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick } from "@/components/action-menu"
@@ -13,6 +13,7 @@ import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
 import { onDisk, openOnDisk } from "../disk"
 import { useDocsStore } from "../store"
+import { useShareStore } from "../share/store"
 import { parentPath } from "../types"
 import { rowKey, useDocsUiStore } from "../ui-store"
 import { useNewDoc } from "../use-new-doc"
@@ -30,6 +31,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
   const key = rowKey.file(node.file.id)
   const renaming = useDocsUiStore((s) => s.renaming === key)
   const active = node.file.id === p.activeId
+  const shared = useShareStore((s) => !!s.byPath[node.file.path])
 
   if (renaming)
     return (
@@ -66,6 +68,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
       // A drop on a doc lands in the doc's folder, which lights up to say so
       dropTo={parentPath(node.file.path)}
       onOpen={open}
+      trail={shared ? <UsersIcon className="size-3" aria-label={t`Shared by link`} /> : undefined}
       className={cn(active && "font-medium")}
       buttonClassName={cn("pr-1", !node.markdown && "text-muted-foreground")}
     />

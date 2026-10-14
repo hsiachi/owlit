@@ -3,7 +3,9 @@
 A pnpm workspace: `app/` is the renderer (React + Vite), `packages/protocol/` the wire types,
 `packages/core/` the backend (plain Node, never imports Electron or React), `apps/desktop/` the
 Electron shell that wires them together, `packages/client/` a Node client for a running owlit, and
-`packages/owlit-mcp/` the MCP server that gives agents owlit's library, docs and chats.
+`packages/owlit-mcp/` the MCP server that gives agents owlit's library, docs and chats. `apps/share-worker/` (on
+Cloudflare) or `apps/share-server/` (plain Node), with `apps/share-web/`, are the server and the browser page behind
+sharing a doc by link.
 
 ```bash
 pnpm install
@@ -37,3 +39,32 @@ claude mcp add owlit -- node "$PWD/packages/owlit-mcp/src/main.ts" --workspace ~
 ```
 
 `--workspace` is the folder open in owlit. With owlit closed, every tool answers that owlit isn't open.
+
+## Sharing docs by link
+
+A doc's Share button makes a link anyone can open in a browser, without owlit: they read the doc and the
+papers it cites (Owlit's digests, and the author's notes if allowed) and comment; comments come back into the
+doc. owlit pushes every change as it is made. The server keeps only what readers see and their comments; PDFs
+never go there, and the key that changes a link stays on the computer that made it.
+
+The server runs on Cloudflare (`apps/share-worker`: a Worker, one Durable Object per shared doc, readers' pages
+kept live over hibernating WebSockets, so an open page costs nothing while nothing changes; the free plan is
+plenty). Once, with a Cloudflare account:
+
+```bash
+pnpm --filter @owlit/share-worker exec wrangler login
+pnpm --filter @owlit/share-worker run deploy          # builds the reader's page, prints https://owlit-share.<you>.workers.dev
+OWLIT_SHARE_SERVER=https://owlit-share.<you>.workers.dev pnpm build   # bakes the server into the app
+```
+
+`workers.dev` isn't reliably reachable from mainland China: for readers there, add a domain to Cloudflare, put
+it in `routes` in `apps/share-worker/wrangler.jsonc` (the commented line) and deploy again; links then use that
+address. Locally, `pnpm --filter @owlit/share-worker dev` runs the same worker in workerd at
+http://localhost:8787, and `OWLIT_SHARE_SERVER=http://localhost:8787 pnpm dev` points owlit at it.
+
+`apps/share-server` is the same API on plain Node with one SQLite file, for a machine of your own (Node 22.13+,
+sudo for the systemd service); both pass the same tests (`apps/share-server/src/contract.ts`):
+
+```bash
+apps/share-server/deploy/deploy.sh algernon https://share.example.org   # behind Caddy: apps/share-server/deploy/Caddyfile
+```

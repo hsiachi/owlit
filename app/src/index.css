@@ -79,6 +79,7 @@
     --color-owlit-mark: var(--owlit-mark);
     --color-warning: var(--warning);
     --color-text-highlight: var(--text-highlight);
+    --color-person-mark: var(--person-mark);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -133,6 +134,11 @@
     --warning: oklch(0.66 0.12 70);
     /* A doc's own ==highlights==: the lemon of a yellow PDF highlight, so the two never pass for a note */
     --text-highlight: oklch(0.93 0.11 98);
+    /* A person's mark: a reader's comment on a shared doc is underlined in the text's own ink, never a hue,
+       so it can't pass for Owlit's green or a link's blue; washed while open. Made from the foreground, so
+       it follows the theme and the paper tone by itself. */
+    --person-mark: color-mix(in oklch, var(--foreground) 34%, transparent);
+    --person-wash: color-mix(in oklch, var(--foreground) 7%, transparent);
     --border: oklch(0.905 0.006 95);
     --input: oklch(0.9 0.006 95);
     --ring: oklch(0.7 0.012 70);

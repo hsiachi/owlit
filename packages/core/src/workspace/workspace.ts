@@ -14,6 +14,7 @@ import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Knowledge, type KnowledgeServices } from "../knowledge/knowledge.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
+import { Shares, type SharesServices } from "../share/shares.ts"
 import { acquireLock, lockFileFor, WorkspaceLockedError } from "./lock.ts"
 import { OWLIT_DIR } from "./paths.ts"
 
@@ -32,6 +33,8 @@ export interface WorkspaceOptions {
   library?: LibraryServices
   knowledge?: KnowledgeServices
   tasks?: WorkspaceTasks
+  // What sharing docs by link needs from outside the workspace (the server, the network, the author)
+  shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
 
 export interface WorkspaceTasks {
@@ -54,6 +57,7 @@ export class Workspace {
   readonly tasks: Scheduler
   readonly search: SearchIndex
   readonly knowledge: Knowledge
+  readonly shares: Shares
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions) {
@@ -76,6 +80,24 @@ export class Workspace {
     })
     this.library.attach(this.tasks)
     this.knowledge.attach(this.tasks)
+    this.shares = new Shares({
+      server: () => null,
+      author: async () => undefined,
+      changed: () => {},
+      commentsChanged: () => {},
+      ...options.shares,
+      owlitDir: path.join(root, OWLIT_DIR),
+      dataDir,
+      secrets: options.shares?.secrets ?? host.secrets,
+      fetch: options.shares?.fetch ?? host.fetch,
+      readDoc: (rel) => this.docs.read(rel).then((r) => r.content, () => null),
+      paper: async (id) => {
+        const paper = await this.library.get(id)
+        if (!paper) return undefined
+        const [digest, note] = await Promise.all([this.library.digest(id), this.library.read(id, "note").then((r) => r.text)])
+        return { paper, digest, note }
+      },
+    })
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
@@ -135,6 +157,7 @@ export class Workspace {
   }
 
   async dispose() {
+    this.shares.dispose()
     await this.tasks.dispose()
     await this.chats.flush()
     this.docs.dispose()

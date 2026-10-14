@@ -1,0 +1,29 @@
+{
+  "name": "@owlit/share-server",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Holds shared docs and their comments for owlit's share links",
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./store": "./src/store.ts",
+    "./rules": "./src/rules.ts",
+    "./contract": "./src/contract.ts"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "build": "node scripts/build.mjs",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@owlit/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "esbuild": "0.28.2",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vitest": "5.0.2"
+  }
+}

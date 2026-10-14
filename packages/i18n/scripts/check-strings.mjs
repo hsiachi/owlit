@@ -5,7 +5,7 @@
 // stays English (a table of words is a function, or msg`…` said where it shows). A string that must stay as it is (a name, a symbol shown on
 // its own) is let through by a `i18n-ignore` comment on its line or the line above.
 //
-// node packages/i18n/scripts/check-strings.mjs [dir…]   (default: app/src, apps/desktop/src, packages/core/src)
+// node packages/i18n/scripts/check-strings.mjs [dir…]   (default: app/src, apps/desktop/src, apps/share-web/src, packages/core/src)
 
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { createRequire } from "node:module"
@@ -85,7 +85,7 @@ function check(file) {
   return found
 }
 
-const dirs = process.argv.slice(2).length ? process.argv.slice(2) : ["app/src", "apps/desktop/src", "packages/core/src"]
+const dirs = process.argv.slice(2).length ? process.argv.slice(2) : ["app/src", "apps/desktop/src", "apps/share-web/src", "packages/core/src"]
 const problems = dirs.flatMap((dir) => [...files(path.resolve(root, dir))].flatMap(check))
 if (problems.length) {
   console.error(`Words that would stay English (say them with t\`…\` or <Trans> where they show, or mark a name with i18n-ignore):\n${problems.join("\n")}`)

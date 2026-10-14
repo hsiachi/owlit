@@ -35,6 +35,9 @@ import { OWLIT_DIR } from "./workspace/paths.ts"
 
 export const CORE_VERSION = "0.0.0"
 
+// Methods that may change what a shared doc's reader sees: the doc, the papers it cites, their notes
+const SHARED_CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|library\.(add|update|remove|restore|setNote|refresh|requestDigest|importPdf|attachPdf))$/
+
 // Methods that change what the search index covers
 const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
 
@@ -65,6 +68,11 @@ export interface CoreOptions {
   knowledgeTimings?: KnowledgeTimings
   // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
   lateQuietMs?: number
+  // The share server new links are made on (apps/share-server), e.g. https://share.example.org; without
+  // one, docs can't be shared
+  shareServer?: string
+  // How long changes settle before a shared doc is pushed, and how often comments are fetched (tests)
+  shareTimings?: { settleMs?: number; pollMs?: number }
   // The example workspace the app ships, which workspace.createExample copies
   exampleDir?: string
 }
@@ -632,12 +640,35 @@ export class Core {
     this.router.register("notes.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
       docs().reanchorNotes(path, moved),
     )
+
+    const shares = () => this.requireWorkspace().shares
+    const permission = z.enum(["comment", "view"])
+    this.router.register("share.list", noParams, () => shares().list())
+    this.router.register("share.create", z.object({ path: rel, notes: z.boolean() }), ({ path, notes }) => shares().create(path, notes))
+    this.router.register("share.update", z.object({ path: rel, permission: permission.optional(), notes: z.boolean().optional() }), ({ path, ...change }) =>
+      shares().update(path, change),
+    )
+    this.router.register("share.stop", z.object({ path: rel }), ({ path }) => shares().stop(path))
+    this.router.register("share.comments", z.object({ path: rel }), ({ path }) => shares().commentsOf(path))
+    this.router.register("share.reply", z.object({ path: rel, parent: z.string().min(1), text: z.string().trim().min(1).max(4000) }), ({ path, parent, text }) =>
+      shares().reply(path, parent, text),
+    )
+    this.router.register("share.resolve", z.object({ path: rel, id: z.string().min(1), resolved: z.boolean() }), ({ path, id, resolved }) =>
+      shares().resolve(path, id, resolved),
+    )
   }
 
   async handle(request: RpcRequest): Promise<RpcResponse> {
     const response = await this.router.handle(request)
     // What a client changed is searched for soon after (the index waits for things to settle)
     if (this.workspace && "result" in response && CHANGES.test(request?.method ?? "")) this.workspace.search.touch()
+    if (this.workspace && "result" in response && SHARED_CHANGES.test(request?.method ?? "")) {
+      // A doc renamed or moved, or renamed after its first line, takes its link along
+      const from = (request.params as { path?: string } | undefined)?.path
+      const to = (response.result as { path?: string } | null)?.path
+      if (from && to && from !== to) void this.workspace.shares.moved(from, to)
+      this.workspace.shares.touched()
+    }
     return response
   }
 
@@ -714,6 +745,18 @@ export class Core {
                 // A chat's agent changed a topic: the window offers Undo, as for any agent write
                 wroteTopic: (change) => this.notifier.notify("agent.changed", { kind: "knowledge", ...change }),
               },
+              shares: {
+                server: () => this.options.shareServer ?? null,
+                author: async () => (await this.settings.get()).profile.name,
+                // Only the open workspace's shares reach the windows
+                changed: (path, share) => {
+                  if (this.workspace?.root === root) this.notifier.notify("share.changed", { path, share })
+                },
+                commentsChanged: (path, comments) => {
+                  if (this.workspace?.root === root) this.notifier.notify("share.comments", { path, comments })
+                },
+                ...this.options.shareTimings,
+              },
               tasks: {
                 definitions: (workspace) => this.taskDefinitions(workspace),
                 onChange: (task) => this.taskChanges.push(task),
@@ -733,15 +776,23 @@ export class Core {
           await next.docs.watch((change) => {
             if (current()) this.notifier.notify("docs.changed", change)
             next.search.touch()
+            // A doc renamed outside owlit keeps its id: its link goes with it
+            for (const gone of change.deleted) {
+              const now = gone.id && change.changed.find((f) => f.id === gone.id)
+              if (now) void next.shares.moved(gone.path, now.path)
+            }
+            next.shares.touched()
           })
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)
               next.search.touch()
+              next.shares.touched()
             },
             (paperId, note, before) => {
               if (current()) this.notifier.notify("library.noteChanged", { paperId, note })
               next.search.touch()
+              next.shares.touched()
               // An agent that writes the disk itself (Claude Code does) changed the note while one of its tool
               // calls names the file: kept and journaled as the agent's, so the chat offers Undo, as for a doc
               const rel = noteRelPath(paperId)
@@ -762,7 +813,9 @@ export class Core {
         this.taskChanges.flush()
       }
       if (this.workspace !== next) await this.serveSocket(next.root)
+      const opened = this.workspace !== next
       this.workspace = next
+      if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
       // Only the recent list: the switch has happened either way
       await this.settings.rememberWorkspace(next.root).catch((error) => console.error("[core] couldn't remember the workspace", error))

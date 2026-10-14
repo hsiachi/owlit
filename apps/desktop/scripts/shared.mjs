@@ -22,7 +22,13 @@ export function esbuildOptions({ production }) {
     target: "node22",
     external: ["electron"],
     sourcemap: production ? false : "linked",
-    define: { "process.env.NODE_ENV": JSON.stringify(production ? "production" : "development"), "import.meta.url": "__importMetaUrl" },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(production ? "production" : "development"),
+      "import.meta.url": "__importMetaUrl",
+      // The share server links are made on, baked in at build time (OWLIT_SHARE_SERVER=https://… pnpm build);
+      // a run can still name another in its own environment
+      __OWLIT_SHARE_SERVER__: JSON.stringify(process.env.OWLIT_SHARE_SERVER ?? ""),
+    },
     // ES modules bundled into CommonJS (pdfium's loader) ask where they are through import.meta.url
     // (no require here: the sandboxed preload shares the banner and may not require node modules)
     banner: { js: 'const __importMetaUrl = typeof __filename === "string" ? "file://" + encodeURI(__filename) : "";' },

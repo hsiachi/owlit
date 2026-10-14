@@ -1,0 +1,26 @@
+# Filled in by deploy.sh
+[Unit]
+Description=owlit share server (links to shared docs, and their comments)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@HOME@/owlit-share
+Environment=PORT=@PORT@
+Environment=HOST=@HOST@
+Environment=PUBLIC_URL=@URL@
+Environment=DATA_DIR=@HOME@/owlit-share/data
+Environment=STATIC_DIR=@HOME@/owlit-share/web
+Environment=TRUST_PROXY=@TRUST@
+Environment=NODE_NO_WARNINGS=1
+ExecStart=@NODE@ @HOME@/owlit-share/server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@HOME@/owlit-share/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
