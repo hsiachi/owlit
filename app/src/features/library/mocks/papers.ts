@@ -12,6 +12,7 @@ export const seedPapers: Paper[] = [
     authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Łukasz Kaiser", "Illia Polosukhin"],
     year: 2017,
     venue: "NeurIPS",
+    citations: { count: 172034, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Introduces the Transformer, a sequence model built entirely on attention, dropping recurrence and convolution while training faster and translating better.",
@@ -31,6 +32,7 @@ export const seedPapers: Paper[] = [
     authors: ["Tom B. Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah", "Jared Kaplan", "Prafulla Dhariwal", "Arvind Neelakantan", "Pranav Shyam", "Girish Sastry", "Amanda Askell"],
     year: 2020,
     venue: "NeurIPS",
+    citations: { count: 48210, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Scales an autoregressive language model to 175B parameters and shows that task descriptions and a few examples in the prompt replace fine-tuning on many benchmarks.",
@@ -50,6 +52,7 @@ export const seedPapers: Paper[] = [
     authors: ["Long Ouyang", "Jeff Wu", "Xu Jiang", "Diogo Almeida", "Carroll L. Wainwright", "Pamela Mishkin", "Chong Zhang", "Sandhini Agarwal", "Katarina Slama", "Alex Ray"],
     year: 2022,
     venue: "NeurIPS",
+    citations: { count: 14873, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Fine-tunes GPT-3 with supervised demonstrations and reinforcement learning from human preference rankings, producing models people prefer despite far fewer parameters.",
@@ -69,6 +72,7 @@ export const seedPapers: Paper[] = [
     authors: ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus", "Fabio Petroni", "Vladimir Karpukhin", "Naman Goyal", "Heinrich Küttler", "Mike Lewis", "Wen-tau Yih", "Tim Rocktäschel", "Sebastian Riedel", "Douwe Kiela"],
     year: 2020,
     venue: "NeurIPS",
+    citations: { count: 9632, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Combines a pre-trained seq2seq model with a dense retriever over Wikipedia so generation can draw on non-parametric memory, improving open-domain QA and factuality.",
@@ -88,6 +92,7 @@ export const seedPapers: Paper[] = [
     authors: ["Jason Wei", "Xuezhi Wang", "Dale Schuurmans", "Maarten Bosma", "Brian Ichter", "Fei Xia", "Ed H. Chi", "Quoc V. Le", "Denny Zhou"],
     year: 2022,
     venue: "NeurIPS",
+    citations: { count: 12408, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Shows that including worked reasoning steps in few-shot exemplars unlocks arithmetic, commonsense and symbolic reasoning in sufficiently large models.",
@@ -105,6 +110,7 @@ export const seedPapers: Paper[] = [
     authors: ["Timo Schick", "Jane Dwivedi-Yu", "Roberto Dessì", "Roberta Raileanu", "Maria Lomeli", "Luke Zettlemoyer", "Nicola Cancedda", "Thomas Scialom"],
     year: 2023,
     venue: "NeurIPS",
+    citations: { count: 2391, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "A model learns, from a handful of demonstrations, to insert API calls into text where they reduce future-token loss, acquiring tool use in a self-supervised way.",
@@ -122,6 +128,7 @@ export const seedPapers: Paper[] = [
     authors: ["Shunyu Yao", "Jeffrey Zhao", "Dian Yu", "Nan Du", "Izhak Shafran", "Karthik Narasimhan", "Yuan Cao"],
     year: 2023,
     venue: "ICLR",
+    citations: { count: 4107, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Interleaves reasoning traces with actions against an environment, so a model can plan, query tools and revise its plan from what comes back.",
@@ -158,6 +165,7 @@ export const seedPapers: Paper[] = [
     authors: ["Joseph Chee Chang", "Amy X. Zhang", "Jonathan Bragg", "Andrew Head", "Kyle Lo", "Doug Downey", "Daniel S. Weld"],
     year: 2023,
     venue: "CHI",
+    citations: { count: 87, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "A reading interface that annotates inline citations with the reader's own history: what they have read, saved or cited before, so familiar and promising references stand out.",
@@ -177,6 +185,7 @@ export const seedPapers: Paper[] = [
     authors: ["Hyeonsu B. Kang", "Sherry Tongshuang Wu", "Joseph Chee Chang", "Aniket Kittur"],
     year: 2023,
     venue: "UIST",
+    citations: { count: 64, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Lets researchers seed a synthesis with citation contexts from papers they already trust, then uses an LLM to organise a related literature into a hierarchical outline they can steer.",
@@ -196,6 +205,7 @@ export const seedPapers: Paper[] = [
     authors: ["Srishti Palani", "Aakanksha Naik", "Doug Downey", "Amy X. Zhang", "Jonathan Bragg", "Joseph Chee Chang"],
     year: 2023,
     venue: "CHI",
+    citations: { count: 41, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Surfaces related-work paragraphs from many papers on a topic and groups them, so a newcomer can see how a field has already been organised before writing their own review.",
@@ -229,6 +239,7 @@ export const seedPapers: Paper[] = [
     authors: ["J.D. Zamfirescu-Pereira", "Richmond Y. Wong", "Bjoern Hartmann", "Qian Yang"],
     year: 2023,
     venue: "CHI",
+    citations: { count: 702, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "A study of non-experts writing prompts in a chatbot design tool, finding opportunistic rather than systematic strategies and expectations borrowed from human instruction.",
@@ -279,6 +290,7 @@ export const seedPapers: Paper[] = [
     authors: ["Peter Pirolli", "Stuart Card"],
     year: 2005,
     venue: "International Conference on Intelligence Analysis",
+    citations: { count: 1984, source: "openalex", at: daysAgo(3) },
     kind: "conference",
     abstract:
       "Describes sensemaking as two interleaved loops, foraging for information and building schemas from it, and locates where tools could help in each.",

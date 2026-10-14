@@ -63,6 +63,7 @@ export function recordFrom(id: string, resolution: Resolution, previous?: PaperR
     delete (merged as unknown as Record<string, unknown>)[field]
     delete merged.fields[field]
   }
+  if (resolution.citationCount !== undefined) merged.citationsAt = merged.fetchedAt
   if (fullyChecked(resolution)) merged.checked = METADATA_CHECKS
   return merged
 }

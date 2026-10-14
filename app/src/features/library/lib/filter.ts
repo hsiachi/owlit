@@ -44,6 +44,10 @@ export function compare(a: Paper, b: Paper, sort: Sort): number {
     case "venue":
       r = (a.venue ?? "").localeCompare(b.venue ?? "")
       break
+    // A paper no service has counted goes after the ones cited least when the most cited lead
+    case "citations":
+      r = (a.citations?.count ?? -1) - (b.citations?.count ?? -1)
+      break
   }
   if (r === 0) r = b.addedAt - a.addedAt
   return sort.desc ? -r : r

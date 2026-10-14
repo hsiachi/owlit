@@ -1,5 +1,5 @@
 import { RpcErrorCode, type PaperRecord } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -218,6 +218,42 @@ describe("keeping the library clean", () => {
     expect(tasks.list().some((t) => t.kind === "paper.metadata" && (t.subject === "local-abc123" || t.subject === "doi-10.1145-1"))).toBe(false)
     const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
     expect(record.checked).toBe(1)
+  })
+
+  it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {
+    const { root, core } = await setup({})
+    const id = "doi-10.1145-3626772.3657891"
+    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 22, fields: { citationCount: "s2" }, checked: 1 })
+    // Counted a week ago: not due
+    putPaper(root, { id: "doi-10.1145-2", title: "Fresh", ids: { doi: "10.1145/2" }, fetchedAt: 1, citationCount: 5, citationsAt: Date.now() - 7 * 86_400_000, checked: 1 })
+    await core.dispose()
+    // The first open counted an empty library today; these papers came after it
+    const workspaces = path.join(path.dirname(root), "userData/workspaces")
+    for (const dir of readdirSync(workspaces)) rmSync(path.join(workspaces, dir, "library.json"), { force: true })
+    const asked: string[] = []
+    const fetch = (async (url: string) => {
+      asked.push(url)
+      if (url.includes("api.openalex.org/works?") && url.includes("W4393248081")) return new Response(JSON.stringify({ results: [{ id: "https://openalex.org/W4393248081", doi: "https://doi.org/10.1145/3626772.3657891", cited_by_count: 31 }] }))
+      return new Response("not found", { status: 404 })
+    }) as unknown as typeof globalThis.fetch
+    const open = async () => {
+      const again = new Core({ userDataDir: path.join(path.dirname(root), "userData"), host: { fetch }, retryBaseMs: 1 })
+      cores.push(again)
+      await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+      return again
+    }
+    const read = (paper: string) => JSON.parse(readFileSync(path.join(root, "library/papers", paper, "paper.json"), "utf8")) as PaperRecord
+    const first = await open()
+    await vi.waitUntil(() => read(id).citationsAt)
+    expect(read(id)).toMatchObject({ citationCount: 31, fields: { citationCount: "openalex" } })
+    expect(asked.some((u) => u.includes("10.1145%2F2") || u.includes("10.1145/2|"))).toBe(false)
+    const { papers } = await first.handle({ jsonrpc: "2.0", id: 2, method: "library.list" }).then((r) => (r as { result: { papers: { id: string; citations?: unknown }[] } }).result)
+    expect(papers.find((p) => p.id === id)?.citations).toMatchObject({ count: 31, source: "openalex" })
+    await first.dispose()
+    asked.length = 0
+    await open()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(asked.filter((u) => u.includes("api.openalex.org/works?"))).toEqual([])
   })
 })
 

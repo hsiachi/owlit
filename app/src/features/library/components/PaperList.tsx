@@ -12,7 +12,7 @@ import { NoteDot } from "@/components/marks"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
 import type { PaperGroup } from "../lib/filter"
-import { paperMeta, shortAuthors, shortVenue } from "../lib/format"
+import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
 import { useLibraryStore } from "../store"
@@ -186,6 +186,7 @@ const COLUMNS = [
   { key: "authors", label: msg`Authors`, width: 136, sort: "authors" },
   { key: "year", label: msg`Year`, width: 64, sort: "year" },
   { key: "venue", label: msg`Venue`, width: 160, sort: "venue" },
+  { key: "citations", label: msg({ message: "Citations", comment: "how often a paper is cited by other works" }), width: 88, sort: "citations" },
   { key: "tags", label: msg`Tags`, width: 144 },
   { key: "status", label: msg`Status`, width: 104 },
   { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
@@ -198,11 +199,12 @@ type ColumnKey = Column["key"]
 // can't fit every column, they give way least-needed first; Year and Added (which holds the
 // row's actions) always stay.
 const TITLE_MIN = 320
-const GIVE_WAY: ColumnKey[] = ["venue", "status", "tags", "authors"]
+const GIVE_WAY: ColumnKey[] = ["citations", "venue", "status", "tags", "authors"]
 
 // Columns no paper in view fills (no tags yet, every paper unread) are left out rather than shown blank
 const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
   venue: (p) => !!p.venue,
+  citations: (p) => !!p.citations,
   tags: (p) => p.tags.length > 0,
   status: (p) => p.status !== "unread" || !!p.noPdf?.needs,
 }
@@ -266,6 +268,11 @@ function TableRow({ paper, order, open, columns, snippet, tagFilter }: { paper: 
         {columns.has("venue") && (
           <td className={td} title={paper.venue}>
             {venue}
+          </td>
+        )}
+        {columns.has("citations") && (
+          <td className={cn(td, "tabular-nums")} title={paper.citations && `${citationsText(paper.citations.count)} · ${citationsSource(paper.citations)}`}>
+            {paper.citations && citationsShort(paper.citations.count)}
           </td>
         )}
         {columns.has("tags") && (

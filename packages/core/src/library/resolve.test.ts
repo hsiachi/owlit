@@ -70,8 +70,9 @@ describe("resolve", () => {
       year: 2024,
       kind: "conference",
       venue: "International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR)",
-      citationCount: 22,
-      fields: { title: "openalex", venue: "openalex", tldr: "s2", abstract: "s2" },
+      // OpenAlex counts every paper it knows, so the library's counts compare with each other
+      citationCount: 7,
+      fields: { title: "openalex", venue: "openalex", tldr: "s2", abstract: "s2", citationCount: "openalex" },
     })
     expect(paper.title).toMatch(/^ChroniclingAmericaQA/)
     expect(paper.tldr).toMatch(/^ChroniclingAmericaQA, a large-scale temporal QA dataset/)
