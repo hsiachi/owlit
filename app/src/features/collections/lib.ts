@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { MENTION_LINK, shownCollection, type Collection, type CollectionPaper, type CollectionRow, type CollectionSummary } from "@owlit/protocol"
+import { MENTION_LINK, QUESTION_COLUMN, shownCollection, type Collection, type CollectionPaper, type CollectionRow, type CollectionSummary, type Relation } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
@@ -29,6 +29,17 @@ export function paperFacts(row: CollectionRow, library: Paper | undefined): Coll
 
 // "Chang et al. 2023"
 export const citeOf = (p: Pick<CollectionPaper, "authors" | "year">) => citationLabel({ authors: p.authors, year: p.year })
+
+// "CiteSee": the name a paper goes by, the words before its title's colon or dash. The memo names papers
+// the same way (the agent rules ask for it), so a row can be found from a sentence by eye. A title without
+// such a name stays whole.
+export function shortTitle(title: string): string {
+  const m = /^(.{2,48}?)\s*(?::|\s[—–-]\s)\s*\S/.exec(title.trim())
+  return m ? m[1]! : title.trim()
+}
+
+// "CiteSee · 2023", how a row names its paper
+export const nameOf = (p: Pick<CollectionPaper, "title" | "year">) => [shortTitle(p.title), p.year].filter(Boolean).join(" · ")
 
 // A sentence of Owlit's with the papers and groups it names as mentions
 export type MemoPart = string | { label: string; uri: string }
@@ -83,10 +94,36 @@ export function relinkMemo(plain: string, links: { label: string; uri: string }[
   return out
 }
 
+// What a collection says about one of its papers, a line per column with an answer: the answer to its
+// question first and unlabelled, then each question asked of every paper, then how the paper stands on the
+// user's sentences. The user's rewrites are in it.
+export function paperLines(shown: Collection, row: CollectionRow): { label?: string; text: string }[] {
+  const out: { label?: string; text: string }[] = []
+  for (const col of shown.columns) {
+    const cell = row.cells[col.id]
+    if (col.hidden || !cell?.text) continue
+    if (col.id === QUESTION_COLUMN) out.unshift({ text: cell.text })
+    else if (col.kind === "compare") {
+      if (!cell.rel) continue
+      const sentence = col.sentences?.find((s) => s.id === cell.sentence)?.text
+      // Owlit's reason first, as in the table, then which of the user's sentences it is about
+      out.push({ label: relWord(cell.rel), text: sentence ? `${cell.text} (“${sentence}”)` : cell.text })
+    } else out.push({ label: col.question, text: cell.text })
+  }
+  return out
+}
+
+export const relWord = (rel: Relation) =>
+  ({
+    supports: t({ message: "Supports", comment: "a paper's findings back one of the user's sentences" }),
+    challenges: t({ message: "Challenges", comment: "a paper's findings cut against or qualify one of the user's sentences" }),
+    related: t({ message: "Related", comment: "a paper on the same matter as one of the user's sentences, without settling it" }),
+  })[rel]
+
 // Which collections hold each Library paper, newest change first: by the row's id, or a shared DOI or
-// arXiv id. Rows the user removed don't count.
-export function collectionsByPaper(collections: Record<string, Collection>, papers: Record<string, Paper>, aliases: Record<string, string>): Map<string, { id: string; title: string }[]> {
-  const out = new Map<string, { id: string; title: string }[]>()
+// arXiv id, with what each says about it. Rows the user removed don't count.
+export function collectionsByPaper(collections: Record<string, Collection>, papers: Record<string, Paper>, aliases: Record<string, string>): Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]> {
+  const out = new Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]>()
   const ordered = Object.values(collections).sort((a, b) => b.updatedAt - a.updatedAt)
   for (const c of ordered) {
     const shown = shownCollection(c)
@@ -94,7 +131,7 @@ export function collectionsByPaper(collections: Record<string, Collection>, pape
       const paper = libraryPaperOf(row, papers, aliases)
       if (!paper) continue
       const list = out.get(paper.id) ?? []
-      if (!list.some((x) => x.id === c.id)) list.push({ id: c.id, title: shown.title })
+      if (!list.some((x) => x.id === c.id)) list.push({ id: c.id, title: shown.title, lines: paperLines(shown, row) })
       out.set(paper.id, list)
     }
   }

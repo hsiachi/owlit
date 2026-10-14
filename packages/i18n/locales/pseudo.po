@@ -589,9 +589,11 @@ msgstr ""
 
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/library/reader/WearStrip.tsx
 msgid "p. {page}"
 msgstr ""
@@ -2209,12 +2211,7 @@ msgid "In “{title}”: {error}"
 msgstr ""
 
 #: app/src/features/collections/components/AnswerRows.tsx
-#: app/src/features/collections/components/CollectionTable.tsx
 msgid "You've read some of it"
-msgstr ""
-
-#: app/src/features/collections/components/AnswerRows.tsx
-msgid "From the abstract"
 msgstr ""
 
 #: app/src/features/collections/components/AnswerRows.tsx
@@ -2225,6 +2222,10 @@ msgstr ""
 
 #: app/src/features/collections/components/AnswerRows.tsx
 msgid "Not in your Library"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "From the abstract"
 msgstr ""
 
 #. a page of a paper
@@ -2292,21 +2293,6 @@ msgstr ""
 msgid "Export as CSV"
 msgstr ""
 
-#. a paper's findings back one of the user's sentences
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Supports"
-msgstr ""
-
-#. a paper's findings cut against or qualify one of the user's sentences
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Challenges"
-msgstr ""
-
-#. a paper on the same matter as one of the user's sentences, without settling it
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Related"
-msgstr ""
-
 #. column: what a paper says about the collection's question
 #: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/docs/save-as-doc.ts
@@ -2316,21 +2302,6 @@ msgstr ""
 
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Compared with {doc}"
-msgstr ""
-
-#. placeholder {0}: n.supports
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "{0, plural, one {# supports} other {# support}}"
-msgstr ""
-
-#. placeholder {0}: n.challenges
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "{0, plural, one {# challenges} other {# challenge}}"
-msgstr ""
-
-#. placeholder {0}: n.related
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "{0, plural, one {# related} other {# related}}"
 msgstr ""
 
 #. papers of a collection in none of its groups
@@ -2448,10 +2419,6 @@ msgid "Group actions"
 msgstr ""
 
 #: app/src/features/collections/components/CollectionTable.tsx
-msgid "Click to rewrite"
-msgstr ""
-
-#: app/src/features/collections/components/CollectionTable.tsx
 msgid "You edited this"
 msgstr ""
 
@@ -2461,6 +2428,15 @@ msgstr ""
 
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Owlit, from the abstract"
+msgstr ""
+
+#. button: write the digest again
+#. verb: change the words of Owlit's sentence
+#. verb: change the words of Owlit's sentence
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/components/Memo.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Rewrite"
 msgstr ""
 
 #. placeholder {0}: edit.was
@@ -2510,13 +2486,6 @@ msgstr ""
 msgid "Compare"
 msgstr ""
 
-#. button: write the digest again
-#. verb: change the words of Owlit's sentence
-#: app/src/features/collections/components/Memo.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Rewrite"
-msgstr ""
-
 #: app/src/features/collections/components/Memo.tsx
 msgid "Sentence removed"
 msgstr ""
@@ -2546,11 +2515,23 @@ msgid "Draft a review from the collection “{title}”. Propose an outline firs
 msgstr ""
 
 #: app/src/features/collections/components/Work.tsx
+msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
+msgstr ""
+
+#: app/src/features/collections/components/Work.tsx
 msgid "Searches further and adds papers to this collection"
 msgstr ""
 
 #: app/src/features/collections/components/Work.tsx
 msgid "Find more papers"
+msgstr ""
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Owlit suggests broader or neighbouring questions in a chat"
+msgstr ""
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Widen the question…"
 msgstr ""
 
 #: app/src/features/collections/components/Work.tsx
@@ -2632,6 +2613,21 @@ msgstr ""
 msgid "Not in a project"
 msgstr ""
 
+#. a paper's findings back one of the user's sentences
+#: app/src/features/collections/lib.ts
+msgid "Supports"
+msgstr ""
+
+#. a paper's findings cut against or qualify one of the user's sentences
+#: app/src/features/collections/lib.ts
+msgid "Challenges"
+msgstr ""
+
+#. a paper on the same matter as one of the user's sentences, without settling it
+#: app/src/features/collections/lib.ts
+msgid "Related"
+msgstr ""
+
 #: app/src/features/collections/pages/CollectionPage.tsx
 msgid "This collection is gone"
 msgstr ""
@@ -2667,11 +2663,28 @@ msgid "Owlit read {read} of the {papers} papers in full; the rest are from their
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionPage.tsx
+msgid "The table above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "The list above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
 msgid "a chat"
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionPage.tsx
+msgid "another collection"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
 msgid "About this collection"
+msgstr ""
+
+#. a collection the user made from one of another collection's groups
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionPage.tsx
@@ -2682,13 +2695,14 @@ msgstr ""
 msgid "You asked <0>“{asked}”</0>, {when}."
 msgstr ""
 
+#. after the question: its papers were first added to another collection, then kept apart
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Kept separate from {originLink}."
+msgstr ""
+
 #. a later question Owlit answered by adding to this collection
 #: app/src/features/collections/pages/CollectionPage.tsx
 msgid "Then <0>“{later}”</0>, {on}."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionPage.tsx
-msgid "The list above is Owlit's reading of them. Grey answers come from an abstract; a page number points to the words an answer rests on."
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionPage.tsx
@@ -2696,12 +2710,11 @@ msgid "Owlit watches for new papers on this question."
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-msgid "Collect papers on…"
+msgid "Find a collection, or collect papers on…"
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
-msgid "Collect papers on a question"
+msgid "Find a collection, or collect papers on a question"
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
@@ -2722,15 +2735,20 @@ msgid "As many as it takes"
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
-msgid "Press Enter and Owlit collects papers on it."
-msgstr ""
-
-#: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "No collections yet"
 msgstr ""
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collect papers on “{question}”"
+msgstr ""
+
+#. the key that does this
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Enter"
 msgstr ""
 
 #. placeholder {0}: summary.columns
@@ -4888,6 +4906,10 @@ msgstr ""
 
 #: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
+msgstr ""
+
+#: app/src/features/onboarding/demos/CollectDemo.tsx
+msgid "Collect papers on…"
 msgstr ""
 
 #: app/src/features/onboarding/demos/ReadDemo.tsx

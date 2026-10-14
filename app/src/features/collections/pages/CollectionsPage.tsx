@@ -1,10 +1,10 @@
 import { plural, t } from "@lingui/core/macro"
 import type { CollectionSize, CollectionSummary } from "@owlit/protocol"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FindField } from "@/components/find-field"
 import { hasAllWords, queryWords } from "@/lib/words"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { EmptyPlace } from "@/components/empty-place"
 import { GroupLabel } from "@/components/group-label"
@@ -26,27 +26,46 @@ export function CollectionsPage() {
   const loaded = useCollectionsStore((s) => s.loaded)
   const projects = useProjects()
   const [query, setQuery] = useState("")
+  const navigate = useNavigate()
   const [size, setSize] = useState<CollectionSize>("few")
-  const [project, setProject] = useState("")
-  // What is typed finds collections by title too; Enter asks Owlit to collect papers on it
+  // A new collection goes where the user last worked (the most recently changed collection's project)
+  // until they pick another
+  const [picked, setPicked] = useState<string | null>(null)
+  const recent = all[0]?.project ?? ""
+  const project = picked ?? (projects.includes(recent) ? recent : "")
+  // What is typed finds collections by title. Enter opens the first one found, the way a find field does;
+  // collecting papers is its own row under the list, since it starts Owlit on a search in the background.
   const words = queryWords(query)
   const summaries = words.length ? all.filter((c) => hasAllWords(c.title, words)) : all
   const groups = byProject(summaries)
+  const question = query.trim()
   const collect = async () => {
-    const question = query.trim()
     if (!question) return
     if (await gather(question, size, project)) setQuery("")
   }
+  const enter = () => {
+    const first = words.length ? groups[0]?.collections[0] : undefined
+    if (first) navigate(`/collections/${first.id}`)
+    else void collect()
+  }
+  // The breadcrumb's project opens the list at that project's group
+  const [params, setParams] = useSearchParams()
+  const at = params.get("project")
+  useEffect(() => {
+    if (at === null || !loaded) return
+    document.getElementById(`project-${at}`)?.scrollIntoView({ block: "start" })
+    setParams((p) => (p.delete("project"), p), { replace: true })
+  }, [at, loaded, setParams])
   return (
     <PageShell width="narrow">
       <header className="px-0.5">
         <PageTitle>{t`Collections`}</PageTitle>
       </header>
-      <FindField value={query} onChange={setQuery} onEnter={() => void collect()} placeholder={t`Collect papers on…`} label={t`Collect papers on a question`}>
+      <FindField value={query} onChange={setQuery} onEnter={enter} placeholder={t`Find a collection, or collect papers on…`} label={t`Find a collection, or collect papers on a question`}>
         {projects.length > 0 && (
           <ChoiceMenu
             value={project}
-            onChange={setProject}
+            onChange={setPicked}
             label={t`Project`}
             options={[{ value: "", label: t({ message: "No project", comment: "a collection that belongs to no project folder" }) }, ...projects.map((p) => ({ value: p, label: p }))]}
             icon={null}
@@ -63,8 +82,7 @@ export function CollectionsPage() {
           icon={null}
         />
       </FindField>
-      {words.length > 0 && !summaries.length && loaded && <p className="mt-6 px-2.5 text-sm text-muted-foreground">{t`Press Enter and Owlit collects papers on it.`}</p>}
-      {loaded && !all.length ? (
+      {loaded && !all.length && !question ? (
         <EmptyPlace
           className="mt-24"
           title={t`No collections yet`}
@@ -73,7 +91,7 @@ export function CollectionsPage() {
       ) : (
         <div className="mt-6 flex flex-col gap-6">
           {groups.map((g) => (
-            <section key={g.key}>
+            <section key={g.key} id={`project-${g.key}`} className="scroll-mt-6">
               {g.label && <GroupLabel>{g.label}</GroupLabel>}
               <div className="flex flex-col gap-0.5">
                 {g.collections.map((c) => (
@@ -82,9 +100,31 @@ export function CollectionsPage() {
               </div>
             </section>
           ))}
+          {/* Close under the rows it follows, as one more of them */}
+          {question && (
+            <div className={summaries.length ? "-mt-5.5" : undefined}>
+              <CollectRow question={question} found={summaries.length > 0} onCollect={() => void collect()} />
+            </div>
+          )}
         </div>
       )}
     </PageShell>
+  )
+}
+
+// Collecting papers on what was typed: a row of its own after what the field found, so it is never the
+// surprise behind Enter. With nothing found it is what Enter does, and says so.
+function CollectRow({ question, found, onCollect }: { question: string; found: boolean; onCollect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCollect}
+      className="flex h-9 w-full cursor-default items-center gap-2 rounded-md pr-2.5 pl-2.5 text-left text-sm outline-none hover:bg-muted focus-key:bg-muted"
+    >
+      <span className="-ml-0.5 size-5 shrink-0" />
+      <span className="min-w-0 truncate">{t`Collect papers on “${question}”`}</span>
+      {!found && <span className="ml-auto shrink-0 text-detail text-muted-foreground">{t({ message: "Enter", comment: "the key that does this" })}</span>}
+    </button>
   )
 }
 
