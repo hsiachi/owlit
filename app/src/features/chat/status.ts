@@ -21,6 +21,9 @@ interface SeenState {
   dismissed: Record<string, string>
   // Chats on screen now (the Chat page or the docked agent window), counted since both can show one
   viewing: Record<string, number>
+  // When each chat was last on screen, for this run of the app: the agent panel goes by it to tell a
+  // chat the person has just left from one they left a while ago
+  seenAt: Record<string, number>
   ended: (chatId: string, how: "finished" | "failed" | "cancelled") => void
   look: (chatId: string) => () => void
   forget: (chatId: string) => void
@@ -35,6 +38,7 @@ export const useSeenStore = create<SeenState>()(
       unseen: {},
       dismissed: {},
       viewing: {},
+      seenAt: {},
       ended: (chatId, how) => {
         if (how !== "finished" || chatOnScreen(chatId)) return
         set((s) => ({ unseen: { ...s.unseen, [chatId]: how } }))
@@ -44,7 +48,7 @@ export const useSeenStore = create<SeenState>()(
           const { [chatId]: _seen, ...unseen } = s.unseen
           return { viewing: countUp(s.viewing, chatId), unseen }
         })
-        return () => set((s) => ({ viewing: countDown(s.viewing, chatId) }))
+        return () => set((s) => ({ viewing: countDown(s.viewing, chatId), seenAt: { ...s.seenAt, [chatId]: Date.now() } }))
       },
       forget: (chatId) =>
         set((s) => {

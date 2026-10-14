@@ -28,7 +28,7 @@ export async function fetchS2(
 
 interface S2Paper {
   paperId?: string
-  externalIds?: { DOI?: string; ArXiv?: string } | null
+  externalIds?: { DOI?: string; ArXiv?: string; ACL?: string } | null
   title?: string | null
   authors?: { name: string }[]
   year?: number | null
@@ -47,11 +47,12 @@ export function parseS2(raw: string): SourceRecord | undefined {
   if (!paper?.paperId) return undefined
   const doi = paper.externalIds?.DOI?.toLowerCase()
   const arxiv = paper.externalIds?.ArXiv
+  const acl = paper.externalIds?.ACL
   const venueType = paper.publicationVenue?.type
   const types = paper.publicationTypes ?? []
   return {
     source: "s2",
-    ids: { s2: paper.paperId, ...(doi ? { doi } : {}), ...(arxiv ? { arxiv } : {}) },
+    ids: { s2: paper.paperId, ...(doi ? { doi } : {}), ...(arxiv ? { arxiv } : {}), ...(acl ? { acl } : {}) },
     title: paper.title ?? undefined,
     authors: paper.authors?.map((a) => a.name),
     year: paper.year ?? undefined,

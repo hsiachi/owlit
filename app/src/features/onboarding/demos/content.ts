@@ -107,10 +107,10 @@ export const COLLECT = {
   question: "When should a model retrieve?",
   title: "Deciding when to retrieve",
   rows: [
-    { text: "A learned Retrieve token decides per segment, and passages are graded after.", cite: "Asai et al. 2023", page: 4 },
-    { text: "Retrieving before every answer helps knowledge-heavy tasks most.", cite: "Lewis et al. 2020", page: 0 },
-    { text: "Retrieving when confidence drops beats retrieving every time on long answers.", cite: "Jiang et al. 2023", page: 6 },
+    { text: "A learned Retrieve token decides per segment, and passages are graded after.", cite: "Self-RAG · 2023", page: 4 },
+    { text: "Retrieving before every answer helps knowledge-heavy tasks most.", cite: "RAG · 2020", page: 0 },
+    { text: "Retrieving when confidence drops beats retrieving every time on long answers.", cite: "FLARE · 2023", page: 6 },
   ],
-  memo: ["Most methods decide per step whether to retrieve.", "None compares a learned decision with a fixed rule on the same tasks."],
+  memo: ["Self-RAG and FLARE decide per step whether to retrieve; RAG retrieves every time.", "None compares a learned decision with a fixed rule on the same tasks."],
   corrected: "Retrieving every time helps most on open-domain QA.",
 }

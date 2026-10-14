@@ -545,13 +545,18 @@ msgid "Last chat"
 msgstr "上一个对话"
 
 #: app/src/features/agent/AgentWindow.tsx
-msgid "Ask anything."
-msgstr "想问什么都可以。"
-
-#: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "Ask a follow-up…"
 msgstr "继续追问…"
+
+#. label over the chats about the page beside the Owlit panel
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Earlier here"
+msgstr "之前在这里"
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Ask anything."
+msgstr "想问什么都可以。"
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "No chats yet"
@@ -589,9 +594,11 @@ msgstr "导读"
 
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/library/reader/WearStrip.tsx
 msgid "p. {page}"
 msgstr "第 {page} 页"
@@ -624,6 +631,54 @@ msgstr "问问这篇文档，或任何其他问题。"
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this collection, or anything else."
 msgstr "问关于这个合集的问题，或别的任何事。"
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper"
+msgstr "总结这篇论文"
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper: its question, method and main findings."
+msgstr "总结这篇论文：它的问题、方法和主要发现。"
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s the method?"
+msgstr "用了什么方法？"
+
+#: app/src/features/agent/page-context.ts
+msgid "What method does this paper use, and how does it evaluate it?"
+msgstr "这篇论文用了什么方法，又是如何评估的？"
+
+#: app/src/features/agent/page-context.ts
+msgid "Review this draft"
+msgstr "审阅这篇文档"
+
+#: app/src/features/agent/page-context.ts
+msgid "Review where this draft overstates a finding or misreads a paper."
+msgstr "找出这篇文档中夸大结论或误读论文的地方。"
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers to cite"
+msgstr "找可引用的论文"
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers that support or challenge the claims in this doc."
+msgstr "找出支持或质疑这篇文档中观点的论文。"
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do they disagree?"
+msgstr "分歧在哪里？"
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do the papers in this collection disagree, and why?"
+msgstr "这个合集里的论文在哪些地方有分歧，为什么？"
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s left open?"
+msgstr "还有哪些悬而未决？"
+
+#: app/src/features/agent/page-context.ts
+msgid "Which questions do the papers in this collection leave open?"
+msgstr "这个合集里的论文还留下了哪些悬而未决的问题？"
 
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
@@ -2209,13 +2264,8 @@ msgid "In “{title}”: {error}"
 msgstr "在“{title}”中：{error}"
 
 #: app/src/features/collections/components/AnswerRows.tsx
-#: app/src/features/collections/components/CollectionTable.tsx
 msgid "You've read some of it"
 msgstr "你读过一部分"
-
-#: app/src/features/collections/components/AnswerRows.tsx
-msgid "From the abstract"
-msgstr "来自摘要"
 
 #: app/src/features/collections/components/AnswerRows.tsx
 #: app/src/features/library/components/PaperByline.tsx
@@ -2226,6 +2276,10 @@ msgstr "作者未知"
 #: app/src/features/collections/components/AnswerRows.tsx
 msgid "Not in your Library"
 msgstr "不在你的文献库中"
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr "来自摘要"
 
 #. a page of a paper
 #. a page of a paper
@@ -2292,21 +2346,6 @@ msgstr "导出为文档"
 msgid "Export as CSV"
 msgstr "导出为 CSV"
 
-#. a paper's findings back one of the user's sentences
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Supports"
-msgstr "支持"
-
-#. a paper's findings cut against or qualify one of the user's sentences
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Challenges"
-msgstr "质疑"
-
-#. a paper on the same matter as one of the user's sentences, without settling it
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Related"
-msgstr "相关"
-
 #. column: what a paper says about the collection's question
 #: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/docs/save-as-doc.ts
@@ -2317,21 +2356,6 @@ msgstr "回答"
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Compared with {doc}"
 msgstr "对照 {doc}"
-
-#. placeholder {0}: n.supports
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "{0, plural, one {# supports} other {# support}}"
-msgstr "{0, plural, other {# 篇支持}}"
-
-#. placeholder {0}: n.challenges
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "{0, plural, one {# challenges} other {# challenge}}"
-msgstr "{0, plural, other {# 篇质疑}}"
-
-#. placeholder {0}: n.related
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "{0, plural, one {# related} other {# related}}"
-msgstr "{0, plural, other {# 篇相关}}"
 
 #. papers of a collection in none of its groups
 #: app/src/features/collections/components/CollectionTable.tsx
@@ -2448,10 +2472,6 @@ msgid "Group actions"
 msgstr "分组操作"
 
 #: app/src/features/collections/components/CollectionTable.tsx
-msgid "Click to rewrite"
-msgstr "点击改写"
-
-#: app/src/features/collections/components/CollectionTable.tsx
 msgid "You edited this"
 msgstr "你改过"
 
@@ -2462,6 +2482,15 @@ msgstr "Owlit，来自全文"
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Owlit, from the abstract"
 msgstr "Owlit，来自摘要"
+
+#. button: write the digest again
+#. verb: change the words of Owlit's sentence
+#. verb: change the words of Owlit's sentence
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/components/Memo.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Rewrite"
+msgstr "重写"
 
 #. placeholder {0}: edit.was
 #. placeholder {0}: plainMemo(edit.was).plain
@@ -2510,13 +2539,6 @@ msgstr "换一篇文档"
 msgid "Compare"
 msgstr "对照"
 
-#. button: write the digest again
-#. verb: change the words of Owlit's sentence
-#: app/src/features/collections/components/Memo.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Rewrite"
-msgstr "重写"
-
 #: app/src/features/collections/components/Memo.tsx
 msgid "Sentence removed"
 msgstr "已移除这句"
@@ -2546,12 +2568,24 @@ msgid "Draft a review from the collection “{title}”. Propose an outline firs
 msgstr "根据合集“{title}”起草一份文献综述。先给出提纲，等我确认后再写。"
 
 #: app/src/features/collections/components/Work.tsx
+msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
+msgstr "“{asked}”什么都没找到。帮我把问题放宽一些：建议几个更宽或相近的问题去搜。"
+
+#: app/src/features/collections/components/Work.tsx
 msgid "Searches further and adds papers to this collection"
 msgstr "继续检索，把论文加进这个合集"
 
 #: app/src/features/collections/components/Work.tsx
 msgid "Find more papers"
 msgstr "找更多论文"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Owlit suggests broader or neighbouring questions in a chat"
+msgstr "Owlit 在对话里建议更宽或相近的问题"
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Widen the question…"
+msgstr "放宽问题…"
 
 #: app/src/features/collections/components/Work.tsx
 msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
@@ -2632,6 +2666,21 @@ msgstr "已导出为文档"
 msgid "Not in a project"
 msgstr "不属于任何项目"
 
+#. a paper's findings back one of the user's sentences
+#: app/src/features/collections/lib.ts
+msgid "Supports"
+msgstr "支持"
+
+#. a paper's findings cut against or qualify one of the user's sentences
+#: app/src/features/collections/lib.ts
+msgid "Challenges"
+msgstr "质疑"
+
+#. a paper on the same matter as one of the user's sentences, without settling it
+#: app/src/features/collections/lib.ts
+msgid "Related"
+msgstr "相关"
+
 #: app/src/features/collections/pages/CollectionPage.tsx
 msgid "This collection is gone"
 msgstr "这个合集已不在"
@@ -2667,12 +2716,29 @@ msgid "Owlit read {read} of the {papers} papers in full; the rest are from their
 msgstr "{papers} 篇里 Owlit 读了 {read} 篇全文，其余来自摘要。"
 
 #: app/src/features/collections/pages/CollectionPage.tsx
+msgid "The table above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
+msgstr "上面的表格是 Owlit 对它们的解读。页码指向答案所依据的原文；没有页码的答案来自摘要。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "The list above is Owlit's reading of them. A page number points to the words an answer rests on; an answer without one comes from the abstract."
+msgstr "上面是 Owlit 对它们的解读。页码指向答案所依据的原文；没有页码的答案来自摘要。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
 msgid "a chat"
 msgstr "一个对话"
 
 #: app/src/features/collections/pages/CollectionPage.tsx
+msgid "another collection"
+msgstr "另一个合集"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
 msgid "About this collection"
 msgstr "关于这个合集"
+
+#. a collection the user made from one of another collection's groups
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
+msgstr "由 {originLink} 里的分组<0>“{asked}”</0>建成，{when}。"
 
 #: app/src/features/collections/pages/CollectionPage.tsx
 msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
@@ -2682,27 +2748,27 @@ msgstr "你在 <1/> 里问过<0>“{asked}”</0>，{when}。"
 msgid "You asked <0>“{asked}”</0>, {when}."
 msgstr "你问过<0>“{asked}”</0>，{when}。"
 
+#. after the question: its papers were first added to another collection, then kept apart
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Kept separate from {originLink}."
+msgstr "已从 {originLink} 分出来。"
+
 #. a later question Owlit answered by adding to this collection
 #: app/src/features/collections/pages/CollectionPage.tsx
 msgid "Then <0>“{later}”</0>, {on}."
 msgstr "后来又问<0>“{later}”</0>，{on}。"
 
 #: app/src/features/collections/pages/CollectionPage.tsx
-msgid "The list above is Owlit's reading of them. Grey answers come from an abstract; a page number points to the words an answer rests on."
-msgstr "上面是 Owlit 对它们的解读。灰色的答案来自摘要；页码指向答案所依据的原文。"
-
-#: app/src/features/collections/pages/CollectionPage.tsx
 msgid "Owlit watches for new papers on this question."
 msgstr "Owlit 会留意这个问题的新论文。"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-msgid "Collect papers on…"
-msgstr "收集关于…的论文"
+msgid "Find a collection, or collect papers on…"
+msgstr "找合集，或收集关于…的论文"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
-msgid "Collect papers on a question"
-msgstr "就一个问题收集论文"
+msgid "Find a collection, or collect papers on a question"
+msgstr "找合集，或就一个问题收集论文"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Project"
@@ -2722,16 +2788,21 @@ msgid "As many as it takes"
 msgstr "需要多少就多少"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
-msgid "Press Enter and Owlit collects papers on it."
-msgstr "按回车，Owlit 会就此收集论文。"
-
-#: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "No collections yet"
 msgstr "还没有合集"
 
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
 msgstr "在对话里请 Owlit 找某个主题的论文。它找到的会收在这里，并写明每篇对你的问题说了什么。"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collect papers on “{question}”"
+msgstr "收集关于“{question}”的论文"
+
+#. the key that does this
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Enter"
+msgstr "回车"
 
 #. placeholder {0}: summary.columns
 #: app/src/features/collections/pages/CollectionsPage.tsx
@@ -4481,6 +4552,22 @@ msgid "Its proxy turned the paper away."
 msgstr "图书馆代理拒绝了这篇论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} 上没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "出版方没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "那边显示“{title}”。这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No access through your library"
 msgstr "通过你的图书馆无法访问"
 
@@ -4891,6 +4978,10 @@ msgstr "正在搜索 arXiv 和 Semantic Scholar"
 #: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
 msgstr "{kept, plural, other {已把 # 篇论文加入文献库}}"
+
+#: app/src/features/onboarding/demos/CollectDemo.tsx
+msgid "Collect papers on…"
+msgstr "收集关于…的论文"
 
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 #: app/src/lib/time.ts

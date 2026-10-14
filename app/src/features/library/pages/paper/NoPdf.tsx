@@ -83,10 +83,15 @@ const card = (state: CardState, paper?: Paper): { title: string; detail: string 
       const host = said?.host ?? ""
       return said?.refused
         ? { title: t`Your library doesn't offer this paper`, detail: title ? t`Its proxy answered “${title}”.` : t`Its proxy turned the paper away.` }
-        : {
-            title: t`No access through your library`,
-            detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
-          }
+        : said?.missing
+          ? {
+              title: host ? t`${host} has no PDF of this paper` : t`The publisher has no PDF of this paper`,
+              detail: title ? t`It answered “${title}”. The paper may be kept somewhere else: drop its PDF here if you find it.` : t`The paper may be kept somewhere else: drop its PDF here if you find it.`,
+            }
+          : {
+              title: t`No access through your library`,
+              detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
+            }
     }
     case "browser-missed":
       return {
@@ -227,7 +232,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
             </>
           ) : state === "no-access" ? (
             <>
-              <Button size="sm" variant="outline" onClick={() => void getInBrowser([paper.id])}>
+              {/* Nothing at the address the browser went to: owlit looks again for another copy rather
+                  than sending it back there */}
+              <Button size="sm" variant="outline" disabled={looking} onClick={() => void (paper.noPdf?.noAccess?.missing ? fetchPdf() : getInBrowser([paper.id]))}>
                 {t`Try again`}
               </Button>
               {chooseFile}

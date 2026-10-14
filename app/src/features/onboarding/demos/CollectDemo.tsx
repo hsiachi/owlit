@@ -22,8 +22,8 @@ interface CollectState {
 const FIRST: CollectState = { typed: "", gathered: false, rows: 0, memo: 0, editing: false, rewritten: null, corrected: false }
 
 // Collect: a question typed on the Collections page becomes papers, each with what it says about the
-// question (grey from an abstract, in ink with its page from the full text), and Owlit's short reading of
-// them; one answer is corrected by hand
+// question (with its page when it came from the full text) and the paper's name, and Owlit's short reading
+// of them, which names the papers the same way; one answer is corrected by hand
 export function CollectDemo() {
   useDemoPlace("collections")
   const { layers, cursor, root, reg } = useScript<CollectState>({
@@ -93,7 +93,7 @@ function CollectionView({ st, reg }: { st: CollectState; reg: Reg }) {
               const mine = i === 1 && st.rewritten != null
               return (
                 <div key={i} className={cn(s.crow, s.fadein)}>
-                  <span ref={i === 1 ? reg("answer") : undefined} className={cn(row.page === 0 && !mine && s.mut, i === 1 && st.editing && s.editBox)}>
+                  <span ref={i === 1 ? reg("answer") : undefined} className={cn(i === 1 && st.editing && s.editBox)}>
                     {mine ? st.rewritten : row.text}
                   </span>{" "}
                   <span className={s.cite}>{row.cite}</span>

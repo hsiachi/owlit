@@ -7,6 +7,11 @@ import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { StatusRing } from "@/components/status-ring"
+import { Button } from "@/components/ui/button"
+import { GroupLabel } from "@/components/group-label"
+import { ListRow } from "@/components/list-row"
+import { ago } from "@/lib/time"
+import type { Mentionable } from "@/features/chat/types"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChatMessages } from "@/features/chat/components/ChatMessages"
 import { ComposerDock } from "@/features/chat/components/ComposerDock"
@@ -17,7 +22,8 @@ import { useLookAt } from "@/features/chat/status"
 import { useChatStore } from "@/features/chat/store"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
-import { askAboutOrAnything, useVisibleContext } from "./page-context"
+import { askAboutOrAnything, pageStarters, useVisibleContext } from "./page-context"
+import { useChatsAbout } from "./chats-about"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
 // At the right end of the top bar: the panel with the current chat, as ⇧⌘J. The feather is also the brand
@@ -64,9 +70,13 @@ export function AgentPanel() {
       {chat && chat.messages.length > 0 ? (
         <ChatMessages chat={chat} streaming={streaming} panel />
       ) : (
-        <div className="flex flex-1 items-end px-4 pb-3 text-body text-muted-foreground">
-          {context[0] ? askAboutOrAnything(context[0].kind) : t`Ask anything.`}
-        </div>
+        <PanelEmpty
+          page={context[0]}
+          onStarter={(prompt) => {
+            composer.current?.setText(prompt)
+            composer.current?.focus()
+          }}
+        />
       )}
       <ComposerDock
         ref={composer}
@@ -79,6 +89,65 @@ export function AgentPanel() {
         header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
       />
     </aside>
+  )
+}
+
+// A chat with nothing in it yet: one block at the bottom by the composer, where the eye already is. From
+// the top, what was said before and what can be asked now: the latest chats about the page beside it, so
+// coming back to a paper (or finding the panel started afresh after a while away) puts them one click away;
+// then the feather and what can be asked; then starters for the page. The space above stays empty; split
+// into a list in the middle and the rest at the bottom, it read as stray pieces. The feather is in ink:
+// Owlit's green is for what Owlit has done, and here it hasn't done anything yet.
+function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (prompt: string) => void }) {
+  const earlier = useChatsAbout(page?.uri)
+  const showChat = useAgentWindow((s) => s.showChat)
+  return (
+    // mt-auto rather than justify-end, so a short panel scrolls to the top of the block instead of cutting it
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-4 pb-3">
+      <div className="mt-auto flex flex-col gap-5">
+        {earlier.length > 0 && (
+          <section className="-mx-2.5">
+            <GroupLabel as="h3">{t({ message: "Earlier here", comment: "label over the chats about the page beside the Owlit panel" })}</GroupLabel>
+            {earlier.map((id) => (
+              <EarlierRow key={id} chatId={id} onOpen={() => showChat(id)} />
+            ))}
+          </section>
+        )}
+        <div className="flex flex-col items-start gap-3">
+          <p className="flex items-center gap-2 text-body text-muted-foreground">
+            <OwlitMark className="size-4 shrink-0" />
+            {page ? askAboutOrAnything(page.kind) : t`Ask anything.`}
+          </p>
+          {page && (
+            <div className="flex flex-wrap gap-2">
+              {/* Drawn like the Chat page's starters */}
+              {pageStarters(page.kind).map((s) => (
+                <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
+                  {s.label}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Drawn as the header menu's chats are: the status ring, the title, and when it was last asked in
+function EarlierRow({ chatId, onOpen }: { chatId: string; onOpen: () => void }) {
+  const title = useChatStore((s) => s.chats[chatId]?.title)
+  const updatedAt = useChatStore((s) => s.chats[chatId]?.updatedAt)
+  const status = useChatStatus(chatId)
+  if (title === undefined || updatedAt === undefined) return null
+  return (
+    <ListRow
+      mark={<StatusRing status={status} />}
+      title={title}
+      end={ago(updatedAt)}
+      onClick={onOpen}
+      className="hover:bg-sidebar-accent focus-key:bg-sidebar-accent"
+    />
   )
 }
 

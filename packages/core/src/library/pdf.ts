@@ -86,7 +86,7 @@ export interface Acquisition {
   // The user's own browser reached the publisher and was told no (refused: the library proxy hasn't got
   // it), with the page it ended on. Kept across owlit's own looks, until a PDF comes or the user's
   // browser is sent again.
-  yourBrowser?: { outcome: "no-access" | "refused"; at: number; host?: string; title?: string }
+  yourBrowser?: { outcome: "no-access" | "refused" | "missing"; at: number; host?: string; title?: string }
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}
@@ -132,6 +132,12 @@ export async function* routesFor(
     const route: Route = { kind: "arxiv", name: "arxiv", url: `https://arxiv.org/pdf/${arxiv}` }
     if (fresh(route)) yield route
   }
+  // Before the services' links: for ACL's 10.3115 DOIs those point at the ACM, which only lists them
+  const acl = aclAnthologyId(record.ids)
+  if (acl) {
+    const route: Route = { kind: "upstream", name: "acl-anthology", url: `https://aclanthology.org/${acl}.pdf` }
+    if (fresh(route)) yield route
+  }
   for (const url of record.pdfUrls ?? []) {
     const route: Route = { kind: url.includes("arxiv.org/") ? "arxiv" : "upstream", name: url.includes("arxiv.org/") ? "arxiv" : "open-access", url }
     if (fresh(route)) yield route
@@ -154,6 +160,16 @@ export async function* routesFor(
     }
   }
   for (const route of await lookups.unpaywall(doi)) if (fresh(route)) yield route
+}
+
+// A paper's id in the ACL Anthology, where all of ACL's papers are open: Semantic Scholar's, or the one
+// ACL's own DOIs end in (10.18653/v1/2023.acl-long.1). ACL's older DOIs, 10.3115/1654595.1654614, were
+// registered by the ACM and are registered to its Digital Library, which lists the papers without
+// their PDFs (2026-10-14: "ACM Error: 404"); nothing in them names the Anthology id. The Anthology
+// takes its old ids only in capitals (W06-1314), which a lowercased DOI has lost.
+export function aclAnthologyId(ids: PaperRecord["ids"]) {
+  const id = ids.acl ?? ids.doi?.match(/^10\.18653\/v1\/(.+)$/)?.[1]
+  return id?.replace(/^([a-z]\d{2}-\d{4})$/, (old) => old.toUpperCase())
 }
 
 // Unpaywall's open copies of a DOI, repositories before publishers. Needs an email to ask.

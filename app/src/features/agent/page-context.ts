@@ -18,7 +18,7 @@ export function selectionLabel(s: QuotedSelection) {
   return t({ message: "Selection", comment: "chip: a passage the user selected" })
 }
 
-type PageKind = "paper" | "doc" | "collection"
+export type PageKind = "paper" | "doc" | "collection"
 
 // The ask bar's empty field, naming what is on the page
 export function askAboutHint(kind: PageKind) {
@@ -32,6 +32,25 @@ export function askAboutOrAnything(kind: PageKind) {
   if (kind === "paper") return t`Ask about this paper, or anything else.`
   if (kind === "doc") return t`Ask about this doc, or anything else.`
   return t`Ask about this collection, or anything else.`
+}
+
+// The empty panel's starters for what is on the page: a label, and the question it puts in the composer
+// for the person to send or finish. A question about the page, since that is what the panel is beside.
+export function pageStarters(kind: PageKind): { label: string; prompt: string }[] {
+  if (kind === "paper")
+    return [
+      { label: t`Summarize this paper`, prompt: t`Summarize this paper: its question, method and main findings.` },
+      { label: t`What’s the method?`, prompt: t`What method does this paper use, and how does it evaluate it?` },
+    ]
+  if (kind === "doc")
+    return [
+      { label: t`Review this draft`, prompt: t`Review where this draft overstates a finding or misreads a paper.` },
+      { label: t`Find papers to cite`, prompt: t`Find papers that support or challenge the claims in this doc.` },
+    ]
+  return [
+    { label: t`Where do they disagree?`, prompt: t`Where do the papers in this collection disagree, and why?` },
+    { label: t`What’s left open?`, prompt: t`Which questions do the papers in this collection leave open?` },
+  ]
 }
 
 // Cut at a word boundary, so a chip never ends mid-word ("Scholars need to k…")

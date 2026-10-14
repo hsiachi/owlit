@@ -45,6 +45,18 @@ describe("routesFor", () => {
     expect(await collect(routesFor(record({ doi: "10.1145/3626772.3657891" }), lookups))).toEqual(["publisher:acm https://dl.acm.org/doi/pdf/10.1145/3626772.3657891"])
     expect(asked).toBe(1)
   })
+
+  it("goes to the ACL Anthology before the ACM's listing of an ACL paper", async () => {
+    const lookups = { landing: async () => undefined, unpaywall: async () => [] }
+    // An older ACL DOI, registered by the ACM: the Anthology id comes from Semantic Scholar
+    expect(await collect(routesFor(record({ doi: "10.3115/1654595.1654614", acl: "W06-1314" }, ["https://dl.acm.org/doi/pdf/10.5555/1654595.1654614"]), lookups))).toEqual([
+      "acl-anthology https://aclanthology.org/W06-1314.pdf",
+      "open-access https://dl.acm.org/doi/pdf/10.5555/1654595.1654614",
+    ])
+    // ACL's own DOIs end in the id; an old-style one is given back its capitals
+    expect(await collect(routesFor(record({ doi: "10.18653/v1/2023.acl-long.1" }), lookups))).toEqual(["acl-anthology https://aclanthology.org/2023.acl-long.1.pdf"])
+    expect(await collect(routesFor(record({ doi: "10.18653/v1/p17-1001" }), lookups))).toEqual(["acl-anthology https://aclanthology.org/P17-1001.pdf"])
+  })
 })
 
 function serving(routes: Record<string, Response | (() => Response)>) {

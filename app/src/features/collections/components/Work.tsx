@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
@@ -44,39 +43,53 @@ export function WorkLine({ collection }: { collection: Collection }) {
   return null
 }
 
-// What the user can ask of the collection, as plain text buttons after its papers. Each one runs in the
-// background; while it runs, its button rests.
-export function CollectionActions({ collection, inline }: { collection: Collection; inline?: boolean }) {
+// What the user can ask of the collection, as plain text buttons under the memo, the same for a list and a
+// table. Each one runs in the background; while it runs, its button rests. With no papers there is nothing
+// to ask of each or to draft from: only searching further, here or with a wider question in a chat.
+export function CollectionActions({ collection }: { collection: Collection }) {
   const navigate = useNavigate()
   const { running } = useCollectionWork(collection.id)
   const busy = (kind: string) => running.some((task) => task.kind === kind)
   const shown = shownCollection(collection)
   const abstractOnly = shown.rows.some((r) => Object.values(r.cells).every((cell) => cell.depth === "abstract"))
   const title = shown.title
+  const asked = collection.asked.text
   const draft = () =>
     navigate("/chat", { state: { starter: t`Draft a review from the collection “${title}”. Propose an outline first, and wait for me before writing.` } })
+  const widen = () =>
+    navigate("/chat", { state: { starter: t`Nothing came up for “${asked}”. Help me widen the question: suggest broader or neighbouring questions to search.` } })
+  const empty = !shown.rows.length
+  // While the first gather runs, an empty collection is only not filled yet
+  if (empty && busy("collections.gather")) return null
   return (
-    <div className={cn("flex flex-wrap items-center gap-1", !inline && "mt-4 -ml-1.5")}>
+    <div className="mt-4 -ml-1.5 flex flex-wrap items-center gap-1">
       <Button variant="text" size="inline" disabled={busy("collections.more") || busy("collections.gather")} title={t`Searches further and adds papers to this collection`} onClick={() => void startRun(collection.id, "more")}>
         {t`Find more papers`}
       </Button>
-      {/* A table asks from its header's + */}
-      {!inline && <AskEach collection={collection} />}
-      {abstractOnly && (
-        <Button variant="text" size="inline" disabled={busy("collections.read")} title={t`Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library`} onClick={() => void startRun(collection.id, "read")}>
-          {t`Read all in full`}
+      {empty ? (
+        <Button variant="text" size="inline" title={t`Owlit suggests broader or neighbouring questions in a chat`} onClick={widen}>
+          {t`Widen the question…`}
         </Button>
+      ) : (
+        <>
+          <AskEach collection={collection} />
+          {abstractOnly && (
+            <Button variant="text" size="inline" disabled={busy("collections.read")} title={t`Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library`} onClick={() => void startRun(collection.id, "read")}>
+              {t`Read all in full`}
+            </Button>
+          )}
+          <Button variant="text" size="inline" title={t`Owlit proposes an outline in a chat first`} onClick={draft}>
+            {t`Draft a review…`}
+          </Button>
+        </>
       )}
-      <Button variant="text" size="inline" title={t`Owlit proposes an outline in a chat first`} onClick={draft}>
-        {t`Draft a review…`}
-      </Button>
     </div>
   )
 }
 
 // Ask each paper…: a question for every paper, typed or picked, which becomes a column; or Compare with a
-// doc…, sentences of the user's that every paper is set against. From a text button after a short list,
-// or the + at the end of a table's header.
+// doc…, sentences of the user's that every paper is set against. From the text button under the memo, or
+// the + at the end of a table's header.
 export function AskEach({ collection, trigger = "text" }: { collection: Collection; trigger?: "text" | "plus" }) {
   const [comparing, setComparing] = useState(false)
   const [open, setOpen] = useState(false)

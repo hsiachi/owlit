@@ -20,12 +20,12 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { isTaskFinished } from "@owlit/protocol"
-import { citeOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
+import { citeOf, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
 import { editCollection, put } from "../store"
 import { toast } from "sonner"
-import { RowPeek } from "./AnswerRows"
+import { ReadingMark, RowPeek } from "./AnswerRows"
 import { useCollectionsUi } from "../ui-store"
-import { AskEach, CollectionActions } from "./Work"
+import { AskEach } from "./Work"
 
 // A collection with columns, as a ruled table like the Library's: a row per paper, a column per question
 // asked of every paper, the user's comparison with a doc as a column of plain words. Groups are Owlit's and
@@ -34,11 +34,7 @@ import { AskEach, CollectionActions } from "./Work"
 // Rows a group shows before "Show N more"
 const SHOWN = 8
 
-export const REL_WORDS = (): Record<Relation, string> => ({
-  supports: t({ message: "Supports", comment: "a paper's findings back one of the user's sentences" }),
-  challenges: t({ message: "Challenges", comment: "a paper's findings cut against or qualify one of the user's sentences" }),
-  related: t({ message: "Related", comment: "a paper on the same matter as one of the user's sentences, without settling it" }),
-})
+export const REL_WORDS = (): Record<Relation, string> => ({ supports: relWord("supports"), challenges: relWord("challenges"), related: relWord("related") })
 
 type GroupBy = "topic" | "none" | `column:${string}`
 
@@ -71,12 +67,11 @@ function relCounts(rows: CollectionRow[], column: CollectionColumn | undefined) 
     const rel = r.cells[column.id]?.rel
     if (rel) n[rel]++
   }
-  return [
-    n.supports && plural(n.supports, { one: "# supports", other: "# support" }),
-    n.challenges && plural(n.challenges, { one: "# challenges", other: "# challenge" }),
-    n.related && plural(n.related, { one: "# related", other: "# related" }),
-  ]
-    .filter(Boolean)
+  // The column's own words with a number after each, so the counts read as tallies beside "5 papers"
+  const words = REL_WORDS()
+  return (["supports", "challenges", "related"] as const)
+    .filter((rel) => n[rel])
+    .map((rel) => `${words[rel]} ${n[rel]}`)
     .join(" · ")
 }
 
@@ -157,8 +152,6 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
             ...columns.filter((c) => c.kind === "compare").map((c) => ({ value: `column:${c.id}`, label: columnLabel(c) })),
           ]}
         />
-        <span className="flex-1" />
-        <CollectionActions collection={collection} inline />
       </div>
       <table className="w-full table-fixed border-separate border-spacing-0">
         <colgroup>
@@ -206,6 +199,9 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
                         collection={collection}
                         row={r}
                         columns={columns}
+                        // Grouped by a comparison's sentences, the group says which sentence; one sentence
+                        // needs no saying
+                        sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
                         indent={s.label ? s.depth + 1 : 0}
                         seenBefore={seenBefore}
                         open={isOpen(`${s.key}:${r.id}`, r.id)}
@@ -359,7 +355,7 @@ function GroupRow({ collection, section, open, span, count, rels, onToggle }: { 
   )
 }
 
-function TableRow({ collection, row, columns, indent, seenBefore, open, onOpen }: { collection: Collection; row: CollectionRow; columns: CollectionColumn[]; indent: number; seenBefore: number; open: boolean; onOpen: () => void }) {
+function TableRow({ collection, row, columns, sentenceShown, indent, seenBefore, open, onOpen }: { collection: Collection; row: CollectionRow; columns: CollectionColumn[]; sentenceShown: (column: CollectionColumn) => boolean; indent: number; seenBefore: number; open: boolean; onOpen: () => void }) {
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
   const fresh = (collection.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
@@ -369,15 +365,17 @@ function TableRow({ collection, row, columns, indent, seenBefore, open, onOpen }
       <td className={cn(td, "cursor-default text-sm group-hover/row:bg-muted")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>
-          <span className="flex h-5 shrink-0 items-center">
-            {fresh ? <NoteDot /> : library && library.status !== "unread" ? <span title={t`You've read some of it`} className="size-2 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]" /> : null}
+          {/* Owlit's dot for a new row and the user's reading are two facts, so both can show */}
+          <span className="flex h-5 shrink-0 items-center gap-1.5">
+            {fresh && <NoteDot />}
+            <ReadingMark paper={library} />
           </span>
         </span>
         <span className="block truncate text-detail text-muted-foreground">{citeOf(facts)}</span>
       </td>
       {columns.map((c) => (
         <td key={c.id} className={cn(td, "group-hover/row:bg-muted")}>
-          <Cell collection={collection} row={row} column={c} cell={row.cells[c.id]} fresh={(collection.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} libraryId={library?.id} />
+          <Cell collection={collection} row={row} column={c} cell={row.cells[c.id]} fresh={(collection.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
         </td>
       ))}
       <td className={cn(td, "group-hover/row:bg-muted")} />
@@ -398,9 +396,11 @@ function PeekRow({ collection, row, open, span }: { collection: Collection; row:
   )
 }
 
-// A cell: Owlit's answer, grey when it came from the abstract. It opens to the words it rests on, and to
-// rewriting it; the user's words stay through every later answer.
-function Cell({ collection, row, column, cell, fresh, libraryId }: { collection: Collection; row: CollectionRow; column: CollectionColumn; cell: CollectionCell | undefined; fresh: boolean; libraryId?: string }) {
+// A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the full text.
+// A comparison says how the paper stands and why, Owlit's reason being what the user doesn't know yet; their
+// own sentence is one muted line under it only where nothing else says which one. It opens to the words it
+// rests on, and to rewriting it; the user's words stay through every later answer.
+function Cell({ collection, row, column, cell, fresh, showSentence, libraryId }: { collection: Collection; row: CollectionRow; column: CollectionColumn; cell: CollectionCell | undefined; fresh: boolean; showSentence: boolean; libraryId?: string }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
@@ -408,17 +408,24 @@ function Cell({ collection, row, column, cell, fresh, libraryId }: { collection:
   const item = itemId.cell(row.id, column.id)
   const edit = collection.yours.edits[item]
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
-  const abstract = cell.depth === "abstract" && !edit
+  const text = edit?.text ?? cell.text
+  const page = cell.depth === "full" && cell.passage && !edit ? cell.passage.page : undefined
   // No bearing on any of the user's sentences: nothing to say
   if (column.kind === "compare" && !cell.rel && !edit) return <span title={cell.text} />
+  const pageMark = page && <span className="ml-1 whitespace-nowrap text-muted-foreground tabular-nums">{t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>
   const body =
     column.kind === "compare" && cell.rel ? (
       <>
         <span className={cn("font-medium", cell.rel === "related" ? "font-normal text-muted-foreground" : "text-foreground")}>{REL_WORDS()[cell.rel]}</span>
-        {sentence && <span className="block text-muted-foreground">“{sentence.text}”</span>}
+        {text && <span className="text-foreground"> · {text}</span>}
+        {pageMark}
+        {showSentence && sentence && <span className="block truncate text-muted-foreground">“{sentence.text}”</span>}
       </>
     ) : (
-      <span className={cn(abstract ? "text-muted-foreground" : "text-foreground")}>{cell.text}</span>
+      <span className="text-foreground">
+        {text}
+        {pageMark}
+      </span>
     )
   return (
     <Popover open={open} onOpenChange={(o) => (setOpen(o), setEditing(false))}>
@@ -444,10 +451,10 @@ function Cell({ collection, row, column, cell, fresh, libraryId }: { collection:
             />
           </div>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="mt-1.5 -mx-1.5 block w-[calc(100%+12px)] rounded-md px-1.5 py-1 text-left text-sm leading-relaxed outline-none hover:bg-muted" title={t`Click to rewrite`}>
+          <p className="mt-1.5 text-sm leading-relaxed">
             {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{REL_WORDS()[cell.rel]}:</span>}
-            {edit?.text ?? cell.text}
-          </button>
+            {text}
+          </p>
         )}
         {column.kind === "compare" && sentence && <Quote className="mt-2">“{sentence.text}”</Quote>}
         {cell.passage && (
@@ -458,6 +465,11 @@ function Cell({ collection, row, column, cell, fresh, libraryId }: { collection:
         <div className="mt-2.5 flex items-center gap-2 text-detail text-muted-foreground">
           <span>{edit ? t`You edited this` : cell.depth === "full" ? t`Owlit, from the full text` : t`Owlit, from the abstract`}</span>
           <span className="flex-1" />
+          {!editing && (
+            <Button variant="text" size="inline" onClick={() => setEditing(true)}>
+              {t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" })}
+            </Button>
+          )}
           {edit && (
             <Button variant="text" size="inline" title={t`Was: ${edit.was}`} onClick={() => void editCollection(collection.id, { op: "revert", item })}>
               {t`Use Owlit's words`}
