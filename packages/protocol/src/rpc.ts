@@ -388,6 +388,13 @@ export interface Methods {
   // The paper in the user's own browser (its publisher won't let owlit's through); a PDF of it saved to
   // their Downloads in the next while becomes its file. The paper comes back with noPdf.inBrowser.
   "library.openInBrowser": { params: { id: string }; result: Paper }
+  // Papers whose publisher only lets the user's own browser in (noPdf.needs "browser"), got from that
+  // browser one at a time: each PDF's address opened there behind owlit's window, a few seconds apart,
+  // and taken from Downloads as it lands. Joins the run going on, or resumes it when it stopped for the
+  // user. Runs as the task papers.fromBrowser; the papers come back with noPdf.fromBrowser.
+  "library.getInBrowser": { params: { ids: string[] }; result: Paper[] }
+  // Brings the user's browser to the front, where a page may be asking them something
+  "library.showBrowser": { params: void; result: null }
   // The user's answer about a downloaded PDF owlit offered (noPdf.inBrowser.offered): take it, or not
   "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file

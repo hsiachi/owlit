@@ -19,10 +19,25 @@ interface Row {
   sites: string[]
   landing: string
   pdf?: string
+  // A publisher that hands its PDFs only to the user's own browser: the address that browser saves the
+  // PDF from. owlit's browser doesn't go there at all.
+  ownBrowser?: string
 }
 
+// The ACM: Cloudflare in front of the Digital Library puts a new check in front of owlit's browser
+// every time one is passed (2026-10-13), on campus and off, while the user's own browser is let
+// straight through. Its PDFs have been open access since 2026-01-01, so a reader's browser gets every
+// one; ?download=true has it saved rather than shown (2026-10-14: ten in a row through Dia, 2–12 s
+// each, none checked).
 const ROWS: Row[] = [
-  { name: "acm", prefix: "10.1145/", sites: ["acm.org"], landing: "https://dl.acm.org/doi/{doi}", pdf: "https://dl.acm.org/doi/pdf/{doi}" },
+  {
+    name: "acm",
+    prefix: "10.1145/",
+    sites: ["acm.org"],
+    landing: "https://dl.acm.org/doi/{doi}",
+    pdf: "https://dl.acm.org/doi/pdf/{doi}",
+    ownBrowser: "https://dl.acm.org/doi/pdf/{doi}?download=true",
+  },
   { name: "sage", prefix: "10.1177/", sites: ["sagepub.com"], landing: "https://journals.sagepub.com/doi/{doi}", pdf: "https://journals.sagepub.com/doi/pdf/{doi}" },
   { name: "wiley", prefix: "10.1002/", sites: ["wiley.com"], landing: "https://onlinelibrary.wiley.com/doi/{doi}", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
   { name: "wiley", prefix: "10.1111/", sites: ["wiley.com"], landing: "https://onlinelibrary.wiley.com/doi/{doi}", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
@@ -65,27 +80,41 @@ export interface BrowserRoute {
   // The publisher's sites, as far as they are known before visiting (Elsevier's DOIs are registered to
   // elsevier.com and read at sciencedirect.com): what owlit's visits to it are paced and held by
   sites: string[]
+  // Only the user's own browser gets the PDF, from this address (Row.ownBrowser)
+  ownBrowser?: string
 }
 
 // Direct first; through the proxy when one is set up. `registered` is the address the DOI is registered
 // to (doi.org's handle record), when it could be looked up.
 export function browserRoutes(doi: string, proxy: ProxySettings | undefined, registered?: string): BrowserRoute[] {
   const site = registered ? siteOf(hostOf(registered)) : undefined
-  const row = site
-    ? ROWS.find((r) => r.sites.includes(site))
-    : ROWS.filter((r) => doi.startsWith(r.prefix)).sort((a, b) => b.prefix.length - a.prefix.length)[0]
+  const row = rowFor(doi, site)
   const fill = (template: string) => template.replace("{doi}", doi)
   const landing = row ? fill(row.landing) : `https://doi.org/${doi}`
   const pdf = row?.pdf ? fill(row.pdf) : undefined
   const name = `browser:${row?.name ?? "doi"}`
   const hosts = [...PUBLISHER_HOSTS, hostOf(landing), ...(pdf ? [hostOf(pdf)] : []), ...(site ? [site] : [])]
   const sites = row ? row.sites : site ? [site] : []
-  const routes: BrowserRoute[] = [{ name, landing, pdf, allowHosts: hosts, sites }]
+  const routes: BrowserRoute[] = [{ name, landing, pdf, allowHosts: hosts, sites, ...(row?.ownBrowser ? { ownBrowser: fill(row.ownBrowser) } : {}) }]
+  // owlit's browser doesn't go there at all, so not through the library's proxy either
+  if (row?.ownBrowser) return routes
   if (proxy?.base) {
     // The PDF is fetched from wherever the proxied page settles, so only the landing goes through it
     routes.push({ name: `${name}:proxied`, landing: throughProxy(landing, proxy), pdf, allowHosts: [...hosts, hostOf(proxy.base), `.${hostOf(proxy.base)}`], sites })
   }
   return routes
+}
+
+// The row for a DOI: by the site it is registered to when that's known, else by its prefix
+function rowFor(doi: string, site: string | undefined) {
+  return site ? ROWS.find((r) => r.sites.includes(site)) : ROWS.filter((r) => doi.startsWith(r.prefix)).sort((a, b) => b.prefix.length - a.prefix.length)[0]
+}
+
+// Where the user's own browser gets the paper's PDF, for a publisher that lets only that browser in.
+// host is where the paper's publisher was found to be (acquisition.json's needs), when it was.
+export function ownBrowserUrl(doi: string, host?: string) {
+  const row = rowFor(doi, host ? siteOf(host) : undefined)
+  return row?.ownBrowser?.replace("{doi}", doi)
 }
 
 // The page's own link to its PDF, for a page without citation_pdf_url: one labelled just "PDF" (or

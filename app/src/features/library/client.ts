@@ -26,11 +26,22 @@ export interface LibraryClient {
   takeDownload?(paper: Paper, take: boolean): Promise<Paper>
 }
 
-// fetchPdf found no PDF because the publisher wants the user first, or isn't letting owlit's browser in
+type Needs = NonNullable<NonNullable<Paper["noPdf"]>["needs"]>
+
+// fetchPdf found no PDF because the publisher wants the user first, or isn't letting owlit's browser in,
+// or lets only the user's own browser in
 export class PublisherNeedsUser extends Error {
-  readonly needs: "check" | "sign-in" | "blocked"
-  constructor(needs: "check" | "sign-in" | "blocked") {
-    super(needs === "sign-in" ? t`The publisher wants you to sign in.` : needs === "blocked" ? t`The publisher isn't letting owlit in.` : t`The publisher wants a quick check.`)
+  readonly needs: Needs
+  constructor(needs: Needs) {
+    super(
+      needs === "sign-in"
+        ? t`The publisher wants you to sign in.`
+        : needs === "blocked"
+          ? t`The publisher isn't letting owlit in.`
+          : needs === "browser"
+            ? t`ACM gives this PDF to your browser.`
+            : t`The publisher wants a quick check.`,
+    )
     this.name = "PublisherNeedsUser"
     this.needs = needs
   }

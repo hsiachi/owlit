@@ -1,17 +1,23 @@
+import { execFile } from "node:child_process"
 import { readdirSync, watch, type FSWatcher } from "node:fs"
 import { stat } from "node:fs/promises"
 import path from "node:path"
+import { promisify } from "node:util"
 
 // A paper the user opened in their own browser (its publisher isn't letting owlit's in): the PDF they
 // save from there is taken from their Downloads folder, so they never have to find it and drop it. For a
 // while after Open in browser, each new PDF there is read; one with the paper's DOI or title on its
 // first pages is the paper's, and one that names neither, when only one paper waits, is offered to the
-// user to confirm.
+// user to confirm. Before reading it, where the browser says it came from is asked: a PDF saved from an
+// address with the paper's DOI in it is that paper's, whatever its pages say.
 
 export const WATCH_MS = 15 * 60 * 1000
 // A browser writes the file under another name and renames it when done; a moment after the last
 // change it is whole
 const QUIET_MS = 1500
+// The names a download has while it is being written: Chrome's and Dia's "Unconfirmed 123.crdownload"
+// and "x.pdf.crdownload", Safari's "x.pdf.download", Firefox's "x.pdf.part"
+const PARTIAL = /\.(crdownload|download|part)$/i
 
 export interface WatchedPaper {
   id: string
@@ -35,11 +41,18 @@ export class DownloadWatch {
   private readonly dir: string
   private readonly look: (file: string) => Promise<PdfLook | undefined>
   private readonly found: (id: string, file: string, sure: boolean) => void
+  // When a download last moved in the folder (a file being written), whoever's it is
+  private moved = 0
 
   constructor(dir: string, look: (file: string) => Promise<PdfLook | undefined>, found: (id: string, file: string, sure: boolean) => void) {
     this.dir = dir
     this.look = look
     this.found = found
+  }
+
+  // A download was being written in the last ms: a large PDF still coming
+  busy(ms: number) {
+    return Date.now() - this.moved < ms
   }
 
   watch(paper: Omit<WatchedPaper, "until">) {
@@ -73,7 +86,10 @@ export class DownloadWatch {
   }
 
   private changed(name: string) {
-    if (!/\.pdf$/i.test(name) || this.seen.has(name)) return
+    // Safari writes inside its x.pdf.download folder, which may be reported as the file in it
+    const [top, inside] = name.split(path.sep)
+    if (PARTIAL.test(top)) this.moved = Date.now()
+    if (inside || !/\.pdf$/i.test(name) || this.seen.has(name)) return
     clearTimeout(this.timers.get(name))
     this.timers.set(
       name,
@@ -92,6 +108,12 @@ export class DownloadWatch {
     for (const [id, paper] of this.papers) if (paper.until <= Date.now()) this.papers.delete(id)
     const waiting = [...this.papers.values()]
     if (!waiting.length) return this.close()
+    const from = (await savedFrom(file))?.toLowerCase()
+    const sent = from ? waiting.find((p) => p.doi && from.includes(p.doi.toLowerCase())) : undefined
+    if (sent) {
+      this.stop(sent.id)
+      return this.found(sent.id, file, true)
+    }
     const look = await this.look(file)
     if (!look) return
     const text = normalize(look.text)
@@ -104,6 +126,19 @@ export class DownloadWatch {
     } else if (waiting.length === 1 && !look.doi) {
       this.found(waiting[0].id, file, false)
     }
+  }
+}
+
+// The addresses a browser recorded the file was saved from (macOS keeps them with the file, as Finder's
+// "Where from"), as one string to search, or undefined where there are none. Read as the raw bytes of
+// the attribute: the addresses sit in it as plain text, and a DOI only has to be found among them.
+export async function savedFrom(file: string): Promise<string | undefined> {
+  if (process.platform !== "darwin") return undefined
+  try {
+    const { stdout } = await promisify(execFile)("xattr", ["-px", "com.apple.metadata:kMDItemWhereFroms", file])
+    return Buffer.from(stdout.replace(/\s+/g, ""), "hex").toString("latin1")
+  } catch {
+    return undefined
   }
 }
 
