@@ -31,15 +31,11 @@ describe("readingOf", () => {
     })
   })
 
-  it("counts a paper as read after two minutes on the paper itself", () => {
-    const focus = (seconds: number) => user({ kind: "paper.focus", at, paperId: "p", view: "pdf", seconds })
-    expect(readingOf([focus(30), focus(30), focus(30), focus(29)]).get("p")?.read).toBe(false)
-    expect(readingOf([focus(30), focus(30), focus(30), focus(30)]).get("p")?.read).toBe(true)
-  })
-
-  it("doesn't count reading the digest, however long, as reading the paper", () => {
-    const papers = readingOf([user({ kind: "paper.focus", at, paperId: "p", view: "digest", seconds: 900 })])
-    expect(papers.get("p")?.read).toBe(false)
+  it("counts a paper as read after two minutes on it, the PDF and the digest together", () => {
+    const focus = (view: "pdf" | "digest", seconds: number) => user({ kind: "paper.focus", at, paperId: "p", view, seconds })
+    expect(readingOf([focus("pdf", 30), focus("pdf", 30), focus("digest", 30), focus("digest", 29)]).get("p")?.read).toBe(false)
+    expect(readingOf([focus("pdf", 30), focus("pdf", 30), focus("digest", 30), focus("digest", 30)]).get("p")?.read).toBe(true)
+    expect(readingOf([focus("digest", 120)]).get("p")?.read).toBe(true)
   })
 
   it("counts a highlight, a note or a star as read at any length", () => {
