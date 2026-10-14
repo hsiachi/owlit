@@ -1,0 +1,78 @@
+# Contributing to owlit
+
+Issues and pull requests are welcome. For anything bigger than a fix, open an issue first so we can agree on
+the shape before you write it. UI changes follow [DESIGN.md](DESIGN.md) (tokens in its front matter, the
+reasons in the body); if a change alters a style decision, update DESIGN.md in the same change.
+
+By contributing you agree that your contribution is licensed under the project's
+[AGPL-3.0-or-later](LICENSE).
+
+## Running from source
+
+Needs macOS (Apple silicon), Node 24 and pnpm 10.
+
+```bash
+pnpm install
+pnpm dev          # Electron window, renderer from Vite with HMR; main/preload rebuild restarts Electron
+pnpm dev:web      # the renderer alone in a browser, on mock data
+pnpm build        # unsigned apps/desktop/release/mac-arm64/Owlit.app
+pnpm check        # typecheck, lint and test, as CI runs it
+```
+
+`pnpm test`, `pnpm lint` (oxlint everywhere; also enforces core/protocol's import boundary) and
+`pnpm typecheck` run the parts of `pnpm check` alone. `pnpm i18n:extract` updates the message catalogs in
+`packages/i18n/locales/` after changing UI text.
+
+Behind an HTTP proxy, Electron's binary download needs `NODE_USE_ENV_PROXY=1 pnpm install`.
+`pnpm dev -- --remote-debugging-port=9333` passes flags through to Electron.
+
+## Layout
+
+| Path | What it is |
+| --- | --- |
+| `app/` | The renderer: React + Vite |
+| `apps/desktop/` | The Electron shell that wires the rest together, and the build scripts |
+| `packages/protocol/` | The wire types between renderer, core and clients |
+| `packages/core/` | The backend: plain Node, never imports Electron or React |
+| `packages/owlit-agent/` | owlit's own agent (the Owlit engine), built on Pi |
+| `packages/owlit-mcp/` | The MCP server that gives agents owlit's library, docs and chats |
+| `packages/client/`, `packages/cli/` | A Node client for a running owlit, and the `owlit` command built on it |
+| `packages/i18n/` | Message catalogs (English, 简体中文) |
+| `apps/share-worker/`, `apps/share-server/`, `apps/share-web/` | Sharing a doc by link: the server on Cloudflare or on plain Node, and the reader's page ([notes](apps/share-worker/README.md)) |
+
+The build tooling is Vite (renderer) plus esbuild (main and preload, bundled with core) driven by
+`apps/desktop/scripts/`; electron-vite does not support Vite 8 yet.
+
+## Environment variables
+
+| Variable | Effect |
+| --- | --- |
+| `OWLIT_USER_DATA=<dir>` | Where app data lives (settings, per-workspace data, the single-instance lock) instead of `~/Library/Application Support/owlit`, e.g. to try a first launch |
+| `OWLIT_SHARE_SERVER=<url>` | The share server links are made on. Baked in at build time, or set for one run; empty or unset means no sharing |
+| `OWLIT_LOG_ACTIVITY=1` | Print every activity event the renderer reports |
+| `OWLIT_LOG_DOCS=1` | Print what the workspace watcher reports |
+| `OWLIT_LOG_AGENTS=1` | Print what agent processes say to owlit |
+| `OWLIT_LOG_BROWSER=1` | Print what the embedded publisher view does |
+
+## Releases
+
+A release is an arm64 dmg, signed with a self-signed certificate so macOS keeps a user's Keychain and folder
+grants across versions; it isn't notarised. It is built on the maintainer's Mac, where the certificate
+lives, and uploaded to GitHub Releases by hand:
+
+1. Add a section for the version to `apps/desktop/CHANGELOG.md` and bump `apps/desktop/package.json`.
+2. `pnpm release` builds the dmg and `Owlit <version> - read me first.txt` (install steps plus the
+   changelog section) in `apps/desktop/release/`.
+3. Make the GitHub release, with the read-me as its notes:
+
+   ```bash
+   gh release create v<version> "apps/desktop/release/Owlit <version>.dmg" --notes-file "apps/desktop/release/Owlit <version> - read me first.txt"
+   ```
+
+`pnpm release` reads `.env.release.local` at the repo root (ignored by git), and the environment wins over
+it, so CI can set the same values later:
+
+```bash
+OWLIT_SHARE_SERVER=https://share.example.org   # required: the share server links are made on; empty for none
+OWLIT_SIGN_IDENTITY="Owlit Self-Signed"        # the certificate in the login keychain; without it, ad hoc
+```

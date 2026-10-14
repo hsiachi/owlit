@@ -18,6 +18,23 @@ import { Arch, build, Platform } from "electron-builder"
 import { appDir, copyMainAssets, desktopDir, distDir, esbuildOptions } from "./shared.mjs"
 
 const require = createRequire(import.meta.url)
+const release = process.argv.includes("--release")
+
+// A release reads the maintainer's own settings from .env.release.local at the repo root (ignored by git):
+// the share server its links are made on, and the signing identity. The environment wins over the file, so
+// CI can set them instead. A release must name a share server, or set it empty for none, so a dmg is never
+// sent out without sharing by mistake.
+if (release) {
+  try {
+    process.loadEnvFile(path.join(desktopDir, "../../.env.release.local"))
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error
+  }
+  if (process.env.OWLIT_SHARE_SERVER === undefined) {
+    console.error("A release needs OWLIT_SHARE_SERVER (in .env.release.local or the environment), or OWLIT_SHARE_SERVER= for none.")
+    process.exit(1)
+  }
+}
 
 rmSync(distDir, { recursive: true, force: true })
 
@@ -27,7 +44,6 @@ cpSync(path.join(appDir, "dist"), path.join(distDir, "renderer"), { recursive: t
 await esbuild.build(esbuildOptions({ production: true }))
 copyMainAssets()
 
-const release = process.argv.includes("--release")
 const identity = process.env.OWLIT_SIGN_IDENTITY
 const entitlements = path.join(desktopDir, "resources", "entitlements.mac.plist")
 

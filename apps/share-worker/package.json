@@ -3,10 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "description": "The share server on Cloudflare: a Worker, a Durable Object per shared doc, and the reader's page",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @owlit/share-web build && wrangler dev",
-    "deploy": "pnpm --filter @owlit/share-web build && wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
     "types": "wrangler types",
     "lint": "oxlint",
     "typecheck": "wrangler types >/dev/null && tsc --noEmit"

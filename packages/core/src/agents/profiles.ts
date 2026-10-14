@@ -1,7 +1,7 @@
 // What owlit knows about each agent it runs: the one place their names appear, apart from the connector
 // definitions (agents.ts) and their icons. Everything else in owlit goes by ACP and by what an agent says
 // it can do. An agent owlit knows nothing about gets the defaults: its own mode, owlit's refusals, the
-// standard parts of ACP. (Rule: README of the tasks folder, "引擎能力"; 2026-10-11.)
+// standard parts of ACP.
 
 import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"

@@ -14,7 +14,7 @@ const INSTALL = (version) => `Owlit ${version} (Macs with Apple silicon)
    Not signed in? Run \`claude\` (or \`codex\`) in Terminal once.
 4. After an update, macOS may ask once for your password so Owlit can read its saved keys: choose Always Allow.
 
-If something breaks: Help › Copy Diagnostics, and paste it to me.
+If something breaks: Help › Copy Diagnostics, and paste it into an issue at https://github.com/hsiachi/owlit/issues.
 
 ——
 
@@ -25,7 +25,7 @@ Owlit ${version}（适用于 Apple 芯片的 Mac）
 3. Owlit 通过 Claude Code 或 Codex 工作。Mac 上装了其中一个，Owlit 会提出帮你设置（约 300 MB）。没登录的话，在终端里运行一次 \`claude\`（或 \`codex\`）。
 4. 更新后 macOS 可能会问一次密码，让 Owlit 读取保存的 key：选「始终允许」。
 
-出了问题：帮助 › 复制诊断信息，粘贴给我。
+出了问题：帮助 › 复制诊断信息，粘贴到 https://github.com/hsiachi/owlit/issues 的新 issue 里。
 `
 
 // The section of CHANGELOG.md under "## <version>"

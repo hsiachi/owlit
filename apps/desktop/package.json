@@ -4,6 +4,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Owlit desktop shell",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {

@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "The page a shared doc's reader opens: the doc, the papers it cites, and comments",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",

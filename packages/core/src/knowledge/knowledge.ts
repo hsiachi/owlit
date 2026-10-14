@@ -34,9 +34,9 @@ import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
 import { checkTopic, findQuote, passageOf } from "./check.ts"
 
-// Owlit's Knowledge (README › Knowledge 运行规则): topic files in knowledge/, written by a background
-// agent session from what the user did since the last run, and what the user did to them, kept in
-// .owlit/knowledge/ where a run can't touch it:
+// Owlit's Knowledge: topic files in knowledge/, written by a background agent session from what the user
+// did since the last run, and what the user did to them, kept in .owlit/knowledge/ where a run can't touch
+// it:
 //
 //   topics/<topic id>.json    the sidecar: the user's edits and removals, the change history, what changed when
 //   papers/<paper id>.json    a paper's passages Knowledge cites, and its connections
