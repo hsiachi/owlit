@@ -8,7 +8,7 @@ import remarkMath from "remark-math"
 import { cn } from "@/lib/utils"
 import { appLinkTitle, openAppLink } from "@/app/app-links"
 import { useOpenFromChat } from "@/features/agent/hooks"
-import { docUriOfLink, mentionTooltip, openMention } from "@/features/docs/lib/mentions"
+import { docUriOfLink, mentionTooltip, openMention, usePaperUnread } from "@/features/docs/lib/mentions"
 import { MentionToken } from "@/components/mention/mention-token"
 
 // The default sanitizer drops unknown schemes; keep owlit:// so workspace references survive, and file://
@@ -92,7 +92,7 @@ export function Markdown({ text, className, components, prepare }: { text: strin
           // app; a path to anything else has nowhere to open, so it reads as words.
           a: ({ href, children }) => {
             const uri = href?.startsWith("owlit://") ? href : href ? docUriOfLink(href) : null
-            if (uri) return <MentionToken label={textOf(children)} title={appLinkTitle(uri) ?? mentionTooltip(uri) ?? textOf(children)} onClick={() => open(uri)} />
+            if (uri) return <WorkspaceLink uri={uri} label={textOf(children)} onClick={() => open(uri)} />
             if (href?.startsWith("#")) return <a href={href}>{children}</a>
             if (!href || !/^https?:/i.test(href)) return <span title={href}>{children}</span>
             return (
@@ -108,4 +108,10 @@ export function Markdown({ text, className, components, prepare }: { text: strin
       </ReactMarkdown>
     </div>
   )
+}
+
+// A reference to something in the workspace; a paper not read yet is lighter until it is
+function WorkspaceLink({ uri, label, onClick }: { uri: string; label: string; onClick: () => void }) {
+  const unread = usePaperUnread(uri)
+  return <MentionToken label={label} title={appLinkTitle(uri) ?? mentionTooltip(uri) ?? label} unread={unread} onClick={onClick} />
 }

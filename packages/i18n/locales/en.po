@@ -468,6 +468,15 @@ msgstr "No matches"
 msgid "Show all {total}"
 msgstr "Show all {total}"
 
+#. reading status of a paper
+#. reading status of a paper
+#: app/src/components/mention/mention-token.tsx
+#: app/src/features/docs/editor/live-preview.ts
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+msgid "Unread"
+msgstr "Unread"
+
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
 msgstr "Breadcrumb"
@@ -3984,13 +3993,6 @@ msgstr "Reading"
 #: app/src/features/library/components/StarButton.tsx
 msgid "Starred"
 msgstr "Starred"
-
-#. reading status of a paper
-#. reading status of a paper
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-msgid "Unread"
-msgstr "Unread"
 
 #. reading status of a paper: finished reading (past participle)
 #. reading status of a paper: finished reading (past participle)
