@@ -2387,6 +2387,11 @@ msgstr "Owlit"
 msgid "kept {kept} of {found}"
 msgstr "kept {kept} of {found}"
 
+#. a search that found no papers
+#: app/src/features/collections/components/About.tsx
+msgid "nothing found"
+msgstr "nothing found"
+
 #: app/src/features/collections/components/About.tsx
 msgid "References of {of}"
 msgstr "References of {of}"
