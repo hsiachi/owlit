@@ -188,8 +188,9 @@ export class ShareRoom extends DurableObject<Env> {
   }
 
   private comments(): ShareComment[] {
+    // Comments posted in the same millisecond keep the order they came in: rowid counts inserts, ids are random
     return this.sql
-      .exec<Record<string, SqlStorageValue>>("SELECT * FROM comments ORDER BY at, id")
+      .exec<Record<string, SqlStorageValue>>("SELECT * FROM comments ORDER BY at, rowid")
       .toArray()
       .map((row) => {
         const r = row as unknown as CommentRow

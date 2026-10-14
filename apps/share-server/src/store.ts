@@ -89,7 +89,8 @@ export class Store {
   }
 
   comments(shareId: string): ShareComment[] {
-    const rows = this.db.prepare("SELECT * FROM comments WHERE share_id = ? ORDER BY at, id").all(shareId) as unknown as CommentRow[]
+    // Comments posted in the same millisecond keep the order they came in: rowid counts inserts, ids are random
+    const rows = this.db.prepare("SELECT * FROM comments WHERE share_id = ? ORDER BY at, rowid").all(shareId) as unknown as CommentRow[]
     return rows.map((r) => ({
       id: r.id,
       anchor: r.anchor ? (JSON.parse(r.anchor) as ShareAnchor) : null,
