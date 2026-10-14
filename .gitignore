@@ -13,5 +13,7 @@ dist/
 # Desktop build output
 apps/desktop/release/
 
-# Product docs: not released yet, read by agents here (CLAUDE.md points at them)
-docs/
+# Product docs: not released yet, read by agents here (CLAUDE.md points at them). Anchored to the root:
+# unanchored, it also matched app/src/features/docs, and Tailwind, which skips ignored files, then never
+# generated the classes only the Docs feature uses.
+/docs/

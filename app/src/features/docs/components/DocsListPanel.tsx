@@ -68,7 +68,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
       // A drop on a doc lands in the doc's folder, which lights up to say so
       dropTo={parentPath(node.file.path)}
       onOpen={open}
-      trail={shared ? <UsersIcon className="size-3" aria-label={t`Shared by link`} /> : undefined}
+      trail={shared ? <UsersIcon className="size-3" role="img" aria-hidden={false} aria-label={t`Shared by link`} /> : undefined}
       className={cn(active && "font-medium")}
       buttonClassName={cn("pr-1", !node.markdown && "text-muted-foreground")}
     />

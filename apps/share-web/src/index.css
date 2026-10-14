@@ -15,7 +15,6 @@
    Drawn as highlights (anchors.ts), so the text itself is never rewritten. */
 ::highlight(share-comment) { text-decoration: underline 2px var(--person-mark); text-underline-offset: 5px; text-decoration-skip-ink: none; }
 ::highlight(share-comment-open) { background-color: var(--person-wash); text-decoration: underline 2px var(--person-mark); text-underline-offset: 5px; }
-/* The words a comment being written is on */
-::highlight(share-draft) { background-color: color-mix(in oklch, var(--mention) 16%, transparent); }
-/* A passage reached from a paper's citations, lit for a moment */
-::highlight(share-flash) { background-color: var(--text-highlight); }
+/* The words a comment being written is on: already the person's, so their wash (blue is for things in the
+   workspace, and no colour washes). A passage reached from a paper's citations rings instead (App.tsx). */
+::highlight(share-draft) { background-color: var(--person-wash); }

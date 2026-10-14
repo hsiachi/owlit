@@ -1,10 +1,11 @@
 import { t } from "@lingui/core/macro"
-import { shortDate } from "@/lib/time"
+import { ago } from "@/lib/time"
 import { Facet, StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
 import { sharedEnd, sharedStart } from "@/lib/text-diff"
 import type { AgentNote } from "../types"
 import { renderInline } from "./render-inline"
+import { sideCardTheme, washOpen } from "./side-card"
 
 // Agents' notes on a doc. The words a note is on carry an underline in the note colour; clicking them opens
 // the note under the paragraph, pushing the text down rather than covering it, and the words take a wash of
@@ -142,7 +143,8 @@ class NoteWidget extends WidgetType {
     const head = document.createElement("div")
     head.className = "cm-note-head"
     const meta = document.createElement("span")
-    meta.textContent = `${note.by} · ${shortDate(note.createdAt)}`
+    // Recent times relative, older ones a short date, as a reader's comment says it
+    meta.textContent = `${note.by} · ${ago(note.createdAt)}`
     head.append(meta)
     if (n > 1) {
       const nav = document.createElement("span")
@@ -285,34 +287,10 @@ export function agentNotes(actions: Actions): Extension {
   ])
 
   const theme = EditorView.theme({
-    // The passage: a 2px underline in Owlit's mark green, and a wash of it while the note is open. A doc's
-    // own ==highlights== are a different, lemon yellow, so the two never pass for each other.
-    ".cm-note-mark": {
-      textDecorationLine: "underline",
-      textDecorationColor: "var(--owlit-mark)",
-      textDecorationThickness: "2px",
-      textUnderlineOffset: "5px",
-      textDecorationSkipInk: "none",
-    },
-    // The wash fades in over --t-mark (the words are redrawn when the note opens, so a keyframe, in index.css)
-    ".cm-note-mark-open": { backgroundColor: "color-mix(in oklch, var(--owlit-mark) 22%, transparent)", animation: "note-wash var(--t-mark) var(--ease)" },
-    // The open note is plainly not the doc: a raised card under the paragraph with a rule in Owlit's
-    // green at its left edge. Who wrote it comes first, the actions sit at the bottom right. The card's
-    // overhang into the margin is on the fold, so the fold's clip never cuts it.
-    ".cm-note-fold": { marginLeft: "-16px" },
-    ".cm-note": {
-      margin: "4px 0 14px",
-      padding: "8px 12px 6px 13px",
-      backgroundColor: "var(--card)",
-      border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--owlit-mark)",
-      borderRadius: "4px 10px 10px 4px",
-      fontSize: "14px",
-      lineHeight: "1.55",
-      cursor: "default",
-    },
-    ".cm-note p": { margin: "0" },
-    ".cm-note-head": { display: "flex", alignItems: "center", gap: "8px", minHeight: "20px", marginBottom: "2px", fontSize: "12px", color: "var(--muted-foreground)" },
+    // The passage underlined and the open note's card in Owlit's mark green (side-card.ts). A doc's own
+    // ==highlights== are a different, lemon yellow, so the two never pass for each other.
+    ...sideCardTheme("cm-note", "var(--owlit-mark)"),
+    ".cm-note-mark-open": { backgroundColor: "color-mix(in oklch, var(--owlit-mark) 22%, transparent)", animation: washOpen },
     ".cm-note-head > span:first-child": { flex: "1" },
     ".cm-note-nav": { display: "flex", alignItems: "center", gap: "2px", marginRight: "-6px" },
     ".cm-note-nav > span": { marginRight: "4px" },
@@ -329,19 +307,6 @@ export function agentNotes(actions: Actions): Extension {
       cursor: "pointer",
     },
     ".cm-note-nav button:hover": { backgroundColor: "var(--accent)", color: "var(--foreground)" },
-    ".cm-note-lost": { fontSize: "13px", color: "var(--muted-foreground)", marginBottom: "4px !important" },
-    ".cm-note-actions": { display: "flex", justifyContent: "flex-end", gap: "2px", marginTop: "4px", marginRight: "-6px" },
-    ".cm-note-actions button": {
-      height: "26px",
-      padding: "0 8px",
-      borderRadius: "8px",
-      fontSize: "13px",
-      background: "none",
-      border: "none",
-      color: "var(--muted-foreground)",
-      cursor: "pointer",
-    },
-    ".cm-note-actions button:hover": { backgroundColor: "var(--accent)", color: "var(--foreground)" },
     ".cm-note-actions button:last-child": { color: "var(--foreground)" },
   })
 

@@ -19,6 +19,7 @@ const isChecking = (c: Connector) => c.status === "checking" || c.status === "un
 // first run leaves it out.
 export function AgentChoice() {
   const setUp = useChatStore((s) => s.setUpConnector)
+  const cancel = useChatStore((s) => s.cancelSetUp)
   const connectors = useChatStore((s) => s.connectors).filter((c) => !c.signsInHere)
   const check = useChatStore((s) => s.checkConnector)
   const setSelection = useChatStore((s) => s.setSelection)
@@ -54,6 +55,7 @@ export function AgentChoice() {
         // owlit sets Claude Code's and Codex's adapters up itself: a missing one is a Set up, and only a
         // missing agent is a command to copy
         const progress = settingUp(c)
+        const failed = progress === undefined && canSetUp(c) && !!c.setup?.error
         const command =
           problem === "not_installed" ? (c.setup ? c.setup.installCli : c.installHint) : problem === "signed_out" ? (c.signIn ?? c.command) : undefined
         return (
@@ -81,18 +83,26 @@ export function AgentChoice() {
                     <span className="size-1.5 rounded-full bg-owlit-mark" />
                     {c.version && c.version !== "unknown" ? t`Ready · ${c.version}` : t({ message: "Ready", comment: "an agent's status" })}
                   </>
+                ) : failed ? (
+                  <span className="truncate text-destructive">{c.setup?.error}</span>
                 ) : (
                   // The row already names the agent, so the short word where there is one
                   <span className="truncate">{problem === "not_installed" ? statusLabel("not_installed") : problemSentence(c)}</span>
                 )}
               </span>
             </span>
+            {/* Set up as Settings › Agents draws it: progress with Cancel, Set up, or Try again after a failure */}
             {progress !== undefined ? (
-              <span className="shrink-0 text-detail text-muted-foreground tabular-nums">{t`Setting up… ${Math.round(progress * 100)}%`}</span>
+              <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                <span className="text-detail text-muted-foreground tabular-nums">{t`Setting up… ${Math.round(progress * 100)}%`}</span>
+                <Button variant="text" size="inline" onClick={() => void cancel(c.id)}>
+                  {t`Cancel`}
+                </Button>
+              </span>
             ) : canSetUp(c) ? (
               <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
                 <Button variant="text" size="inline" onClick={() => void setUp(c.id)}>
-                  {t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
+                  {failed ? t`Try again` : t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
                 </Button>
               </span>
             ) : null}

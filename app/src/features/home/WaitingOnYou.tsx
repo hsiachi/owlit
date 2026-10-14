@@ -17,7 +17,7 @@ import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@/features/library/types"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { useTasksStore, useLoginTasks } from "@/features/tasks/store"
-import { useImports } from "@/features/library/imports"
+import { importAsks, useImports } from "@/features/library/imports"
 import { importOrigin } from "@/features/library/components/ImportBanner"
 
 // Everything stuck on the user, in one list: a permission a chat waits for, a publisher that wants a
@@ -109,7 +109,7 @@ function useWaiting(): Waiting[] {
     // An import started from the CLI stops to ask about MinerU; the Library's line has the answers
     for (const i of imports) {
       const task = tasks[i.taskId]
-      if (task?.state !== "waiting_for_you" || task.waiting?.reason !== "confirm_spend") continue
+      if (!task || !importAsks(task)) continue
       const origin = importOrigin(i)
       out.push({ key: `import:${i.id}`, icon: LibraryIcon, what: t`An import asks about MinerU`, where: origin, open: { label: t`Answer`, run: () => navigate("/library") } })
     }

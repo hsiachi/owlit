@@ -23,6 +23,8 @@ import { i18n } from "@/lib/i18n"
 import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
 import { useLibraryStore } from "@/features/library/store"
+import { importAsks, useImports } from "@/features/library/imports"
+import { useTasksStore } from "@/features/tasks/store"
 import { useChatStore } from "@/features/chat/store"
 import { chatsNeedYou, useSeenStore } from "@/features/chat/status"
 
@@ -32,6 +34,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const activeItem = matchNav(pathname)
   // A publisher wants the user for some paper (a check, a sign-in): the Library's one mark
   const libraryNeedsYou = useLibraryStore((s) => Object.values(s.papers).some((p) => p.noPdf?.needs))
+  // An import stopped to ask about MinerU: its answers are on the Library's import line
+  const imports = useImports((s) => s.list)
+  const importNeedsYou = useTasksStore((s) => imports.some((i) => !!s.byId[i.taskId] && importAsks(s.byId[i.taskId])))
   // A chat waits on a permission or broke: the Chat place's one mark, so work handed off can reach the user
   // wherever they are reading
   const dismissed = useSeenStore((s) => s.dismissed)
@@ -41,6 +46,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const chatFinished = useSeenStore((s) => Object.keys(s.unseen).length > 0)
   const markOf = (to: string): { why: string; tone: "warning" | "owlit" } | undefined => {
     if (to === "/library" && libraryNeedsYou) return { why: t`A paper needs you`, tone: "warning" }
+    if (to === "/library" && importNeedsYou) return { why: t`An import asks about MinerU`, tone: "warning" }
     if (to === "/chat" && chatNeedsYou) return { why: t`A chat needs you`, tone: "warning" }
     if (to === "/chat" && chatFinished) return { why: t`Owlit finished since you last looked`, tone: "owlit" }
     return undefined

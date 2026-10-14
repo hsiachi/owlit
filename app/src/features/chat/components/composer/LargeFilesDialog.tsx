@@ -26,7 +26,7 @@ export function LargeFilesDialog({ files, onAnswer }: { files: File[] | null; on
         </RowList>
         <DialogFooter>
           {/* The smaller ones dropped with them are still attached */}
-          <Button variant="ghost" onClick={() => onAnswer("skip")}>
+          <Button variant="outline" onClick={() => onAnswer("skip")}>
             {files && files.length > big.length ? t`Skip large files` : t`Cancel`}
           </Button>
           <Button onClick={() => onAnswer("copy")}>{t({ message: "Copy", comment: "verb: copy the large files into the workspace" })}</Button>

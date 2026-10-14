@@ -12,6 +12,11 @@ msgid "A paper needs you"
 msgstr "有篇论文需要你处理"
 
 #: app/src/app/AppSidebar.tsx
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An import asks about MinerU"
+msgstr "一次导入在问 MinerU 的事"
+
+#: app/src/app/AppSidebar.tsx
 msgid "A chat needs you"
 msgstr "有个对话需要你处理"
 
@@ -662,19 +667,21 @@ msgstr "置顶"
 msgid "Rename chat"
 msgstr "重命名对话"
 
+#. a chat's status: the agent stopped with an error
+#. a helper agent's status: it stopped before it was done
+#. a step the answer stopped in the middle of
+#. an import that broke
+#: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/chat/components/messages/agents.tsx
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Stopped"
+msgstr "已停止"
+
 #. a chat's status: waiting on the user
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Waiting"
 msgstr "等待中"
-
-#. a chat's status: the agent stopped with an error
-#. a helper agent's status: it stopped before it was done
-#. a step the answer stopped in the middle of
-#: app/src/features/chat/components/ChatListPanel.tsx
-#: app/src/features/chat/components/messages/agents.tsx
-#: app/src/features/chat/components/messages/parts.tsx
-msgid "Stopped"
-msgstr "已停止"
 
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Chat actions"
@@ -1016,6 +1023,7 @@ msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
 #: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -1036,13 +1044,16 @@ msgid "Owlit stopped"
 msgstr "Owlit 已停止"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
 msgstr "详细信息"
 
 #. verb: leave a broken reply as it is
+#. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
 msgstr "忽略"
 
@@ -2409,16 +2420,17 @@ msgid "Saved as doc"
 msgstr "已存为文档"
 
 #: app/src/features/docs/share/DocShareControls.tsx
-msgid "Readers don't have your latest changes yet"
-msgstr "读者还没看到你最新的改动"
-
-#: app/src/features/docs/share/DocShareControls.tsx
 msgid "Shared"
 msgstr "已分享"
 
 #: app/src/features/docs/share/DocShareControls.tsx
 msgid "Share"
 msgstr "分享"
+
+#. your latest changes didn't reach the shared doc's readers
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Not sent"
+msgstr "未送达"
 
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "{cited, plural, one {The paper it cites} other {The # papers it cites}}"
@@ -2676,10 +2688,6 @@ msgstr "图书馆需要你登录"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "to fetch PDFs"
 msgstr "以获取 PDF"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "An import asks about MinerU"
-msgstr "一次导入在问 MinerU 的事"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
@@ -3661,6 +3669,11 @@ msgid "from the {name} folder"
 msgstr "来自文件夹 {name}"
 
 #: app/src/features/library/components/ImportBanner.tsx
+msgctxt "carry on with a stopped import"
+msgid "Continue"
+msgstr "继续"
+
+#: app/src/features/library/components/ImportBanner.tsx
 msgid "{fresh, plural, one {Import {origin}: should MinerU read the new paper's PDF?} other {Import {origin}: should MinerU read the PDFs of # new papers?}}"
 msgstr "{fresh, plural, one {导入（{origin}）：要让 MinerU 读这篇新论文的 PDF 吗？} other {导入（{origin}）：要让 MinerU 读这 # 篇新论文的 PDF 吗？}}"
 
@@ -3672,10 +3685,13 @@ msgstr "读"
 msgid "Not this time"
 msgstr "这次不用"
 
-#. placeholder {0}: task.error ?? ""
 #: app/src/features/library/components/ImportBanner.tsx
-msgid "The import {origin} stopped: {0}"
-msgstr "导入（{origin}）停下了：{0}"
+msgid "The import {origin} couldn't go on after {done} of {total}."
+msgstr "导入（{origin}）在 {done}/{total} 处没法继续。"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin} couldn't go on."
+msgstr "导入（{origin}）没法继续。"
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Import stopped after {done} of {total}"
@@ -3684,18 +3700,6 @@ msgstr "导入在 {done}/{total} 处停下了"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Import stopped"
 msgstr "导入停下了"
-
-#. button: go on reading a paper
-#. carry on with a stopped import
-#: app/src/features/library/components/ImportBanner.tsx
-#: app/src/features/library/components/PaperPeek.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Continue"
-msgstr "继续阅读"
-
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Put away"
-msgstr "收起"
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Reading the collection {origin}…"
@@ -3822,10 +3826,14 @@ msgstr "更改…"
 msgid "Reading…"
 msgstr "正在读取…"
 
+#: app/src/features/library/components/ImportDialog.tsx
+msgid "Collections become tags"
+msgstr "把分类变成标签"
+
 #. placeholder {0}: preview.collections
 #: app/src/features/library/components/ImportDialog.tsx
-msgid "{0, plural, one {Collections become tags (# collection)} other {Collections become tags (# collections)}}"
-msgstr "{0, plural, other {把分类变成标签（# 个分类）}}"
+msgid "{0, plural, one {# collection} other {# collections}}"
+msgstr "{0, plural, other {# 个分类}}"
 
 #: app/src/features/library/components/ImportDialog.tsx
 msgid "{fresh, plural, one {MinerU reads the new paper's PDF} other {MinerU reads the PDFs of the # new papers}}"
@@ -4034,6 +4042,12 @@ msgstr "无法请求导读。"
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
 msgstr "{0, plural, other {移除 # 篇论文}}"
+
+#. button: go on reading a paper
+#: app/src/features/library/components/PaperPeek.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Continue"
+msgstr "继续阅读"
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
@@ -4324,6 +4338,12 @@ msgstr "Owlit 正在阅读这篇论文…"
 msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr "你可以继续阅读，导读写好后 Owlit 会告诉你。"
 
+#. signs Owlit's digest of a paper, as in owlit
+#: app/src/features/library/pages/paper/Digest.tsx
+#: apps/share-web/src/App.tsx
+msgid "Digest · Owlit"
+msgstr "导读 · Owlit"
+
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
@@ -4332,10 +4352,6 @@ msgstr "导读 · Owlit，{when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper again…"
 msgstr "Owlit 正在重新阅读这篇论文…"
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Digest · Owlit"
-msgstr "导读 · Owlit"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit couldn't write this digest again."
@@ -4474,6 +4490,7 @@ msgid "Choose file"
 msgstr "选择文件"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: apps/share-web/src/App.tsx
@@ -5955,10 +5972,6 @@ msgstr "{count, plural, other {引用 # 处}}"
 #: apps/share-web/src/App.tsx
 msgid "Read the paper"
 msgstr "阅读原文"
-
-#: apps/share-web/src/App.tsx
-msgid "Digest · written by Owlit"
-msgstr "导读 · Owlit 写的"
 
 #. placeholder {0}: bundle.author
 #: apps/share-web/src/App.tsx
