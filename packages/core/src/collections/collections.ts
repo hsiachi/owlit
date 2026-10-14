@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import {
+  applyCollectionEdit,
   itemId,
   QUESTION_COLUMN,
   RpcErrorCode,
@@ -256,70 +257,14 @@ export class Collections {
     return this.serial(async () => {
       const c = await this.get(id)
       const now = Date.now()
-      const items: string[] = []
-      switch (edit.op) {
-        case "rename":
-        case "rewrite": {
-          const item = edit.op === "rename" ? itemId.title() : edit.item
-          const owlit = owlitText(c, item)
-          if (owlit === undefined) throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the collection any more.`, { item })
-          const text = (edit.op === "rename" ? edit.title : edit.text).trim()
-          if (!text) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something, or remove it instead.`)
-          if (sameWords(text, owlit)) delete c.yours.edits[item]
-          else c.yours.edits[item] = { text, at: now, was: owlit }
-          items.push(item)
-          break
-        }
-        case "revert":
-          delete c.yours.edits[edit.item]
-          items.push(edit.item)
-          break
-        case "remove": {
-          const text = labelOf(c, edit.item)
-          if (text === undefined) throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the collection any more.`, { item: edit.item })
-          c.yours.removed[edit.item] = { text, at: now }
-          items.push(edit.item)
-          break
-        }
-        case "unremove":
-          delete c.yours.removed[edit.item]
-          items.push(edit.item)
-          break
-        case "move": {
-          const row = c.rows.find((r) => r.id === edit.row)
-          if (!row) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the collection any more.`, { row: edit.row })
-          if (edit.group && !c.groups.some((g) => g.id === edit.group)) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
-          if (edit.group) row.group = edit.group
-          else delete row.group
-          items.push(itemId.row(edit.row))
-          break
-        }
-        case "ungroup":
-        case "merge": {
-          const group = c.groups.find((g) => g.id === edit.group)
-          if (!group) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
-          const into = edit.op === "merge" ? edit.into : group.parent
-          if (edit.op === "merge" && !c.groups.some((g) => g.id === edit.into)) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
-          for (const row of c.rows) {
-            if (row.group !== group.id) continue
-            if (into) row.group = into
-            else delete row.group
-          }
-          for (const g of c.groups) if (g.parent === group.id) g.parent = into
-          c.groups = c.groups.filter((g) => g.id !== group.id)
-          items.push(itemId.group(group.id))
-          break
-        }
-        case "watch":
-          c.watch = edit.on
-          break
-        case "project":
-          c.project = edit.project
-          break
-        case "seen":
-          c.seenAt = now
-          break
+      const done = applyCollectionEdit(c, edit, now)
+      if ("problem" in done) {
+        if (done.problem === "empty") throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something, or remove it instead.`)
+        if (done.problem === "row") throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the collection any more.`)
+        if (done.problem === "group") throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
+        throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the collection any more.`)
       }
+      const items = done.items
       // Looking changes nothing worth a line in the history, nor the order of the list
       if (edit.op !== "seen") {
         c.updatedAt = now
@@ -476,23 +421,6 @@ export class Collections {
     this.writing = next.catch(() => undefined)
     return next
   }
-}
-
-// Owlit's own text for an item, before the user's rewrite
-function owlitText(c: Collection, item: string): string | undefined {
-  if (item === itemId.title()) return c.title
-  const [kind, a, b] = item.split(":")
-  if (kind === "memo") return c.memo.find((s) => s.id === a)?.text
-  if (kind === "cell") return c.rows.find((r) => r.id === a)?.cells[b!]?.text
-  if (kind === "group") return c.groups.find((g) => g.id === a)?.name
-  return undefined
-}
-
-// What a removed item was, for the record (and so the same words can be kept out)
-function labelOf(c: Collection, item: string): string | undefined {
-  const [kind, a] = item.split(":")
-  if (kind === "row") return c.rows.find((r) => r.id === a)?.paper.title
-  return owlitText(c, item)
 }
 
 function sameCell(a: CollectionCell, b: CollectionCell) {

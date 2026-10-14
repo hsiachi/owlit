@@ -123,6 +123,7 @@ msgstr ""
 #. button of the folder picker
 #. button: open a paper to read
 #. button: open a paper to read
+#. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
@@ -130,6 +131,7 @@ msgstr ""
 #. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
+#: app/src/features/collections/components/AnswerRows.tsx
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
 #: app/src/features/home/WaitingOnYou.tsx
@@ -223,15 +225,10 @@ msgid "Chat"
 msgstr ""
 
 #: app/src/app/nav.ts
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/knowledge/pages/LoosePage.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/onboarding/demos/ReadDemo.tsx
-#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/features/collections/pages/CollectionPage.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
 #: app/src/lib/kinds.ts
-msgid "Knowledge"
+msgid "Collections"
 msgstr ""
 
 #: app/src/app/nav.ts
@@ -326,6 +323,7 @@ msgstr ""
 #: app/src/app/shortcuts.ts
 #: app/src/components/rename-input.tsx
 #: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/collections/components/CollectionMenu.tsx
 #: app/src/features/docs/actions.ts
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Rename"
@@ -340,6 +338,7 @@ msgstr ""
 #. verb: delete a topic
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/collections/components/CollectionMenu.tsx
 #: app/src/features/docs/actions.ts
 #: app/src/features/knowledge/components/TopicMenu.tsx
 #: app/src/features/library/components/HighlightsList.tsx
@@ -482,6 +481,29 @@ msgstr ""
 msgid "New since you last looked"
 msgstr ""
 
+#: app/src/components/sentence-editor.tsx
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/knowledge/components/SplitDialog.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
+#: apps/share-web/src/App.tsx
+msgid "Cancel"
+msgstr ""
+
+#: app/src/components/sentence-editor.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Save"
+msgstr ""
+
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
 msgstr ""
@@ -571,8 +593,10 @@ msgstr ""
 msgid "Digest"
 msgstr ""
 
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
+#: app/src/features/collections/components/AnswerRows.tsx
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "p. {page}"
 msgstr ""
@@ -936,6 +960,7 @@ msgid "Adding…"
 msgstr ""
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
+#: app/src/features/collections/components/AnswerRows.tsx
 msgid "In your Library"
 msgstr ""
 
@@ -946,6 +971,7 @@ msgstr ""
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/step-results.tsx
+#: app/src/features/collections/components/AnswerRows.tsx
 msgid "Add to Library"
 msgstr ""
 
@@ -1019,24 +1045,6 @@ msgstr ""
 #. placeholder {0}: big.length
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
-msgstr ""
-
-#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/editor/reader-comments.ts
-#: app/src/features/docs/share/ShareDialog.tsx
-#: app/src/features/knowledge/components/SplitDialog.tsx
-#: app/src/features/knowledge/components/bits.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/settings/parts.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-#: apps/desktop/src/cli-tool.ts
-#: apps/share-web/src/App.tsx
-msgid "Cancel"
 msgstr ""
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
@@ -2209,6 +2217,202 @@ msgstr ""
 msgid "In “{title}”: {error}"
 msgstr ""
 
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "You've read some of it"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/library/components/PaperByline.tsx
+#: app/src/features/library/lib/format.ts
+msgid "Unknown authors"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Not in your Library"
+msgstr ""
+
+#. a page of a paper
+#. placeholder {0}: answer.passage.page
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "p. {0}"
+msgstr ""
+
+#. followed by the other collections that hold this paper
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Also in"
+msgstr ""
+
+#. take a paper off this collection
+#. verb: remove a topic's line
+#. verb: remove the paper from the library
+#. verb: remove the selected papers from the library
+#: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/components/Memo.tsx
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Remove"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Open at p. {page}"
+msgstr ""
+
+#. menu switch: Owlit looks for new papers on this collection's question now and then
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Watch for new papers"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Move to project"
+msgstr ""
+
+#. a collection that belongs to no project folder
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "No project"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Export as CSV"
+msgstr ""
+
+#. button: write the digest again
+#. verb: change the words of Owlit's sentence
+#: app/src/features/collections/components/Memo.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Rewrite"
+msgstr ""
+
+#: app/src/features/collections/components/Memo.tsx
+msgid "Use Owlit's words"
+msgstr ""
+
+#: app/src/features/collections/components/Memo.tsx
+msgid "Sentence removed"
+msgstr ""
+
+#. placeholder {0}: plainMemo(edit.was).plain
+#: app/src/features/collections/components/Memo.tsx
+msgid "Was: {0}"
+msgstr ""
+
+#. after a sentence of Owlit's that the user rewrote
+#: app/src/features/collections/components/Memo.tsx
+msgid "you edited"
+msgstr ""
+
+#: app/src/features/collections/components/Memo.tsx
+msgid "Sentence actions"
+msgstr ""
+
+#. group of collections that belong to no project folder
+#: app/src/features/collections/lib.ts
+msgid "Not in a project"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "This collection is gone"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "It may have been deleted."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Back to Collections"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collection actions"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collection name"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit looked in {where} and read {read} of the {papers} papers in full; the rest are from their abstracts."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit looked in {where}."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit read {read} of the {papers} papers in full; the rest are from their abstracts."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "a chat"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "About this collection"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "You asked <0>“{asked}”</0>, {when}."
+msgstr ""
+
+#. a later question Owlit answered by adding to this collection
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Then <0>“{later}”</0>, {on}."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "The list above is Owlit's reading of them. Grey answers come from an abstract; a page number points to the words an answer rests on."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit watches for new papers on this question."
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "No collections yet"
+msgstr ""
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
+msgstr ""
+
+#. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
+#. placeholder {0}: papers.length
+#: app/src/features/collections/pages/CollectionsPage.tsx
+#: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/library/lib/filter.ts
+msgid "{0, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#. placeholder {0}: summary.columns
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "{0, plural, one {# column} other {# columns}}"
+msgstr ""
+
+#. a collection whose search found no papers
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Found nothing"
+msgstr ""
+
+#: app/src/features/collections/store.ts
+msgid "Removed from the collection"
+msgstr ""
+
+#: app/src/features/collections/store.ts
+msgid "Collection deleted"
+msgstr ""
+
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr ""
@@ -2868,15 +3072,6 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#. verb: remove a topic's line
-#. verb: remove the paper from the library
-#. verb: remove the selected papers from the library
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/library/components/BulkBar.tsx
-#: app/src/features/library/components/PaperMenu.tsx
-msgid "Remove"
-msgstr ""
-
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "Line actions"
 msgstr ""
@@ -2992,11 +3187,6 @@ msgstr ""
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Deleted {name}"
-msgstr ""
-
-#: app/src/features/knowledge/components/bits.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-msgid "Save"
 msgstr ""
 
 #: app/src/features/knowledge/format.ts
@@ -3296,6 +3486,17 @@ msgid "{0, plural, one {# loose passage} other {# loose passages}}"
 msgstr ""
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/knowledge/pages/LoosePage.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/lib/kinds.ts
+msgid "Knowledge"
+msgstr ""
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Find a topic, a line or a question"
 msgstr ""
 
@@ -3522,15 +3723,6 @@ msgstr ""
 #. placeholder {0}: kinds.doc.size
 #: app/src/features/knowledge/store.ts
 msgid "{0, plural, one {# doc} other {# docs}}"
-msgstr ""
-
-#. placeholder {0}: kinds.paper.size
-#. placeholder {0}: p.total
-#. placeholder {0}: papers.length
-#: app/src/features/knowledge/store.ts
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr ""
 
 #. placeholder {0}: kinds.chat.size
@@ -4059,11 +4251,6 @@ msgid "No tags yet."
 msgstr ""
 
 #: app/src/features/library/components/PaperByline.tsx
-#: app/src/features/library/lib/format.ts
-msgid "Unknown authors"
-msgstr ""
-
-#: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
 msgstr ""
@@ -4468,11 +4655,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "This digest was written the old way."
-msgstr ""
-
-#. button: write the digest again
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Rewrite"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -5691,10 +5873,6 @@ msgstr ""
 msgid "Could not write to the clipboard"
 msgstr ""
 
-#: app/src/lib/kinds.ts
-msgid "Collections"
-msgstr ""
-
 #: app/src/lib/rpc.ts
 msgid "That file can't be read from here."
 msgstr ""
@@ -6332,10 +6510,6 @@ msgid "That collection isn't here any more."
 msgstr ""
 
 #: packages/core/src/collections/collections.ts
-msgid "That isn't in the collection any more."
-msgstr ""
-
-#: packages/core/src/collections/collections.ts
 msgid "Write something, or remove it instead."
 msgstr ""
 
@@ -6345,6 +6519,10 @@ msgstr ""
 
 #: packages/core/src/collections/collections.ts
 msgid "That group isn't there any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "That isn't in the collection any more."
 msgstr ""
 
 #: packages/core/src/collections/collections.ts

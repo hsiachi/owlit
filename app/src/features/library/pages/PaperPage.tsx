@@ -112,6 +112,19 @@ export function PaperPage() {
     void whenReaderReady(paperId).then((api) => api.showPassage(passage, "jump"), () => undefined)
   })
 
+  // Opened at a quote (a collection's answer that rests on it): go to those words on that page
+  useTakeParam(
+    "quote",
+    (quote, params) => {
+      const page = Number(params.get("page")) || undefined
+      const words = quote.trim().split(/\s+/)
+      const n = Math.min(8, words.length)
+      setChosen({ paperId, view: "pdf" })
+      void whenReaderReady(paperId).then((api) => api.showPassage({ id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), page: page ? page - 1 : undefined }, "jump"), () => undefined)
+    },
+    ["page"],
+  )
+
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) return <NotFound title={t`This paper is not in the library`} detail={t`It may have been removed.`} back={{ label: t`Back to library`, to: "/library" }} />
 

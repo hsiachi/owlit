@@ -123,6 +123,7 @@ msgstr "什么也没找到。"
 #. button of the folder picker
 #. button: open a paper to read
 #. button: open a paper to read
+#. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
@@ -130,6 +131,7 @@ msgstr "什么也没找到。"
 #. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
+#: app/src/features/collections/components/AnswerRows.tsx
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
 #: app/src/features/home/WaitingOnYou.tsx
@@ -223,16 +225,11 @@ msgid "Chat"
 msgstr "对话"
 
 #: app/src/app/nav.ts
-#: app/src/features/knowledge/pages/KnowledgePage.tsx
-#: app/src/features/knowledge/pages/LoosePage.tsx
-#: app/src/features/knowledge/pages/TopicPage.tsx
-#: app/src/features/knowledge/paper/KnowledgeTab.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/onboarding/demos/ReadDemo.tsx
-#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/features/collections/pages/CollectionPage.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
 #: app/src/lib/kinds.ts
-msgid "Knowledge"
-msgstr "知识"
+msgid "Collections"
+msgstr "合集"
 
 #: app/src/app/nav.ts
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -326,6 +323,7 @@ msgstr "换行"
 #: app/src/app/shortcuts.ts
 #: app/src/components/rename-input.tsx
 #: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/collections/components/CollectionMenu.tsx
 #: app/src/features/docs/actions.ts
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Rename"
@@ -340,6 +338,7 @@ msgstr "在文档列表中"
 #. verb: delete a topic
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/collections/components/CollectionMenu.tsx
 #: app/src/features/docs/actions.ts
 #: app/src/features/knowledge/components/TopicMenu.tsx
 #: app/src/features/library/components/HighlightsList.tsx
@@ -482,6 +481,29 @@ msgstr "路径导航"
 msgid "New since you last looked"
 msgstr "你上次查看后新增"
 
+#: app/src/components/sentence-editor.tsx
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/knowledge/components/SplitDialog.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+#: apps/desktop/src/cli-tool.ts
+#: apps/share-web/src/App.tsx
+msgid "Cancel"
+msgstr "取消"
+
+#: app/src/components/sentence-editor.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Save"
+msgstr "保存"
+
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
 msgstr "命令面板"
@@ -571,8 +593,10 @@ msgstr "笔记"
 msgid "Digest"
 msgstr "导读"
 
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/features/agent/page-context.ts
+#: app/src/features/collections/components/AnswerRows.tsx
 #: app/src/features/knowledge/paper/ItemRow.tsx
 msgid "p. {page}"
 msgstr "第 {page} 页"
@@ -936,6 +960,7 @@ msgid "Adding…"
 msgstr "正在添加…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
+#: app/src/features/collections/components/AnswerRows.tsx
 msgid "In your Library"
 msgstr "已在你的文献库中"
 
@@ -946,6 +971,7 @@ msgstr "打开 {name}"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/step-results.tsx
+#: app/src/features/collections/components/AnswerRows.tsx
 msgid "Add to Library"
 msgstr "添加到文献库"
 
@@ -1020,24 +1046,6 @@ msgstr "owlit 会在工作区里为对话保存一份你附加的每个文件的
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
-
-#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/editor/reader-comments.ts
-#: app/src/features/docs/share/ShareDialog.tsx
-#: app/src/features/knowledge/components/SplitDialog.tsx
-#: app/src/features/knowledge/components/bits.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/settings/parts.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-#: apps/desktop/src/cli-tool.ts
-#: apps/share-web/src/App.tsx
-msgid "Cancel"
-msgstr "取消"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "Skip large files"
@@ -2209,6 +2217,202 @@ msgstr "Owlit 有个问题"
 msgid "In “{title}”: {error}"
 msgstr "在“{title}”中：{error}"
 
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "You've read some of it"
+msgstr "你读过一部分"
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr "来自摘要"
+
+#: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/library/components/PaperByline.tsx
+#: app/src/features/library/lib/format.ts
+msgid "Unknown authors"
+msgstr "作者未知"
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Not in your Library"
+msgstr "不在你的文献库中"
+
+#. a page of a paper
+#. placeholder {0}: answer.passage.page
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "p. {0}"
+msgstr "第 {0} 页"
+
+#. followed by the other collections that hold this paper
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Also in"
+msgstr "也在"
+
+#. take a paper off this collection
+#. verb: remove a topic's line
+#. verb: remove the paper from the library
+#. verb: remove the selected papers from the library
+#: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/components/Memo.tsx
+#: app/src/features/knowledge/components/LineRow.tsx
+#: app/src/features/library/components/BulkBar.tsx
+#: app/src/features/library/components/PaperMenu.tsx
+msgid "Remove"
+msgstr "移除"
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Open at p. {page}"
+msgstr "打开到第 {page} 页"
+
+#. menu switch: Owlit looks for new papers on this collection's question now and then
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Watch for new papers"
+msgstr "留意新论文"
+
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Move to project"
+msgstr "移到项目"
+
+#. a collection that belongs to no project folder
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "No project"
+msgstr "不属于项目"
+
+#: app/src/features/collections/components/CollectionMenu.tsx
+msgid "Export as CSV"
+msgstr "导出为 CSV"
+
+#. button: write the digest again
+#. verb: change the words of Owlit's sentence
+#: app/src/features/collections/components/Memo.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Rewrite"
+msgstr "重写"
+
+#: app/src/features/collections/components/Memo.tsx
+msgid "Use Owlit's words"
+msgstr "改回 Owlit 的原话"
+
+#: app/src/features/collections/components/Memo.tsx
+msgid "Sentence removed"
+msgstr "已移除这句"
+
+#. placeholder {0}: plainMemo(edit.was).plain
+#: app/src/features/collections/components/Memo.tsx
+msgid "Was: {0}"
+msgstr "原为：{0}"
+
+#. after a sentence of Owlit's that the user rewrote
+#: app/src/features/collections/components/Memo.tsx
+msgid "you edited"
+msgstr "你改过"
+
+#: app/src/features/collections/components/Memo.tsx
+msgid "Sentence actions"
+msgstr "这句话的操作"
+
+#. group of collections that belong to no project folder
+#: app/src/features/collections/lib.ts
+msgid "Not in a project"
+msgstr "不属于任何项目"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "This collection is gone"
+msgstr "这个合集已不在"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "It may have been deleted."
+msgstr "它可能已被删除。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Back to Collections"
+msgstr "回到合集"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collection actions"
+msgstr "合集操作"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Collection name"
+msgstr "合集名称"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit looked in {where} and read {read} of the {papers} papers in full; the rest are from their abstracts."
+msgstr "Owlit 查了 {where}，{papers} 篇里读了 {read} 篇全文，其余来自摘要。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit looked in {where}."
+msgstr "Owlit 查了 {where}。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit read {read} of the {papers} papers in full; the rest are from their abstracts."
+msgstr "{papers} 篇里 Owlit 读了 {read} 篇全文，其余来自摘要。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "a chat"
+msgstr "一个对话"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "About this collection"
+msgstr "关于这个合集"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
+msgstr "你在 <1/> 里问过<0>“{asked}”</0>，{when}。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "You asked <0>“{asked}”</0>, {when}."
+msgstr "你问过<0>“{asked}”</0>，{when}。"
+
+#. a later question Owlit answered by adding to this collection
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Then <0>“{later}”</0>, {on}."
+msgstr "后来又问<0>“{later}”</0>，{on}。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "The list above is Owlit's reading of them. Grey answers come from an abstract; a page number points to the words an answer rests on."
+msgstr "上面是 Owlit 对它们的解读。灰色的答案来自摘要；页码指向答案所依据的原文。"
+
+#: app/src/features/collections/pages/CollectionPage.tsx
+msgid "Owlit watches for new papers on this question."
+msgstr "Owlit 会留意这个问题的新论文。"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "No collections yet"
+msgstr "还没有合集"
+
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
+msgstr "在对话里请 Owlit 找某个主题的论文。它找到的会收在这里，并写明每篇对你的问题说了什么。"
+
+#. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
+#. placeholder {0}: papers.length
+#: app/src/features/collections/pages/CollectionsPage.tsx
+#: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/library/lib/filter.ts
+msgid "{0, plural, one {# paper} other {# papers}}"
+msgstr "{0, plural, other {# 篇论文}}"
+
+#. placeholder {0}: summary.columns
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "{0, plural, one {# column} other {# columns}}"
+msgstr "{0, plural, other {# 列}}"
+
+#. a collection whose search found no papers
+#: app/src/features/collections/pages/CollectionsPage.tsx
+msgid "Found nothing"
+msgstr "什么也没找到"
+
+#: app/src/features/collections/store.ts
+msgid "Removed from the collection"
+msgstr "已从合集移除"
+
+#: app/src/features/collections/store.ts
+msgid "Collection deleted"
+msgstr "已删除合集"
+
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "链接已复制"
@@ -2868,15 +3072,6 @@ msgstr "之后的更新不会把它加回来。"
 msgid "Edit"
 msgstr "编辑"
 
-#. verb: remove a topic's line
-#. verb: remove the paper from the library
-#. verb: remove the selected papers from the library
-#: app/src/features/knowledge/components/LineRow.tsx
-#: app/src/features/library/components/BulkBar.tsx
-#: app/src/features/library/components/PaperMenu.tsx
-msgid "Remove"
-msgstr "移除"
-
 #: app/src/features/knowledge/components/LineRow.tsx
 msgid "Line actions"
 msgstr "内容操作"
@@ -2993,11 +3188,6 @@ msgstr "暂停更新"
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Deleted {name}"
 msgstr "已删除 {name}"
-
-#: app/src/features/knowledge/components/bits.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-msgid "Save"
-msgstr "保存"
 
 #: app/src/features/knowledge/format.ts
 msgid "{highlights, plural, one {# highlight and a note} other {# highlights and a note}}"
@@ -3296,6 +3486,17 @@ msgid "{0, plural, one {# loose passage} other {# loose passages}}"
 msgstr "{0, plural, other {# 个零散段落}}"
 
 #: app/src/features/knowledge/pages/KnowledgePage.tsx
+#: app/src/features/knowledge/pages/LoosePage.tsx
+#: app/src/features/knowledge/pages/TopicPage.tsx
+#: app/src/features/knowledge/paper/KnowledgeTab.tsx
+#: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
+#: app/src/features/onboarding/demos/RememberDemo.tsx
+#: app/src/lib/kinds.ts
+msgid "Knowledge"
+msgstr "知识"
+
+#: app/src/features/knowledge/pages/KnowledgePage.tsx
 msgid "Find a topic, a line or a question"
 msgstr "查找主题、条目或问题"
 
@@ -3523,15 +3724,6 @@ msgstr "一条已锚定到你高亮的段落"
 #: app/src/features/knowledge/store.ts
 msgid "{0, plural, one {# doc} other {# docs}}"
 msgstr "{0, plural, other {# 篇文档}}"
-
-#. placeholder {0}: kinds.paper.size
-#. placeholder {0}: p.total
-#. placeholder {0}: papers.length
-#: app/src/features/knowledge/store.ts
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "{0, plural, one {# paper} other {# papers}}"
-msgstr "{0, plural, other {# 篇论文}}"
 
 #. placeholder {0}: kinds.chat.size
 #: app/src/features/knowledge/store.ts
@@ -4059,11 +4251,6 @@ msgid "No tags yet."
 msgstr "还没有标签。"
 
 #: app/src/features/library/components/PaperByline.tsx
-#: app/src/features/library/lib/format.ts
-msgid "Unknown authors"
-msgstr "作者未知"
-
-#: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
 msgstr "更多操作"
@@ -4469,11 +4656,6 @@ msgstr "这份导读的语言与设置中的导读语言不同。"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "This digest was written the old way."
 msgstr "这份导读是按旧方式写的。"
-
-#. button: write the digest again
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Rewrite"
-msgstr "重写"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "{label}, page {page}: go to it in the PDF"
@@ -5691,10 +5873,6 @@ msgstr "创建"
 msgid "Could not write to the clipboard"
 msgstr "无法写入剪贴板"
 
-#: app/src/lib/kinds.ts
-msgid "Collections"
-msgstr "合集"
-
 #: app/src/lib/rpc.ts
 msgid "That file can't be read from here."
 msgstr "无法从这里读取那个文件。"
@@ -6332,10 +6510,6 @@ msgid "That collection isn't here any more."
 msgstr "那个合集已经不在了。"
 
 #: packages/core/src/collections/collections.ts
-msgid "That isn't in the collection any more."
-msgstr "合集里已经没有这一项了。"
-
-#: packages/core/src/collections/collections.ts
 msgid "Write something, or remove it instead."
 msgstr "写点内容，或者直接移除它。"
 
@@ -6346,6 +6520,10 @@ msgstr "那篇论文已不在合集中。"
 #: packages/core/src/collections/collections.ts
 msgid "That group isn't there any more."
 msgstr "那个分组已经不在了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "That isn't in the collection any more."
+msgstr "合集里已经没有这一项了。"
 
 #: packages/core/src/collections/collections.ts
 msgid "Those papers aren't in the collection any more."

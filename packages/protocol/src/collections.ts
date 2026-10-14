@@ -1,4 +1,5 @@
 import type { PaperIds, PaperKind } from "./library.ts"
+import { sameWords } from "./knowledge.ts"
 
 // A collection: papers Owlit gathered for a question, what each says about it (one cell per column), the
 // groups Owlit put them in, and a short memo of its reading. Owlit's own record, in
@@ -231,3 +232,81 @@ export type CollectionEdit =
   | { op: "seen" }
 
 export const collectionPath = (id: string) => `.owlit/collections/${id}/collection.json`
+
+// Owlit's own text for an item, before the user's rewrite
+export function owlitText(c: Collection, item: string): string | undefined {
+  if (item === itemId.title()) return c.title
+  const [kind, a, b] = item.split(":")
+  if (kind === "memo") return c.memo.find((s) => s.id === a)?.text
+  if (kind === "cell") return c.rows.find((r) => r.id === a)?.cells[b!]?.text
+  if (kind === "group") return c.groups.find((g) => g.id === a)?.name
+  return undefined
+}
+
+// What a removed item was, for the record (and so the same words can be kept out)
+function removedText(c: Collection, item: string): string | undefined {
+  const [kind, a] = item.split(":")
+  if (kind === "row") return c.rows.find((r) => r.id === a)?.paper.title
+  return owlitText(c, item)
+}
+
+// Applies one of the user's changes to a collection in place, the same in core and in a window that has
+// no core (the browser preview): the items it touched, or what stood in the way
+export function applyCollectionEdit(c: Collection, edit: CollectionEdit, now: number): { items: string[] } | { problem: "gone" | "empty" | "row" | "group" } {
+  switch (edit.op) {
+    case "rename":
+    case "rewrite": {
+      const item = edit.op === "rename" ? itemId.title() : edit.item
+      const owlit = owlitText(c, item)
+      if (owlit === undefined) return { problem: "gone" }
+      const text = (edit.op === "rename" ? edit.title : edit.text).trim()
+      if (!text) return { problem: "empty" }
+      if (sameWords(text, owlit)) delete c.yours.edits[item]
+      else c.yours.edits[item] = { text, at: now, was: owlit }
+      return { items: [item] }
+    }
+    case "revert":
+      delete c.yours.edits[edit.item]
+      return { items: [edit.item] }
+    case "remove": {
+      const text = removedText(c, edit.item)
+      if (text === undefined) return { problem: "gone" }
+      c.yours.removed[edit.item] = { text, at: now }
+      return { items: [edit.item] }
+    }
+    case "unremove":
+      delete c.yours.removed[edit.item]
+      return { items: [edit.item] }
+    case "move": {
+      const row = c.rows.find((r) => r.id === edit.row)
+      if (!row) return { problem: "row" }
+      if (edit.group && !c.groups.some((g) => g.id === edit.group)) return { problem: "group" }
+      if (edit.group) row.group = edit.group
+      else delete row.group
+      return { items: [itemId.row(edit.row)] }
+    }
+    case "ungroup":
+    case "merge": {
+      const group = c.groups.find((g) => g.id === edit.group)
+      if (!group || (edit.op === "merge" && !c.groups.some((g) => g.id === edit.into))) return { problem: "group" }
+      const into = edit.op === "merge" ? edit.into : group.parent
+      for (const row of c.rows) {
+        if (row.group !== group.id) continue
+        if (into) row.group = into
+        else delete row.group
+      }
+      for (const g of c.groups) if (g.parent === group.id) g.parent = into
+      c.groups = c.groups.filter((g) => g.id !== group.id)
+      return { items: [itemId.group(group.id)] }
+    }
+    case "watch":
+      c.watch = edit.on
+      return { items: [] }
+    case "project":
+      c.project = edit.project
+      return { items: [] }
+    case "seen":
+      c.seenAt = now
+      return { items: [] }
+  }
+}

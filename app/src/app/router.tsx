@@ -15,6 +15,8 @@ import { LibraryPage } from "@/features/library/pages/LibraryPage"
 import { PaperPage } from "@/features/library/pages/PaperPage"
 import { UpNextPage } from "@/features/library/pages/UpNextPage"
 import { HomePage } from "@/features/home/HomePage"
+import { CollectionsPage } from "@/features/collections/pages/CollectionsPage"
+import { CollectionPage } from "@/features/collections/pages/CollectionPage"
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +38,13 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DocsHome /> },
           { path: ":docId", element: <DocPage /> },
+        ],
+      },
+      {
+        path: "collections",
+        children: [
+          { index: true, element: <CollectionsPage /> },
+          { path: ":collectionId", element: <CollectionPage /> },
         ],
       },
       {
