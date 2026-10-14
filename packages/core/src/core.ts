@@ -672,6 +672,7 @@ export class Core {
           z.object({ op: z.literal("ungroup"), group: z.string().min(1) }),
           z.object({ op: z.literal("merge"), group: z.string().min(1), into: z.string().min(1) }),
           z.object({ op: z.literal("watch"), on: z.boolean() }),
+          z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
           z.object({ op: z.literal("project"), project: z.string() }),
           z.object({ op: z.literal("seen") }),
         ]),
@@ -685,6 +686,11 @@ export class Core {
       (params) => collections().gather(params),
     )
     this.router.register("collections.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read", "check"]) }), ({ id, run }) => collections().start(id, run))
+    this.router.register(
+      "collections.compare",
+      z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }),
+      ({ id, doc, sentences }) => collections().compare(id, doc, sentences),
+    )
     this.router.register("collections.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => collections().ask(id, question))
     this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
     this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))

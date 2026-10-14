@@ -115,4 +115,60 @@ function nothingFound(): Collection {
   }
 }
 
-export const seedCollections = (): Record<string, Collection> => Object.fromEntries([readingTools(), toolUse(), nothingFound()].map((c) => [c.id, c]))
+// A bigger collection with columns and groups, as Owlit gathers for a venue. Sample rows for the preview,
+// not a real proceedings list.
+function venue(): Collection {
+  const at = now - 26 * HOUR
+  const asked = "UIST 2026 papers: which ones touch my reading-tools study?"
+  const p = (id: string, title: string, authors: string[], answer: string, method: string, rel?: { rel: "supports" | "challenges" | "related"; sentence: string; text: string }, group?: string, full?: { quote: string; page: number }): CollectionRow => ({
+    id,
+    paper: { title, authors, ids: { doi: `10.1145/${id}` }, year: 2026, venue: "UIST" },
+    cells: {
+      [QUESTION_COLUMN]: { text: answer, depth: full ? "full" : "abstract", at, ...(full ? { passage: full } : {}) },
+      c2: { text: method, depth: full ? "full" : "abstract", at },
+      ...(rel ? { c3: { text: rel.text, rel: rel.rel, sentence: rel.sentence, depth: "abstract" as const, at } } : { c3: { text: "No bearing", depth: "abstract" as const, at } }),
+    },
+    addedAt: at,
+    ...(group ? { group } : {}),
+  })
+  return {
+    version: 1,
+    id: "uist-2026-papers",
+    title: "UIST 2026 papers",
+    asked: { text: asked, at },
+    project: "Reading tools study",
+    sources: ["ACM DL proceedings"],
+    memo: [
+      { id: "s1", text: "The largest group builds reading and writing aids that act inside the document; most add context at the moment of reading rather than before it." },
+      { id: "s2", text: "Evaluations are lab sessions of under an hour; two of nine report reading time, and both find no speed-up." },
+    ],
+    columns: [
+      { id: QUESTION_COLUMN, question: asked, kind: "ask" },
+      { id: "c2", question: "Method and sample", kind: "ask" },
+      { id: "c3", question: "notes/Reading log.md", kind: "compare", doc: "notes/Reading log.md", sentences: [{ id: "l1", text: "Context shown while reading helps more than a summary before it." }, { id: "l2", text: "Faster reading is the wrong goal for scholarly tools." }] },
+    ],
+    rows: [
+      p("u1", "MarginNotes: Inline Context for Citations While Reading", ["Ana Ruiz", "Kai Chen"], "Inline citation cards cut lookups by half and readers kept their place.", "Lab study, N = 16", { rel: "supports", sentence: "l1", text: "context in place beats leaving the page" }, "inside", { quote: "readers returned to the citing sentence in 94% of lookups", page: 6 }),
+      p("u2", "Skimlets: Pre-reading Summaries for Long Papers", ["Ola Nord"], "A summary shown before reading sped up skimming but lowered recall of methods.", "Within-subjects, N = 24", { rel: "challenges", sentence: "l1", text: "a summary before reading also helped" }, "inside"),
+      p("u3", "Threadline: Following an Argument Across Papers", ["Ming Li", "Sara Holt"], "Linking claims across papers helped readers trace an argument's history.", "Field deployment, 3 weeks, N = 9", { rel: "related", sentence: "l2", text: "measures understanding, not speed" }, "across"),
+      p("u4", "Why Faster Isn't Better: Reading Speed in Scholarly Tools", ["Rui Costa"], "Readers given speed aids reported less understanding; the authors argue speed is the wrong target.", "Survey, N = 210", { rel: "supports", sentence: "l2", text: "argues the same point from survey data" }, "across"),
+      p("u5", "LensPDF: Semantic Zoom for Figures and Tables", ["Priya Nair"], "Zooming into a figure's data cut time on figure questions by a third.", "Lab study, N = 20", undefined, "inside"),
+      p("u6", "Handoff: Haptic Cues for Mixed-Reality Typing", ["Jonas Berg"], "Haptic cues raised typing accuracy in mixed reality.", "Lab study, N = 18", undefined, "other"),
+      p("u7", "Print-on-Demand Microfluidics for Wearables", ["Lea Kim"], "A printable channel design for sweat sensors.", "Technical evaluation", undefined, "other"),
+    ],
+    groups: [
+      { id: "reading", name: "Reading and writing aids", one: "tools that act inside or across papers" },
+      { id: "inside", name: "Inside one paper", one: "context, summaries, figures", parent: "reading" },
+      { id: "across", name: "Across papers", one: "arguments, threads, speed", parent: "reading" },
+      { id: "other", name: "Other topics", one: "fabrication, haptics, XR input" },
+    ],
+    watch: false,
+    createdAt: at,
+    updatedAt: at,
+    changedAt: {},
+    seenAt: at + HOUR,
+    yours: { edits: {}, removed: {} },
+  }
+}
+
+export const seedCollections = (): Record<string, Collection> => Object.fromEntries([readingTools(), toolUse(), nothingFound(), venue()].map((c) => [c.id, c]))

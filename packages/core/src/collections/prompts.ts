@@ -40,10 +40,21 @@ Your answer at the end is one line on what you added.`
 }
 
 export function fillPrompt(c: Collection, column: CollectionColumn) {
+  if (column.kind === "compare") return comparePrompt(c, column)
   return `You are answering a question for every paper of a collection in owlit. The collection's question: «${c.asked.text}». The column to fill: ${column.id} — «${column.question}».
 
 ${ABOUT(c)}
 For every row without an answer in column ${column.id}, write one in cells: {"${column.id}": {"text": "…", "depth": "abstract"}} with collection_write id ${c.id}, in batches of up to 25 rows. Short answers, a phrase or a sentence, in the language of the column's question. Write "Not said" when the abstract doesn't say. Answer from the paper's whole abstract (library_get gives it); a paper in the user's library with full text may be answered from it (library_read), with depth full and the words in quote.
+Don't change other columns or the memo. Your answer at the end is one line on what you did.`
+}
+
+function comparePrompt(c: Collection, column: CollectionColumn) {
+  const lines = (column.sentences ?? []).map((s) => `- ${s.id}: «${s.text}»`).join("\n")
+  return `You are setting every paper of a collection in owlit against sentences the user picked from their doc ${column.doc}. The collection's question: «${c.asked.text}». The column: ${column.id}. The user's sentences:
+${lines}
+
+${ABOUT(c)}
+For every row without a cell in column ${column.id}, decide which one of the sentences the paper bears on most, and how: "supports" (its findings back the sentence), "challenges" (its findings cut against it or qualify it), or "related" (on the same matter without settling it). Write cells: {"${column.id}": {"rel": "supports", "sentence": "l2", "text": "a short phrase on why", "depth": "abstract"}} with collection_write id ${c.id}, in batches of up to 25 rows. When the paper speaks to none of them, write {"text": "No bearing", "depth": "abstract"} without rel. Judge from the whole abstract (library_get gives it); a paper in the user's library with full text may be judged from it (library_read), with depth full and the words in quote. The sentences are the user's: never change or restate them.
 Don't change other columns or the memo. Your answer at the end is one line on what you did.`
 }
 

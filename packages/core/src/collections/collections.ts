@@ -182,6 +182,24 @@ export class Collections {
     })
   }
 
+  // A column that sets every paper against sentences the user picked from a doc of theirs. The column is
+  // theirs (they chose the sentences); its cells are Owlit's reading.
+  compare(id: string, doc: string, sentences: string[]) {
+    return this.serial(async () => {
+      const c = await this.get(id)
+      const lines = sentences.map((text) => text.trim()).filter(Boolean)
+      if (!lines.length) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Pick at least one sentence to compare with.`)
+      const column = { id: freshId("c", c.columns.map((col) => col.id)), question: doc, kind: "compare" as const, doc, sentences: lines.map((text, i) => ({ id: `l${i + 1}`, text })) }
+      c.columns.push(column)
+      c.updatedAt = Date.now()
+      await this.save(c)
+      await this.record(c.id, { at: c.updatedAt, by: "you", items: [`column:${column.id}`] })
+      this.services.changed?.(c.id, c)
+      this.queue("collections.fill", `${c.id}:${column.id}`, "asked")
+      return c
+    })
+  }
+
   // Collections the user asked Owlit to watch get a check once a day, the first time the workspace opens
   async checkWatched(now = Date.now()) {
     for (const s of await this.list()) {

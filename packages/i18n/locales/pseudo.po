@@ -324,6 +324,7 @@ msgstr ""
 #: app/src/components/rename-input.tsx
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/collections/components/CollectionMenu.tsx
+#: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/docs/actions.ts
 #: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Rename"
@@ -483,6 +484,7 @@ msgstr ""
 
 #: app/src/components/sentence-editor.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/collections/components/CompareDialog.tsx
 #: app/src/features/docs/editor/reader-comments.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/knowledge/components/SplitDialog.tsx
@@ -2225,6 +2227,7 @@ msgid "In “{title}”: {error}"
 msgstr ""
 
 #: app/src/features/collections/components/AnswerRows.tsx
+#: app/src/features/collections/components/CollectionTable.tsx
 msgid "You've read some of it"
 msgstr ""
 
@@ -2266,6 +2269,19 @@ msgid "Remove"
 msgstr ""
 
 #: app/src/features/collections/components/AnswerRows.tsx
+msgid "Move to group"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "Move to group…"
+msgstr ""
+
+#. a paper in no group of its collection
+#: app/src/features/collections/components/AnswerRows.tsx
+msgid "No group"
+msgstr ""
+
+#: app/src/features/collections/components/AnswerRows.tsx
 msgid "Open at p. {page}"
 msgstr ""
 
@@ -2289,6 +2305,220 @@ msgstr ""
 msgid "Export as CSV"
 msgstr ""
 
+#. a paper's findings back one of the user's sentences
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Supports"
+msgstr ""
+
+#. a paper's findings cut against or qualify one of the user's sentences
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Challenges"
+msgstr ""
+
+#. a paper on the same matter as one of the user's sentences, without settling it
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Related"
+msgstr ""
+
+#. column: what a paper says about the collection's question
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Answer"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Compared with {doc}"
+msgstr ""
+
+#. placeholder {0}: n.supports
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "{0, plural, one {# supports} other {# support}}"
+msgstr ""
+
+#. placeholder {0}: n.challenges
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "{0, plural, one {# challenges} other {# challenge}}"
+msgstr ""
+
+#. placeholder {0}: n.related
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "{0, plural, one {# related} other {# related}}"
+msgstr ""
+
+#. papers of a collection in none of its groups
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Not in a group"
+msgstr ""
+
+#. papers that speak to none of the user's sentences
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Bear on none of them"
+msgstr ""
+
+#. group a collection's papers by Owlit's groups
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/knowledge/mentions.ts
+msgid "Topic"
+msgstr ""
+
+#. placeholder {0}: displayName(c.doc ?? c.question)
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Sentences of {0}"
+msgstr ""
+
+#. find in paper: no matches
+#. no grouping
+#. no library proxy
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/library/reader/ReaderControls.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "None"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Group by"
+msgstr ""
+
+#. menu: how the papers are ordered
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Sort"
+msgstr ""
+
+#. sort: the order Owlit added papers in
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "As gathered"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+msgid "Title"
+msgstr ""
+
+#. sort papers by year
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Newest first"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Paper"
+msgstr ""
+
+#. placeholder {0}: kinds.paper.size
+#. placeholder {0}: p.total
+#. placeholder {0}: papers.length
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/pages/CollectionsPage.tsx
+#: app/src/features/knowledge/store.ts
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/library/lib/filter.ts
+msgid "{0, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#. placeholder {0}: rows.length - SHOWN
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "{0, plural, one {# more} other {# more}}"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "{done} of {of}"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Ask again"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Hide column"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/knowledge/components/TopicMenu.tsx
+msgid "Merge into"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Ungroup"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Make it a collection of its own"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Group name"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Group actions"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Click to rewrite"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "You edited this"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Owlit, from the full text"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Owlit, from the abstract"
+msgstr ""
+
+#. placeholder {0}: edit.was
+#. placeholder {0}: plainMemo(edit.was).plain
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/components/Memo.tsx
+msgid "Was: {0}"
+msgstr ""
+
+#: app/src/features/collections/components/CollectionTable.tsx
+#: app/src/features/collections/components/Memo.tsx
+msgid "Use Owlit's words"
+msgstr ""
+
+#. placeholder {0}: cell.passage.page
+#: app/src/features/collections/components/CollectionTable.tsx
+msgid "Open at p. {0}"
+msgstr ""
+
+#: app/src/features/collections/components/CompareDialog.tsx
+#: app/src/features/collections/runs.ts
+msgid "Owlit works on collections in the desktop app."
+msgstr ""
+
+#. placeholder {0}: displayName(file.path)
+#: app/src/features/collections/components/CompareDialog.tsx
+msgid "Which sentences of {0}?"
+msgstr ""
+
+#: app/src/features/collections/components/CompareDialog.tsx
+msgid "Compare with a doc"
+msgstr ""
+
+#: app/src/features/collections/components/CompareDialog.tsx
+msgid "Owlit says for every paper whether it supports, challenges or relates to the sentences you pick. They stay as you wrote them."
+msgstr ""
+
+#: app/src/features/collections/components/CompareDialog.tsx
+msgid "There are no docs in this workspace yet."
+msgstr ""
+
+#: app/src/features/collections/components/CompareDialog.tsx
+msgid "Another doc"
+msgstr ""
+
+#: app/src/features/collections/components/CompareDialog.tsx
+msgid "Compare"
+msgstr ""
+
 #. button: write the digest again
 #. verb: change the words of Owlit's sentence
 #: app/src/features/collections/components/Memo.tsx
@@ -2297,16 +2527,7 @@ msgid "Rewrite"
 msgstr ""
 
 #: app/src/features/collections/components/Memo.tsx
-msgid "Use Owlit's words"
-msgstr ""
-
-#: app/src/features/collections/components/Memo.tsx
 msgid "Sentence removed"
-msgstr ""
-
-#. placeholder {0}: plainMemo(edit.was).plain
-#: app/src/features/collections/components/Memo.tsx
-msgid "Was: {0}"
 msgstr ""
 
 #. after a sentence of Owlit's that the user rewrote
@@ -2377,6 +2598,10 @@ msgstr ""
 
 #: app/src/features/collections/components/Work.tsx
 msgid "A question for every paper"
+msgstr ""
+
+#: app/src/features/collections/components/Work.tsx
+msgid "Compare with a doc…"
 msgstr ""
 
 #: app/src/features/collections/components/Work.tsx
@@ -2488,16 +2713,6 @@ msgstr ""
 msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
 msgstr ""
 
-#. placeholder {0}: kinds.paper.size
-#. placeholder {0}: p.total
-#. placeholder {0}: papers.length
-#: app/src/features/collections/pages/CollectionsPage.tsx
-#: app/src/features/knowledge/store.ts
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "{0, plural, one {# paper} other {# papers}}"
-msgstr ""
-
 #. placeholder {0}: summary.columns
 #: app/src/features/collections/pages/CollectionsPage.tsx
 msgid "{0, plural, one {# column} other {# columns}}"
@@ -2530,10 +2745,6 @@ msgstr ""
 
 #: app/src/features/collections/runs.ts
 msgid "Owlit gathers papers in the desktop app."
-msgstr ""
-
-#: app/src/features/collections/runs.ts
-msgid "Owlit works on collections in the desktop app."
 msgstr ""
 
 #: app/src/features/collections/store.ts
@@ -2807,11 +3018,6 @@ msgstr ""
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "In a doc, type @ to cite a paper."
-msgstr ""
-
-#: app/src/features/docs/save-as-doc.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Answer"
 msgstr ""
 
 #: app/src/features/docs/save-as-doc.ts
@@ -3283,10 +3489,6 @@ msgid "Nothing has changed in its sources."
 msgstr ""
 
 #: app/src/features/knowledge/components/TopicMenu.tsx
-msgid "Merge into"
-msgstr ""
-
-#: app/src/features/knowledge/components/TopicMenu.tsx
 msgid "Merged into {into}"
 msgstr ""
 
@@ -3586,10 +3788,6 @@ msgstr ""
 
 #: app/src/features/knowledge/format.ts
 msgid "{n, plural, one {# question removed} other {# questions removed}}"
-msgstr ""
-
-#: app/src/features/knowledge/mentions.ts
-msgid "Topic"
 msgstr ""
 
 #: app/src/features/knowledge/mentions.ts
@@ -3967,12 +4165,6 @@ msgid "Fix what the resolver got wrong, or fill in a PDF-only paper."
 msgstr ""
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/components/PaperList.tsx
-msgid "Title"
-msgstr ""
-
-#: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Authors, one per line"
 msgstr ""
 
@@ -4288,11 +4480,6 @@ msgstr ""
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "Citations"
-msgstr ""
-
-#. menu: how the papers are ordered
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Sort"
 msgstr ""
 
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -5017,13 +5204,6 @@ msgstr ""
 
 #: app/src/features/library/reader/ReaderControls.tsx
 msgid "Click to fit the page"
-msgstr ""
-
-#. find in paper: no matches
-#. no library proxy
-#: app/src/features/library/reader/ReaderControls.tsx
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "None"
 msgstr ""
 
 #: app/src/features/library/reader/ReaderControls.tsx
@@ -6646,6 +6826,10 @@ msgstr ""
 
 #: packages/core/src/collections/collections.ts
 msgid "Say what to ask of each paper."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "Pick at least one sentence to compare with."
 msgstr ""
 
 #: packages/core/src/collections/collections.ts

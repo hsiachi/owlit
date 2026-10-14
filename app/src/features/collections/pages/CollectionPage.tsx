@@ -1,6 +1,8 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { shownCollection, type Collection } from "@owlit/protocol"
+import { QUESTION_COLUMN, shownCollection, type Collection } from "@owlit/protocol"
+import { cn } from "@/lib/utils"
+import { CollectionTable } from "../components/CollectionTable"
 import { EllipsisVerticalIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
@@ -52,6 +54,8 @@ export function CollectionPage() {
   }
   const shown = shownCollection(collection)
   const since = seenBefore ?? collection.seenAt
+  // A question asked of every paper, or Owlit's groups, make it a table
+  const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && !c.hidden) || shown.groups.length > 0
   // A paper the memo names opens as its row, where it is in the list
   const openRow = (paperId: string) => {
     if (!shown.rows.some((r) => r.id === paperId)) return false
@@ -72,7 +76,9 @@ export function CollectionPage() {
         </DropdownMenu>
       </PageHeader>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <article className="mx-auto w-full max-w-3xl px-4 pt-8 pb-32">
+        {/* A short list reads in the reading column; a table takes the Library's wide one, its words kept to
+            the reading measure above it */}
+        <article className={cn("mx-auto w-full pt-8 pb-32", table ? "max-w-6xl px-6" : "max-w-3xl px-4")}>
           {renaming ? (
             <RenameInput
               initial={shown.title}
@@ -88,8 +94,14 @@ export function CollectionPage() {
           )}
           <WorkLine collection={collection} />
           <Memo collection={collection} shown={shown} seenBefore={since} onRow={openRow} />
-          <AnswerRows collection={collection} shown={shown} seenBefore={since} />
-          <CollectionActions collection={collection} />
+          {table ? (
+            <CollectionTable collection={collection} shown={shown} seenBefore={since} />
+          ) : (
+            <>
+              <AnswerRows collection={collection} shown={shown} seenBefore={since} />
+              <CollectionActions collection={collection} />
+            </>
+          )}
           <About collection={collection} />
         </article>
       </div>

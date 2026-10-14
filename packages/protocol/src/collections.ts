@@ -240,6 +240,8 @@ export type CollectionEdit =
   | { op: "ungroup"; group: string }
   | { op: "merge"; group: string; into: string }
   | { op: "watch"; on: boolean }
+  // A column out of sight, or back
+  | { op: "hide"; column: string; hidden: boolean }
   | { op: "project"; project: string }
   | { op: "seen" }
 
@@ -314,6 +316,12 @@ export function applyCollectionEdit(c: Collection, edit: CollectionEdit, now: nu
     case "watch":
       c.watch = edit.on
       return { items: [] }
+    case "hide": {
+      const column = c.columns.find((col) => col.id === edit.column)
+      if (!column || column.id === QUESTION_COLUMN) return { problem: "gone" }
+      column.hidden = edit.hidden
+      return { items: [`column:${column.id}`] }
+    }
     case "project":
       c.project = edit.project
       return { items: [] }

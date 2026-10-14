@@ -2,7 +2,10 @@ import { t } from "@lingui/core/macro"
 import { shownCollection, type Collection } from "@owlit/protocol"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
 import { askEach, runWords, startRun, useCollectionWork } from "../runs"
@@ -43,7 +46,7 @@ export function WorkLine({ collection }: { collection: Collection }) {
 
 // What the user can ask of the collection, as plain text buttons after its papers. Each one runs in the
 // background; while it runs, its button rests.
-export function CollectionActions({ collection }: { collection: Collection }) {
+export function CollectionActions({ collection, inline }: { collection: Collection; inline?: boolean }) {
   const navigate = useNavigate()
   const { running } = useCollectionWork(collection.id)
   const busy = (kind: string) => running.some((task) => task.kind === kind)
@@ -53,11 +56,12 @@ export function CollectionActions({ collection }: { collection: Collection }) {
   const draft = () =>
     navigate("/chat", { state: { starter: t`Draft a review from the collection “${title}”. Propose an outline first, and wait for me before writing.` } })
   return (
-    <div className="mt-4 -ml-1.5 flex flex-wrap items-center gap-1">
+    <div className={cn("flex flex-wrap items-center gap-1", !inline && "mt-4 -ml-1.5")}>
       <Button variant="text" size="inline" disabled={busy("collections.more") || busy("collections.gather")} title={t`Searches further and adds papers to this collection`} onClick={() => void startRun(collection.id, "more")}>
         {t`Find more papers`}
       </Button>
-      <AskEach collection={collection} />
+      {/* A table asks from its header's + */}
+      {!inline && <AskEach collection={collection} />}
       {abstractOnly && (
         <Button variant="text" size="inline" disabled={busy("collections.read")} title={t`Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library`} onClick={() => void startRun(collection.id, "read")}>
           {t`Read all in full`}
@@ -70,8 +74,11 @@ export function CollectionActions({ collection }: { collection: Collection }) {
   )
 }
 
-// Ask each paper…: a question for every paper, typed or picked, which becomes a column
-function AskEach({ collection }: { collection: Collection }) {
+// Ask each paper…: a question for every paper, typed or picked, which becomes a column; or Compare with a
+// doc…, sentences of the user's that every paper is set against. From a text button after a short list,
+// or the + at the end of a table's header.
+export function AskEach({ collection, trigger = "text" }: { collection: Collection; trigger?: "text" | "plus" }) {
+  const [comparing, setComparing] = useState(false)
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState("")
   const common = [t`Method and sample`, t`Main finding`, t`Limitations`, t`What they built`]
@@ -84,9 +91,15 @@ function AskEach({ collection }: { collection: Collection }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="text" size="inline" className="data-[state=open]:bg-muted data-[state=open]:text-foreground">
-          {t`Ask each paper…`}
-        </Button>
+        {trigger === "plus" ? (
+          <Button variant="ghost" size="icon-xs" aria-label={t`Ask each paper…`} title={t`Ask each paper…`} className="-mx-1 text-muted-foreground data-[state=open]:bg-accent">
+            <PlusIcon />
+          </Button>
+        ) : (
+          <Button variant="text" size="inline" className="data-[state=open]:bg-muted data-[state=open]:text-foreground">
+            {t`Ask each paper…`}
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 gap-0 p-1.5">
         <input
@@ -103,8 +116,17 @@ function AskEach({ collection }: { collection: Collection }) {
             {q}
           </button>
         ))}
+        <div className="my-1 h-px bg-border" />
+        <button
+          type="button"
+          onClick={() => (setOpen(false), setComparing(true))}
+          className="flex h-8 w-full items-center rounded-lg px-2.5 text-left text-sm outline-none hover:bg-accent focus-key:bg-accent"
+        >
+          {t`Compare with a doc…`}
+        </button>
         <p className="px-2.5 pt-1.5 pb-1 text-detail text-muted-foreground">{t`Each question becomes a column; Owlit answers it from the abstracts.`}</p>
       </PopoverContent>
+      <CompareDialog collectionId={collection.id} open={comparing} onOpenChange={setComparing} />
     </Popover>
   )
 }

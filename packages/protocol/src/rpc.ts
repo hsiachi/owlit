@@ -204,6 +204,8 @@ export interface Methods {
   "collections.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
   // A new column: a question Owlit answers for every paper
   "collections.ask": { params: { id: string; question: string }; result: Collection }
+  // A column that sets every paper against sentences the user picked from a doc of theirs
+  "collections.compare": { params: { id: string; doc: string; sentences: string[] }; result: Collection }
   // Moves the collection to .owlit/trash/
   "collections.delete": { params: { id: string }; result: null }
   "collections.undelete": { params: { id: string }; result: Collection }

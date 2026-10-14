@@ -11,7 +11,8 @@ import type { Paper } from "@/features/library/types"
 import { stripLatex } from "@/features/library/lib/latex"
 import { cn } from "@/lib/utils"
 import { citeOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
-import { removeRow, useCollectionsStore } from "../store"
+import { editCollection, removeRow, useCollectionsStore } from "../store"
+import { ChoiceMenu } from "@/components/choice-menu"
 import { useCollectionsUi } from "../ui-store"
 
 // The papers of a collection without columns, one line each: what the paper says about the question
@@ -96,7 +97,7 @@ function PageLink({ passage, library }: { passage: { quote: string; page: number
 
 // A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
 // the Library: opening it, or adding it, brings it in, since it is then being used.
-function RowPeek({ collection, row, library }: { collection: Collection; row: CollectionRow; library: Paper | undefined }) {
+export function RowPeek({ collection, row, library, className }: { collection: Collection; row: CollectionRow; library: Paper | undefined; className?: string }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
@@ -107,7 +108,7 @@ function RowPeek({ collection, row, library }: { collection: Collection; row: Co
   const bring = () => library ?? addPaper({ id: row.id, title: facts.title, authors: facts.authors, ids: facts.ids, year: facts.year, venue: facts.venue, abstract: facts.abstract, kind: facts.kind }, "user")
   const page = answer?.passage?.page
   return (
-    <div data-peek-body className="px-2.5 pt-1 pb-1.5 pl-[38px]">
+    <div data-peek-body className={className ?? "px-2.5 pt-1 pb-1.5 pl-[38px]"}>
       <div className="max-w-[68ch]">
         <p className="text-detail leading-normal text-muted-foreground">
           {facts.authors.join(", ") || t`Unknown authors`}
@@ -144,6 +145,17 @@ function RowPeek({ collection, row, library }: { collection: Collection; row: Co
         <Button variant="ghost" size="sm" className="-ml-2.5 font-normal text-muted-foreground" onClick={() => void removeRow(collection.id, row.id)}>
           {t({ message: "Remove", comment: "take a paper off this collection" })}
         </Button>
+        {collection.groups.length > 0 && (
+          <ChoiceMenu
+            value={row.group ?? ""}
+            onChange={(group) => void editCollection(collection.id, { op: "move", row: row.id, group: group || null })}
+            label={t`Move to group`}
+            trigger={t`Move to group…`}
+            align="start"
+            icon={null}
+            options={[...shownCollection(collection).groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its collection" }) }]}
+          />
+        )}
         <span className="flex-1" />
         {!library && (
           <Button variant="outline" size="sm" onClick={() => bring()}>

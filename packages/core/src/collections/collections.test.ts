@@ -278,6 +278,18 @@ describe("Collections, Owlit's work in the background", () => {
     expect((await collections.ask(id, "Method  and sample")).columns).toHaveLength(2)
   })
 
+  it("sets every paper against the user's sentences, in a column the agent fills", async () => {
+    const { collections, scheduler, prompts } = withRuns()
+    const { id } = await start(collections)
+    const c = await collections.compare(id, "System Design.md", ["Replay ratings run lower.", "Timing is one stage of four."])
+    const column = c.columns.at(-1)!
+    expect(column).toMatchObject({ kind: "compare", doc: "System Design.md", sentences: [{ id: "l1" }, { id: "l2" }] })
+    await scheduler.wait((await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!.id)
+    expect(prompts[0]?.prompt).toMatch(/- l2: «Timing is one stage of four\.»/)
+    await collections.edit(id, { op: "hide", column: column.id, hidden: true })
+    expect((await collections.get(id)).columns.find((col) => col.id === column.id)?.hidden).toBe(true)
+  })
+
   it("checks watched collections once a day", async () => {
     const { collections, scheduler } = withRuns()
     const { id } = await start(collections)
