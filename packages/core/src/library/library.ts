@@ -298,7 +298,7 @@ export class Library {
         }
         if (from) paper.noPdf.fromBrowser = { ...from, ...(this.browserLabel ? { browser: this.browserLabel } : {}) }
         const said = acquisition.yourBrowser
-        if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}) }
+        if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", ...(said.outcome === "missing" ? { missing: true } : {}), at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}) }
         const offered = this.offered.get(id)
         if (offered) paper.noPdf.offered = path.basename(offered)
       }
@@ -1327,10 +1327,11 @@ export class Library {
             }
 
             const look = await endedAt(id, at, address)
-            if (look?.ended === "no-access" || look?.ended === "refused") {
+            if (look?.ended === "no-access" || look?.ended === "refused" || look?.ended === "missing") {
               await this.saidNo(id, look.ended, look)
               this.fromBrowser.delete(id)
-              tally.noAccess.push(id)
+              // A page the publisher hasn't got isn't a matter of access: counted with what didn't come
+              ;(look.ended === "missing" ? tally.missed : tally.noAccess).push(id)
               done++
               await this.announce([id])
               continue
@@ -1401,7 +1402,7 @@ export class Library {
 
   // The user's browser reached the publisher and was told no: kept on the paper until a PDF comes or it
   // is sent there again
-  private async saidNo(id: string, ended: "no-access" | "refused", page: { title: string; host: string }) {
+  private async saidNo(id: string, ended: "no-access" | "refused" | "missing", page: { title: string; host: string }) {
     await this.serial(async () => {
       const acquisition = await readAcquisition(this.root, id)
       if (acquisition?.result !== "no_pdf") return
@@ -1841,9 +1842,21 @@ export class Library {
         lane: "network",
         run: async (ctx) => {
           const id = ctx.task.subject
-          const record = await readRecord(this.root, id)
+          let record = await readRecord(this.root, id)
           if (!record) throw new TaskFailure(`${id} is not in the library.`)
           if (await hasPdfFile(this.root, id)) return
+          // One of ACL's older papers, kept before owlit read Semantic Scholar's Anthology id: asked about
+          // again, so the Anthology is tried before the ACM, which lists these papers without their PDFs
+          if (record.ids.doi?.startsWith("10.3115/") && !record.ids.acl) {
+            try {
+              await this.refreshRecord(id, ctx.signal, true)
+            } catch (error) {
+              if (ctx.signal.aborted) throw error
+            }
+            // Folded into a copy of it meanwhile: that paper is the one to get a PDF for
+            record = await readRecord(this.root, id)
+            if (!record) return
+          }
           const { http, heard } = watchedHttp(this.services.http)
           const settings = await this.services.settings()
           const tried: Attempt[] = []
