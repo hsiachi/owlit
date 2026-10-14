@@ -56,9 +56,19 @@ export interface Paper {
     // the article page, where they save it
     browserOpens?: "pdf" | "page"
     // Being got from the user's browser (library.getInBrowser): waiting its turn, opened there and
-    // waiting for the file, its article page opened there for them to save the PDF from, or opened with
-    // nothing arriving; browser is that browser's name
-    fromBrowser?: { state: "queued" | "opened" | "page" | "missed"; browser?: string }
+    // waiting for the file, its article page opened there for them to save the PDF from, opened with
+    // nothing arriving, or the paper the run stopped on for the user. browser is that browser's name;
+    // why, what its tab showed when the run stopped (a sign-in, a check, a page still at the PDF, one
+    // owlit can't tell), with that page's title and host.
+    fromBrowser?: {
+      state: "queued" | "opened" | "page" | "missed" | "waiting"
+      browser?: string
+      why?: "sign-in" | "check" | "on-pdf" | "unknown"
+      page?: { title: string; host: string }
+    }
+    // The user's browser reached the publisher and it said no (refused: the library proxy said it
+    // hasn't got it), with the page it showed. Kept until a PDF comes or the paper is tried again.
+    noAccess?: { refused: boolean; host?: string; title?: string; at: number }
     // A PDF that arrived in Downloads (file name) owlit isn't sure is this paper's, for them to confirm
     offered?: string
   }

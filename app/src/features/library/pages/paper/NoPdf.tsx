@@ -9,9 +9,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { openTasksFor, useTasksStore } from "@/features/tasks/store"
+import { openTasksFor, resumeTask, useTasksStore } from "@/features/tasks/store"
 import { PublisherNeedsUser } from "../../client"
-import { getInBrowser, showBrowser } from "../../from-browser"
+import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun } from "../../from-browser"
 import { libraryClient, useLibraryStore } from "../../store"
 import type { Paper } from "../../types"
 
@@ -28,8 +28,14 @@ type CardState =
   | "browser-opened"
   | "browser-page"
   | "browser-missed"
+  // The run stopped on this paper for the user: what its tab showed (noPdf.fromBrowser.why)
+  | "browser-waiting"
+  // The user's browser reached the publisher (or the library's proxy) and was told no
+  | "no-access"
 
-const card = (state: CardState, browser?: string, opens?: "pdf" | "page"): { title: string; detail: string } => {
+const card = (state: CardState, paper?: Paper): { title: string; detail: string } => {
+  const browser = paper?.noPdf?.fromBrowser?.browser
+  const opens = paper?.noPdf?.browserOpens
   switch (state) {
     case "looking":
       return { title: t`Looking for a PDF…`, detail: t`If you already have it, drop it here.` }
@@ -59,6 +65,29 @@ const card = (state: CardState, browser?: string, opens?: "pdf" | "page"): { tit
       return browser
         ? { title: t`Save the PDF from the page in ${browser}`, detail: t`The paper's page is open in ${browser}. Save its PDF there, and owlit takes it from Downloads.` }
         : { title: t`Save the PDF from the page in your browser`, detail: t`The paper's page is open in your browser. Save its PDF there, and owlit takes it from Downloads.` }
+    case "browser-waiting": {
+      const why = paper?.noPdf?.fromBrowser?.why
+      return {
+        title: stoppedLine(paper),
+        detail:
+          why === "sign-in"
+            ? t`Getting PDFs waits for you to sign in there. Once you have, owlit tries this paper again.`
+            : why === "check"
+              ? t`Getting PDFs waits for you to pass the check there. Then owlit goes on.`
+              : t`Getting PDFs waits for you to look at the page there. Then owlit goes on.`,
+      }
+    }
+    case "no-access": {
+      const said = paper?.noPdf?.noAccess
+      const title = said?.title ?? ""
+      const host = said?.host ?? ""
+      return said?.refused
+        ? { title: t`Your library doesn't offer this paper`, detail: title ? t`Its proxy answered “${title}”.` : t`Its proxy turned the paper away.` }
+        : {
+            title: t`No access through your library`,
+            detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
+          }
+    }
     case "browser-missed":
       return {
         title: t`Nothing came from your browser`,
@@ -78,6 +107,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const needs = paper.noPdf?.needs
   const fromBrowser = paper.noPdf?.fromBrowser
   const offered = paper.noPdf?.offered
+  const run = useFromBrowserRun()
 
   const takeDownload = async (take: boolean) => {
     try {
@@ -128,8 +158,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
       ? `browser-${fromBrowser.state}`
       : looking
         ? "looking"
-        : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
-  const { title, detail: plain } = card(state, fromBrowser?.browser, paper.noPdf?.browserOpens)
+        : paper.noPdf?.noAccess
+          ? "no-access"
+          : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
+  const { title, detail: plain } = card(state, paper)
   const working = state === "looking" || state === "browser-queued" || state === "browser-opened"
   const tried = triedSentence(paper.noPdf?.tried ?? [])
   const file = offered ?? ""
@@ -179,14 +211,30 @@ export function NoPdf({ paper }: { paper: Paper }) {
             chooseFile
           ) : state === "browser-opened" || state === "browser-page" ? (
             <>
-              <Button size="sm" variant={state === "browser-page" ? "default" : "outline"} onClick={() => void showBrowser()}>
+              <Button size="sm" variant={state === "browser-page" ? "default" : "outline"} onClick={() => void showBrowser(paper.id)}>
                 {t`Show browser`}
+              </Button>
+              {chooseFile}
+            </>
+          ) : state === "browser-waiting" ? (
+            <>
+              <Button size="sm" onClick={() => void showBrowser(paper.id)}>
+                {t`Show browser`}
+              </Button>
+              <Button variant="outline" size="sm" disabled={!run} onClick={() => run && void resumeTask(run.id)}>
+                {continueLabel(paper)}
+              </Button>
+            </>
+          ) : state === "no-access" ? (
+            <>
+              <Button size="sm" variant="outline" onClick={() => void getInBrowser([paper.id])}>
+                {t`Try again`}
               </Button>
               {chooseFile}
             </>
           ) : state === "browser-missed" ? (
             <>
-              <Button size="sm" onClick={() => void showBrowser()}>
+              <Button size="sm" onClick={() => void showBrowser(paper.id)}>
                 {t`Show browser`}
               </Button>
               <Button variant="outline" size="sm" onClick={() => void getInBrowser([paper.id])}>
@@ -236,7 +284,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
 // The user went elsewhere while owlit looked: a system notification, which brings owlit back
 function notifyNeeds(paper: Paper) {
   if (typeof Notification === "undefined") return
-  const notification = new Notification(card("browser").title, { body: paper.title })
+  const notification = new Notification(card("browser", paper).title, { body: paper.title })
   notification.onclick = () => window.focus()
 }
 

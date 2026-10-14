@@ -1055,6 +1055,7 @@ msgstr ""
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
 msgstr ""
@@ -2682,21 +2683,7 @@ msgid "Show browser"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
-msgid "{browser} may be asking you something"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Your browser may be asking you something"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
 msgid "· getting PDFs, {done} of {total}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgctxt "carry on getting PDFs from the browser"
-msgid "Continue"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3611,10 +3598,6 @@ msgid "Abstract"
 msgstr ""
 
 #: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Your browser may be asking you something."
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
 msgid "Getting PDFs in your browser · {done} of {total}"
 msgstr ""
 
@@ -3626,6 +3609,53 @@ msgstr ""
 #. placeholder {0}: waiting.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {Get it} other {Get them}}"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Got {got} of {total} from {browser}"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Got {got} of {total} from your browser"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Got from your browser"
+msgstr ""
+
+#. placeholder {0}: tally.noAccess.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# no access} other {# no access}}"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "No access"
+msgstr ""
+
+#. placeholder {0}: tally.pages.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "To save from their pages"
+msgstr ""
+
+#. placeholder {0}: tally.missed.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# didn't come} other {# didn't come}}"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Didn't come"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{browser}:"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Your browser:"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
@@ -4124,6 +4154,47 @@ msgid "Couldn't save the library."
 msgstr ""
 
 #: app/src/features/library/from-browser.ts
+msgid "Sign in to your library in {browser}"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "Sign in to your library in your browser"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "{browser} is showing a check"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "Your browser is showing a check"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "{browser} is on “{title}”"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "Your browser is on “{title}”"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "{browser} may be asking you something"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "Your browser may be asking you something"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgid "I've signed in"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
+msgctxt "carry on getting PDFs from the browser"
+msgid "Continue"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
 msgid "Couldn't open your browser."
 msgstr ""
 
@@ -4502,6 +4573,42 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The paper's page is open in your browser. Save its PDF there, and owlit takes it from Downloads."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Getting PDFs waits for you to sign in there. Once you have, owlit tries this paper again."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Getting PDFs waits for you to pass the check there. Then owlit goes on."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Getting PDFs waits for you to look at the page there. Then owlit goes on."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your library doesn't offer this paper"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Its proxy answered “{title}”."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Its proxy turned the paper away."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No access through your library"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your browser reached {host}, which showed its page instead of the PDF. Your library may not subscribe to this journal."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher showed its page instead of the PDF. Your library may not subscribe to this journal."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -6427,7 +6534,39 @@ msgid "Opening your browser needs the owlit desktop app."
 msgstr ""
 
 #: packages/core/src/library/library.ts
-msgid "{browser} may be asking you something: a check, a sign-in, or whether {site} may download files."
+msgid "Sign in to your library in {name}, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "{name} is showing a check. Pass it there, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "{name} is on “{title}” and saved nothing. Answer it there, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "{name} is on “{title}” ({host}). Look there, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Sign in to your library in your browser, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Your browser is showing a check. Pass it there, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Your browser is on “{title}” and saved nothing. Answer it there, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Your browser is on “{title}” ({host}). Look there, then continue."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "{name} may be asking you something: a check, a sign-in, or whether {site} may download files."
 msgstr ""
 
 #: packages/core/src/library/library.ts
