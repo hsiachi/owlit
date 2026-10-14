@@ -126,6 +126,7 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
               <p className="text-detail text-muted-foreground">{share.pushedAt ? t`Readers have the doc as it was ${ago(share.pushedAt, { inSentence: true })}.` : t`Readers have the latest version.`}</p>
             )}
             <DialogFooter className="sm:justify-between">
+              {/* No Undo after stopping: a stopped link can't open again, so there is nothing to take back */}
               <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={busy || share.foreign} onClick={() => void run(() => shares.stop(file.path).then(() => onOpenChange(false)))}>
                 {t`Stop sharing`}
               </Button>
