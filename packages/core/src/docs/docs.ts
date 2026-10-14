@@ -207,7 +207,8 @@ export class Docs {
     })
   }
 
-  rename(rel: string, name: string) {
+  // `told`: the change is someone else's than the window asking (an agent's), so windows hear about it
+  rename(rel: string, name: string, told = false) {
     return this.serial(async () => {
       const info = await this.entry(rel)
       const ext = info.isDirectory() ? "" : extOf(rel)
@@ -220,12 +221,12 @@ export class Docs {
       const to = (await this.sameEntry(rel, wanted)) ? wanted : uniquePath(parentPath(rel), stem, ext, this.taken())
       const at = await this.moveEntry(rel, to)
       await this.updateNames((f) => dropUnder(f, at))
-      await this.settle([rel, at])
+      await this.settle([rel, at], told)
       return { path: at }
     })
   }
 
-  move(rel: string, folder: string) {
+  move(rel: string, folder: string, told = false) {
     return this.serial(async () => {
       const info = await this.entry(rel)
       if (folder) {
@@ -238,21 +239,22 @@ export class Docs {
       const ext = info.isDirectory() ? "" : extOf(rel)
       const to = uniquePath(folder, ext ? name.slice(0, -ext.length) : name, ext, this.taken())
       await this.moveEntry(rel, to)
-      await this.settle([rel, to])
+      await this.settle([rel, to], told)
       return { path: to }
     })
   }
 
-  delete(rel: string) {
+  delete(rel: string, told = false) {
     return this.serial(async () => {
       await this.entry(rel)
       const file = this.abs(rel)
       if (this.host.trash) await this.host.trash(file)
       else await this.moveToOwlitTrash(rel)
       await this.notes.trash(rel)
-      for (const p of [...this.ids.keys()]) if (isWithin(p, rel)) this.ids.delete(p)
       await this.updateNames((f) => dropUnder(f, rel))
-      await this.settle([rel])
+      // Before the ids go, so a told delete names the docs by them
+      await this.settle([rel], told)
+      for (const p of [...this.ids.keys()]) if (isWithin(p, rel)) this.ids.delete(p)
       return null
     })
   }
@@ -264,6 +266,17 @@ export class Docs {
       await mkdir(this.abs(at), { recursive: true })
       await this.settle([at])
       return { path: at }
+    })
+  }
+
+  // A folder an agent moves a doc into: made, with its parents, only where there is none yet (and told)
+  ensureFolder(rel: string) {
+    return this.serial(async () => {
+      this.check(rel)
+      if ((await stat(this.abs(rel)).catch(() => null))?.isDirectory()) return
+      // The first folder made, which holds any made under it
+      const made = await mkdir(this.abs(rel), { recursive: true })
+      if (made) await this.settle([path.relative(this.root, made).split(path.sep).join("/")], true)
     })
   }
 
@@ -426,15 +439,20 @@ export class Docs {
     return found
   }
 
-  // Core changed these paths itself: the snapshot takes them in without telling anyone
-  private async settle(paths: string[]) {
-    if (this.watcher || this.snapshot.size) await this.reconcile(paths, false)
+  // Core changed these paths itself: the snapshot takes them in, so the watcher finds nothing new. Windows
+  // are told only when the change wasn't asked for by one (`told`: an agent's); a window that asked has
+  // already made it in its store.
+  private async settle(paths: string[], told = false) {
+    if (!this.watcher && !this.snapshot.size) return
+    const change = await this.reconcile(paths, false, told)
+    if (change) this.changed?.(change)
   }
 
   // Brings the snapshot up to date for these paths and says what changed. A file gone from one path and
   // found at another with the same inode was renamed: it keeps its id. Changes made outside core count
   // as the user's own hand, so a renamed doc stops following its first line.
-  private async reconcile(paths: string[], external: boolean): Promise<DocsChange | null> {
+  // `report` says what changed even when core made the change (an agent's move, told to windows).
+  private async reconcile(paths: string[], external: boolean, report = external): Promise<DocsChange | null> {
     const removed = new Map<string, Entry>()
     const added = new Map<string, Entry>()
     const modified = new Set<string>()
@@ -504,9 +522,9 @@ export class Docs {
       if (before === undefined && modified.has(p)) continue
       if (external && before !== after) this.textChanged?.(p, before ?? null, after)
     }
-    if (!external) return null
+    if (!report) return null
     const follow = (await this.loadNames()).followFirstLine
-    if (removed.size) await this.updateNames((f) => Object.fromEntries(Object.entries(f).filter(([p]) => !removed.has(p))))
+    if (external && removed.size) await this.updateNames((f) => Object.fromEntries(Object.entries(f).filter(([p]) => !removed.has(p))))
     const count = removed.size + added.size + modified.size
     if (!count) return null
     if (count > RELOAD_OVER) return { changed: [], deleted: [], folders: { created: [], deleted: [] }, reload: true }

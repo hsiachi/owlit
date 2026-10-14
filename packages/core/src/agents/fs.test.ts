@@ -120,6 +120,36 @@ describe("agent fs", () => {
     expect(readFileSync(path.join(root, ".owlit/versions", versionId), "utf8")).toBe("typed in the editor")
   })
 
+  it("tells windows of a doc it renamed, as the same doc at its new path, and makes no second folder", async () => {
+    const { core, root, call, of } = await setup()
+    mkdirSync(path.join(root, "Proactive Support"))
+    writeFileSync(path.join(root, "Proactive Support/研究故事.md"), "story")
+    const before = await call("docs.list")
+    const { id } = before.files.find((f: { path: string }) => f.path === "Proactive Support/研究故事.md")
+    const told = of("docs.changed").length
+    expect(await core.fs.move("Proactive Support/研究故事.md", "Proactive Support/研究故事-v1.md", "chat-1")).toBe("Proactive Support/研究故事-v1.md")
+    const changes = of("docs.changed").slice(told)
+    expect(changes.flatMap((c) => c.changed).map((f) => [f.id, f.path, f.content])).toEqual([[id, "Proactive Support/研究故事-v1.md", "story"]])
+    expect(changes.flatMap((c) => c.deleted)).toEqual([])
+    expect(changes.flatMap((c) => c.folders.created)).toEqual([])
+    const after = await call("docs.list")
+    expect(after.folders.filter((f: string) => f.startsWith("Proactive Support")).sort()).toEqual(["Proactive Support"])
+  })
+
+  it("tells windows of a folder a move made and of a doc it deleted", async () => {
+    const { core, call, of } = await setup()
+    const { id } = (await call("docs.list")).files.find((f: { path: string }) => f.path === "a.md")
+    let told = of("docs.changed").length
+    await core.fs.move("a.md", "new/deeper/a.md")
+    let changes = of("docs.changed").slice(told)
+    expect(changes.flatMap((c) => c.folders.created)).toEqual(["new", "new/deeper"])
+    expect(changes.flatMap((c) => c.changed).map((f) => [f.id, f.path])).toEqual([[id, "new/deeper/a.md"]])
+    told = of("docs.changed").length
+    await core.fs.remove(["new/deeper/a.md"])
+    changes = of("docs.changed").slice(told)
+    expect(changes.flatMap((c) => c.deleted)).toEqual([{ id, path: "new/deeper/a.md" }])
+  })
+
   it("refuses paths outside the workspace and inside .owlit", async () => {
     const { core, root } = await setup()
     await expect(core.fs.read("/etc/passwd")).rejects.toThrow("outside the workspace")

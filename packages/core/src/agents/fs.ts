@@ -97,7 +97,7 @@ export class AgentFs {
     for (const file of paths) {
       const rel = this.docPath(file)
       const texts = await ws.docs.textsUnder(rel)
-      await ws.docs.delete(rel)
+      await ws.docs.delete(rel, true)
       for (const t of texts) await this.keep(t.path, t.content, null, chatId)
       done.push(rel)
     }
@@ -113,11 +113,13 @@ export class AgentFs {
     const texts = await ws.docs.textsUnder(rel)
     const folder = target.includes("/") ? target.slice(0, target.lastIndexOf("/")) : ""
     const name = target.slice(folder ? folder.length + 1 : 0)
-    if (folder) await ws.docs.createFolder(folder).catch(() => undefined)
+    // Only where there is none: making one beside a folder of the same name would add "Folder 2"
+    if (folder) await ws.docs.ensureFolder(folder)
     let at = rel
     const parent = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "")
-    if (parent(at) !== folder) at = (await ws.docs.move(at, folder)).path
-    if (at.slice(at.lastIndexOf("/") + 1) !== name) at = (await ws.docs.rename(at, name)).path
+    // Told to windows, which didn't ask for it: the doc keeps its id there and follows to its new path
+    if (parent(at) !== folder) at = (await ws.docs.move(at, folder, true)).path
+    if (at.slice(at.lastIndexOf("/") + 1) !== name) at = (await ws.docs.rename(at, name, true)).path
     for (const t of texts) {
       await this.keep(t.path, t.content, null, chatId)
       await this.keep(at + t.path.slice(rel.length), null, t.content, chatId)
