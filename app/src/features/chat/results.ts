@@ -15,7 +15,7 @@ export { chatOnScreen } from "./status"
 // each change with its version (so it can be undone) and the chat it came from; the change is pinned to
 // the reply that was running then, and shows under that answer as a result row. Knowledge changes are
 // left out here: they already show from the reply's own tool calls (knowledge/components/ChatUpdates).
-export type ResultKind = "paper" | "note" | "file"
+export type ResultKind = "paper" | "note" | "file" | "collection"
 
 export interface AgentResult {
   kind: ResultKind
@@ -29,6 +29,12 @@ export interface AgentResult {
   undone?: boolean
   // After an Undo from the card: what puts the change back (core keeps the undo as a version too)
   redoId?: string
+  // A collection: whether the write started it, the papers it added, the question it was for, and the
+  // collection those papers went to when the user kept them separate
+  created?: boolean
+  rows?: string[]
+  asked?: string
+  separate?: { id: string; title: string }
 }
 
 interface ResultsState {
@@ -38,6 +44,7 @@ interface ResultsState {
   // Each undone change with what puts it back, when there is a way
   markUndone: (messageId: string, redoIds: Record<string, string | undefined>) => void
   markRedone: (messageId: string, versionIds: string[]) => void
+  markSeparate: (messageId: string, versionIds: string[], to: { id: string; title: string }) => void
 }
 
 // Old replies drop out first; a result row is a confirmation, the version itself stays in core
@@ -61,6 +68,13 @@ export const useResultsStore = create<ResultsState>()(
           byMessage: {
             ...s.byMessage,
             [messageId]: (s.byMessage[messageId] ?? []).map((r) => (r.versionId in redoIds ? { ...r, undone: true, redoId: redoIds[r.versionId] } : r)),
+          },
+        })),
+      markSeparate: (messageId, versionIds, to) =>
+        set((s) => ({
+          byMessage: {
+            ...s.byMessage,
+            [messageId]: (s.byMessage[messageId] ?? []).map((r) => (versionIds.includes(r.versionId) ? { ...r, separate: to } : r)),
           },
         })),
       markRedone: (messageId, versionIds) =>
@@ -124,10 +138,17 @@ export function recordResult(chatId: string | undefined, result: AgentResult) {
 }
 
 if (isDesktop) {
-  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId }) => {
-    // A collection isn't a result row yet: it is said in a toast (agent-changes)
-    if (kind === "knowledge" || kind === "collection") return
-    recordResult(chatId, { kind, versionId, path, label, at: Date.now(), ...(op === "removed" ? { removed: true } : {}) })
+  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId, created, rows, asked }) => {
+    if (kind === "knowledge") return
+    recordResult(chatId, {
+      kind,
+      versionId,
+      path,
+      label,
+      at: Date.now(),
+      ...(op === "removed" ? { removed: true } : {}),
+      ...(kind === "collection" ? { created: !!created, rows: rows ?? [], ...(asked ? { asked } : {}) } : {}),
+    })
   })
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {
     recordResult(chatId, { kind: "file", versionId, path, label: labelOf(path), at: Date.now() })

@@ -677,6 +677,7 @@ export class Core {
       }),
       ({ id, edit }) => collections().edit(id, edit),
     )
+    this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
     this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
     this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))
     this.router.register("notes.all", noParams, () => docs().notesAll())

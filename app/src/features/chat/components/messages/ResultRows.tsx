@@ -21,7 +21,7 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, Knowledge updated, digests asked for (followed until written). A row goes to what it names, in the main view rather than opening
+// notes left, papers gathered into a collection, Knowledge updated, digests asked for (followed until written). A row goes to what it names, in the main view rather than opening
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
 // of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
@@ -37,8 +37,13 @@ export interface ResultRow {
   undo?: () => Promise<void> | void
   // On an undone row, when the change can be put back
   redo?: () => Promise<void> | void
+  // One more thing the row offers on hover, before Undo ("Keep it separate")
+  extra?: { label: string; run: () => Promise<void> | void }
   // For the summary line: what kind of change, and how much an edit changed
-  kind: "doc" | "paper" | "note" | "knowledge" | "digest"
+  kind: "doc" | "paper" | "note" | "knowledge" | "digest" | "collection"
+  // A collection: whether the reply started it, and how many papers it gathered
+  created?: boolean
+  papers?: number
   stats?: EditStats
   // An edited file that is one of the user's Markdown docs
   markdown?: boolean
@@ -215,6 +220,54 @@ function useResultRows(message: ChatMessage): ResultRow[] {
       })
     }
   }
+  // Collections the reply gathered papers into, one row each however many writes it took
+  const byCollection = new Map<string, AgentResult[]>()
+  for (const r of results) if (r.kind === "collection") byCollection.set(r.path, [...(byCollection.get(r.path) ?? []), r])
+  for (const [id, list] of byCollection) {
+    const last = list.at(-1)!
+    const created = list.some((r) => r.created)
+    const papers = new Set(list.flatMap((r) => r.rows ?? [])).size
+    const separate = last.separate
+    const asked = list.find((r) => r.asked)?.asked
+    const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
+    rows.push({
+      key: `collection:${id}`,
+      kind: "collection",
+      icon: KIND_ICON.collection,
+      name: separate ? separate.title : last.label,
+      created,
+      papers,
+      detail: separate ? (
+        t({ message: "Kept separate", comment: "papers the agent added to a collection, moved by the user into a collection of their own" })
+      ) : created ? (
+        plural(papers, { one: "New collection · # paper", other: "New collection · # papers" })
+      ) : papers ? (
+        <span className="tabular-nums">
+          <span className="text-owlit">+{papers}</span> {plural(papers, { one: "paper", other: "papers" })}
+        </span>
+      ) : (
+        t({ message: "Updated", comment: "a collection the agent changed without adding papers" })
+      ),
+      ...(separate ? { undone: false } : of(list)),
+      view: () => navigate(`/collections/${separate?.id ?? id}`),
+      // Owlit added to a collection whose question was close; the user may want these papers on their own
+      ...(!created && !separate && rowIds.length && isDesktop
+        ? {
+            extra: {
+              label: t({ message: "Keep it separate", comment: "make the papers the agent just added into a collection of their own" }),
+              run: async () => {
+                try {
+                  const c = await rpc.collections.split({ id, rows: rowIds, asked: asked ?? "" })
+                  useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), { id: c.id, title: c.title })
+                } catch (error) {
+                  failed(error)
+                }
+              },
+            },
+          }
+        : {}),
+    })
+  }
   // Edits to the user's own docs first: they matter most and must not fold away behind papers
   for (const r of results.filter((r) => r.kind === "paper")) {
     // A paper the agent took back has nothing to open; Undo puts it back
@@ -226,6 +279,8 @@ function useResultRows(message: ChatMessage): ResultRow[] {
 
 const added = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && !r.removed).length
 const removed = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && r.removed).length
+const started = (rows: ResultRow[]) => rows.filter((r) => r.kind === "collection" && r.created).length
+const gathered = (rows: ResultRow[]) => rows.filter((r) => r.kind === "collection" && !r.created).reduce((n, r) => n + (r.papers ?? 0), 0)
 
 // "Edited 2 docs and added 3 papers"
 function summary(rows: ResultRow[]) {
@@ -238,6 +293,8 @@ function summary(rows: ResultRow[]) {
     added(rows) && plural(added(rows), { one: "added a paper", other: "added # papers" }),
     removed(rows) && plural(removed(rows), { one: "removed a paper", other: "removed # papers" }),
     n("note") && plural(n("note"), { one: "left notes on a doc", other: "left notes on # docs" }),
+    started(rows) && plural(started(rows), { one: "started a collection", other: "started # collections" }),
+    gathered(rows) && plural(gathered(rows), { one: "added a paper to a collection", other: "added # papers to collections" }),
     n("knowledge") && plural(n("knowledge"), { one: "updated a topic", other: "updated # topics" }),
     n("digest") && plural(n("digest"), { one: "asked for a digest", other: "asked for # digests" }),
   ].filter(Boolean) as string[]
@@ -265,6 +322,11 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
         {row.name}
       </span>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
+        {live && row.extra && (
+          <Button variant="text" size="inline" onClick={() => void row.extra!.run()} className={`relative ${SHOW_ON_HOVER}`}>
+            {row.extra.label}
+          </Button>
+        )}
         {live && row.undo && (
           <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
             {t({ message: "Undo", comment: "verb: take back a change the agent made" })}

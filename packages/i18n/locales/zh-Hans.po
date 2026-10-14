@@ -1118,6 +1118,31 @@ msgstr "{0, plural, other {# 条批注}}"
 msgid "Your note on {name}"
 msgstr "你的笔记：{name}"
 
+#. papers the agent added to a collection, moved by the user into a collection of their own
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Kept separate"
+msgstr "已单独成集"
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {New collection · # paper} other {New collection · # papers}}"
+msgstr "{papers, plural, other {新合集 · # 篇论文}}"
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {paper} other {papers}}"
+msgstr "{papers, plural, other {篇论文}}"
+
+#. a collection the agent changed without adding papers
+#. a topic Owlit changed from a chat
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/knowledge/components/ChatUpdates.tsx
+msgid "Updated"
+msgstr "已更新"
+
+#. make the papers the agent just added into a collection of their own
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Keep it separate"
+msgstr "单独成集"
+
 #. a paper the agent added to the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/format.ts
@@ -1152,6 +1177,16 @@ msgstr "{0, plural, other {移除了 # 篇论文}}"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
 msgstr "{0, plural, other {在 # 个文档中留下了批注}}"
+
+#. placeholder {0}: started(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {started a collection} other {started # collections}}"
+msgstr "{0, plural, other {新建了 # 个合集}}"
+
+#. placeholder {0}: gathered(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {added a paper to a collection} other {added # papers to collections}}"
+msgstr "{0, plural, other {往合集里加了 # 篇论文}}"
 
 #. placeholder {0}: n("knowledge")
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -2037,6 +2072,31 @@ msgid "Read a chat"
 msgstr "读取了一个对话"
 
 #: app/src/features/chat/lib/tool-title.ts
+msgid "List your collections"
+msgstr "列出你的合集"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed your collections"
+msgstr "列出了你的合集"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read a collection"
+msgstr "阅读合集"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a collection"
+msgstr "阅读了一个合集"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Gather papers into a collection"
+msgstr "把论文收进合集"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Gathered papers into a collection"
+msgstr "把论文收进了合集"
+
+#: app/src/features/chat/lib/tool-title.ts
 msgid "Read Knowledge"
 msgstr "读取知识"
 
@@ -2759,11 +2819,6 @@ msgstr "{what} {where}：{label}"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what}: {label}"
 msgstr "{what}：{label}"
-
-#. a topic Owlit changed from a chat
-#: app/src/features/knowledge/components/ChatUpdates.tsx
-msgid "Updated"
-msgstr "已更新"
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
 msgid "your doc"
@@ -5636,6 +5691,10 @@ msgstr "创建"
 msgid "Could not write to the clipboard"
 msgstr "无法写入剪贴板"
 
+#: app/src/lib/kinds.ts
+msgid "Collections"
+msgstr "合集"
+
 #: app/src/lib/rpc.ts
 msgid "That file can't be read from here."
 msgstr "无法从这里读取那个文件。"
@@ -6287,6 +6346,10 @@ msgstr "那篇论文已不在合集中。"
 #: packages/core/src/collections/collections.ts
 msgid "That group isn't there any more."
 msgstr "那个分组已经不在了。"
+
+#: packages/core/src/collections/collections.ts
+msgid "Those papers aren't in the collection any more."
+msgstr "那些论文已不在合集中。"
 
 #: packages/core/src/collections/collections.ts
 msgid "That collection is already here."

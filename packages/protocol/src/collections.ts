@@ -103,6 +103,8 @@ export interface Collection {
   id: string
   title: string
   asked: CollectionAsked
+  // Later questions Owlit answered by adding to this collection rather than starting another
+  alsoAsked?: CollectionAsked[]
   // The workspace's top-level folder the work belongs to; "" for none
   project: string
   // Where Owlit looked ("Semantic Scholar", "OpenAlex", "ACM DL proceedings")
@@ -183,7 +185,8 @@ export function summarize(c: Collection): CollectionSummary {
 // core fills in what each paper is from the search that found it or from the Library.
 export interface CollectionWrite {
   id?: string
-  // New collections: the question as the user asked it, and Owlit's neutral title for it
+  // The question as the user asked it (kept with the collection, also when adding to one), and for a new
+  // collection Owlit's neutral title for it
   asked?: string
   title?: string
   project?: string

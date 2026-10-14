@@ -1118,6 +1118,31 @@ msgstr ""
 msgid "Your note on {name}"
 msgstr ""
 
+#. papers the agent added to a collection, moved by the user into a collection of their own
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Kept separate"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {New collection · # paper} other {New collection · # papers}}"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {paper} other {papers}}"
+msgstr ""
+
+#. a collection the agent changed without adding papers
+#. a topic Owlit changed from a chat
+#: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/knowledge/components/ChatUpdates.tsx
+msgid "Updated"
+msgstr ""
+
+#. make the papers the agent just added into a collection of their own
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Keep it separate"
+msgstr ""
+
 #. a paper the agent added to the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/knowledge/format.ts
@@ -1151,6 +1176,16 @@ msgstr ""
 #. placeholder {0}: n("note")
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
+msgstr ""
+
+#. placeholder {0}: started(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {started a collection} other {started # collections}}"
+msgstr ""
+
+#. placeholder {0}: gathered(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {added a paper to a collection} other {added # papers to collections}}"
 msgstr ""
 
 #. placeholder {0}: n("knowledge")
@@ -2037,6 +2072,31 @@ msgid "Read a chat"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
+msgid "List your collections"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Listed your collections"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read a collection"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read a collection"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Gather papers into a collection"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Gathered papers into a collection"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
 msgid "Read Knowledge"
 msgstr ""
 
@@ -2758,11 +2818,6 @@ msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what}: {label}"
-msgstr ""
-
-#. a topic Owlit changed from a chat
-#: app/src/features/knowledge/components/ChatUpdates.tsx
-msgid "Updated"
 msgstr ""
 
 #: app/src/features/knowledge/components/KnowledgeEmpty.tsx
@@ -5636,6 +5691,10 @@ msgstr ""
 msgid "Could not write to the clipboard"
 msgstr ""
 
+#: app/src/lib/kinds.ts
+msgid "Collections"
+msgstr ""
+
 #: app/src/lib/rpc.ts
 msgid "That file can't be read from here."
 msgstr ""
@@ -6286,6 +6345,10 @@ msgstr ""
 
 #: packages/core/src/collections/collections.ts
 msgid "That group isn't there any more."
+msgstr ""
+
+#: packages/core/src/collections/collections.ts
+msgid "Those papers aren't in the collection any more."
 msgstr ""
 
 #: packages/core/src/collections/collections.ts

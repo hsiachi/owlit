@@ -297,6 +297,39 @@ describe("owlit-mcp", () => {
     expect((await tool("knowledge_write", { topic: "Retrieval granularity", content, why: "x", passages: "not json" })).text).toMatch(/^passages should be a JSON array/)
   })
 
+  it("gathers papers into a collection, keeps what the user did, and adds to it later", async () => {
+    const { root, core, call, tool } = await setup()
+    const changed: { kind: string; label: string; rows?: string[] }[] = []
+    core.onNotify((n) => {
+      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+    })
+    expect((await tool("collection_list")).text).toBe("There are no collections yet.")
+    await call("library.add", { paper: { id: "arxiv-2005.11401", title: "Retrieval-Augmented Generation", authors: ["Patrick Lewis"], ids: { arxiv: "2005.11401" }, year: 2020 } })
+    writeFileSync(path.join(root, "library/papers/arxiv-2005.11401/text.md"), "<!-- page 2 -->\n\nIntro.\n\n<!-- page 3 -->\n\nWe can draw a different latent document for each target token.\n")
+
+    const unknown = await tool("collection_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows: JSON.stringify([{ id: "doi-10.9999-nope", answer: "x" }]) })
+    expect(unknown).toEqual({ isError: true, text: "owlit didn't write it:\n- owlit doesn't know the paper doi-10.9999-nope: name papers by the id a search gave you." })
+
+    const rows = JSON.stringify([{ id: "arxiv-2005.11401", answer: "Each token may draw on its own retrieved document.", depth: "full", quote: "a different latent document for each target token" }])
+    const memo = JSON.stringify([{ text: "One paper so far: [Lewis et al. 2020](owlit://library/arxiv-2005.11401) retrieves per token." }])
+    const wrote = await tool("collection_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, sources: ["OpenAlex"] })
+    const id = /owlit:\/\/collections\/([\w-]+)/.exec(wrote.text)![1]!
+    expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/collections\/c-[0-9a-f]{6}\): added 1\./)
+    expect(changed).toMatchObject([{ kind: "collection", label: "检索粒度", created: true, rows: ["arxiv-2005.11401"] }])
+    const c = await call("collections.get", { id })
+    expect(c.rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
+
+    await call("collections.edit", { id, edit: { op: "rename", title: "Retrieval granularity" } })
+    expect((await tool("collection_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper · asked: 检索粒度有什么研究？`)
+    expect((await tool("collection_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/collections\/.+\)\nAsked: 检索粒度有什么研究？ · looked in OpenAlex\nColumns: q = 检索粒度有什么研究？\n\nMemo:\n- \[s1\] One paper so far/)
+    expect((await tool("collection_read", { id })).text).toMatch(/q: Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
+    expect((await tool("collection_read", { id })).text).toMatch(/The user rewrote \(keep their words\): title$/)
+
+    const wrongQuote = JSON.stringify([{ id: "arxiv-2005.11401", answer: "x", depth: "full", quote: "not in the paper" }])
+    expect((await tool("collection_write", { id, rows: wrongQuote })).text).toMatch(/isn't in its text word for word/)
+    expect((await tool("collection_write", { id, rows: "[{" })).text).toBe("rows should be a JSON array.")
+  })
+
   it("lets the user undo an agent's note and paper, and undo the undo", async () => {
     const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
     const { root, core, call, tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })

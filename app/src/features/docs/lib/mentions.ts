@@ -68,6 +68,7 @@ export function mentionRoute(uri: string): string | null {
   if (u?.kind === "paper") return `/library/${paperOf(u.id)?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
   if (u?.kind === "knowledge") return knowledgeRoute(u)
   if (u?.kind === "chat") return `/chat/${u.id}`
+  if (u?.kind === "collection") return `/collections/${u.id}${u.group ? `?group=${encodeURIComponent(u.group)}` : ""}`
   if (u?.kind !== "doc") return null
   const file = fileAt(u.path)
   return file ? `/docs/${file.id}` : null

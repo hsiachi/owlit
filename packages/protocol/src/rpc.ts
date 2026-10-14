@@ -193,6 +193,9 @@ export interface Methods {
   // removed them
   "collections.write": { params: CollectionWrite; result: { id: string; title: string; added: number; updated: number; left: string[] } }
   "collections.edit": { params: { id: string; edit: CollectionEdit }; result: Collection }
+  // Keep it separate: the rows an agent added to this collection become a collection of their own, for
+  // the question they were found for
+  "collections.split": { params: { id: string; rows: string[]; asked: string }; result: Collection }
   // Moves the collection to .owlit/trash/
   "collections.delete": { params: { id: string }; result: null }
   "collections.undelete": { params: { id: string }; result: Collection }
@@ -473,8 +476,20 @@ export interface Notifications {
   // An agent in a chat left a note, added a paper or changed a Knowledge topic; versionId undoes it.
   // label names what changed (the doc, the paper's title, the topic).
   // op "removed": an agent took back a paper it added (absent: an addition or a write)
-  // kind "collection": path is the collection's id, and added/updated count its rows
-  "agent.changed": { kind: "note" | "paper" | "knowledge" | "collection"; op?: "removed"; versionId: string; path: string; label: string; chatId?: string; added?: number; updated?: number }
+  // kind "collection": path is the collection's id; created when the write started it, rows the papers it
+  // added and updated how many it changed, asked the question it was for
+  "agent.changed": {
+    kind: "note" | "paper" | "knowledge" | "collection"
+    op?: "removed"
+    versionId: string
+    path: string
+    label: string
+    chatId?: string
+    created?: boolean
+    rows?: string[]
+    updated?: number
+    asked?: string
+  }
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

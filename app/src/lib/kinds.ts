@@ -1,15 +1,16 @@
 import { t } from "@lingui/core/macro"
-import { BookOpenIcon, BotIcon, FileTextIcon, MessageSquareIcon, NetworkIcon, StickyNoteIcon, type LucideIcon } from "lucide-react"
+import { BookOpenIcon, BotIcon, FileTextIcon, LayersIcon, MessageSquareIcon, NetworkIcon, StickyNoteIcon, type LucideIcon } from "lucide-react"
 
 // The kinds of thing a workspace holds, each drawn with one icon wherever it appears: the rail, the
 // palette, Home, the mention popup, a result card
-export type Kind = "doc" | "chat" | "paper" | "knowledge" | "note" | "agent"
+export type Kind = "doc" | "chat" | "paper" | "knowledge" | "collection" | "note" | "agent"
 
 export const KIND_ICON: Record<Kind, LucideIcon> = {
   doc: FileTextIcon,
   chat: MessageSquareIcon,
   paper: BookOpenIcon,
   knowledge: NetworkIcon,
+  collection: LayersIcon,
   note: StickyNoteIcon,
   agent: BotIcon,
 }
@@ -25,5 +26,8 @@ export const KIND_PLACE = {
   },
   get knowledge() {
     return t`Knowledge`
+  },
+  get collection() {
+    return t`Collections`
   },
 } satisfies Partial<Record<Kind, string>>

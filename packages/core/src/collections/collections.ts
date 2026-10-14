@@ -10,6 +10,7 @@ import {
   type CollectionCell,
   type CollectionEdit,
   type CollectionPaper,
+  type CollectionRow,
   type CollectionSummary,
   type CollectionWrite,
 } from "@owlit/protocol"
@@ -33,10 +34,13 @@ import { RpcFailure } from "../rpc/index.ts"
 export interface CollectionsServices {
   // What a paper is, by its id: the Library's record, or what a recent search found
   paper?: (id: string) => Promise<CollectionPaper | undefined>
+  // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
+  // undefined when owlit has no text of the paper
+  findPassage?: (paperId: string, quote: string) => Promise<number | null | undefined>
   // A collection changed under the windows (null: deleted)
   changed?: (id: string, collection: Collection | null) => void
   // An agent in a chat wrote to a collection; versionId takes the write back
-  wrote?: (change: { versionId: string; id: string; label: string; chatId?: string; added: number; updated: number }) => void
+  wrote?: (change: { versionId: string; id: string; label: string; chatId?: string; created: boolean; rows: string[]; updated: number; asked?: string }) => void
 }
 
 interface HistoryLine {
@@ -105,6 +109,11 @@ export class Collections {
         mark(itemId.title())
       }
       if (input.project !== undefined && !existing) c.project = input.project
+      const asked = input.asked?.trim()
+      if (existing && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
+        c.alsoAsked = [...(c.alsoAsked ?? []), { text: asked, at: now, ...(input.chatId ? { chatId: input.chatId } : {}) }]
+        changed.add("asked")
+      }
       if (input.sources?.length) c.sources = [...new Set([...c.sources, ...input.sources])]
 
       // Columns: new questions to ask of every paper
@@ -118,7 +127,7 @@ export class Collections {
       }
 
       // Rows: new papers, and answers for the ones there
-      let added = 0
+      const added: string[] = []
       let updated = 0
       const left: string[] = []
       for (const r of input.rows ?? []) {
@@ -135,7 +144,7 @@ export class Collections {
           }
           row = { id: r.id, paper, cells: {}, addedAt: now, ...(r.foundBy ? { foundBy: r.foundBy } : {}) }
           c.rows.push(row)
-          added++
+          added.push(r.id)
           mark(itemId.row(r.id))
         } else if (r.foundBy && !row.foundBy) row.foundBy = r.foundBy
         let touched = false
@@ -146,8 +155,27 @@ export class Collections {
           }
           const text = cell.text.trim()
           if (!text) continue
+          // An answer from the full text rests on a passage that is in the paper word for word
+          let passage = cell.passage
+          if (cell.depth === "full") {
+            if (!passage) {
+              problems.push(`${r.id}'s answer for ${col} says it is from the full text but gives no passage; quote the words it rests on.`)
+              continue
+            }
+            const page = this.services.findPassage ? await this.services.findPassage(r.id, passage.quote) : passage.page
+            if (page === undefined) {
+              problems.push(`owlit has no full text of ${r.id}, so its answer can only be from the abstract (depth abstract).`)
+              continue
+            }
+            if (page === null) {
+              problems.push(`The passage for ${r.id} isn't in its text word for word; quote it as library_read gives it.`)
+              continue
+            }
+            passage = { quote: passage.quote, page }
+          }
           const was = row.cells[col]
-          const next: CollectionCell = { ...cell, text, at: now }
+          const next: CollectionCell = { ...cell, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
+          if (cell.depth !== "full") delete next.passage
           if (was && sameCell(was, next)) continue
           row.cells[col] = next
           touched = true
@@ -217,8 +245,8 @@ export class Collections {
       await this.record(c.id, { at: now, by: input.chatId ? `chat:${input.chatId}` : "agent", ...(input.why ? { why: input.why } : {}), items: [...changed] })
       this.services.changed?.(c.id, c)
       const title = shownCollection(c).title
-      if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, added, updated })
-      return { id: c.id, title, added, updated, left }
+      if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, created: fresh, rows: added, updated, ...(asked ? { asked } : {}) })
+      return { id: c.id, title, added: added.length, updated, left }
     })
   }
 
@@ -298,6 +326,39 @@ export class Collections {
         await this.record(c.id, { at: now, by: "you", items: items.length ? items : [edit.op] })
       }
       await this.save(c)
+      this.services.changed?.(c.id, c)
+      return c
+    })
+  }
+
+  // Keep it separate: rows an agent added to a collection, for a question close to its own, become a
+  // collection of their own for that question. The user's words make its title until they rename it;
+  // there is no memo yet, since Owlit's reading was of the other collection.
+  split(id: string, rowIds: string[], asked: string) {
+    return this.serial(async () => {
+      const from = await this.get(id)
+      const now = Date.now()
+      const rows = from.rows.filter((r) => rowIds.includes(r.id))
+      if (!rows.length) throw new RpcFailure(RpcErrorCode.NotFound, t`Those papers aren't in the collection any more.`)
+      const question = asked.trim() || from.asked.text
+      const c: Collection = {
+        ...(await this.blank({ asked: question, title: question }, now)),
+        project: from.project,
+        sources: from.sources,
+        // Only the question's own answers: the other collection's columns and groups don't come along
+        rows: rows.map(({ group: _group, ...r }): CollectionRow => {
+          const answer = r.cells[QUESTION_COLUMN]
+          return { ...r, cells: answer ? { [QUESTION_COLUMN]: answer } : {} }
+        }),
+      }
+      from.rows = from.rows.filter((r) => !rowIds.includes(r.id))
+      from.alsoAsked = from.alsoAsked?.filter((a) => !sameWords(a.text, question))
+      from.updatedAt = now
+      await this.save(c)
+      await this.save(from)
+      await this.record(c.id, { at: now, by: "you", why: `Kept separate from ${from.id}`, items: rows.map((r) => itemId.row(r.id)) })
+      await this.record(from.id, { at: now, by: "you", why: `Moved to ${c.id}`, items: rows.map((r) => itemId.row(r.id)) })
+      this.services.changed?.(from.id, from)
       this.services.changed?.(c.id, c)
       return c
     })

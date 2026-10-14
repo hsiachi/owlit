@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { RpcErrorCode, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { createHash } from "node:crypto"
-import { mkdir, realpath, stat } from "node:fs/promises"
+import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
 import { Docs } from "../docs/docs.ts"
@@ -14,6 +14,8 @@ import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Knowledge, type KnowledgeServices } from "../knowledge/knowledge.ts"
 import { Collections, type CollectionsServices } from "../collections/collections.ts"
+import { findQuote } from "../knowledge/check.ts"
+import { isPaperId, paperDir } from "../library/paths.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
 import { Shares, type SharesServices } from "../share/shares.ts"
 import { acquireLock, lockFileFor, WorkspaceLockedError } from "./lock.ts"
@@ -78,6 +80,11 @@ export class Workspace {
     this.collections = new Collections(path.join(root, OWLIT_DIR), { versions: this.versions }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
+      findPassage: async (id, quote) => {
+        if (!isPaperId(id)) return undefined
+        const text = await readFile(path.join(paperDir(root, id), "text.md"), "utf8").catch(() => null)
+        return text === null ? undefined : findQuote(text, quote)
+      },
       ...options.collections,
     })
     this.tasks = new Scheduler({

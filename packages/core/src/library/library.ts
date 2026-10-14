@@ -88,6 +88,8 @@ import {
 
 // How long a looked-up paper is kept, so adding it right after doesn't ask the services again
 const RESOLUTION_TTL_MS = 10 * 60_000
+// Long enough for an agent to go through a venue's proceedings before it writes the collection
+const FOUND_TTL_MS = 12 * 3_600_000
 // How long changes under library/papers/ settle before they are read
 const SETTLE_MS = 300
 // A note saved in bursts (an editor's autosave) is told once it rests
@@ -164,6 +166,9 @@ export class Library {
   readonly index: PaperIndex
   private readonly services: LibraryServices
   private resolutions = new Map<string, { resolution: Resolution; at: number; partial: boolean }>()
+  // Every paper a search, a neighbour list or a journal list showed lately, as it showed it: what a
+  // collection's row takes when the paper isn't in the Library
+  private found = new Map<string, { paper: FoundPaper; at: number; query: string }>()
   // Journal lists fetched a moment ago, by ISSN and years, for the next page
   private journals = new Map<string, { articles: JournalArticle[]; issn: string; at: number }>()
   private scheduler: Scheduler | undefined
@@ -1019,6 +1024,9 @@ export class Library {
   }
 
   private async recordSearch(asked: { query: string; source: string; filters?: object }, by: string, papers: FoundPaper[]) {
+    const now = Date.now()
+    for (const [id, kept] of this.found) if (now - kept.at >= FOUND_TTL_MS) this.found.delete(id)
+    for (const p of papers) if (p.id) this.found.set(p.id, { paper: p, at: now, query: asked.query })
     const line = { at: Date.now(), ...asked, by, results: papers.map((f) => f.id) }
     await mkdir(path.join(this.root, OWLIT_DIR), { recursive: true })
     await appendFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), JSON.stringify(line) + "\n")
@@ -1903,17 +1911,21 @@ export class Library {
   }
 
   // What a paper is, for a collection's row: the Library's record when the paper is here, otherwise what a
-  // search found a moment ago (partial or not: a collection keeps what the search showed)
+  // search found lately (partial or not: a collection keeps what the search showed)
   async snapshot(id: string): Promise<CollectionPaper | undefined> {
     const here = isPaperId(id) ? await readRecord(this.root, id) : undefined
     const from: Resolution | PaperRecord | undefined = here ?? this.kept(id)?.resolution
-    if (!from) return undefined
-    return clean({
-      ...pick(from),
-      tldr: from.tldr,
-      citationCount: from.citationCount,
-      openPdf: (from.pdfUrls?.length ?? 0) > 0 || undefined,
-    })
+    if (from) return clean({ ...pick(from), tldr: from.tldr, citationCount: from.citationCount, openPdf: (from.pdfUrls?.length ?? 0) > 0 || undefined })
+    const found = this.found.get(id)
+    if (!found || Date.now() - found.at >= FOUND_TTL_MS) return undefined
+    const p = found.paper
+    return clean({ title: p.title, authors: p.authors, ids: p.ids, year: p.year, venue: p.venue, abstract: p.abstract, tldr: p.tldr, kind: p.kind, citationCount: p.citationCount, openPdf: p.openPdf })
+  }
+
+  // The search that showed a paper lately, for a row's foundBy
+  foundBy(id: string): string | undefined {
+    const found = this.found.get(id)
+    return found && Date.now() - found.at < FOUND_TTL_MS ? found.query : undefined
   }
 
   private kept(id: string) {

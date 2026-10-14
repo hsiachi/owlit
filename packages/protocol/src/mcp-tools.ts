@@ -233,6 +233,52 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
+    name: "collection_list",
+    description:
+      "The collections Owlit keeps for the user: papers gathered for a question, with what each says about it. Each line: id, title, the project it belongs to, how many papers and columns, and the question as the user asked it. Look here before you start one: when the user asks something close to a collection's question, add to that collection rather than starting another.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "collection_read",
+    description:
+      "One collection as the user sees it: its question, columns, groups, memo (sentences with their ids) and every paper with its answers, each marked abstract or full text. Also what the user rewrote (keep it) and removed (never bring it back).",
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "The collection's id" } }, required: ["id"] },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "collection_write",
+    description:
+      "Gather papers you found into a collection, new (no id) or existing, instead of adding them to the library: the user sees it under Collections and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper says about the question, from its abstract (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what is missing and where you looked. It describes the papers; it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the collection's link.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "An existing collection's id; leave out to start one" },
+        asked: { type: "string", description: "The user's question in their own words: needed to start one, and given too when you add to one for a new question" },
+        title: { type: "string", description: "A short neutral title for what it gathers, in the user's language, naming the topic rather than repeating the question: 回放式标注作为研究方法, not 我的研究方法该怎么设计？ (needed to start one)" },
+        project: { type: "string", description: "The workspace's top-level folder the work belongs to, when it plainly belongs to one (optional)" },
+        sources: { type: "array", items: { type: "string" }, description: "Where you looked: Semantic Scholar, OpenAlex, arXiv, a journal's issues… (optional)" },
+        rows: {
+          type: "string",
+          description:
+            'JSON array of papers to add or update: [{"id": "doi-10.1145-…", "answer": "Replay ratings were 0.6 points lower than live ones.", "depth": "abstract"}, {"id": "arxiv-2408.00447", "answer": "…", "depth": "full", "quote": "words from the text", "group": "eval"}]. Answers for other columns go in "cells": {"<column id>": {"text": "…", "depth": "abstract"}}.',
+        },
+        memo: {
+          type: "string",
+          description: 'JSON array of the whole memo as it should be now, at most four sentences: [{"id": "s1", "text": "…"}, {"text": "a new sentence"}]. Keep a sentence\'s id when you keep or reword it. (optional)',
+        },
+        groups: {
+          type: "string",
+          description: 'JSON array of the whole grouping, for many papers: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}] (optional)',
+        },
+        columns: { type: "array", items: { type: "string" }, description: "New questions to ask of every paper, each becoming a column (optional)" },
+        remove_rows: { type: "array", items: { type: "string" }, description: "Ids of papers you take out again (optional)" },
+        why: { type: "string", description: "One plain sentence on what this write did, for the collection's history (optional)" },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+  },
+  {
     name: "knowledge_read",
     description:
       "The user's Knowledge: topic files Owlit keeps of what the user has come to understand, each line said by You, Owlit or a paper. Without a topic, lists the topics and shows the file format; with one, gives its file and the lines the user rewrote (keep them word for word) or removed (never bring them back).",

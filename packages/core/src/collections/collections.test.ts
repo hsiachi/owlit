@@ -57,7 +57,7 @@ describe("Collections.write", () => {
     expect(c.memo.map((s) => s.id)).toEqual(["s1", "s2"])
     // Nothing in a new collection is marked as changed: the whole thing is new
     expect(c.changedAt).toEqual({})
-    expect(wrote).toMatchObject([{ id: out.id, label: "回放式标注作为研究方法", chatId: "chat-1", added: 2 }])
+    expect(wrote).toMatchObject([{ id: out.id, label: "回放式标注作为研究方法", chatId: "chat-1", created: true, rows: ["doi-10.1145-1", "doi-10.1145-2"] }])
   })
 
   it("refuses a paper it can't look up, and a new collection without its question or title", async () => {
@@ -127,6 +127,29 @@ describe("Collections.write", () => {
     await collections.write({ id, columns: [{ question: "Method  and sample" }] })
     expect((await collections.get(id)).columns.map((c) => c.question)).toEqual(["我的研究方法该怎么设计？", "Method and sample"])
     await expect(collections.write({ id, rows: [{ id: "doi-10.1145-1", cells: { nope: { text: "x", depth: "abstract" } } }] })).rejects.toThrow(/no column nope/)
+  })
+})
+
+describe("Collections, a close question", () => {
+  it("keeps a later question with the collection and says which rows were added for it", async () => {
+    const { collections, wrote } = setup()
+    const { id } = await start(collections)
+    await collections.write({ id, asked: "回放评价和当场评价，偏差方向有没有研究？", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower in retrospect.", depth: "abstract" } } }], chatId: "chat-2" })
+    expect((await collections.get(id)).alsoAsked).toMatchObject([{ text: "回放评价和当场评价，偏差方向有没有研究？", chatId: "chat-2" }])
+    expect(wrote.at(-1)).toMatchObject({ created: false, rows: ["doi-10.1145-3"], asked: "回放评价和当场评价，偏差方向有没有研究？" })
+  })
+
+  it("keeps it separate: the added rows become a collection of their own", async () => {
+    const { collections } = setup()
+    const { id } = await start(collections)
+    await collections.write({ id, asked: "偏差方向？", groups: [{ id: "g", name: "G" }], columns: [{ id: "m", question: "Method" }], rows: [{ id: "doi-10.1145-3", group: "g", cells: { q: { text: "Lower.", depth: "abstract" }, m: { text: "Survey", depth: "abstract" } } }] })
+    const split = await collections.split(id, ["doi-10.1145-3"], "偏差方向？")
+    expect(split).toMatchObject({ title: "偏差方向？", asked: { text: "偏差方向？" }, project: "主动提醒研究" })
+    expect(split.rows).toEqual([expect.objectContaining({ id: "doi-10.1145-3", cells: { q: expect.objectContaining({ text: "Lower." }) } })])
+    expect(split.rows[0]?.group).toBeUndefined()
+    const from = await collections.get(id)
+    expect(from.rows.map((r) => r.id)).toEqual(["doi-10.1145-1", "doi-10.1145-2"])
+    expect(from.alsoAsked).toEqual([])
   })
 })
 

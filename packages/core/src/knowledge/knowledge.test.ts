@@ -99,6 +99,11 @@ describe("checkTopic", () => {
     expect(findQuote(text, QUOTE)).toBe(3)
     expect(findQuote(text, "Not in the paper at all")).toBeNull()
   })
+
+  it("gives the page a quote starts on when it runs over a page break", () => {
+    const text = "<!-- page 4 -->\n\nThe retrieved document is held fixed\n\n<!-- page 5 -->\n\nfor the whole sequence.\n\n<!-- page 6 -->\n\nResults."
+    expect(findQuote(text, "is held fixed for the whole sequence")).toBe(4)
+  })
 })
 
 describe("the history of a line", () => {
