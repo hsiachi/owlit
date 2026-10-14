@@ -782,9 +782,11 @@ export class Core {
               },
               collections: {
                 agent: async (prompt, signal, allow) => {
-                  // Without owlit's tools the agent couldn't write the collection at all
+                  // Without owlit's tools the agent couldn't write the collection at all. The workspace
+                  // becomes the open one only once its socket is up (or failed to open, for good).
                   const mcpServers = this.mcpServers(root)
-                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable yet.")
+                  if (!mcpServers.length && this.workspace?.root !== root) return null
+                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
                   return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
                 },
                 changed: (id, collection) => {

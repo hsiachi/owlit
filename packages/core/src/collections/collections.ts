@@ -40,8 +40,8 @@ import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from ".
 
 export interface CollectionsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
-  // is a line on what it did
-  agent?: (prompt: string, signal: AbortSignal, allow: RegExp) => Promise<{ text: string }>
+  // is a line on what it did. Null while the workspace is still opening and its tools can't be reached.
+  agent?: (prompt: string, signal: AbortSignal, allow: RegExp) => Promise<{ text: string } | null>
   // What a paper is, by its id: the Library's record, or what a recent search found
   paper?: (id: string) => Promise<CollectionPaper | undefined>
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
@@ -130,6 +130,8 @@ export class Collections {
           ctx.progress(0, undefined, kind)
           // What it did is in the collection, with Owlit's dots; its answer is only a line for the log
           const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow)
+          // Queued tasks start with the workspace, a moment before its socket opens: try again then
+          if (!done) return ctx.later(1000)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[collections] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },
@@ -606,7 +608,10 @@ export function uniqueId(title: string, taken: string[]) {
     .filter(Boolean)
     .slice(0, 6)
     .join("-")
-  const base = words.length >= 3 ? words.slice(0, 48).replace(/-+$/, "") : `c-${randomBytes(3).toString("hex")}`
+  // A mostly Chinese title would be named after its one English word ("adhd"): random instead
+  const letters = title.match(/\p{L}/gu)?.length ?? 0
+  const latin = title.normalize("NFKD").match(/[a-z]/gi)?.length ?? 0
+  const base = words.length >= 3 && latin * 2 >= letters ? words.slice(0, 48).replace(/-+$/, "") : `c-${randomBytes(3).toString("hex")}`
   let id = base
   for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`
   return id
