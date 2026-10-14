@@ -10,7 +10,7 @@ import { GroupLabel } from "@/components/group-label"
 import { NoteDot } from "@/components/marks"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
-import type { PaperGroup } from "../lib/filter"
+import { needsYou, type PaperGroup } from "../lib/filter"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
@@ -96,6 +96,15 @@ function DigestMark({ state }: { state: DigestState }) {
 // The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
 // while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
 // one place and the ring comes or goes without moving the row.
+// A paper without its PDF says why in its row: Needs you while a publisher waits on the user; once their
+// browser was turned away, what it said, a plain detail, since nothing waits on them any more
+function noPdfWord(p: Paper) {
+  if (needsYou(p)) return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
+  const said = p.noPdf?.noAccess
+  if (said) return said.missing ? t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" }) : t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+  return undefined
+}
+
 function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState }) {
   const label = paper.status === "reading" ? statusLabel("reading") : undefined
   if (digest) {
@@ -137,9 +146,9 @@ function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; s
           className={cn(selected && !peeked && "bg-accent hover:bg-accent")}
           mark={<PaperStatusMark paper={paper} digest={digest} />}
           title={paper.title}
-          // A publisher waiting on the user, or a digest that stopped, says so in words, first among the
-          // row's details
-          meta={[paper.noPdf?.needs && t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" }), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
+          // A publisher waiting on the user (or one that turned them away), or a digest that stopped, says
+          // so in words, first among the row's details
+          meta={[noPdfWord(paper), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
           slot={<RowSlot paper={paper} open={peeked} />}
           below={snippet && <TextSnippet text={snippet} className={cn("pr-14", peeked ? "pb-1.5" : "pl-7")} />}
         />
@@ -197,7 +206,7 @@ const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
   venue: (p) => !!p.venue,
   citations: (p) => !!p.citations,
   tags: (p) => p.tags.length > 0,
-  status: (p) => p.status !== "unread" || !!p.noPdf?.needs,
+  status: (p) => p.status !== "unread" || !!noPdfWord(p),
 }
 
 // Added says "Oct 8 · Owlit" for a paper Owlit added, which needs a wider cell than a date alone
@@ -300,16 +309,9 @@ function TableRow({ paper, peeked, last, columns, snippet, tagFilter, holding }:
         {/* Unread is the default, so it says nothing */}
         {columns.has("status") && (
           <td className={td}>
-            {/* A publisher waiting on the user says so before the reading status, as the list row does */}
-            {paper.noPdf?.needs ? (
-              t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
-            ) : digest === "failed" ? (
-              t`Digest stopped`
-            ) : paper.status === "unread" ? (
-              ""
-            ) : (
-              statusLabel(paper.status)
-            )}
+            {/* A publisher waiting on the user (or one that turned them away) says so before the reading
+                status, as the list row does */}
+            {noPdfWord(paper) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}
           </td>
         )}
         <td className={cn(td, "tabular-nums")}>

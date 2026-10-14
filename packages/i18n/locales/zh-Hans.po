@@ -8,6 +8,10 @@ msgstr ""
 "Language: zh-Hans\n"
 
 #: app/src/app/AppSidebar.tsx
+msgid "{forBrowser, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
+msgstr "{forBrowser, plural, other {# 篇论文需要用你的浏览器获取}}"
+
+#: app/src/app/AppSidebar.tsx
 msgid "A paper needs you"
 msgstr "有篇论文需要你处理"
 
@@ -3588,7 +3592,9 @@ msgstr "从浏览器拿到的"
 msgid "{0, plural, one {# no access} other {# no access}}"
 msgstr "{0, plural, other {# 篇无权限}}"
 
+#. the user's library doesn't give them this paper
 #: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/components/PaperList.tsx
 msgid "No access"
 msgstr "无权限"
 
@@ -3949,7 +3955,6 @@ msgid "Read"
 msgstr "已读"
 
 #. a paper whose publisher wants the user to check or sign in
-#. a paper whose publisher wants the user to check or sign in
 #. filter chip: papers whose publisher wants the user to check or sign in
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
@@ -3994,6 +3999,11 @@ msgstr "新导读"
 #: app/src/features/library/digest-rows.tsx
 msgid "Digest stopped"
 msgstr "导读已停止"
+
+#. the publisher has no PDF of the paper
+#: app/src/features/library/components/PaperList.tsx
+msgid "No PDF there"
+msgstr "出版方无 PDF"
 
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"

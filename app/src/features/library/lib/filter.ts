@@ -13,6 +13,11 @@ export function matchesQuery(p: Paper, q: string): boolean {
   return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
 
+// A paper waits on the user while its publisher wants their browser and nothing has said no yet: once
+// their browser reached the publisher and was turned away (no access, no PDF there), there is nothing
+// for them to do now, so it leaves the amber rung and its card's Try again is all that is left
+export const needsYou = (p: Paper) => !!p.noPdf?.needs && !p.noPdf.noAccess
+
 function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {
     case "all":
@@ -20,7 +25,7 @@ function matchesFilter(p: Paper, f: StatusFilter): boolean {
     case "starred":
       return p.starred
     case "needs":
-      return !!p.noPdf?.needs
+      return needsYou(p)
     default:
       return p.status === f
   }
@@ -82,7 +87,7 @@ export function countByFilter(papers: Record<string, Paper>): Record<StatusFilte
   for (const p of Object.values(papers)) {
     c.all++
     if (p.starred) c.starred++
-    if (p.noPdf?.needs) c.needs++
+    if (needsYou(p)) c.needs++
     c[p.status]++
   }
   return c
