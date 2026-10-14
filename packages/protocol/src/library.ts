@@ -47,14 +47,19 @@ export interface Paper {
   text?: "full" | "basic"
   // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
   // whether the publisher's page wants the user for it (a check that a person is there, a sign-in), or
-  // the site isn't letting owlit's browser through and the user's own browser is the way (blocked)
+  // the site isn't letting owlit's browser through and the user's own browser is the way (blocked), or
+  // the publisher only ever hands its PDFs to the user's own browser, which owlit can open at the PDF
+  // itself (browser: the ACM)
   noPdf?: {
     tried: string[]
     at: number
-    needs?: "check" | "sign-in" | "blocked"
+    needs?: "check" | "sign-in" | "blocked" | "browser"
     // Opened in the user's own browser: until when owlit looks for its PDF in their Downloads, and a
     // downloaded PDF (file name) it isn't sure is this paper's, for them to confirm
     inBrowser?: { until: number; offered?: string }
+    // Being got from the user's browser (library.getInBrowser): waiting its turn, opened there and
+    // waiting for the file, or opened with nothing arriving; browser is that browser's name
+    fromBrowser?: { state: "queued" | "opened" | "missed"; browser?: string }
   }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers

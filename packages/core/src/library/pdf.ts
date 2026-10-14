@@ -80,8 +80,9 @@ export interface Acquisition {
   // Of the PDF in place: the same file dropped again is recognised
   sha256?: string
   // The publisher's page wanted a person (a check, a sign-in) while nobody was looking: Check now,
-  // and the host whose page it was. refused: a check came back after the user passed it.
-  needs?: { reason: "challenge" | "login" | "refused"; route: string; at: number; host?: string }
+  // and the host whose page it was. refused: a check came back after the user passed it. browser: the
+  // publisher lets only the user's own browser in, which gets the PDF at url.
+  needs?: { reason: "challenge" | "login" | "refused" | "browser"; route: string; at: number; host?: string; url?: string }
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}

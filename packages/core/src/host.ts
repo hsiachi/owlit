@@ -19,8 +19,11 @@ export interface Host {
   // The system's preferred languages, most preferred first (BCP 47): what digests are written in
   // until Settings says otherwise
   languages?(): string[]
-  // Opens a web page in the user's own browser
-  openExternal?(url: string): Promise<void>
+  // Opens a web page in the user's own browser; in the background, the browser stays behind owlit
+  openExternal?(url: string, options?: { background?: boolean }): Promise<void>
+  // The user's own browser: its name ("Safari"), and bringing it to the front as it is
+  browserName?(): Promise<string | undefined>
+  showBrowser?(): Promise<void>
   // The folder the user's browser saves downloads to
   downloadsDir?(): string
 }

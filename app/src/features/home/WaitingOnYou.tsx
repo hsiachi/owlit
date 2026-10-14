@@ -13,10 +13,12 @@ import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useLibraryStore } from "@/features/library/store"
 import { useCheckQueue } from "@/features/library/check-queue"
+import { getInBrowser, showBrowser, useFromBrowserRun } from "@/features/library/from-browser"
+import { useLibraryUi } from "@/features/library/ui-store"
 import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@/features/library/types"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { useTasksStore, useLoginTasks } from "@/features/tasks/store"
+import { cancelTask, resumeTask, useTasksStore, useLoginTasks } from "@/features/tasks/store"
 import { importAsks, useImports } from "@/features/library/imports"
 import { importOrigin } from "@/features/library/components/ImportBanner"
 
@@ -55,6 +57,7 @@ function useWaiting(): Waiting[] {
   const loginTask = useLoginTasks()[0]
   const imports = useImports((s) => s.list)
   const tasks = useTasksStore((s) => s.byId)
+  const fromBrowser = useFromBrowserRun()
 
   return useMemo(() => {
     const out: Waiting[] = []
@@ -116,6 +119,56 @@ function useWaiting(): Waiting[] {
     const waitingPapers = Object.values(papers)
       .filter((p) => p.noPdf?.needs && !p.pdf)
       .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
+    // The ACM's papers wait for the user's own browser: one line whose button gets them there in turn.
+    // While that runs, the line says how far it has got; stopped on the user, what their browser may be
+    // asking, with the browser one click away.
+    const forBrowser = waitingPapers.filter((p) => p.noPdf?.needs === "browser")
+    if (fromBrowser) {
+      const done = fromBrowser.progress?.done ?? 0
+      const total = fromBrowser.progress?.total ?? done
+      const browser = forBrowser.find((p) => p.noPdf?.fromBrowser?.browser)?.noPdf?.fromBrowser?.browser
+      if (fromBrowser.state === "waiting_for_you") {
+        out.push({
+          key: "papers:from-browser",
+          icon: KIND_ICON.paper,
+          what: browser ? t`${browser} may be asking you something` : t`Your browser may be asking you something`,
+          where: t`· getting ACM PDFs, ${done} of ${total}`,
+          detail: fromBrowser.waiting?.detail,
+          open: { label: t`Show browser`, run: () => void showBrowser() },
+          action: { label: t({ message: "Continue", context: "carry on getting PDFs from the browser" }), run: () => void resumeTask(fromBrowser.id) },
+        })
+      } else {
+        out.push({
+          key: "papers:from-browser",
+          icon: KIND_ICON.paper,
+          what: t`Getting ACM PDFs in your browser`,
+          where: t`· ${done} of ${total}`,
+          open: { label: t`Show browser`, run: () => void showBrowser() },
+          action: { label: t({ message: "Stop", comment: "stop getting PDFs from the browser" }), run: () => void cancelTask(fromBrowser.id) },
+        })
+      }
+    } else if (forBrowser.length) {
+      const one = forBrowser.length === 1
+      const cite = citationLabel(forBrowser[0])
+      const names = namesOf(forBrowser)
+      out.push({
+        key: "papers:browser",
+        icon: KIND_ICON.paper,
+        what: one ? t`An ACM paper waits for your browser` : t`ACM papers wait for your browser`,
+        where: one ? t`for ${cite}` : t`for ${names}`,
+        detail: one ? undefined : forBrowser.map(citationLabel).join("\n"),
+        open: one
+          ? { label: t({ message: "Open", comment: "verb: open the paper that waits" }), run: () => navigate(`/library/${forBrowser[0].id}`) }
+          : {
+              label: t`Show them`,
+              run: () => {
+                useLibraryUi.getState().setFilter("needs")
+                navigate("/library")
+              },
+            },
+        action: { label: one ? t`Get it` : t`Get them`, run: () => void getInBrowser(forBrowser.map((p) => p.id)) },
+      })
+    }
     for (const needs of ["check", "sign-in", "blocked"] as const) {
       const group = waitingPapers.filter((p) => p.noPdf?.needs === needs)
       const what = (several: boolean) =>
@@ -169,7 +222,7 @@ function useWaiting(): Waiting[] {
       })
     }
     return out
-  }, [chats, streaming, connectors, selected, background, dismissed, papers, loginTask, imports, tasks, navigate])
+  }, [chats, streaming, connectors, selected, background, dismissed, papers, loginTask, imports, tasks, fromBrowser, navigate])
 }
 
 // "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"

@@ -356,6 +356,8 @@ export function pdfFact(p: Pick<Paper, "pdf" | "noPdf" | "ids">) {
   if (!p.noPdf) return "no PDF yet (still looking)"
   if (p.noPdf.needs === "check") return "no PDF: the publisher wants a person to pass a check; the user can press Check now on the paper (the Library's Needs you filter lists these)"
   if (p.noPdf.needs === "sign-in") return "no PDF: waiting for the user to sign in to the library or publisher; the user can press Check now on the paper"
+  if (p.noPdf.needs === "blocked") return "no PDF: the publisher isn't letting owlit in; the user can press Open in browser on the paper and save the PDF there"
+  if (p.noPdf.needs === "browser") return "no PDF: the ACM gives its PDFs only to the user's own browser, and owlit can't open it without them; the user can press Get it in your browser on the paper, or Get them for all such papers (Home's Waiting on you, the Library's Needs you filter)"
   const { tried } = p.noPdf
   if (tried.some((r) => r.endsWith(":proxied"))) return "no PDF: no free copy, and the user's library proxy didn't get it either; the user can drop the PDF on the paper"
   if (tried.some((r) => r.startsWith("browser:"))) return "no PDF: no free copy, and no library proxy is set up ([Settings › Papers › Library proxy](owlit://settings/proxy))"

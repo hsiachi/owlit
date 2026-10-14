@@ -127,6 +127,7 @@ msgstr ""
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
+#. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/docs/save-as-doc.ts
@@ -992,8 +993,12 @@ msgstr ""
 msgid "Add from {place}"
 msgstr ""
 
+#. stop getting PDFs from the browser
+#. stop getting PDFs from the browser
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
 msgid "Stop"
 msgstr ""
 
@@ -2688,6 +2693,66 @@ msgid "to fetch PDFs"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
+msgid "{browser} may be asking you something"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Your browser may be asking you something"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "· getting ACM PDFs, {done} of {total}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Show browser"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgctxt "carry on getting PDFs from the browser"
+msgid "Continue"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Getting ACM PDFs in your browser"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "· {done} of {total}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An ACM paper waits for your browser"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "ACM papers wait for your browser"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "for {cite}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "for {names}"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Show them"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Get it"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Get them"
+msgstr ""
+
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
 msgstr ""
 
@@ -2726,14 +2791,6 @@ msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Get it yourself"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {cite}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {names}"
 msgstr ""
 
 #. placeholder {0}: papers.length - 2
@@ -3516,6 +3573,10 @@ msgid "The publisher isn't letting owlit in."
 msgstr ""
 
 #: app/src/features/library/client.ts
+msgid "ACM gives this PDF to your browser."
+msgstr ""
+
+#: app/src/features/library/client.ts
 msgid "The publisher wants a quick check."
 msgstr ""
 
@@ -3609,6 +3670,24 @@ msgstr ""
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Abstract"
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Your browser may be asking you something."
+msgstr ""
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Getting ACM PDFs in your browser · {done} of {total}"
+msgstr ""
+
+#. placeholder {0}: waiting.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# ACM paper waits for your browser} other {# ACM papers wait for your browser}}"
+msgstr ""
+
+#. placeholder {0}: waiting.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {Get it} other {Get them}}"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
@@ -4106,6 +4185,11 @@ msgstr ""
 msgid "Couldn't save the library."
 msgstr ""
 
+#: app/src/features/library/from-browser.ts
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't open your browser."
+msgstr ""
+
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr ""
@@ -4456,7 +4540,43 @@ msgid "Drop a PDF here, or let owlit look for an open-access copy."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Couldn't open your browser."
+msgid "ACM gives this PDF to your browser"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit can't get past ACM's check, but your browser can. It saves the PDF to Downloads, and owlit takes it from there."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waiting its turn"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets ACM papers from your browser one at a time, a few seconds apart."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Getting it from your browser…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{browser} saves it to Downloads, and owlit takes it from there."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your browser saves it to Downloads, and owlit takes it from there."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Nothing came from your browser yet"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{browser} may be asking you something: ACM's check, or whether dl.acm.org may download files. Answer it there, then try again."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your browser may be asking you something: ACM's check, or whether dl.acm.org may download files. Answer it there, then try again."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4498,16 +4618,7 @@ msgid "Not this"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-#: app/src/features/library/reader/PdfReader.tsx
-msgid "Open in browser"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Open again"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Choose file"
+msgid "Get it in your browser"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4516,6 +4627,19 @@ msgstr ""
 #: app/src/features/welcome/AgentCheck.tsx
 #: apps/share-web/src/App.tsx
 msgid "Try again"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Choose file"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "Open in browser"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open again"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -6405,6 +6529,14 @@ msgstr ""
 
 #: packages/core/src/library/library.ts
 msgid "owlit doesn't know where this paper lives online."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "{browser} may be asking you something: ACM's check, or whether dl.acm.org may download files."
+msgstr ""
+
+#: packages/core/src/library/library.ts
+msgid "Your browser may be asking you something: ACM's check, or whether dl.acm.org may download files."
 msgstr ""
 
 #: packages/core/src/library/library.ts

@@ -13,8 +13,9 @@ export type TaskPriority = "waiting" | "asked" | "background"
 export type TaskState = "queued" | "running" | "waiting_for_you" | "done" | "failed" | "cancelled"
 
 // What the user has to do before the task can go on. A state shown beside the subject, not a dialog.
+// browser: their own browser may be showing them something (a check, a question about downloads).
 export interface TaskWaiting {
-  reason: "login" | "challenge" | "drop_pdf" | "confirm_spend"
+  reason: "login" | "challenge" | "drop_pdf" | "confirm_spend" | "browser"
   // One sentence a person can read
   detail: string
 }

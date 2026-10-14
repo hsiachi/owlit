@@ -15,14 +15,28 @@ import { openSettings, useSettings } from "@/features/settings/store"
 import { cancelTask, openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { useCheckQueue, useNextCheck } from "../../check-queue"
 import { PublisherNeedsUser } from "../../client"
+import { getInBrowser, showBrowser } from "../../from-browser"
 import { citationLabel } from "../../lib/format"
 import { useTakeParam } from "../../lib/use-take-param"
 import { libraryClient, useLibraryStore } from "../../store"
 import type { Paper } from "../../types"
 
-type CardState = "looking" | "sign-in" | "check" | "blocked" | "in-browser" | "offered" | "not-found" | "not-yet"
+type CardState =
+  | "looking"
+  | "sign-in"
+  | "check"
+  | "blocked"
+  | "in-browser"
+  | "offered"
+  | "not-found"
+  | "not-yet"
+  // The ACM: only the user's own browser gets the PDF, and owlit opens it there (from-browser.ts)
+  | "browser"
+  | "browser-queued"
+  | "browser-opened"
+  | "browser-missed"
 
-const card = (state: CardState): { title: string; detail: string } => {
+const card = (state: CardState, browser?: string): { title: string; detail: string } => {
   switch (state) {
     case "looking":
       return { title: t`Looking for a PDF…`, detail: t`If you already have it, drop it here.` }
@@ -44,6 +58,25 @@ const card = (state: CardState): { title: string; detail: string } => {
       return { title: t`No PDF found`, detail: t`Drop a PDF here if you have it.` }
     case "not-yet":
       return { title: t`No PDF yet`, detail: t`Drop a PDF here, or let owlit look for an open-access copy.` }
+    case "browser":
+      return {
+        title: t`ACM gives this PDF to your browser`,
+        detail: t`owlit can't get past ACM's check, but your browser can. It saves the PDF to Downloads, and owlit takes it from there.`,
+      }
+    case "browser-queued":
+      return { title: t`Waiting its turn`, detail: t`owlit gets ACM papers from your browser one at a time, a few seconds apart.` }
+    case "browser-opened":
+      return {
+        title: t`Getting it from your browser…`,
+        detail: browser ? t`${browser} saves it to Downloads, and owlit takes it from there.` : t`Your browser saves it to Downloads, and owlit takes it from there.`,
+      }
+    case "browser-missed":
+      return {
+        title: t`Nothing came from your browser yet`,
+        detail: browser
+          ? t`${browser} may be asking you something: ACM's check, or whether dl.acm.org may download files. Answer it there, then try again.`
+          : t`Your browser may be asking you something: ACM's check, or whether dl.acm.org may download files. Answer it there, then try again.`,
+      }
   }
 }
 
@@ -59,7 +92,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   useTakeParam(
     "check",
     (value, params) => {
-      if (value === "1" && paper.noPdf?.needs && paper.noPdf.needs !== "blocked" && canCheck) setChecking(true)
+      if (value === "1" && (paper.noPdf?.needs === "check" || paper.noPdf?.needs === "sign-in") && canCheck) setChecking(true)
       setInQueue(params.get("queue") === "1")
     },
     ["queue"],
@@ -69,6 +102,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((task) => task.kind === "paper.pdf" || task.kind === "paper.pdf.browser")) || fetching
   const needs = paper.noPdf?.needs
   const canOpen = !!libraryClient.openInBrowser && !!(paper.ids.doi || paper.ids.arxiv)
+  const fromBrowser = paper.noPdf?.fromBrowser
   // Opened in the user's browser: core looks in their Downloads until `until`
   const inBrowser = paper.noPdf?.inBrowser
   const [now, setNow] = useState(Date.now)
@@ -121,7 +155,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
       if (e instanceof PublisherNeedsUser) {
         // The card now asks for the check; a system notification only if the user went elsewhere
         updatePaper(paper.id, { noPdf: { ...(paper.noPdf ?? { tried: [], at: Date.now() }), needs: e.needs } })
-        if (document.hidden) notifyNeeds(paper, e.needs)
+        if (document.hidden) notifyNeeds(paper, e.needs, fromBrowser?.browser)
       } else toast.error(e instanceof Error ? e.message : t`Could not find a PDF.`)
     } finally {
       setFetching(false)
@@ -133,14 +167,20 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   if (checking) return <PublisherPage paper={paper} inQueue={inQueue} onEnd={() => setChecking(false)} />
 
-  const state: CardState = looking
-    ? "looking"
-    : inBrowser?.offered
-      ? "offered"
-      : watching
-        ? "in-browser"
-        : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
-  const { title, detail: plain } = card(state)
+  // Being got from the user's browser comes before owlit's own looking. A paper that only their browser
+  // gets is never "waiting for the PDF from your browser" (Open in browser's state) but offered that
+  // browser again.
+  const state: CardState = inBrowser?.offered
+    ? "offered"
+    : fromBrowser
+      ? `browser-${fromBrowser.state}`
+      : looking
+        ? "looking"
+        : watching && needs !== "browser"
+          ? "in-browser"
+          : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
+  const { title, detail: plain } = card(state, fromBrowser?.browser)
+  const working = state === "looking" || state === "browser-queued" || state === "browser-opened"
   const tried = triedSentence(paper.noPdf?.tried ?? [])
   const file = inBrowser?.offered ?? ""
   // What was tried and what to do, as one message so a language can join the two sentences its own way
@@ -157,7 +197,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
         active={dragging}
         title={
           <>
-            {looking && <Spinner />}
+            {working && <Spinner />}
             {title}
           </>
         }
@@ -170,6 +210,23 @@ export function NoPdf({ paper }: { paper: Paper }) {
               </Button>
               <Button variant="outline" size="sm" onClick={() => void takeDownload(false)}>
                 {t({ message: "Not this", comment: "button: the downloaded file is not the paper's PDF" })}
+              </Button>
+            </>
+          ) : state === "browser" || state === "browser-queued" || state === "browser-opened" || state === "browser-missed" ? (
+            <>
+              {state === "browser" && <Button size="sm" onClick={() => void getInBrowser([paper.id])}>{t`Get it in your browser`}</Button>}
+              {(state === "browser-opened" || state === "browser-missed") && (
+                <Button size="sm" variant={state === "browser-missed" ? "default" : "outline"} onClick={() => void showBrowser()}>
+                  {t`Show browser`}
+                </Button>
+              )}
+              {state === "browser-missed" && (
+                <Button variant="outline" size="sm" onClick={() => void getInBrowser([paper.id])}>
+                  {t`Try again`}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+                {t`Choose file`}
               </Button>
             </>
           ) : (state === "blocked" || state === "in-browser") && canOpen ? (
@@ -332,9 +389,9 @@ const openCheck = (s: Parameters<typeof openTasksFor>[0], paperId: string) =>
   openTasksFor(s, paperId).find((task) => task.kind === "paper.pdf.check")
 
 // The user went elsewhere while owlit looked: a system notification, which brings owlit back
-function notifyNeeds(paper: Paper, needs: "check" | "sign-in" | "blocked") {
+function notifyNeeds(paper: Paper, needs: NonNullable<NonNullable<Paper["noPdf"]>["needs"]>, browser?: string) {
   if (typeof Notification === "undefined") return
-  const notification = new Notification(card(needs).title, { body: paper.title })
+  const notification = new Notification(card(needs, browser).title, { body: paper.title })
   notification.onclick = () => window.focus()
 }
 

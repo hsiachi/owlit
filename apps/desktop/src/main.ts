@@ -517,9 +517,18 @@ if (!app.requestSingleInstanceLock()) {
         },
         revealPath: (file) => shell.showItemInFolder(file),
         // OWLIT_NO_EXTERNAL (tests): say where it would go instead of opening the user's browser
-        openExternal: async (url) => {
-          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", url)
-          else await shell.openExternal(url)
+        openExternal: async (url, options) => {
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", options?.background ? "(background)" : "", url)
+          else await shell.openExternal(url, { activate: !options?.background })
+        },
+        // The app that opens web pages: its name, and the app itself brought to the front as it is
+        // (its last tab, where a page may be asking something), not a new page
+        browserName: async () => (await app.getApplicationInfoForProtocol("https://")).name.replace(/\.app$/, "") || undefined,
+        showBrowser: async () => {
+          const browser = await app.getApplicationInfoForProtocol("https://")
+          if (process.env.OWLIT_NO_EXTERNAL) return console.log("[show-browser]", browser.path)
+          const failure = await shell.openPath(browser.path)
+          if (failure) throw new Error(failure)
         },
         // OWLIT_DOWNLOADS (tests): another folder in place of the user's Downloads
         downloadsDir: () => process.env.OWLIT_DOWNLOADS ?? app.getPath("downloads"),

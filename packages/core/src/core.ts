@@ -561,6 +561,8 @@ export class Core {
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.checkPublisher", z.object({ id: paperId }), ({ id }) => library().checkPublisher(id))
     this.router.register("library.openInBrowser", z.object({ id: paperId }), ({ id }) => library().openInBrowser(id))
+    this.router.register("library.getInBrowser", z.object({ ids: z.array(paperId).min(1) }), ({ ids }) => library().getInBrowser(ids))
+    this.router.register("library.showBrowser", noParams, () => library().showBrowser())
     this.router.register("library.takeDownload", z.object({ id: paperId, take: z.boolean() }), ({ id, take }) => library().takeDownload(id, take))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
       library().attachPdf(id, path),
@@ -715,6 +717,8 @@ export class Core {
                 http: this.http,
                 browser: this.options.host?.browser,
                 openExternal: this.options.host?.openExternal,
+                browserName: this.options.host?.browserName,
+                showBrowser: this.options.host?.showBrowser,
                 downloadsDir: this.options.host?.downloadsDir,
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,

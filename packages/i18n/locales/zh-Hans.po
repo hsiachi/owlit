@@ -127,6 +127,7 @@ msgstr "什么也没找到。"
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
+#. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/features/docs/save-as-doc.ts
@@ -992,8 +993,12 @@ msgstr "附加文件"
 msgid "Add from {place}"
 msgstr "从{place}添加"
 
+#. stop getting PDFs from the browser
+#. stop getting PDFs from the browser
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
 msgid "Stop"
 msgstr "停止"
 
@@ -2688,6 +2693,66 @@ msgid "to fetch PDFs"
 msgstr "以获取 PDF"
 
 #: app/src/features/home/WaitingOnYou.tsx
+msgid "{browser} may be asking you something"
+msgstr "{browser} 可能在等你回应"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Your browser may be asking you something"
+msgstr "浏览器可能在等你回应"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "· getting ACM PDFs, {done} of {total}"
+msgstr "· 正在获取 ACM 的 PDF，{done}/{total}"
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Show browser"
+msgstr "查看浏览器"
+
+#: app/src/features/home/WaitingOnYou.tsx
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgctxt "carry on getting PDFs from the browser"
+msgid "Continue"
+msgstr "继续"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Getting ACM PDFs in your browser"
+msgstr "正在用浏览器获取 ACM 的 PDF"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "· {done} of {total}"
+msgstr "· {done}/{total}"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "An ACM paper waits for your browser"
+msgstr "一篇 ACM 论文需要用你的浏览器获取"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "ACM papers wait for your browser"
+msgstr "几篇 ACM 论文需要用你的浏览器获取"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "for {cite}"
+msgstr "· {cite}"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "for {names}"
+msgstr "· {names}"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Show them"
+msgstr "查看"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Get it"
+msgstr "获取"
+
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Get them"
+msgstr "全部获取"
+
+#: app/src/features/home/WaitingOnYou.tsx
 msgid "Publishers want you to sign in"
 msgstr "出版商需要你登录"
 
@@ -2727,14 +2792,6 @@ msgstr "立即检查"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Get it yourself"
 msgstr "自己下载"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {cite}"
-msgstr "· {cite}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {names}"
-msgstr "· {names}"
 
 #. placeholder {0}: papers.length - 2
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3516,6 +3573,10 @@ msgid "The publisher isn't letting owlit in."
 msgstr "出版商不让 owlit 访问。"
 
 #: app/src/features/library/client.ts
+msgid "ACM gives this PDF to your browser."
+msgstr "ACM 只把这篇 PDF 给你的浏览器。"
+
+#: app/src/features/library/client.ts
 msgid "The publisher wants a quick check."
 msgstr "出版商需要你完成一次快速验证。"
 
@@ -3610,6 +3671,24 @@ msgstr "发表处"
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Abstract"
 msgstr "摘要"
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Your browser may be asking you something."
+msgstr "浏览器可能在等你回应。"
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Getting ACM PDFs in your browser · {done} of {total}"
+msgstr "正在用浏览器获取 ACM 的 PDF · {done}/{total}"
+
+#. placeholder {0}: waiting.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# ACM paper waits for your browser} other {# ACM papers wait for your browser}}"
+msgstr "{0, plural, other {# 篇 ACM 论文需要用你的浏览器获取}}"
+
+#. placeholder {0}: waiting.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {Get it} other {Get them}}"
+msgstr "{0, plural, one {获取} other {全部获取}}"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
@@ -4106,6 +4185,11 @@ msgstr "无法写出导读"
 msgid "Couldn't save the library."
 msgstr "无法保存文献库。"
 
+#: app/src/features/library/from-browser.ts
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Couldn't open your browser."
+msgstr "无法打开你的浏览器。"
+
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr "这种方式只能添加 PDF 文件。"
@@ -4456,8 +4540,44 @@ msgid "Drop a PDF here, or let owlit look for an open-access copy."
 msgstr "把 PDF 拖到这里，或让 owlit 查找开放获取的版本。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Couldn't open your browser."
-msgstr "无法打开你的浏览器。"
+msgid "ACM gives this PDF to your browser"
+msgstr "ACM 只把这篇 PDF 给你的浏览器"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit can't get past ACM's check, but your browser can. It saves the PDF to Downloads, and owlit takes it from there."
+msgstr "owlit 过不了 ACM 的验证，但你的浏览器可以。它会把 PDF 存到“下载”文件夹，owlit 再从那里取用。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waiting its turn"
+msgstr "排队中"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets ACM papers from your browser one at a time, a few seconds apart."
+msgstr "owlit 用你的浏览器逐篇获取 ACM 论文，每篇之间隔几秒。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Getting it from your browser…"
+msgstr "正在用浏览器获取…"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{browser} saves it to Downloads, and owlit takes it from there."
+msgstr "{browser} 会把它存到“下载”文件夹，owlit 再从那里取用。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your browser saves it to Downloads, and owlit takes it from there."
+msgstr "浏览器会把它存到“下载”文件夹，owlit 再从那里取用。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Nothing came from your browser yet"
+msgstr "浏览器那边还没有下载下来"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{browser} may be asking you something: ACM's check, or whether dl.acm.org may download files. Answer it there, then try again."
+msgstr "{browser} 可能在等你回应：ACM 的验证，或者是否允许 dl.acm.org 下载文件。在那里处理好后再重试。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your browser may be asking you something: ACM's check, or whether dl.acm.org may download files. Answer it there, then try again."
+msgstr "浏览器可能在等你回应：ACM 的验证，或者是否允许 dl.acm.org 下载文件。在那里处理好后再重试。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
@@ -4498,17 +4618,8 @@ msgid "Not this"
 msgstr "不是这个"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-#: app/src/features/library/reader/PdfReader.tsx
-msgid "Open in browser"
-msgstr "在浏览器中打开"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Open again"
-msgstr "再次打开"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Choose file"
-msgstr "选择文件"
+msgid "Get it in your browser"
+msgstr "用浏览器获取"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 #: app/src/features/onboarding/AgentChoice.tsx
@@ -4517,6 +4628,19 @@ msgstr "选择文件"
 #: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr "重试"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Choose file"
+msgstr "选择文件"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+#: app/src/features/library/reader/PdfReader.tsx
+msgid "Open in browser"
+msgstr "在浏览器中打开"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open again"
+msgstr "再次打开"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Find PDF"
@@ -6406,6 +6530,14 @@ msgstr "需要 owlit 桌面应用才能打开你的浏览器。"
 #: packages/core/src/library/library.ts
 msgid "owlit doesn't know where this paper lives online."
 msgstr "owlit 不知道这篇论文的网上地址。"
+
+#: packages/core/src/library/library.ts
+msgid "{browser} may be asking you something: ACM's check, or whether dl.acm.org may download files."
+msgstr "{browser} 可能在等你回应：ACM 的验证，或者是否允许 dl.acm.org 下载文件。"
+
+#: packages/core/src/library/library.ts
+msgid "Your browser may be asking you something: ACM's check, or whether dl.acm.org may download files."
+msgstr "浏览器可能在等你回应：ACM 的验证，或者是否允许 dl.acm.org 下载文件。"
 
 #: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
