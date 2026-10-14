@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { useChatStore } from "@/features/chat/store"
+import { chatStatus, useSeenStore } from "@/features/chat/status"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PromptInput, QuotedSelection } from "@/features/chat/types"
@@ -18,6 +19,23 @@ const PANEL_MIN = 320
 // The page beside the panel keeps at least this much of the window
 export const PAGE_MIN = 560
 export const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
+
+// ⇧⌘J and the feather open the panel on the current chat, unless the person left it this long ago: by then
+// they are usually on another paper or doc, and the old conversation would go along with every question
+// about it. ⌘J already starts a new question; this makes ⇧⌘J mean "go on with what I was just doing".
+const LEFT_A_WHILE = 30 * 60_000
+
+// A chat that still has something for the person (at work, waiting on them, a reply they haven't seen, a
+// broken reply) is never left behind, nor one on screen; otherwise its last question or the last time it
+// was on screen, whichever is later, says when they left it
+function leftAWhileAgo(chatId: string) {
+  const chats = useChatStore.getState()
+  const chat = chats.chats[chatId]
+  const seen = useSeenStore.getState()
+  if (!chat || seen.viewing[chatId]) return false
+  if (chatStatus(chat, !!chats.streaming[chatId], seen.unseen[chatId], seen.dismissed[chatId]) !== "idle") return false
+  return Date.now() - Math.max(chat.updatedAt, seen.seenAt[chatId] ?? 0) > LEFT_A_WHILE
+}
 
 interface AgentWindowState {
   stage: AgentStage
@@ -89,8 +107,12 @@ export const useAgentWindow = create<AgentWindowState>()(
         })),
       close: () => set({ stage: "closed", listShown: false, fromNote: null, hint: null }),
       toggle: () => (get().stage === "bar" ? get().close() : get().open()),
-      togglePanel: () =>
-        get().stage === "open" ? get().close() : set((s) => ({ stage: "open", fromNote: null, hint: null, focusTick: s.focusTick + 1 })),
+      togglePanel: () => {
+        const { stage, chatId } = get()
+        if (stage === "open") return get().close()
+        const fresh = !!chatId && leftAWhileAgo(chatId)
+        set((s) => ({ stage: "open", fromNote: null, hint: null, focusTick: s.focusTick + 1, ...(fresh && { chatId: null, hiddenContext: null }) }))
+      },
       follow: (chatId) => set((s) => (s.chatId === chatId ? s : { chatId, fromNote: null })),
       // From the panel's header: an empty chat in the panel itself, not the ask bar, so the conversation
       // stays where the user is looking; sending starts it. The one left is in the header's menu.

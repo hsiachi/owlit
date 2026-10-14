@@ -7,6 +7,7 @@ import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { StatusRing } from "@/components/status-ring"
+import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChatMessages } from "@/features/chat/components/ChatMessages"
 import { ComposerDock } from "@/features/chat/components/ComposerDock"
@@ -17,7 +18,7 @@ import { useLookAt } from "@/features/chat/status"
 import { useChatStore } from "@/features/chat/store"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
-import { askAboutOrAnything, useVisibleContext } from "./page-context"
+import { askAboutOrAnything, pageStarters, useVisibleContext, type PageKind } from "./page-context"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
 // At the right end of the top bar: the panel with the current chat, as ⇧⌘J. The feather is also the brand
@@ -64,9 +65,13 @@ export function AgentPanel() {
       {chat && chat.messages.length > 0 ? (
         <ChatMessages chat={chat} streaming={streaming} panel />
       ) : (
-        <div className="flex flex-1 items-end px-4 pb-3 text-body text-muted-foreground">
-          {context[0] ? askAboutOrAnything(context[0].kind) : t`Ask anything.`}
-        </div>
+        <PanelEmpty
+          kind={context[0]?.kind}
+          onStarter={(prompt) => {
+            composer.current?.setText(prompt)
+            composer.current?.focus()
+          }}
+        />
       )}
       <ComposerDock
         ref={composer}
@@ -79,6 +84,28 @@ export function AgentPanel() {
         header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
       />
     </aside>
+  )
+}
+
+// A chat with nothing in it yet: the feather, what can be asked, and starters for the page beside it, all
+// at the bottom by the composer where the eye already is. The feather is in ink: Owlit's green is for what
+// Owlit has done, and here it hasn't done anything yet.
+function PanelEmpty({ kind, onStarter }: { kind?: PageKind; onStarter: (prompt: string) => void }) {
+  return (
+    <div className="flex flex-1 flex-col items-start justify-end gap-3 px-4 pb-3">
+      <OwlitMark className="size-5 text-muted-foreground" />
+      <p className="text-body text-muted-foreground">{kind ? askAboutOrAnything(kind) : t`Ask anything.`}</p>
+      {kind && (
+        <div className="flex flex-wrap gap-2">
+          {/* Drawn like the Chat page's starters */}
+          {pageStarters(kind).map((s) => (
+            <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
+              {s.label}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

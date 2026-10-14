@@ -545,12 +545,12 @@ msgid "Last chat"
 msgstr ""
 
 #: app/src/features/agent/AgentWindow.tsx
-msgid "Ask anything."
+#: app/src/features/onboarding/demos/AskDemo.tsx
+msgid "Ask a follow-up…"
 msgstr ""
 
 #: app/src/features/agent/AgentWindow.tsx
-#: app/src/features/onboarding/demos/AskDemo.tsx
-msgid "Ask a follow-up…"
+msgid "Ask anything."
 msgstr ""
 
 #: app/src/features/agent/AgentWindow.tsx
@@ -623,6 +623,54 @@ msgstr ""
 
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this collection, or anything else."
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper: its question, method and main findings."
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s the method?"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "What method does this paper use, and how does it evaluate it?"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Review this draft"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Review where this draft overstates a finding or misreads a paper."
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers to cite"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers that support or challenge the claims in this doc."
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do they disagree?"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do the papers in this collection disagree, and why?"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s left open?"
+msgstr ""
+
+#: app/src/features/agent/page-context.ts
+msgid "Which questions do the papers in this collection leave open?"
 msgstr ""
 
 #: app/src/features/agent/store.ts

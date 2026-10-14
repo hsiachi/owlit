@@ -20,6 +20,14 @@ const attachmentVariants = cva(
         vertical: "w-24 flex-col has-data-[slot=attachment-content]:w-30",
       },
     },
+    // A chip with an icon and no buttons ends in its text, which reads as touching the border at the media's
+    // padding (the filled square on the left looks roomier than the same space after a word), so its right
+    // side takes more
+    compoundVariants: [
+      { orientation: "horizontal", size: "default", class: "has-data-[slot=attachment-media]:not-has-data-[slot=attachment-actions]:pr-3.5" },
+      { orientation: "horizontal", size: "sm", class: "has-data-[slot=attachment-media]:not-has-data-[slot=attachment-actions]:pr-3" },
+      { orientation: "horizontal", size: "xs", class: "has-data-[slot=attachment-media]:not-has-data-[slot=attachment-actions]:pr-2.5" },
+    ],
   }
 )
 

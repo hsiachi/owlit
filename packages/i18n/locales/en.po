@@ -545,13 +545,13 @@ msgid "Last chat"
 msgstr "Last chat"
 
 #: app/src/features/agent/AgentWindow.tsx
-msgid "Ask anything."
-msgstr "Ask anything."
-
-#: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "Ask a follow-up…"
 msgstr "Ask a follow-up…"
+
+#: app/src/features/agent/AgentWindow.tsx
+msgid "Ask anything."
+msgstr "Ask anything."
 
 #: app/src/features/agent/AgentWindow.tsx
 msgid "No chats yet"
@@ -624,6 +624,54 @@ msgstr "Ask about this doc, or anything else."
 #: app/src/features/agent/page-context.ts
 msgid "Ask about this collection, or anything else."
 msgstr "Ask about this collection, or anything else."
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper"
+msgstr "Summarize this paper"
+
+#: app/src/features/agent/page-context.ts
+msgid "Summarize this paper: its question, method and main findings."
+msgstr "Summarize this paper: its question, method and main findings."
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s the method?"
+msgstr "What’s the method?"
+
+#: app/src/features/agent/page-context.ts
+msgid "What method does this paper use, and how does it evaluate it?"
+msgstr "What method does this paper use, and how does it evaluate it?"
+
+#: app/src/features/agent/page-context.ts
+msgid "Review this draft"
+msgstr "Review this draft"
+
+#: app/src/features/agent/page-context.ts
+msgid "Review where this draft overstates a finding or misreads a paper."
+msgstr "Review where this draft overstates a finding or misreads a paper."
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers to cite"
+msgstr "Find papers to cite"
+
+#: app/src/features/agent/page-context.ts
+msgid "Find papers that support or challenge the claims in this doc."
+msgstr "Find papers that support or challenge the claims in this doc."
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do they disagree?"
+msgstr "Where do they disagree?"
+
+#: app/src/features/agent/page-context.ts
+msgid "Where do the papers in this collection disagree, and why?"
+msgstr "Where do the papers in this collection disagree, and why?"
+
+#: app/src/features/agent/page-context.ts
+msgid "What’s left open?"
+msgstr "What’s left open?"
+
+#: app/src/features/agent/page-context.ts
+msgid "Which questions do the papers in this collection leave open?"
+msgstr "Which questions do the papers in this collection leave open?"
 
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
