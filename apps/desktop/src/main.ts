@@ -9,7 +9,7 @@ import { interfaceLocale, type AppearanceSettings, type DocsChange, type Locale,
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notification, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { createBrowserHost, type PublisherBrowser } from "./browser.ts"
+import { createBrowserHost } from "./browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
@@ -191,16 +191,10 @@ function createWindow() {
 
 // Core is transport-agnostic; here its requests ride ipcMain.handle and its notifications go to
 // every window
-function attachCore(core: Core, browser: PublisherBrowser) {
+function attachCore(core: Core) {
   ipcMain.handle("rpc", (event, request: RpcRequest) => {
     if (!isOwnPage(event.senderFrame?.url ?? "")) throw new Error("Only Owlit's own page may call core.")
     return core.handle(request)
-  })
-  // Where the renderer wants the publisher's page during Check now
-  ipcMain.on("publisher-view", (event, bounds: Electron.Rectangle | null) => {
-    const owner = BrowserWindow.fromWebContents(event.sender)
-    // The renderer measures in CSS pixels; the view is placed in the window's, which differ when zoomed
-    if (owner) browser.setView(owner, bounds && scaleRect(bounds, event.sender.getZoomFactor()))
   })
   protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
@@ -222,7 +216,6 @@ function isOwnPage(url: string) {
   }
 }
 
-const scaleRect = (r: Electron.Rectangle, k: number) => ({ x: Math.round(r.x * k), y: Math.round(r.y * k), width: Math.round(r.width * k), height: Math.round(r.height * k) })
 
 // Main is one more client of core: it calls the same methods the renderer does
 let requestId = 0
@@ -534,7 +527,7 @@ if (!app.requestSingleInstanceLock()) {
         downloadsDir: () => process.env.OWLIT_DOWNLOADS ?? app.getPath("downloads"),
       },
     })
-    attachCore(core, browser)
+    attachCore(core)
     // Development aid: print every activity event the renderer reports
     if (process.env.OWLIT_LOG_ACTIVITY) core.activity.subscribe((event) => console.log("[activity]", JSON.stringify(event)))
     // Development aid: print what the workspace watcher reports (paths only, not text)

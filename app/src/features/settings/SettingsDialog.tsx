@@ -12,7 +12,6 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu
 import { OwlitMark } from "@/components/owlit-mark"
 import { isBroken } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
-import { useLoginTasks } from "@/features/tasks/store"
 import { i18n } from "@/lib/i18n"
 import { KIND_ICON } from "@/lib/kinds"
 import { useFold } from "./form-state"
@@ -52,8 +51,7 @@ const LIST = SECTIONS.map((s) => ({ ...s, ...PARTS[s.id] }))
 function useNeedsYou(): Partial<Record<SettingsSection, boolean>> {
   // An agent nobody has signed in to yet (the Owlit engine in Beta) isn't broken
   const agentBroken = useChatStore((s) => s.connectors.some(isBroken))
-  const loginWaiting = useLoginTasks().length > 0
-  return { agents: agentBroken, papers: loginWaiting }
+  return { agents: agentBroken }
 }
 
 export function SettingsDialog() {

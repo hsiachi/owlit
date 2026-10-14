@@ -9,7 +9,7 @@ import { readJson, writeJsonAtomic } from "../fs-util.ts"
 //
 // - Unattended visits to one site are spaced out (VISIT_GAP_MS).
 // - A site that asked for a person and didn't let an unattended visit through is held: none of its
-//   papers is visited unattended until the hold runs out or the user gets through there (Check now).
+//   papers is visited unattended until the hold runs out or a run the user waited on gets through there.
 // - A site that turns plain downloads away (Cloudflare answering core's fetch with a check) is only
 //   reached through the browser for a while.
 //

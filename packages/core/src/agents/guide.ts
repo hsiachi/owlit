@@ -25,7 +25,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "pdfs",
     title: "Getting PDFs (library proxy)",
-    text: `owlit fetches a paper's PDF by itself when one is free. For papers the user's library pays for, set up the library proxy once in Settings › Papers: pick the library, or paste any link opened through it. The user signs in in owlit's own window, and papers waiting on the sign-in carry on. When a publisher wants a person to pass a check, the paper says so and offers Check now, which shows the publisher's page in place; the Library's "Needs you" filter lists every such paper. A contact email and free API keys, also in Settings › Papers, make lookups faster.`,
+    text: `owlit fetches a paper's PDF by itself when one is free. For papers the user's library pays for, set up the library proxy once in Settings › Papers: pick the library, or paste any link opened through it. The user signs in in owlit's own window. When owlit can't get a PDF by itself (a publisher's check, a sign-in, or the ACM, which only lets browsers in), the paper offers Get it in your browser: owlit opens the PDF, or the paper's page, in the user's own browser behind its window and takes the file from Downloads; Get them on Home or under the Library's "Needs you" filter does several, one at a time. A contact email and free API keys, also in Settings › Papers, make lookups faster.`,
   },
   {
     id: "reading",

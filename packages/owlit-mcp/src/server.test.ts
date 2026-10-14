@@ -53,7 +53,7 @@ describe("pdfFact", () => {
     const doi = { doi: "10.1145/1" }
     expect(pdfFact({ pdf: { url: "owlit-pdf://doi-10.1145-1" }, ids: doi })).toBe("")
     expect(pdfFact({ ids: doi })).toBe("no PDF yet (still looking)")
-    expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:acm"], at: 1, needs: "check" } })).toMatch(/person to pass a check; the user can press Check now/)
+    expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:sage"], at: 1, needs: "browser" } })).toMatch(/Get it in your browser/)
     expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:acm", "browser:acm:proxied"], at: 1 } })).toMatch(/library proxy didn't get it either/)
     expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:acm"], at: 1 } })).toMatch(/no library proxy is set up/)
     expect(pdfFact({ ids: {}, noPdf: { tried: [], at: 1 } })).toMatch(/without a DOI/)

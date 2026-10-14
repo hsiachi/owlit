@@ -53,19 +53,10 @@ export interface BrowserRequest {
   proxyHost?: string
   // The hosts the page may visit while nobody is looking (publisher, doi.org, the proxy)
   allowHosts: string[]
-  // Sites (registrable domains) the page may not go on to while nobody is looking: one that just asked
-  // for a person, which the library proxy would only lead back to
+  // Sites (registrable domains) the page may not go on to: one that just asked for a person, which the
+  // library proxy would only lead back to
   avoidSites?: string[]
-  // Sites that asked the user for a check or a sign-in in this run, shared by its routes: each site
-  // asks once, and asking again means it won't let this browser through
-  askedSites?: Set<string>
   signal: AbortSignal
-  // The user asked to see the page (Check now): it shows where the app reserved room for it, and a
-  // check or a sign-in waits for them instead of ending the run
-  withUser?: boolean
-  // With the user: the page wants them (a challenge, a sign-in form). `settled` resolves when the page
-  // moves on, and needUser resolves once the task may go on.
-  needUser(reason: PublisherNeed, detail: string, settled: Promise<void>): Promise<void>
   // What happened on the way, for publisher-log.jsonl
   report?(event: BrowserEvent): void
 }
@@ -75,14 +66,14 @@ export type BrowserEvent =
   | { kind: "opened"; host: string; status?: number }
   // A check (or a sign-in) is on the page
   | { kind: "asked"; host: string; reason: PublisherNeed }
-  | { kind: "cleared"; host: string; by: "itself" | "user" }
+  | { kind: "cleared"; host: string; by: "itself" }
   // The check came back after it had cleared
   | { kind: "back"; host: string }
   | { kind: "pdf"; host: string; bytes: number }
 
 export type PublisherNeed = "login" | "challenge"
 
-// The publisher's page wants a person (a check, a sign-in) and nobody was looking
+// The publisher's page wants a person (a check, a sign-in): the user's own browser is the way
 export class NeedsUser extends Error {
   readonly reason: PublisherNeed
   // The host whose page wanted them: the browser's session is shared, so getting past it once is
@@ -92,17 +83,6 @@ export class NeedsUser extends Error {
     super(reason === "login" ? "The publisher wants you to sign in." : "The publisher wants to check this is a person.")
     this.name = "NeedsUser"
     this.reason = reason
-    this.host = host
-  }
-}
-
-// A site asked for a check again right after it was passed: it isn't letting this browser through for
-// now, and asking the user once more would only repeat that
-export class Refused extends Error {
-  readonly host: string
-  constructor(host: string) {
-    super(`${host} kept asking for a check after it was passed.`)
-    this.name = "Refused"
     this.host = host
   }
 }

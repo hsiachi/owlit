@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 
-// A link that asks for something once (?passage=…, ?check=1): the value is handed to `take` when it
+// A link that asks for something once (?passage=…): the value is handed to `take` when it
 // arrives and taken off the link, so the link stays clean. Parameters that only qualify it (?queue=1)
 // go in `also`: they are read and taken off in the same update, since two hooks each taking one would
 // each write the link back from the same starting point and the second would restore the first. Before

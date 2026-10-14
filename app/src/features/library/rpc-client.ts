@@ -18,14 +18,6 @@ export class RpcLibraryClient implements LibraryClient {
     throw new Error(found.noPdf ? t`No PDF found. Drop one here if you have it.` : t`owlit couldn't look for a PDF.`)
   }
 
-  checkPublisher(paper: Paper): Promise<Paper> {
-    return rpc.library.checkPublisher({ id: paper.id })
-  }
-
-  openInBrowser(paper: Paper): Promise<Paper> {
-    return rpc.library.openInBrowser({ id: paper.id })
-  }
-
   takeDownload(paper: Paper, take: boolean): Promise<Paper> {
     return rpc.library.takeDownload({ id: paper.id, take })
   }

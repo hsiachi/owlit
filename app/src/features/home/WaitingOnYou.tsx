@@ -12,24 +12,23 @@ import { brokenReply, pendingAsk, useSeenStore } from "@/features/chat/status"
 import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useLibraryStore } from "@/features/library/store"
-import { useCheckQueue } from "@/features/library/check-queue"
 import { getInBrowser, showBrowser, useFromBrowserRun } from "@/features/library/from-browser"
 import { useLibraryUi } from "@/features/library/ui-store"
 import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@/features/library/types"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { cancelTask, resumeTask, useTasksStore, useLoginTasks } from "@/features/tasks/store"
+import { cancelTask, resumeTask, useTasksStore } from "@/features/tasks/store"
 import { importAsks, useImports } from "@/features/library/imports"
 import { importOrigin } from "@/features/library/components/ImportBanner"
 
-// Everything stuck on the user, in one list: a permission a chat waits for, a publisher that wants a
-// check, handed-off work that broke, an agent that can't run, a library sign-in. Each line is the thing
+// Everything stuck on the user, in one list: a permission a chat waits for, papers only their browser
+// can get, handed-off work that broke, an agent that can't run. Each line is the thing
 // and its fix; it leaves once answered. The whole row is the way to the fix, as every row on Home is a
-// link, and its right end says what clicking does ("Check now ›"); a real button is kept only for a fix
-// that does something other than going there (Retry). Shown only while something waits, in the rows' own look (Home's
+// link, and its right end says what clicking does ("Open ›"); a real button is kept only for a fix
+// that does something other than going there (Retry, Get them). Shown only while something waits, in the rows' own look (Home's
 // Recent), not a card. The places these come from keep their own marks (a chat's status ring, the rail's
-// dots). What holds up work comes first: a chat or an agent stopped on the user. A publisher's check only
-// keeps a PDF away, so papers come last, and three or more of one kind share a line.
+// dots). What holds up work comes first: a chat or an agent stopped on the user. A missing PDF only
+// keeps a paper away, so papers come last, in one line.
 interface Waiting {
   key: string
   icon: LucideIcon
@@ -54,7 +53,6 @@ function useWaiting(): Waiting[] {
   const dismissed = useSeenStore((s) => s.dismissed)
   const papers = useLibraryStore((s) => s.papers)
   const background = useSettings((s) => s.view?.backgroundAgent)
-  const loginTask = useLoginTasks()[0]
   const imports = useImports((s) => s.list)
   const tasks = useTasksStore((s) => s.byId)
   const fromBrowser = useFromBrowserRun()
@@ -106,9 +104,6 @@ function useWaiting(): Waiting[] {
         open: { label: t`Manage agents`, run: () => openSettings("agents") },
       })
     }
-    if (loginTask) {
-      out.push({ key: "login", icon: LibraryIcon, what: t`Your library wants you to sign in`, where: t`to fetch PDFs`, open: { label: t`Library proxy`, run: () => openSettings("proxy") } })
-    }
     // An import started from the CLI stops to ask about MinerU; the Library's line has the answers
     for (const i of imports) {
       const task = tasks[i.taskId]
@@ -116,49 +111,52 @@ function useWaiting(): Waiting[] {
       const origin = importOrigin(i)
       out.push({ key: `import:${i.id}`, icon: LibraryIcon, what: t`An import asks about MinerU`, where: origin, open: { label: t`Answer`, run: () => navigate("/library") } })
     }
-    const waitingPapers = Object.values(papers)
-      .filter((p) => p.noPdf?.needs && !p.pdf)
+    // Papers owlit couldn't get alone wait for the user's own browser: one line whose button gets them
+    // there in turn. While that runs, the line says how far it has got; stopped on the user, what their
+    // browser may be asking, with the browser one click away. Papers whose page was opened there wait
+    // for the user to save the PDF, on a line of their own.
+    const forBrowser = Object.values(papers)
+      .filter((p) => !p.pdf && p.noPdf?.needs === "browser")
       .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
-    // The ACM's papers wait for the user's own browser: one line whose button gets them there in turn.
-    // While that runs, the line says how far it has got; stopped on the user, what their browser may be
-    // asking, with the browser one click away.
-    const forBrowser = waitingPapers.filter((p) => p.noPdf?.needs === "browser")
+    const browser = forBrowser.find((p) => p.noPdf?.fromBrowser?.browser)?.noPdf?.fromBrowser?.browser
+    const pages = forBrowser.filter((p) => p.noPdf?.fromBrowser?.state === "page")
+    const waiting = forBrowser.filter((p) => !p.noPdf?.fromBrowser || p.noPdf.fromBrowser.state === "missed")
+    const show = { label: t`Show browser`, run: () => void showBrowser() }
     if (fromBrowser) {
       const done = fromBrowser.progress?.done ?? 0
       const total = fromBrowser.progress?.total ?? done
-      const browser = forBrowser.find((p) => p.noPdf?.fromBrowser?.browser)?.noPdf?.fromBrowser?.browser
       if (fromBrowser.state === "waiting_for_you") {
         out.push({
           key: "papers:from-browser",
           icon: KIND_ICON.paper,
           what: browser ? t`${browser} may be asking you something` : t`Your browser may be asking you something`,
-          where: t`· getting ACM PDFs, ${done} of ${total}`,
+          where: t`· getting PDFs, ${done} of ${total}`,
           detail: fromBrowser.waiting?.detail,
-          open: { label: t`Show browser`, run: () => void showBrowser() },
+          open: show,
           action: { label: t({ message: "Continue", context: "carry on getting PDFs from the browser" }), run: () => void resumeTask(fromBrowser.id) },
         })
       } else {
         out.push({
           key: "papers:from-browser",
           icon: KIND_ICON.paper,
-          what: t`Getting ACM PDFs in your browser`,
+          what: t`Getting PDFs in your browser`,
           where: t`· ${done} of ${total}`,
-          open: { label: t`Show browser`, run: () => void showBrowser() },
+          open: show,
           action: { label: t({ message: "Stop", comment: "stop getting PDFs from the browser" }), run: () => void cancelTask(fromBrowser.id) },
         })
       }
-    } else if (forBrowser.length) {
-      const one = forBrowser.length === 1
-      const cite = citationLabel(forBrowser[0])
-      const names = namesOf(forBrowser)
+    } else if (waiting.length) {
+      const one = waiting.length === 1
+      const cite = citationLabel(waiting[0])
+      const names = namesOf(waiting)
       out.push({
         key: "papers:browser",
         icon: KIND_ICON.paper,
-        what: one ? t`An ACM paper waits for your browser` : t`ACM papers wait for your browser`,
+        what: one ? t`A paper waits for your browser` : t`Papers wait for your browser`,
         where: one ? t`for ${cite}` : t`for ${names}`,
-        detail: one ? undefined : forBrowser.map(citationLabel).join("\n"),
+        detail: one ? undefined : waiting.map(citationLabel).join("\n"),
         open: one
-          ? { label: t({ message: "Open", comment: "verb: open the paper that waits" }), run: () => navigate(`/library/${forBrowser[0].id}`) }
+          ? { label: t({ message: "Open", comment: "verb: open the paper that waits" }), run: () => navigate(`/library/${waiting[0].id}`) }
           : {
               label: t`Show them`,
               run: () => {
@@ -166,63 +164,25 @@ function useWaiting(): Waiting[] {
                 navigate("/library")
               },
             },
-        action: { label: one ? t`Get it` : t`Get them`, run: () => void getInBrowser(forBrowser.map((p) => p.id)) },
+        action: { label: one ? t`Get it` : t`Get them`, run: () => void getInBrowser(waiting.map((p) => p.id)) },
       })
     }
-    for (const needs of ["check", "sign-in", "blocked"] as const) {
-      const group = waitingPapers.filter((p) => p.noPdf?.needs === needs)
-      const what = (several: boolean) =>
-        needs === "sign-in"
-          ? several
-            ? t`Publishers want you to sign in`
-            : t`The publisher wants you to sign in`
-          : needs === "blocked"
-            ? several
-              ? t`Publishers aren't letting owlit in`
-              : t`The publisher isn't letting owlit in`
-            : several
-              ? t`Publishers want a quick check`
-              : t`The publisher wants a quick check`
-      const label = needs === "sign-in" ? t`Sign in` : needs === "blocked" ? t`Get it yourself` : t`Check now`
-      // Nothing to go through in turn: each paper's card offers the user's own browser
-      if (needs === "blocked") {
-        if (group.length <= 2) {
-          for (const paper of group) {
-            const cite = citationLabel(paper)
-            out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: t`for ${cite}`, open: { label, run: () => navigate(`/library/${paper.id}`) } })
-          }
-        } else if (group.length) {
-          const names = namesOf(group)
-          out.push({ key: "papers:blocked", icon: KIND_ICON.paper, what: what(true), where: t`for ${names}`, detail: group.map(citationLabel).join("\n"), open: { label, run: () => navigate(`/library/${group[0].id}`) } })
-        }
-        continue
-      }
-      if (group.length <= 2) {
-        for (const paper of group) {
-          const cite = citationLabel(paper)
-          out.push({ key: `paper:${paper.id}`, icon: KIND_ICON.paper, what: what(false), where: t`for ${cite}`, open: { label, run: () => navigate(`/library/${paper.id}?check=1`) } })
-        }
-        continue
-      }
-      // One line for many: the first two by name, then each publisher's page in turn
-      const names = namesOf(group)
+    if (pages.length) {
+      const names = namesOf(pages)
+      const n = pages.length
       out.push({
-        key: `papers:${needs}`,
+        key: "papers:pages",
         icon: KIND_ICON.paper,
-        what: what(true),
+        what: browser
+          ? plural(n, { one: `Save the PDF from the page open in ${browser}`, other: `Save # PDFs from the pages open in ${browser}` })
+          : plural(n, { one: "Save the PDF from the page open in your browser", other: "Save # PDFs from the pages open in your browser" }),
         where: t`for ${names}`,
-        detail: group.map(citationLabel).join("\n"),
-        open: {
-          label,
-          run: () => {
-            useCheckQueue.getState().start(group.map((p) => p.id))
-            navigate(`/library/${group[0].id}?check=1&queue=1`)
-          },
-        },
+        detail: n > 1 ? pages.map(citationLabel).join("\n") : undefined,
+        open: show,
       })
     }
     return out
-  }, [chats, streaming, connectors, selected, background, dismissed, papers, loginTask, imports, tasks, fromBrowser, navigate])
+  }, [chats, streaming, connectors, selected, background, dismissed, papers, imports, tasks, fromBrowser, navigate])
 }
 
 // "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"

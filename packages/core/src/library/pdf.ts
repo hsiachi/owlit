@@ -79,8 +79,8 @@ export interface Acquisition {
   dropHere: string
   // Of the PDF in place: the same file dropped again is recognised
   sha256?: string
-  // The publisher's page wanted a person (a check, a sign-in) while nobody was looking: Check now,
-  // and the host whose page it was. refused: a check came back after the user passed it. browser: the
+  // The publisher's page wanted a person (a check, a sign-in), and the host whose page it was: the
+  // user's own browser is the way. refused: a check came back after the user passed it. browser: the
   // publisher lets only the user's own browser in, which gets the PDF at url.
   needs?: { reason: "challenge" | "login" | "refused" | "browser"; route: string; at: number; host?: string; url?: string }
 }

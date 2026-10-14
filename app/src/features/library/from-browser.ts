@@ -6,8 +6,8 @@ import { rpc } from "@/lib/rpc"
 import { useTasksStore } from "@/features/tasks/store"
 import { useLibraryStore } from "./store"
 
-// Papers whose publisher lets only the user's own browser in (the ACM), got from that browser one at a
-// time by core's papers.fromBrowser run. Started from the paper's card, Home's Waiting on you, or the
+// Papers owlit couldn't get alone, got from the user's own browser one at a time by core's
+// papers.fromBrowser run. Started from the paper's card, Home's Waiting on you, or the
 // Library under Needs you; each of them shows the same run.
 
 // The run, while it goes on: its progress (done of total), and waiting_for_you once two PDFs in a row
@@ -15,12 +15,12 @@ import { useLibraryStore } from "./store"
 export const useFromBrowserRun = () =>
   useTasksStore((s) => Object.values(s.byId).find((task) => task.kind === "papers.fromBrowser" && !isTaskFinished(task)))
 
-// Papers without a PDF waiting for the user's browser, the longest waiting first
+// Papers without a PDF waiting for the user's browser and not under way there, the longest waiting first
 export const useWaitingForBrowser = () =>
   useLibraryStore(
     useShallow((s) =>
       Object.values(s.papers)
-        .filter((p) => !p.pdf && p.noPdf?.needs === "browser")
+        .filter((p) => !p.pdf && p.noPdf?.needs === "browser" && (!p.noPdf.fromBrowser || p.noPdf.fromBrowser.state === "missed"))
         .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0)),
     ),
   )
