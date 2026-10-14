@@ -24,8 +24,28 @@ export interface Host {
   // The user's own browser: its name ("Safari"), and bringing it to the front as it is
   browserName?(): Promise<string | undefined>
   showBrowser?(): Promise<void>
+  // The user's own browser driven by its scripting, for browsers that have it (Dia, Chrome, Edge,
+  // Brave); undefined for others, or when the user didn't let owlit control it
+  browserControl?(): Promise<BrowserControl | undefined>
   // The folder the user's browser saves downloads to
   downloadsDir?(): string
+}
+
+// The user's browser, as owlit drives it for a run: a window of its own, tabs in it, and where each tab
+// is now. Nothing here brings the browser to the front except focusTab. Each call rejects when the
+// browser won't answer (the user said no to owlit controlling it); a window or tab that is gone is
+// undefined, not an error.
+export interface BrowserControl {
+  // A new window behind whatever is in front; its id
+  openWindow(): Promise<string>
+  // A tab at url in that window, the window's own empty tab closed the first time; its id, or undefined
+  // when the window is gone
+  openTab(window: string, url: string): Promise<string | undefined>
+  // Where the tab is now: its address and title; undefined once it is closed
+  tab(window: string, tab: string): Promise<{ url: string; title: string } | undefined>
+  closeTab(window: string, tab: string): Promise<void>
+  // The browser to the front at this tab
+  focusTab(window: string, tab: string): Promise<void>
 }
 
 export interface SecretBox {

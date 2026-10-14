@@ -10,6 +10,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notificati
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost } from "./browser.ts"
+import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
@@ -517,6 +518,8 @@ if (!app.requestSingleInstanceLock()) {
         // The app that opens web pages: its name, and the app itself brought to the front as it is
         // (its last tab, where a page may be asking something), not a new page
         browserName: async () => (await app.getApplicationInfoForProtocol("https://")).name.replace(/\.app$/, "") || undefined,
+        // OWLIT_NO_EXTERNAL (tests): no browser to drive
+        browserControl: async () => (process.env.OWLIT_NO_EXTERNAL ? undefined : browserControl()),
         showBrowser: async () => {
           const browser = await app.getApplicationInfoForProtocol("https://")
           if (process.env.OWLIT_NO_EXTERNAL) return console.log("[show-browser]", browser.path)
