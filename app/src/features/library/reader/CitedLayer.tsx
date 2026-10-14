@@ -5,7 +5,7 @@ import { Tip } from "@/components/tip"
 import { shortDate } from "@/lib/time"
 import { boundsOf } from "./passages"
 import { useReaderStore } from "./reader-store"
-import { useWearStore, type CitedMark } from "./wear"
+import { useWearStore, type CitedMark, type WearSource } from "./wear"
 
 // How far left of the sentence's lines the mark stands, and how wide it is, in screen pixels
 const GAP = 7
@@ -13,8 +13,9 @@ const WIDTH = 2
 // The part of the margin that answers the pointer: wider than the mark, so it can be found
 const HIT = 12
 
-// Owlit's trace on a page: a thin bar in the margin beside each sentence its answers rested on. Hovering
-// it rings the sentence and says which chat; a click goes back to that answer. Fixed colour, since the
+// Owlit's trace on a page: a thin bar in the margin beside each sentence its answers rested on, in a chat
+// or a collection. Hovering it rings the sentence and says where; a click goes back to the latest answer
+// (the chat's message, or the paper's row opened in its collection). Fixed colour, since the
 // page is white in both themes.
 export function CitedLayer({ documentId, pageIndex }: { documentId: string; pageIndex: number }) {
   const scale = useDocumentState(documentId)?.scale ?? 1
@@ -43,21 +44,23 @@ function Mark({ mark, scale }: { mark: CitedMark; scale: number }) {
   const label = (
     <span className="flex flex-col gap-0.5">
       {mark.cited.slice(-3).map((c) => (
-        <span key={`${c.chatId}-${c.messageId}`}>{t`Owlit cited this in “${c.chatTitle}” · ${shortDate(c.at)}`}</span>
+        <span key={c.kind === "chat" ? `${c.chatId}-${c.messageId}` : `${c.collectionId}-${c.column ?? ""}`}>{sourceLine(c)}</span>
       ))}
     </span>
   )
+  const open = () =>
+    navigate(latest.kind === "chat" ? `/chat/${latest.chatId}?message=${encodeURIComponent(latest.messageId)}` : `/collections/${latest.collectionId}?paper=${encodeURIComponent(latest.row)}`)
   return (
     // Above the sentence: the margin is too narrow for it at the side, and below would cover what is ringed
     <Tip label={label} side="top">
       <button
         type="button"
-        aria-label={t`Owlit cited this in “${latest.chatTitle}”`}
+        aria-label={sourceName(latest)}
         onPointerEnter={() => ring(true)}
         onPointerLeave={() => ring(false)}
         onFocus={() => ring(true)}
         onBlur={() => ring(false)}
-        onClick={() => navigate(`/chat/${latest.chatId}?message=${encodeURIComponent(latest.messageId)}`)}
+        onClick={open}
         className="group absolute cursor-pointer outline-none"
         style={{ left: box.x * scale - GAP - HIT / 2, top: box.y * scale, width: HIT, height: box.h * scale }}
       >
@@ -70,3 +73,12 @@ function Mark({ mark, scale }: { mark: CitedMark; scale: number }) {
     </Tip>
   )
 }
+
+function sourceName(c: WearSource) {
+  if (c.kind === "chat") return t`Owlit cited this in “${c.chatTitle}”`
+  const title = c.collectionTitle
+  const column = c.column
+  return column ? t`An answer in “${title}” rests on this: ${column}` : t`An answer in “${title}” rests on this`
+}
+
+const sourceLine = (c: WearSource) => `${sourceName(c)} · ${shortDate(c.at)}`

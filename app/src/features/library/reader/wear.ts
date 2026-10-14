@@ -1,4 +1,4 @@
-import type { CitedPassage } from "@owlit/protocol"
+import type { CitedPassage, CollectedPassage } from "@owlit/protocol"
 import { useEffect } from "react"
 import { create } from "zustand"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -6,17 +6,20 @@ import type { Rect } from "../types"
 import { quoteTarget, type PassageTarget } from "./passages"
 
 // Read wear (Hill et al. 1992): what has been read of the open paper, shown on it. The sentences Owlit's
-// answers rested on get a thin mark in the margin; the pages the person stayed on darken a strip at the
+// answers rested on, in chats and in collections, get a thin mark in the margin; the pages the person stayed on darken a strip at the
 // reader's edge. Both are for looking, not doing: no counts, no list. Core gathers them when the paper
 // opens (library.wear); a sentence that isn't found in the PDF draws nothing.
 
-// One sentence Owlit cited, found on the page; several answers citing the same sentence share it
+// What rests on a sentence: an answer in a chat, or a collection's answer for this paper
+export type WearSource = ({ kind: "chat" } & CitedPassage) | ({ kind: "collection" } & CollectedPassage)
+
+// One sentence Owlit cited, found on the page; several answers citing the same sentence share it, oldest first
 export interface CitedMark {
   key: string
   page: number
   rects: Rect[]
   target: PassageTarget
-  cited: CitedPassage[]
+  cited: WearSource[]
 }
 
 interface WearState {
@@ -38,11 +41,12 @@ export function useReadWear(paperId: string, locate: Locate | null) {
     useWearStore.setState({ paperId, marks: [], pages: {} })
     void rpc.library
       .wear({ id: paperId })
-      .then(async ({ cited, pages }) => {
+      .then(async ({ cited, collected, pages }) => {
         if (!live) return
         useWearStore.setState({ pages })
         const byPlace = new Map<string, CitedMark>()
-        for (const c of cited) {
+        const sources: WearSource[] = [...cited.map((c) => ({ kind: "chat" as const, ...c })), ...(collected ?? []).map((c) => ({ kind: "collection" as const, ...c }))].sort((a, b) => a.at - b.at)
+        for (const c of sources) {
           const target = quoteTarget(c.quote, c.page)
           const at = await locate(target)
           if (!live) return

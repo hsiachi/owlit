@@ -129,7 +129,22 @@ export interface PaperFigure {
 // pages the person stayed on (seconds at the top of the screen, by 1-based page)
 export interface PaperWear {
   cited: CitedPassage[]
+  // The sentences a collection's answers rest on, from the papers Owlit read in full
+  collected: CollectedPassage[]
   pages: Record<number, number>
+}
+
+// A sentence of the paper an answer in a collection rests on, checked word for word against the full text
+// when Owlit wrote it; column is the question asked of every paper, when it isn't the collection's own
+export interface CollectedPassage {
+  quote: string
+  page?: number
+  collectionId: string
+  collectionTitle: string
+  // The paper's row in the collection, by the id the collection knows it by
+  row: string
+  column?: string
+  at: number
 }
 
 // A sentence of the paper an answer in a chat rested on, word for word as the agent gave it in the

@@ -1,11 +1,11 @@
-import type { Chat, CitedPassage, PaperWear } from "@owlit/protocol"
-import { parseOwlitUri } from "@owlit/protocol"
+import type { Chat, CitedPassage, CollectedPassage, Collection, CollectionSummary, PaperWear } from "@owlit/protocol"
+import { itemId, parseOwlitUri, QUESTION_COLUMN, shownCollection } from "@owlit/protocol"
 import { readJournal, readingOf } from "../activity/reading.ts"
 import type { Chats } from "../chats/chats.ts"
 
-// What has been read of a paper: the sentences Owlit's answers rested on, taken from the chats as they
-// are now (a deleted chat or a regenerated answer takes its marks with it), and the pages the person
-// stayed on, from the journal. Nothing is stored for this; it is read again whenever a paper opens.
+// What has been read of a paper: the sentences Owlit's answers rested on, taken from the chats and the
+// collections as they are now (a deleted chat, a regenerated answer or a removed row takes its marks with
+// it), and the pages the person stayed on, from the journal. Nothing is stored for this; it is read again whenever a paper opens.
 
 // A citation in Markdown: [label](owlit://library/<id>#p4 "the sentence"), the title optional
 const CITATION = /\]\((owlit:\/\/library\/[^\s)]+)(?:\s+"((?:\\.|[^"\\])*)")?\)/g
@@ -50,7 +50,43 @@ function citedIn(chat: Chat): Cited[] {
   return cited
 }
 
-export async function wearOf(paperId: string, { chats, journal, aliases }: { chats: Chats; journal: string; aliases: Record<string, string> }): Promise<PaperWear> {
+interface CollectionsReader {
+  list(): Promise<CollectionSummary[]>
+  get(id: string): Promise<Collection>
+}
+
+// The answers in collections that rest on the paper's own words: cells read in full, with their passage.
+// The user's rewrite of an answer keeps the passage Owlit found.
+async function collectedOf(id: string, collections: CollectionsReader, alias: (id: string) => string): Promise<CollectedPassage[]> {
+  const out: CollectedPassage[] = []
+  for (const summary of await collections.list()) {
+    const c = await collections.get(summary.id).catch(() => null)
+    if (!c) continue
+    const shown = shownCollection(c)
+    for (const row of shown.rows) {
+      if (alias(row.id) !== id) continue
+      for (const col of shown.columns) {
+        const passage = row.cells[col.id]?.passage
+        if (!passage?.quote || row.cells[col.id]?.depth !== "full") continue
+        out.push({
+          quote: passage.quote,
+          ...(passage.page ? { page: passage.page } : {}),
+          collectionId: c.id,
+          collectionTitle: shown.title,
+          row: row.id,
+          ...(col.id !== QUESTION_COLUMN && col.kind !== "compare" ? { column: col.question } : {}),
+          at: c.changedAt[itemId.cell(row.id, col.id)] ?? c.updatedAt,
+        })
+      }
+    }
+  }
+  return out.sort((a, b) => a.at - b.at)
+}
+
+export async function wearOf(
+  paperId: string,
+  { chats, collections, journal, aliases }: { chats: Chats; collections: CollectionsReader; journal: string; aliases: Record<string, string> },
+): Promise<PaperWear> {
   const alias = (id: string) => aliases[id] ?? id
   const id = alias(paperId)
   const cited: CitedPassage[] = []
@@ -67,5 +103,5 @@ export async function wearOf(paperId: string, { chats, journal, aliases }: { cha
   }
   cited.sort((a, b) => a.at - b.at)
   const pages = readingOf(await readJournal(journal), alias).get(id)?.pages ?? {}
-  return { cited, pages }
+  return { cited, collected: await collectedOf(id, collections, alias), pages }
 }

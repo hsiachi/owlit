@@ -210,7 +210,7 @@ export class Core {
       const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias })
       // A paper's history also says which of its sentences Owlit's answers rested on
       if (query.mode === "of" && query.paper) {
-        const { cited } = await wearOf(query.paper, { chats: ws.chats, journal: ws.owlitPath("journal.jsonl"), aliases })
+        const { cited } = await wearOf(query.paper, { chats: ws.chats, collections: ws.collections, journal: ws.owlitPath("journal.jsonl"), aliases })
         if (cited.length) return { recording: true, ...answer, cited: cited.map(({ quote, page, chatId, chatTitle, at }) => ({ quote, ...(page ? { page } : {}), chatId, chatTitle, at })) }
       }
       return { recording: true, ...answer }
@@ -574,7 +574,7 @@ export class Core {
     // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
     this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
       const ws = this.requireWorkspace()
-      return wearOf(id, { chats: ws.chats, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
+      return wearOf(id, { chats: ws.chats, collections: ws.collections, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
     })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.getInBrowser", z.object({ ids: z.array(paperId).min(1) }), ({ ids }) => library().getInBrowser(ids))

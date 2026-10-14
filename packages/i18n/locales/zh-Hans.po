@@ -4591,15 +4591,17 @@ msgid "Tried {list}."
 msgstr "已尝试：{list}。"
 
 #. placeholder {0}: c.chatTitle
-#. placeholder {1}: shortDate(c.at)
-#: app/src/features/library/reader/CitedLayer.tsx
-msgid "Owlit cited this in “{0}” · {1}"
-msgstr "Owlit 在「{0}」里引用过 · {1}"
-
-#. placeholder {0}: latest.chatTitle
 #: app/src/features/library/reader/CitedLayer.tsx
 msgid "Owlit cited this in “{0}”"
 msgstr "Owlit 在「{0}」里引用过"
+
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "An answer in “{title}” rests on this: {column}"
+msgstr "合集「{title}」里的回答依据这一句：{column}"
+
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "An answer in “{title}” rests on this"
+msgstr "合集「{title}」里的回答依据这一句"
 
 #. verb: add a comment to a highlight
 #: app/src/features/library/reader/HighlightToolbar.tsx

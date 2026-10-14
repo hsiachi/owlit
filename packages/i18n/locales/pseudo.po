@@ -4591,14 +4591,16 @@ msgid "Tried {list}."
 msgstr ""
 
 #. placeholder {0}: c.chatTitle
-#. placeholder {1}: shortDate(c.at)
-#: app/src/features/library/reader/CitedLayer.tsx
-msgid "Owlit cited this in “{0}” · {1}"
-msgstr ""
-
-#. placeholder {0}: latest.chatTitle
 #: app/src/features/library/reader/CitedLayer.tsx
 msgid "Owlit cited this in “{0}”"
+msgstr ""
+
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "An answer in “{title}” rests on this: {column}"
+msgstr ""
+
+#: app/src/features/library/reader/CitedLayer.tsx
+msgid "An answer in “{title}” rests on this"
 msgstr ""
 
 #. verb: add a comment to a highlight
