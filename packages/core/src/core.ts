@@ -1,6 +1,8 @@
 import { t } from "@lingui/core/macro"
 import { chatOfFile, normalizeNoteLanguage, ROLES, RpcErrorCode, type ChatMessage, type CoreVersion, type PaperKnowledge, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type TopicSidecar, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
+import { homedir } from "node:os"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
@@ -155,6 +157,7 @@ export class Core {
     this.router.register("agents.rules", noParams, () => AGENT_RULES)
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
+    this.router.register("core.diagnostics", noParams, () => this.diagnostics())
 
     this.router.register("workspace.current", noParams, () => this.workspace?.info ?? null)
     this.router.register("workspace.open", z.object({ path: z.string().min(1) }), ({ path }) => this.openWorkspace(path))
@@ -837,6 +840,21 @@ export class Core {
   private requireWorkspace() {
     if (!this.workspace) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     return this.workspace
+  }
+
+  private async diagnostics(): Promise<string> {
+    const macos = await new Promise<string>((resolve) => execFile("sw_vers", ["-productVersion"], (error, out) => resolve(error ? process.platform : `macOS ${out.trim()}`)))
+    const home = (p: string) => p.replace(homedir(), "~")
+    const lines = [`Owlit ${this.version().version} (${process.arch}) · ${macos} · Node ${process.versions.node}`]
+    for (const c of await this.agents.list()) {
+      const state = c.setup?.progress !== undefined ? "setting up" : c.status === "not_installed" ? (c.setup?.cliFound ? "on this Mac, not set up" : "not found") : c.authenticated === false ? "signed out" : c.status
+      const copy = c.setup?.installed ? `, owlit's copy ${c.setup.installed}` : ""
+      lines.push(`${c.name}: ${state}${c.version ? `, ${c.version}` : ""}${copy}${c.error ? ` · ${c.error}` : ""}${c.setup?.error ? ` · setup: ${c.setup.error}` : ""}`)
+    }
+    const ws = this.workspace
+    lines.push(ws ? `Workspace: ${home(ws.root)}` : "Workspace: none open")
+    lines.push(`Data: ${home(this.options.userDataDir)}${ws ? ` · ${home(ws.dataDir)}` : ""}`)
+    return lines.join("\n")
   }
 
   private version(): CoreVersion {

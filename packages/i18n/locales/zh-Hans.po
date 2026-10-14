@@ -188,6 +188,18 @@ msgstr "已移除论文"
 msgid "Settings › {place}"
 msgstr "设置 › {place}"
 
+#: app/src/app/menu.ts
+msgid "Copied diagnostics"
+msgstr "已复制诊断信息"
+
+#: app/src/app/menu.ts
+msgid "Paste them into a message to whoever helps you."
+msgstr "粘贴到消息里发给帮你的人。"
+
+#: app/src/app/menu.ts
+msgid "The diagnostics couldn't be copied."
+msgstr "没能复制诊断信息。"
+
 #: app/src/app/nav.ts
 #: app/src/features/home/HomePage.tsx
 msgid "Home"
@@ -5656,6 +5668,10 @@ msgstr "键盘快捷键"
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
 msgstr "问 Owlit 怎么做…"
+
+#: apps/desktop/src/main.ts
+msgid "Copy Diagnostics"
+msgstr "复制诊断信息"
 
 #: apps/desktop/src/text-menu.ts
 msgid "No Guesses Found"

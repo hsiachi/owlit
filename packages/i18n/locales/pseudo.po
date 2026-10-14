@@ -188,6 +188,18 @@ msgstr ""
 msgid "Settings › {place}"
 msgstr ""
 
+#: app/src/app/menu.ts
+msgid "Copied diagnostics"
+msgstr ""
+
+#: app/src/app/menu.ts
+msgid "Paste them into a message to whoever helps you."
+msgstr ""
+
+#: app/src/app/menu.ts
+msgid "The diagnostics couldn't be copied."
+msgstr ""
+
 #: app/src/app/nav.ts
 #: app/src/features/home/HomePage.tsx
 msgid "Home"
@@ -5655,6 +5667,10 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Copy Diagnostics"
 msgstr ""
 
 #: apps/desktop/src/text-menu.ts

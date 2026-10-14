@@ -188,6 +188,18 @@ msgstr "Paper removed"
 msgid "Settings › {place}"
 msgstr "Settings › {place}"
 
+#: app/src/app/menu.ts
+msgid "Copied diagnostics"
+msgstr "Copied diagnostics"
+
+#: app/src/app/menu.ts
+msgid "Paste them into a message to whoever helps you."
+msgstr "Paste them into a message to whoever helps you."
+
+#: app/src/app/menu.ts
+msgid "The diagnostics couldn't be copied."
+msgstr "The diagnostics couldn't be copied."
+
 #: app/src/app/nav.ts
 #: app/src/features/home/HomePage.tsx
 msgid "Home"
@@ -5656,6 +5668,10 @@ msgstr "Keyboard Shortcuts"
 #: apps/desktop/src/main.ts
 msgid "Ask Owlit How To…"
 msgstr "Ask Owlit How To…"
+
+#: apps/desktop/src/main.ts
+msgid "Copy Diagnostics"
+msgstr "Copy Diagnostics"
 
 #: apps/desktop/src/text-menu.ts
 msgid "No Guesses Found"

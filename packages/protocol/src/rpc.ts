@@ -60,6 +60,9 @@ export const RpcErrorCode = {
 export interface Methods {
   "core.ping": { params: void; result: { ok: true } }
   "core.version": { params: void; result: CoreVersion }
+  // A short plain-text report for someone helping with a problem: versions, the agents and what keeps
+  // them from running, where owlit keeps its data. No keys, no paper titles, no file contents.
+  "core.diagnostics": { params: void; result: string }
   // The open workspace, or null before one is chosen
   "workspace.current": { params: void; result: WorkspaceInfo | null }
   // The open workspace, and whether one is opening right now
@@ -469,7 +472,7 @@ export interface CoreVersion {
   node: string
 }
 
-export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import"
+export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics"
 
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {

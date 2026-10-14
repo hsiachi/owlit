@@ -118,6 +118,20 @@ describe("owlit", () => {
     expect((await owlit(["--help"])).out).toMatch(/^owlit: the owlit app from Terminal/)
   })
 
+  it("serves owlit's tools to an agent with owlit mcp", async () => {
+    const { root, dir } = await setup()
+    const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } })
+    const reply = await new Promise<string>((resolve) => {
+      const child = execFile(process.execPath, [MAIN, "mcp", "--socket-dir", dir], { cwd: root, env: { ...process.env, OWLIT_MCP: "" } }, () => undefined)
+      child.stdout!.on("data", (chunk: Buffer) => {
+        resolve(chunk.toString())
+        child.kill()
+      })
+      child.stdin!.write(init + "\n")
+    })
+    expect(JSON.parse(reply.split("\n")[0])).toMatchObject({ id: 1, result: { serverInfo: { name: "owlit" } } })
+  })
+
   it("runs as a command", async () => {
     const { root, dir } = await setup()
     const result = await new Promise<{ code: number | null; stdout: string }>((resolve) => {

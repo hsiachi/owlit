@@ -20,7 +20,7 @@ export async function writeCliScript(entry: string) {
   const script = [
     "#!/bin/sh",
     "# owlit's command line tool, written by the app at each launch. See owlit --help.",
-    `ELECTRON_RUN_AS_NODE=1 OWLIT_APP=${shellQuote(bundle)} exec ${shellQuote(process.execPath)} ${shellQuote(entry)} "$@"`,
+    `ELECTRON_RUN_AS_NODE=1 OWLIT_APP=${shellQuote(bundle)} OWLIT_MCP=${shellQuote(path.join(path.dirname(entry), "owlit-mcp.cjs"))} exec ${shellQuote(process.execPath)} ${shellQuote(entry)} "$@"`,
     "",
   ].join("\n")
   await mkdir(path.dirname(scriptPath()), { recursive: true })

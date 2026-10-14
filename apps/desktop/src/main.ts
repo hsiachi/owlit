@@ -426,6 +426,8 @@ async function updateMenu(core: Core) {
         { label: t`Keyboard Shortcuts`, accelerator: "CmdOrCtrl+/", click: () => send("shortcuts") },
         // Owlit answers questions about owlit itself; it needs a workspace to run in
         { label: t`Ask Owlit How To…`, enabled: !!current, click: () => send("how-to") },
+        { type: "separator" },
+        { label: t`Copy Diagnostics`, click: () => send("diagnostics") },
       ],
     },
   ]

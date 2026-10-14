@@ -3,7 +3,7 @@
 
 import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
 import { isTaskFinished, type ImportSource, type Task } from "@owlit/protocol"
-import { execFile } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import { stat } from "node:fs/promises"
 import path from "node:path"
 import { parseArgs } from "node:util"
@@ -29,6 +29,8 @@ Commands:
   search <words…>          Search the library: titles, abstracts, full text
   tasks                    What owlit is working on, and what finished since it opened
   open                     Open the workspace in owlit
+  mcp                      owlit's tools for an agent, over stdio (owlit-mcp):
+                           claude mcp add owlit -- owlit mcp --workspace ~/Research
   import <kind> <path>     Bring in a collection: zotero (zotero.sqlite, its folder, or a
                            Better BibTeX .json), bibtex (a .bib file) or folder (its PDFs).
                            --tags makes Zotero collections tags; --parse / --no-parse answers
@@ -89,6 +91,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
   }
 
   if (command === "open") return open(workspace, io, flags["socket-dir"])
+  if (command === "mcp") return mcp(workspace, argv, io)
 
   let owlit: OwlitClient
   try {
@@ -292,6 +295,18 @@ async function open(workspace: string, io: Io, socketDir?: string): Promise<numb
   }
   io.err(`owlit didn't open ${path.basename(workspace)} within 30 seconds.\n`)
   return NOT_RUNNING
+}
+
+// owlit-mcp in this process's place: the agent talks to it over this command's stdin and stdout. The
+// installed command says where the bundled one is (OWLIT_MCP); from the repo it is the package's source.
+function mcp(workspace: string, argv: string[], io: Io): Promise<number> {
+  const script = io.env.OWLIT_MCP || path.join(import.meta.dirname, "../../owlit-mcp/src/main.ts")
+  const rest = argv.filter((a, i) => a !== "mcp" && a !== "--workspace" && argv[i - 1] !== "--workspace")
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [script, "--workspace", workspace, ...rest], { stdio: "inherit", env: { ...process.env, ...io.env } })
+    child.on("close", (code) => resolve(code ?? FAILED))
+    child.on("error", () => resolve(FAILED))
+  })
 }
 
 // The workspace a folder is in: the nearest folder upward that has .owlit/
