@@ -8,6 +8,10 @@ msgstr ""
 "Language: pseudo\n"
 
 #: app/src/app/AppSidebar.tsx
+msgid "{forBrowser, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
 msgid "A paper needs you"
 msgstr ""
 
@@ -3588,7 +3592,9 @@ msgstr ""
 msgid "{0, plural, one {# no access} other {# no access}}"
 msgstr ""
 
+#. the user's library doesn't give them this paper
 #: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/components/PaperList.tsx
 msgid "No access"
 msgstr ""
 
@@ -3949,7 +3955,6 @@ msgid "Read"
 msgstr ""
 
 #. a paper whose publisher wants the user to check or sign in
-#. a paper whose publisher wants the user to check or sign in
 #. filter chip: papers whose publisher wants the user to check or sign in
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
@@ -3993,6 +3998,11 @@ msgstr ""
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/digest-rows.tsx
 msgid "Digest stopped"
+msgstr ""
+
+#. the publisher has no PDF of the paper
+#: app/src/features/library/components/PaperList.tsx
+msgid "No PDF there"
 msgstr ""
 
 #: app/src/features/library/components/PaperList.tsx

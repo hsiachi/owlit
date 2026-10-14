@@ -11,14 +11,17 @@ import { useLibraryUi } from "../ui-store"
 // same ladder (DESIGN.md): while it runs, one quiet grey line with how far it has got and Stop; stopped
 // on the user, the amber dot and what their browser shows, with Show browser, Stop and Continue (I've
 // signed in, for a sign-in). Once it has ended, what it did, each part opening its papers, until put
-// away. Under Needs you, with no run going, the dot again with the papers not yet tried and Get them.
+// away. With no run going, the dot again with the papers not yet tried and Get them, whatever the
+// filter: the rail's dot sends the user here, so what it waits for is the first thing on the page, and the
+// sentence shows those papers under Needs you.
 export function FromBrowserLine() {
   const run = useFromBrowserRun()
   const stoppedOn = useStoppedOn()
   const last = useLastRun()
   const waiting = useWaitingForBrowser()
   const filter = useLibraryUi((s) => s.filter)
-  if (!run && !last && (filter !== "needs" || !waiting.length)) return null
+  const setFilter = useLibraryUi((s) => s.setFilter)
+  if (!run && !last && !waiting.length) return null
 
   let mark: React.ReactNode = null
   let words: React.ReactNode
@@ -59,7 +62,8 @@ export function FromBrowserLine() {
     )
   } else {
     mark = <span className="size-2 rounded-full bg-warning" />
-    words = plural(waiting.length, { one: "# paper waits for your browser", other: "# papers wait for your browser" })
+    const sentence = plural(waiting.length, { one: "# paper waits for your browser", other: "# papers wait for your browser" })
+    words = filter === "needs" ? sentence : <InlineLink onClick={() => setFilter("needs")}>{sentence}</InlineLink>
     actions = (
       <Button variant="text" size="inline" onClick={() => void getInBrowser(waiting.map((p) => p.id))}>
         {plural(waiting.length, { one: "Get it", other: "Get them" })}
