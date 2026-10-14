@@ -781,18 +781,21 @@ export class Core {
               const now = gone.id && change.changed.find((f) => f.id === gone.id)
               if (now) void next.shares.moved(gone.path, now.path)
             }
-            next.shares.touched()
+            // Only the shares of these docs are built again, unless too much changed to say
+            next.shares.touched(
+              change.reload || change.folders.deleted.length ? undefined : { docs: [...change.changed.map((f) => f.path), ...change.deleted.map((f) => f.path)] },
+            )
           })
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)
               next.search.touch()
-              next.shares.touched()
+              next.shares.touched({ papers: [...change.papers.map((p) => p.id), ...change.removed, ...Object.entries(change.renamed ?? {}).flat()] })
             },
             (paperId, note, before) => {
               if (current()) this.notifier.notify("library.noteChanged", { paperId, note })
               next.search.touch()
-              next.shares.touched()
+              next.shares.touched({ papers: [paperId] })
               // An agent that writes the disk itself (Claude Code does) changed the note while one of its tool
               // calls names the file: kept and journaled as the agent's, so the chat offers Undo, as for a doc
               const rel = noteRelPath(paperId)

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { isMarkdown, isWithin, RpcErrorCode, type DocShare, type ShareComment, type SharePermission } from "@owlit/protocol"
+import { citedPaperIds, isMarkdown, isWithin, RpcErrorCode, type DocShare, type ShareComment, type SharePermission } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -14,8 +14,8 @@ import { ShareClient, ShareError } from "./client.ts"
 // Readers' comments are kept beside the links (.owlit/shares/<id>.json), so they stay with the doc even
 // if the server goes away.
 //
-// Every change to the workspace calls touched(); once things settle, each shared doc is built again and
-// pushed if it reads differently from what the server has. Comments are fetched every little while.
+// Every change to the workspace calls touched(); once things settle, each shared doc whose doc or cited
+// papers changed is built again and pushed if it reads differently from what the server has. Comments are fetched every little while.
 
 interface ShareRecord {
   id: string
@@ -73,6 +73,12 @@ export class Shares {
   private readonly services: SharesServices
   private records: ShareRecord[] | undefined
   private keys: Map<string, string> | undefined
+  // Keys this computer couldn't open (the keychain refused), written back as they were so they aren't lost
+  private unopened = new Map<string, { sealed: string }>()
+  // The papers each share's doc cited when it was last built, so a change elsewhere doesn't rebuild it
+  private cites = new Map<string, Set<string>>()
+  // What changed since the last push: everything, or these docs and papers
+  private dirty: { all: true } | { docs: Set<string>; papers: Set<string> } = { all: true }
   private queue: Promise<unknown> = Promise.resolve()
   // Why a share's latest changes haven't reached the server, by share id
   private problems = new Map<string, string>()
@@ -154,8 +160,13 @@ export class Shares {
         record.permission = change.permission
       }
       if (change.notes !== undefined && change.notes !== record.notes) {
+        // Put back when the push fails: the person was told it didn't work, so a later retry mustn't send it
+        const before = record.notes
         record.notes = change.notes
-        await this.push(record, token).catch((error) => this.failed(record, error))
+        await this.push(record, token).catch((error) => {
+          record.notes = before
+          this.failed(record, error)
+        })
       }
       await this.save()
       const view = await this.view(record)
@@ -215,8 +226,14 @@ export class Shares {
   }
 
   // Something in the workspace changed: once things settle, every shared doc that now reads differently goes out
-  touched() {
+  // what: the docs and papers that changed, when known; without it every shared doc is built again
+  touched(what?: { docs?: string[]; papers?: string[] }) {
     if (this.disposed) return
+    if (!what) this.dirty = { all: true }
+    else if (!("all" in this.dirty)) {
+      for (const doc of what.docs ?? []) this.dirty.docs.add(doc)
+      for (const paper of what.papers ?? []) this.dirty.papers.add(paper)
+    }
     clearTimeout(this.settleTimer)
     this.settleTimer = setTimeout(() => void this.pushAll(), this.services.settleMs ?? SETTLE_MS)
   }
@@ -249,9 +266,18 @@ export class Shares {
   private pushAll() {
     return this.serial(async () => {
       const keys = await this.loadKeys()
+      const dirty = this.dirty
+      this.dirty = { docs: new Set(), papers: new Set() }
+      // A share is built again when its doc or a paper it cites changed, or its last push didn't get through
+      const stale = (record: ShareRecord) => {
+        const cites = this.cites.get(record.id)
+        if ("all" in dirty || !cites || this.problems.has(record.id) || dirty.docs.has(record.path)) return true
+        for (const id of cites) if (dirty.papers.has(id)) return true
+        return false
+      }
       for (const record of [...(await this.load())]) {
         const token = keys.get(record.id)
-        if (token) await this.push(record, token).catch(() => undefined)
+        if (token && stale(record)) await this.push(record, token).catch(() => undefined)
       }
       await this.save()
     })
@@ -264,6 +290,7 @@ export class Shares {
       this.setProblem(record, t`The doc isn't in the workspace any more, so readers see it as it last was.`)
       return
     }
+    this.cites.set(record.id, new Set(citedPaperIds(markdown)))
     const bundle = await buildBundle({ path: record.path, markdown, notes: record.notes, author: await this.services.author(), paper: this.services.paper })
     const hash = hashOf(bundle)
     if (hash === record.pushedHash && !this.problems.has(record.id)) return
@@ -301,7 +328,7 @@ export class Shares {
     return this.serial(async () => {
       const records = await this.load()
       for (const record of records) await this.fetchComments(record).catch(() => undefined)
-      if (this.problems.size) this.touched()
+      if (this.problems.size) this.touched({})
     })
   }
 
@@ -330,6 +357,8 @@ export class Shares {
     const records = await this.load()
     records.splice(records.indexOf(record), 1)
     ;(await this.loadKeys()).delete(record.id)
+    this.unopened.delete(record.id)
+    this.cites.delete(record.id)
     this.problems.delete(record.id)
     this.comments.delete(record.id)
     await this.save()
@@ -415,7 +444,10 @@ export class Shares {
         try {
           this.keys.set(id, typeof value === "string" ? value : this.services.secrets!.open(value.sealed))
         } catch (error) {
-          // A key sealed on another computer can't be opened here; the link is then that computer's to change
+          // A key sealed on another computer can't be opened here; the link is then that computer's to change.
+          // The keychain can also refuse for a while (a new signature, a denied prompt): the key is kept
+          // sealed, so the next save doesn't drop it and a later launch can still open it.
+          if (typeof value !== "string") this.unopened.set(id, value)
           console.error("[core] a share's key couldn't be opened and is left out", error)
         }
       }
@@ -424,7 +456,7 @@ export class Shares {
   }
 
   private async saveKeys() {
-    const keys: KeysFile["keys"] = {}
+    const keys: KeysFile["keys"] = Object.fromEntries(this.unopened)
     for (const [id, token] of await this.loadKeys()) {
       let sealed: string | undefined
       try {

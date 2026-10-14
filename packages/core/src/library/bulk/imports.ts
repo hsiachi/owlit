@@ -153,6 +153,8 @@ export class Imports {
     const record = await this.need(id)
     const task = this.scheduler?.get(record.taskId)
     if (!this.scheduler || record.finishedAt || (task && !isTaskFinished(task))) return summarize(record)
+    // Live before the task can run, as in start(), so the task and this write change the same record
+    this.live.set(id, record)
     record.taskId = this.scheduler.enqueue(KINDS[record.source], id, "asked").id
     await this.write(record)
     return summarize(record)

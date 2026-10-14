@@ -213,7 +213,15 @@ export class ShareRoom extends DurableObject<Env> {
   private writeBundle(bundle: ShareBundle) {
     const text = JSON.stringify(bundle)
     this.sql.exec("DELETE FROM bundle")
-    for (let i = 0; i * PART < text.length; i++) this.sql.exec("INSERT INTO bundle (i, part) VALUES (?, ?)", i, text.slice(i * PART, (i + 1) * PART))
+    // A part never ends between the two halves of a four-byte character: stored alone, each half would turn
+    // into U+FFFD
+    for (let i = 0, at = 0; at < text.length; i++) {
+      let end = Math.min(at + PART, text.length)
+      const last = text.charCodeAt(end - 1)
+      if (end < text.length && last >= 0xd800 && last <= 0xdbff) end--
+      this.sql.exec("INSERT INTO bundle (i, part) VALUES (?, ?)", i, text.slice(at, end))
+      at = end
+    }
   }
 
   private readBundle(): ShareBundle {

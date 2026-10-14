@@ -17,7 +17,7 @@ export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
   return i.source === "zotero" ? t`from Zotero` : i.source === "bibtex" ? t`from ${name}` : t`from the ${name} folder`
 }
 
-// The newest import the person hasn't dismissed, at the top of the Library. It sits on the ladder like any
+// The import that asks something, else the newest the person hasn't dismissed, at the top of the Library. It sits on the ladder like any
 // other work (DESIGN.md): while it runs, one quiet grey line; asking, the same line led by the amber dot
 // with its two answers; broken, a red "Stopped" with why in owlit's words and the error behind Details. One
 // the person stopped is not an error and stays muted. Once it is done it becomes the one card on the page,
@@ -25,11 +25,15 @@ export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
 // dismissed.
 export function ImportBanner() {
   const list = useImports((s) => s.list)
-  const current = list.find((i) => !i.dismissed)
+  // One that asks comes first, whichever it is: the sidebar's mark and Home's list send the person here
+  // to answer it
+  const asking = useTasksStore((s) => list.find((i) => !!s.byId[i.taskId] && importAsks(s.byId[i.taskId])))
+  const current = asking ?? list.find((i) => !i.dismissed)
   const task = useTasksStore((s) => (current ? s.byId[current.taskId] : undefined))
   if (!current) return null
   if (current.finishedAt) return <Done summary={current} />
-  return <Line summary={current} task={task} />
+  // Keyed, so an error opened under one import isn't open under the next
+  return <Line key={current.id} summary={current} task={task} />
 }
 
 function Line({ summary, task }: { summary: ImportSummary; task: Task | undefined }) {
