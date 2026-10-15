@@ -7,8 +7,10 @@ import { useChatStore } from "@/features/chat/store"
 import { toastError } from "@/lib/toast"
 import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
+import { MemoryGroup } from "./MemoryGroup"
 
-// What Owlit calls you, the work it does when nobody is waiting, and what it remembers of how you work.
+// What Owlit calls you, what it keeps in mind about you, the work it does when nobody is waiting, and
+// what it records of what you do.
 // The agent for background work sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
 export function OwlitSection() {
@@ -19,6 +21,7 @@ export function OwlitSection() {
           <NameRow />
         </List>
       </Group>
+      <MemoryGroup />
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
       </Group>

@@ -1,3 +1,4 @@
+import type { MemoryKind } from "@owlit/protocol"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
@@ -14,7 +15,7 @@ export { chatOnScreen } from "./status"
 // What a reply changed outside its chat: papers added, notes left on a doc, a file written. Core reports
 // each change with its version (so it can be undone) and the chat it came from; the change is pinned to
 // the reply that was running then, and shows under that answer as a result row.
-export type ResultKind = "paper" | "note" | "file" | "thread"
+export type ResultKind = "paper" | "note" | "file" | "thread" | "memory"
 
 export interface AgentResult {
   kind: ResultKind
@@ -23,8 +24,11 @@ export interface AgentResult {
   path: string
   label: string
   at: number
-  // A paper the agent took back out of the library
+  // A paper the agent took back out of the library, or a line of memory it removed
   removed?: boolean
+  // A line of memory: which kind, and whether it replaced one
+  memory?: MemoryKind
+  replaced?: boolean
   undone?: boolean
   // After an Undo from the card: what puts the change back (core keeps the undo as a version too)
   redoId?: string
@@ -140,7 +144,7 @@ export function recordResult(chatId: string | undefined, result: AgentResult) {
 }
 
 if (isDesktop) {
-  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId, created, rows, updated, asked }) => {
+  onNotify("agent.changed", ({ kind, op, versionId, path, label, chatId, created, rows, updated, asked, memory }) => {
     recordResult(chatId, {
       kind,
       versionId,
@@ -149,6 +153,7 @@ if (isDesktop) {
       at: Date.now(),
       ...(op === "removed" ? { removed: true } : {}),
       ...(kind === "thread" ? { created: !!created, rows: rows ?? [], updated: updated ?? 0, ...(asked ? { asked } : {}) } : {}),
+      ...(kind === "memory" ? { memory: memory ?? "work", ...(op === "updated" ? { replaced: true } : {}) } : {}),
     })
   })
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {

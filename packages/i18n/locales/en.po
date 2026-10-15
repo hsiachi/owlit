@@ -196,6 +196,23 @@ msgstr "Paper added"
 msgid "Papers collected"
 msgstr "Papers collected"
 
+#. a line the agent now keeps in mind
+#. a toast: Owlit now keeps a line in mind about the user
+#: app/src/app/agent-changes.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered"
+msgstr "Remembered"
+
+#. a toast: Owlit removed a line from what it keeps in mind
+#: app/src/app/agent-changes.ts
+msgid "No longer kept in mind"
+msgstr "No longer kept in mind"
+
+#. a toast: Owlit changed a line it keeps in mind
+#: app/src/app/agent-changes.ts
+msgid "Remembered, replacing a line"
+msgstr "Remembered, replacing a line"
+
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr "Paper removed"
@@ -221,8 +238,10 @@ msgstr "The diagnostics couldn't be copied."
 msgid "Home"
 msgstr "Home"
 
+#. open the chat a line Owlit keeps in mind came from
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/settings/sections/MemoryGroup.tsx
 msgid "Chat"
 msgstr "Chat"
 
@@ -379,12 +398,14 @@ msgstr "Close the popover"
 
 #. heading of a group in the keyboard shortcut list
 #. verb, in the keyboard shortcut list
+#. verb: put back a line just removed from what Owlit keeps in mind
 #. verb: take back a change the agent made
 #. verb: take back what was just done
 #. verb: take back what was just done
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
+#: app/src/features/settings/sections/MemoryGroup.tsx
 #: app/src/lib/toast.ts
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
@@ -1197,6 +1218,7 @@ msgstr "{papers, plural, one {New thread · # paper} other {New thread · # pape
 msgid "{papers, plural, one {paper} other {papers}}"
 msgstr "{papers, plural, one {paper} other {papers}}"
 
+#. a line the agent changed in what it keeps in mind
 #. a thread the agent changed without adding papers
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Updated"
@@ -1207,6 +1229,7 @@ msgstr "Updated"
 msgid "Keep it separate"
 msgstr "Keep it separate"
 
+#. a line the agent took out of what it keeps in mind
 #. a paper the agent took out of the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Removed"
@@ -1254,6 +1277,11 @@ msgstr "{0, plural, one {added a paper to a thread} other {added # papers to thr
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr "{0, plural, one {asked for a digest} other {asked for # digests}}"
+
+#. placeholder {0}: n("memory")
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {changed what it keeps in mind} other {changed # lines it keeps in mind}}"
+msgstr "{0, plural, one {changed what it keeps in mind} other {changed # lines it keeps in mind}}"
 
 #. verb
 #. verb: put back a change that was undone
@@ -1837,6 +1865,10 @@ msgid "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
 msgstr "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {kept something in mind} other {changed what it keeps in mind # times}}"
+msgstr "{n, plural, one {kept something in mind} other {changed what it keeps in mind # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {moved a doc} other {moved # docs}}"
 msgstr "{n, plural, one {moved a doc} other {moved # docs}}"
 
@@ -2107,6 +2139,14 @@ msgstr "Move a doc"
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Moved a doc"
 msgstr "Moved a doc"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Keep something in mind"
+msgstr "Keep something in mind"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Kept something in mind"
+msgstr "Kept something in mind"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your chats"
@@ -2933,8 +2973,10 @@ msgstr "Copy BibTeX"
 #. take a paper off this thread
 #. verb: remove the paper from the library
 #. verb: remove the selected papers from the library
+#. verb: take a line out of what Owlit keeps in mind
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/settings/sections/MemoryGroup.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/Memo.tsx
 msgid "Remove"
@@ -4722,6 +4764,66 @@ msgstr "Finish signing in in your browser."
 msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
 msgstr "Opens your browser to sign in. Model requests use your ChatGPT plan."
 
+#. a group of lines Owlit keeps in mind: the user's preferences
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "How you like Owlit to work"
+msgstr "How you like Owlit to work"
+
+#. a group of lines Owlit keeps in mind: facts about the user's work
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "About your work"
+msgstr "About your work"
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "What Owlit keeps in mind"
+msgstr "What Owlit keeps in mind"
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. It is kept in .owlit/memory.md in this folder; you can edit that file too."
+msgstr "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. It is kept in .owlit/memory.md in this folder; you can edit that file too."
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
+msgstr "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
+
+#. add a line Owlit keeps in mind
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "Add one"
+msgstr "Add one"
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "e.g. Answer in Chinese"
+msgstr "e.g. Answer in Chinese"
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "e.g. I'm writing my thesis on proactive agents"
+msgstr "e.g. I'm writing my thesis on proactive agents"
+
+#. verb: change a line Owlit keeps in mind
+#: app/src/features/settings/sections/MemoryGroup.tsx
+#: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr "Edit"
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "A line Owlit keeps in mind"
+msgstr "A line Owlit keeps in mind"
+
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "Claude Code kept these about you in this folder. Keep the ones Owlit should keep in mind."
+msgstr "Claude Code kept these about you in this folder. Keep the ones Owlit should keep in mind."
+
+#. verb: don't keep a note Claude Code had kept
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "Drop"
+msgstr "Drop"
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#: app/src/features/settings/sections/MemoryGroup.tsx
+msgid "Keep"
+msgstr "Keep"
+
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 msgid "Background work"
@@ -5966,10 +6068,6 @@ msgid "Close Window"
 msgstr "Close Window"
 
 #: apps/desktop/src/main.ts
-msgid "Edit"
-msgstr "Edit"
-
-#: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Cut"
 msgstr "Cut"
@@ -6650,6 +6748,14 @@ msgstr "The PDF is password-protected."
 #: packages/core/src/library/text/extract.ts
 msgid "The PDF can't be read."
 msgstr "The PDF can't be read."
+
+#: packages/core/src/memory/memory.ts
+msgid "Write something to keep first."
+msgstr "Write something to keep first."
+
+#: packages/core/src/memory/memory.ts
+msgid "That line changed after Owlit wrote it, so owlit left it as it is."
+msgstr "That line changed after Owlit wrote it, so owlit left it as it is."
 
 #: packages/core/src/net/http.ts
 msgid "{host}'s allowance is used up for now."
