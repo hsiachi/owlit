@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import type { LibrarySettings, PaperIds, PaperKind } from "@owlit/protocol"
 import type { Http, RequestOptions } from "../net/http.ts"
-import { cleanDoi, paperIdOf, parseRef, type Ref } from "./refs.ts"
+import { cleanDoi, isArxivDoi, paperIdOf, parseRef, type Ref } from "./refs.ts"
 import { ARXIV_HOST, fetchArxiv } from "./sources/arxiv.ts"
 import { CROSSREF_HOST, fetchCrossref, findDoiByTitle, titleKey } from "./sources/crossref.ts"
 import { fetchOpenAlex, OPENALEX_HOST } from "./sources/openalex.ts"
@@ -276,7 +276,7 @@ function stems(text: string) {
 function publishedDoi(doi: string | undefined) {
   if (!doi) return undefined
   const clean = cleanDoi(doi)
-  return /^10\.48550\/arxiv\./i.test(clean) ? undefined : clean
+  return isArxivDoi(clean) ? undefined : clean
 }
 
 // A publisher's page names its paper in <meta> tags (citation_doi, dc.identifier, citation_arxiv_id)

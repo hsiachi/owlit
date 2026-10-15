@@ -10,13 +10,11 @@ export const OPENALEX_HOST = "api.openalex.org"
 export async function fetchOpenAlex(
   http: Http,
   by: { doi: string } | { openalex: string },
-  keys: { contactEmail?: string; openalexApiKey?: string },
+  keys: Keys,
   request: RequestOptions = {},
 ): Promise<SourceRecord | undefined> {
   const key = "doi" in by ? `doi:${by.doi}` : by.openalex
-  const params = new URLSearchParams()
-  if (keys.contactEmail) params.set("mailto", keys.contactEmail)
-  if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+  const params = withKeys(new URLSearchParams(), keys)
   const query = params.size ? `?${params}` : ""
   try {
     const raw = await http.text(`https://${OPENALEX_HOST}/works/${encodeURIComponent(key).replace(/%3A/g, ":")}${query}`, request)
@@ -103,10 +101,16 @@ function kindOf(type: string | null | undefined): PaperKind | undefined {
 
 type Keys = { contactEmail?: string; openalexApiKey?: string }
 
-// The works endpoint with a filter, a sort and the account's keys
-async function listWorks(http: Http, params: URLSearchParams, keys: Keys, request: RequestOptions) {
+// The account's keys added to a request's parameters
+function withKeys(params: URLSearchParams, keys: Keys) {
   if (keys.contactEmail) params.set("mailto", keys.contactEmail)
   if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+  return params
+}
+
+// The works endpoint with a filter, a sort and the account's keys
+async function listWorks(http: Http, params: URLSearchParams, keys: Keys, request: RequestOptions) {
+  withKeys(params, keys)
   const raw = await http.text(`https://${OPENALEX_HOST}/works?${params}`, request)
   const { results, meta } = JSON.parse(raw) as { results?: unknown[]; meta?: { count?: number } }
   return {
@@ -199,9 +203,7 @@ export interface OpenAlexSource {
 
 // Journals and conferences by name, best match first
 export async function findSources(http: Http, name: string, keys: Keys, request: RequestOptions = {}): Promise<OpenAlexSource[]> {
-  const params = new URLSearchParams({ search: searchText(name), "per-page": "8", select: "id,display_name,type,issn_l,issn" })
-  if (keys.contactEmail) params.set("mailto", keys.contactEmail)
-  if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+  const params = withKeys(new URLSearchParams({ search: searchText(name), "per-page": "8", select: "id,display_name,type,issn_l,issn" }), keys)
   const raw = await http.text(`https://${OPENALEX_HOST}/sources?${params}`, request)
   const { results } = JSON.parse(raw) as { results?: { id: string; display_name: string; type?: string; issn_l?: string | null; issn?: string[] | null }[] }
   return (results ?? []).map((s) => ({
@@ -227,9 +229,7 @@ export async function citationCountsOpenAlex(
     // An OR filter takes 100 values at most; 50 keeps the URL short
     for (let i = 0; i < values.length; i += 50) {
       const chunk = values.slice(i, i + 50)
-      const params = new URLSearchParams({ filter: `${filter}:${chunk.join("|")}`, select: "id,doi,cited_by_count", "per-page": "50" })
-      if (keys.contactEmail) params.set("mailto", keys.contactEmail)
-      if (keys.openalexApiKey) params.set("api_key", keys.openalexApiKey)
+      const params = withKeys(new URLSearchParams({ filter: `${filter}:${chunk.join("|")}`, select: "id,doi,cited_by_count", "per-page": "50" }), keys)
       const raw = await http.text(`https://${OPENALEX_HOST}/works?${params}`, request)
       const { results } = JSON.parse(raw) as { results?: { id: string; doi?: string | null; cited_by_count?: number }[] }
       for (const work of results ?? []) {

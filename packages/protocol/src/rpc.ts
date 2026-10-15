@@ -259,6 +259,7 @@ export interface Methods {
       role?: Role
       effortId?: string
       input: PromptInput
+      // The two messages the app already shows: what the user sent, and the answer about to stream in
       userMessage: ChatMessage
       assistantMessageId: string
     }
@@ -294,7 +295,6 @@ export interface Methods {
   "ui.open": { params: UiActions["open"]["params"]; result: UiActions["open"]["result"] }
   "ui.jump": { params: UiActions["jump"]["params"]; result: UiActions["jump"]["result"] }
   "ui.mark": { params: UiActions["mark"]["params"]; result: UiActions["mark"]["result"] }
-  "ui.say": { params: UiActions["say"]["params"]; result: null }
   // Takes back what a version recorded (VersionInfo): Undo of an agent's write, note or paper, or a
   // restore from a doc's Versions. A file that changed since is refused with Conflict unless forced.
   // redoId undoes the restore.

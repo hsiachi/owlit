@@ -41,6 +41,8 @@ export interface Sent {
   page?: boolean
 }
 
+// Cloudflare's and the like's interstitials, by their title
+export const isCheckTitle = (title: string) => CHECK.test(title)
 const CHECK = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|请稍候|正在验证|安全检查/i
 const LIMIT = /(minute|rate|request|access)-?limit|too-?many/i
 // Whole words only (a host's labels, a path's segments, a title's words): "sso" is in "Lessons" and
@@ -72,7 +74,7 @@ export function whereItEnded(tab: { url: string; title: string }, sent: Sent): E
     // A path that isn't valid percent-encoding is read as it is
   }
   const where = `${at.hostname}${path}`
-  if (CHECK.test(title)) return "check"
+  if (isCheckTitle(title)) return "check"
   // By the title only: a not-found page keeps the address it was asked for
   if (MISSING.test(title)) return "missing"
   const publisher = siteOf(to.hostname)

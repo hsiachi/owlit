@@ -9,7 +9,7 @@
 // in front of ScienceDirect and the ACM put up a new check every time the old one was passed).
 
 import { t } from "@lingui/core/macro"
-import { NeedsUser, pdfLinkOn, siteOf, type BrowserHost, type BrowserRequest } from "@owlit/core"
+import { isCheckTitle, isPdfBytes, NeedsUser, PDF_MAX_BYTES, pdfLinkOn, siteOf, type BrowserHost, type BrowserRequest } from "@owlit/core"
 import { app, BrowserWindow, session as electronSession, type DownloadItem, type WebContents } from "electron"
 import { readFile, rm } from "node:fs/promises"
 import os from "node:os"
@@ -26,13 +26,11 @@ const PDF_LINK_WAIT_MS = 15_000
 const PDF_QUIET_MS = 4_000
 const PDF_START_MS = 30_000
 const PDF_DOWNLOAD_MS = 180_000
-const MAX_PDF_BYTES = 200 * 1024 * 1024
 
-// Cloudflare and the like put these in the title or the page. Only the interstitial's own markers:
+// Cloudflare and the like put these in the title (isCheckTitle) or the page. Only the interstitial's own markers:
 // Cloudflare loads /cdn-cgi/challenge-platform/ scripts on ordinary article pages too and sets
 // window._cf_chl_opt there (T&F's article pages, 2026-10-13), and pages embed invisible Turnstile
-// widgets (cf-chl-widget-…) in their forms (doi.org's error page does)
-const CHALLENGE_TITLE = /just a moment|attention required|security check|checking your browser|are you a robot|请稍候|正在验证|verify you are human/i
+// widgets (cf-chl-widget-…) in their forms (doi.org's error page does).
 // A captcha or a password field only counts when it is on screen; publishers load reCAPTCHA scripts
 // and hidden sign-in forms on ordinary pages. One small look per poll, not a copy of the page.
 const VISIBLE = `(e) => { const r = e.getBoundingClientRect(); return r.width > 30 && r.height > 10 }`
@@ -95,13 +93,13 @@ export function createBrowserHost(): BrowserHost {
       const file = path.join(os.tmpdir(), `owlit-pdf-${process.pid}-${Date.now()}-${items.size}`)
       item.setSavePath(file)
       item.on("updated", () => {
-        if (item.getReceivedBytes() > MAX_PDF_BYTES) item.cancel()
+        if (item.getReceivedBytes() > PDF_MAX_BYTES) item.cancel()
       })
       item.once("done", async (_event, state) => {
         const bytes = state === "completed" ? await readFile(file).catch(() => undefined) : undefined
         await rm(file, { force: true }).catch(() => undefined)
         items.delete(item)
-        if (bytes && isPdf(bytes) && !got) {
+        if (bytes && isPdfBytes(bytes) && !got) {
           got = true
           resolve(new Uint8Array(bytes))
         }
@@ -322,7 +320,7 @@ async function pageState(contents: WebContents, request: BrowserRequest): Promis
   if (onProxySignIn(contents.getURL(), request)) return "login"
   const title = contents.getTitle()
   const probe = await contents.executeJavaScript(PAGE_PROBE, true).catch(() => ({ challenge: false, captcha: false, password: false }))
-  if (CHALLENGE_TITLE.test(title) || probe.challenge || probe.captcha) return "challenge"
+  if (isCheckTitle(title) || probe.challenge || probe.captcha) return "challenge"
   if (probe.password) return "login"
   return "ok"
 }
@@ -398,8 +396,6 @@ async function pdfWithin(contents: WebContents, request: BrowserRequest, caught:
 interface Run {
   cleared: Set<string>
 }
-
-const isPdf = (bytes: Uint8Array) => bytes.length > 5 && String.fromCharCode(...bytes.subarray(0, 5)) === "%PDF-"
 
 function hostOf(url: string) {
   try {

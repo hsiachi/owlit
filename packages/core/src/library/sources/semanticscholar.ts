@@ -13,11 +13,11 @@ export async function fetchS2(
   apiKey: string | undefined,
   request: RequestOptions = {},
 ): Promise<SourceRecord | undefined> {
-  const key = "doi" in by ? `DOI:${by.doi}` : "arxiv" in by ? `ARXIV:${by.arxiv}` : by.s2
+  const key = s2Key(by)!
   try {
     const raw = await http.text(`https://${S2_HOST}/graph/v1/paper/${encodeURIComponent(key).replace(/%3A/g, ":")}?fields=${FIELDS}`, {
       ...request,
-      headers: apiKey ? { "x-api-key": apiKey } : {},
+      headers: { ...request.headers, ...headersFor(apiKey) },
     })
     return parseS2(raw)
   } catch (error) {

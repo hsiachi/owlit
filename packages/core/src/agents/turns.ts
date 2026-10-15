@@ -12,6 +12,7 @@ import {
   type ChatMessage,
   type ConsentAction,
   type Mentionable,
+  type ParamsOf,
   type PermissionKind,
   type PromptInput,
   type QuestionAnswer,
@@ -31,24 +32,15 @@ import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { AgentEnded, endingSentence, type AcpProcess, type SessionHandler } from "./process.ts"
+import { type AcpProcess, AgentEnded, endingSentence, flatValues, isAuthError, type SessionHandler } from "./process.ts"
 import { guardFor, handbackOf, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
 import { preamble, USER_FOLLOWS } from "./rules.ts"
+import { messageOf } from "../util.ts"
 
-export interface TurnRequest {
-  chatId: string
-  connectorId: string
-  modelId?: string
-  role?: Role
-  effortId?: string
-  input: PromptInput
-  // The two messages the app already shows: what the user sent, and the answer about to stream in
-  userMessage: ChatMessage
-  assistantMessageId: string
-}
+export type TurnRequest = ParamsOf<"agents.prompt">
 
 interface TurnsOptions {
   agents: Agents
@@ -253,8 +245,7 @@ export class Turns {
     if (!turn) return null
     turn.cancelled = true
     // Questions still open are closed as cancelled, as ACP asks of a client that cancels
-    for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
-    for (const [, answer] of turn.questions) answer("cancel")
+    this.closePermissions(turn)
     // A turn still starting has no session yet: it sees `cancelled` before it asks the agent
     for (const live of this.live.values()) {
       if (live.turn === turn) await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
@@ -736,10 +727,6 @@ function roots(root: string) {
   return [...new Set([root, real])]
 }
 
-// A select option's values, flattening groups
-const flatValues = (options: unknown) =>
-  (options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
-
 // An agent's state, as owlit shows it: the adapters' words ("completed", "cancelled") and the draft's
 // ("idle" once it has nothing left to do; "running" and "requires_action" while it is at it)
 function agentStatus(state: string): AgentStatus | undefined {
@@ -928,9 +915,3 @@ async function asAcpError<T>(work: Promise<T>): Promise<T> {
 
 // An error that says nothing beyond that there was one: the agent's own words then explain it
 const GENERIC = /^(internal error|error|unknown error)\.?$/i
-
-// ACP's "auth_required"
-const isAuthError = (error: unknown) => typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === -32000
-
-const messageOf = (error: unknown) =>
-  error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String((error as { message: unknown }).message) : String(error)

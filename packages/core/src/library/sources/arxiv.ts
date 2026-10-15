@@ -1,6 +1,7 @@
 import type { Http, RequestOptions } from "../../net/http.ts"
 import { stripArxivVersion } from "../refs.ts"
 import type { SourceRecord, Years } from "./types.ts"
+import { decodeEntities, squash } from "../html-text.ts"
 
 // arXiv's own API (Atom). Authoritative for preprints: title, authors, abstract, first-version date.
 // arXiv asks for no more than one request every three seconds.
@@ -52,7 +53,7 @@ function parseEntry(entry: string, raw: string): SourceRecord | undefined {
     source: "arxiv",
     ids: { arxiv: id, ...(doi ? { doi: doi.toLowerCase() } : {}) },
     title: squash(text(entry, "title")),
-    authors: [...entry.matchAll(/<author>\s*<name>([\s\S]*?)<\/name>/g)].map((m) => squash(decode(m[1]))!),
+    authors: [...entry.matchAll(/<author>\s*<name>([\s\S]*?)<\/name>/g)].map((m) => squash(decodeEntities(m[1]))!),
     year: published ? Number(published.slice(0, 4)) : undefined,
     date: published?.slice(0, 10),
     venue: journal ? squash(journal) : undefined,
@@ -65,17 +66,5 @@ function parseEntry(entry: string, raw: string): SourceRecord | undefined {
 
 function text(xml: string, tag: string) {
   const match = xml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`))
-  return match ? decode(match[1]).trim() : undefined
-}
-
-const squash = (value: string | undefined) => value?.replace(/\s+/g, " ").trim() || undefined
-
-function decode(value: string) {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&amp;/g, "&")
+  return match ? decodeEntities(match[1]).trim() : undefined
 }

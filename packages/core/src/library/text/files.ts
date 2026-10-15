@@ -21,6 +21,13 @@ export async function readText(root: string, id: string, options?: { withTime: t
   }
 }
 
+// Whether the paper has its text, without reading it (text.json is a few hundred KB, and written whole)
+export const hasText = (root: string, id: string) =>
+  stat(path.join(paperDir(root, id), "text.json")).then(
+    (info) => info.size > 0,
+    () => false,
+  )
+
 // text.md first: a reader of text.json then always finds the Markdown that goes with it
 export async function writeText(root: string, id: string, text: PaperText, options: { markdown?: boolean } = {}) {
   const dir = paperDir(root, id)

@@ -28,7 +28,7 @@ import {
 import { watch, type FSWatcher } from "node:fs"
 import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
-import { appendFile, copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
+import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { NeedsUser, type BrowserControl, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
@@ -38,31 +38,16 @@ import { whereItEnded, type Ended } from "./where-it-ended.ts"
 import { Publishers } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
-import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
+import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { citationsDue, countCitations } from "./citations.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
-import {
-  describeFailure,
-  ELSEVIER_API_HOST,
-  WILEY_API_HOST,
-  downloadPdf,
-  hasPdfFile,
-  landingOf,
-  pdfFile,
-  readAcquisition,
-  registeredUrl,
-  routesFor,
-  unpaywallRoutes,
-  writeAcquisition,
-  type Acquisition,
-  type Attempt,
-} from "./pdf.ts"
+import { type Acquisition, type Attempt, describeFailure, downloadPdf, ELSEVIER_API_HOST, hasPdfFile, isPdfBytes, landingOf, pdfFile, readAcquisition, registeredUrl, routesFor, unpaywallRoutes, WILEY_API_HOST, writeAcquisition } from "./pdf.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { Imports } from "./bulk/imports.ts"
-import { readText, writeText } from "./text/files.ts"
+import { hasText, readText, writeText } from "./text/files.ts"
 import { extractText, pageSizes, readPdf, UnreadablePdf } from "./text/extract.ts"
 import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, cloudResult, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
@@ -77,7 +62,6 @@ import type { SourceRecord } from "./sources/types.ts"
 import {
   applyPatch,
   freshState,
-  hasPdf,
   readHighlights,
   readNote,
   readState,
@@ -86,6 +70,8 @@ import {
   writeNote,
   writeState,
 } from "./state.ts"
+import { clean, messageOf, Serial } from "../util.ts"
+import { PICTURE_MAX_BYTES } from "../agents/profiles.ts"
 
 // How long a looked-up paper is kept, so adding it right after doesn't ask the services again
 const RESOLUTION_TTL_MS = 10 * 60_000
@@ -154,11 +140,8 @@ const FIGURES_RETRY_MS = 60 * 60_000
 // Pictures a digest's agent is shown at most, and the largest (model APIs refuse images over
 // 5 MB, Anthropic's limit being the lowest)
 const MAX_PICTURES = 16
-const PICTURE_MAX_BYTES = 5 * 1024 * 1024
 // How far back the Library's removed papers are offered for restoring
 const TRASH_LISTED_MS = 30 * 24 * 60 * 60_000
-
-const exists = (file: string) => stat(file).then(() => true, () => false)
 
 // A picture for a background agent: an id the prompt names it by, and the image
 export interface AgentPicture {
@@ -235,7 +218,7 @@ export class Library {
   private dirty = new Set<string>()
   private timer: ReturnType<typeof setTimeout> | undefined
   // Writes, one at a time, so a paper's files never race
-  private writing: Promise<unknown> = Promise.resolve()
+  private readonly serial = new Serial()
   // Collections brought in at once (Zotero, BibTeX, a folder of PDFs)
   readonly imports: Imports
   // What each import.pitta run did, by task id
@@ -314,7 +297,7 @@ export class Library {
     if (!record) return undefined
     // A paper put here by another program has no state yet: it counts as added when it appeared
     const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt ?? Date.now())
-    const pdf = await hasPdf(this.root, id)
+    const pdf = await hasPdfFile(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
     if (await exists(path.join(paperDir(this.root, id), "digest.md"))) {
       paper.hasDigest = true
@@ -408,13 +391,8 @@ export class Library {
 
   // ---- Changing
 
-  // Adds a looked-up paper; one the library already has (under any of its ids) is returned as it is
-  async add(resolved: ResolvedPaper, addedBy: Paper["addedBy"] = "user", priority: TaskPriority = "asked"): Promise<Paper> {
-    return (await this.addNew(resolved, addedBy, priority)).paper
-  }
-
-  // add(), saying whether the paper was there already (under one of its ids, or as the same title
-  // where one of the two has no DOI). An import hands over the PDF it has (nothing is downloaded then)
+  // Adds a looked-up paper, saying whether the library had it already (under one of its ids, or as the
+  // same title where one of the two has no DOI); one it had is returned as it is. An import hands over the PDF it has (nothing is downloaded then)
   // and the paper's tags.
   addNew(
     resolved: ResolvedPaper,
@@ -422,7 +400,7 @@ export class Library {
     priority: TaskPriority = "asked",
     extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean } } = {},
   ): Promise<{ paper: Paper; existed: boolean }> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
       if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit can't tell which paper that is.`)
       // A folder already there is that paper even if the index missed it: never written over
@@ -463,7 +441,7 @@ export class Library {
 
   // The user's judgement, position or corrections
   update(id: string, patch: PaperPatch): Promise<Paper> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const record = await readRecord(this.root, id)
       if (!record) throw notFound(id)
       const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt)
@@ -499,7 +477,7 @@ export class Library {
     aliases[id] = next
     await writeJsonAtomic(this.aliasFile(), { version: 1, aliases })
     this.queue("paper.metadata", next, "asked")
-    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, next, "background")
+    this.queueText(next, "background")
     const paper = (await this.get(next))!
     this.onChange({ papers: [paper], removed: [id], renamed: { [id]: next } })
     return paper
@@ -517,7 +495,7 @@ export class Library {
 
   // To .owlit/trash/, both halves, so restore() (Undo) brings everything back
   remove(ids: string[]): Promise<null> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const stamp = Date.now()
       for (const id of ids) if (isPaperId(id)) await this.moveToTrash(id, stamp)
       return null
@@ -527,7 +505,7 @@ export class Library {
   // An agent taking back papers it added: only those, and only while the user hasn't worked with them
   // (consent follows ownership: what the user has touched is theirs to remove)
   removeByAgent(ids: string[]): Promise<{ removed: string[]; refused: { id: string; why: string }[] }> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const removed: string[] = []
       const refused: { id: string; why: string }[] = []
       const stamp = Date.now()
@@ -548,7 +526,7 @@ export class Library {
   // it, and safe to ask twice: a paper already in the library (Undo pressed again, or restored from the
   // removed list meanwhile) comes back as it is, never from an older entry over what is there.
   restore(ids: string[]): Promise<Paper[]> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const entries = await this.trashEntries()
       const restored: Paper[] = []
       for (const id of ids) {
@@ -613,14 +591,14 @@ export class Library {
   private async resume(id: string) {
     const pdf = await hasPdfFile(this.root, id)
     if (!pdf && !(await readAcquisition(this.root, id))) this.queue("paper.pdf", id, "background")
-    if (pdf && !(await readText(this.root, id))) this.queue("paper.text", id, "background")
+    if (pdf && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
     const record = await readRecord(this.root, id)
     if (record?.fetchedAt && (record.checked ?? 0) < METADATA_CHECKS && refOfIds(record.ids)) this.queue("paper.metadata", id, "background")
   }
 
   // Adds a highlight, or replaces the one with its id
   putHighlight(highlight: Highlight): Promise<null> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (!(await readRecord(this.root, highlight.paperId))) throw notFound(highlight.paperId)
       const all = await readHighlights(this.root, highlight.paperId)
       const at = all.findIndex((h) => h.id === highlight.id)
@@ -632,7 +610,7 @@ export class Library {
   }
 
   removeHighlight(paperId: string, id: string): Promise<Highlight | null> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const all = await readHighlights(this.root, paperId)
       const removed = all.find((h) => h.id === id)
       if (!removed) return null
@@ -646,7 +624,7 @@ export class Library {
   }
 
   setNote(paperId: string, content: string): Promise<PaperNote> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (!(await readRecord(this.root, paperId))) throw notFound(paperId)
       this.knownNotes.set(paperId, content.trim() ? content : "")
       return writeNote(this.root, paperId, content)
@@ -657,7 +635,7 @@ export class Library {
   // owlit's fs rather than directly): written like the window's own, then told to windows, which take it
   // into the open note as one undoable change
   async writeNoteFor(paperId: string, content: string): Promise<void> {
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       if (!(await readRecord(this.root, paperId))) throw notFound(paperId)
       // Learned before it changes, so the change is told even for a paper no window has listed yet
       if (!this.knownNotes.has(paperId)) this.knownNotes.set(paperId, (await readNote(this.root, paperId))?.content ?? "")
@@ -695,7 +673,7 @@ export class Library {
     if (task.state !== "failed" && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
     // Under the library's lock: a run that placed the PDF while this one looked may still be
     // writing what it did (acquisition.json)
-    const paper = await this.serial(() => this.get(id))
+    const paper = await this.serial.run(() => this.get(id))
     if (!paper) throw notFound(id)
     if (!paper.pdf && task.state === "failed") throw new RpcFailure(RpcErrorCode.Unavailable, task.error ?? t`owlit couldn't look for a PDF.`)
     return paper
@@ -750,7 +728,7 @@ export class Library {
         const { text: answer, connectorId, model } = await agent(prompt, ctx.signal, pictures)
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
-        await this.serial(async () => {
+        await this.serial.run(async () => {
           // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
           if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
           const kept: DigestRecord = { version: 1, format: DIGEST_FORMAT, by: connectorId, ...(model ? { model } : {}), language, ...(drifted(digest, language) ? { drift: true } : {}), at: Date.now() }
@@ -787,7 +765,7 @@ export class Library {
           await writeFiguresFromText(this.root, id, text?.source === "mineru" ? text : { version: 1, source: "pdfium", pages: [] }, pdf, this.services.pdfiumWasm)
         } catch (error) {
           if (ctx.signal.aborted) throw error
-          await noFigures(this.root, id, error instanceof Error ? error.message : String(error))
+          await noFigures(this.root, id, messageOf(error))
         }
       },
     })
@@ -856,11 +834,11 @@ export class Library {
               signal: ctx.signal,
               report: (event) => void this.publishers.log({ paper: id, route: route.name, ...event }),
             })
-            if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new Error(`${route.name} gave something that isn't a PDF.`)
+            if (!isPdfBytes(bytes)) throw new Error(`${route.name} gave something that isn't a PDF.`)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
             if (proxied) this.services.proxySignedIn?.(true)
             // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
-            await this.serial(async () => {
+            await this.serial.run(async () => {
               // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
               ctx.signal.throwIfAborted()
               await writeFileAtomic(dest, Buffer.from(bytes))
@@ -868,7 +846,7 @@ export class Library {
               this.pdfHashes?.set(sha256, id)
               await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
             })
-            for (const next of ["paper.text", "index.paper"]) this.queue(next, id, ctx.task.priority)
+            this.queueText(id, ctx.task.priority)
             await this.announce([id])
             // The site let owlit through (a run the user waited on): its hold is over, and its other papers
             // that waited for the user may now come unattended (their turns spaced out)
@@ -881,7 +859,7 @@ export class Library {
           } catch (error) {
             if (ctx.signal.aborted) throw error
             if (proxied && error instanceof NeedsUser && error.reason === "login") this.services.proxySignedIn?.(false)
-            tried.push({ route: route.name, url: route.landing, error: error instanceof Error ? error.message : String(error), at: Date.now() })
+            tried.push({ route: route.name, url: route.landing, error: messageOf(error), at: Date.now() })
             if (error instanceof NeedsUser) {
               // The proxy's own sign-in stands for the publisher behind it: noted as the publisher's, so
               // the user's browser is sent to that publisher (through the proxy) and not to the proxy
@@ -912,7 +890,7 @@ export class Library {
     if (!hasText && !(await hasPdfFile(this.root, id))) return
     // Asked for on disk, beside the note: the task may run after a restart, and must still know
     if (options.rewrite && (await exists(path.join(dir, "digest.md")))) {
-      await this.serial(async () => {
+      await this.serial.run(async () => {
         // A note with no record (pitta's) gets one that says no more than the file does
         const record = (await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)) ?? {
           version: 1,
@@ -941,7 +919,7 @@ export class Library {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!(await hasPdfFile(this.root, id))) throw new RpcFailure(RpcErrorCode.NotFound, "The paper has no PDF.", { id })
     const [picture] = await renderCrops(await readFile(pdfFile(this.root, id)), [{ page }], this.services.pdfiumWasm, 1).catch((error) => {
-      throw new RpcFailure(RpcErrorCode.NotFound, error instanceof Error ? error.message : String(error), { id })
+      throw new RpcFailure(RpcErrorCode.NotFound, messageOf(error), { id })
     })
     return { data: picture.toString("base64"), mimeType: "image/png" }
   }
@@ -1092,8 +1070,7 @@ export class Library {
     for (const p of papers) if (p.id) this.found.set(p.id, { paper: p, at: now, query: asked.query })
     const line: SearchLine = { at: Date.now(), ...asked, by, results: papers.flatMap((f) => (f.id ? [f.id] : [])) }
     ;(await this.recentSearches()).push(line)
-    await mkdir(path.join(this.root, OWLIT_DIR), { recursive: true })
-    await appendFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), JSON.stringify(line) + "\n")
+    await appendJsonl(path.join(this.root, OWLIT_DIR, "searches.jsonl"), line)
   }
 
   // The searches one chat or background run made since a moment, for the collection it writes to
@@ -1104,15 +1081,8 @@ export class Library {
   // The latest searches, read from the log once (a run that outlived a restart keeps its earlier ones)
   private async recentSearches() {
     if (!this.searchLog) {
-      const text = await readFile(path.join(this.root, OWLIT_DIR, "searches.jsonl"), "utf8").catch(() => "")
-      const lines = text.split("\n").slice(-RECENT_SEARCHES).flatMap((l) => {
-        try {
-          return l ? [JSON.parse(l) as SearchLine] : []
-        } catch {
-          return []
-        }
-      })
-      this.searchLog ??= lines
+      const lines = await readJsonl<SearchLine>(path.join(this.root, OWLIT_DIR, "searches.jsonl"))
+      this.searchLog ??= lines.slice(-RECENT_SEARCHES)
     }
     if (this.searchLog.length > RECENT_SEARCHES * 2) this.searchLog.splice(0, this.searchLog.length - RECENT_SEARCHES)
     return this.searchLog
@@ -1133,7 +1103,7 @@ export class Library {
   // it came: "dropped" (or chosen) by the user, "your-browser" when taken from Downloads after owlit sent
   // the user's browser for it.
   attachPdf(id: string, file: string, route: PlacedBy = "dropped"): Promise<Paper> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (!(await readRecord(this.root, id))) throw notFound(id)
       await assertPdf(file)
       await this.placePdf(id, file, await sha256Of(file), "asked", route)
@@ -1527,7 +1497,7 @@ export class Library {
 
   // When the user's browser was sent for the paper, so a PDF saved after a restart is still found
   private async noteSent(id: string, page: boolean) {
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       const acquisition = await readAcquisition(this.root, id)
       if (acquisition?.result !== "no_pdf") return
       await writeAcquisition(this.root, id, { ...acquisition, sentToBrowser: { at: Date.now(), page } })
@@ -1579,7 +1549,7 @@ export class Library {
   // The user's browser reached the publisher and was told no, or nothing came of sending it there: kept
   // on the paper until a PDF comes or it is sent there again
   private async saidNo(id: string, ended: "no-access" | "refused" | "missing" | "missed", page: { title: string; host: string } = { title: "", host: "" }) {
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       const acquisition = await readAcquisition(this.root, id)
       if (acquisition?.result !== "no_pdf") return
       await writeAcquisition(this.root, id, {
@@ -1617,7 +1587,7 @@ export class Library {
 
   private async lookAtPdf(file: string) {
     const bytes = await readFile(file)
-    if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return undefined
+    if (!isPdfBytes(bytes)) return undefined
     const { text, meta } = await readPdf(bytes, { wasmPath: this.services.pdfiumWasm, maxPages: 2 }).catch(() => ({ text: undefined, meta: {} }))
     if (!text) return undefined
     const found = identify(text, meta)
@@ -1635,7 +1605,7 @@ export class Library {
   // The paper whose PDF is this very file (the same bytes), if the library has one; reads nothing else
   async paperOfFile(file: string): Promise<string | undefined> {
     const sha = await sha256Of(file)
-    return this.serial(() => this.paperWithPdf(sha))
+    return this.serial.run(() => this.paperWithPdf(sha))
   }
 
   // A PDF dropped on the library: which paper it is (arXiv's stamp, a DOI on its first pages), added
@@ -1647,7 +1617,7 @@ export class Library {
     const priority = options.priority ?? "asked"
     await assertPdf(file)
     const sha = await sha256Of(file)
-    const same = await this.serial(() => this.paperWithPdf(sha))
+    const same = await this.serial.run(() => this.paperWithPdf(sha))
     if (same) return { paper: (await this.get(same))!, existed: true }
 
     const bytes = await readFile(file)
@@ -1665,7 +1635,7 @@ export class Library {
       resolution = await resolve(this.services.http, found.ref, await this.services.settings(), { retries: 1 }).catch(() => undefined)
       if (resolution) this.remember(resolution)
     }
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       // Dropped twice at once: the first one placed it
       const placed = await this.paperWithPdf(sha)
       if (placed) return { paper: (await this.get(placed))!, existed: true }
@@ -1731,7 +1701,7 @@ export class Library {
       sha256: sha,
     })
     this.pdfHashes?.set(sha, id)
-    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, priority)
+    this.queueText(id, priority)
     this.arrivals.get(id)?.()
     // Saved from a page owlit opened, or after it didn't come: nothing left to wait for
     const state = this.fromBrowser.get(id)?.state
@@ -1763,7 +1733,7 @@ export class Library {
   // they predate the current round of checks (METADATA_CHECKS)
   private async catchUp() {
     for (const id of await this.ids()) {
-      if ((await hasPdfFile(this.root, id)) && !(await readText(this.root, id))) this.queue("paper.text", id, "background")
+      if ((await hasPdfFile(this.root, id)) && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
       // Only details the services gave: a record written some other way (by hand, by another program)
       // is left as its author wrote it
       const record = await readRecord(this.root, id)
@@ -1797,7 +1767,7 @@ export class Library {
       if (record && citationsDue(record, now)) due.push({ id, ids: record.ids })
     }
     const counted = due.length ? await countCitations(this.services.http, due, await this.services.settings(), { retries: 1 }) : new Map()
-    const changed = await this.serial(async () => {
+    const changed = await this.serial.run(async () => {
       const changed: string[] = []
       for (const { id } of due) {
         const found = counted.get(id)
@@ -1837,7 +1807,7 @@ export class Library {
       // the paper's folder, so it is taken before the folder's other files: a note write is news for the
       // note alone, not a change of the paper. owlit's own save lands as note.md.<hex>.tmp first
       // (writeFileAtomic), which counts as the note too, or every keystroke saved would re-announce the paper
-      const noteOf = this.noteOf(rel.replace(/\.[0-9a-f]{8}\.tmp$/, ""))
+      const noteOf = this.noteOf(rel.replace(ATOMIC_TEMP, ""))
       if (noteOf) {
         clearTimeout(this.noteTimers.get(noteOf))
         this.noteTimers.set(noteOf, setTimeout(() => void this.noteMayHaveChanged(noteOf).catch(() => undefined), NOTE_SETTLE_MS))
@@ -1921,13 +1891,13 @@ export class Library {
               if (result.layout) await writeFiguresFromLayout(this.root, id, result.layout, result.images, bytes, this.services.pdfiumWasm)
               else await writeFiguresFromText(this.root, id, text, bytes, this.services.pdfiumWasm)
             } catch (error) {
-              await noFigures(this.root, id, error instanceof Error ? error.message : String(error))
+              await noFigures(this.root, id, messageOf(error))
             }
             this.queue("index.paper", id, "background")
             await this.announce([id])
           } catch (error) {
             if (ctx.signal.aborted) throw error
-            const message = error instanceof Error ? error.message : String(error)
+            const message = messageOf(error)
             await writeJsonAtomic(path.join(paperDir(this.root, id), "parse.json"), { version: 1, status: "failed", error: message, attempts: ctx.task.attempts, at: Date.now() })
             if (error instanceof ParseRefused) throw new TaskFailure(message)
             throw error
@@ -1942,7 +1912,7 @@ export class Library {
           try {
             papers = await pittaPapers(ctx.task.subject)
           } catch (error) {
-            throw new TaskFailure(error instanceof Error ? error.message : String(error))
+            throw new TaskFailure(messageOf(error))
           }
           const summary = { added: 0, skipped: 0, failed: [] as string[] }
           const added: string[] = []
@@ -1950,7 +1920,7 @@ export class Library {
             ctx.signal.throwIfAborted()
             ctx.progress(i, papers.length, paper.id)
             try {
-              const placed = await this.serial(async () => {
+              const placed = await this.serial.run(async () => {
                 if (await readRecord(this.root, paper.id)) return false
                 const brought = await importPittaPaper(this.root, paper)
                 const record = (await readRecord(this.root, paper.id))!
@@ -1969,7 +1939,7 @@ export class Library {
                 added.push(paper.id)
               } else summary.skipped++
             } catch (error) {
-              summary.failed.push(`${paper.id}: ${error instanceof Error ? error.message : String(error)}`)
+              summary.failed.push(`${paper.id}: ${messageOf(error)}`)
             }
           }
           ctx.progress(papers.length, papers.length)
@@ -2069,12 +2039,12 @@ export class Library {
             }
             tried.push({ route: route.name, url: route.url, status: 200, at: Date.now() })
             // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
-            await this.serial(async () => {
+            await this.serial.run(async () => {
               const sha256 = await sha256Of(dest)
               this.pdfHashes?.set(sha256, id)
               await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
             })
-            for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, ctx.task.priority)
+            this.queueText(id, ctx.task.priority)
             await this.announce([id])
             return
           }
@@ -2147,7 +2117,7 @@ export class Library {
     let resolution = fresh ? undefined : this.recent(id)
     if (!resolution || !fullyChecked(resolution)) resolution = await resolve(this.services.http, ref, await this.services.settings(), { signal })
     const found = resolution
-    const twin = await this.serial(async () => {
+    const twin = await this.serial.run(async () => {
       const current = await readRecord(this.root, id)
       if (!current) return undefined
       // Its DOI is another paper's: writing it here would give two papers one id
@@ -2166,7 +2136,7 @@ export class Library {
   // Two records of one paper: the one without a DOI goes (to the trash, its id kept as an alias of the
   // other), unless the user has starred, tagged, marked, highlighted or written about it. Then both stay.
   private async fold(a: string, b: string) {
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       const [ra, rb] = await Promise.all([readRecord(this.root, a), readRecord(this.root, b)])
       if (!ra || !rb) return
       const [copy, kept] = !ra.ids.doi && rb.ids.doi ? [a, b] : !rb.ids.doi && ra.ids.doi ? [b, a] : [a, b]
@@ -2216,7 +2186,7 @@ export class Library {
   // writers of an ok record; otherwise a no_pdf could land last over a PDF that is there. Whether
   // it was noted.
   private noPdf(id: string, acquisition: (previous: Acquisition | undefined) => Acquisition): Promise<boolean> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (await hasPdfFile(this.root, id)) return false
       const previous = await readAcquisition(this.root, id)
       const next = acquisition(previous)
@@ -2245,6 +2215,11 @@ export class Library {
     if (this.scheduler?.knows(kind)) this.scheduler.enqueue(kind, id, priority)
   }
 
+  // A new PDF's text, and the search index that reads it
+  private queueText(id: string, priority: TaskPriority) {
+    for (const kind of ["paper.text", "index.paper"]) this.queue(kind, id, priority)
+  }
+
   private async ids() {
     try {
       return (await readdir(path.join(this.root, PAPERS_DIR))).filter(isPaperId).sort()
@@ -2268,7 +2243,7 @@ export class Library {
   private async settle() {
     const dirty = [...this.dirty]
     this.dirty.clear()
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       let ids = dirty
       // The system lost track: look at every folder, and at every paper that had one
       if (ids.includes("*")) ids = [...new Set([...(await this.ids()), ...this.index.ids()])]
@@ -2286,12 +2261,6 @@ export class Library {
 
   private trashDir(stamp: number, id: string) {
     return path.join(this.root, OWLIT_DIR, "trash", `${stamp}-paper-${id}`)
-  }
-
-  private serial<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.writing.then(work)
-    this.writing = run.catch(() => undefined)
-    return run
   }
 
   // A resolution looked up a moment ago, so add() and paper.metadata can use it whole. A partial one (a
@@ -2359,10 +2328,6 @@ function asRpcFailure(error: unknown) {
   return error
 }
 
-function ignoreMissing(error: NodeJS.ErrnoException) {
-  if (error.code !== "ENOENT") throw error
-}
-
 // Moves a folder to where it belongs, when something has made that place again meanwhile: a step that was
 // running when the paper was removed can write its file (a PDF, its text) before it hears it was
 // cancelled, and a rename onto a folder that isn't empty fails. That made Undo bring nothing back in a blind
@@ -2390,10 +2355,6 @@ async function moveInto(from: string, to: string): Promise<void> {
   await rm(from, { recursive: true, force: true })
 }
 
-function clean<T extends object>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
-}
-
 const mtimeOf = (file: string) => stat(file).then((info) => info.mtimeMs, () => 0)
 
 async function sha256Of(file: string) {
@@ -2409,7 +2370,7 @@ async function assertPdf(file: string) {
   const head = Buffer.alloc(5)
   await handle.read(head, 0, 5, 0)
   await handle.close()
-  if (head.toString("latin1") !== "%PDF-") throw new RpcFailure(RpcErrorCode.InvalidParams, t`That file isn't a PDF.`)
+  if (!isPdfBytes(head)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`That file isn't a PDF.`)
 }
 
 // Ids as the user typed them, as the library keeps them: a DOI lowercased and without a doi.org prefix

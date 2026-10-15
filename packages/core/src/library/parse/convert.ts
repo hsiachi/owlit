@@ -1,4 +1,5 @@
 import type { PaperText, Rect, TextBlock } from "@owlit/protocol"
+import { decodeEntities } from "../html-text.ts"
 
 // MinerU's content_list.json as a PaperText: its blocks in reading order, each with a bbox given in
 // thousandths of the page (0–1000 on each axis, top-left origin), which becomes PDF points with the
@@ -105,16 +106,7 @@ function tableRows(html: string) {
   return [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map(
     (row) =>
       `| ${[...row[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
-        .map((cell) => decode(cell[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().replace(/\|/g, "\\|"))
+        .map((cell) => decodeEntities(cell[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().replace(/\|/g, "\\|"))
         .join(" | ")} |`,
   )
 }
-
-const decode = (s: string) =>
-  s
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")

@@ -25,6 +25,7 @@ import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { invalidParams, RpcFailure } from "../rpc/index.ts"
 import { Notes } from "./notes.ts"
 import type { Host } from "../host.ts"
+import { Serial } from "../util.ts"
 
 // What core needs from the machine it runs on that plain Node can't do: the desktop app hands in
 // Electron's shell; without one, deleted files go to .owlit/trash/ and nothing opens
@@ -65,7 +66,7 @@ export class Docs {
   private ids = new Map<string, string>()
   private names: NamesFile | undefined
   // Changes run one at a time, so two writers never interleave on the same file
-  private queue: Promise<unknown> = Promise.resolve()
+  private readonly serial = new Serial()
   // Every docs path, files and folders, as last seen. Core's own changes are settled into it as they
   // happen, so the watcher finds nothing new when it hears about them: no echo.
   private snapshot = new Map<string, Entry>()
@@ -91,7 +92,7 @@ export class Docs {
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
   // so an agent's edit can't slip into the listing without its version being kept
   list(): Promise<DocsListing> {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (this.timer) {
         clearTimeout(this.timer)
         this.timer = undefined
@@ -141,7 +142,7 @@ export class Docs {
         this.timer = undefined
         const paths = [...this.dirty]
         this.dirty.clear()
-        void this.serial(async () => {
+        void this.serial.run(async () => {
           const change = await this.reconcile(paths, true)
           if (change) onChange(change)
         }).catch((error) => console.error("[core] couldn't read changes in the workspace", error))
@@ -167,7 +168,7 @@ export class Docs {
   }
 
   create(rel: string, content: string, options: { id?: string; followsFirstLine?: boolean } = {}) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       this.check(rel)
       if (!isMarkdown(rel)) {
         const name = baseName(rel)
@@ -186,7 +187,7 @@ export class Docs {
   }
 
   write(rel: string, content: string, expectedModifiedAt: number, force = false) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       this.check(rel)
       const file = this.abs(rel)
       const info = await stat(file).catch(() => null)
@@ -209,7 +210,7 @@ export class Docs {
 
   // `told`: the change is someone else's than the window asking (an agent's), so windows hear about it
   rename(rel: string, name: string, told = false) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const info = await this.entry(rel)
       const ext = info.isDirectory() ? "" : extOf(rel)
       const stem = cleanName(ext === ".md" ? name.replace(/\.md$/i, "") : name.endsWith(ext) ? name.slice(0, name.length - ext.length) : name)
@@ -227,7 +228,7 @@ export class Docs {
   }
 
   move(rel: string, folder: string, told = false) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const info = await this.entry(rel)
       if (folder) {
         this.check(folder)
@@ -245,7 +246,7 @@ export class Docs {
   }
 
   delete(rel: string, told = false) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       await this.entry(rel)
       const file = this.abs(rel)
       if (this.host.trash) await this.host.trash(file)
@@ -260,7 +261,7 @@ export class Docs {
   }
 
   createFolder(rel: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       this.check(rel)
       const at = this.taken()(rel) ? uniquePath(parentPath(rel), baseName(rel), "", this.taken()) : rel
       await mkdir(this.abs(at), { recursive: true })
@@ -271,7 +272,7 @@ export class Docs {
 
   // A folder an agent moves a doc into: made, with its parents, only where there is none yet (and told)
   ensureFolder(rel: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       this.check(rel)
       if ((await stat(this.abs(rel)).catch(() => null))?.isDirectory()) return
       // The first folder made, which holds any made under it
@@ -281,7 +282,7 @@ export class Docs {
   }
 
   restore(files: { id: string; path: string; content: string }[], folders: string[]) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const made: string[] = []
       for (const folder of [...folders].sort()) {
         this.check(folder)
@@ -330,7 +331,7 @@ export class Docs {
   }
 
   writeTold(rel: string, content: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (existsSync(this.abs(rel))) await writeInPlace(this.abs(rel), content)
       else {
         await mkdir(path.dirname(this.abs(rel)), { recursive: true })
@@ -341,7 +342,7 @@ export class Docs {
   }
 
   removeTold(rel: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (!existsSync(this.abs(rel))) return
       if (this.host.trash) await this.host.trash(this.abs(rel))
       else await this.moveToOwlitTrash(rel)
@@ -357,22 +358,22 @@ export class Docs {
   // ---- Agents' notes on docs (./notes.ts), kept in step with the files they belong to ----
 
   notesAll() {
-    return this.serial(() => this.notes.all())
+    return this.serial.run(() => this.notes.all())
   }
 
   addNote(rel: string, note: AgentNote) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       await this.notes.add(this.check(rel), note)
       return null
     })
   }
 
   removeNote(rel: string, id: string) {
-    return this.serial(() => this.notes.remove(this.check(rel), id))
+    return this.serial.run(() => this.notes.remove(this.check(rel), id))
   }
 
   reanchorNotes(rel: string, moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">>) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       await this.notes.reanchor(this.check(rel), moved)
       return null
     })
@@ -552,12 +553,6 @@ export class Docs {
       this.texts.set(rel, file.content)
     }
     return file
-  }
-
-  private serial<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(work)
-    this.queue = run.catch(() => undefined)
-    return run
   }
 
   // A path a client may name: inside the workspace, not under library/ or a dot-folder

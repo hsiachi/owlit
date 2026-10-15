@@ -6,6 +6,7 @@ import path from "node:path"
 import { isDocsPath } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import { messageOf } from "../util.ts"
 
 type Params = ParamsOf<"chats.attach">
 type Result = ResultOf<"chats.attach">
@@ -34,7 +35,7 @@ export async function attachFile(ws: Workspace, params: Params): Promise<Result>
     if (inside && isDocsPath(inside)) return { kind: "doc", path: inside }
     // A copy another message already has (dragged out of a chip) is copied again: each chat keeps its own
     const kept = await ws.chats.copyIn(chatId, real, name).catch((error) => {
-      throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit couldn't copy that file.`, { path: source, reason: error instanceof Error ? error.message : String(error) })
+      throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit couldn't copy that file.`, { path: source, reason: messageOf(error) })
     })
     return { kind: "file", file: fileOf(name, info.size, mimeType, kept) }
   }

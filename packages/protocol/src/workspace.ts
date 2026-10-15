@@ -166,8 +166,6 @@ export interface UiActions {
   jump: { params: { uri: string; page?: number; quote?: string; chatId?: string }; result: { title: string; found: boolean } }
   // Highlights a quoted passage in a paper; page is 1-based
   mark: { params: { uri: string; quote: string; color?: HighlightColor; chatId?: string }; result: { title: string; highlightId: string; page: number } }
-  // A line for the user from the agent, shown in the window and kept nowhere
-  say: { params: { text: string }; result: null }
 }
 export type UiMethod = keyof UiActions
 
