@@ -35,6 +35,7 @@ import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
 import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
 import { DownloadWatch, isThisPaper, sameTitle, WATCH_MS, whoseDownload } from "./downloads.ts"
 import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
+import { PUBLISHERS } from "./publisher-table.ts"
 import { Publishers, type VisitEnd } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
@@ -43,7 +44,7 @@ import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { citationsDue, countCitations } from "./citations.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
-import { type Acquisition, type Attempt, describeFailure, downloadPdf, ELSEVIER_API_HOST, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, readAcquisition, registeredUrl, type Route, routesFor, unpaywallRoutes, WILEY_API_HOST, writeAcquisition } from "./pdf.ts"
+import { type Acquisition, type Attempt, describeFailure, downloadPdf, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, readAcquisition, registeredUrl, type Route, routesFor, unpaywallRoutes, writeAcquisition } from "./pdf.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { Imports } from "./bulk/imports.ts"
@@ -258,9 +259,7 @@ export class Library {
     this.dataDir = dataDir
     this.services = services
     this.publishers = new Publishers(dataDir)
-    // Wiley's API takes 60 requests in ten minutes
-    services.http.limit(WILEY_API_HOST, { perSecond: 0.1, concurrent: 1 })
-    services.http.limit(ELSEVIER_API_HOST, { perSecond: 2, concurrent: 2 })
+    for (const { api } of PUBLISHERS) if (api) services.http.limit(api.host, api.limit)
     this.index = new PaperIndex(root)
     this.imports = new Imports(dataDir, {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
@@ -855,7 +854,7 @@ export class Library {
         }
         for (const route of routes) {
           ctx.progress(0, undefined, route.name)
-          const proxied = route.name.endsWith(":proxied")
+          const { proxied } = route
           try {
             const bytes = await browser.fetchPdf({
               landing: route.landing,
@@ -2128,7 +2127,7 @@ export class Library {
             }
             try {
               await downloadPdf(http, route.url, dest, ctx.signal, route.headers)
-              if (route.name === "api:elsevier") await wholeArticle(dest, this.services.pdfiumWasm)
+              await route.verify?.(dest, this.services.pdfiumWasm)
               // A PDF owlit didn't pick by its address must be the paper: a repository's page can name
               // another paper's file, or its logo
               if (route.checkTitle && isThisPaper(await this.lookAtPdf(dest), { doi: record.ids.doi, title: record.title }) === "no") {
@@ -2565,14 +2564,4 @@ export function cleanDigest(answer: string) {
     text = text.replace(/\n```\s*$/, "").trim()
   }
   return text + "\n"
-}
-
-// Elsevier's API answers a paper this network has no subscription to with its first page alone, as a
-// PDF: that isn't the paper. (An article of one page is turned away too; the browser route still has it.)
-async function wholeArticle(file: string, wasmPath: string | undefined) {
-  const { pageCount } = await readPdf(await readFile(file), { wasmPath, maxPages: 0 })
-  if (pageCount <= 1) {
-    await rm(file, { force: true })
-    throw new Error("Elsevier's API gave only the first page: it sees no subscription from this network.")
-  }
 }

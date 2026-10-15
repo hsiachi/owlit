@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { paperDir } from "./paths.ts"
+import { fill, publisherOf, type PublisherApi, type PublisherKeys } from "./publisher-table.ts"
 import { messageOf } from "../util.ts"
 
 // Where a paper's PDF can come from, tried in order until one gives a real PDF. Not finding one is a
@@ -27,42 +28,20 @@ export interface Route {
   url: string
   // Sent with the request and never written down (a publisher's API key)
   headers?: Record<string, string>
+  // Refuses a PDF the route gave that isn't the paper (PublisherApi.verify)
+  verify?: PublisherApi["verify"]
   // Found on a page or by title rather than built from the paper's ids: the PDF's first pages must be
   // the paper's before it is kept
   checkTitle?: boolean
 }
 
-// The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
-// browser or a check: Elsevier's article API and Wiley's text-and-data-mining API
-export interface PublisherKeys {
-  elsevierApiKey?: string
-  wileyTdmToken?: string
-}
-
-const ELSEVIER_PREFIXES = ["10.1016/", "10.1006/", "10.1053/", "10.1054/", "10.1067/", "10.1078/", "10.1383/", "10.1529/"]
-const WILEY_PREFIXES = ["10.1002/", "10.1111/", "10.1046/", "10.1113/", "10.1034/"]
-export const ELSEVIER_API_HOST = "api.elsevier.com"
-export const WILEY_API_HOST = "api.wiley.com"
-
 // The publisher's API route for a DOI, when owlit has its key
 export function apiRoute(doi: string, keys: PublisherKeys): Route | undefined {
-  if (keys.elsevierApiKey && ELSEVIER_PREFIXES.some((p) => doi.startsWith(p))) {
-    return {
-      kind: "api",
-      name: "api:elsevier",
-      url: `https://${ELSEVIER_API_HOST}/content/article/doi/${doi}?httpAccept=application/pdf`,
-      headers: { "x-els-apikey": keys.elsevierApiKey },
-    }
-  }
-  if (keys.wileyTdmToken && WILEY_PREFIXES.some((p) => doi.startsWith(p))) {
-    return {
-      kind: "api",
-      name: "api:wiley",
-      url: `https://${WILEY_API_HOST}/onlinelibrary/tdm/v1/articles/${encodeURIComponent(doi)}`,
-      headers: { "wiley-tdm-client-token": keys.wileyTdmToken },
-    }
-  }
-  return undefined
+  const publisher = publisherOf(doi)
+  const api = publisher?.api
+  const key = api && keys[api.key]
+  if (!api || !key) return undefined
+  return { kind: "api", name: `api:${publisher.name}`, url: api.url(doi), headers: { [api.header]: key }, ...(api.verify ? { verify: api.verify } : {}) }
 }
 
 export interface Attempt {
@@ -105,32 +84,6 @@ export interface Acquisition {
   sentToBrowser?: { at: number; page: boolean }
 }
 
-// Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}
-// the part after the "/"; {landing} the page doi.org leads to (costs one request).
-const PUBLISHERS: { name: string; prefix: string; pdf: string }[] = [
-  { name: "frontiers", prefix: "10.3389/", pdf: "https://www.frontiersin.org/articles/{doi}/pdf" },
-  { name: "plos", prefix: "10.1371/journal.pone.", pdf: "https://journals.plos.org/plosone/article/file?id={doi}&type=printable" },
-  { name: "bmc", prefix: "10.1186/", pdf: "https://link.springer.com/content/pdf/{doi}.pdf" },
-  { name: "springer", prefix: "10.1007/", pdf: "https://link.springer.com/content/pdf/{doi}.pdf" },
-  { name: "nature", prefix: "10.1038/", pdf: "https://www.nature.com/articles/{suffix}.pdf" },
-  { name: "pnas", prefix: "10.1073/", pdf: "https://www.pnas.org/doi/pdf/{doi}" },
-  { name: "science", prefix: "10.1126/", pdf: "https://www.science.org/doi/pdf/{doi}" },
-  { name: "acs", prefix: "10.1021/", pdf: "https://pubs.acs.org/doi/pdf/{doi}" },
-  { name: "iop", prefix: "10.1088/", pdf: "https://iopscience.iop.org/article/{doi}/pdf" },
-  { name: "acm", prefix: "10.1145/", pdf: "https://dl.acm.org/doi/pdf/{doi}" },
-  { name: "sage", prefix: "10.1177/", pdf: "https://journals.sagepub.com/doi/pdf/{doi}" },
-  { name: "wiley", prefix: "10.1002/", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
-  { name: "wiley", prefix: "10.1111/", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
-  { name: "tandf", prefix: "10.1080/", pdf: "https://www.tandfonline.com/doi/pdf/{doi}" },
-  { name: "mdpi", prefix: "10.3390/", pdf: "{landing}/pdf" },
-  { name: "jmir", prefix: "10.2196/", pdf: "{landing}/PDF" },
-  { name: "biorxiv", prefix: "10.1101/", pdf: "{landing}.full.pdf" },
-]
-
-export function publisherOf(doi: string) {
-  return PUBLISHERS.filter((p) => doi.startsWith(p.prefix)).sort((a, b) => b.prefix.length - a.prefix.length)[0]
-}
-
 // The routes for a paper, best first, without repeats. Landing pages and Unpaywall cost a request,
 // so they are looked up only when the free routes before them have failed.
 export async function* routesFor(
@@ -163,9 +116,8 @@ export async function* routesFor(
   const api = lookups.keys ? apiRoute(doi, lookups.keys) : undefined
   if (api && fresh(api)) yield api
   const publisher = publisherOf(doi)
-  if (publisher) {
-    const suffix = doi.slice(doi.indexOf("/") + 1)
-    let url: string | undefined = publisher.pdf.replace("{doi}", doi).replace("{suffix}", suffix)
+  if (publisher?.pdf) {
+    let url: string | undefined = fill(publisher.pdf, doi)
     if (url.includes("{landing}")) {
       const landing = await lookups.landing(doi)
       url = landing ? url.replace("{landing}", landing.replace(/\/$/, "")) : undefined
