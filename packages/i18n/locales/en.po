@@ -263,11 +263,10 @@ msgid "in the Library and Threads"
 msgstr "in the Library and Threads"
 
 #: app/src/app/shortcuts.ts
-#: app/src/components/selection-menu.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/docs/editor/selection-menu.ts
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -422,7 +421,9 @@ msgstr "{label}: {choice}"
 #. verb: copy the sign-in command
 #. verb: copy the text
 #. verb: copy the text
+#. verb: copy the text
 #: app/src/components/copy-button.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 #: app/src/features/library/components/HighlightsList.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
@@ -433,6 +434,7 @@ msgid "Copy"
 msgstr "Copy"
 
 #: app/src/components/copy-button.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -499,6 +501,13 @@ msgstr "Breadcrumb"
 #: app/src/components/segmented-control.tsx
 msgid "New since you last looked"
 msgstr "New since you last looked"
+
+#: app/src/components/selection-menu-items.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgctxt "verb: say something about the selected words"
+msgid "Comment"
+msgstr "Comment"
 
 #: app/src/components/sentence-editor.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
@@ -2433,13 +2442,6 @@ msgstr "You"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Comment…"
 msgstr "Comment…"
-
-#: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/docs/editor/DocEditor.tsx
-#: apps/share-web/src/App.tsx
-msgctxt "verb: say something about the selected words"
-msgid "Comment"
-msgstr "Comment"
 
 #. placeholder {0}: v.entries[0].name
 #: app/src/features/docs/comments/CommentColumn.tsx

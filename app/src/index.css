@@ -562,11 +562,14 @@
   .status-slot > * { transition: opacity var(--t-mark) var(--ease); }
 }
 /* ---- Owlit in a doc or a note ---- */
-/* A selected passage's menu, "Ask Owlit": one compact row in a thin frame of the floating material,
-   covering as little text as it can; 8px corners concentric with the 6px item inside */
-.selection-menu { @apply menu-surface flex gap-0.5 rounded-[8px] p-0.5 font-sans text-detail; }
+/* A selected passage's menu: "Ask Owlit", a divider, then icons, one compact row in a thin frame of the
+   floating material, covering as little text as it can; 8px corners concentric with the 6px items inside */
+.selection-menu { @apply menu-surface flex items-center gap-0.5 rounded-[8px] p-0.5 font-sans text-detail; }
 .selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
 .selection-menu button.selection-menu-icon { @apply grid w-6 place-items-center px-0 text-muted-foreground hover:text-foreground; }
+.selection-menu-icon svg { @apply size-[15px]; }
+/* Between "Ask Owlit" and the tools on the text, as the PDF highlight toolbar parts its colours from its tools */
+.selection-menu-divider { @apply mx-0.5 h-4 w-px bg-border; }
 /* What was said in a comment's card (comments/CommentCard.tsx): Markdown, with paragraphs close together */
 .markdown.comment-text { @apply leading-normal; }
 .markdown.comment-text > :first-child { margin-top: 0; }

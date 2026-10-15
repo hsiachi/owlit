@@ -146,10 +146,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup(() => allDocMentions(id)),
-          selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from), {
-            start: (view) => startComment(id, view),
-            label: t({ message: "Comment", context: "verb: say something about the selected words" }),
-          }),
+          selectionMenu(
+            (text, view) => chatAbout(id, text, view.state.selection.main.from),
+            (view) => startComment(id, view),
+          ),
           keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
           agentSuggestions(respondToEdit, setDrawn),
           commentMarks({
