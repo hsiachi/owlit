@@ -1,4 +1,4 @@
-// What agents can show the user in this window (ui.open, ui.jump, ui.mark, ui.say from core, which
+// What agents can show the user in this window (ui.open, ui.jump, ui.mark from core, which
 // owlit-mcp offers agents as tools): a paper, doc or chat opened, a passage ringed or selected, a
 // passage highlighted. Each answers with the title of what it showed, or refuses in a sentence the
 // agent reads. The channel they come over is lib/ui-actions.
@@ -6,7 +6,6 @@
 import { parseOwlitUri } from "@owlit/protocol"
 import { EditorSelection } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
-import { toast } from "sonner"
 import { appLinkTitle, openAppLink } from "@/app/app-links"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
@@ -124,10 +123,5 @@ export function startUiHandlers(router: typeof appRouter) {
     const h = await api.markPassage(passageOf(quote), color ?? "yellow")
     if (!h) throw new Error(`That passage isn't in ${t.title}'s PDF word for word; quote it as library_read gives it.`)
     return { title: t.title, highlightId: h.id, page: h.page + 1 }
-  })
-
-  registerUiHandler("say", ({ text }) => {
-    toast(text)
-    return null
   })
 }

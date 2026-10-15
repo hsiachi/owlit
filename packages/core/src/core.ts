@@ -41,6 +41,20 @@ const SHARED_CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|librar
 // Methods that change what the search index covers
 const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
 
+// The docs or papers a change names, so only the shares that show them are built again; a change that
+// names neither (or one this doesn't know) builds them all
+function sharedChange(method: string, params: unknown, result: unknown): { docs?: string[]; papers?: string[] } | undefined {
+  const p = (params ?? {}) as { path?: unknown; files?: { path?: unknown }[]; folders?: unknown; id?: unknown; ids?: unknown; paperId?: unknown }
+  const r = (result ?? {}) as { path?: unknown; id?: unknown; paper?: { id?: unknown } }
+  const strings = (...values: unknown[]) => values.flat().filter((v): v is string => typeof v === "string" && !!v)
+  if (method.startsWith("docs.")) {
+    const docs = strings(p.path, r.path, p.files?.map((f) => f.path), p.folders)
+    return docs.length ? { docs } : undefined
+  }
+  const papers = strings(p.id, p.ids, p.paperId, r.id, r.paper?.id)
+  return papers.length ? { papers } : undefined
+}
+
 export interface CoreOptions {
   // This machine's data directory for owlit (Electron's userData): settings.json, workspaces/<hash>/
   userDataDir: string
@@ -390,7 +404,6 @@ export class Core {
       z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }),
       (params) => this.ui.act("mark", params),
     )
-    this.router.register("ui.say", z.object({ text: z.string().min(1) }), (params) => this.ui.act("say", params))
     this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
     this.router.register("versions.stats", z.object({ from: z.string().min(1), to: z.string().min(1) }), ({ from, to }) => this.fs.stats(from, to))
     this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
@@ -460,8 +473,9 @@ export class Core {
       const ws = this.requireWorkspace()
       const mine: string[] = []
       const refused: { id: string; why: string }[] = []
+      const versions = chatId ? await ws.versions.list() : []
       for (const id of ids) {
-        const added = chatId ? (await ws.versions.list({ path: id })).find((v) => v.kind === "paper" && v.op === "added") : undefined
+        const added = versions.find((v) => v.path === id && v.kind === "paper" && v.op === "added")
         if (chatId && added && added.chatId !== chatId) refused.push({ id, why: "another chat added it; ask the user" })
         else mine.push(id)
       }
@@ -734,7 +748,7 @@ export class Core {
       const from = (request.params as { path?: string } | undefined)?.path
       const to = (response.result as { path?: string } | null)?.path
       if (from && to && from !== to) void this.workspace.shares.moved(from, to)
-      this.workspace.shares.touched()
+      this.workspace.shares.touched(sharedChange(request.method, request.params, response.result))
     }
     return response
   }

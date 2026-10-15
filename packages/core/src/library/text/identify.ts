@@ -1,5 +1,5 @@
 import type { PaperText } from "@owlit/protocol"
-import { cleanDoi, type Ref } from "../refs.ts"
+import { doiRef, type Ref } from "../refs.ts"
 import type { PdfMeta } from "./extract.ts"
 
 // Which paper a PDF is, from its first pages: arXiv's stamp in the margin, else a DOI printed on the
@@ -24,12 +24,7 @@ export function identify(text: PaperText, meta: PdfMeta): Identified {
   if (stamp) return { ref: { kind: "arxiv", value: stamp[1] }, ...guess }
   for (const page of [first, pageText(1)]) {
     const doi = page.match(DOI)
-    // 10.48550 is arXiv's own DOI
-    if (doi) {
-      const value = cleanDoi(doi[1])
-      if (/^10\.48550\/arxiv\./i.test(value)) return { ref: { kind: "arxiv", value: value.replace(/^10\.48550\/arxiv\./i, "") }, ...guess }
-      return { ref: { kind: "doi", value }, ...guess }
-    }
+    if (doi) return { ref: doiRef(doi[1]), ...guess }
   }
   return guess
 }

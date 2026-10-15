@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 // Write through a temp file and rename, so a crash never leaves half a file behind
@@ -21,4 +21,35 @@ export async function readJson<T>(file: string): Promise<T | undefined> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined
     throw error
   }
+}
+
+// The temp files writeFileAtomic leaves for a moment beside the file it writes
+export const ATOMIC_TEMP = /\.[0-9a-f]{8}\.tmp$/
+
+export const exists = (file: string) => stat(file).then(() => true, () => false)
+
+// For a .catch() where a file that isn't there is fine
+export function ignoreMissing(error: NodeJS.ErrnoException) {
+  if (error.code !== "ENOENT") throw error
+}
+
+// One value per line, in order. A missing file is empty, and a line that doesn't parse (a write cut short
+// by a crash, an edit by hand) is skipped so the others still count; onBad hears about it.
+export async function readJsonl<T>(file: string, onBad?: (line: string) => void): Promise<T[]> {
+  const text = await readFile(file, "utf8").catch(() => "")
+  const values: T[] = []
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue
+    try {
+      values.push(JSON.parse(line) as T)
+    } catch {
+      onBad?.(line)
+    }
+  }
+  return values
+}
+
+export async function appendJsonl(file: string, value: unknown) {
+  await mkdir(path.dirname(file), { recursive: true })
+  await appendFile(file, JSON.stringify(value) + "\n")
 }

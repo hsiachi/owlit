@@ -285,8 +285,6 @@ export type CollectionEdit =
   | { op: "project"; project: string }
   | { op: "seen" }
 
-export const collectionPath = (id: string) => `.owlit/collections/${id}/collection.json`
-
 // Owlit's own text for an item, before the user's rewrite
 export function owlitText(c: Collection, item: string): string | undefined {
   if (item === itemId.title()) return c.title

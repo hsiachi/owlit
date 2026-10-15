@@ -1,7 +1,7 @@
 import { isTaskFinished, type Task } from "@owlit/protocol"
-import { appendFile, mkdir, readFile } from "node:fs/promises"
+import { appendFile, mkdir } from "node:fs/promises"
 import path from "node:path"
-import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import { readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 
 interface OpenFile {
   version: 1
@@ -29,21 +29,8 @@ export class TaskStore {
   async load(): Promise<Task[]> {
     const stored = await readJson<OpenFile>(this.openFile).catch(() => undefined)
     if (stored) return stored.tasks
-    let log: string
-    try {
-      log = await readFile(this.logFile, "utf8")
-    } catch {
-      return []
-    }
     const last = new Map<string, Task>()
-    for (const line of log.split("\n")) {
-      try {
-        const { task } = JSON.parse(line) as { task: Task }
-        if (task?.id) last.set(task.id, task)
-      } catch {
-        // A line cut short by a crash
-      }
-    }
+    for (const line of await readJsonl<{ task?: Task } | null>(this.logFile)) if (line?.task?.id) last.set(line.task.id, line.task)
     return [...last.values()].filter((task) => !isTaskFinished(task))
   }
 

@@ -17,15 +17,6 @@ export function fileKindOf(name: string, mimeType = ""): FileKind {
   return "other"
 }
 
-// How a chip names a kind it can't pass on: "Owlit engine can't read Word files"
-export const FILE_KIND_NAMES: Record<FileKind, string> = {
-  text: "text files",
-  pdf: "PDFs",
-  image: "images",
-  word: "Word files",
-  other: "this kind of file",
-}
-
 // A chat's copies of the files attached to it, relative to the workspace
 export const chatFilesDir = (chatId: string) => `.owlit/chats/${chatId}/files`
 

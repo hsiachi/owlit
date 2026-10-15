@@ -1,8 +1,9 @@
 import type { AgentNote } from "@owlit/protocol"
 import { createHash } from "node:crypto"
-import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { writeFileAtomic } from "../fs-util.ts"
+import { appendJsonl, readJsonl, writeFileAtomic } from "../fs-util.ts"
+import { Serial } from "../util.ts"
 
 // One snapshot: something as it was before an agent (or an undo) changed it, so the change can be
 // taken back. Every kind of agent write goes through here, so they share one way to undo:
@@ -45,7 +46,7 @@ export class Versions {
   private saved = 0
   // index.jsonl's appends and cleanup's rewrite take turns: a line appended while cleanup rewrites the
   // file would be lost
-  private indexTurn: Promise<unknown> = Promise.resolve()
+  private readonly indexTurn = new Serial()
 
   constructor(owlitDir: string) {
     this.dir = path.join(owlitDir, "versions")
@@ -98,7 +99,7 @@ export class Versions {
   // Drops what the keep rules say is no longer needed: beyond the newest KEEP_PER_PATH of a path, and
   // anything older than KEEP_MS
   cleanup(now = Date.now()) {
-    return this.inTurn(() => this.dropOld(now))
+    return this.indexTurn.run(() => this.dropOld(now))
   }
 
   private async dropOld(now: number) {
@@ -118,36 +119,20 @@ export class Versions {
     return drop.length
   }
 
-  private inTurn<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.indexTurn.then(work)
-    this.indexTurn = run.catch(() => undefined)
-    return run
-  }
-
   private async save(fields: Omit<Version, "id" | "at" | "by" | "chatId">, content: string, meta: { chatId?: string; by?: Version["by"] }) {
     const at = Date.now()
     const id = `${at}-${Math.random().toString(36).slice(2, 6)}-${fields.path.replace(/[/\\]/g, "__").slice(-80)}`
     const version: Version = { id, at, by: meta.by ?? "agent", ...(meta.chatId ? { chatId: meta.chatId } : {}), ...fields }
     await mkdir(this.dir, { recursive: true })
     await writeFile(path.join(this.dir, id), content)
-    await this.inTurn(() => appendFile(path.join(this.dir, "index.jsonl"), JSON.stringify(version) + "\n"))
+    await this.indexTurn.run(() => appendJsonl(path.join(this.dir, "index.jsonl"), version))
     if (++this.saved % 100 === 0) void this.cleanup().catch(() => undefined)
     return version
   }
 
   // Lines written before versions had kinds are file versions
   private async index(): Promise<Version[]> {
-    const text = await readFile(path.join(this.dir, "index.jsonl"), "utf8").catch(() => "")
-    const out: Version[] = []
-    for (const line of text.split("\n")) {
-      if (!line.trim()) continue
-      try {
-        const v = JSON.parse(line) as Version
-        out.push({ ...v, kind: v.kind ?? "file", by: v.by ?? "agent" })
-      } catch {
-        // a torn last line
-      }
-    }
-    return out
+    const lines = await readJsonl<Version>(path.join(this.dir, "index.jsonl"))
+    return lines.map((v) => ({ ...v, kind: v.kind ?? "file", by: v.by ?? "agent" }))
   }
 }

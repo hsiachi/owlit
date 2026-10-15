@@ -1,6 +1,7 @@
 import { isTaskFinished, TASK_PRIORITIES, type ExternalJob, type Task, type TaskLane, type TaskPriority, type TaskWaiting } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import type { TaskStore } from "./store.ts"
+import { clean, messageOf } from "../util.ts"
 
 // How many tasks of each lane run at once. Hosts get their own limits in the HTTP client, inside network.
 export const LANE_LIMITS: Record<TaskLane, number> = { network: 3, browser: 1, cpu: 2, parse: 1, agent: 1, index: 1 }
@@ -410,7 +411,7 @@ export class Scheduler {
     } else if (controller.signal.aborted) {
       this.finish(entry, "cancelled")
     } else {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = messageOf(error)
       const retries = definition.retries ?? 3
       if (error instanceof TaskFailure || entry.task.attempts > retries) this.finish(entry, "failed", message)
       else this.update(entry, { state: "queued", error: message, notBefore: Date.now() + this.retryDelay(entry.task.attempts) })
@@ -470,9 +471,4 @@ export class Scheduler {
 
 function byUrgency(a: Task, b: Task) {
   return rank(a.priority) - rank(b.priority) || a.createdAt - b.createdAt
-}
-
-// Without the keys set to undefined, so what is stored and sent stays small
-function clean<T extends object>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
 }

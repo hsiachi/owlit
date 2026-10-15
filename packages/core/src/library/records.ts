@@ -6,6 +6,7 @@ import { isPaperId, paperDir, PAPERS_DIR } from "./paths.ts"
 import type { Resolution } from "./resolve.ts"
 import { titleKey } from "./sources/crossref.ts"
 import type { SourceRecord } from "./sources/types.ts"
+import { stripArxivVersion } from "./refs.ts"
 
 // library/papers/<id>/paper.json and sources/: what the services said about a paper
 
@@ -176,7 +177,7 @@ export class PaperIndex {
 function keysOf(ids: PaperIds) {
   const keys: string[] = []
   if (ids.doi) keys.push(`doi:${ids.doi.toLowerCase()}`)
-  if (ids.arxiv) keys.push(`arxiv:${ids.arxiv.replace(/v\d+$/, "").toLowerCase()}`)
+  if (ids.arxiv) keys.push(`arxiv:${stripArxivVersion(ids.arxiv).toLowerCase()}`)
   if (ids.s2) keys.push(`s2:${ids.s2.toLowerCase()}`)
   if (ids.openalex) keys.push(`openalex:${ids.openalex.toUpperCase()}`)
   return keys

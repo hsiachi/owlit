@@ -3,8 +3,9 @@ import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSumma
 import { constants } from "node:fs"
 import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import { ignoreMissing, readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { messageOf, Serial } from "../util.ts"
 
 // How often a streaming chat is written while its messages keep changing
 const WRITE_EVERY_MS = 500
@@ -34,7 +35,9 @@ export class Chats {
   private bodies = new Map<string, Chat>()
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
   // Writes, one at a time per workspace, so the index and a chat file never race
-  private writing: Promise<unknown> = Promise.resolve()
+  // index.json as last written, so an unchanged one isn't written again
+  private indexWritten?: string
+  private readonly serial = new Serial((error) => console.error("[core] couldn't write chats", error))
 
   constructor(owlitDir: string) {
     this.dir = path.join(owlitDir, "chats")
@@ -54,7 +57,7 @@ export class Chats {
     // Only a missing file is an empty chat. Anything else (a file that can't be read or parsed right
     // now) fails the call and isn't cached: the next message would otherwise be written over the chat.
     const stored = await readJson<ChatFile>(this.fileOf(id)).catch((error) => {
-      throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit couldn't read that chat just now.`, { id, reason: error instanceof Error ? error.message : String(error) })
+      throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit couldn't read that chat just now.`, { id, reason: messageOf(error) })
     })
     // A turn that was streaming when owlit last stopped never finished
     const messages = (stored?.messages ?? []).map((m) => (m.status === "streaming" ? cutOff(m) : m))
@@ -91,7 +94,7 @@ export class Chats {
     this.timers.delete(id)
     ;(await this.loadIndex()).delete(id)
     this.bodies.delete(id)
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       const entry = path.join(this.trashDir, `${Date.now()}-chat-${id}`)
       await writeJsonAtomic(path.join(entry, "chat.json"), { version: 1, ...chat })
       await rename(this.filesDir(id), path.join(entry, "files")).catch(ignoreMissing)
@@ -116,7 +119,7 @@ export class Chats {
     const stored = await readJson<ChatFile>(legacy ? from : path.join(from, "chat.json"))
     if (!stored || stored.id !== id) throw new RpcFailure(RpcErrorCode.NotFound, t`That chat is no longer in the trash.`, { id })
     const { version: _v, ...chat } = stored
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (!legacy) {
         await mkdir(path.join(this.dir, id), { recursive: true })
         await rename(path.join(from, "files"), this.filesDir(id)).catch(ignoreMissing)
@@ -188,7 +191,7 @@ export class Chats {
       this.timers.delete(id)
       await this.write(id, true)
     }
-    await this.writing
+    await this.serial.idle
   }
 
   // ---- inside ----
@@ -229,12 +232,6 @@ export class Chats {
     return path.join(this.dir, `${id}.json`)
   }
 
-  private serial<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.writing.then(work)
-    this.writing = run.catch((error) => console.error("[core] couldn't write chats", error))
-    return run
-  }
-
   // Now, or within WRITE_EVERY_MS for a chat that keeps changing
   private write(id: string, now: boolean): Promise<void> {
     if (!now) {
@@ -251,7 +248,7 @@ export class Chats {
     }
     clearTimeout(this.timers.get(id))
     this.timers.delete(id)
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const chat = this.bodies.get(id)
       if (!chat) return
       await writeJsonAtomic(this.fileOf(id), { version: 1, ...chat })
@@ -259,10 +256,15 @@ export class Chats {
     })
   }
 
+  // Only when a summary changed: a streaming answer writes its chat every WRITE_EVERY_MS, and the index
+  // has nothing new most of those times
   private async writeIndex() {
     const index = await this.loadIndex()
     const file: IndexFile = { version: 1, chats: [...index.values()].sort((a, b) => b.updatedAt - a.updatedAt) }
+    const text = JSON.stringify(file)
+    if (text === this.indexWritten) return
     await writeJsonAtomic(path.join(this.dir, "index.json"), file)
+    this.indexWritten = text
   }
 
   private async loadIndex() {
@@ -317,10 +319,6 @@ const cutOff = (m: ChatMessage): ChatMessage => ({
 function clean(message: ChatMessage): ChatMessage {
   if (!message.attachments?.some((a) => a.previewUrl)) return message
   return { ...message, attachments: message.attachments.map(({ previewUrl: _url, ...rest }) => rest) }
-}
-
-const ignoreMissing = (error: NodeJS.ErrnoException) => {
-  if (error.code !== "ENOENT") throw error
 }
 
 // A file name as it can be kept: no folders, no control characters, not empty

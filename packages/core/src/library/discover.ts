@@ -7,6 +7,7 @@ import { journalArticles, TooManyArticles, type JournalArticle } from "./sources
 import { fetchOpenAlex, findSources, neighboursOpenAlex, searchOpenAlex } from "./sources/openalex.ts"
 import { neighboursS2, s2Key, searchS2, similarS2 } from "./sources/semanticscholar.ts"
 import type { SourceRecord, Years } from "./sources/types.ts"
+import { isArxivDoi } from "./refs.ts"
 
 // Finding papers outside the library: a search in one source, a paper's neighbours, a journal's list.
 // What pitta learnt (2026-06, its v1 discovery): a search over merged sources can only offer the filters
@@ -147,7 +148,7 @@ export async function relatedOf(
       const records = inYears(await similarS2(http, s2, years ? 100 : limit, keys.s2ApiKey, request), years)
       return { records: records.slice(0, limit), source: "s2" }
     }
-    if (ids.doi && !/^10\.48550\//.test(ids.doi)) {
+    if (ids.doi && !isArxivDoi(ids.doi)) {
       try {
         const work = ids.openalex ?? (await fetchOpenAlex(http, { doi: ids.doi }, keys, request))?.ids.openalex
         if (work) {

@@ -1,8 +1,8 @@
 import type { AgentNote } from "@owlit/protocol"
 import { existsSync } from "node:fs"
-import { mkdir, readdir, readFile, rename, rm } from "node:fs/promises"
+import { mkdir, readdir, rename, rm } from "node:fs/promises"
 import path from "node:path"
-import { writeFileAtomic } from "../fs-util.ts"
+import { readJsonl, writeFileAtomic } from "../fs-util.ts"
 
 // The notes agents leave on docs, kept beside the files and never in them: .owlit/docs/notes/ mirrors
 // the workspace, so the notes of "writing/Related work.md" are in
@@ -108,18 +108,7 @@ export class Notes {
   }
 
   private async read(file: string): Promise<AgentNote[]> {
-    const text = await readFile(file, "utf8").catch(() => "")
-    const notes: AgentNote[] = []
-    for (const line of text.split("\n")) {
-      if (!line.trim()) continue
-      try {
-        notes.push(JSON.parse(line) as AgentNote)
-      } catch {
-        // A line broken by hand is skipped, not fatal for the others
-        console.error(`[core] skipping a note that isn't JSON in ${file}`)
-      }
-    }
-    return notes
+    return readJsonl<AgentNote>(file, () => console.error(`[core] skipping a note that isn't JSON in ${file}`))
   }
 
   private async save(rel: string, notes: AgentNote[]) {

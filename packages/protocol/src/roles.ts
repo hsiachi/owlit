@@ -10,7 +10,5 @@ export const ROLES: { id: Role; name: string; description: string }[] = [
 
 export const DEFAULT_ROLE: Role = "assistant"
 
-export const isRole = (value: unknown): value is Role => ROLES.some((r) => r.id === value)
-
 // What owlit's own tools ask consent for (agents.consent)
 export type ConsentAction = "delete" | "move" | "add_paper"

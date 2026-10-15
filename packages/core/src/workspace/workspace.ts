@@ -1,6 +1,5 @@
 import { t } from "@lingui/core/macro"
 import { RpcErrorCode, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
-import { createHash } from "node:crypto"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
@@ -19,6 +18,7 @@ import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from
 import { Shares, type SharesServices } from "../share/shares.ts"
 import { acquireLock, lockFileFor, WorkspaceLockedError } from "./lock.ts"
 import { OWLIT_DIR } from "./paths.ts"
+import { socketHash } from "../rpc/socket.ts"
 
 export { OWLIT_DIR }
 
@@ -26,8 +26,7 @@ export { OWLIT_DIR }
 // this machine (index, task log, lock). Paths are hashed in NFC so the same folder gets the same
 // directory however its name reached us.
 export function workspaceDataDir(userDataDir: string, workspacePath: string) {
-  const hash = createHash("sha1").update(workspacePath.normalize("NFC")).digest("hex").slice(0, 12)
-  return path.join(userDataDir, "workspaces", hash)
+  return path.join(userDataDir, "workspaces", socketHash(workspacePath))
 }
 
 export interface WorkspaceOptions {

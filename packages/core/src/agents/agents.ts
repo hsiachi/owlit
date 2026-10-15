@@ -7,9 +7,10 @@ import { homedir } from "node:os"
 import { RpcFailure } from "../rpc/index.ts"
 import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
-import { AcpProcess, endingSentence } from "./process.ts"
+import { AcpProcess, endingSentence, isAuthError } from "./process.ts"
 import { cannotRead } from "./profiles.ts"
 import { AgentSetups, type SetupOptions } from "./setup.ts"
+import { messageOf } from "../util.ts"
 
 const IDLE_MS = 10 * 60_000
 
@@ -269,7 +270,7 @@ export class Agents {
       env: { ...process.env, PATH: searchPath, ...launch?.env },
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
-      onCrash: (_detail, ending) => {
+      onCrash: (ending) => {
         this.setLive(id, { status: "error", error: endingSentence(def.name, ending, true) })
       },
       onExit: () => {
@@ -423,10 +424,3 @@ export function tidy(probed: ProbedConnector): ProbedConnector {
 }
 
 const clean = (item: Item): Item => ({ ...item, name: item.id === "xhigh" ? "Extra high" : item.name.replace(/\s*\(recommended\)\s*$/i, "") })
-
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : String(error))
-
-// ACP's "auth_required" error
-const isAuthError = (error: unknown) => typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === -32000
-
-export const isNotInstalled = (error: unknown) => error instanceof NotInstalled

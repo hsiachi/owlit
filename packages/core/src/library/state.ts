@@ -1,8 +1,9 @@
 import type { Highlight, Paper, PaperNote, PaperOverrides, PaperPatch, PaperRecord, PaperState } from "@owlit/protocol"
 import { readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
+import { readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { paperDir, paperStateDir } from "./paths.ts"
+import { clean } from "../util.ts"
 
 // The user's side of a paper: .owlit/papers/<id>/ holds state.json and highlights.jsonl (machine state);
 // their note is note.md beside the PDF in library/papers/<id>/, where they find it in Finder
@@ -86,22 +87,7 @@ export function applyPatch(state: PaperState, record: PaperRecord, patch: PaperP
 const highlightsFile = (root: string, id: string) => path.join(paperStateDir(root, id), "highlights.jsonl")
 
 export async function readHighlights(root: string, id: string): Promise<Highlight[]> {
-  let text: string
-  try {
-    text = await readFile(highlightsFile(root, id), "utf8")
-  } catch {
-    return []
-  }
-  const highlights: Highlight[] = []
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue
-    try {
-      highlights.push({ ...(JSON.parse(line) as Highlight), paperId: id })
-    } catch {
-      // A line cut short; the rest still count
-    }
-  }
-  return highlights
+  return (await readJsonl<Highlight>(highlightsFile(root, id))).map((h) => ({ ...h, paperId: id }))
 }
 
 export async function writeHighlights(root: string, id: string, highlights: Highlight[]) {
@@ -150,20 +136,10 @@ export async function writeNote(root: string, id: string, content: string): Prom
   return { paperId: id, content, updatedAt: (await stat(file)).mtimeMs }
 }
 
-export const hasPdf = (root: string, id: string) =>
-  stat(path.join(paperDir(root, id), "paper.pdf")).then(
-    (info) => info.isFile() && info.size > 0,
-    () => false,
-  )
-
 // How the window reads a file in the workspace (owlit-file://, served by the desktop app)
 export const workspaceFileUrl = (relativePath: string) => `owlit-file://workspace/${relativePath.split("/").map(encodeURIComponent).join("/")}`
 
 function same(a: unknown, b: unknown) {
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => x === b[i])
   return (a ?? undefined) === (b ?? undefined)
-}
-
-function clean<T extends object>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
 }

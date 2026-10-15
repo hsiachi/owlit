@@ -1,7 +1,6 @@
 import { JOURNALED_KINDS, type AgentRecord, type JournalEntry } from "@owlit/protocol"
-import { appendFile, mkdir } from "node:fs/promises"
-import path from "node:path"
 import type { ActivityBus } from "./bus.ts"
+import { appendJsonl } from "../fs-util.ts"
 
 // Appends the coarse events to <workspace>/.owlit/journal.jsonl, one JSON object per line, in the
 // order they arrived. Fine-grained ones (page turns, idle, closing a doc) never reach the disk; reading
@@ -23,8 +22,7 @@ export class Journal {
   private append(file: string, entry: JournalEntry) {
     this.writing = this.writing
       .then(async () => {
-        await mkdir(path.dirname(file), { recursive: true })
-        await appendFile(file, JSON.stringify(entry) + "\n")
+        await appendJsonl(file, entry)
       })
       .catch((error) => console.error(`[core] could not write ${file}`, error))
   }

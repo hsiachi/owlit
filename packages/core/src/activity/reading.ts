@@ -1,5 +1,5 @@
 import type { JournalEntry } from "@owlit/protocol"
-import { readFile } from "node:fs/promises"
+import { readJsonl } from "../fs-util.ts"
 
 // What the person has done with each paper, summed from the journal. The journal keeps raw events,
 // never scores: whatever weighs them (whether a paper counts as read, what an agent is told) does so
@@ -84,16 +84,4 @@ export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: stri
 }
 
 // The entries of a journal file in order; a line that doesn't parse (a write cut short) is skipped
-export async function readJournal(file: string): Promise<JournalEntry[]> {
-  const text = await readFile(file, "utf8").catch(() => "")
-  const entries: JournalEntry[] = []
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue
-    try {
-      entries.push(JSON.parse(line) as JournalEntry)
-    } catch {
-      continue
-    }
-  }
-  return entries
-}
+export const readJournal = (file: string) => readJsonl<JournalEntry>(file)

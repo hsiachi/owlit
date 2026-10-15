@@ -3,7 +3,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
-import { connect, OwlitError, OwlitNotRunning, type OwlitClient } from "@owlit/client"
+import { connect, OwlitNotRunning, type OwlitClient } from "@owlit/client"
 import {
   collectionUri,
   OWLIT_TOOLS,
@@ -65,7 +65,6 @@ export function createServer(options: OwlitMcpOptions) {
         client = null
         return failure(error.message)
       }
-      if (error instanceof OwlitError) return failure(error.message)
       return failure(error instanceof Error ? error.message : String(error))
     }
   })
@@ -278,18 +277,13 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
       if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
       const done = await owlit.rpc.collections.write({
-        ...(optStr("id") ? { id: str("id") } : {}),
-        ...(optStr("asked") ? { asked: str("asked") } : {}),
-        ...(optStr("title") ? { title: str("title") } : {}),
-        ...(optStr("project") ? { project: str("project") } : {}),
-        ...(optStr("note") ? { note: str("note") } : {}),
+        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why" }),
         ...(options.run && !options.chatId ? { run: options.run } : {}),
         ...(rows ? { rows: rows as CollectionRowWrite[] } : {}),
         ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
         ...(parsed.groups ? { groups: parsed.groups as CollectionGroup[] } : {}),
         ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
         ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
-        ...(optStr("why") ? { why: str("why") } : {}),
         ...asker,
       })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
