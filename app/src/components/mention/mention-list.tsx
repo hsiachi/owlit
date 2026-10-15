@@ -18,8 +18,8 @@ export interface MentionListHandle {
 }
 
 type Filter = SourceKind | "all"
-const FILTERS: Filter[] = ["all", "paper", "doc", "collection"]
-const ORDER: SourceKind[] = ["paper", "doc", "collection"]
+const FILTERS: Filter[] = ["all", "paper", "doc", "thread"]
+const ORDER: SourceKind[] = ["paper", "doc", "thread"]
 const PER_GROUP_WHEN_ALL = 4
 
 export interface MentionListProps {

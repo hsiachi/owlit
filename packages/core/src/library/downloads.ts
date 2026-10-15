@@ -122,8 +122,8 @@ export async function whoseDownload(
   waiting: Omit<WatchedPaper, "until">[],
   look: (file: string) => Promise<PdfLook | undefined>,
 ): Promise<{ id: string; sure: boolean } | undefined> {
-  const from = (await savedFrom(file))?.toLowerCase()
-  const sent = from ? waiting.find((p) => p.doi && from.includes(p.doi.toLowerCase())) : undefined
+  const from = await savedFrom(file)
+  const sent = from ? waiting.find((p) => p.doi && from.some((address) => hasDoi(address, p.doi!))) : undefined
   if (sent) return { id: sent.id, sure: true }
   const said = await look(file)
   if (!said) return undefined
@@ -136,17 +136,75 @@ export async function whoseDownload(
   return undefined
 }
 
+// Whether a PDF is this paper, from what its first pages say: yes (its DOI, or its whole title), no (a
+// title long enough to tell, or another DOI, and neither matches), or unknown (no text to read, a
+// title too short to be sure of). For a PDF owlit didn't choose by address: one a repository's page
+// named, or one found by title.
+export function isThisPaper(said: PdfLook | undefined, paper: { doi?: string; title: string }): "yes" | "no" | "unknown" {
+  if (!said?.text.trim()) return "unknown"
+  if (paper.doi && said.doi && paper.doi.toLowerCase() === said.doi.toLowerCase()) return "yes"
+  const title = normalize(paper.title)
+  if (title.length >= 20 && normalize(said.text).includes(title)) return "yes"
+  return title.length >= 20 || said.doi ? "no" : "unknown"
+}
+
+// The same title, whatever its case, punctuation and spacing; only titles long enough to tell
+export const sameTitle = (a: string, b: string) => normalize(a).length >= 20 && normalize(a) === normalize(b)
+
 // The addresses a browser recorded the file was saved from (macOS keeps them with the file, as Finder's
-// "Where from"), as one string to search, or undefined where there are none. Read as the raw bytes of
-// the attribute: the addresses sit in it as plain text, and a DOI only has to be found among them.
-export async function savedFrom(file: string): Promise<string | undefined> {
+// "Where from"), or undefined where there are none
+export async function savedFrom(file: string): Promise<string[] | undefined> {
   if (process.platform !== "darwin") return undefined
   try {
     const { stdout } = await promisify(execFile)("xattr", ["-px", "com.apple.metadata:kMDItemWhereFroms", file])
-    return Buffer.from(stdout.replace(/\s+/g, ""), "hex").toString("latin1")
+    return addressesIn(Buffer.from(stdout.replace(/\s+/g, ""), "hex"))
   } catch {
     return undefined
   }
+}
+
+// The strings in the attribute: a binary property list (an array of strings) as browsers write it, or
+// plain text as `xattr -w` does. Read for its strings, so what follows an address in the list (the next
+// one's length, the offset table) is never taken for the end of a DOI.
+export function addressesIn(attr: Buffer): string[] {
+  if (attr.subarray(0, 8).toString("latin1") !== "bplist00") return [attr.toString("utf8")]
+  try {
+    const trailer = attr.subarray(attr.length - 32)
+    const offsetSize = trailer[6]
+    const count = Number(trailer.readBigUInt64BE(8))
+    const table = Number(trailer.readBigUInt64BE(24))
+    const strings: string[] = []
+    for (let i = 0; i < count; i++) {
+      const at = attr.readUIntBE(table + i * offsetSize, offsetSize)
+      const kind = attr[at] >> 4
+      // 5: ASCII, 6: UTF-16; anything else (the array) isn't an address
+      if (kind !== 5 && kind !== 6) continue
+      let length = attr[at] & 0xf
+      let start = at + 1
+      if (length === 0xf) {
+        const size = 1 << (attr[start] & 0xf)
+        length = attr.readUIntBE(start + 1, size)
+        start += 1 + size
+      }
+      strings.push(kind === 5 ? attr.toString("latin1", start, start + length) : Buffer.from(attr.subarray(start, start + 2 * length)).swap16().toString("utf16le"))
+    }
+    return strings
+  } catch {
+    return []
+  }
+}
+
+// Whether an address is for this DOI: the DOI whole, ending the address or followed by what can follow it
+// in one (?, /, &, #, .pdf), so 10.1145/123456 isn't found in …/10.1145/1234567
+export function hasDoi(address: string, doi: string) {
+  let text = address
+  try {
+    text = decodeURIComponent(address)
+  } catch {
+    // Read as it is
+  }
+  const escaped = doi.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`(?<![\\w.])${escaped}(?=$|[?/&#]|\\.pdf)`).test(text.toLowerCase())
 }
 
 const normalize = (text: string) =>

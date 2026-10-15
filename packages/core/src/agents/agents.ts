@@ -8,8 +8,8 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
 import { AcpProcess, endingSentence, isAuthError } from "./process.ts"
-import { cannotRead } from "./profiles.ts"
-import { AgentSetups, type SetupOptions } from "./setup.ts"
+import { cannotRead, processEnv, processSetup } from "./profiles.ts"
+import { AgentSetups, MANAGED, type SetupOptions } from "./setup.ts"
 import { messageOf } from "../util.ts"
 
 const IDLE_MS = 10 * 60_000
@@ -38,6 +38,41 @@ export interface Launch {
 }
 
 export const ENGINE_ID = "owlit-engine"
+
+// owlit's environment as an agent gets it. An owlit started from inside a Claude Code session (`pnpm try`
+// run by Claude, say) inherits that session's variables, and an agent would take them as its own: with
+// CLAUDE_CODE_ENTRYPOINT=claude-desktop, Claude Code makes one more model request after each answer
+// and ends the turn about 2 s late, and counts owlit's chats as desktop sessions. So when owlit runs
+// inside such a session, the variables Claude Code sets for its children are dropped. What a person sets
+// to sign in or choose a provider stays (ANTHROPIC_*, CLAUDE_CONFIG_DIR and the CLAUDE_CODE_ names below);
+// the installed app, opened from the Finder, has none of this and is left as it is.
+const KEPT_CLAUDE_CODE = new Set([
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CLAUDE_CODE_USE_FOUNDRY",
+  "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+  "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+  "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
+  "CLAUDE_CODE_API_KEY_HELPER_TTL_MS",
+  "CLAUDE_CODE_CLIENT_CERT",
+  "CLAUDE_CODE_CLIENT_KEY",
+  "CLAUDE_CODE_CLIENT_KEY_PASSPHRASE",
+])
+const SESSION_ONLY = ["CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT", "AI_AGENT"]
+
+export function agentEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  if (!env.CLAUDECODE && !env.CLAUDE_CODE_ENTRYPOINT) return { ...env }
+  return Object.fromEntries(
+    Object.entries(env).filter(
+      ([name]) =>
+        !SESSION_ONLY.includes(name) &&
+        !name.startsWith("CLAUDE_AGENT_SDK_") &&
+        !name.startsWith("CLAUDE_PREVIEW_") &&
+        !(name.startsWith("CLAUDE_CODE_") && !KEPT_CLAUDE_CODE.has(name)),
+    ),
+  )
+}
 
 // The agents most people have, each through its ACP adapter. Their models, modes and efforts come from
 // the agent itself when it is checked; nothing about them is hard-coded here.
@@ -92,11 +127,13 @@ export interface AgentsOptions {
   idleMs?: number
   // PATH to look agents up on; by default the login shell's
   searchPath?: () => Promise<string>
+  // The system proxy as environment variables, asked before each agent or npm starts (proxy.ts)
+  proxyEnv?: () => Promise<Record<string, string>>
   // How to start the Owlit engine; without it the engine isn't offered
   engine?: Launch
   // Where and how owlit sets up its own copy of Claude Code's and Codex's adapters; without it the user
   // installs them
-  setup?: Omit<SetupOptions, "changed" | "searchPath">
+  setup?: Omit<SetupOptions, "changed" | "searchPath" | "proxyEnv">
 }
 
 // Live state on top of what settings remember
@@ -122,6 +159,7 @@ export class Agents {
       new AgentSetups({
         ...options.setup,
         searchPath: options.searchPath ?? userPath,
+        proxyEnv: options.proxyEnv,
         changed: (id) => void this.def(id).then((def) => this.connectorOf(def)).then(options.notify, () => undefined),
       })
   }
@@ -203,6 +241,22 @@ export class Agents {
     return error
   }
 
+  // The sentence a turn ends with when the agent's program isn't there. "Or can't find it": it may be
+  // installed somewhere the PATH owlit got doesn't reach.
+  private notInstalled(def: ConnectorDef) {
+    const agent = def.name
+    const hint = def.installHint
+    // Where owlit can set up its own copy of the adapter, that needs no terminal
+    const error =
+      this.setups && MANAGED[def.id]
+        ? t`${agent} isn't installed, or Owlit can't find it. Set it up under Settings › Agents, then try again.`
+        : hint
+          ? t`${agent} isn't installed, or Owlit can't find it. Run ${hint} in a terminal to install it, then try again.`
+          : t`${agent} isn't installed, or Owlit can't find it. Check its command under Settings › Agents, then try again.`
+    this.setLive(def.id, { status: "not_installed", error })
+    return error
+  }
+
   // The agent's service refused a request it was signed in for (a 403: the network, a proxy, the region or
   // the account), which signing in again doesn't fix; the agent isn't marked signed out
   async refused(id: string) {
@@ -263,11 +317,12 @@ export class Agents {
     const [name, ...args] = launch ? [launch.command, ...launch.args] : splitCommand(def.command)
     const searchPath = await (this.options.searchPath ?? userPath)()
     const file = launch ? launch.command : name ? await resolveExecutable(name, searchPath) : null
-    if (!file) throw new NotInstalled(def.name)
+    if (!file) throw new NotInstalled(this.notInstalled(def))
     const proc = new AcpProcess({
       file,
       args,
-      env: { ...process.env, PATH: searchPath, ...launch?.env },
+      env: { ...agentEnv(process.env), PATH: searchPath, ...processEnv(id, process.env), ...launch?.env },
+      freshEnv: this.options.proxyEnv,
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
       onCrash: (ending) => {
@@ -278,6 +333,7 @@ export class Agents {
       },
       onStart: () => this.setLive(id, { status: "connected", error: undefined }),
       log: process.env.OWLIT_LOG_AGENTS ? (line) => console.log(`[${id}] ${line}`) : undefined,
+      ...processSetup(id),
     })
     this.processes.set(id, proc)
     return proc

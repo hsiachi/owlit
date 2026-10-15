@@ -11,17 +11,19 @@ import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { Info } from "@/components/info"
+import { revealOnHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tip } from "@/components/tip"
 import { useFoldWhile, useCheck } from "./form-state"
 import { setSecret, useSettings } from "./store"
+import { Spinner } from "@/components/ui/spinner"
 
 // A group's rows: a hairline between them, none around them
 export function List({ children }: { children: React.ReactNode }) {
@@ -101,9 +103,6 @@ export function IconAction({ label, onClick, disabled, className, children }: { 
   )
 }
 
-// For controls shown only on hover or focus; they go before the ones that always show
-export const onHover = "opacity-0 group-hover/row:opacity-100 focus-key:opacity-100"
-
 // A row's choice: the shared text menu with the value in body tone and up-down chevrons, pulled out by its
 // padding when it comes last
 export function Picker<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (value: T) => void; label: string }) {
@@ -174,7 +173,7 @@ export function CheckMark({ checking, result, service, accepted = t`${service} a
   let mark: React.ReactNode = null
   let label = ""
   if (checking) {
-    mark = <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
+    mark = <Spinner className="size-3.5 text-muted-foreground" />
     label = t`Checking with ${service}…`
   } else if (result?.result === "works") {
     mark = <CheckIcon className="size-3.5 text-owlit animate-in fade-in zoom-in-75" />
@@ -297,7 +296,7 @@ export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void
 export function MaskedKey({ last4, onChange, onRemove, children }: { last4?: string; onChange: () => void; onRemove: () => void; children?: React.ReactNode }) {
   return (
     <>
-      <IconAction label={t`Remove key`} className={onHover} onClick={onRemove}>
+      <IconAction label={t`Remove key`} className={revealOnHover} onClick={onRemove}>
         <Trash2Icon />
       </IconAction>
       {children}

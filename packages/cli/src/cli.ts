@@ -31,7 +31,7 @@ Commands:
   open                     Open the workspace in owlit
   mcp                      owlit's tools for an agent, over stdio (owlit-mcp):
                            claude mcp add owlit -- owlit mcp --workspace ~/Research
-  import <kind> <path>     Bring in a collection: zotero (zotero.sqlite, its folder, or a
+  import <kind> <path>     Bring in a library: zotero (zotero.sqlite, its folder, or a
                            Better BibTeX .json), bibtex (a .bib file) or folder (its PDFs).
                            --tags makes Zotero collections tags; --parse / --no-parse answers
                            ahead whether MinerU reads every PDF of a big import
@@ -219,7 +219,7 @@ async function commands(command: string, args: string[], owlit: OwlitClient, { f
           await owlit.rpc.library.importAnswer({ id: started.id, parse })
           continue
         }
-        const line = task.progress?.total ? `Importing ${task.progress.done} of ${task.progress.total}` : "Reading the collection…"
+        const line = task.progress?.total ? `Importing ${task.progress.done} of ${task.progress.total}` : "Reading it…"
         if (line !== shown && !flags.json) io.err(`${line}\n`)
         shown = line
         await new Promise((r) => setTimeout(r, 300))

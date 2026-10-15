@@ -3,6 +3,7 @@ import { useRef } from "react"
 import { SearchIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { keysFor } from "@/app/shortcuts"
+import { isTyping } from "@/lib/keys"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -29,7 +30,7 @@ export function FindField({
   useWindowKeydown((e) => {
     if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return
     // Typing "/" in a field stays typing
-    if ((e.target as HTMLElement).closest("input, textarea, [contenteditable]")) return
+    if (isTyping(e.target)) return
     e.preventDefault()
     input.current?.focus()
   })

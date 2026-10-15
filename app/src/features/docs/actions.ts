@@ -1,15 +1,18 @@
 import { plural, t } from "@lingui/core/macro"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
+import { mentionLink } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
 import { copyText } from "@/lib/clipboard"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
 import { useDocsStore, type Removed } from "./store"
-import { displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
+import { baseName, displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
 import { useNewDoc } from "./use-new-doc"
-import { toastUndo } from "@/lib/toast"
+import { resolvedViews } from "./comments/model"
+import { useShareStore } from "./share/store"
+import { toastError, toastUndo } from "@/lib/toast"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -27,7 +30,7 @@ export function topLevel(keys: string[]) {
   return { folders: top, files: loose, count: top.length + loose.length }
 }
 
-const reveal = (path: string) => void rpc.docs.reveal({ path }).catch((error: Error) => toast.error(error.message))
+const reveal = (path: string) => void rpc.docs.reveal({ path }).catch(toastError)
 
 // What can be done to docs and folders, the same from a row's ⋯, a right-click, the doc's header and the
 // keyboard
@@ -50,7 +53,7 @@ export function useDocActions() {
   // A link to the doc, the same one @ writes, so pasted into another doc it reads as a mention and
   // follows the doc through renames and moves
   const copyLink = async (file: WorkspaceFile) => {
-    if (await copyText(`[${displayName(file.path)}](${docUri(file.path)})`)) toast(t`Link copied`)
+    if (await copyText(mentionLink(displayName(file.path), docUri(file.path)))) toast(t`Link copied`)
   }
 
   const deleteFile = (file: WorkspaceFile) => {
@@ -65,7 +68,7 @@ export function useDocActions() {
     leaveIfRemoved(removed)
     if (ui.selectedFolder && isWithin(ui.selectedFolder, path)) ui.selectFolder(null)
     const n = removed.files.length
-    const name = path.split("/").pop() ?? path
+    const name = baseName(path)
     undoToast(t`Folder deleted`, n ? plural(n, { one: `${name} and # file`, other: `${name} and # files` }) : name, removed)
   }
 
@@ -96,6 +99,10 @@ export function useDocActions() {
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.file(file.id)) },
         ...(md ? [{ label: t`Duplicate`, onSelect: () => duplicate(file) }] : []),
         ...(md && isDesktop ? [{ label: t`Versions…`, onSelect: () => useDocsUiStore.getState().showVersions(file.id) }] : []),
+        // Only once something was put away: the way back to a comment after its Undo has gone
+        ...(md && resolvedViews(useDocsStore.getState().comments[file.id], useShareStore.getState().comments[file.path]).length
+          ? [{ label: t`Resolved comments…`, onSelect: () => useDocsUiStore.getState().showResolved(file.id) }]
+          : []),
       ],
       [
         ...(md ? [{ label: t`Copy link`, onSelect: () => void copyLink(file) }] : []),

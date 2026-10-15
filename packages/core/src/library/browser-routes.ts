@@ -49,6 +49,18 @@ const ROWS: Row[] = [
     browserOnly: true,
     open: true,
   },
+  // ACM's own DOIs for papers it lists from elsewhere (10.5555/2034396.2034432): doi.org doesn't know them
+  // (404), the Digital Library does
+  {
+    name: "acm",
+    prefix: "10.5555/",
+    sites: ["acm.org"],
+    landing: "https://dl.acm.org/doi/{doi}",
+    pdf: "https://dl.acm.org/doi/pdf/{doi}",
+    download: "https://dl.acm.org/doi/pdf/{doi}?download=true",
+    browserOnly: true,
+    open: true,
+  },
   {
     name: "sage",
     prefix: "10.1177/",
@@ -234,4 +246,24 @@ export function throughProxy(target: string, proxy: ProxySettings) {
   }
   // Not encoded: tlink and EZproxy take the target as it is
   return `${base}${proxy.path ?? "/login"}?url=${target}`
+}
+
+// The PDF's address worked out from the article page a browser landed on, for publishers whose pages
+// carry no citation_pdf_url: IEEE Xplore's /document/<arnumber> (its PDF is the stamp page's
+// getPDF.jsp), and OSF's preprints (PsyArXiv, SocArXiv), whose file is /<id>/download. Only on the
+// publisher's own host: a library proxy's rewrite of it is left to the page's own links. ScienceDirect's
+// /pdfft isn't here: opened without the article page's own parameters it answers "There was a problem
+// providing the content you requested" (2026-10-15).
+export function pdfFromLanded(page: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(page)
+  } catch {
+    return undefined
+  }
+  const ieee = url.hostname === "ieeexplore.ieee.org" && /^\/document\/(\d+)/.exec(url.pathname)
+  if (ieee) return `https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=${ieee[1]}`
+  const osf = /^(www\.)?(osf\.io|psyarxiv\.com|socarxiv\.org)$/.test(url.hostname) && /^\/(preprints\/[a-z]+\/)?([a-z0-9]{5,6})(\/|$)/.exec(url.pathname)
+  if (osf) return `https://osf.io/${osf[2]}/download`
+  return undefined
 }

@@ -457,19 +457,21 @@ function PaperView({ paper, bundle, full, onCite, onGoTo }: { paper: SharedPaper
 function Quote({ text, lost }: { text: string; lost?: boolean }) {
   const shown = text.length > 160 ? `${text.slice(0, 160)}…` : text
   return (
-    // owlit's quoted passage: one muted line behind a thin rule; the person's mark is the thread card's
-    <div className="border-l-2 border-border pl-2.5 text-detail text-muted-foreground">
+    // The words the comment is on, muted, behind a 2px bar in the comment colour, as a closed comment card
+    // in owlit has it beside its first lines
+    <div className="border-l-2 border-comment-mark pl-2.5 text-detail text-muted-foreground">
       {lost && <p className="mb-0.5">{t`The words this was on have changed since:`}</p>}
       <p className="line-clamp-4">{shown}</p>
     </div>
   )
 }
 
+// One entry, signed as in owlit's comment card: the name medium in ink, then when, in 12px muted
 function Comment({ comment }: { comment: ShareComment }) {
   return (
     <div className="flex flex-col gap-0.5">
       <p className="text-xs text-muted-foreground">
-        {comment.name}
+        <span className="font-medium text-foreground">{comment.name}</span>
         {comment.by === "author" ? ` · ${t`author`}` : ""} · {ago(comment.at)}
       </p>
       <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
@@ -481,13 +483,12 @@ function ThreadView({ thread, lost, canComment, name, onSend }: { thread: Thread
   return (
     <div className="flex flex-col gap-3">
       <Quote text={thread.root.anchor.quote} lost={lost} />
-      {/* The same card as a comment opened in owlit: a 3px rule in the person's ink at its left */}
-      <div className="flex flex-col gap-3 rounded-[4px_10px_10px_4px] border border-l-[3px] border-border border-l-person-mark bg-card p-3">
+      {/* The same card as a comment opened in owlit (DESIGN.md › Comment): hairline, rounded, entries flat
+          and 12px apart with nothing between them */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-2.5">
         <Comment comment={thread.root} />
         {thread.replies.map((r) => (
-          <div key={r.id} className="border-t border-border pt-3">
-            <Comment comment={r} />
-          </div>
+          <Comment key={r.id} comment={r} />
         ))}
         {thread.root.resolved && <p className="text-xs text-muted-foreground">{t`The author marked this resolved.`}</p>}
       </div>
@@ -504,6 +505,8 @@ function NewComment({ anchor, name, onCancel, onSend }: { anchor: ShareAnchor; n
     </div>
   )
 }
+
+const SEND_KEYS = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl ↵"
 
 function Composer({ name, placeholder, action, onSend, onCancel, autoFocus }: { name: string; placeholder: string; action: string; onSend: (text: string, name: string) => Promise<void>; onCancel?: () => void; autoFocus?: boolean }) {
   const [text, setText] = useState("")
@@ -572,8 +575,10 @@ function Composer({ name, placeholder, action, onSend, onCancel, autoFocus }: { 
             {t`Cancel`}
           </button>
         )}
-        <button type="submit" disabled={!text.trim() || !who.trim() || sending} className="h-7 rounded-lg bg-primary px-2.5 text-detail font-medium text-primary-foreground disabled:opacity-50">
+        <button type="submit" disabled={!text.trim() || !who.trim() || sending} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-detail font-medium text-primary-foreground disabled:opacity-50">
           {action}
+          {/* The key that sends, as owlit shows it on its own comment buttons; a reader may not be on a Mac */}
+          <kbd className="font-sans text-xs text-primary-foreground/60">{SEND_KEYS}</kbd>
         </button>
       </div>
     </form>

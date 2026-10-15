@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Connector, type FileKind } from "@owlit/protocol"
 import { bridge, isDesktop, rpc, RpcError } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { useWorkspace } from "@/lib/workspace"
 import { docMentionable, paperMentionable, type DocMention } from "@/features/docs/lib/mentions"
 import { fileAt } from "@/features/docs/store"
@@ -47,7 +48,7 @@ export const readerOf = (connector?: Connector): Reader | undefined =>
 // An attached file's copy, opened in the system's app for it
 export function openAttached(file: { path?: string }) {
   if (!isDesktop || !file.path) return
-  rpc.chats.openFile({ path: file.path }).catch((error: Error) => toast.error(error.message))
+  rpc.chats.openFile({ path: file.path }).catch(toastError)
 }
 
 // The files a composer is attaching to a message of `chatId` (a chat that may not exist yet: a new chat's
@@ -215,7 +216,7 @@ export async function importCopy(file: AttachmentFile) {
     toast(existed ? t`Already in your library` : t`Added to library`, { description: paper.title })
     return paper
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : t`Couldn't add that file.`)
+    toastError(error, t`Couldn't add that file.`)
     return null
   }
 }

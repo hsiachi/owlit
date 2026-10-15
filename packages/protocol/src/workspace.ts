@@ -158,7 +158,7 @@ export interface UiActions {
   "fs.read": { params: { path: string }; result: { content: string | null } }
   // The agent's write, applied in the doc's editor; false: not open after all
   "fs.write": { params: { path: string; content: string; versionId: string }; result: { applied: boolean } }
-  // Shows a paper, doc, chat or collection (an owlit:// link). chatId (on open, jump and mark) is
+  // Shows a paper, doc, chat or thread (an owlit:// link). chatId (on open, jump and mark) is
   // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
   open: { params: { uri: string; chatId?: string }; result: { title: string } }
   // Shows a paper or doc at a place: a 1-based page of a paper, or a passage quoted from either. The

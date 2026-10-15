@@ -17,11 +17,15 @@ export function useChatNotifications() {
   // Chats that ran a turn while owlit was open: only their breaking is news, not a reply that broke before
   const ran = useRef(new Set<string>())
   const dismissed = useSeenStore((s) => s.dismissed)
-  // Where every chat stands in one string, so this runs when one starts, stops, asks or breaks rather than
-  // on every streamed token
+  // Where the chats that can say something stand, in one string, so this runs when one starts, stops, asks
+  // or breaks rather than on every streamed token. Only a running chat asks, and only one that ran breaks
+  // as news, so the others aren't read: this is worked out again with every token.
   const standing = useChatStore((s) =>
-    Object.values(s.chats)
-      .map((c) => `${c.id}:${s.streaming[c.id] ? `run:${pendingAsk(c)?.requestId ?? ""}` : (brokenReply(c, dismissed[c.id])?.id ?? "")}`)
+    [...new Set([...Object.keys(s.streaming), ...ran.current])]
+      .flatMap((id) => {
+        const c = s.chats[id]
+        return c ? [`${id}:${s.streaming[id] ? `run:${pendingAsk(c)?.requestId ?? ""}` : (brokenReply(c, dismissed[id])?.id ?? "")}`] : []
+      })
       .join(" "),
   )
 

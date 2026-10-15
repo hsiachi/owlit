@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import { CheckIcon, PlusIcon, XIcon } from "lucide-react"
+import { toggle } from "@/lib/multi-select"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -129,14 +130,14 @@ export function TagsEditor({
   onOpenTag?: (tag: string) => void
   className?: string
 }) {
-  const toggle = (tag: string) => onChange(tags.includes(tag) ? tags.filter((other) => other !== tag) : [...tags, tag])
+  const pick = (tag: string) => onChange(toggle(tags, tag))
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {tags.map((tag) => (
-        <TagChip key={tag} tag={tag} onClick={onOpenTag && (() => onOpenTag(tag))} onRemove={() => toggle(tag)} />
+        <TagChip key={tag} tag={tag} onClick={onOpenTag && (() => onOpenTag(tag))} onRemove={() => pick(tag)} />
       ))}
-      <TagPicker selected={tags} onPick={toggle}>
+      <TagPicker selected={tags} onPick={pick}>
         <Button variant="ghost" size="xs" className="font-normal text-muted-foreground">
           <PlusIcon />
           {t({ message: "Tag", comment: "button: add a tag to the paper" })}

@@ -54,7 +54,7 @@ function effort(item: ActivityItem): number {
   return 120 * item.sessions
 }
 
-// Agents' own records of owlit's state (collections, versions) aren't the user's docs
+// Agents' own records of owlit's state (threads, versions) aren't the user's docs
 const isOwlitState = (path: string) => path.split("/").some((part) => part.startsWith("."))
 
 function itemsOf(entries: JournalEntry[], names: Names, alias: (id: string) => string): ActivityItem[] {

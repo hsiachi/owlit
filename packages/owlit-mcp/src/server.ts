@@ -5,19 +5,20 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { connect, OwlitNotRunning, type OwlitClient } from "@owlit/client"
 import {
-  collectionUri,
+  threadUri,
   OWLIT_TOOLS,
   QUESTION_COLUMN,
-  shownCollection,
-  type AgentNote,
-  type Collection,
-  type CollectionCell,
-  type CollectionGroup,
-  type CollectionRowWrite,
+  shownThread,
+  type DocComment,
+  type Thread,
+  type ThreadCell,
+  type ThreadGroup,
+  type ThreadRowWrite,
   type ConsentAction,
   type FoundPaper,
   type FoundPapers,
   type HighlightColor,
+  type MemoryKind,
   type Paper,
   type ToolSpec,
 } from "@owlit/protocol"
@@ -28,7 +29,7 @@ export interface OwlitMcpOptions {
   workspace: string
   // The chat this agent is answering in, when owlit started it for one
   chatId?: string
-  // The background run it works for ("<kind>:<task id>"), which signs its searches and collection writes
+  // The background run it works for ("<kind>:<task id>"), which signs its searches and thread writes
   run?: string
   // Where the socket is when not in the temp folder (tests)
   socketDir?: string
@@ -37,7 +38,7 @@ export interface OwlitMcpOptions {
 }
 
 const FALLBACK_INSTRUCTIONS =
-  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and their chats (chats_*). Cite papers as [Author Year](owlit://library/<id>). Leave comments on docs with docs_add_note rather than editing them."
+  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and their chats (chats_*). Cite papers as [Author Year](owlit://library/<id>). Leave comments on docs with docs_add_comment rather than editing them."
 
 export function createServer(options: OwlitMcpOptions) {
   const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: options.instructions ?? FALLBACK_INSTRUCTIONS })
@@ -100,7 +101,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         // A paper a search found: its whole abstract, which the search's line cuts short
         const found = await owlit.rpc.library.found({ id: str("id") })
         if (!found) return `There is no paper ${str("id")} in the library, and no recent search showed it.`
-        return JSON.stringify({ id: str("id"), ...found, inLibrary: false, note: "Not in the user's library: a search found it. Gather it into a collection with collection_write; add it with library_add only to read its full text." }, null, 2)
+        return JSON.stringify({ id: str("id"), ...found, inLibrary: false, note: "Not in the user's library: a search found it. Gather it into a thread with thread_write; add it with library_add only to read its full text." }, null, 2)
       }
       const highlights = await owlit.rpc.library.highlights({ id: paper.id })
       return JSON.stringify(
@@ -233,13 +234,19 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...asker })
       return `Moved ${str("path")} to ${moved.path}.`
     }
-    case "docs_add_note": {
+    case "docs_add_comment": {
       const { content } = await owlit.rpc.docs.read({ path: str("path") })
       const anchor = anchorOf(content, str("quote"))
       if (!anchor) return `That passage isn't in ${str("path")} word for word; quote it exactly as it appears.`
-      const note: AgentNote = { id: randomUUID(), ...anchor, text: str("note"), by: "Owlit", createdAt: Date.now(), ...(options.chatId ? { chatId: options.chatId } : {}) }
-      await owlit.rpc.notes.add({ path: str("path"), note, agent: asker })
-      return `Left a note on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
+      const at = Date.now()
+      const comment: DocComment = {
+        id: randomUUID(),
+        ...anchor,
+        entries: [{ id: randomUUID(), by: "owlit", text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) }],
+        createdAt: at,
+      }
+      await owlit.rpc.comments.add({ path: str("path"), comment, agent: asker })
+      return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":
       return owlit.rpc.agents.guide(optStr("topic") ? { topic: str("topic") } : {})
@@ -257,38 +264,50 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const { title, page } = await owlit.rpc.ui.mark({ uri: `owlit://library/${str("id")}`, ...asker, quote: str("quote"), ...(optStr("color") ? { color: optStr("color") as HighlightColor } : {}) })
       return `Highlighted the passage on p. ${page} of ${title}. The user can remove it from the paper's Highlights.`
     }
-    case "collection_list": {
-      const all = await owlit.rpc.collections.list()
-      if (!all.length) return "There are no collections yet."
+    case "thread_list": {
+      const all = await owlit.rpc.threads.list()
+      if (!all.length) return "There are no threads yet."
       const lines = await Promise.all(
         all.map(async (c) => {
-          const asked = (await owlit.rpc.collections.get({ id: c.id })).asked.text
+          const asked = (await owlit.rpc.threads.get({ id: c.id })).asked.text
           const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
           return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${asked}`
         }),
       )
       return lines.join("\n")
     }
-    case "collection_read":
-      return collectionText(await owlit.rpc.collections.get({ id: str("id") }))
-    case "collection_write": {
+    case "thread_read":
+      return threadText(await owlit.rpc.threads.get({ id: str("id") }))
+    case "thread_write": {
       const parsed = parseJsonArgs(args, ["rows", "memo", "groups"])
       if (typeof parsed === "string") return parsed
       const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
       if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
-      const done = await owlit.rpc.collections.write({
+      const done = await owlit.rpc.threads.write({
         ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why" }),
         ...(options.run && !options.chatId ? { run: options.run } : {}),
-        ...(rows ? { rows: rows as CollectionRowWrite[] } : {}),
+        ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
         ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
-        ...(parsed.groups ? { groups: parsed.groups as CollectionGroup[] } : {}),
+        ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
         ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
         ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
         ...asker,
       })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
       const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
-      return `Wrote “${done.title}” (${collectionUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${collectionUri(done.id)}).`
+      return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${threadUri(done.id)}).`
+    }
+    case "memory_write": {
+      const op = str("op") as "add" | "replace" | "remove"
+      const { line, before, versionId } = await owlit.rpc.memory.write({
+        op,
+        ...pickArgs(args, { id: "id", text: "text" }),
+        ...(optStr("kind") ? { kind: optStr("kind") as MemoryKind } : {}),
+        ...asker,
+      })
+      if (!versionId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
+      if (!line) return `Removed ${before?.id} ("${before?.text}") from the memory. Tell the user in a few words.`
+      return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
     }
     case "activity_read": {
       const query = activityQueryOf(args)
@@ -319,10 +338,10 @@ interface RowArg {
 
 // A row as the agent gives it (answer, depth and quote for the question; other columns in cells), as
 // core takes it; or what to tell the agent
-function rowWrite(r: RowArg): CollectionRowWrite | string {
+function rowWrite(r: RowArg): ThreadRowWrite | string {
   if (!r.id) return "Every row needs the paper's id, as a search gave it."
   // The page is found by owlit from the quote
-  const cell = (c: { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }): Omit<CollectionCell, "at"> => ({
+  const cell = (c: { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }): Omit<ThreadCell, "at"> => ({
     text: c.text ?? "",
     depth: c.depth === "full" ? "full" : "abstract",
     ...(c.quote ? { passage: { quote: c.quote, page: 1 } } : {}),
@@ -353,13 +372,13 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
   return out
 }
 
-// A collection as the agent reads it: what the user sees, then what of it is the user's
-function collectionText(stored: Collection) {
-  const c = shownCollection(stored)
+// A thread as the agent reads it: what the user sees, then what of it is the user's
+function threadText(stored: Thread) {
+  const c = shownThread(stored)
   const columns = c.columns.filter((col) => !col.hidden)
   const groups = new Map(c.groups.map((g) => [g.id, g]))
   const lines = [
-    `${c.title} (${collectionUri(c.id)})`,
+    `${c.title} (${threadUri(c.id)})`,
     `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
     `Columns: ${columns.map((col) => `${col.id} = ${col.question}`).join("; ")}`,
     ...(c.groups.length ? [`Groups: ${c.groups.map((g) => `${g.id} = ${g.name}${g.parent ? ` (in ${g.parent})` : ""}`).join("; ")}`] : []),
@@ -493,5 +512,5 @@ export function checkArgs(spec: ToolSpec, args: Record<string, unknown>): string
 const text = (body: string): CallToolResult => ({ content: [{ type: "text", text: body }] })
 const failure = (message: string): CallToolResult => ({ content: [{ type: "text", text: message }], isError: true })
 
-// Who a search is by, so a collection's About can tell its batches apart
+// Who a search is by, so a thread's About can tell its batches apart
 const searcher = (options: OwlitMcpOptions) => (options.chatId ? `chat:${options.chatId}` : options.run ? `run:${options.run}` : "agent")

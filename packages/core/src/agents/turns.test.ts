@@ -70,7 +70,24 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 14/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 17/)
+  })
+
+  it("tells a session owlit's memory when it is new to it, and again only when it changed", async () => {
+    const { send, updates, call } = await setup()
+    const said = () => updates.filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text)
+    // Nothing kept yet: nothing said
+    await send("memory?")
+    await call("memory.write", { op: "add", kind: "work", text: "Cite as (Author, Year).", chatId: "c1" })
+    await send("memory?")
+    await send("memory?")
+    await call("memory.put", { id: "m1", kind: "work", text: "Cite in APA 7." })
+    await send("memory?")
+    const [none, first, again, changed] = said()
+    expect(none).toBe("no memory")
+    expect(first).toMatch(/changed; this is the whole list now\.\nHow they want you to work:\n- \[m1\] Cite as \(Author, Year\)\.\nAbout their work:\n\(nothing yet\)/)
+    expect(again).toBe("no memory")
+    expect(changed).toContain("- [m1] Cite in APA 7.")
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {
@@ -95,6 +112,15 @@ describe("turns", () => {
         .find((t) => t.startsWith("The user selected"))
     expect(said({ page: 3 })).toBe("The user selected this passage in A paper, on page 3:\n> a claim")
     expect(said({ inDigest: true })).toContain("in Owlit's digest of A paper (its digest.md, written from the full text; check the paper itself")
+  })
+
+  it("gives the agent the comment Ask Owlit was pressed on, beside the passage it is on", () => {
+    const source = { kind: "doc" as const, id: "d1", uri: "owlit://docs/Draft.md", title: "Draft" }
+    const comment = { entries: [{ who: "Owlit", text: "This overstates it." }, { who: "You", text: "How so?" }] }
+    const text = promptBlocks({ text: "Draft the change", mentions: [], attachments: [], selection: { text: "a claim", source, comment } }, "/ws", null)
+      .map((b) => (b as { text?: string }).text ?? "")
+      .find((t) => t.startsWith("The user is asking about a comment"))
+    expect(text).toBe("The user is asking about a comment on this passage in Draft:\n> a claim\n\nThe comment, beside the doc (not in its text):\nOwlit: This overstates it.\nYou: How so?")
   })
 
   it("gives the agent each attached file as a link to owlit's copy, and an image as a picture too", async () => {

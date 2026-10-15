@@ -1,18 +1,20 @@
 import { plural, t } from "@lingui/core/macro"
-import { useState } from "react"
+import { memo, useState } from "react"
 import { CheckIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { fileName } from "@/lib/names"
 import { WaitingLabel } from "@/components/marks"
 import { Spinner } from "@/components/ui/spinner"
 import { Unfold } from "@/components/unfold"
-import type { Part } from "../../types"
+import type { Part, ToolCall } from "../../types"
 import { Markdown } from "./Markdown"
 import { toolTitle } from "../../lib/tool-title"
-import { blockSentence, fileName, foldable, groupPhrase, liveSentence, pathOf, stepWords, type StepWords, type ToolCall, type WordedStep } from "../../lib/step-words"
+import { blockSentence, foldable, groupPhrase, liveSentence, pathOf, stepWords, type StepWords, type WordedStep } from "../../lib/step-words"
 import { hasResult, stepMeta } from "../../lib/step-output"
 import { StepResult } from "./step-results"
 import { FoldingBlock, FoldingList, StepChevron, StepRow } from "./folding"
 import { useOpenWhile } from "./use-open-while"
+import { usePacedText, type Pace } from "./use-paced-text"
 import { capital } from "@/lib/words"
 
 // The outcome of a permission request, keyed by the tool call it was asked for
@@ -366,6 +368,8 @@ export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Par
   )
 }
 
-export function TextPart({ part }: { part: Part<"text"> }) {
-  return <Markdown text={part.text} />
-}
+// Memoized: a streamed chunk makes a new last text part and keeps the earlier ones as they were. While its
+// answer is written the words come on at an even pace (use-paced-text.ts)
+export const TextPart = memo(function TextPart({ part, pace = "off" }: { part: Part<"text">; pace?: Pace }) {
+  return <Markdown text={usePacedText(part.text, pace)} />
+})

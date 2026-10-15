@@ -8,7 +8,7 @@ import path from "node:path"
 
 const NAME = "Owlit Example"
 const HOUR = 3_600_000
-// A field named for a time (at, addedAt), or a map of times named so (a collection's changedAt, by item), holding
+// A field named for a time (at, addedAt), or a map of times named so (a thread's changedAt, by item), holding
 // epoch milliseconds between 2017 and 2049: a timestamp, not a count or a page number
 const timeKey = (key: string) => /(^at|At)$/.test(key)
 const isTime = (value: unknown): value is number => typeof value === "number" && value > 1.5e12 && value < 2.5e12

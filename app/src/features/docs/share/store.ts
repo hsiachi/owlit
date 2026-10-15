@@ -4,7 +4,8 @@ import { toast } from "sonner"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
-import { useDocsStore } from "../store"
+import { shorten } from "@/lib/words"
+import { fileAt } from "../store"
 import { displayName } from "../types"
 import { useDocsUiStore } from "../ui-store"
 
@@ -12,7 +13,7 @@ import { useDocsUiStore } from "../ui-store"
 // doc's path, as core keeps them; a rename arrives as the old path gone and the new one shared.
 
 // A reader's comment on a passage, with the replies under it
-export interface Thread {
+export interface CommentThread {
   root: ShareComment & { anchor: ShareAnchor }
   replies: ShareComment[]
 }
@@ -26,11 +27,11 @@ interface ShareState {
 
 export const useShareStore = create<ShareState>(() => ({ server: null, byPath: {}, comments: {} }))
 
-// The open threads of a doc's comments, in the order they were written
-export function threadsOf(comments: ShareComment[] | undefined): Thread[] {
+// The open threads of a doc's comments, in the order they were written; or the resolved ones
+export function commentThreadsOf(comments: ShareComment[] | undefined, { resolved = false } = {}): CommentThread[] {
   if (!comments) return []
   return comments
-    .filter((c): c is Thread["root"] => !c.parent && !!c.anchor && !c.resolved)
+    .filter((c): c is CommentThread["root"] => !c.parent && !!c.anchor && !!c.resolved === resolved)
     .map((root) => ({ root, replies: comments.filter((c) => c.parent === root.id) }))
 }
 
@@ -60,18 +61,18 @@ function sayNew(path: string, before: ShareComment[] | undefined, after: ShareCo
   const known = new Set(before.map((c) => c.id))
   const fresh = after.filter((c) => !known.has(c.id) && c.by === "reader")
   if (!fresh.length) return
-  const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
+  const file = fileAt(path)
   const doc = displayName(path)
   const first = fresh[0]
   const name = first.name
   toast(fresh.length === 1 ? t`${name} commented on ${doc}` : t`${fresh.length} new comments on ${doc}`, {
-    description: first.text.length > 120 ? `${first.text.slice(0, 120)}…` : first.text,
+    description: shorten(first.text, 120),
     action: file
       ? {
           label: t`Open`,
           onClick: () => {
             const thread = first.parent ?? first.id
-            useDocsUiStore.getState().setOpenComment(file.id, thread)
+            useDocsUiStore.getState().setOpenComment(file.id, `r:${thread}`)
             void import("@/app/router").then(({ router }) => router.navigate(`/docs/${file.id}`))
           },
         }

@@ -61,6 +61,10 @@ function patchPapers(s: LibraryState, ids: string[], patch: (p: Paper) => Partia
   return papers ? { papers } : s
 }
 
+// A paper by id, or by an id it had before it moved
+export const paperById = (papers: Record<string, Paper>, aliases: Record<string, string>, id: string): Paper | undefined =>
+  papers[id] ?? (aliases[id] ? papers[aliases[id]] : undefined)
+
 // A removed paper's highlights and note, held until the session ends so Undo brings them back too
 const removedWith = new Map<string, { highlights: Highlight[]; note?: PaperNote }>()
 

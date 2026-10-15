@@ -3,8 +3,7 @@ import { useEffect, useState } from "react"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { editStats, type EditStats } from "@owlit/protocol"
-import { toast } from "sonner"
-import { ArrowUpRightIcon, type LucideIcon } from "lucide-react"
+import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import { KIND_ICON } from "@/lib/kinds"
@@ -13,14 +12,17 @@ import { openEditor } from "@/features/docs/editors"
 import { fileAt, filesByPath, useDocsStore } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
+import { manageMemory } from "@/features/settings/memory"
 import type { ChatMessage } from "../../types"
 import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
 import { countParts } from "../../lib/edit-counts"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, papers gathered into a collection, digests asked for (followed until written). A row goes to what it names, in the main view rather than opening
+// notes left, papers gathered into a thread, digests asked for (followed until written), lines Owlit now
+// keeps in mind. A row goes to what it names, in the main view rather than opening
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
 // of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
@@ -39,8 +41,8 @@ export interface ResultRow {
   // One more thing the row offers on hover, before Undo ("Keep it separate")
   extra?: { label: string; run: () => Promise<void> | void }
   // For the summary line: what kind of change, and how much an edit changed
-  kind: "doc" | "paper" | "note" | "digest" | "collection"
-  // A collection: whether the reply started it, and how many papers it gathered
+  kind: "doc" | "paper" | "note" | "digest" | "thread" | "memory"
+  // A thread: whether the reply started it, and how many papers it gathered
   created?: boolean
   papers?: number
   stats?: EditStats
@@ -78,7 +80,7 @@ function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | 
 
 // "+31 −1": new words in Owlit's green, as the doc marks its edits; removals muted, never red.
 // A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
-export function EditCounts({ stats }: { stats: EditStats }) {
+function EditCounts({ stats }: { stats: EditStats }) {
   if (stats.rewritten) return <span>{t({ message: "Rewritten", comment: "a doc an edit mostly replaced" })}</span>
   const { added, removed, unit } = countParts(stats)
   return (
@@ -104,8 +106,6 @@ function rememberApplied(messageId: string, path: string) {
   if (text !== undefined) appliedText.set(appliedKey(messageId, path), { text, left: false })
 }
 
-const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
-
 // Takes a row's changes back, newest first, so each restore finds the file as the next one left it
 async function undoResults(messageId: string, results: AgentResult[]) {
   const done: Record<string, string | undefined> = {}
@@ -116,7 +116,7 @@ async function undoResults(messageId: string, results: AgentResult[]) {
       done[r.versionId] = await undoResult(r.versionId)
     }
   } catch (error) {
-    failed(error)
+    toastError(error)
   } finally {
     if (Object.keys(done).length) useResultsStore.getState().markUndone(messageId, done)
   }
@@ -132,7 +132,7 @@ async function redoResults(messageId: string, results: AgentResult[]) {
       done.push(r.versionId)
     }
   } catch (error) {
-    failed(error)
+    toastError(error)
   } finally {
     if (done.length) {
       appliedText.delete(appliedKey(messageId, results[0].path))
@@ -199,7 +199,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     for (const [path, list] of byPath) {
       const name = list[0].label
       if (kind === "note") {
-        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, { one: "# note", other: "# notes" }), ...of(list), view: openDoc(path) })
+        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, { one: "# comment", other: "# comments" }), ...of(list), view: openDoc(path) })
         continue
       }
       const span = spans.find((s) => s.path === path)
@@ -219,36 +219,36 @@ function useResultRows(message: ChatMessage): ResultRow[] {
       })
     }
   }
-  // Collections the reply gathered papers into, one row each however many writes it took
-  const byCollection = new Map<string, AgentResult[]>()
-  for (const r of results) if (r.kind === "collection") byCollection.set(r.path, [...(byCollection.get(r.path) ?? []), r])
-  for (const [id, list] of byCollection) {
+  // Threads the reply gathered papers into, one row each however many writes it took
+  const byThread = new Map<string, AgentResult[]>()
+  for (const r of results) if (r.kind === "thread") byThread.set(r.path, [...(byThread.get(r.path) ?? []), r])
+  for (const [id, list] of byThread) {
     const last = list.at(-1)!
     const created = list.some((r) => r.created)
-    const papers = new Set(list.flatMap((r) => r.rows ?? [])).size
+    const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
+    const papers = rowIds.length
     const updated = list.reduce((n, r) => n + (r.updated ?? 0), 0)
     const answers = updated ? plural(updated, { one: "# answer updated", other: "# answers updated" }) : undefined
     const separate = last.separate
     const asked = list.find((r) => r.asked)?.asked
-    const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
     rows.push({
-      key: `collection:${id}`,
-      kind: "collection",
-      icon: KIND_ICON.collection,
+      key: `thread:${id}`,
+      kind: "thread",
+      icon: KIND_ICON.thread,
       name: separate ? separate.title : last.label,
       created,
       papers,
       detail: separate ? (
-        t({ message: "Kept separate", comment: "papers the agent added to a collection, moved by the user into a collection of their own" })
+        t({ message: "Kept separate", comment: "papers the agent added to a thread, moved by the user into a thread of their own" })
       ) : created ? (
-        plural(papers, { one: "New collection · # paper", other: "New collection · # papers" })
+        plural(papers, { one: "New thread · # paper", other: "New thread · # papers" })
       ) : papers ? (
         <span className="tabular-nums">
           <span className="text-owlit">+{papers}</span> {plural(papers, { one: "paper", other: "papers" })}
           {answers && ` · ${answers}`}
         </span>
       ) : (
-        (answers ?? t({ message: "Updated", comment: "a collection the agent changed without adding papers" }))
+        (answers ?? t({ message: "Updated", comment: "a thread the agent changed without adding papers" }))
       ),
       // Kept separate, Undo puts the papers back where the reply wrote them
       ...(separate
@@ -256,26 +256,26 @@ function useResultRows(message: ChatMessage): ResultRow[] {
             undone: false,
             undo: async () => {
               try {
-                await rpc.collections.unsplit({ id: separate.id })
+                await rpc.threads.unsplit({ id: separate.id })
                 useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), null)
               } catch (error) {
-                failed(error)
+                toastError(error)
               }
             },
           }
         : of(list)),
-      view: () => navigate(`/collections/${separate?.id ?? id}`),
-      // Owlit added to a collection whose question was close; the user may want these papers on their own
+      view: () => navigate(`/threads/${separate?.id ?? id}`),
+      // Owlit added to a thread whose question was close; the user may want these papers on their own
       ...(!created && !separate && rowIds.length && isDesktop
         ? {
             extra: {
-              label: t({ message: "Keep it separate", comment: "make the papers the agent just added into a collection of their own" }),
+              label: t({ message: "Keep it separate", comment: "make the papers the agent just added into a thread of their own" }),
               run: async () => {
                 try {
-                  const c = await rpc.collections.split({ id, rows: rowIds, asked: asked ?? "" })
+                  const c = await rpc.threads.split({ id, rows: rowIds, asked: asked ?? "" })
                   useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), { id: c.id, title: c.title })
                 } catch (error) {
-                  failed(error)
+                  toastError(error)
                 }
               },
             },
@@ -289,13 +289,30 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
     rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
   }
+  // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
+  for (const r of results.filter((r) => r.kind === "memory")) {
+    rows.push({
+      key: `memory:${r.versionId}`,
+      kind: "memory",
+      icon: BookmarkIcon,
+      name: r.label,
+      detail: r.removed
+        ? t({ message: "Removed", comment: "a line the agent took out of what it keeps in mind" })
+        : r.replaced
+          ? t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
+          : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
+      ...of([r]),
+      view: () => manageMemory(true),
+      removed: r.removed,
+    })
+  }
   return rows
 }
 
 const added = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && !r.removed).length
 const removed = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && r.removed).length
-const started = (rows: ResultRow[]) => rows.filter((r) => r.kind === "collection" && r.created).length
-const gathered = (rows: ResultRow[]) => rows.filter((r) => r.kind === "collection" && !r.created).reduce((n, r) => n + (r.papers ?? 0), 0)
+const started = (rows: ResultRow[]) => rows.filter((r) => r.kind === "thread" && r.created).length
+const gathered = (rows: ResultRow[]) => rows.filter((r) => r.kind === "thread" && !r.created).reduce((n, r) => n + (r.papers ?? 0), 0)
 
 // "Edited 2 docs and added 3 papers"
 function summary(rows: ResultRow[]) {
@@ -307,10 +324,11 @@ function summary(rows: ResultRow[]) {
     docs && (markdown ? plural(docs, { one: "edited a doc", other: "edited # docs" }) : plural(docs, { one: "edited a file", other: "edited # files" })),
     added(rows) && plural(added(rows), { one: "added a paper", other: "added # papers" }),
     removed(rows) && plural(removed(rows), { one: "removed a paper", other: "removed # papers" }),
-    n("note") && plural(n("note"), { one: "left notes on a doc", other: "left notes on # docs" }),
-    started(rows) && plural(started(rows), { one: "started a collection", other: "started # collections" }),
-    gathered(rows) && plural(gathered(rows), { one: "added a paper to a collection", other: "added # papers to collections" }),
+    n("note") && plural(n("note"), { one: "left comments on a doc", other: "left comments on # docs" }),
+    started(rows) && plural(started(rows), { one: "started a thread", other: "started # threads" }),
+    gathered(rows) && plural(gathered(rows), { one: "added a paper to a thread", other: "added # papers to threads" }),
     n("digest") && plural(n("digest"), { one: "asked for a digest", other: "asked for # digests" }),
+    n("memory") && plural(n("memory"), { one: "changed what it keeps in mind", other: "changed # lines it keeps in mind" }),
   ].filter(Boolean) as string[]
   return capital(joinActions(said))
 }

@@ -1,9 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { EllipsisVerticalIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { ActionsDropdownContent } from "@/components/action-menu"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
+import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { citationsSource, citationsText } from "../lib/format"
 import { useLibraryStore } from "../store"
 import type { Paper } from "../types"
@@ -40,11 +38,7 @@ export function PaperQuickActions({ paper, align, afterRemove }: { paper: Paper;
       <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} align={align} />
       <StarButton starred={paper.starred} onToggle={() => setStarred([paper.id], !paper.starred)} />
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={t`More actions`} className="text-muted-foreground">
-            <EllipsisVerticalIcon />
-          </Button>
-        </DropdownMenuTrigger>
+        <MenuButton label={t`More actions`} />
         {/* Focus goes back to the ⋯ on close, as from any other button */}
         <ActionsDropdownContent align={align} className="w-48" onCloseAutoFocus={() => undefined}>
           <PaperMenu ids={[paper.id]} afterRemove={afterRemove} />

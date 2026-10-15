@@ -1,4 +1,4 @@
-import type { AgentNote } from "@owlit/protocol"
+import type { DocComment, MemoryLine } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -7,11 +7,13 @@ import { Serial } from "../util.ts"
 
 // One snapshot: something as it was before an agent (or an undo) changed it, so the change can be
 // taken back. Every kind of agent write goes through here, so they share one way to undo:
-//   file    a doc or topic file's text before the write
-//   note    a note left on a doc (added, or removed by an undo), with the note itself
+//   file    a doc's text before the write
+//   note    a comment left on a doc (added, or removed by an undo), with the comment itself (versions
+//           kept before comments hold an agent's note, read as a comment)
 //   paper   a paper added to the library (or removed by an undo)
-//   collection  a collection's collection.json before an agent wrote to it (path is the collection's id)
-export type VersionKind = "file" | "note" | "paper" | "collection"
+//   thread  a thread's thread.json before an agent wrote to it (path is the thread's id)
+//   memory  one line of Owlit's memory before an agent changed it (path is the line's id; null: it was new)
+export type VersionKind = "file" | "note" | "paper" | "thread" | "memory"
 
 export interface Version {
   id: string
@@ -22,9 +24,9 @@ export interface Version {
   chatId?: string
   // agent: a change an agent made; undo: the state an undo replaced, so the undo can be undone
   by: "agent" | "undo"
-  // file and collection: whether it existed before; restoring a version of one that didn't removes it
+  // file and thread: whether it existed before; restoring a version of one that didn't removes it
   existed?: boolean
-  // file: sha1 of what was written, so a restore can tell whether anyone changed the file since
+  // file and memory: sha1 of what was written, so a restore can tell whether anyone changed it since
   after?: string
   // file: the write deleted it; restoring writes it back
   deleted?: true
@@ -39,7 +41,7 @@ export const KEEP_MS = 30 * 24 * 3_600_000
 
 export const sha1 = (text: string) => createHash("sha1").update(text).digest("hex")
 
-// .owlit/versions/: each version's content in <id> (a file's text, a note's JSON), and a line
+// .owlit/versions/: each version's content in <id> (a file's text, a comment's JSON), and a line
 // describing it in index.jsonl
 export class Versions {
   private readonly dir: string
@@ -67,17 +69,22 @@ export class Versions {
     )
   }
 
-  saveNote(docPath: string, note: AgentNote, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
-    return this.save({ kind: "note", path: docPath, op, noteId: note.id }, JSON.stringify(note), meta)
+  saveComment(docPath: string, comment: DocComment, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
+    return this.save({ kind: "note", path: docPath, op, noteId: comment.id }, JSON.stringify(comment), meta)
   }
 
   savePaper(id: string, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
     return this.save({ kind: "paper", path: id, op }, "", meta)
   }
 
-  // before is null when the write started the collection
-  saveCollection(id: string, before: string | null, meta: { chatId?: string; by?: Version["by"] } = {}) {
-    return this.save({ kind: "collection", path: id, existed: before !== null }, before ?? "", meta)
+  // before is null when the change added the line, after when it removed it
+  saveMemory(id: string, before: MemoryLine | null, after: string | null, meta: { chatId?: string; by?: Version["by"] } = {}) {
+    return this.save({ kind: "memory", path: id, existed: before !== null, after: sha1(after ?? "") }, JSON.stringify({ before }), meta)
+  }
+
+  // before is null when the write started the thread
+  saveThread(id: string, before: string | null, meta: { chatId?: string; by?: Version["by"] } = {}) {
+    return this.save({ kind: "thread", path: id, existed: before !== null }, before ?? "", meta)
   }
 
   // The version and what it kept, or null when it isn't there

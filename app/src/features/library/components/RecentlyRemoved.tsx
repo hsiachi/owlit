@@ -1,20 +1,19 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
-import { RowList, rowClass } from "@/components/row-list"
+import { RowList, revealOnHover, rowClass } from "@/components/row-list"
 import { FoldButton } from "@/components/fold"
 import { Unfold } from "@/components/unfold"
 import { Button } from "@/components/ui/button"
 import { ago } from "@/lib/time"
-import { listTrash, restoreFromTrash } from "../disk"
+import { listTrash, restoreFromTrash, useTrashChanges } from "../disk"
 import { paperMeta } from "../lib/format"
-import { useLibraryStore } from "../store"
 import type { TrashedPaper } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 
-// The papers in the trash, asked again whenever the library gains or loses a paper (a removal, an Undo,
-// a restore from here)
+// The papers in the trash, asked again whenever the trash may have changed (a removal, an Undo, a restore
+// from here)
 function useRecentlyRemoved(): TrashedPaper[] {
-  const ids = useLibraryStore((s) => Object.keys(s.papers).sort().join("\n"))
+  const changes = useTrashChanges((s) => s.count)
   const [removed, setRemoved] = useState<TrashedPaper[]>([])
   useEffect(() => {
     let live = true
@@ -25,7 +24,7 @@ function useRecentlyRemoved(): TrashedPaper[] {
     return () => {
       live = false
     }
-  }, [ids])
+  }, [changes])
   return removed
 }
 
@@ -61,13 +60,13 @@ function RemovedRow({ paper }: { paper: TrashedPaper }) {
   }
   const when = ago(paper.removedAt, { inSentence: true })
   return (
-    <li className={cn("group/removed flex h-9 items-center gap-3 text-sm hover:bg-accent", rowClass)}>
+    <li className={cn("group/row flex h-9 items-center gap-3 text-sm hover:bg-accent", rowClass)}>
       <span className="min-w-0 flex-1 truncate" title={paper.title}>
         {paper.title}
       </span>
       <span className="max-w-[40%] shrink-0 truncate text-detail text-muted-foreground">{paperMeta(paper)}</span>
       <span className="relative flex shrink-0 items-center justify-end">
-        <span className="text-detail text-muted-foreground tabular-nums group-hover/removed:invisible group-has-focus-key/removed:invisible">
+        <span className="text-detail text-muted-foreground tabular-nums group-hover/row:invisible group-has-focus-key/row:invisible">
           {t`Removed ${when}`}
         </span>
         <Button
@@ -75,7 +74,7 @@ function RemovedRow({ paper }: { paper: TrashedPaper }) {
           size="inline"
           disabled={restoring}
           onClick={restore}
-          className="absolute -right-1.5 opacity-0 group-hover/removed:opacity-100 focus-key:opacity-100"
+          className={cn("absolute -right-1.5", revealOnHover)}
         >
           {t`Restore`}
         </Button>

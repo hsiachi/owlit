@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { ToolInfo } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
-import { capital } from "@/lib/words"
+import { capital, shorten } from "@/lib/words"
 
 // What a tool call is called on screen. Agents name owlit's own tools by their MCP name
 // (mcp__owlit__library_search from Claude Code, mcp.owlit.library_search from Codex) and a paper's note by its file (library/papers/<id>/note.md, or
@@ -43,26 +43,25 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`List your docs`, done: t`Listed your docs` }
     case "docs_read":
       return { now: t`Read a doc`, done: t({ message: "Read a doc", context: "a step that ran" }) }
+    case "docs_add_comment":
     case "docs_add_note":
-      return { now: t`Leave a note on a doc`, done: t`Left a note on a doc` }
+      return { now: t`Leave a comment on a doc`, done: t`Left a comment on a doc` }
     case "docs_delete":
       return { now: t`Delete docs`, done: t`Deleted docs` }
     case "docs_move":
       return { now: t`Move a doc`, done: t`Moved a doc` }
+    case "memory_write":
+      return { now: t`Keep something in mind`, done: t`Kept something in mind` }
     case "chats_list":
       return { now: t`List your chats`, done: t`Listed your chats` }
     case "chats_read":
       return { now: t`Read a chat`, done: t({ message: "Read a chat", context: "a step that ran" }) }
-    case "collection_list":
-      return { now: t`List your collections`, done: t`Listed your collections` }
-    case "collection_read":
-      return { now: t`Read a collection`, done: t({ message: "Read a collection", context: "a step that ran" }) }
-    case "collection_write":
-      return { now: t`Gather papers into a collection`, done: t`Gathered papers into a collection` }
-    case "knowledge_read":
-      return { now: t`Read Knowledge`, done: t({ message: "Read Knowledge", context: "a step that ran" }) }
-    case "knowledge_write":
-      return { now: t`Update Knowledge`, done: t`Updated Knowledge` }
+    case "thread_list":
+      return { now: t`List your threads`, done: t`Listed your threads` }
+    case "thread_read":
+      return { now: t`Read a thread`, done: t({ message: "Read a thread", context: "a step that ran" }) }
+    case "thread_write":
+      return { now: t`Gather papers into a thread`, done: t`Gathered papers into a thread` }
     case "ui_open":
       return { now: t`Open something in owlit`, done: t`Opened something in owlit` }
     case "ui_jump":
@@ -82,7 +81,7 @@ const plainWords = (tool: string): ToolWords => {
 // owlit's own tool a name or title calls, by Claude Code (mcp__owlit__x) or Codex (mcp.owlit.x): "x"
 export const owlitToolOf = (name: string) => /^mcp(?:__|\.)owlit(?:__|\.)(\w+)/.exec(name)?.[1]
 
-export const quote = (s: string) => `“${s.length > 80 ? `${s.slice(0, 80)}…` : s}”`
+export const quote = (s: string) => `“${shorten(s, 80)}”`
 
 // What a step with one of owlit's tools does, with what it is about when the agent's input says (Claude
 // Code sends it): seven searches in a row each name their query, instead of reading "Search for papers"

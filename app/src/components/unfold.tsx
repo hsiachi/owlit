@@ -1,11 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { transitionMs } from "@/lib/motion"
 import { cn } from "@/lib/utils"
-
-// How long the fold's own transition takes, as the stylesheet has it now (0 under reduced motion)
-function transitionMs(el: HTMLElement | null) {
-  const d = el ? getComputedStyle(el).transitionDuration : ""
-  return d.endsWith("ms") ? parseFloat(d) : (parseFloat(d) || 0) * 1000
-}
 
 // Something that opens in place (a peek, a steps list, a waiting card): it grows from its line over
 // --t-layout and pushes what is below it, so the eye can follow, and folds away the same way (index.css,

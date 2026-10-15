@@ -73,4 +73,20 @@ describe("where a tab in the user's browser ended", () => {
     expect(whereItEnded({ url: "https://tlink.lib.tsinghua.edu.cn/ui/unauthorized?url=https://misq.umn.edu/misq/article/42/2/355", title: "清华大学图书馆智能资源网关" }, page)).toBe("refused")
     expect(whereItEnded({ url: "https://www.sciencedirect.com/science/article/pii/S0747563219302596", title: "Just a moment..." }, page)).toBe("check")
   })
+
+  it("doesn't read sign-in words inside other words", () => {
+    // Article pages doi.org sent a run to (2026-10-15): "sso" in "Lessons" and "Association"
+    const bmj = { address: "https://doi.org/10.1136/qhc.12.4.304", page: true }
+    expect(whereItEnded({ url: "https://qualitysafety.bmj.com/content/12/4/304", title: "Lessons from a hospital | BMJ Quality & Safety" }, bmj)).toBe("landed")
+    const apa = { address: "https://doi.org/10.1037/0022-3514.54.4.569", page: true }
+    expect(whereItEnded({ url: "https://psycnet.apa.org/record/1988-25536-001", title: "PsycNET Record | American Psychological Association" }, apa)).toBe("landed")
+    // "auth" beginning other words, in a title and in a path
+    expect(whereItEnded({ url: "https://www.example-journal.org/article/authentic-leadership", title: "Authentic leadership and its authors | Authority" }, apa)).toBe("landed")
+    expect(whereItEnded({ url: "https://www.example-journal.org/processors/assessor", title: "Processor design" }, apa)).toBe("landed")
+    // Whole words still are, camelCase ones too
+    expect(whereItEnded({ url: "https://authserver.example.edu.cn/authserver/login?service=x", title: "统一身份认证" }, apa)).toBe("sign-in")
+    expect(whereItEnded({ url: "https://www.example-journal.org/action/showLoginForm", title: "Example" }, apa)).toBe("sign-in")
+    expect(whereItEnded({ url: "https://accounts.example.com/oauth2/authorize", title: "Example" }, apa)).toBe("sign-in")
+    expect(whereItEnded({ url: "https://www.example-journal.org/sso/start", title: "Example" }, apa)).toBe("sign-in")
+  })
 })

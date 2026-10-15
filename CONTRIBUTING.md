@@ -13,11 +13,23 @@ Needs macOS (Apple silicon), Node 24 and pnpm 10.
 
 ```bash
 pnpm install
-pnpm dev          # Electron window, renderer from Vite with HMR; main/preload rebuild restarts Electron
+pnpm dev          # Owlit Dev: renderer from Vite with HMR; main/preload rebuild restarts it
+pnpm try          # pnpm dev in a fresh worktree: installs packages and Electron first
 pnpm dev:web      # the renderer alone in a browser, on mock data
 pnpm build        # unsigned apps/desktop/release/mac-arm64/Owlit.app
+pnpm app:install  # build this checkout into /Applications as the Owlit you use
 pnpm check        # typecheck, lint and test, as CI runs it
 ```
+
+To use owlit while working on it, keep the two apart. The Owlit you use is the one `pnpm app:install` puts in
+`/Applications`, on your real data; it changes only when you run that again (from dev), so merging never
+restarts it. It is signed and shares links as a release does when `.env.release.local` says how (see
+Releases). `pnpm dev` and `pnpm try` open **Owlit Dev** instead: a graphite icon, the branch in its name
+(`Owlit Dev (show-in-paper)`), and its own copy of your data, so several can run beside Owlit and each other.
+The copy is taken the first time a checkout runs (`~/Library/Application Support/Owlit Previews/`): your app
+data and the workspaces in it, cloned on APFS so it costs no disk space until either side changes, without
+the work your Owlit had not finished. Nothing in a preview reaches your real folders. `pnpm dev -- --fresh`
+takes the copy again; a preview whose checkout is gone is removed at the next run.
 
 `pnpm test`, `pnpm lint` (oxlint everywhere; also enforces core/protocol's import boundary) and
 `pnpm typecheck` run the parts of `pnpm check` alone. `pnpm i18n:extract` updates the message catalogs in
@@ -47,7 +59,8 @@ The build tooling is Vite (renderer) plus esbuild (main and preload, bundled wit
 
 | Variable | Effect |
 | --- | --- |
-| `OWLIT_USER_DATA=<dir>` | Where app data lives (settings, per-workspace data, the single-instance lock) instead of `~/Library/Application Support/owlit`, e.g. to try a first launch |
+| `OWLIT_USER_DATA=<dir>` | Where app data lives (settings, per-workspace data, the single-instance lock) instead of `~/Library/Application Support/owlit`, e.g. to try a first launch; `pnpm dev` then copies nothing |
+| `OWLIT_PREVIEW_SOURCE=<dir>` | The app data `pnpm dev` copies for a new preview, instead of the installed Owlit's |
 | `OWLIT_SHARE_SERVER=<url>` | The share server links are made on. Baked in at build time, or set for one run; empty or unset means no sharing |
 | `OWLIT_LOG_ACTIVITY=1` | Print every activity event the renderer reports |
 | `OWLIT_LOG_DOCS=1` | Print what the workspace watcher reports |

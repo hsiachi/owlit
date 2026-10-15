@@ -1,10 +1,10 @@
-import type { Chat, CitedPassage, CollectedPassage, Collection, CollectionSummary, PaperWear } from "@owlit/protocol"
-import { itemId, parseOwlitUri, QUESTION_COLUMN, shownCollection } from "@owlit/protocol"
+import type { Chat, CitedPassage, CollectedPassage, Thread, ThreadSummary, PaperWear } from "@owlit/protocol"
+import { itemId, parseOwlitUri, QUESTION_COLUMN, shownThread } from "@owlit/protocol"
 import { readJournal, readingOf } from "../activity/reading.ts"
 import type { Chats } from "../chats/chats.ts"
 
 // What has been read of a paper: the sentences Owlit's answers rested on, taken from the chats and the
-// collections as they are now (a deleted chat, a regenerated answer or a removed row takes its marks with
+// threads as they are now (a deleted chat, a regenerated answer or a removed row takes its marks with
 // it), and the pages the person stayed on, from the journal. Nothing is stored for this; it is read again whenever a paper opens.
 
 // A citation in Markdown: [label](owlit://library/<id>#p4 "the sentence"), the title optional
@@ -50,19 +50,19 @@ function citedIn(chat: Chat): Cited[] {
   return cited
 }
 
-interface CollectionsReader {
-  list(): Promise<CollectionSummary[]>
-  get(id: string): Promise<Collection>
+interface ThreadsReader {
+  list(): Promise<ThreadSummary[]>
+  get(id: string): Promise<Thread>
 }
 
-// The answers in collections that rest on the paper's own words: cells read in full, with their passage.
+// The answers in threads that rest on the paper's own words: cells read in full, with their passage.
 // The user's rewrite of an answer keeps the passage Owlit found.
-async function collectedOf(id: string, collections: CollectionsReader, alias: (id: string) => string): Promise<CollectedPassage[]> {
+async function collectedOf(id: string, threads: ThreadsReader, alias: (id: string) => string): Promise<CollectedPassage[]> {
   const out: CollectedPassage[] = []
-  for (const summary of await collections.list()) {
-    const c = await collections.get(summary.id).catch(() => null)
+  for (const summary of await threads.list()) {
+    const c = await threads.get(summary.id).catch(() => null)
     if (!c) continue
-    const shown = shownCollection(c)
+    const shown = shownThread(c)
     for (const row of shown.rows) {
       if (alias(row.id) !== id) continue
       for (const col of shown.columns) {
@@ -71,8 +71,8 @@ async function collectedOf(id: string, collections: CollectionsReader, alias: (i
         out.push({
           quote: passage.quote,
           ...(passage.page ? { page: passage.page } : {}),
-          collectionId: c.id,
-          collectionTitle: shown.title,
+          threadId: c.id,
+          threadTitle: shown.title,
           row: row.id,
           ...(col.id !== QUESTION_COLUMN && col.kind !== "compare" ? { column: col.question } : {}),
           at: c.changedAt[itemId.cell(row.id, col.id)] ?? c.updatedAt,
@@ -85,7 +85,7 @@ async function collectedOf(id: string, collections: CollectionsReader, alias: (i
 
 export async function wearOf(
   paperId: string,
-  { chats, collections, journal, aliases }: { chats: Chats; collections: CollectionsReader; journal: string; aliases: Record<string, string> },
+  { chats, threads, journal, aliases }: { chats: Chats; threads: ThreadsReader; journal: string; aliases: Record<string, string> },
 ): Promise<PaperWear> {
   const alias = (id: string) => aliases[id] ?? id
   const id = alias(paperId)
@@ -103,5 +103,5 @@ export async function wearOf(
   }
   cited.sort((a, b) => a.at - b.at)
   const pages = readingOf(await readJournal(journal), alias).get(id)?.pages ?? {}
-  return { cited, collected: await collectedOf(id, collections, alias), pages }
+  return { cited, collected: await collectedOf(id, threads, alias), pages }
 }

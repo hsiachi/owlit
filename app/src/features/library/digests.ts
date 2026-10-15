@@ -5,8 +5,10 @@ import { isTaskFinished, type Task } from "@owlit/protocol"
 import { toast } from "sonner"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { notifyWhenAway } from "@/lib/notify"
 import { rpc } from "@/lib/rpc"
-import { useTasksStore } from "@/features/tasks/store"
+import { routeSubject } from "@/app/route-subject"
+import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { useLibraryStore } from "./store"
 import type { Paper } from "./types"
 
@@ -36,11 +38,15 @@ export const useDigestMarks = create<DigestMarks>()(
   ),
 )
 
-const digestTasks = (byId: Record<string, Task>, id: string) => Object.values(byId).filter((task) => task.kind === "paper.digest" && task.subject === id)
+// A paper's digest runs, finished ones too; a fresh array, free to sort
+const digestTasks = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).filter((task) => task.kind === "paper.digest")
+
+// A run for the paper's digest is under way or waiting its turn, in the background too
+export const digestUnderWay = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).some((task) => task.kind === "paper.digest" && !isTaskFinished(task))
 
 // The digest's last run broke and nothing has taken it up again. Known for this session only: core keeps
 // a few finished tasks, and a digest that failed long ago is better asked for again from the menu.
-function digestFailed(byId: Record<string, Task>, id: string) {
+export function digestFailed(byId: Record<string, Task>, id: string) {
   const tasks = digestTasks(byId, id)
   if (tasks.some((task) => !isTaskFinished(task))) return false
   const last = tasks.sort((a, b) => b.createdAt - a.createdAt)[0]
@@ -49,7 +55,7 @@ function digestFailed(byId: Record<string, Task>, id: string) {
 
 // A digest Owlit wrote after the user last opened the paper (or asked for it) and that they haven't seen.
 // One on a paper they never opened or asked about was written in the background and is not news.
-export function isNewDigest(paper: Paper, marks: Pick<DigestMarks, "seen" | "asked">) {
+function isNewDigest(paper: Paper, marks: Pick<DigestMarks, "seen" | "asked">) {
   if (!paper.hasDigest || !paper.digestAt) return false
   if (!paper.lastOpenedAt && !marks.asked[paper.id]) return false
   return paper.digestAt > Math.max(marks.seen[paper.id] ?? 0, paper.lastOpenedAt ?? 0)
@@ -73,14 +79,30 @@ export function useNewDigest(paperId: string | undefined) {
   return useDigestMarks((s) => !!paper && isNewDigest(paper, s))
 }
 
+// Any run for the digest, background ones too: the paper's page says it is being written
+export function useWritingDigest(paperId: string) {
+  return useTasksStore((s) => digestUnderWay(s.byId, paperId))
+}
+
 export function useDigestFailed(paperId: string) {
   return useTasksStore((s) => digestFailed(s.byId, paperId))
+}
+
+// Asks for the paper's digest again, saying so when the asking itself failed; resolves to whether it was asked
+export function askDigestAgain(paper: Paper, rewrite: boolean) {
+  return rpc.library.requestDigest({ id: paper.id, rewrite }).then(
+    () => true,
+    () => {
+      toast.error(t`Couldn't ask for the digest again.`)
+      return false
+    },
+  )
 }
 
 // Asks for the digest again (Retry), and waits for it
 export function retryDigest(paper: Paper) {
   waitForDigest(paper.id)
-  return rpc.library.requestDigest({ id: paper.id, rewrite: !!paper.hasDigest })
+  return askDigestAgain(paper, !!paper.hasDigest)
 }
 
 // ---- Telling the one waiting ----
@@ -112,15 +134,12 @@ const SETTLE_MS = 15_000
 export function useDigestNotices() {
   const navigate = useNavigate()
   useEffect(() => {
-    const onPaperPage = (id: string) => document.hasFocus() && window.location.pathname === `/library/${id}`
-    const notify = (title: string, paper: Paper, go: () => void) => {
-      if (document.hasFocus() || typeof Notification === "undefined") return
-      const notification = new Notification(title, { body: paper.title })
-      notification.onclick = () => {
-        window.focus()
-        go()
-      }
+    const onPaperPage = (id: string) => {
+      const subject = routeSubject(window.location.pathname)
+      return document.hasFocus() && subject?.kind === "paper" && subject.id === id
     }
+    // One wait for runs that ended without a digest yet, however many changes come in meantime
+    let settle: ReturnType<typeof setTimeout> | undefined
     const check = () => {
       const papers = useLibraryStore.getState().papers
       const tasks = useTasksStore.getState().byId
@@ -136,7 +155,7 @@ export function useDigestNotices() {
           if (onPaperPage(id)) continue
           const open = () => navigate(`/library/${id}`)
           toast(t`Digest ready`, { description: paper.title, action: { label: t({ message: "Open", comment: "toast button: open the paper's digest" }), onClick: open }, duration: 10_000 })
-          notify(t`Digest ready`, paper, open)
+          notifyWhenAway({ title: t`Digest ready`, body: paper.title, onClick: open })
           continue
         }
         if (runs.some((task) => !isTaskFinished(task))) continue
@@ -145,13 +164,16 @@ export function useDigestNotices() {
         if (last.state === "failed") {
           waiting.delete(id)
           if (onScreen === id && document.hasFocus()) continue
-          const retry = () => void retryDigest(paper).catch(() => toast.error(t`Couldn't ask for the digest again.`))
+          const retry = () => void retryDigest(paper)
           toast(t`Couldn't write the digest`, { description: paper.title, action: { label: t`Retry`, onClick: retry }, duration: 10_000 })
-          notify(t`Couldn't write the digest`, paper, () => navigate(`/library/${id}`))
+          notifyWhenAway({ title: t`Couldn't write the digest`, body: paper.title, onClick: () => navigate(`/library/${id}`) })
         } else if (last.state === "cancelled" || Date.now() - (last.endedAt ?? 0) > SETTLE_MS) {
           waiting.delete(id)
         } else {
-          setTimeout(check, SETTLE_MS)
+          settle ??= setTimeout(() => {
+            settle = undefined
+            check()
+          }, SETTLE_MS)
         }
       }
     }
@@ -160,6 +182,7 @@ export function useDigestNotices() {
     return () => {
       offPapers()
       offTasks()
+      clearTimeout(settle)
     }
   }, [navigate])
 }

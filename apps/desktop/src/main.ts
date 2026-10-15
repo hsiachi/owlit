@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url"
 import { createBrowserHost } from "./browser.ts"
 import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
+import { hostFetch } from "./net-fetch.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
 // The share server named at build time (scripts/shared.mjs); "" when none was
@@ -305,7 +306,8 @@ async function updateMenu(core: Core) {
     win?.webContents.send("menu", command)
   }
   const settingsItem: MenuItemConstructorOptions = { label: t`Settings…`, accelerator: "CmdOrCtrl+,", click: () => send("settings") }
-  const name = app.name
+  // A dev run is Owlit Dev (scripts/dev.mjs), though app.name stays Owlit for the keychain's sake
+  const name = process.env.OWLIT_DEV_NAME || app.name
   // Electron names its role items in English only, so each one carries its label in the interface's
   // language; the items and their order are Electron's own defaults
   const template: MenuItemConstructorOptions[] = [
@@ -433,15 +435,6 @@ async function updateMenu(core: Core) {
 
 // ---- Start ----
 
-// The system proxy as HTTPS_PROXY, for the engine's model requests: an app started from Finder has no
-// proxy in its environment, and Node's fetch only uses one from there. Read once at launch.
-async function systemProxy(): Promise<Record<string, string>> {
-  if (process.env.HTTPS_PROXY || process.env.https_proxy) return {}
-  const rule = (await session.defaultSession.resolveProxy("https://api.openai.com")).split(";")[0].trim()
-  const proxy = /^(PROXY|HTTPS) (\S+)$/.exec(rule)
-  return proxy ? { HTTPS_PROXY: `${proxy[1] === "HTTPS" ? "https" : "http"}://${proxy[2]}` } : {}
-}
-
 // One owlit at a time: a second launch hands over to the first, which comes to the front
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -466,10 +459,9 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
-    // A packaged app gets its icon from the bundle; a dev run is Electron's own binary, so set it here
-    if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon.png"))
+    // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
+    if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
     const browser = createBrowserHost()
-    const proxy = await systemProxy()
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
@@ -479,10 +471,10 @@ if (!app.requestSingleInstanceLock()) {
       // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way
-      engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...proxy } },
+      engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // Claude Code's and Codex's adapters, set up by owlit with its own npm and run the same way. A
       // packaged app keeps npm outside the asar archive (asarUnpack), since npm runs its own scripts.
-      node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1", ...proxy } },
+      node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1" } },
       npm: path.join(__dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked"), "npm", "bin", "npm-cli.js"),
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
@@ -491,7 +483,9 @@ if (!app.requestSingleInstanceLock()) {
       exampleDir: path.join(__dirname, "example-workspace"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
-        fetch: (input, init) => net.fetch(input as string, init),
+        fetch: hostFetch,
+        // The same, for the processes core starts (agents, npm), which only read a proxy from their environment
+        resolveProxy: (url) => session.defaultSession.resolveProxy(url),
         // A browser for publishers that want one (cookies, checks, the library proxy): hidden, or inside
         // the window when the user asks to see the page
         browser,

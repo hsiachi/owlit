@@ -1,7 +1,8 @@
 import { t } from "@lingui/core/macro"
 import { XIcon } from "lucide-react"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
-import { selectionLabel, shorten } from "./page-context"
+import { shorten } from "@/lib/words"
+import { selectionLabel } from "./page-context"
 import { useAgentWindow } from "./store"
 
 // A chip's ×, for a doc, paper or topic by its name

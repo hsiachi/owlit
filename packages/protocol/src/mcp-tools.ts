@@ -159,17 +159,17 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     },
   },
   {
-    name: "docs_add_note",
+    name: "docs_add_comment",
     description:
-      "Leave a note in the margin of the user's doc, attached to a passage, without changing the file. Use this for comments and suggestions instead of editing the doc.",
+      "Leave a comment on a passage of the user's doc, shown beside it, without changing the file. Use this for remarks, questions and suggestions instead of editing the doc. One comment per passage.",
     inputSchema: {
       type: "object",
       properties: {
         path: { type: "string", description: "Workspace-relative path of the doc" },
-        quote: { type: "string", description: "The exact passage the note is about, as it appears in the doc" },
-        note: { type: "string", description: "What you want to say" },
+        quote: { type: "string", description: "The exact passage the comment is about, as it appears in the doc" },
+        comment: { type: "string", description: "What you want to say" },
       },
-      required: ["path", "quote", "note"],
+      required: ["path", "quote", "comment"],
     },
   },
   {
@@ -234,34 +234,34 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
-    name: "collection_list",
+    name: "thread_list",
     description:
-      "The collections Owlit keeps for the user: papers gathered for a question, with what each says about it. Each line: id, title, the project it belongs to, how many papers and columns, and the question as the user asked it. Look here before you start one: when the user asks something close to a collection's question, add to that collection rather than starting another.",
+      "The threads Owlit keeps for the user: papers gathered for a question, with what each says about it. Each line: id, title, the project it belongs to, how many papers and columns, and the question as the user asked it. Look here before you start one: when the user asks something close to a thread's question, add to that thread rather than starting another.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
   },
   {
-    name: "collection_read",
+    name: "thread_read",
     description:
-      "One collection as the user sees it: its question, columns, groups, memo (sentences with their ids) and every paper with its answers, each marked abstract or full text. Also what the user rewrote (keep it) and removed (never bring it back).",
-    inputSchema: { type: "object", properties: { id: { type: "string", description: "The collection's id" } }, required: ["id"] },
+      "One thread as the user sees it: its question, columns, groups, memo (sentences with their ids) and every paper with its answers, each marked abstract or full text. Also what the user rewrote (keep it) and removed (never bring it back).",
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "The thread's id" } }, required: ["id"] },
     annotations: { readOnlyHint: true },
   },
   {
-    name: "collection_write",
+    name: "thread_write",
     description:
-      "Gather papers you found into a collection, new (no id) or existing, instead of adding them to the library: the user sees it under Collections and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper found about the question, from its whole abstract (library_get gives it; a search's line cuts it short) (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what none of them covers. It describes the papers, not your search (that goes in note); it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the collection's link.",
+      "Gather papers you found into a thread, new (no id) or existing, instead of adding them to the library: the user sees it under Threads and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper found about the question, from its whole abstract (library_get gives it; a search's line cuts it short) (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what none of them covers. It describes the papers, not your search (that goes in note); it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the thread's link.",
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string", description: "An existing collection's id; leave out to start one" },
+        id: { type: "string", description: "An existing thread's id; leave out to start one" },
         asked: { type: "string", description: "The user's question in their own words: needed to start one, and given too when you add to one for a new question" },
         title: { type: "string", description: "A short neutral title for what it gathers, in the user's language, naming the topic rather than repeating the question: 回放式标注作为研究方法, not 我的研究方法该怎么设计？ (needed to start one)" },
         project: { type: "string", description: "The workspace's top-level folder the work belongs to, when it plainly belongs to one (optional)" },
         note: {
           type: "string",
           description:
-            "One plain sentence on what this search couldn't reach, shown with it under the collection's About: a source that failed, an index that misses part of a venue, papers with no abstract. Leave out when nothing was missed; owlit records your searches itself. (optional)",
+            "One plain sentence on what this search couldn't reach, shown with it under the thread's About: a source that failed, an index that misses part of a venue, papers with no abstract. Leave out when nothing was missed; owlit records your searches itself. (optional)",
         },
         rows: {
           type: "string",
@@ -278,7 +278,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         },
         columns: { type: "array", items: { type: "string" }, description: "New questions to ask of every paper, each becoming a column (optional)" },
         remove_rows: { type: "array", items: { type: "string" }, description: "Ids of papers you take out again (optional)" },
-        why: { type: "string", description: "One plain sentence on what this write did, for the collection's history (optional)" },
+        why: { type: "string", description: "One plain sentence on what this write did, for the thread's history (optional)" },
       },
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
@@ -286,7 +286,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "owlit_help",
     description:
-      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, collections, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
     inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic from the list, or a word to look for (optional)" } } },
     annotations: { readOnlyHint: true },
   },
@@ -309,6 +309,21 @@ export const OWLIT_TOOLS: ToolSpec[] = [
       required: ["mode"],
     },
     annotations: { readOnlyHint: true },
+  },
+  {
+    name: "memory_write",
+    description:
+      "Change what Owlit keeps in mind about the user: owlit's memory, one short list for this workspace that every session hears at its start. Keep a line when the user tells you to remember something or says \"from now on\", \"always\" or \"never\"; when they correct how you work in plain words; or when they state a fact about their work that will matter in a later chat. Not for guesses from habits, one-off requests, what papers say or what the user did. The user sees each change in the chat and can undo it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        op: { type: "string", enum: ["add", "replace", "remove"], description: "add a line; replace one (its id) when the user changed their mind or a line needs merging; remove one they take back" },
+        kind: { type: "string", enum: ["work", "about"], description: "add, or to move a line on replace: work = how the user wants Owlit to work; about = a fact about their work" },
+        text: { type: "string", description: "add and replace: one short sentence, in the user's words and language" },
+        id: { type: "string", description: "replace and remove: the line's id (m1, m2…), as the memory note lists it" },
+      },
+      required: ["op"],
+    },
   },
   {
     name: "chats_list",

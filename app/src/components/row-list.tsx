@@ -15,6 +15,9 @@ export function RowList({ as: Tag = "div", className, children, ...props }: { as
 // A row's shape; rowHover for rows that do something when clicked
 export const rowClass = "rounded-lg px-2"
 export const rowHover = "transition-colors hover:bg-accent focus-key:bg-accent outline-none"
+// For controls shown only while their `group/row` is hovered or they have keyboard focus; they go
+// before the ones that always show
+export const revealOnHover = "opacity-0 group-hover/row:opacity-100 focus-key:opacity-100"
 
 // A choice's icon, in a small tinted tile
 export function RowIcon({ children }: { children: React.ReactNode }) {

@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react"
 import { BotIcon, PaletteIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
+import { WaitingDot } from "@/components/marks"
 import { OwlitMark } from "@/components/owlit-mark"
 import { isBroken } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
@@ -96,7 +97,7 @@ export function SettingsDialog() {
                         <SidebarMenuButton isActive={s.id === section.id} onClick={() => showSection(s.id)}>
                           <s.icon />
                           <span>{i18n._(s.label)}</span>
-                          {needs[s.id] && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-warning" aria-label={t`Needs you`} />}
+                          {needs[s.id] && <WaitingDot className="ml-auto size-1.5" label={t`Needs you`} />}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
