@@ -1,6 +1,6 @@
 import type { Task } from "@owlit/protocol"
 import { execFileSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, onTestFinished } from "vitest"
@@ -756,6 +756,44 @@ describe("your own browser", () => {
     // The paper it stopped on went first again, then the next
     expect([...fake.tabs.values()].map((t) => t.url)).toEqual([pdfOf(acm.ids.doi), pdfOf(acm.ids.doi), pdfOf(second.ids.doi)])
     expect((await paperIn(call, acm.id)).noPdf.noAccess).toBeDefined()
+  })
+
+  it("takes a PDF saved after the user's browser was sent, once owlit starts again", async () => {
+    const { base, root, call, downloads } = await withDownloads()
+    for (const paper of [cell, acm]) {
+      await call("library.add", { paper })
+      await call("library.fetchPdf", { id: paper.id })
+    }
+    // Both sent a minute ago, then owlit quit; the Cell paper's PDF was saved meanwhile, and a file from
+    // before they were sent is nobody's
+    const sentAt = Date.now() - 60_000
+    for (const id of [cell.id, acm.id]) {
+      const file = path.join(root, "library/papers", id, "acquisition.json")
+      writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), sentToBrowser: { at: sentAt, page: id === cell.id } }))
+    }
+    const old = path.join(downloads, "old.pdf")
+    writeFileSync(old, makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1145/3613904.3642549" }]]))
+    utimesSync(old, new Date(sentAt - 60_000), new Date(sentAt - 60_000))
+    writeFileSync(path.join(downloads, "cell.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1016/j.cell.2020.01.001" }]]))
+    await Promise.all(cores.splice(0).map((c) => c.dispose()))
+
+    const fetch = (async () => new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
+    const { browser } = fakeBrowser(async (request) => {
+      throw new NeedsUser("challenge", new URL(request.landing).hostname)
+    })
+    const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch, browser, downloadsDir: () => downloads }, retryBaseMs: 1 })
+    cores.push(core)
+    const again = async (method: string, params?: unknown): Promise<any> => {
+      const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+      if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
+      return response.result
+    }
+    await again("workspace.open", { path: root })
+    await until(async () => (await paperIn(again, cell.id)).pdf)
+    // The ACM paper is still within its time: not taken from the old file, and looked for again
+    const acmPaper = await paperIn(again, acm.id)
+    expect(acmPaper.pdf).toBeUndefined()
+    expect(acmPaper.noPdf.offered).toBeUndefined()
   })
 
   it("waits out the library proxy's limit and tries the paper again", async () => {

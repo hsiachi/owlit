@@ -87,6 +87,9 @@ export interface Acquisition {
   // it), with the page it ended on; or it was sent and nothing came (missed). Kept across owlit's own
   // looks and restarts, until a PDF comes or the user's browser is sent again and ends otherwise.
   yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
+  // When the user's browser was last sent for it, and whether to an article page for them to save the
+  // PDF from: their Downloads is looked at from then, across restarts (library.resumeDownloads)
+  sentToBrowser?: { at: number; page: boolean }
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}
