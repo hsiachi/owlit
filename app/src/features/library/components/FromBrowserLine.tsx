@@ -5,8 +5,7 @@ import { InlineLink } from "@/components/inline-link"
 import { WaitingDot } from "@/components/marks"
 import { JoinDots, StatusLine } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
-import { cancelTask, resumeTask } from "@/features/tasks/store"
-import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useLastRun, usePagesToSave, useStoppedOn, useWaitingForBrowser, type RunTally } from "../from-browser"
+import { dismissRun, getInBrowser, useFromBrowser, useLastRun, type RunTally } from "../from-browser"
 import { useLibraryUi } from "../ui-store"
 
 // Getting PDFs from the user's own browser, in the import's place at the top of the Library and on the
@@ -16,13 +15,10 @@ import { useLibraryUi } from "../ui-store"
 // away. With no run going, the dot again with the papers not yet tried and Get them, whatever the
 // filter: the rail's dot sends the user here, so what it waits for is the first thing on the page, and the
 // sentence shows those papers under Needs you. Article pages still open for the user to save from are
-// named after them, so the two add up to Needs you.
+// named after them. Home's row says the same from the same view (useFromBrowser).
 export function FromBrowserLine() {
-  const run = useFromBrowserRun()
-  const stoppedOn = useStoppedOn()
+  const { run, waiting, pages } = useFromBrowser()
   const last = useLastRun()
-  const waiting = useWaitingForBrowser()
-  const pages = usePagesToSave()
   const filter = useLibraryUi((s) => s.filter)
   const setFilter = useLibraryUi((s) => s.setFilter)
   const showOnly = useLibraryUi((s) => s.showOnly)
@@ -32,25 +28,26 @@ export function FromBrowserLine() {
   let words: React.ReactNode
   let actions: React.ReactNode
   if (run) {
-    const done = run.progress?.done ?? 0
-    const total = run.progress?.total ?? done
+    const { done, total } = run
     const stop = (
-      <Button variant="text" size="inline" onClick={() => void cancelTask(run.id)}>
-        {t({ message: "Stop", comment: "stop getting PDFs from the browser" })}
+      <Button variant="text" size="inline" onClick={run.stop.run}>
+        {run.stop.label}
       </Button>
     )
-    if (run.state === "waiting_for_you") {
+    if (run.stopped) {
       mark = <WaitingDot />
-      words = run.waiting?.detail ?? stoppedLine(stoppedOn)
+      words = run.detail ?? run.what
       actions = (
         <>
-          <Button variant="text" size="inline" onClick={() => void showBrowser(stoppedOn?.id)}>
+          <Button variant="text" size="inline" onClick={run.show}>
             {t`Show browser`}
           </Button>
           {stop}
-          <Button variant="text" size="inline" onClick={() => void resumeTask(run.id)}>
-            {continueLabel(stoppedOn)}
-          </Button>
+          {run.resume && (
+            <Button variant="text" size="inline" onClick={run.resume.run}>
+              {run.resume.label}
+            </Button>
+          )}
         </>
       )
     } else {

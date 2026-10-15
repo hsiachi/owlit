@@ -3,6 +3,7 @@ import { DAY } from "@/lib/time"
 import { hasAllWords, queryWords } from "@/lib/words"
 import type { Paper } from "../types"
 import { surname } from "./format"
+import { needsYou } from "./pdf-wait"
 import type { Sort, StatusFilter } from "../ui-store"
 
 const firstSurname = (p: Paper) => (p.authors[0] ? surname(p.authors[0]) : "")
@@ -12,13 +13,6 @@ export function matchesQuery(p: Paper, q: string): boolean {
   // Every word must appear somewhere
   return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
-
-// A paper waits on the user while its publisher wants their browser and nothing has said no yet: once
-// their browser reached the publisher and was turned away (no access, no PDF there), or was sent and
-// nothing came, there is nothing for them to do now, so it leaves the amber rung and its card's Try
-// again is all that is left. So Needs you is what Get them would open, the article pages open for the
-// user to save from, and a run's papers while it goes on.
-export const needsYou = (p: Paper) => !!p.noPdf?.needs && !p.noPdf.noAccess && p.noPdf.fromBrowser?.state !== "missed"
 
 function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {

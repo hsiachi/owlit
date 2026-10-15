@@ -11,7 +11,8 @@ import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
-import { needsYou, type PaperGroup } from "../lib/filter"
+import type { PaperGroup } from "../lib/filter"
+import { needsYou, pdfWait } from "../lib/pdf-wait"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
@@ -100,9 +101,14 @@ function DigestMark({ state }: { state: DigestState }) {
 // them any more
 function noPdfWord(p: Paper) {
   if (needsYou(p)) return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
-  const said = p.noPdf?.noAccess
-  if (said) return said.missing ? t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" }) : t({ message: "No access", comment: "the user's library doesn't give them this paper" })
-  if (p.noPdf?.fromBrowser?.state === "missed") return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
+  switch (pdfWait(p)) {
+    case "missing":
+      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
+    case "no-access":
+      return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+    case "missed":
+      return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
+  }
   return undefined
 }
 

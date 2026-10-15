@@ -1,4 +1,4 @@
-import { plural, t } from "@lingui/core/macro"
+import { t } from "@lingui/core/macro"
 import * as React from "react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import {
@@ -22,40 +22,16 @@ import { matchNav, nav } from "@/app/nav"
 import { i18n } from "@/lib/i18n"
 import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
-import { useLibraryStore } from "@/features/library/store"
-import { needsYou } from "@/features/library/lib/filter"
-import { useWaitingForBrowserCount } from "@/features/library/from-browser"
-import { importAsks, useImports } from "@/features/library/imports"
-import { useTasksStore } from "@/features/tasks/store"
-import { useChatStore } from "@/features/chat/store"
-import { chatsNeedYou, useSeenStore } from "@/features/chat/status"
+import { useWaitingOnYou } from "@/app/waiting-on-you"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { pathname } = useLocation()
   const { setOpen } = useSidebar()
   const activeItem = matchNav(pathname)
-  // A publisher wants the user for some paper (a check, a sign-in): the Library's one mark, said as the
-  // Library's own line says it when the papers are ones their browser hasn't been sent to yet
-  const libraryNeedsYou = useLibraryStore((s) => Object.values(s.papers).some(needsYou))
-  const forBrowser = useWaitingForBrowserCount()
-  // An import stopped to ask about MinerU: its answers are on the Library's import line
-  const imports = useImports((s) => s.list)
-  const importNeedsYou = useTasksStore((s) => imports.some((i) => !!s.byId[i.taskId] && importAsks(s.byId[i.taskId])))
-  // A chat waits on a permission or broke: the Chat place's one mark, so work handed off can reach the user
-  // wherever they are reading
-  const dismissed = useSeenStore((s) => s.dismissed)
-  const chatNeedsYou = useChatStore((s) => chatsNeedYou(s.chats, s.streaming, dismissed))
-  // A reply Owlit finished while the user wasn't looking at its chat: the ladder's "changed since you last
-  // looked" dot, so an answer that landed while they were reading reaches them without watching the list
-  const chatFinished = useSeenStore((s) => Object.keys(s.unseen).length > 0)
-  const markOf = (to: string): { why: string; tone: "warning" | "owlit" } | undefined => {
-    if (to === "/library" && libraryNeedsYou)
-      return { why: forBrowser ? plural(forBrowser, { one: "# paper waits for your browser", other: "# papers wait for your browser" }) : t`A paper needs you`, tone: "warning" }
-    if (to === "/library" && importNeedsYou) return { why: t`An import asks about MinerU`, tone: "warning" }
-    if (to === "/chat" && chatNeedsYou) return { why: t`A chat needs you`, tone: "warning" }
-    if (to === "/chat" && chatFinished) return { why: t`Owlit finished since you last looked`, tone: "owlit" }
-    return undefined
-  }
+  // A place's one mark: the first thing waiting there (app/waiting-on-you.ts), amber, or Owlit's dot for a
+  // reply finished while the user wasn't looking at its chat. Work at its own pace marks nothing.
+  const waiting = useWaitingOnYou()
+  const markOf = (to: string) => waiting.find((w) => w.place === to && w.tone !== "working")
 
   return (
     <Sidebar
@@ -71,7 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenu className="gap-2">
                 {nav.map((item) => {
                   const mark = markOf(item.to)
-                  const needsYou = mark?.why
+                  const needsYou = mark?.what
                   const place = i18n._(item.label)
                   return (
                     <SidebarMenuItem key={item.to}>

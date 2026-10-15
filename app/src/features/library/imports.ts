@@ -4,8 +4,10 @@
 
 import type { ImportPreview, ImportSource, ImportSummary, Task } from "@owlit/protocol"
 import { create } from "zustand"
+import { useShallow } from "zustand/react/shallow"
 import { bridge, isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { useTasksStore } from "@/features/tasks/store"
 
 const isImportTask = (task: Pick<Task, "kind">) => /^import\.(zotero|bibtex|folder)$/.test(task.kind)
 
@@ -17,6 +19,13 @@ interface ImportsState {
 }
 
 export const useImports = create<ImportsState>(() => ({ list: [] }))
+
+// The imports stopped to ask about MinerU, oldest first: their answers are on the Library's import line,
+// which shows the first, and the rail's mark and Home's rows send the user there
+export function useAskingImports(): ImportSummary[] {
+  const list = useImports((s) => s.list)
+  return useTasksStore(useShallow((s) => list.filter((i) => !!s.byId[i.taskId] && importAsks(s.byId[i.taskId]))))
+}
 
 async function load() {
   try {

@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { fileName } from "@/lib/names"
 import { cancelTask, useTasksStore } from "@/features/tasks/store"
-import { answerImport, continueImport, dismissImport, importAsks, useImports } from "../imports"
+import { answerImport, continueImport, dismissImport, importAsks, useAskingImports, useImports } from "../imports"
+import { pdfWait } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
 
@@ -30,7 +31,7 @@ export function ImportBanner() {
   const list = useImports((s) => s.list)
   // One that asks comes first, whichever it is: the sidebar's mark and Home's list send the person here
   // to answer it
-  const asking = useTasksStore((s) => list.find((i) => !!s.byId[i.taskId] && importAsks(s.byId[i.taskId])))
+  const asking = useAskingImports()[0]
   const current = asking ?? list.find((i) => !i.dismissed)
   const task = useTasksStore((s) => (current ? s.byId[current.taskId] : undefined))
   if (!current) return null
@@ -138,7 +139,7 @@ function Done({ summary }: { summary: ImportSummary }) {
   // Said once every new paper's PDF lookup has ended, so the number doesn't count down in front of you
   const withoutPdf = useMemo(() => {
     const here = summary.added.map((id) => papers[id]).filter(Boolean)
-    if (here.some((p) => !p.pdf && !p.noPdf)) return null
+    if (here.some((p) => pdfWait(p) === "not-yet")) return null
     return here.filter((p) => !p.pdf).length
   }, [summary.added, papers])
 

@@ -17,24 +17,13 @@ import { PublisherNeedsUser } from "../../client"
 import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun } from "../../from-browser"
 import { libraryClient, useLibraryStore } from "../../store"
 import type { Paper } from "../../types"
+import { pdfWait, type PdfWait } from "../../lib/pdf-wait"
 
-type CardState =
-  | "looking"
-  | "offered"
-  | "not-found"
-  | "not-yet"
-  // owlit couldn't get it alone, and the user's own browser is the way (from-browser.ts): waiting for
-  // them, waiting its turn in a run, opened there, its page opened for them to save the PDF from, or
-  // opened with nothing arriving
-  | "browser"
-  | "browser-queued"
-  | "browser-opened"
-  | "browser-page"
-  | "browser-missed"
-  // The run stopped on this paper for the user: what its tab showed (noPdf.fromBrowser.why)
-  | "browser-waiting"
-  // The user's browser reached the publisher (or the library's proxy) and was told no
-  | "no-access"
+// What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
+type CardState = PdfWait | "looking"
+
+// Being got from the user's browser, or a file for them to confirm, comes before owlit's own looking
+const BEFORE_LOOKING: ReadonlySet<CardState> = new Set(["offered", "run-stopped", "page", "queued", "opened", "missed"])
 
 const card = (state: CardState, paper?: Paper): { title: string; detail: string } => {
   const browser = paper?.noPdf?.fromBrowser?.browser
@@ -57,18 +46,18 @@ const card = (state: CardState, paper?: Paper): { title: string; detail: string 
             ? t`owlit can't get it by itself. It opens the paper's page in your browser: save the PDF there, and owlit takes it from Downloads.`
             : t`owlit can't get it by itself. Your browser saves the PDF to Downloads, and owlit takes it from there.`,
       }
-    case "browser-queued":
+    case "queued":
       return { title: t`Waiting its turn`, detail: t`owlit opens papers in your browser one at a time, a few seconds apart.` }
-    case "browser-opened":
+    case "opened":
       return {
         title: t`Getting it from your browser…`,
         detail: browser ? t`${browser} saves it to Downloads, and owlit takes it from there.` : t`Your browser saves it to Downloads, and owlit takes it from there.`,
       }
-    case "browser-page":
+    case "page":
       return browser
         ? { title: t`Save the PDF from the page in ${browser}`, detail: t`The paper's page is open in ${browser}. Save its PDF there, and owlit takes it from Downloads.` }
         : { title: t`Save the PDF from the page in your browser`, detail: t`The paper's page is open in your browser. Save its PDF there, and owlit takes it from Downloads.` }
-    case "browser-waiting": {
+    case "run-stopped": {
       const why = paper?.noPdf?.fromBrowser?.why
       return {
         title: stoppedLine(paper),
@@ -86,17 +75,21 @@ const card = (state: CardState, paper?: Paper): { title: string; detail: string 
       const host = said?.host ?? ""
       return said?.refused
         ? { title: t`Your library doesn't offer this paper`, detail: title ? t`Its proxy answered “${title}”.` : t`Its proxy turned the paper away.` }
-        : said?.missing
-          ? {
-              title: host ? t`${host} has no PDF of this paper` : t`The publisher has no PDF of this paper`,
-              detail: title ? t`It answered “${title}”. The paper may be kept somewhere else: drop its PDF here if you find it.` : t`The paper may be kept somewhere else: drop its PDF here if you find it.`,
-            }
-          : {
-              title: t`No access through your library`,
-              detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
-            }
+        : {
+            title: t`No access through your library`,
+            detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
+          }
     }
-    case "browser-missed":
+    case "missing": {
+      const said = paper?.noPdf?.noAccess
+      const title = said?.title ?? ""
+      const host = said?.host ?? ""
+      return {
+        title: host ? t`${host} has no PDF of this paper` : t`The publisher has no PDF of this paper`,
+        detail: title ? t`It answered “${title}”. The paper may be kept somewhere else: drop its PDF here if you find it.` : t`The paper may be kept somewhere else: drop its PDF here if you find it.`,
+      }
+    }
+    case "missed":
       return {
         title: t`Nothing came from your browser`,
         detail: browser
@@ -112,8 +105,6 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
   const looking = useTasksStore((s) => tasksFor(s.byId, paper.id).some((task) => !isTaskFinished(task) && (task.kind === "paper.pdf" || task.kind === "paper.pdf.browser"))) || fetching
-  const needs = paper.noPdf?.needs
-  const fromBrowser = paper.noPdf?.fromBrowser
   const offered = paper.noPdf?.offered
   const run = useFromBrowserRun()
 
@@ -159,18 +150,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
-  // Being got from the user's browser comes before owlit's own looking
-  const state: CardState = offered
-    ? "offered"
-    : fromBrowser
-      ? `browser-${fromBrowser.state}`
-      : looking
-        ? "looking"
-        : paper.noPdf?.noAccess
-          ? "no-access"
-          : (needs ?? (paper.noPdf ? "not-found" : "not-yet"))
+  const wait = pdfWait(paper) ?? "not-yet"
+  const state: CardState = looking && !BEFORE_LOOKING.has(wait) ? "looking" : wait
   const { title, detail: plain } = card(state, paper)
-  const working = state === "looking" || state === "browser-queued" || state === "browser-opened"
+  const working = state === "looking" || state === "queued" || state === "opened"
   const tried = triedSentence(paper.noPdf?.tried ?? [])
   const file = offered ?? ""
   // What was tried and what to do, as one message so a language can join the two sentences its own way
@@ -215,16 +198,16 @@ export function NoPdf({ paper }: { paper: Paper }) {
               </Button>
               {chooseFile}
             </>
-          ) : state === "browser-queued" ? (
+          ) : state === "queued" ? (
             chooseFile
-          ) : state === "browser-opened" || state === "browser-page" ? (
+          ) : state === "opened" || state === "page" ? (
             <>
-              <Button size="sm" variant={state === "browser-page" ? "default" : "outline"} onClick={() => void showBrowser(paper.id)}>
+              <Button size="sm" variant={state === "page" ? "default" : "outline"} onClick={() => void showBrowser(paper.id)}>
                 {t`Show browser`}
               </Button>
               {chooseFile}
             </>
-          ) : state === "browser-waiting" ? (
+          ) : state === "run-stopped" ? (
             <>
               <Button size="sm" onClick={() => void showBrowser(paper.id)}>
                 {t`Show browser`}
@@ -233,16 +216,16 @@ export function NoPdf({ paper }: { paper: Paper }) {
                 {continueLabel(paper)}
               </Button>
             </>
-          ) : state === "no-access" ? (
+          ) : state === "no-access" || state === "missing" ? (
             <>
               {/* Nothing at the address the browser went to: owlit looks again for another copy rather
                   than sending it back there */}
-              <Button size="sm" variant="outline" disabled={looking} onClick={() => void (paper.noPdf?.noAccess?.missing ? fetchPdf() : getInBrowser([paper.id]))}>
+              <Button size="sm" variant="outline" disabled={looking} onClick={() => void (state === "missing" ? fetchPdf() : getInBrowser([paper.id]))}>
                 {t`Try again`}
               </Button>
               {chooseFile}
             </>
-          ) : state === "browser-missed" ? (
+          ) : state === "missed" ? (
             <>
               <Button size="sm" onClick={() => void showBrowser(paper.id)}>
                 {t`Show browser`}
