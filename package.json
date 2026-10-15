@@ -7,11 +7,13 @@
   "scripts": {
     "dev": "pnpm --filter @owlit/desktop dev",
     "dev:web": "pnpm --filter owlit-app dev",
+    "try": "node scripts/try.mjs",
     "build": "pnpm --filter @owlit/desktop build",
     "test": "vitest run",
     "lint": "pnpm -r --no-bail lint",
     "typecheck": "pnpm -r typecheck",
     "i18n:extract": "lingui extract --clean",
+    "app:install": "node apps/desktop/scripts/install-app.mjs",
     "release": "pnpm --filter @owlit/desktop release",
     "release:ship": "node apps/desktop/scripts/ship.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
