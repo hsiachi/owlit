@@ -19,11 +19,27 @@ describe("roles", () => {
       expect(guardFor("claude-code", role, ["/w"]).meta).toMatchObject({ claudeCode: { options: { settings: { autoMemoryEnabled: false, autoDreamEnabled: false } } } })
     }
     const codex = JSON.parse(processEnv("codex", {}).CODEX_CONFIG)
-    expect(codex).toEqual({ features: { memories: false }, memories: { generate_memories: false, use_memories: false } })
+    expect(codex).toMatchObject({ features: { memories: false }, memories: { generate_memories: false, use_memories: false } })
     // The user's own CODEX_CONFIG stays, with memories turned off on top
     const theirs = JSON.parse(processEnv("codex", { CODEX_CONFIG: JSON.stringify({ model: "o9", features: { memories: true, web: true } }) }).CODEX_CONFIG)
     expect(theirs).toMatchObject({ model: "o9", features: { memories: false, web: true } })
     expect(processEnv("claude-code", {})).toEqual({})
+  })
+
+  it("leaves the user's Codex skills, plugins, connectors, hooks and workspace AGENTS.md out", () => {
+    const codex = JSON.parse(processEnv("codex", {}).CODEX_CONFIG)
+    expect(codex).toMatchObject({
+      features: { plugins: false, apps: false, tool_suggest: false, computer_use: false, browser_use: false, in_app_browser: false, hooks: false },
+      skills: { include_instructions: false },
+      project_doc_max_bytes: 0,
+      notify: [],
+    })
+    // owlit's switches win over the user's own CODEX_CONFIG, and the rest of theirs stays
+    const own = { skills: { include_instructions: true, bundled: { enabled: true } }, notify: ["say", "done"], project_doc_max_bytes: 9 }
+    const theirs = JSON.parse(processEnv("codex", { CODEX_CONFIG: JSON.stringify(own) }).CODEX_CONFIG)
+    expect(theirs).toMatchObject({ skills: { include_instructions: false, bundled: { enabled: true } }, notify: [], project_doc_max_bytes: 0 })
+    // A CODEX_CONFIG that isn't JSON is replaced by owlit's
+    expect(JSON.parse(processEnv("codex", { CODEX_CONFIG: "{nope" }).CODEX_CONFIG)).toMatchObject({ skills: { include_instructions: false } })
   })
 
   it("runs Codex read-only unless Owlit is a Co-author", () => {

@@ -35,9 +35,9 @@ export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 //   memory folder.
 // Auto mode doesn't depend on any of it (checked: the session still offers it).
 //
-// Codex has no such switch yet: codex-acp passes no session options to Codex, which reads
-// ~/.codex/config.toml (MCP servers, skills) and AGENTS.md itself. Its memories it can be kept from
-// (processEnv below).
+// Codex takes no session options; what of the user's setup it leaves out is set for its whole process
+// (processEnv below). Two things still come through: the user's MCP servers and their own AGENTS.md
+// (docs/decisions/README.md, Open).
 
 const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch", "TodoWrite", "AskUserQuestion"]
 
@@ -64,10 +64,25 @@ export function sessionMeta(connectorId: string, options: ClaudeOptions = {}): R
   }
 }
 
-// What an agent's process is started with beyond the user's own environment. Codex keeps memories of
-// every project in ~/.codex/memories, written in the background, and owlit's sessions read and added to
-// them; codex-acp merges CODEX_CONFIG (JSON) into Codex's config, so memories go off there, on top of any
-// CODEX_CONFIG the user set. Checked 2026-10-16 with codex-acp 2.2.1: Codex no longer sees the folder.
+// What an agent's process is started with beyond the user's own environment. codex-acp sends CODEX_CONFIG
+// (JSON) with every new session as config over the user's ~/.codex/config.toml, so owlit's isolation for
+// Codex goes there, on top of any CODEX_CONFIG the user set. Checked 2026-10-16 with codex-acp 2.2.1
+// (Codex 0.160), by what the session's rollout file recorded and what it said it had:
+// - memories off: Codex keeps memories of every project in ~/.codex/memories, written in the background,
+//   and owlit's sessions read and added to them
+// - skills.include_instructions false: the session isn't told of any skill (the user's, their plugins',
+//   the workspace's .agents/skills or Codex's own), and has no tool to look one up
+// - plugins and apps off: the user's plugins (with their skills and MCP servers) and the connectors of
+//   their ChatGPT account (Gmail, Drive, publishing sites); tool_suggest off stops it offering to install
+//   more. computer_use, browser_use and in_app_browser off, as tools that act outside the workspace
+// - hooks off and notify [], so nothing the user set to run at a turn's events runs for owlit's
+// - project_doc_max_bytes 0: no AGENTS.md from the workspace. ~/.codex/AGENTS.md still comes; none of
+//   instructions, developer_instructions or project_doc_max_bytes stops it.
+// Merging only adds to the user's config, which is why their MCP servers stay: an entry's
+// `mcp_servers.<name>.enabled` false would turn one off, but codex-acp sends owlit's own server as the
+// whole `mcp_servers` key, and Codex applies the keys in no fixed order, so the entry was wiped in some
+// sessions and not others. And after a session's first turn codex-acp starts a short thread of its own to
+// title it, without CODEX_CONFIG, so that one starts the user's whole setup (it is told only to title).
 export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<string, string> {
   if (connectorId !== "codex") return {}
   let config: Record<string, unknown> = {}
@@ -81,8 +96,21 @@ export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<
   return {
     CODEX_CONFIG: JSON.stringify({
       ...config,
-      features: { ...section("features"), memories: false },
+      features: {
+        ...section("features"),
+        memories: false,
+        plugins: false,
+        apps: false,
+        tool_suggest: false,
+        computer_use: false,
+        browser_use: false,
+        in_app_browser: false,
+        hooks: false,
+      },
       memories: { ...section("memories"), generate_memories: false, use_memories: false },
+      skills: { ...section("skills"), include_instructions: false },
+      project_doc_max_bytes: 0,
+      notify: [],
     }),
   }
 }
