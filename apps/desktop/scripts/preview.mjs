@@ -35,7 +35,8 @@ export function devBundle({ electronBin, cacheDir, name, icon }) {
   const source = path.resolve(electronBin, "../../..")
   const bundle = path.join(cacheDir, "Owlit Dev.app")
   const stamp = path.join(cacheDir, "stamp.json")
-  const want = JSON.stringify({ name, electron: plistValue(path.join(source, "Contents/Info.plist"), "CFBundleVersion"), icon: hashFile(icon) })
+  const identity = signingIdentity()
+  const want = JSON.stringify({ name, electron: plistValue(path.join(source, "Contents/Info.plist"), "CFBundleVersion"), icon: hashFile(icon), identity })
   if (existsSync(bundle) && existsSync(stamp) && readFileSync(stamp, "utf8") === want) return path.join(bundle, "Contents/MacOS/Electron")
 
   rmSync(cacheDir, { recursive: true, force: true })
@@ -45,10 +46,26 @@ export function devBundle({ electronBin, cacheDir, name, icon }) {
   for (const [key, value] of [["CFBundleName", name], ["CFBundleDisplayName", name], ["CFBundleIdentifier", "app.owlit.dev"]])
     execFileSync("plutil", ["-replace", key, "-string", value, plist])
   execFileSync("cp", [icon, path.join(bundle, "Contents/Resources/electron.icns")])
-  // Editing Info.plist breaks the bundle's seal; macOS ties keychain and folder grants to the signature
-  execFileSync("codesign", ["--force", "--deep", "--sign", "-", bundle], { stdio: "ignore" })
+  // Editing Info.plist breaks the bundle's seal; macOS ties keychain and folder grants to the signature.
+  // An ad hoc signature is known by its hash, which differs with each checkout's name, so every worktree
+  // would ask again for the keychain item; signed with the certificate, every preview is the same app
+  // (identifier app.owlit.dev and that certificate) and one "Always Allow" covers them all.
+  execFileSync("codesign", ["--force", "--deep", "--sign", identity ?? "-", bundle], { stdio: "ignore" })
   writeFileSync(stamp, want)
   return path.join(bundle, "Contents/MacOS/Electron")
+}
+
+// The release's self-signed certificate in the login keychain (CONTRIBUTING.md › Releases), by its SHA-1 so
+// a second certificate of the same name can't make codesign refuse; null without one. A different identifier
+// from the installed Owlit's keeps the previews' grants apart from its.
+function signingIdentity() {
+  const name = process.env.OWLIT_SIGN_IDENTITY || "Owlit Self-Signed"
+  try {
+    const found = execFileSync("security", ["find-identity", "-p", "codesigning"], { encoding: "utf8" })
+    return found.split("\n").find((line) => line.includes(`"${name}"`))?.match(/\b[0-9A-F]{40}\b/)?.[0] ?? null
+  } catch {
+    return null
+  }
 }
 
 // The preview's app data folder for this checkout, cloned from the real one when it doesn't exist yet (or
