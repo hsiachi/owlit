@@ -45,7 +45,12 @@ export interface Sent {
 export const isCheckTitle = (title: string) => CHECK.test(title)
 const CHECK = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|请稍候|正在验证|安全检查/i
 const LIMIT = /(minute|rate|request|access)-?limit|too-?many/i
-const SIGN_IN = /log-?in|sign-?in|sso|saml|\bcas\b|\/idp\/|shibboleth|openathens|wayf|\bauth|登录|认证|身份/i
+// Whole words only (a host's labels, a path's segments, a title's words): "sso" is in "Lessons" and
+// "Association", "auth" begins "Author" and "Authentic", and doi.org sends article pages with such
+// titles to publishers owlit doesn't know (2026-10-15, BMJ's and the APA's stopped runs as sign-ins).
+// camelCase is read as words too, for /LoginForm and /userLogin.
+const SIGN_IN = /(?<![a-z])(log-?(in|on)s?|sign-?(in|on)|sso(login)?|saml|cas|idp|shibboleth|openathens|wayf|o?auth(n|server|enticate|entication)?)(?![a-z])|登录|认证|身份/i
+const signIn = (text: string) => SIGN_IN.test(text) || SIGN_IN.test(text.replace(/([a-z])([A-Z])/g, "$1 $2"))
 const PAYWALL = /get access|access options|purchase|buy article|\brent\b|subscribe|institutional access|购买|订阅/i
 const MISSING = /\b(404|410)\b|not found|page (doesn't|does not) exist|找不到|不存在/i
 const REFUSED = /unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限/i
@@ -84,7 +89,7 @@ export function whereItEnded(tab: { url: string; title: string }, sent: Sent): E
   // www-sciencedirect-com.proxy.example.edu): an article page through the library, which may carry any
   // words in its path
   if (/^\/https?\/\d+\//.test(at.pathname) || /-(com|org|net|edu|gov)\./.test(at.hostname)) return sent.page ? "landed" : "no-access"
-  if (SIGN_IN.test(where) || SIGN_IN.test(title)) return "sign-in"
+  if (signIn(where) || signIn(title)) return "sign-in"
   if (REFUSED.test(where) || REFUSED.test(title)) return "refused"
   if (sent.proxy) {
     const proxy = new URL(sent.proxy)
