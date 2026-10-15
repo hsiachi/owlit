@@ -148,6 +148,9 @@ export function isThisPaper(said: PdfLook | undefined, paper: { doi?: string; ti
   return title.length >= 20 || said.doi ? "no" : "unknown"
 }
 
+// The same title, whatever its case, punctuation and spacing; only titles long enough to tell
+export const sameTitle = (a: string, b: string) => normalize(a).length >= 20 && normalize(a) === normalize(b)
+
 // The addresses a browser recorded the file was saved from (macOS keeps them with the file, as Finder's
 // "Where from"), or undefined where there are none
 export async function savedFrom(file: string): Promise<string[] | undefined> {

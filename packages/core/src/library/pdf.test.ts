@@ -262,3 +262,35 @@ describe("is this the paper", () => {
     expect(isThisPaper({ text: "Something else" }, { title: "Flow" })).toBe("unknown")
   })
 })
+
+describe("a paper without a DOI", () => {
+  const title = "Flow states in sustained attention during everyday computer work"
+  const entry = (name: string, author: string) =>
+    `<feed><entry><id>http://arxiv.org/abs/2401.00001v1</id><title>${name}</title><published>2024-01-01T00:00:00Z</published><author><name>${author}</name></author></entry></feed>`
+
+  it("looks for an open copy with its very title, and keeps it once its pages say so", async () => {
+    const { root, call } = await setup(
+      serving({
+        "export.arxiv.org": () => new Response(entry(title.toUpperCase(), "Mihaly Csikszentmihalyi")),
+        "arxiv.org/pdf/2401.00001": () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text: title }]])),
+      }),
+    )
+    const paper = { id: "openalex-w1", title, authors: ["M. Csikszentmihalyi"], ids: { openalex: "W1" } }
+    await call("library.add", { paper })
+    expect((await call("library.fetchPdf", { id: paper.id })).pdf).toBeDefined()
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))).toMatchObject({ route: "title:arxiv" })
+  })
+
+  it("leaves a paper by someone else with that title alone", async () => {
+    const { root, call } = await setup(
+      serving({
+        "export.arxiv.org": () => new Response(entry(title, "Somebody Else")),
+        "arxiv.org/pdf/2401.00001": () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text: title }]])),
+      }),
+    )
+    const paper = { id: "openalex-w1", title, authors: ["M. Csikszentmihalyi"], ids: { openalex: "W1" } }
+    await call("library.add", { paper })
+    await call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8")).result).toBe("no_pdf")
+  })
+})

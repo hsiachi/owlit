@@ -3652,6 +3652,24 @@ msgid "{0, plural, one {Get it} other {Get them}}"
 msgstr "{0, plural, one {Get it} other {Get them}}"
 
 #: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{total, plural, one {# paper without a PDF} other {# papers without a PDF}}"
+msgstr "{total, plural, one {# paper without a PDF} other {# papers without a PDF}}"
+
+#. placeholder {0}: maybe.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# might come through your browser} other {# might come through your browser}}"
+msgstr "{0, plural, one {# might come through your browser} other {# might come through your browser}}"
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "Might come through your browser"
+msgstr "Might come through your browser"
+
+#. placeholder {0}: maybe.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {Try it in your browser} other {Try them in your browser}}"
+msgstr "{0, plural, one {Try it in your browser} other {Try them in your browser}}"
+
+#: app/src/features/library/components/FromBrowserLine.tsx
 msgid "Got {got} of {total} from {browser}"
 msgstr "Got {got} of {total} from {browser}"
 
@@ -3663,27 +3681,31 @@ msgstr "Got {got} of {total} from your browser"
 msgid "Got from your browser"
 msgstr "Got from your browser"
 
+#. group of papers the user's library doesn't give them
+#. the user's library doesn't give them this paper
+#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/lib/filter.ts
+msgid "No access"
+msgstr "No access"
+
 #. placeholder {0}: tally.noAccess.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {# no access} other {# no access}}"
 msgstr "{0, plural, one {# no access} other {# no access}}"
 
-#. the user's library doesn't give them this paper
+#. group of papers the user's browser was sent for and no PDF arrived
+#. the user's browser was sent for the PDF and none arrived
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/PaperList.tsx
-msgid "No access"
-msgstr "No access"
+#: app/src/features/library/lib/filter.ts
+msgid "Didn't come"
+msgstr "Didn't come"
 
 #. placeholder {0}: tally.missed.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {# didn't come} other {# didn't come}}"
 msgstr "{0, plural, one {# didn't come} other {# didn't come}}"
-
-#. the user's browser was sent for the PDF and none arrived
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/components/PaperList.tsx
-msgid "Didn't come"
-msgstr "Didn't come"
 
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{browser}:"
@@ -4025,11 +4047,21 @@ msgstr "Read"
 
 #. a paper whose publisher wants the user to check or sign in
 #. filter chip: papers whose publisher wants the user to check or sign in
+#. group of papers without a PDF whose publisher wants the user
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/lib/filter.ts
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Needs you"
 msgstr "Needs you"
+
+#. filter chip: papers owlit has no PDF of
+#. owlit looked for the paper's PDF and found none
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "No PDF"
+msgstr "No PDF"
 
 #. placeholder {0}: only.label
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -4069,8 +4101,10 @@ msgstr "New digest"
 msgid "Digest stopped"
 msgstr "Digest stopped"
 
+#. group of papers whose publisher has no PDF of them
 #. the publisher has no PDF of the paper
 #: app/src/features/library/components/PaperList.tsx
+#: app/src/features/library/lib/filter.ts
 msgid "No PDF there"
 msgstr "No PDF there"
 
@@ -4256,6 +4290,12 @@ msgstr "{0, plural, one {Added # paper} other {Added # papers}}"
 #: app/src/features/library/lib/filter.ts
 msgid "Earlier"
 msgstr "Earlier"
+
+#. group of papers owlit looked for and found no PDF of
+#: app/src/features/library/lib/filter.ts
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No PDF found"
+msgstr "No PDF found"
 
 #. Library papers no collection holds
 #: app/src/features/library/lib/filter.ts
@@ -4456,10 +4496,6 @@ msgstr "File"
 msgid "{pages, plural, one {PDF, # page} other {PDF, # pages}}"
 msgstr "{pages, plural, one {PDF, # page} other {PDF, # pages}}"
 
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "No PDF"
-msgstr "No PDF"
-
 #. how much of the paper's text owlit has read
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Text"
@@ -4541,10 +4577,6 @@ msgstr "If you already have it, drop it here."
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Is this the paper's PDF?"
 msgstr "Is this the paper's PDF?"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
-msgstr "No PDF found"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Drop a PDF here if you have it."
@@ -4651,6 +4683,14 @@ msgid "No access through your library"
 msgstr "No access through your library"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Through your library, {host} offered access instead of the PDF. Your library may not subscribe to this journal."
+msgstr "Through your library, {host} offered access instead of the PDF. Your library may not subscribe to this journal."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Through your library, the publisher offered access instead of the PDF. Your library may not subscribe to this journal."
+msgstr "Through your library, the publisher offered access instead of the PDF. Your library may not subscribe to this journal."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Your browser reached {host}, which showed its page instead of the PDF. Your library may not subscribe to this journal."
 msgstr "Your browser reached {host}, which showed its page instead of the PDF. Your library may not subscribe to this journal."
 
@@ -4693,6 +4733,10 @@ msgstr "Could not find a PDF."
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried} Drop a PDF here if you have it."
 msgstr "{tried} Drop a PDF here if you have it."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried} It has no DOI, so owlit could only look by its title. Drop a PDF here if you have it."
+msgstr "{tried} It has no DOI, so owlit could only look by its title. Drop a PDF here if you have it."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
@@ -4747,6 +4791,10 @@ msgstr "the library proxy"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "open-access links"
 msgstr "open-access links"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "a search by its title"
+msgstr "a search by its title"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit knows of no open copy of this paper."

@@ -33,7 +33,7 @@ import path from "node:path"
 import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
 import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
-import { DownloadWatch, isThisPaper, WATCH_MS, whoseDownload } from "./downloads.ts"
+import { DownloadWatch, isThisPaper, sameTitle, WATCH_MS, whoseDownload } from "./downloads.ts"
 import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
 import { Publishers, type VisitEnd } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -1552,6 +1552,37 @@ export class Library {
     })
   }
 
+  // Open copies of a paper known only by its title (no DOI), from arXiv, Semantic Scholar and OpenAlex:
+  // only a record with the very same title, and the same first author's surname when both name one.
+  // What comes is checked against the title on its pages before it is kept (Route.checkTitle).
+  private async copiesByTitle(record: PaperRecord, http: Http, signal: AbortSignal): Promise<Route[]> {
+    if (!sameTitle(record.title, record.title)) return []
+    const settings = await this.services.settings()
+    const surname = (name?: string) => name?.trim().split(/\s+/).at(-1)?.toLowerCase()
+    const routes: Route[] = []
+    const seen = new Set<string>()
+    for (const source of ["arxiv", "s2", "openalex"] as const) {
+      const found = await searchSource(http, record.title, 3, source, {}, settings, { retries: 1, signal }).catch((error) => {
+        if (signal.aborted) throw error
+        return { records: [] }
+      })
+      for (const hit of found.records) {
+        if (!hit.title || !sameTitle(hit.title, record.title)) continue
+        const theirs = surname(hit.authors?.[0])
+        const ours = surname(record.authors[0])
+        if (theirs && ours && theirs !== ours) continue
+        const urls = [...(hit.ids.arxiv ? [`https://arxiv.org/pdf/${hit.ids.arxiv}`] : []), ...(hit.pdfUrls ?? [])]
+        for (const url of urls) {
+          if (seen.has(url)) continue
+          seen.add(url)
+          routes.push({ kind: "upstream", name: `title:${source}`, url, checkTitle: true })
+        }
+      }
+      if (routes.length) break
+    }
+    return routes
+  }
+
   // When the user's browser was sent for the paper, so a PDF saved after a restart is still found
   private async noteSent(id: string, page: boolean) {
     await this.serial.run(async () => {
@@ -2076,7 +2107,16 @@ export class Library {
           // A repository's page that came instead of its PDF may name the PDF: tried next, once
           const pages: Route[] = []
           const iterator = routes[Symbol.asyncIterator]()
-          const next = async () => pages.shift() ?? ((await iterator.next()).value as Route | undefined)
+          // A paper without a DOI has only the links it came with: once they fail, open copies of a paper
+          // with its very title are looked for (copiesByTitle)
+          let byTitle = !record.ids.doi
+          const next = async (): Promise<Route | undefined> => {
+            const route = pages.shift() ?? ((await iterator.next()).value as Route | undefined)
+            if (route || !byTitle) return route
+            byTitle = false
+            pages.push(...(await this.copiesByTitle(record!, http, ctx.signal)))
+            return pages.shift()
+          }
           for (let route = await next(); route; route = await next()) {
             ctx.progress(tried.length, undefined, route.name)
             // A site that answers plain downloads with a check is left to the browser for a while:
