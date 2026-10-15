@@ -3,6 +3,8 @@ import { findAnchor, locateInMarkdown, type CommentAnchor, type DocComment } fro
 import { newId } from "@/lib/id"
 import { toastError, toastUndo } from "@/lib/toast"
 import { useAgentWindow } from "@/features/agent/store"
+import { useChatStore } from "@/features/chat/store"
+import type { QuotedSelection } from "@/features/chat/types"
 import { docMentionable } from "../lib/mentions"
 import { shares, commentThreadsOf, type CommentThread } from "../share/store"
 import { useDocsStore } from "../store"
@@ -21,6 +23,8 @@ export interface CommentView {
   find: (text: string) => { from: number; to: number } | null
   doc?: DocComment
   thread?: CommentThread
+  // Put away (the doc's own) or marked resolved (a reader's): only in the Resolved comments list
+  resolved?: boolean
 }
 
 export interface EntryView {
@@ -42,6 +46,7 @@ function fromDoc(c: DocComment): CommentView {
   return {
     key: docKey(c.id),
     quote: c.quote,
+    resolved: !!c.resolvedAt,
     createdAt: c.createdAt,
     doc: c,
     find: (text) => {
@@ -75,6 +80,7 @@ function fromThread(th: CommentThread): CommentView {
     quote: th.root.anchor.quote,
     createdAt: th.root.at,
     thread: th,
+    resolved: !!th.root.resolved,
     // A reader quoted the doc as drawn, so the passage is found again in the Markdown
     find: (text) => locateInMarkdown(text, th.root.anchor),
     entries: [entry(th.root), ...th.replies.map(entry)],
@@ -85,6 +91,13 @@ function fromThread(th: CommentThread): CommentView {
 export function commentViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
   const own = (docComments ?? []).filter((c) => !c.resolvedAt && c.entries.length).map(fromDoc)
   return [...own, ...commentThreadsOf(readerComments).map(fromThread)].sort((a, b) => a.createdAt - b.createdAt)
+}
+
+// The ones put away, newest first, for the Resolved comments list
+export function resolvedViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
+  const own = (docComments ?? []).filter((c) => c.resolvedAt && c.entries.length).map(fromDoc)
+  const at = (v: CommentView) => v.doc?.resolvedAt ?? v.createdAt
+  return [...own, ...commentThreadsOf(readerComments, { resolved: true }).map(fromThread)].sort((a, b) => at(b) - at(a))
 }
 
 // ---- What can be done with a comment ----
@@ -154,15 +167,59 @@ export function resolve(fileId: string, view: CommentView) {
     .catch(toastError)
 }
 
-// Ask Owlit on a comment: the docked chat opens on its passage with the whole comment along, so Owlit
-// knows what was said there
-export function askAbout(fileId: string, view: CommentView, from?: number) {
+// Opens a resolved comment again
+export function reopen(fileId: string, view: CommentView) {
+  if (view.doc) {
+    const now = docComment(fileId, view.doc.id)
+    if (now) useDocsStore.getState().putComment(fileId, { ...now, resolvedAt: undefined })
+    return
+  }
+  const path = pathOf(fileId)
+  if (view.thread && path) void shares.resolve(path, view.thread.root.id, false).catch(toastError)
+}
+
+// The chat a comment was last asked about in, while that chat still exists
+export function askedChat(key: string) {
+  const asked = useDocsUiStore.getState().askedChats[key]
+  return asked && useChatStore.getState().chats[asked.chatId] ? asked.chatId : null
+}
+
+// Ask Owlit on a comment: the docked panel opens on its passage with the whole comment along, so Owlit
+// knows what was said there. It goes on in the chat this comment was asked about before, else in a new
+// one: the chat docked at the time is usually about something else. Once the question is sent, the comment
+// remembers that chat, so its card can lead to the answer.
+function askWith(fileId: string, view: CommentView, from?: number) {
   const file = useDocsStore.getState().files[fileId]
-  if (!file) return
-  useAgentWindow.getState().open({
+  if (!file) return null
+  const selection: QuotedSelection = {
     text: view.quote,
     source: docMentionable(file),
     from,
     comment: { entries: view.entries.map((e) => ({ who: e.name, text: e.text })) },
-  })
+  }
+  const agent = useAgentWindow.getState()
+  const before = askedChat(view.key)
+  agent.askIn(before, selection)
+  if (!before) {
+    // Sending takes the passage and puts the new chat in the panel; taking the chip off, or asking about
+    // something else, leaves the selection without a new chat, and nothing is remembered
+    const stop = useAgentWindow.subscribe((s) => {
+      if (s.selection === selection) return
+      stop()
+      if (s.chatId) useDocsUiStore.getState().setAsked(view.key, s.chatId)
+    })
+  }
+  return file
+}
+
+export function askAbout(fileId: string, view: CommentView, from?: number) {
+  askWith(fileId, view, from)
+}
+
+// A reply on Owlit's comment that is meant for Owlit: kept on the comment as a reply, and asked in the chat
+// as the question, since Owlit doesn't read replies
+export async function replyAndAsk(fileId: string, view: CommentView, text: string, from?: number) {
+  await reply(fileId, view, text)
+  const file = askWith(fileId, view, from)
+  if (file) useAgentWindow.getState().send({ text, mentions: [], attachments: [] }, [docMentionable(file)])
 }

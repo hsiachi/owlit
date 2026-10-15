@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { EditorView, showTooltip, type Tooltip } from "@codemirror/view"
 import { isPassage } from "@/app/text-menu"
+import { mountCommentIcon } from "./selection-menu-icon"
 
 // While the mouse is held down the user is still choosing; the menu waits for the release
 const setDragging = StateEffect.define<boolean>()
@@ -9,9 +10,6 @@ const dragging = StateField.define<boolean>({
   create: () => false,
   update: (value, tr) => tr.effects.reduce((v, e) => (e.is(setDragging) ? e.value : v), value),
 })
-
-// A comment icon (lucide message-square-plus), drawn here because the menu is built outside React
-const COMMENT_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>`
 
 // A selected passage offers two actions above it: "Ask Owlit", which hands it to the agent window, and,
 // where comments can go (a doc), a comment icon that starts a comment on it
@@ -42,19 +40,15 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void, co
           chat(view.state.sliceDoc(from, to), view)
         }
         menu.append(button)
+        let unmount = () => {}
         if (comment) {
-          const icon = document.createElement("button")
-          icon.type = "button"
-          icon.className = "selection-menu-icon"
-          icon.innerHTML = COMMENT_ICON
-          icon.title = comment.label
-          icon.setAttribute("aria-label", comment.label)
-          icon.onmousedown = (e) => e.preventDefault()
-          icon.onclick = () => comment.start(view)
-          menu.append(icon)
+          const host = document.createElement("span")
+          host.className = "contents"
+          menu.append(host)
+          unmount = mountCommentIcon(host, { label: comment.label, shortcut: "comment", onClick: () => comment.start(view) })
         }
         // Lifted clear of the selected line, so it never sits on the words being chosen
-        return { dom, offset: { x: 0, y: 8 } }
+        return { dom, offset: { x: 0, y: 8 }, destroy: unmount }
       },
     }
   }

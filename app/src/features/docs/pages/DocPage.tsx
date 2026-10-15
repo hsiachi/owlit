@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
-import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
+import { ActionsDropdownContent, MenuButton, MenuItems, type MenuGroups } from "@/components/action-menu"
 import { NotFound, PageHeader } from "@/components/page"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
@@ -14,7 +14,9 @@ import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
 import { DocShareControls } from "../share/DocShareControls"
 import { CommentColumn } from "../comments/CommentColumn"
-import { useCommentViews } from "../comments/hooks"
+import { openEditor } from "../editors"
+import { setInlineCards } from "../editor/comment-marks"
+import { useCommentSteps, useCommentViews } from "../comments/hooks"
 import { CommentsToggle } from "../comments/CommentsToggle"
 import { cn } from "@/lib/utils"
 
@@ -66,7 +68,10 @@ export function DocPage() {
         <DropdownMenu>
           <MenuButton label={t`Doc actions`} />
           {/* The same actions as the doc's row in the list */}
-          <ActionsDropdownContent groups={fileGroups(file)} align="end" />
+          {/* Built as the menu opens, so it shows what is true then (Resolved comments… once one was) */}
+          <ActionsDropdownContent align="end">
+            <DocMenuItems groups={() => fileGroups(file)} />
+          </ActionsDropdownContent>
         </DropdownMenu>
       </PageHeader>
       <DocBody docId={file.id}>
@@ -91,11 +96,20 @@ function DeletedOnDisk({ docId }: { docId: string }) {
   )
 }
 
+function DocMenuItems({ groups }: { groups: () => MenuGroups }) {
+  return <MenuItems groups={groups()} />
+}
+
 // The reading column, and the doc's comments in a column to its right. Wide enough, the doc stays centred
-// with the comments in the margin; less wide, the two are centred together; too narrow for both, the
-// comments fold to pins at the doc's edge (CommentColumn).
+// with the comments in the margin; less wide, the two are centred together, the column a little slimmer
+// and the text narrower before anything folds; too narrow for both, the comments fold to pins at the doc's
+// edge and an open card goes into the text (CommentColumn).
 const DOC = 768
-const COLUMN = 272 + 40
+const GAP = 40
+const COLUMN = 272
+const SLIM = 240
+// The narrowest the text gets beside the column: about 65 characters of the doc's 15px type
+const DOC_MIN = 520
 function DocBody({ docId, children }: { docId: string; children: React.ReactNode }) {
   const main = useRef<HTMLElement>(null)
   const [width, setWidth] = useState(0)
@@ -112,7 +126,15 @@ function DocBody({ docId, children }: { docId: string; children: React.ReactNode
   const drafting = useDocsUiStore((s) => s.newComment?.docId === docId)
   const any = useCommentViews(docId).length > 0
   const column = shown && (any || drafting)
-  const layout = !column ? "alone" : width >= DOC + 2 * COLUMN ? "margin" : width >= 560 + COLUMN + 48 ? "beside" : "pins"
+  // 48px of side padding around the pair
+  const layout = !column ? "alone" : width >= DOC + 2 * (COLUMN + GAP) ? "margin" : width >= DOC_MIN + SLIM + GAP + 48 ? "beside" : "pins"
+  const columnWidth = layout === "beside" && width < DOC + COLUMN + GAP + 48 ? SLIM : COLUMN
+  const pins = layout === "pins"
+  useCommentSteps(docId)
+  // The editor draws the slot for an open card only while the column is folded
+  useEffect(() => {
+    openEditor(docId)?.dispatch({ effects: setInlineCards.of(pins) })
+  }, [docId, pins])
   return (
     <main ref={main} data-tour="doc" className="min-h-0 flex-1 overflow-y-auto">
       <div
@@ -120,14 +142,16 @@ function DocBody({ docId, children }: { docId: string; children: React.ReactNode
           "mx-auto px-6 pt-6",
           layout === "alone" && "max-w-3xl",
           layout === "margin" && "grid grid-cols-[1fr_minmax(0,48rem)_1fr] items-start px-0",
-          layout === "beside" && "flex max-w-[calc(48rem+312px)] items-start gap-10",
+          layout === "beside" && "flex items-start gap-10",
           layout === "pins" && "flex max-w-[calc(48rem+2.5rem)] items-start gap-3",
         )}
+        // Beside, the text keeps its own measure and the pair is centred
+        style={layout === "beside" ? { maxWidth: DOC + GAP + columnWidth + 48 } : undefined}
       >
         <div className={cn("min-w-0", layout === "margin" ? "col-start-2 px-6" : "flex-1")}>{children}</div>
         {column && (
           <div className={cn(layout === "margin" && "col-start-3 flex justify-start pr-6 pl-4", layout !== "margin" && "contents")}>
-            <CommentColumn fileId={docId} pins={layout === "pins"} />
+            <CommentColumn fileId={docId} pins={pins} width={columnWidth} />
           </div>
         )}
       </div>

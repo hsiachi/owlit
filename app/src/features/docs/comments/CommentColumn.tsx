@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { MessageSquareTextIcon } from "lucide-react"
-import { useLayoutEffect, useMemo, useRef } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Tip } from "@/components/tip"
 import { cn } from "@/lib/utils"
 import { openEditor } from "../editors"
@@ -8,9 +9,9 @@ import { commentSpots, newCommentRange, NEW_KEY, setHotComment } from "../editor
 import { anchorAt } from "@owlit/protocol"
 import { useDocsUiStore } from "../ui-store"
 import { ClosedCard, NewCard, OpenCard } from "./CommentCard"
-import { useCommentTops } from "./layout"
+import { useCommentSlot, useCommentTops } from "./layout"
 import { useCommentViews } from "./hooks"
-import { askAbout, deleteEntry, editEntry, reply, resolve, startComment, type CommentView } from "./model"
+import { askAbout, deleteEntry, editEntry, reply, replyAndAsk, resolve, startComment, type CommentView } from "./model"
 
 const GAP = 8
 
@@ -20,13 +21,18 @@ const GAP = 8
 // move there over --t-layout, so the eye can follow.
 //
 // When the page is too narrow for a column, it folds to pins: one small comment mark per comment, level
-// with its words, and the open card floats over the doc just under its words' first line.
-export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean }) {
+// with its words, and the open card goes into the text under its paragraph, pushing the lines below down,
+// so it never covers words (editor/comment-marks.ts draws the slot it goes in).
+export function CommentColumn({ fileId, pins, width }: { fileId: string; pins: boolean; width: number }) {
   const views = useCommentViews(fileId)
   const tops = useCommentTops((s) => s[fileId])
   const open = useDocsUiStore((s) => (s.openComment?.docId === fileId ? s.openComment.key : null))
   const drafting = useDocsUiStore((s) => s.newComment?.docId === fileId)
   const column = useRef<HTMLDivElement>(null)
+  const slot = useCommentSlot((s) => s[fileId] ?? null)
+  // The comment just started: its card opens with the cursor in the reply field, so the keyboard stays
+  // with the comment (Esc puts it away and goes back to the text)
+  const [started, setStarted] = useState<string | null>(null)
 
   // Only the comments the editor has placed, in the order their words come
   const placed = useMemo(() => {
@@ -60,7 +66,7 @@ export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean 
     for (const c of el.querySelectorAll(":scope > [data-card]")) resized.observe(c)
     return () => resized.disconnect()
     // pins: the column is a new element when it unfolds from pins
-  }, [placed, tops, open, drafting, pins])
+  }, [placed, tops, open, drafting, pins, width])
 
   const ui = useDocsUiStore.getState
   const hover = (key: string, on: boolean) => openEditor(fileId)?.dispatch({ effects: setHotComment.of(on ? key : null) })
@@ -68,6 +74,10 @@ export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean 
   const setOpen = (key: string | null) => {
     openEditor(fileId)?.dispatch({ effects: setHotComment.of(null) })
     ui().setOpenComment(fileId, key)
+  }
+  const close = () => {
+    setOpen(null)
+    openEditor(fileId)?.focus()
   }
   const fromOf = (key: string) => {
     const view = openEditor(fileId)
@@ -79,6 +89,7 @@ export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean 
     if (!view || !range || range.to <= range.from) return ui().setNewComment(null)
     const comment = startComment(fileId, anchorAt(view.state.doc.toString(), range.from, range.to), text)
     ui().setNewComment(null)
+    setStarted(`c:${comment.id}`)
     setOpen(`c:${comment.id}`)
   }
 
@@ -86,21 +97,30 @@ export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean 
     <OpenCard
       view={view}
       lost={!!tops?.[view.key]?.lost}
+      focusReply={started === view.key}
       actions={{
         onAsk: () => askAbout(fileId, view, fromOf(view.key)),
         onResolve: () => resolve(fileId, view),
         onReply: (text) => reply(fileId, view, text),
+        onReplyAndAsk: view.doc && view.entries[0]?.who === "owlit" ? (text) => replyAndAsk(fileId, view, text, fromOf(view.key)) : undefined,
         onEdit: (entryId, text) => view.doc && editEntry(fileId, view.doc.id, entryId, text),
         onDelete: (entryId) => view.doc && deleteEntry(fileId, view.doc.id, entryId),
-        onClose: () => setOpen(null),
+        onClose: close,
       }}
     />
   )
-  const newCard = <NewCard onSave={saveNew} onCancel={() => ui().setNewComment(null)} />
+  const newCard = (
+    <NewCard
+      onSave={saveNew}
+      onCancel={() => {
+        ui().setNewComment(null)
+        openEditor(fileId)?.focus()
+      }}
+    />
+  )
 
   if (pins) {
     const opened = placed.find((v) => v.key === open)
-    const floatTop = drafting ? tops?.[NEW_KEY]?.top : opened ? tops?.[opened.key]?.top : undefined
     return (
       <div className="relative w-7 shrink-0">
         {placed.map((v) => (
@@ -108,28 +128,29 @@ export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean 
             <button
               type="button"
               aria-label={t`Comment by ${v.entries[0].name}`}
+              aria-expanded={open === v.key}
               onClick={() => setOpen(open === v.key ? null : v.key)}
               onMouseEnter={() => hover(v.key, true)}
               onMouseLeave={() => hover(v.key, false)}
               style={{ top: tops![v.key].top }}
-              className={cn("absolute left-0.5 grid size-6 place-items-center rounded-md text-comment-mark hover:bg-comment-wash", open === v.key && "bg-comment-wash")}
+              // In muted ink, which holds its contrast alone; the comment colour, too light to stand by itself,
+              // only joins it under the pointer and while its card is open, beside its underlined words
+              className={cn(
+                "absolute left-0.5 grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-comment-wash hover:text-comment-mark",
+                open === v.key && "bg-comment-wash text-comment-mark",
+              )}
             >
               <MessageSquareTextIcon className="size-3.5" />
             </button>
           </Tip>
         ))}
-        {floatTop !== undefined && (
-          // Just under the first line of its words, so the card never covers what it is about
-          <div className="absolute right-9 z-20 w-[300px]" style={{ top: floatTop + 30 }}>
-            {drafting ? newCard : opened && openCard(opened)}
-          </div>
-        )}
+        {slot && createPortal(drafting ? newCard : opened ? openCard(opened) : null, slot)}
       </div>
     )
   }
 
   return (
-    <div ref={column} className="relative w-[272px] shrink-0">
+    <div ref={column} className="relative shrink-0" style={{ width }}>
       {placed.map((v) => (
         <div
           key={v.key}

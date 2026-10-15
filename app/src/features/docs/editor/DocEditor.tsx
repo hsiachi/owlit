@@ -21,7 +21,7 @@ import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
 import { commentViews } from "../comments/model"
-import { setCommentTops } from "../comments/layout"
+import { setCommentSlot, setCommentTops } from "../comments/layout"
 import { selectionMenu } from "./selection-menu"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { agentSuggestions, setPendingEdits } from "./suggestions"
@@ -148,13 +148,14 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           mentionPopup(() => allDocMentions(id)),
           selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from), {
             start: (view) => startComment(id, view),
-            label: t`Comment (⌥⌘M)`,
+            label: t({ message: "Comment", context: "verb: say something about the selected words" }),
           }),
           keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
           agentSuggestions(respondToEdit, setDrawn),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),
+            onSlot: (el, was) => setCommentSlot(id, el, was),
           }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)

@@ -266,6 +266,7 @@ msgstr ""
 #: app/src/components/selection-menu.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/docs/editor/selection-menu.ts
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
@@ -315,6 +316,23 @@ msgstr ""
 
 #: app/src/app/shortcuts.ts
 msgid "New line"
+msgstr ""
+
+#. in the keyboard shortcut list
+#: app/src/app/shortcuts.ts
+msgid "Comment on the selection"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "in a doc"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Next comment"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
+msgid "Previous comment"
 msgstr ""
 
 #. verb
@@ -2281,6 +2299,10 @@ msgid "Versions…"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
+msgid "Resolved comments…"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr ""
@@ -2309,6 +2331,7 @@ msgid "Its passage has changed"
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/ResolvedComments.tsx
 msgid "{replies, plural, one {# reply} other {# replies}}"
 msgstr ""
 
@@ -2359,18 +2382,38 @@ msgstr ""
 msgid "Delete reply"
 msgstr ""
 
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Open the chat beside the doc"
+msgstr ""
+
+#. on a comment's card: when it was asked about in a chat, and the chat's title
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0} in “{title}”"
+msgstr ""
+
+#. on a comment's card: when it was asked about in a chat
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0}"
+msgstr ""
+
 #. placeholder {0}: startedBy.name
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} sees replies on the shared page."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t answer replies. To ask it, use Ask Owlit above."
+msgid "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
 #: apps/share-web/src/App.tsx
 msgid "Reply…"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Reply, or ask Owlit…"
 msgstr ""
 
 #. send a reply to a comment
@@ -2392,6 +2435,7 @@ msgid "Comment…"
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/editor/DocEditor.tsx
 #: apps/share-web/src/App.tsx
 msgctxt "verb: say something about the selected words"
 msgid "Comment"
@@ -2408,6 +2452,29 @@ msgstr ""
 
 #: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "Show comments"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr ""
+
+#. placeholder {0}: displayName(file.path)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Resolved comments on {0}"
+msgstr ""
+
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "No resolved comments."
+msgstr ""
+
+#. placeholder {0}: shorten(v.quote, 80)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "On “{0}”"
+msgstr ""
+
+#. put a resolved comment back beside its words
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Reopen"
 msgstr ""
 
 #: app/src/features/docs/comments/model.ts
@@ -2530,10 +2597,6 @@ msgstr ""
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Start writing"
-msgstr ""
-
-#: app/src/features/docs/editor/DocEditor.tsx
-msgid "Comment (⌥⌘M)"
 msgstr ""
 
 #: app/src/features/docs/editor/block-preview.ts

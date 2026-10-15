@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { CheckIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -12,8 +12,11 @@ import { ago } from "@/lib/time"
 import { shorten } from "@/lib/words"
 import { cn } from "@/lib/utils"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
+import { useAgentWindow } from "@/features/agent/store"
+import { useChatStore } from "@/features/chat/store"
+import { useDocsUiStore } from "../ui-store"
 import { mentionLabel } from "../lib/mentions"
-import type { CommentView, EntryView } from "./model"
+import { askedChat, type CommentView, type EntryView } from "./model"
 
 // A comment's card in the column beside the doc. Closed, it is a few quiet lines: who started it, the
 // start of what they said, how many replies. Open, it is a raised card, laid out the way Google Docs and
@@ -89,12 +92,14 @@ interface OpenActions {
   onAsk: () => void
   onResolve: () => void
   onReply: (text: string) => Promise<void> | void
+  // Owlit's comments only: the reply is kept and asked in a chat too, since Owlit doesn't read replies
+  onReplyAndAsk?: (text: string) => Promise<void>
   onEdit: (entryId: string, text: string) => void
   onDelete: (entryId: string) => void
   onClose: () => void
 }
 
-export function OpenCard({ view, lost, actions }: { view: CommentView; lost: boolean; actions: OpenActions }) {
+export function OpenCard({ view, lost, actions, focusReply }: { view: CommentView; lost: boolean; actions: OpenActions; focusReply?: boolean }) {
   const [first, ...replies] = view.entries
   const [editing, setEditing] = useState<string | null>(null)
   // More than three replies open folded down to the latest. Which one that is is fixed when the card
@@ -104,7 +109,7 @@ export function OpenCard({ view, lost, actions }: { view: CommentView; lost: boo
   return (
     <div className="rounded-xl border bg-card py-2 pr-1.5 pl-3 shadow-md" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && actions.onClose()}>
       {/* The first row: who started it, then what acts on the whole comment */}
-      <div className="flex h-6 items-center gap-0.5">
+      <div className="flex h-6 items-center gap-1">
         <Signed entry={first} className="flex-1" />
         <IconButton label={t`Ask Owlit about this comment`} size="icon-xs" onClick={actions.onAsk}>
           <OwlitMark />
@@ -137,8 +142,9 @@ export function OpenCard({ view, lost, actions }: { view: CommentView; lost: boo
               }} onCancel={() => setEditing(null)} />
           </div>
         ))}
+        <AskedLine commentKey={view.key} />
         {/* Keyed by the comment, so another comment opened in its place starts with an empty field */}
-        <ReplyField key={view.key} view={view} onReply={actions.onReply} />
+        <ReplyField key={view.key} view={view} autoFocus={focusReply} onReply={actions.onReply} onReplyAndAsk={actions.onReplyAndAsk} />
       </div>
     </div>
   )
@@ -203,30 +209,68 @@ function EntryMenu({ first, hasReplies, onEdit, onDelete }: { entry: EntryView; 
   )
 }
 
-function FieldButtons({ label, disabled, onCancel, onSubmit }: { label: string; disabled: boolean; onCancel: () => void; onSubmit: () => void }) {
+// The field's buttons: Cancel, anything else it offers, then the one ⌘↵ presses
+function FieldButtons({ label, disabled, onCancel, onSubmit, children }: { label: string; disabled: boolean; onCancel: () => void; onSubmit: () => void; children?: React.ReactNode }) {
   return (
     <div className="mt-1.5 flex justify-end gap-1">
       <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
         {t`Cancel`}
       </Button>
-      <Button size="sm" disabled={disabled} onClick={onSubmit}>
-        {label}
-      </Button>
+      {children}
+      <Tip label={label} shortcut="save-comment">
+        <Button size="sm" disabled={disabled} onClick={onSubmit}>
+          {label}
+        </Button>
+      </Tip>
     </div>
+  )
+}
+
+// Where the comment was asked about, once it was: the chat with Owlit's answer, opened beside the doc
+function AskedLine({ commentKey }: { commentKey: string }) {
+  const asked = useDocsUiStore((s) => s.askedChats[commentKey])
+  const title = useChatStore((s) => (asked ? s.chats[asked.chatId]?.title : undefined))
+  if (!asked || title === undefined || !askedChat(commentKey)) return null
+  return (
+    <Tip label={t`Open the chat beside the doc`}>
+      <button
+        type="button"
+        onClick={() => useAgentWindow.getState().showChat(asked.chatId)}
+        className="mt-2 -ml-1 flex h-6 max-w-full items-center gap-1.5 rounded-md px-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3 [&_svg]:shrink-0"
+      >
+        <OwlitMark />
+        <span className="truncate">
+          {title
+            ? t({ message: `Asked Owlit ${ago(asked.at, { inSentence: true })} in “${title}”`, comment: "on a comment's card: when it was asked about in a chat, and the chat's title" })
+            : t({ message: `Asked Owlit ${ago(asked.at, { inSentence: true })}`, comment: "on a comment's card: when it was asked about in a chat" })}
+        </span>
+        <ChevronRightIcon />
+      </button>
+    </Tip>
   )
 }
 
 // The reply field, always at the bottom: it adds to the whole comment. Who hears it is said once there is
 // something to send.
-function ReplyField({ view, onReply }: { view: CommentView; onReply: (text: string) => Promise<void> | void }) {
+function ReplyField({
+  view,
+  autoFocus,
+  onReply,
+  onReplyAndAsk,
+}: {
+  view: CommentView
+  autoFocus?: boolean
+  onReply: (text: string) => Promise<void> | void
+  onReplyAndAsk?: (text: string) => Promise<void>
+}) {
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
-  const send = async () => {
+  const send = async (ask = false) => {
     const said = text.trim()
     if (!said || sending) return
     setSending(true)
     try {
-      await onReply(said)
+      await (ask && onReplyAndAsk ? onReplyAndAsk(said) : onReply(said))
       setText("")
     } catch {
       // The error was shown; what was typed stays
@@ -238,14 +282,17 @@ function ReplyField({ view, onReply }: { view: CommentView; onReply: (text: stri
   const hint = view.thread
     ? { icon: <LinkIcon />, text: t`${startedBy.name} sees replies on the shared page.` }
     : startedBy.who === "owlit"
-      ? { icon: null, text: t`Owlit doesn’t answer replies. To ask it, use Ask Owlit above.` }
+      ? { icon: null, text: t`Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat.` }
       : null
+  // Replying is what people do to a remark, so on Owlit's the field says from the start that it can go to Owlit
+  const toOwlit = startedBy.who === "owlit" && !!onReplyAndAsk
   return (
     <div className="mt-3 mb-0.5">
       <Textarea
         rows={1}
+        autoFocus={autoFocus}
         value={text}
-        placeholder={t`Reply…`}
+        placeholder={toOwlit ? t`Reply, or ask Owlit…` : t`Reply…`}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -262,7 +309,14 @@ function ReplyField({ view, onReply }: { view: CommentView; onReply: (text: stri
       {text && (
         <>
           {hint && <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3 [&_svg]:shrink-0">{hint.icon}{hint.text}</p>}
-          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={() => setText("")} onSubmit={() => void send()} />
+          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={() => setText("")} onSubmit={() => void send()}>
+            {toOwlit && (
+              <Button variant="outline" size="sm" disabled={sending} onClick={() => void send(true)}>
+                <OwlitMark />
+                {t`Ask Owlit`}
+              </Button>
+            )}
+          </FieldButtons>
         </>
       )}
     </div>

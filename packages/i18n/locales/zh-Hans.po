@@ -266,6 +266,7 @@ msgstr "在文献库和脉络中"
 #: app/src/components/selection-menu.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/docs/editor/selection-menu.ts
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
@@ -316,6 +317,23 @@ msgstr "在输入框中"
 #: app/src/app/shortcuts.ts
 msgid "New line"
 msgstr "换行"
+
+#. in the keyboard shortcut list
+#: app/src/app/shortcuts.ts
+msgid "Comment on the selection"
+msgstr "评论所选文字"
+
+#: app/src/app/shortcuts.ts
+msgid "in a doc"
+msgstr "在文档中"
+
+#: app/src/app/shortcuts.ts
+msgid "Next comment"
+msgstr "下一条评论"
+
+#: app/src/app/shortcuts.ts
+msgid "Previous comment"
+msgstr "上一条评论"
 
 #. verb
 #. verb, in the keyboard shortcut list
@@ -2281,6 +2299,10 @@ msgid "Versions…"
 msgstr "版本…"
 
 #: app/src/features/docs/actions.ts
+msgid "Resolved comments…"
+msgstr "已解决的评论…"
+
+#: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr "复制链接"
@@ -2309,6 +2331,7 @@ msgid "Its passage has changed"
 msgstr "所评论的文字已改动"
 
 #: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/ResolvedComments.tsx
 msgid "{replies, plural, one {# reply} other {# replies}}"
 msgstr "{replies, plural, other {# 条回复}}"
 
@@ -2359,19 +2382,39 @@ msgstr "删除评论"
 msgid "Delete reply"
 msgstr "删除回复"
 
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Open the chat beside the doc"
+msgstr "在文档旁打开这段对话"
+
+#. on a comment's card: when it was asked about in a chat, and the chat's title
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0} in “{title}”"
+msgstr "{0}在“{title}”中问过 Owlit"
+
+#. on a comment's card: when it was asked about in a chat
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0}"
+msgstr "{0}问过 Owlit"
+
 #. placeholder {0}: startedBy.name
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} sees replies on the shared page."
 msgstr "{0} 会在分享页面上看到回复。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t answer replies. To ask it, use Ask Owlit above."
-msgstr "Owlit 不回复评论里的回复。要问它，请用上方的“问 Owlit”。"
+msgid "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
+msgstr "Owlit 不看回复。点“问 Owlit”，回复会留在这里，并在对话中问它。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 #: apps/share-web/src/App.tsx
 msgid "Reply…"
 msgstr "回复…"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Reply, or ask Owlit…"
+msgstr "回复，或问 Owlit…"
 
 #. send a reply to a comment
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -2392,6 +2435,7 @@ msgid "Comment…"
 msgstr "评论…"
 
 #: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/editor/DocEditor.tsx
 #: apps/share-web/src/App.tsx
 msgctxt "verb: say something about the selected words"
 msgid "Comment"
@@ -2409,6 +2453,29 @@ msgstr "隐藏评论"
 #: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "Show comments"
 msgstr "显示评论"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, other {# 条评论}}"
+
+#. placeholder {0}: displayName(file.path)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Resolved comments on {0}"
+msgstr "{0} 中已解决的评论"
+
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "No resolved comments."
+msgstr "没有已解决的评论。"
+
+#. placeholder {0}: shorten(v.quote, 80)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "On “{0}”"
+msgstr "关于“{0}”"
+
+#. put a resolved comment back beside its words
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Reopen"
+msgstr "重新打开"
 
 #: app/src/features/docs/comments/model.ts
 msgid "Comment deleted"
@@ -2531,10 +2598,6 @@ msgstr "文档正文"
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Start writing"
 msgstr "开始写作"
-
-#: app/src/features/docs/editor/DocEditor.tsx
-msgid "Comment (⌥⌘M)"
-msgstr "评论（⌥⌘M）"
 
 #: app/src/features/docs/editor/block-preview.ts
 msgid "Front matter"

@@ -141,9 +141,10 @@
        so a comment is seen at a glance and who wrote it is read in its card. Lighter than amber (--warning,
        only ever a dot or a triangle) and an underline, never a fill like a ==highlight==, so shape keeps the
        three apart. At 2.3:1 it is under the 3:1 marks keep, so it never stands alone: always the 2px line
-       under words, washed while its card is open. */
+       under words, washed while its card is open. The wash is faint (14%), a tint behind words being talked
+       about, well short of a highlight's lemon, so the two can't be confused side by side. */
     --comment-mark: oklch(0.74 0.155 80);
-    --comment-wash: color-mix(in oklch, var(--comment-mark) 24%, transparent);
+    --comment-wash: color-mix(in oklch, var(--comment-mark) 14%, transparent);
     --border: oklch(0.905 0.006 95);
     --input: oklch(0.9 0.006 95);
     --ring: oklch(0.7 0.012 70);
@@ -228,7 +229,7 @@
     --warning: oklch(0.78 0.11 75);
     --text-highlight: oklch(0.4 0.07 100);
     --comment-mark: oklch(0.78 0.13 84);
-    --comment-wash: color-mix(in oklch, var(--comment-mark) 20%, transparent);
+    --comment-wash: color-mix(in oklch, var(--comment-mark) 16%, transparent);
     --border: oklch(0.935 0.01 95 / 10%);
     --input: oklch(0.935 0.01 95 / 14%);
     --ring: oklch(0.55 0.012 70);
@@ -564,13 +565,16 @@
 /* A selected passage's menu, "Ask Owlit": one compact row in a thin frame of the floating material,
    covering as little text as it can; 8px corners concentric with the 6px item inside */
 .selection-menu { @apply menu-surface flex gap-0.5 rounded-[8px] p-0.5 font-sans text-detail; }
+.selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
+.selection-menu button.selection-menu-icon { @apply grid w-6 place-items-center px-0 text-muted-foreground hover:text-foreground; }
 /* What was said in a comment's card (comments/CommentCard.tsx): Markdown, with paragraphs close together */
 .markdown.comment-text { @apply leading-normal; }
 .markdown.comment-text > :first-child { margin-top: 0; }
 .markdown.comment-text > :last-child { margin-bottom: 0; }
 .markdown.comment-text p { margin-block: 0.4em; }
-.selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
-.selection-menu button.selection-menu-icon { @apply grid w-6 place-items-center px-0 text-muted-foreground hover:text-foreground; }
+/* Where the open comment card goes in the text while the column is folded to pins: under its paragraph,
+   pushing the lines below down (editor/comment-marks.ts) */
+.cm-comment-slot { padding: 8px 0 12px; max-width: 480px; white-space: normal; font-size: 14px; line-height: normal; cursor: auto; }
 /* Owlit's proposed edit, marked as one more editor would, in Owlit's green. Removed words keep the muted
    tone with a strike in that colour (removal is not an error, so never red); new words take the colour,
    with an underline so the two differ in shape too. A rule at the left runs down the lines (a doc) or

@@ -1,5 +1,5 @@
-import { StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, keymap } from "@codemirror/view"
+import { Facet, StateEffect, StateField, type EditorState, type Extension, type Range, type Text } from "@codemirror/state"
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType, keymap } from "@codemirror/view"
 import type { CommentView } from "../comments/model"
 
 // The words each comment is on, in the doc: a 2px underline in the comment colour, the same whoever wrote
@@ -9,6 +9,10 @@ import type { CommentView } from "../comments/model"
 //
 // While the doc is open a passage follows the edits: text typed at either end stays outside it, and a
 // passage deleted whole is lost until its words come back (an undo). A lost comment sits by the title.
+//
+// When the page is too narrow for the column, the open card goes into the text instead: a slot under the
+// paragraph its words are in, which pushes the lines below down rather than covering them. The slot is an
+// empty element here; the column draws the card into it (comments/CommentColumn.tsx).
 
 export interface CommentSpot {
   item: CommentView
@@ -24,18 +28,66 @@ export const setComments = StateEffect.define<CommentView[]>()
 export const setOpenComment = StateEffect.define<string | null>()
 export const setHotComment = StateEffect.define<string | null>()
 export const setNewComment = StateEffect.define<{ from: number; to: number } | null>()
+// The open card goes in the text, under its paragraph (the column has folded to pins)
+export const setInlineCards = StateEffect.define<boolean>()
+
+// Told of the slot for the open card when one is drawn (the element), and when it goes (null with it)
+const slotSink = Facet.define<(el: HTMLElement | null, was?: HTMLElement) => void, (el: HTMLElement | null, was?: HTMLElement) => void>({
+  combine: (values) => values[0] ?? (() => {}),
+})
+
+// What each drawn slot was told to and watched by, kept by its element: a widget that compares equal to
+// the one before takes over its element, so the instance that drew it may not be the one destroying it
+const slots = new WeakMap<HTMLElement, { sink: (el: HTMLElement | null, was?: HTMLElement) => void; resized: ResizeObserver }>()
+
+class CardSlot extends WidgetType {
+  readonly key: string
+  constructor(key: string) {
+    super()
+    this.key = key
+  }
+  // The same comment keeps its element, so the card drawn into it isn't drawn again on every edit
+  eq(other: CardSlot) {
+    return other.key === this.key
+  }
+  toDOM(view: EditorView) {
+    const el = document.createElement("div")
+    el.className = "cm-comment-slot"
+    // The card in it changes height as it is drawn and typed into; the editor measures its lines again
+    const resized = new ResizeObserver(() => view.requestMeasure())
+    resized.observe(el)
+    const sink = view.state.facet(slotSink)
+    slots.set(el, { sink, resized })
+    sink(el)
+    return el
+  }
+  destroy(el: HTMLElement) {
+    const slot = slots.get(el)
+    slot?.resized.disconnect()
+    // Only the element that went is let go, whichever slot was drawn meanwhile
+    slot?.sink(null, el)
+  }
+  get estimatedHeight() {
+    return 160
+  }
+  // Typing and clicking in the card are the card's own
+  ignoreEvent() {
+    return true
+  }
+}
 
 interface MarksState {
   spots: CommentSpot[]
   open: string | null
   hot: string | null
   draft: { from: number; to: number } | null
+  inline: boolean
   marks: DecorationSet
 }
 
 const lostSpot = (state: EditorState, item: CommentView): CommentSpot => ({ item, from: 0, to: state.doc.line(1).to, lost: true })
 
-function draw(s: Omit<MarksState, "marks">): DecorationSet {
+function draw(s: Omit<MarksState, "marks">, doc: Text): DecorationSet {
   const marks: Range<Decoration>[] = []
   for (const spot of s.spots) {
     if (spot.lost) continue
@@ -44,13 +96,20 @@ function draw(s: Omit<MarksState, "marks">): DecorationSet {
     marks.push(Decoration.mark({ class: cls, attributes: { "data-comment": key } }).range(spot.from, spot.to))
   }
   if (s.draft && s.draft.to > s.draft.from) marks.push(Decoration.mark({ class: "cm-comment-mark cm-comment-mark-open" }).range(s.draft.from, s.draft.to))
+  if (s.inline) {
+    // A lost comment's card goes under the title, where its pin is
+    const spot = s.spots.find((x) => x.item.key === s.open)
+    const openSpot = s.draft ? { key: NEW_KEY, to: s.draft.to } : spot ? { key: spot.item.key, to: spot.to } : null
+    // After the line its words end on: a paragraph is one line in the editor, however many it wraps to
+    if (openSpot) marks.push(Decoration.widget({ widget: new CardSlot(openSpot.key), block: true, side: 1 }).range(doc.lineAt(openSpot.to).to))
+  }
   return Decoration.set(marks, true)
 }
 
 const field = StateField.define<MarksState>({
-  create: () => ({ spots: [], open: null, hot: null, draft: null, marks: Decoration.none }),
+  create: () => ({ spots: [], open: null, hot: null, draft: null, inline: false, marks: Decoration.none }),
   update(value, tr) {
-    let { spots, open, hot, draft } = value
+    let { spots, open, hot, draft, inline } = value
     // The doc's text is read once per change, however many passages are looked for in it
     let text: string | undefined
     const locate = (item: CommentView): CommentSpot => {
@@ -77,9 +136,10 @@ const field = StateField.define<MarksState>({
       if (e.is(setOpenComment)) open = e.value
       if (e.is(setHotComment)) hot = e.value
       if (e.is(setNewComment)) draft = e.value
+      if (e.is(setInlineCards)) inline = e.value
     }
-    if (spots === value.spots && open === value.open && hot === value.hot && draft === value.draft) return value
-    return { spots, open, hot, draft, marks: draw({ spots, open, hot, draft }) }
+    if (spots === value.spots && open === value.open && hot === value.hot && draft === value.draft && inline === value.inline) return value
+    return { spots, open, hot, draft, inline, marks: draw({ spots, open, hot, draft, inline }, tr.state.doc) }
   },
   provide: (f) => EditorView.decorations.from(f, (v) => v.marks),
 })
@@ -110,6 +170,8 @@ function measureTops(view: EditorView): CommentTops {
 
 interface Actions {
   onOpen: (key: string | null) => void
+  // The slot the open card is drawn into while cards go in the text; null when it goes
+  onSlot: (el: HTMLElement | null, was?: HTMLElement) => void
   // Where the words are now, after any edit, wrap or resize
   onLayout: (tops: CommentTops) => void
 }
@@ -176,5 +238,5 @@ export function commentMarks(actions: Actions): Extension {
     },
     ".cm-comment-mark-open, .cm-comment-mark-hot": { backgroundColor: "var(--comment-wash)" },
   })
-  return [field, clicks, esc, layout, theme]
+  return [field, clicks, esc, layout, theme, slotSink.of(actions.onSlot)]
 }
