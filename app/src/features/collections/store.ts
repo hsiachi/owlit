@@ -1,10 +1,11 @@
 import { t } from "@lingui/core/macro"
-import { applyCollectionEdit, itemId, shownCollection, summarize, type Collection, type CollectionEdit, type CollectionSummary } from "@owlit/protocol"
+import { applyCollectionEdit, itemId, shownCollection, type Collection, type CollectionEdit, type CollectionSummary } from "@owlit/protocol"
 import { toast } from "sonner"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastUndo } from "@/lib/toast"
+import { summaryOf } from "./lib"
 import { seedCollections } from "./mocks/seed"
 
 // The collections of the open workspace, whole, by id. Core owns them (.owlit/collections/): in the
@@ -88,7 +89,7 @@ export async function deleteCollection(id: string) {
 export function useSummaries(): CollectionSummary[] {
   const collections = useCollectionsStore((s) => s.collections)
   return Object.values(collections)
-    .map(summarize)
+    .map(summaryOf)
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
 

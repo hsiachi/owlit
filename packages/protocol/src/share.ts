@@ -2,6 +2,8 @@
 // link reads them in a browser and comments, and the comments come back to owlit. Core, the share server
 // and the web reader (apps/share-server, apps/share-web) all speak these shapes.
 
+import { unescapeLabel } from "./uri.ts"
+
 export type SharePermission = "comment" | "view"
 
 // A paper the shared doc cites, as the reader sees it: what it is, Owlit's digest, the author's note
@@ -108,8 +110,6 @@ export function citedPaperIds(markdown: string): string[] {
   })
   return ids
 }
-
-const unescapeLabel = (label: string) => label.replace(/\\([[\]\\])/g, "$1")
 
 // A doc, a note or a digest made fit to leave the computer. What would point into the workspace becomes
 // its plain words: links to other docs, chats and collections, wikilinks, local pictures and files, and

@@ -7,6 +7,11 @@ export const chatUri = (id: string) => `owlit://chat/${id}`
 // A collection, or one of its groups: owlit://collections/c-replay#group=eval
 export const collectionUri = (id: string, group?: string) => `owlit://collections/${id}${group ? `#group=${encodeURIComponent(group)}` : ""}`
 
+// A mention's Markdown, [label](uri), the label's brackets and backslashes escaped so any title survives
+// as link text; unescapeLabel takes a label back
+export const mentionLink = (label: string, uri: string) => `[${label.replace(/([[\]\\])/g, "\\$1")}](${uri})`
+export const unescapeLabel = (label: string) => label.replace(/\\([[\]\\])/g, "$1")
+
 export type OwlitUri =
   // owlit://library/p6#passage=tf-filter, #abstract or #p12 (a page)
   | { kind: "paper"; id: string; passage?: string; abstract?: boolean; page?: number }

@@ -1,8 +1,9 @@
 import { plural } from "@lingui/core/macro"
 import { editStats } from "@owlit/protocol"
+import { hostOf } from "@/lib/names"
 import type { QuestionPart } from "../types"
 import { countsText } from "./edit-counts"
-import { fetchUrlOf, hostOf, owlitToolOf, stepGroup, type ToolCall } from "./step-words"
+import { fetchUrlOf, owlitToolOf, stepGroup, type ToolCall } from "./step-words"
 
 
 // What a step got back, read for its row: the text a tool sent, a web search's hits, the detail at the

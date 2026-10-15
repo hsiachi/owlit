@@ -7,7 +7,7 @@ import type { ComposerHandle } from "./composer/Composer"
 import { ChatMessages } from "./ChatMessages"
 import { ComposerDock } from "./ComposerDock"
 import { FRESH_CHAT } from "./ChatEmpty"
-import { useTakeParam } from "@/features/library/lib/use-take-param"
+import { useTakeParam } from "@/hooks/use-take-param"
 
 // /chat/:chatId — message history with the composer docked at the bottom
 export function ChatView() {

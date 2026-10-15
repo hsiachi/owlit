@@ -3,6 +3,7 @@ import { useState } from "react"
 import { RefreshCwIcon, Trash2Icon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/copy-button"
+import { revealOnHover } from "@/components/row-list"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ConnectorStatusChip } from "@/features/chat/components/ConnectorStatusChip"
@@ -11,7 +12,7 @@ import { canSetUp, isBroken, isFound as isReady, settingUp } from "@/features/ch
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
-import { FoldedForm, Group, IconAction, List, Note, onHover, Row } from "../parts"
+import { FoldedForm, Group, IconAction, List, Note, Row } from "../parts"
 import { EngineSignIns } from "./EngineSignIns"
 
 export function AgentsSection() {
@@ -99,7 +100,7 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
 
   // A ready agent needs nothing, so its check shows on hover, before the version
   const checkAction = (
-    <IconAction label={c.status === "unknown" ? t({ message: "Check", comment: "verb: check whether the agent is installed and works" }) : t({ message: "Check again", comment: "verb" })} onClick={() => check(c.id)} disabled={busy} className={cn(isReady(c) && !busy && onHover)}>
+    <IconAction label={c.status === "unknown" ? t({ message: "Check", comment: "verb: check whether the agent is installed and works" }) : t({ message: "Check again", comment: "verb" })} onClick={() => check(c.id)} disabled={busy} className={cn(isReady(c) && !busy && revealOnHover)}>
       {busy ? <Spinner /> : <RefreshCwIcon />}
     </IconAction>
   )
@@ -110,7 +111,7 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
       control={
         <>
           {!c.builtIn && (
-            <IconAction label={t`Remove ${name}`} onClick={() => remove(c.id)} className={onHover}>
+            <IconAction label={t`Remove ${name}`} onClick={() => remove(c.id)} className={revealOnHover}>
               <Trash2Icon />
             </IconAction>
           )}

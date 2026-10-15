@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from "react"
 import { LogOutIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
+import { revealOnHover } from "@/components/row-list"
 import { Spinner } from "@/components/ui/spinner"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector, SignIn } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
-import { FoldedForm, IconAction, KeyInput, List, MaskedKey, Note, onHover, Picker, Row } from "../parts"
+import { FoldedForm, IconAction, KeyInput, List, MaskedKey, Note, Picker, Row } from "../parts"
 
 // The Owlit engine's sign-ins: one row for each it holds, and "Add a sign-in" for the rest. It can hold
 // several at once; each chat picks a model from any of them in the composer.
@@ -74,7 +75,7 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
   } else {
     control = (
       <>
-        <IconAction label={t`Sign out`} className={onHover} onClick={remove}>
+        <IconAction label={t`Sign out`} className={revealOnHover} onClick={remove}>
           <LogOutIcon />
         </IconAction>
         <span className="text-detail text-muted-foreground">{t`Signed in`}</span>

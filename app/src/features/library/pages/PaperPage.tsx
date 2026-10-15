@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils"
 import { NotFound, PageHeader } from "@/components/page"
 import { IconButton } from "@/components/icon-button"
 import { SegmentedControl } from "@/components/segmented-control"
+import { useTakeParam } from "@/hooks/use-take-param"
 import { reportPaperView } from "@/app/activity"
 import { useAgentWindow } from "@/features/agent/store"
 import { useDigestState } from "../digests"
 import { visiblePapers } from "../lib/filter"
 import { useReadingVisit } from "../lib/reading"
-import { useTakeParam } from "../lib/use-take-param"
 import { notePathOf } from "../notes/note-actions"
 import { usePrefsStore } from "../prefs-store"
 import { PdfReader } from "../reader/PdfReader"
@@ -110,7 +110,7 @@ export function PaperPage() {
       setChosen({ paperId, view: "pdf" })
       void whenReaderReady(paperId).then((api) => api.showPassage({ id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), page: page ? page - 1 : undefined }, "jump"), () => undefined)
     },
-    ["page"],
+    { also: ["page"] },
   )
 
   if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />

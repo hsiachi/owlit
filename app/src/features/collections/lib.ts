@@ -1,8 +1,23 @@
 import { t } from "@lingui/core/macro"
-import { MENTION_LINK, QUESTION_COLUMN, shownCollection, type Collection, type CollectionPaper, type CollectionRow, type CollectionSummary, type Relation } from "@owlit/protocol"
+import { MENTION_LINK, QUESTION_COLUMN, shownCollection, summarize, type Collection, type CollectionPaper, type CollectionRow, type CollectionSummary, type Relation } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
+
+// Worked out once per collection object, which is safe because the store replaces a collection on every
+// change and never changes one in place. Shared between callers, so not to be changed either.
+function perCollection<T>(build: (c: Collection) => T) {
+  const cache = new WeakMap<Collection, T>()
+  return (c: Collection) => {
+    let value = cache.get(c)
+    if (value === undefined) cache.set(c, (value = build(c)))
+    return value
+  }
+}
+
+// The collection as the user sees it (shownCollection), and what the list of collections shows of it
+export const shown = perCollection(shownCollection)
+export const summaryOf = perCollection(summarize)
 
 // The Library's own record of a row's paper, when the paper is there: by the row's id, an id it had
 // before, or a shared DOI or arXiv id (a paper added by hand gets the same id, but one dropped in as a PDF

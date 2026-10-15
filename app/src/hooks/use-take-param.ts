@@ -5,8 +5,9 @@ import { useSearchParams } from "react-router-dom"
 // arrives and taken off the link, so the link stays clean. Parameters that only qualify it (?queue=1)
 // go in `also`: they are read and taken off in the same update, since two hooks each taking one would
 // each write the link back from the same starting point and the second would restore the first. Before
-// paint, so what it asks for is the first thing shown.
-export function useTakeParam(name: string, take: (value: string, params: URLSearchParams) => void, also: string[] = []) {
+// paint, so what it asks for is the first thing shown. Not `enabled`, the link is left as it is until it
+// is (a page whose content hasn't loaded yet).
+export function useTakeParam(name: string, take: (value: string, params: URLSearchParams) => void, { also = [], enabled = true }: { also?: string[]; enabled?: boolean } = {}) {
   const [params, setParams] = useSearchParams()
   const value = params.get(name)
   // The newest of what the effect reads but shouldn't rerun for
@@ -19,7 +20,7 @@ export function useTakeParam(name: string, take: (value: string, params: URLSear
   })
 
   useLayoutEffect(() => {
-    if (value === taken.current) return
+    if (!enabled || value === taken.current) return
     taken.current = value
     if (value === null) return
     const { take: run, params: now, also: qualifiers } = latest.current
@@ -31,5 +32,5 @@ export function useTakeParam(name: string, take: (value: string, params: URLSear
       },
       { replace: true },
     )
-  }, [name, value, setParams])
+  }, [name, value, enabled, setParams])
 }

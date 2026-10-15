@@ -13,11 +13,37 @@ interface TasksState {
 
 export const useTasksStore = create<TasksState>(() => ({ byId: {} }))
 
+// The tasks by subject and by kind, built once per byId: byId is replaced on every change and only
+// grows (core keeps finished tasks a while), and a list asks for each of its rows' tasks on every change
+type TaskIndex = { bySubject: Map<string, Task[]>; byKind: Map<string, Task[]> }
+const indexes = new WeakMap<Record<string, Task>, TaskIndex>()
+const NONE: readonly Task[] = []
+function indexOf(byId: Record<string, Task>): TaskIndex {
+  let index = indexes.get(byId)
+  if (index) return index
+  index = { bySubject: new Map(), byKind: new Map() }
+  const add = (map: Map<string, Task[]>, key: string, task: Task) => {
+    const list = map.get(key)
+    if (list) list.push(task)
+    else map.set(key, [task])
+  }
+  for (const task of Object.values(byId)) {
+    add(index.bySubject, task.subject, task)
+    add(index.byKind, task.kind, task)
+  }
+  indexes.set(byId, index)
+  return index
+}
+
+// A subject's tasks, or every task of a kind, finished ones too. Shared between callers: copy before sorting.
+export const tasksFor = (byId: Record<string, Task>, subject: string): readonly Task[] => indexOf(byId).bySubject.get(subject) ?? NONE
+export const tasksOfKind = (byId: Record<string, Task>, kind: string): readonly Task[] => indexOf(byId).byKind.get(kind) ?? NONE
+
 // A subject's unfinished tasks, most urgent first, then oldest
 export function openTasksFor(state: TasksState, subject: string) {
   const rank = (task: Task) => TASK_PRIORITIES.indexOf(task.priority)
-  return Object.values(state.byId)
-    .filter((task) => task.subject === subject && !isTaskFinished(task))
+  return tasksFor(state.byId, subject)
+    .filter((task) => !isTaskFinished(task))
     .sort((a, b) => rank(a) - rank(b) || a.createdAt - b.createdAt)
 }
 

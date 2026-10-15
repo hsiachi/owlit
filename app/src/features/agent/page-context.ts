@@ -53,15 +53,6 @@ export function pageStarters(kind: PageKind): { label: string; prompt: string }[
   ]
 }
 
-// Cut at a word boundary, so a chip never ends mid-word ("Scholars need to k…")
-export const shorten = (text: string, n: number) => {
-  const flat = text.replace(/\s+/g, " ").trim()
-  if (flat.length <= n) return flat
-  const cut = flat.slice(0, n + 1)
-  const space = cut.lastIndexOf(" ")
-  return `${(space > n / 2 ? cut.slice(0, space) : flat.slice(0, n)).replace(/[\s,.;:]+$/, "")}…`
-}
-
 // The doc or paper on screen, which the agent is shown along with the question
 function usePageContext(): Mentionable | null {
   const { pathname } = useLocation()

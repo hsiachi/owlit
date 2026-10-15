@@ -2,12 +2,13 @@ import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { hostOf } from "@/lib/names"
 import { Button } from "@/components/ui/button"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import type { QuestionPart } from "../../types"
 import { diffLines } from "../../lib/diff-lines"
 import { hitsOf, isPaperUrl, outputOf } from "../../lib/step-output"
-import { fetchUrlOf, hostOf, runsCommand, stepGroup, type ToolCall } from "../../lib/step-words"
+import { fetchUrlOf, runsCommand, stepGroup, type ToolCall } from "../../lib/step-words"
 
 // What a step got, shown when its row is opened: a command's output, the hits of a search, the pages
 // opened (a paper among them can go straight into the Library), a file's text, the change an edit made,

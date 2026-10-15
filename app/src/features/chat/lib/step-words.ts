@@ -1,8 +1,8 @@
 import { plural, t, type ChoiceOptions } from "@lingui/core/macro"
-import { baseName } from "@owlit/protocol"
 import type { MessagePart, ToolCall } from "../types"
 import { owlitStepWords, owlitToolOf, quote, toolTitle } from "./tool-title"
 import { capital, joinActions, joinAnd } from "@/lib/words"
+import { fileName } from "@/lib/names"
 
 // How a step of an answer is put in words: what it is doing while it runs, what it did once done, and what
 // kind of work it is, so a block of steps can say in one sentence what happened ("Read 3 files and
@@ -68,9 +68,6 @@ export function pastTense(sentence: string) {
 
 // ---- Things a step names ----
 
-// A file's name, from a path that may end in a slash
-export const fileName = (p: string) => baseName(p.replace(/\/+$/, "")) || p
-
 // The file a step works on
 export const pathOf = (call: ToolCall) => call.tool?.path ?? call.diff?.path ?? call.locations?.[0]?.path
 
@@ -88,14 +85,6 @@ export function shortUrl(url: string) {
     return `${u.host.replace(/^www\./, "")}${rest}`
   } catch {
     return url
-  }
-}
-
-export const hostOf = (url: string) => {
-  try {
-    return new URL(url).host.replace(/^www\./, "")
-  } catch {
-    return undefined
   }
 }
 
