@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { RpcErrorCode, type MemoryLine, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
@@ -7,6 +7,7 @@ import { Docs } from "../docs/docs.ts"
 import type { Host } from "../host.ts"
 import { Http } from "../net/http.ts"
 import { Versions } from "../docs/versions.ts"
+import { Memory } from "../memory/memory.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
@@ -34,6 +35,8 @@ export interface WorkspaceOptions {
   library?: LibraryServices
   threads?: ThreadsServices
   tasks?: WorkspaceTasks
+  // Owlit's memory changed, by anyone
+  memoryChanged?: (lines: MemoryLine[]) => void
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
@@ -58,6 +61,7 @@ export class Workspace {
   readonly tasks: Scheduler
   readonly search: SearchIndex
   readonly threads: Threads
+  readonly memory: Memory
   readonly shares: Shares
   private release: () => Promise<void>
 
@@ -70,6 +74,7 @@ export class Workspace {
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.versions = new Versions(path.join(root, OWLIT_DIR))
     this.chats = new Chats(path.join(root, OWLIT_DIR))
+    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.versions, options.memoryChanged)
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.search = new SearchIndex(root, dataDir, this.library)
     this.threads = new Threads(path.join(root, OWLIT_DIR), { versions: this.versions }, {

@@ -407,6 +407,49 @@ export class Core {
       z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }),
       (params) => this.ui.act("mark", params),
     )
+    this.router.register("memory.list", noParams, async () => {
+      const memory = this.requireWorkspace().memory
+      return { lines: await memory.list(), claudeNotes: await memory.claudeNotes() }
+    })
+    const memoryKind = z.enum(["work", "about"])
+    this.router.register(
+      "memory.write",
+      z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
+      async ({ op, id, kind, text, chatId }) => {
+        // Said to the agent, so plain English
+        const need = (what: string) => {
+          throw new RpcFailure(RpcErrorCode.InvalidParams, `memory_write with op "${op}" needs ${what}.`)
+        }
+        const change = await this.requireWorkspace().memory.agentWrite(
+          op === "add" ? { op, kind: kind ?? need("kind"), text: text ?? need("text") } : op === "replace" ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}) } : { op, id: id ?? need("id") },
+          chatId ? { chatId } : {},
+        )
+        const shown = change.line ?? change.before
+        if (change.versionId && shown) {
+          this.notifier.notify("agent.changed", {
+            kind: "memory",
+            versionId: change.versionId,
+            path: shown.id,
+            label: shown.text,
+            memory: shown.kind,
+            ...(change.line === null ? { op: "removed" as const } : change.before ? { op: "updated" as const } : {}),
+            ...(chatId ? { chatId } : {}),
+          })
+        }
+        return change
+      },
+    )
+    this.router.register(
+      "memory.put",
+      z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }),
+      (input) => this.requireWorkspace().memory.put(input),
+    )
+    this.router.register("memory.remove", z.object({ id: z.string().min(1) }), ({ id }) => this.requireWorkspace().memory.remove(id))
+    this.router.register(
+      "memory.decideClaudeNotes",
+      z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }),
+      ({ keep, drop }) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop),
+    )
     this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
     this.router.register("versions.stats", z.object({ from: z.string().min(1), to: z.string().min(1) }), ({ from, to }) => this.fs.stats(from, to))
     this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
@@ -832,6 +875,9 @@ export class Core {
                 },
                 // A chat's agent gathered papers into a thread: the chat shows it with Undo, as for any agent write
                 wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change }),
+              },
+              memoryChanged: (lines) => {
+                if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
               },
               shares: {
                 server: () => this.options.shareServer ?? null,

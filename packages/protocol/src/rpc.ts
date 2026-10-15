@@ -9,6 +9,7 @@ import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./sear
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
+import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 
@@ -305,6 +306,21 @@ export interface Methods {
   // The versions kept, newest first; of one doc or topic, or of everything since a time
   "versions.list": { params: { path?: string; since?: number }; result: VersionInfo[] }
 
+  // ---- Memory: what Owlit keeps in mind about the user (.owlit/memory.md)
+  // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
+  "memory.list": { params: void; result: { lines: MemoryLine[]; claudeNotes: ClaudeNote[] } }
+  // An agent's change (owlit-mcp's memory_write); versionId undoes it. Errors are said to the agent.
+  "memory.write": {
+    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string }
+    result: { line: MemoryLine | null; before: MemoryLine | null; versionId?: string }
+  }
+  // The user's change from Settings: a new line (no id), an edit, or a removed line put back (its id)
+  "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }; result: MemoryLine[] }
+  "memory.remove": { params: { id: string }; result: MemoryLine[] }
+  // Copies the chosen Claude Code notes in (as the user edited them) and drops the rest, so none is
+  // offered again
+  "memory.decideClaudeNotes": { params: { keep: { file: string; kind: MemoryKind; text: string }[]; drop: string[] }; result: MemoryLine[] }
+
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
   // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
@@ -473,6 +489,8 @@ export interface Notifications {
   "notes.added": { path: string; note: AgentNote }
   // An undo took a note away
   "notes.removed": { path: string; id: string }
+  // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
+  "memory.changed": { lines: MemoryLine[] }
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
   // An agent in a chat left a note, added a paper or wrote to a thread; versionId undoes it.
@@ -480,9 +498,12 @@ export interface Notifications {
   // op "removed": an agent took back a paper it added (absent: an addition or a write)
   // kind "thread": path is the thread's id; created when the write started it, rows the papers it
   // added and updated how many it changed, asked the question it was for
+  // kind "memory": path is the line's id and label its text (the old text when removed); op "updated"
+  // when it replaced a line, memory which kind of line
   "agent.changed": {
-    kind: "note" | "paper" | "thread"
-    op?: "removed"
+    kind: "note" | "paper" | "thread" | "memory"
+    op?: "removed" | "updated"
+    memory?: MemoryKind
     versionId: string
     path: string
     label: string
