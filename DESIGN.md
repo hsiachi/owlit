@@ -434,7 +434,7 @@ owlit is a Mac app for reading, writing and thinking through papers with an assi
 ### Habits
 
 - **Sentences, not labels.** Short plain English: "Owlit wants to edit untitled.md", "Changed since you last looked", "Read 3 files". Headings are one or two words in sentence case. Counts read as words ("3 comments", "a paper", "2 of 3"), and a large one in a narrow cell is short in the language's way ("2.7K", "3.2万"); recent times are relative ("2 h ago"), older ones short dates ("Mar 3"); a clock time stands alone only for today, and another day's carries its date ("Oct 9, 12:01 PM"). An ellipsis marks a continuing action ("Checking…", "Manage agents…").
-- **Words before marks.** Text before icons; menu items are words only; an icon-only action keeps its label in a tooltip; an explanation sits behind an info icon, unless a setting can't be chosen well without it, and then it is one muted line under the setting's name.
+- **Words for what is Owlit's, icons for what is everyone's.** An action is an icon alone only when the icon is one people already know from other apps (back, close, ⋯, star, copy, send, stop, add, previous and next, a panel toggle, search, attach) or is the feather; when it sits where it repeats or room is short (every row or message, a page header, a floating toolbar); and when a wrong guess costs nothing, its result showing at once and taking back easily. The test: someone who has never hovered over it guesses right. Everything else is words: what only Owlit does (Find more papers, Read all in full), what sets Owlit working or leaves the app (Open in browser), the main action of a page, dialog or form, and anything that carries a count or a state ("2 comments", "Reading"). Where one row holds both, the Owlit action comes first in words and the tools follow as icons, as in the selection menu. Menu items are words only; a list's create action (New chat, New doc) is the one place a word and an icon go together. An icon-only action keeps its label, and its shortcut, in a tooltip. An explanation sits behind an info icon, unless a setting can't be chosen well without it, and then it is one muted line under the setting's name.
 - **One line per thing.** A row is a title, one muted detail inline, one detail at the right end. It earns a second line only for a problem, or for words the person typed; when it is a problem, that line holds the fix.
 - **Same thing, same look.** A row, a ⋯ menu, a find field, a card, an empty state, a mention token look the same in every place. A right-click opens the same menu as the row's ⋯. A new feature copies the nearest existing shape before inventing one; when a shape must change, it changes everywhere.
 - **Process folds, results lead.** What the agent did is a quiet, foldable list; the answer is full-width body text.
@@ -585,7 +585,7 @@ The shared shapes. Each is one component in code; a place uses it as it is.
 
 Do:
 
-- Reach for tone before lines, and words before icons.
+- Reach for tone before lines, and for words wherever an icon would need its tooltip to be understood.
 - Put the fix next to the problem.
 - Keep a concept's look identical everywhere, and change the component when it must change.
 - Check contrast on hover and selection fills, not just the bare surface.

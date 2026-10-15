@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tip } from "@/components/tip"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
@@ -104,17 +105,21 @@ export function AskEach({ thread, trigger = "text" }: { thread: Thread; trigger?
   }
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {trigger === "plus" ? (
-          <Button variant="ghost" size="icon-xs" aria-label={t`Ask each paper…`} title={t`Ask each paper…`} className="-mx-1 text-muted-foreground data-[state=open]:bg-accent">
-            <PlusIcon />
-          </Button>
-        ) : (
+      {trigger === "plus" ? (
+        <Tip label={t`Ask each paper…`}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon-xs" aria-label={t`Ask each paper…`} className="-mx-1 text-muted-foreground data-[state=open]:bg-accent">
+              <PlusIcon />
+            </Button>
+          </PopoverTrigger>
+        </Tip>
+      ) : (
+        <PopoverTrigger asChild>
           <Button variant="text" size="inline" className="data-[state=open]:bg-muted data-[state=open]:text-foreground">
             {t`Ask each paper…`}
           </Button>
-        )}
-      </PopoverTrigger>
+        </PopoverTrigger>
+      )}
       <PopoverContent align="start" className="w-72 gap-0 p-1.5">
         <input
           autoFocus
