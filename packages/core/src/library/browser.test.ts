@@ -550,7 +550,7 @@ describe("your own browser", () => {
 
   it("stops when asked, leaving the papers that hadn't had their turn as they were", async () => {
     quick(60_000, 60_000)
-    const { call, opened, heard } = await withDownloads()
+    const { call, opened, heard, workspace } = await withDownloads()
     for (const paper of [acm, second]) {
       await call("library.add", { paper })
       await call("library.fetchPdf", { id: paper.id })
@@ -562,6 +562,8 @@ describe("your own browser", () => {
     await until(async () => !(await paperIn(call, second.id)).noPdf.fromBrowser)
     expect((await paperIn(call, second.id)).noPdf.needs).toBe("browser")
     expect(opened).toHaveLength(1)
+    // Nothing kept for the next start to go on with
+    await until(async () => !existsSync(path.join(workspace.dataDir, "browser-run.json")))
   })
 
   it("takes a PDF the user saves by the DOI on its pages", async () => {
@@ -790,10 +792,58 @@ describe("your own browser", () => {
     }
     await again("workspace.open", { path: root })
     await until(async () => (await paperIn(again, cell.id)).pdf)
+    // Recorded as got from the user's browser, not as a PDF the user dropped
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", cell.id, "acquisition.json"), "utf8"))).toMatchObject({ result: "ok", route: "your-browser" })
     // The ACM paper is still within its time: not taken from the old file, and looked for again
     const acmPaper = await paperIn(again, acm.id)
     expect(acmPaper.pdf).toBeUndefined()
     expect(acmPaper.noPdf.offered).toBeUndefined()
+  })
+
+  it("goes on with a run owlit closed in the middle of, keeping what it had done", async () => {
+    quick(50, 10_000)
+    const first = fakeControl(() => undefined)
+    const { base, root, call, downloads, heard, workspace } = await withDownloads({ control: first.control })
+    for (const paper of [acm, second, third]) {
+      await call("library.add", { paper })
+      await call("library.fetchPdf", { id: paper.id })
+    }
+    await call("library.getInBrowser", { ids: [acm.id, second.id, third.id] })
+    await until(async () => first.tabs.size === 1)
+    // The first one's PDF lands; the second is opened, and owlit closes while it is awaited
+    await new Promise((r) => setTimeout(r, 300))
+    writeFileSync(path.join(downloads, "acm.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: `doi:${acm.ids.doi}` }]]))
+    await until(async () => first.tabs.size === 2)
+    const run = heard.find((t) => t.kind === "papers.fromBrowser")!
+    await Promise.all(cores.splice(0).map((c) => c.dispose()))
+    const runFile = path.join(workspace.dataDir, "browser-run.json")
+    expect(JSON.parse(readFileSync(runFile, "utf8"))).toMatchObject({ task: run.id, left: [second.id, third.id], done: 1, tally: { got: [acm.id] } })
+
+    process.env.OWLIT_BROWSER_WAIT_MS = "100"
+    const next = fakeControl(() => undefined)
+    const fetch = (async () => new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
+    const { browser } = fakeBrowser(async (request) => {
+      throw new NeedsUser("challenge", new URL(request.landing).hostname)
+    })
+    const core = new Core({
+      userDataDir: path.join(base, "userData"),
+      host: { fetch, browser, downloadsDir: () => downloads, openExternal: async () => {}, browserName: async () => "Dia", browserControl: async () => next.control },
+      retryBaseMs: 1,
+    })
+    cores.push(core)
+    const again: Task[] = []
+    core.onNotify((n) => n.method === "tasks.changed" && again.push((n.params as { task: Task }).task))
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    expect("error" in response).toBe(false)
+    const ended = await until(async () => again.find((t) => t.id === run.id && t.state === "done"))
+    // The paper it had open goes first again, then the one that hadn't had its turn
+    expect([...next.tabs.values()].map((t) => t.url)).toEqual([pdfOf(second.ids.doi), pdfOf(third.ids.doi)])
+    expect(JSON.parse(ended.progress!.note!)).toMatchObject({ got: [acm.id], missed: [second.id, third.id] })
+    expect(ended.progress).toMatchObject({ done: 3, total: 3 })
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
+    expect(acquisition).toMatchObject({ result: "ok", route: "your-browser" })
+    // Ended: nothing kept for another start
+    expect(existsSync(runFile)).toBe(false)
   })
 
   it("waits out the library proxy's limit and tries the paper again", async () => {

@@ -130,6 +130,24 @@ const pageLook = () => Number(process.env.OWLIT_BROWSER_LOOK_MS ?? PAGE_LOOK_MS)
 const checkWait = () => Number(process.env.OWLIT_BROWSER_CHECK_MS ?? CHECK_WAIT_MS)
 // A paper's turn in a run in the user's browser (Paper.noPdf.fromBrowser, without the browser's name)
 type FromBrowser = NonNullable<NonNullable<Paper["noPdf"]>["fromBrowser"]>
+// How a PDF owlit didn't fetch itself came, as acquisition.json records it
+type PlacedBy = "dropped" | "your-browser"
+// What a run in the user's browser did, by paper id: its progress note, as JSON
+interface Tally {
+  browser?: string
+  got: string[]
+  noAccess: string[]
+  pages: string[]
+  missed: string[]
+}
+// A run as it stood, kept in the workspace's data folder (browser-run.json) while it goes on: the task
+// that is the run, the papers it hadn't finished with, and what it had done
+interface KeptRun {
+  task: string
+  left: string[]
+  done: number
+  tally: Tally
+}
 
 // Figures that couldn't be had (the cloud unreachable) are looked for again by a note written after this
 const FIGURES_RETRY_MS = 60 * 60_000
@@ -236,6 +254,8 @@ export class Library {
   private browserTabs = new Map<string, { window: string; tab: string }>()
   private browserOpenedAt = 0
   private browserRunning = false
+  // The look in Downloads at start, which a run waits for before it opens anything again
+  private resumed: Promise<void> | undefined
   private browserLabel: string | undefined
   private arrivals = new Map<string, () => void>()
   // A downloaded PDF that may be the paper's, waiting for the user to say: paper → file
@@ -1109,12 +1129,14 @@ export class Library {
     return (await readText(this.root, id)) ?? null
   }
 
-  // A PDF the user found, placed as the paper's file; the steps that need it follow
-  attachPdf(id: string, file: string): Promise<Paper> {
+  // A PDF the user found, placed as the paper's file; the steps that need it follow. The route says how
+  // it came: "dropped" (or chosen) by the user, "your-browser" when taken from Downloads after owlit sent
+  // the user's browser for it.
+  attachPdf(id: string, file: string, route: PlacedBy = "dropped"): Promise<Paper> {
     return this.serial(async () => {
       if (!(await readRecord(this.root, id))) throw notFound(id)
       await assertPdf(file)
-      await this.placePdf(id, file, await sha256Of(file))
+      await this.placePdf(id, file, await sha256Of(file), "asked", route)
       return (await this.get(id))!
     })
   }
@@ -1225,6 +1247,12 @@ export class Library {
   //
   // The run's tally (the browser's name; got, no access, pages to save, missed: paper ids) is its progress note, as JSON, for
   // the line that sums it up once it has ended.
+  //
+  // The queue and the tally are kept on disk as the run goes (browser-run.json). Closing owlit stops the
+  // run without ending its task, and the next start runs that task again: it picks up the papers it
+  // hadn't finished with and goes on adding to the same tally. Before, the queue lived only in memory,
+  // and the restarted run found nothing, ended "0 of 0" and wiped the tally (five runs in two days, to
+  // 2026-10-15; one had got 6 PDFs and left 14 pages). The user's Stop ends the run, and the file goes.
   private fromBrowserTask(open: NonNullable<LibraryServices["openExternal"]>) {
     return defineTask(FROM_BROWSER, {
       // Not the browser lane: owlit's own hidden browser shouldn't hold up what the user just asked for
@@ -1242,8 +1270,19 @@ export class Library {
         let current: string | undefined
         let again: string | undefined
         let limitUntil = 0
-        const tally = { browser: this.browserLabel, got: [] as string[], noAccess: [] as string[], pages: [] as string[], missed: [] as string[] }
-        const report = () => ctx.progress(done, done + this.browserQueue.length, JSON.stringify(tally))
+        // Whether the kept run has been read: closing before then leaves it as it was
+        let restored = false
+        const tally: Tally = { browser: this.browserLabel, got: [], noAccess: [], pages: [], missed: [] }
+        const runFile = path.join(this.dataDir, "browser-run.json")
+        let saving = Promise.resolve()
+        const keep = () => {
+          const run: KeptRun = { task: ctx.task.id, left: [...(current ? [current] : []), ...this.browserQueue], done, tally: structuredClone(tally) }
+          saving = saving.then(() => writeJsonAtomic(runFile, run)).catch((error) => console.error("[core] couldn't keep the browser run", error))
+        }
+        const report = () => {
+          ctx.progress(done, done + this.browserQueue.length, JSON.stringify(tally))
+          keep()
+        }
         // Per site in this run: whether it gave a PDF, how many of its papers didn't come, and whether the
         // run already stopped for a page owlit couldn't read there
         const gave = new Set<string>()
@@ -1313,6 +1352,28 @@ export class Library {
         }
 
         try {
+          // This task, started again after owlit closed in the middle of it: the papers it hadn't finished
+          // with go first (the one it had opened among them), unless a PDF came for one meanwhile (taken from
+          // Downloads at start)
+          await this.resumed
+          const kept = await readJson<KeptRun>(runFile).catch(() => undefined)
+          if (kept?.task === ctx.task.id) {
+            for (const list of ["got", "noAccess", "pages", "missed"] as const) tally[list] = [...kept.tally[list]]
+            done = kept.done
+            const counted = new Set([...tally.got, ...tally.noAccess, ...tally.pages, ...tally.missed])
+            const back: string[] = []
+            for (const id of new Set(kept.left)) {
+              if (counted.has(id) || this.browserQueue.includes(id)) continue
+              if (await hasPdfFile(this.root, id)) {
+                tally.got.push(id)
+                done++
+              } else back.push(id)
+            }
+            this.browserQueue.unshift(...back)
+            for (const id of back) this.fromBrowser.set(id, { state: "queued" })
+            if (back.length) await this.announce(back)
+          }
+          restored = true
           for (;;) {
             const next = await this.nextFromBrowser(again)
             again = undefined
@@ -1444,6 +1505,12 @@ export class Library {
           }
           report()
         } finally {
+          // Closing owlit rather than the user's Stop (which ends the task): kept for the next start
+          const closing = ctx.signal.aborted && !isTaskFinished(this.scheduler!.get(ctx.task.id) ?? ctx.task)
+          if (closing) {
+            if (restored) keep()
+          } else saving = saving.then(() => rm(runFile, { force: true })).catch((error) => console.error("[core] couldn't clear the browser run", error))
+          await saving
           this.browserRunning = false
           // Stopped: the papers that hadn't had their turn are as they were before (the one opened last
           // is still looked for in Downloads a while)
@@ -1541,7 +1608,7 @@ export class Library {
     this.offered.delete(id)
     if (take && file) {
       this.downloadWatch?.stop(id)
-      return this.attachPdf(id, file)
+      return this.attachPdf(id, file, "your-browser")
     }
     const paper = await this.get(id)
     if (!paper) throw notFound(id)
@@ -1560,7 +1627,7 @@ export class Library {
 
   private async downloadFound(id: string, file: string, sure: boolean) {
     if (await hasPdfFile(this.root, id)) return this.downloadWatch?.stop(id)
-    if (sure) await this.attachPdf(id, file).catch((error) => console.error("[core] couldn't take a downloaded PDF", error))
+    if (sure) await this.attachPdf(id, file, "your-browser").catch((error) => console.error("[core] couldn't take a downloaded PDF", error))
     else this.offered.set(id, file)
     await this.announce([id])
   }
@@ -1635,7 +1702,7 @@ export class Library {
   }
 
   // The file becomes the paper's PDF, and the steps that read it follow
-  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked") {
+  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked", route: PlacedBy = "dropped") {
     // A download or a publisher's page still looking must not replace the user's file when it lands,
     // nor a reading of the old file come back over the new one's
     for (const t of this.scheduler?.list() ?? []) {
@@ -1657,8 +1724,8 @@ export class Library {
     await writeAcquisition(this.root, id, {
       version: 1,
       result: "ok",
-      route: "dropped",
-      tried: [...(previous?.tried ?? []), { route: "dropped", url: file, at: Date.now() }],
+      route,
+      tried: [...(previous?.tried ?? []), { route, url: file, at: Date.now() }],
       at: Date.now(),
       dropHere: dest,
       sha256: sha,
@@ -1759,7 +1826,7 @@ export class Library {
     // Before any paper is read: imported papers skip the digest and maybe MinerU
     await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
-    void this.resumeDownloads().catch((error) => console.error("[core] couldn't look in Downloads", error))
+    this.resumed = this.resumeDownloads().catch((error) => console.error("[core] couldn't look in Downloads", error))
     // A library that can't be read yet still opens; lookups just find less
     await this.index.load().catch((error) => console.error("[core] couldn't read the library", error))
     if (this.watcher) return
