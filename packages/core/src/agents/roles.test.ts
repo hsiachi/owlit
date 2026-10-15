@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { guardFor } from "./profiles.ts"
+import { guardFor, processEnv } from "./profiles.ts"
 import { answerFor, consentFor } from "./roles.ts"
 
 describe("roles", () => {
@@ -12,6 +12,18 @@ describe("roles", () => {
     const coauthor = guardFor("claude-code", "coauthor", ["/w"])
     expect(coauthor.meta).toMatchObject({ claudeCode: { options: { settingSources: [] } } })
     expect(coauthor.meta).not.toEqual(assistant.meta)
+  })
+
+  it("keeps each agent's own memory off, whatever the role", () => {
+    for (const role of ["reviewer", "assistant", "coauthor"] as const) {
+      expect(guardFor("claude-code", role, ["/w"]).meta).toMatchObject({ claudeCode: { options: { settings: { autoMemoryEnabled: false, autoDreamEnabled: false } } } })
+    }
+    const codex = JSON.parse(processEnv("codex", {}).CODEX_CONFIG)
+    expect(codex).toEqual({ features: { memories: false }, memories: { generate_memories: false, use_memories: false } })
+    // The user's own CODEX_CONFIG stays, with memories turned off on top
+    const theirs = JSON.parse(processEnv("codex", { CODEX_CONFIG: JSON.stringify({ model: "o9", features: { memories: true, web: true } }) }).CODEX_CONFIG)
+    expect(theirs).toMatchObject({ model: "o9", features: { memories: false, web: true } })
+    expect(processEnv("claude-code", {})).toEqual({})
   })
 
   it("runs Codex read-only unless Owlit is a Co-author", () => {

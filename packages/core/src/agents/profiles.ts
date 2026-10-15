@@ -28,10 +28,16 @@ export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 // - tools lists the built-in tools owlit wants. The rest publish or act outside the workspace (Artifact,
 //   scheduled and remote agents, push notifications, worktrees) or mean nothing here, and a Claude Code
 //   update can't add one behind owlit's back. ToolSearch stays because MCP tools may be deferred behind it.
+// - autoMemoryEnabled false: Claude Code's own memory (notes in ~/.claude/projects/<folder>/memory/)
+//   stays on without settingSources, out of the user's sight and outside the workspace, so each write
+//   asked like an edit. Owlit keeps its own memory in the workspace (memory.ts); autoDreamEnabled false
+//   stops the background tidying of the other. Checked 2026-10-16: the system prompt no longer names a
+//   memory folder.
 // Auto mode doesn't depend on any of it (checked: the session still offers it).
 //
 // Codex has no such switch yet: codex-acp passes no session options to Codex, which reads
-// ~/.codex/config.toml (MCP servers, skills) and AGENTS.md itself.
+// ~/.codex/config.toml (MCP servers, skills) and AGENTS.md itself. Its memories it can be kept from
+// (processEnv below).
 
 const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch", "TodoWrite", "AskUserQuestion"]
 
@@ -52,9 +58,32 @@ export function sessionMeta(connectorId: string, options: ClaudeOptions = {}): R
         plugins: [],
         tools: CLAUDE_TOOLS,
         ...options,
-        settings: { disableClaudeAiConnectors: true, ...options.settings },
+        settings: { disableClaudeAiConnectors: true, autoMemoryEnabled: false, autoDreamEnabled: false, ...options.settings },
       },
     },
+  }
+}
+
+// What an agent's process is started with beyond the user's own environment. Codex keeps memories of
+// every project in ~/.codex/memories, written in the background, and owlit's sessions read and added to
+// them; codex-acp merges CODEX_CONFIG (JSON) into Codex's config, so memories go off there, on top of any
+// CODEX_CONFIG the user set. Checked 2026-10-16 with codex-acp 2.2.1: Codex no longer sees the folder.
+export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<string, string> {
+  if (connectorId !== "codex") return {}
+  let config: Record<string, unknown> = {}
+  try {
+    const own: unknown = env.CODEX_CONFIG ? JSON.parse(env.CODEX_CONFIG) : {}
+    if (own && typeof own === "object" && !Array.isArray(own)) config = own as Record<string, unknown>
+  } catch {
+    // Not JSON: codex-acp would fail on it anyway; owlit's own replaces it
+  }
+  const section = (key: string) => (config[key] && typeof config[key] === "object" ? (config[key] as Record<string, unknown>) : {})
+  return {
+    CODEX_CONFIG: JSON.stringify({
+      ...config,
+      features: { ...section("features"), memories: false },
+      memories: { ...section("memories"), generate_memories: false, use_memories: false },
+    }),
   }
 }
 
