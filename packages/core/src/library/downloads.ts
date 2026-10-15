@@ -55,8 +55,9 @@ export class DownloadWatch {
     return Date.now() - this.moved < ms
   }
 
-  watch(paper: Omit<WatchedPaper, "until">) {
-    this.papers.set(paper.id, { ...paper, until: Date.now() + WATCH_MS })
+  // For WATCH_MS from now, or until a given time (a paper sent before a restart keeps its own)
+  watch(paper: Omit<WatchedPaper, "until">, until = Date.now() + WATCH_MS) {
+    this.papers.set(paper.id, { ...paper, until })
     if (this.watcher) return
     try {
       for (const name of readdirSync(this.dir)) this.seen.add(name)
@@ -108,25 +109,31 @@ export class DownloadWatch {
     for (const [id, paper] of this.papers) if (paper.until <= Date.now()) this.papers.delete(id)
     const waiting = [...this.papers.values()]
     if (!waiting.length) return this.close()
-    const from = (await savedFrom(file))?.toLowerCase()
-    const sent = from ? waiting.find((p) => p.doi && from.includes(p.doi.toLowerCase())) : undefined
-    if (sent) {
-      this.stop(sent.id)
-      return this.found(sent.id, file, true)
-    }
-    const look = await this.look(file)
-    if (!look) return
-    const text = normalize(look.text)
-    const match =
-      waiting.find((p) => p.doi && look.doi && p.doi.toLowerCase() === look.doi.toLowerCase()) ??
-      waiting.find((p) => normalize(p.title).length >= 20 && text.includes(normalize(p.title)))
-    if (match) {
-      this.stop(match.id)
-      this.found(match.id, file, true)
-    } else if (waiting.length === 1 && !look.doi) {
-      this.found(waiting[0].id, file, false)
-    }
+    const match = await whoseDownload(file, waiting, this.look)
+    if (match?.sure) this.stop(match.id)
+    if (match) this.found(match.id, file, match.sure)
   }
+}
+
+// Which of the waiting papers a downloaded PDF is: sure by where it was saved from or by the paper's DOI
+// or title on its pages; unsure when it names neither and only one paper waits
+export async function whoseDownload(
+  file: string,
+  waiting: Omit<WatchedPaper, "until">[],
+  look: (file: string) => Promise<PdfLook | undefined>,
+): Promise<{ id: string; sure: boolean } | undefined> {
+  const from = (await savedFrom(file))?.toLowerCase()
+  const sent = from ? waiting.find((p) => p.doi && from.includes(p.doi.toLowerCase())) : undefined
+  if (sent) return { id: sent.id, sure: true }
+  const said = await look(file)
+  if (!said) return undefined
+  const text = normalize(said.text)
+  const match =
+    waiting.find((p) => p.doi && said.doi && p.doi.toLowerCase() === said.doi.toLowerCase()) ??
+    waiting.find((p) => normalize(p.title).length >= 20 && text.includes(normalize(p.title)))
+  if (match) return { id: match.id, sure: true }
+  if (waiting.length === 1 && !said.doi) return { id: waiting[0].id, sure: false }
+  return undefined
 }
 
 // The addresses a browser recorded the file was saved from (macOS keeps them with the file, as Finder's

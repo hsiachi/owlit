@@ -33,7 +33,7 @@ import path from "node:path"
 import { NeedsUser, type BrowserControl, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
 import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
-import { DownloadWatch } from "./downloads.ts"
+import { DownloadWatch, WATCH_MS, whoseDownload } from "./downloads.ts"
 import { whereItEnded, type Ended } from "./where-it-ended.ts"
 import { Publishers } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -123,6 +123,9 @@ const ARRIVAL_MAX_MS = 3 * 60_000
 const openGap = (proxied: boolean) => Number(process.env.OWLIT_BROWSER_GAP_MS ?? (proxied ? PROXY_GAP_MS : OPEN_GAP_MS))
 const arrivalWait = () => Number(process.env.OWLIT_BROWSER_WAIT_MS ?? ARRIVAL_MS)
 const limitWait = () => Number(process.env.OWLIT_BROWSER_LIMIT_MS ?? LIMIT_WAIT_MS)
+// How long after the user's browser was sent for a paper a PDF in Downloads is still taken as its, at
+// the next start
+const RESUME_MS = 24 * 60 * 60 * 1000
 const pageLook = () => Number(process.env.OWLIT_BROWSER_LOOK_MS ?? PAGE_LOOK_MS)
 const checkWait = () => Number(process.env.OWLIT_BROWSER_CHECK_MS ?? CHECK_WAIT_MS)
 // A paper's turn in a run in the user's browser (Paper.noPdf.fromBrowser, without the browser's name)
@@ -1321,6 +1324,7 @@ export class Library {
             const proxied = !!address.proxy
             await sleep(Math.max(0, this.browserOpenedAt + openGap(proxied) - Date.now(), proxied ? limitUntil - Date.now() : 0), ctx.signal)
             watch.watch({ id, doi: record.ids.doi, title: record.title })
+            await this.noteSent(id, address.opens === "page")
 
             if (address.opens === "page") {
               this.fromBrowser.set(id, { state: "page" })
@@ -1452,6 +1456,57 @@ export class Library {
         }
       },
     })
+  }
+
+  // When the user's browser was sent for the paper, so a PDF saved after a restart is still found
+  private async noteSent(id: string, page: boolean) {
+    await this.serial(async () => {
+      const acquisition = await readAcquisition(this.root, id)
+      if (acquisition?.result !== "no_pdf") return
+      await writeAcquisition(this.root, id, { ...acquisition, sentToBrowser: { at: Date.now(), page } })
+    })
+  }
+
+  // Papers the user's browser was sent for before this start whose PDF hasn't come. The Downloads watch
+  // lived only while owlit ran: a restart (or a quit) in the 15 minutes after a run opened an article
+  // page lost the PDFs saved from it (2026-10-15, twelve of them). A PDF saved to Downloads since a
+  // paper was sent that is surely that paper's is taken now; ones still within their time are watched
+  // again, an article page among them counted as open again. An unsure file is left: nobody is there to
+  // be asked about it.
+  private async resumeDownloads() {
+    const dir = this.services.downloadsDir?.()
+    if (!dir) return
+    const now = Date.now()
+    const sent: { id: string; doi?: string; title: string; at: number; page: boolean }[] = []
+    for (const id of await this.ids()) {
+      const acquisition = await readAcquisition(this.root, id)
+      const was = acquisition?.sentToBrowser
+      if (acquisition?.result !== "no_pdf" || !was || now - was.at > RESUME_MS || (await hasPdfFile(this.root, id))) continue
+      const record = await readRecord(this.root, id)
+      if (record) sent.push({ id, doi: record.ids.doi, title: record.title, at: was.at, page: was.page })
+    }
+    if (!sent.length) return
+    const since = Math.min(...sent.map((p) => p.at))
+    const taken = new Set<string>()
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
+      if (!/\.pdf$/i.test(name)) continue
+      const file = path.join(dir, name)
+      const info = await stat(file).catch(() => undefined)
+      if (!info?.isFile() || info.mtimeMs < since) continue
+      const left = sent.filter((p) => p.at <= info.mtimeMs && !taken.has(p.id))
+      if (!left.length) continue
+      const match = await whoseDownload(file, left, (f) => this.lookAtPdf(f)).catch(() => undefined)
+      if (!match?.sure) continue
+      taken.add(match.id)
+      await this.downloadFound(match.id, file, true)
+    }
+    const again = sent.filter((p) => !taken.has(p.id) && p.at + WATCH_MS > now)
+    const watch = again.length ? this.watchDownloads() : undefined
+    for (const p of again) {
+      watch?.watch(p, p.at + WATCH_MS)
+      if (p.page && !this.fromBrowser.has(p.id)) this.fromBrowser.set(p.id, { state: "page" })
+    }
+    if (again.length) await this.announce(again.map((p) => p.id))
   }
 
   // The user's browser reached the publisher and was told no, or nothing came of sending it there: kept
@@ -1704,6 +1759,7 @@ export class Library {
     // Before any paper is read: imported papers skip the digest and maybe MinerU
     await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
+    void this.resumeDownloads().catch((error) => console.error("[core] couldn't look in Downloads", error))
     // A library that can't be read yet still opens; lookups just find less
     await this.index.load().catch((error) => console.error("[core] couldn't read the library", error))
     if (this.watcher) return
@@ -2099,6 +2155,7 @@ export class Library {
       const next = acquisition(previous)
       // What the user's browser was told stands through owlit's own looks
       if (previous?.yourBrowser && !next.yourBrowser) next.yourBrowser = previous.yourBrowser
+      if (previous?.sentToBrowser && !next.sentToBrowser) next.sentToBrowser = previous.sentToBrowser
       await writeAcquisition(this.root, id, next)
       return true
     })
