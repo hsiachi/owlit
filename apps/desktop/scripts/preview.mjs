@@ -2,7 +2,8 @@
 // Node built-ins only.
 //
 // - devBundle: a copy of Electron.app named for the checkout ("Owlit Dev", or "Owlit Dev (show-in-paper)"
-//   in a worktree) with the graphite icon, so the Dock, ⌘Tab and the menu bar say which preview it is.
+//   in a worktree) with the graphite icon, so the Dock and ⌘Tab say which preview it is (the menu bar takes
+//   OWLIT_DEV_NAME).
 //   The app's own name stays "Owlit": it names the keychain item settings' keys are sealed with, which a
 //   clone of the real data has to open.
 // - previewData: the preview's own app data, a clone of the real data taken the first time, with its
@@ -33,7 +34,8 @@ export function checkoutLabel(checkout) {
 
 export function devBundle({ electronBin, cacheDir, name, icon }) {
   const source = path.resolve(electronBin, "../../..")
-  const bundle = path.join(cacheDir, "Owlit Dev.app")
+  // The name is only the folder's: macOS shows a renamed bundle by its file name
+  const bundle = path.join(cacheDir, `${name}.app`)
   const stamp = path.join(cacheDir, "stamp.json")
   const identity = signingIdentity()
   const want = JSON.stringify({ name, electron: plistValue(path.join(source, "Contents/Info.plist"), "CFBundleVersion"), icon: hashFile(icon), identity })
@@ -43,13 +45,13 @@ export function devBundle({ electronBin, cacheDir, name, icon }) {
   mkdirSync(cacheDir, { recursive: true })
   execFileSync("cp", ["-cR", source, bundle])
   const plist = path.join(bundle, "Contents/Info.plist")
-  for (const [key, value] of [["CFBundleName", name], ["CFBundleDisplayName", name], ["CFBundleIdentifier", "app.owlit.dev"]])
+  for (const [key, value] of [["CFBundleName", "Owlit Dev"], ["CFBundleDisplayName", "Owlit Dev"], ["CFBundleIdentifier", "app.owlit.dev"]])
     execFileSync("plutil", ["-replace", key, "-string", value, plist])
   execFileSync("cp", [icon, path.join(bundle, "Contents/Resources/electron.icns")])
   // Editing Info.plist breaks the bundle's seal; macOS ties keychain and folder grants to the signature.
-  // An ad hoc signature is known by its hash, which differs with each checkout's name, so every worktree
-  // would ask again for the keychain item; signed with the certificate, every preview is the same app
-  // (identifier app.owlit.dev and that certificate) and one "Always Allow" covers them all.
+  // Without an Apple team ID the keychain files each "Always Allow" under the code's hash as well as the
+  // certificate, so the contents are the same in every checkout (its name is only in the folder's) and one
+  // approval covers every preview until Electron or the icon changes.
   execFileSync("codesign", ["--force", "--deep", "--sign", identity ?? "-", bundle], { stdio: "ignore" })
   writeFileSync(stamp, want)
   return path.join(bundle, "Contents/MacOS/Electron")
