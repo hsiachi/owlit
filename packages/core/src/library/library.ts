@@ -330,6 +330,7 @@ export class Library {
         else if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", ...(said.outcome === "missing" ? { missing: true } : {}), at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}) }
         const offered = this.offered.get(id)
         if (offered) paper.noPdf.offered = path.basename(offered)
+        if (acquisition.sentToBrowser) paper.noPdf.sentAt = acquisition.sentToBrowser.at
       }
     }
     return paper

@@ -74,6 +74,9 @@ export interface Paper {
     noAccess?: { refused: boolean; missing?: boolean; host?: string; title?: string; at: number }
     // A PDF that arrived in Downloads (file name) owlit isn't sure is this paper's, for them to confirm
     offered?: string
+    // When the user's browser was last sent for it, whatever came of that: a paper tried there once
+    // isn't offered among the ones that might come through it
+    sentAt?: number
   }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers

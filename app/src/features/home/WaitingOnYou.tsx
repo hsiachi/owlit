@@ -117,8 +117,9 @@ function useWaiting(): Waiting[] {
     // there in turn. While that runs, the line says how far it has got; stopped on the user, what their
     // browser may be asking, with the browser one click away. Papers whose page was opened there wait
     // for the user to save the PDF, on a line of their own.
+    // (A paper owlit found nothing for, tried from the Library's No PDF view, has a page to save too)
     const forBrowser = Object.values(papers)
-      .filter((p) => !p.pdf && p.noPdf?.needs === "browser")
+      .filter((p) => !p.pdf && (p.noPdf?.needs === "browser" || !!p.noPdf?.fromBrowser))
       .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
     const browser = forBrowser.find((p) => p.noPdf?.fromBrowser?.browser)?.noPdf?.fromBrowser?.browser
     const pages = forBrowser.filter((p) => p.noPdf?.fromBrowser?.state === "page")
