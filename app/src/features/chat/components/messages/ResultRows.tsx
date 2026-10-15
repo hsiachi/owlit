@@ -197,7 +197,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     for (const [path, list] of byPath) {
       const name = list[0].label
       if (kind === "note") {
-        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, { one: "# note", other: "# notes" }), ...of(list), view: openDoc(path) })
+        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, { one: "# comment", other: "# comments" }), ...of(list), view: openDoc(path) })
         continue
       }
       const span = spans.find((s) => s.path === path)
@@ -305,7 +305,7 @@ function summary(rows: ResultRow[]) {
     docs && (markdown ? plural(docs, { one: "edited a doc", other: "edited # docs" }) : plural(docs, { one: "edited a file", other: "edited # files" })),
     added(rows) && plural(added(rows), { one: "added a paper", other: "added # papers" }),
     removed(rows) && plural(removed(rows), { one: "removed a paper", other: "removed # papers" }),
-    n("note") && plural(n("note"), { one: "left notes on a doc", other: "left notes on # docs" }),
+    n("note") && plural(n("note"), { one: "left comments on a doc", other: "left comments on # docs" }),
     started(rows) && plural(started(rows), { one: "started a thread", other: "started # threads" }),
     gathered(rows) && plural(gathered(rows), { one: "added a paper to a thread", other: "added # papers to threads" }),
     n("digest") && plural(n("digest"), { one: "asked for a digest", other: "asked for # digests" }),

@@ -2,7 +2,7 @@
 // rules both sides must agree on; nothing here may depend on Electron, React or the app.
 
 export type * from "./chat.ts"
-export type * from "./docs.ts"
+export * from "./docs.ts"
 export type * from "./library.ts"
 export * from "./search.ts"
 export * from "./rpc.ts"

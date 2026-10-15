@@ -13,7 +13,8 @@ import {
   type DocConflict,
   type DocsChange,
   type DocsListing,
-  type AgentNote,
+  type CommentAnchor,
+  type DocComment,
   type DocStat,
   type WorkspaceFile,
 } from "@owlit/protocol"
@@ -23,7 +24,7 @@ import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink,
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { invalidParams, RpcFailure } from "../rpc/index.ts"
-import { Notes } from "./notes.ts"
+import { Comments } from "./comments.ts"
 import type { Host } from "../host.ts"
 import { Serial } from "../util.ts"
 
@@ -61,7 +62,7 @@ export class Docs {
   private readonly root: string
   private readonly owlitDir: string
   private readonly host: Host
-  private readonly notes: Notes
+  private readonly comments: Comments
   // path → id, for as long as core runs, so a client's handle on a file survives renames core makes
   private ids = new Map<string, string>()
   private names: NamesFile | undefined
@@ -86,7 +87,7 @@ export class Docs {
     this.root = root
     this.owlitDir = owlitDir
     this.host = host
-    this.notes = new Notes(owlitDir)
+    this.comments = new Comments(owlitDir)
   }
 
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
@@ -251,7 +252,7 @@ export class Docs {
       const file = this.abs(rel)
       if (this.host.trash) await this.host.trash(file)
       else await this.moveToOwlitTrash(rel)
-      await this.notes.trash(rel)
+      await this.comments.trash(rel)
       await this.updateNames((f) => dropUnder(f, rel))
       // Before the ids go, so a told delete names the docs by them
       await this.settle([rel], told)
@@ -295,7 +296,7 @@ export class Docs {
         const at = this.taken()(file.path) ? uniquePath(parentPath(file.path), stemOf(file.path), extOf(file.path), this.taken()) : file.path
         await mkdir(path.dirname(this.abs(at)), { recursive: true })
         await writeFile(this.abs(at), file.content, { flag: "wx" })
-        await this.notes.untrash(file.path, at)
+        await this.comments.untrash(file.path, at)
         this.ids.set(at, file.id)
         restored.push(await this.statAt(at))
       }
@@ -355,26 +356,34 @@ export class Docs {
     if (change) this.changed?.(change)
   }
 
-  // ---- Agents' notes on docs (./notes.ts), kept in step with the files they belong to ----
+  // ---- Comments on docs (./comments.ts), kept in step with the files they belong to ----
 
-  notesAll() {
-    return this.serial.run(() => this.notes.all())
+  commentsAll() {
+    return this.serial.run(() => this.comments.all())
   }
 
-  addNote(rel: string, note: AgentNote) {
+  listComments(rel: string) {
+    return this.serial.run(() => this.comments.list(this.check(rel)))
+  }
+
+  addComment(rel: string, comment: DocComment) {
     return this.serial.run(async () => {
-      await this.notes.add(this.check(rel), note)
+      await this.comments.add(this.check(rel), comment)
       return null
     })
   }
 
-  removeNote(rel: string, id: string) {
-    return this.serial.run(() => this.notes.remove(this.check(rel), id))
+  putComment(rel: string, comment: DocComment) {
+    return this.serial.run(() => this.comments.put(this.check(rel), comment))
   }
 
-  reanchorNotes(rel: string, moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">>) {
+  removeComment(rel: string, id: string) {
+    return this.serial.run(() => this.comments.remove(this.check(rel), id))
+  }
+
+  reanchorComments(rel: string, moved: Record<string, CommentAnchor>) {
     return this.serial.run(async () => {
-      await this.notes.reanchor(this.check(rel), moved)
+      await this.comments.reanchor(this.check(rel), moved)
       return null
     })
   }
@@ -484,7 +493,7 @@ export class Docs {
       const from = e.dir ? undefined : byIno.get(e.ino)
       if (from === undefined) continue
       renamedFrom.add(from)
-      if (external) await this.notes.move(from, p)
+      if (external) await this.comments.move(from, p)
       const id = this.ids.get(from)
       if (id) {
         this.ids.delete(from)
@@ -624,7 +633,7 @@ export class Docs {
   private async moveEntry(from: string, to: string) {
     await mkdir(path.dirname(this.abs(to)), { recursive: true })
     await rename(this.abs(from), this.abs(to))
-    await this.notes.move(from, to)
+    await this.comments.move(from, to)
     const swap = (p: string) => (isWithin(p, from) ? to + p.slice(from.length) : p)
     this.ids = new Map([...this.ids].map(([p, id]) => [swap(p), id]))
     await this.updateNames((f) => Object.fromEntries(Object.entries(f).map(([p, t]) => [swap(p), t])))

@@ -72,7 +72,7 @@ function sayNew(path: string, before: ShareComment[] | undefined, after: ShareCo
           label: t`Open`,
           onClick: () => {
             const thread = first.parent ?? first.id
-            useDocsUiStore.getState().setOpenComment(file.id, thread)
+            useDocsUiStore.getState().setOpenComment(file.id, `r:${thread}`)
             void import("@/app/router").then(({ router }) => router.navigate(`/docs/${file.id}`))
           },
         }

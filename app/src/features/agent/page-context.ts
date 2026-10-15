@@ -11,6 +11,7 @@ import { useAgentWindow } from "./store"
 
 // A passage's chip names where it came from: a page of a paper, the paper's note or digest
 export function selectionLabel(s: QuotedSelection) {
+  if (s.comment) return t({ message: "Comment", context: "noun: a comment on a doc", comment: "chip: a comment on a passage of a doc, asked about with Ask Owlit" })
   if (s.notePath) return t({ message: "Note", comment: "chip: a passage quoted from the paper's note" })
   if (s.inDigest) return t({ message: "Digest", comment: "chip: a passage quoted from the paper's digest" })
   const page = s.page

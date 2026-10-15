@@ -482,7 +482,7 @@ function ThreadView({ thread, lost, canComment, name, onSend }: { thread: Thread
     <div className="flex flex-col gap-3">
       <Quote text={thread.root.anchor.quote} lost={lost} />
       {/* The same card as a comment opened in owlit: a 3px rule in the person's ink at its left */}
-      <div className="flex flex-col gap-3 rounded-[4px_10px_10px_4px] border border-l-[3px] border-border border-l-person-mark bg-card p-3">
+      <div className="flex flex-col gap-3 rounded-[4px_10px_10px_4px] border border-l-[3px] border-border border-l-comment-mark bg-card p-3">
         <Comment comment={thread.root} />
         {thread.replies.map((r) => (
           <div key={r.id} className="border-t border-border pt-3">

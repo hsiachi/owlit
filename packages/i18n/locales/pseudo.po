@@ -306,7 +306,6 @@ msgstr ""
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/docs/editor/reader-comments.ts
 msgid "Send"
 msgstr ""
 
@@ -485,7 +484,7 @@ msgstr ""
 
 #: app/src/components/sentence-editor.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -500,7 +499,9 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
+#. save an edited comment
 #: app/src/components/sentence-editor.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Save"
 msgstr ""
@@ -578,6 +579,12 @@ msgstr ""
 
 #: app/src/features/agent/ContextChips.tsx
 msgid "Don't include the selection"
+msgstr ""
+
+#. chip: a comment on a passage of a doc, asked about with Ask Owlit
+#: app/src/features/agent/page-context.ts
+msgctxt "noun: a comment on a doc"
+msgid "Comment"
 msgstr ""
 
 #. chip: a passage quoted from the paper's note
@@ -1118,7 +1125,6 @@ msgstr ""
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -1170,10 +1176,10 @@ msgid "Lines added and removed"
 msgstr ""
 
 #. placeholder {0}: list.length
-#. placeholder {0}: notes.length
+#. placeholder {0}: openThreads.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/docs/pages/DocPage.tsx
-msgid "{0, plural, one {# note} other {# notes}}"
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr ""
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1237,7 +1243,7 @@ msgstr ""
 
 #. placeholder {0}: n("note")
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
+msgid "{0, plural, one {left comments on a doc} other {left comments on # docs}}"
 msgstr ""
 
 #. placeholder {0}: started(rows)
@@ -1833,7 +1839,7 @@ msgid "{n, plural, one {read a doc} other {read # docs}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
+msgid "{n, plural, one {left a comment on a doc} other {left # comments on docs}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
@@ -2085,11 +2091,11 @@ msgid "Read a doc"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Leave a note on a doc"
+msgid "Leave a comment on a doc"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Left a note on a doc"
+msgid "Left a comment on a doc"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
@@ -2293,6 +2299,118 @@ msgstr ""
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr ""
 
+#. after a comment's time: it was changed after it was written
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "edited"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Its passage has changed"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{replies, plural, one {# reply} other {# replies}}"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Ask Owlit about this comment"
+msgstr ""
+
+#. put a comment away
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Resolve"
+msgstr ""
+
+#. placeholder {0}: shorten(view.quote, 90)
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "The passage this comment was on has changed: “{0}”"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "More"
+msgstr ""
+
+#. edit your comment or reply
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete comment and replies"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete comment"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete reply"
+msgstr ""
+
+#. placeholder {0}: startedBy.name
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} sees replies on the shared page."
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit doesn’t answer replies. To ask it, use Ask Owlit above."
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgid "Reply…"
+msgstr ""
+
+#. send a reply to a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgid "Reply"
+msgstr ""
+
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/model.ts
+msgid "You"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Comment…"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgctxt "verb: say something about the selected words"
+msgid "Comment"
+msgstr ""
+
+#. placeholder {0}: v.entries[0].name
+#: app/src/features/docs/comments/CommentColumn.tsx
+msgid "Comment by {0}"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "Hide comments"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "Show comments"
+msgstr ""
+
+#: app/src/features/docs/comments/model.ts
+msgid "Comment deleted"
+msgstr ""
+
+#: app/src/features/docs/comments/model.ts
+msgid "Reply deleted"
+msgstr ""
+
+#: app/src/features/docs/comments/model.ts
+msgid "Comment resolved"
+msgstr ""
+
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "{name} opens in the system app"
 msgstr ""
@@ -2396,14 +2514,6 @@ msgid "Keep mine"
 msgstr ""
 
 #: app/src/features/docs/editor/DocEditor.tsx
-msgid "Note dismissed"
-msgstr ""
-
-#: app/src/features/docs/editor/DocEditor.tsx
-msgid "Comment resolved"
-msgstr ""
-
-#: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
 msgstr ""
 
@@ -2411,25 +2521,8 @@ msgstr ""
 msgid "Start writing"
 msgstr ""
 
-#. which note of the doc's notes is open: 2 of 5
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "{at} of {n}"
-msgstr ""
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Previous note"
-msgstr ""
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Next note"
-msgstr ""
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "The passage this note was on has changed: “{passage}”"
-msgstr ""
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Chat about this"
+#: app/src/features/docs/editor/DocEditor.tsx
+msgid "Comment (⌥⌘M)"
 msgstr ""
 
 #: app/src/features/docs/editor/block-preview.ts
@@ -2438,34 +2531,6 @@ msgstr ""
 
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
-msgstr ""
-
-#. placeholder {0}: c.name
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "{0} (you)"
-msgstr ""
-
-#. placeholder {0}: shorten(q, 90)
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "The words this comment was on have changed: “{0}”"
-msgstr ""
-
-#: app/src/features/docs/editor/reader-comments.ts
-#: apps/share-web/src/App.tsx
-msgid "Reply…"
-msgstr ""
-
-#: app/src/features/docs/editor/reader-comments.ts
-#: apps/share-web/src/App.tsx
-msgid "Reply"
-msgstr ""
-
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "Resolve"
-msgstr ""
-
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "{n, plural, one {# comment} other {# comments}}"
 msgstr ""
 
 #: app/src/features/docs/fs.ts
@@ -5966,10 +6031,6 @@ msgid "Close Window"
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "Edit"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Cut"
 msgstr ""
@@ -6134,11 +6195,6 @@ msgstr ""
 msgid "Read only"
 msgstr ""
 
-#. placeholder {0}: openThreads.length
-#: apps/share-web/src/App.tsx
-msgid "{0, plural, one {# comment} other {# comments}}"
-msgstr ""
-
 #: apps/share-web/src/App.tsx
 msgid "Comments"
 msgstr ""
@@ -6154,11 +6210,6 @@ msgstr ""
 
 #: apps/share-web/src/App.tsx
 msgid "Select words to comment on them."
-msgstr ""
-
-#: apps/share-web/src/App.tsx
-msgctxt "verb: say something about the selected words"
-msgid "Comment"
 msgstr ""
 
 #: apps/share-web/src/App.tsx
@@ -6294,7 +6345,7 @@ msgid "That earlier version is no longer kept."
 msgstr ""
 
 #: packages/core/src/agents/fs.ts
-msgid "That note is already gone."
+msgid "That comment is already gone."
 msgstr ""
 
 #: packages/core/src/agents/fs.ts

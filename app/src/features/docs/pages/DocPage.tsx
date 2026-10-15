@@ -1,7 +1,6 @@
-import { plural, t } from "@lingui/core/macro"
-import { useEffect } from "react"
+import { t } from "@lingui/core/macro"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
-import { findAnchor } from "@owlit/protocol"
 import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { NotFound, PageHeader } from "@/components/page"
 import { Button } from "@/components/ui/button"
@@ -14,6 +13,10 @@ import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
 import { DocShareControls } from "../share/DocShareControls"
+import { CommentColumn } from "../comments/CommentColumn"
+import { useCommentViews } from "../comments/hooks"
+import { CommentsToggle } from "../comments/CommentsToggle"
+import { cn } from "@/lib/utils"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
 export function DocPage() {
@@ -58,7 +61,7 @@ export function DocPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader trail={trail} current={displayName(file.path)}>
         <DeletedOnDisk docId={file.id} />
-        <NoteCount docId={file.id} />
+        <CommentsToggle docId={file.id} />
         <DocShareControls file={file} />
         <DropdownMenu>
           <MenuButton label={t`Doc actions`} />
@@ -66,11 +69,9 @@ export function DocPage() {
           <ActionsDropdownContent groups={fileGroups(file)} align="end" />
         </DropdownMenu>
       </PageHeader>
-      <main data-tour="doc" className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 pt-6">
-          <DocEditor key={file.id} file={file} />
-        </div>
-      </main>
+      <DocBody docId={file.id}>
+        <DocEditor key={file.id} file={file} />
+      </DocBody>
     </div>
   )
 }
@@ -90,23 +91,46 @@ function DeletedOnDisk({ docId }: { docId: string }) {
   )
 }
 
-// Shown only when agents left notes on the doc: "2 notes", which opens them one after another in reading order
-function NoteCount({ docId }: { docId: string }) {
-  const notes = useDocsStore((s) => s.notes[docId])
-  const open = useDocsUiStore((s) => (s.openNote?.docId === docId ? s.openNote.noteId : null))
-  if (!notes?.length) return null
-
-  const next = () => {
-    const text = useDocsStore.getState().files[docId]?.content ?? ""
-    // Notes whose passage is gone sort first, as they sit beside the title
-    const ordered = [...notes].sort((a, b) => (findAnchor(text, a) ?? -1) - (findAnchor(text, b) ?? -1))
-    const i = ordered.findIndex((n) => n.id === open)
-    useDocsUiStore.getState().setOpenNote(docId, ordered[(i + 1) % ordered.length].id)
-  }
-
+// The reading column, and the doc's comments in a column to its right. Wide enough, the doc stays centred
+// with the comments in the margin; less wide, the two are centred together; too narrow for both, the
+// comments fold to pins at the doc's edge (CommentColumn).
+const DOC = 768
+const COLUMN = 272 + 40
+function DocBody({ docId, children }: { docId: string; children: React.ReactNode }) {
+  const main = useRef<HTMLElement>(null)
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const el = main.current
+    if (!el) return
+    const measure = () => setWidth(el.clientWidth)
+    measure()
+    const resized = new ResizeObserver(measure)
+    resized.observe(el)
+    return () => resized.disconnect()
+  }, [])
+  const shown = useDocsUiStore((s) => s.commentsShown)
+  const drafting = useDocsUiStore((s) => s.newComment?.docId === docId)
+  const any = useCommentViews(docId).length > 0
+  const column = shown && (any || drafting)
+  const layout = !column ? "alone" : width >= DOC + 2 * COLUMN ? "margin" : width >= 560 + COLUMN + 48 ? "beside" : "pins"
   return (
-    <Button variant="ghost" size="sm" onClick={next} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-      {plural(notes.length, { one: "# note", other: "# notes" })}
-    </Button>
+    <main ref={main} data-tour="doc" className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className={cn(
+          "mx-auto px-6 pt-6",
+          layout === "alone" && "max-w-3xl",
+          layout === "margin" && "grid grid-cols-[1fr_minmax(0,48rem)_1fr] items-start px-0",
+          layout === "beside" && "flex max-w-[calc(48rem+312px)] items-start gap-10",
+          layout === "pins" && "flex max-w-[calc(48rem+2.5rem)] items-start gap-3",
+        )}
+      >
+        <div className={cn("min-w-0", layout === "margin" ? "col-start-2 px-6" : "flex-1")}>{children}</div>
+        {column && (
+          <div className={cn(layout === "margin" && "col-start-3 flex justify-start pr-6 pl-4", layout !== "margin" && "contents")}>
+            <CommentColumn fileId={docId} pins={layout === "pins"} />
+          </div>
+        )}
+      </div>
+    </main>
   )
 }

@@ -10,8 +10,12 @@ const dragging = StateField.define<boolean>({
   update: (value, tr) => tr.effects.reduce((v, e) => (e.is(setDragging) ? e.value : v), value),
 })
 
-// A selected passage offers one action above it, "Ask Owlit", which hands it to the agent window
-export function selectionMenu(chat: (text: string, view: EditorView) => void): Extension {
+// A comment icon (lucide message-square-plus), drawn here because the menu is built outside React
+const COMMENT_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>`
+
+// A selected passage offers two actions above it: "Ask Owlit", which hands it to the agent window, and,
+// where comments can go (a doc), a comment icon that starts a comment on it
+export function selectionMenu(chat: (text: string, view: EditorView) => void, comment?: { start: (view: EditorView) => void; label: string }): Extension {
   const tooltip = (state: EditorState): Tooltip | null => {
     const sel = state.selection.main
     // A stray click-drag of a character or two is not a passage
@@ -38,6 +42,17 @@ export function selectionMenu(chat: (text: string, view: EditorView) => void): E
           chat(view.state.sliceDoc(from, to), view)
         }
         menu.append(button)
+        if (comment) {
+          const icon = document.createElement("button")
+          icon.type = "button"
+          icon.className = "selection-menu-icon"
+          icon.innerHTML = COMMENT_ICON
+          icon.title = comment.label
+          icon.setAttribute("aria-label", comment.label)
+          icon.onmousedown = (e) => e.preventDefault()
+          icon.onclick = () => comment.start(view)
+          menu.append(icon)
+        }
         // Lifted clear of the selected line, so it never sits on the words being chosen
         return { dom, offset: { x: 0, y: 8 } }
       },
