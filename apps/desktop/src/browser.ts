@@ -83,11 +83,13 @@ export function createBrowserHost(): BrowserHost {
 
   // The PDF this page downloads during a run
   function catchPdf(contents: WebContents) {
+    // Kept apart: dispose may come after the page is gone, when contents.id throws
+    const id = contents.id
     let resolve!: (bytes: Uint8Array) => void
     const pdf = new Promise<Uint8Array>((r) => (resolve = r))
     const items = new Set<DownloadItem>()
     let got = false
-    downloads.set(contents.id, (item) => {
+    const take = (item: DownloadItem) => {
       if (got) return item.cancel()
       items.add(item)
       const file = path.join(os.tmpdir(), `owlit-pdf-${process.pid}-${Date.now()}-${items.size}`)
@@ -104,13 +106,14 @@ export function createBrowserHost(): BrowserHost {
           resolve(new Uint8Array(bytes))
         }
       })
-    })
+    }
+    downloads.set(id, take)
     return {
       pdf,
       // A download is under way, or one gave the PDF
       busy: () => got || items.size > 0,
       dispose() {
-        if (downloads.get(contents.id)) downloads.delete(contents.id)
+        if (downloads.get(id) === take) downloads.delete(id)
         for (const item of items) item.cancel()
       },
     }
@@ -165,7 +168,11 @@ export function createBrowserHost(): BrowserHost {
     const done = new AbortController()
     const signal = AbortSignal.any([request.signal, done.signal])
     const steps: BrowserRequest = { ...request, signal }
-    const abort = () => contents.stop()
+    // Quitting closes the window before core stops its tasks (will-quit), so the run may end after the
+    // page is gone; touching it then throws in the main process
+    const abort = () => {
+      if (!contents.isDestroyed()) contents.stop()
+    }
     signal.addEventListener("abort", abort, { once: true })
     const opened = (_event: Electron.Event, url: string, status: number) => {
       run.status = status
@@ -258,7 +265,16 @@ export function createBrowserHost(): BrowserHost {
       await w.loadURL(url).catch(() => undefined)
       w.show()
       w.focus()
-      await new Promise<void>((resolve) => w.once("owlit-closed" as never, () => resolve()))
+      // Quitting closes it for real, without owlit-closed
+      await new Promise<void>((resolve) => {
+        const done = () => {
+          w.off("owlit-closed" as never, done)
+          w.off("closed", done)
+          resolve()
+        }
+        w.once("owlit-closed" as never, done)
+        w.once("closed", done)
+      })
     },
   }
 }
