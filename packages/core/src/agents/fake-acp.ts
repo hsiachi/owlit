@@ -15,6 +15,7 @@
 //   "after the turn, slowly"  the same, but that answer streams for a few seconds (to be stopped)
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
+//   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
@@ -36,6 +37,7 @@ const sleep = (ms: number, signal?: AbortSignal) =>
 
 interface Session {
   cwd: string
+  title?: string
   turn: AbortController | null
   config: Record<string, string>
   history: string[]
@@ -55,7 +57,7 @@ class FakeAgent implements acp.Agent {
     this.conn = conn
   }
 
-  async initialize(): Promise<acp.InitializeResponse> {
+  async initialize(params: acp.InitializeRequest): Promise<acp.InitializeResponse> {
     // FAKE_ACP_AUTH=none: as claude-agent-acp when Claude Code is signed out, which still opens sessions
     // and says so only in its authStatus push, a moment after initialize
     const reports = process.env.FAKE_ACP_AUTH === "none"
@@ -66,7 +68,8 @@ class FakeAgent implements acp.Agent {
       agentInfo: { name: "fake-acp", version: "1.2.3" },
       authMethods: process.env.FAKE_ACP_AUTH ? [{ id: "login", name: "Log in" }] : [],
       // The proxy it was started with, for the tests of proxy.ts
-      _meta: { proxy: process.env.HTTPS_PROXY ?? null },
+      // and what owlit told it beyond ACP, for the tests of process.ts
+      _meta: { proxy: process.env.HTTPS_PROXY ?? null, client: params.clientCapabilities?._meta ?? null },
     }
   }
 
@@ -89,6 +92,13 @@ class FakeAgent implements acp.Agent {
 
   async closeSession(params: acp.CloseSessionRequest): Promise<acp.CloseSessionResponse> {
     this.sessions.delete(params.sessionId)
+    return {}
+  }
+
+  async extMethod(method: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const session = this.sessions.get(String(params.sessionId))
+    if (method !== "_session/rename" || !session) throw acp.RequestError.methodNotFound(method)
+    session.title = String(params.title)
     return {}
   }
 
@@ -308,6 +318,10 @@ class FakeAgent implements acp.Agent {
       }
       if (text.startsWith("whole prompt")) {
         await say(text)
+        return { stopReason: "end_turn" }
+      }
+      if (text === "title") {
+        await say(session.title ?? "untitled")
         return { stopReason: "end_turn" }
       }
       await say(`echo: ${text.slice(0, 40)}`)

@@ -6,6 +6,7 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
+import type { ProcessOptions } from "./process.ts"
 
 // The agent owlit picks when nothing else says which (background work, a first chat)
 export const FIRST_CHOICE = FIRST_CHOICE_AGENT
@@ -81,8 +82,7 @@ export function sessionMeta(connectorId: string, options: ClaudeOptions = {}): R
 // Merging only adds to the user's config, which is why their MCP servers stay: an entry's
 // `mcp_servers.<name>.enabled` false would turn one off, but codex-acp sends owlit's own server as the
 // whole `mcp_servers` key, and Codex applies the keys in no fixed order, so the entry was wiped in some
-// sessions and not others. And after a session's first turn codex-acp starts a short thread of its own to
-// title it, without CODEX_CONFIG, so that one starts the user's whole setup (it is told only to title).
+// sessions and not others. codex-acp's own title thread doesn't get CODEX_CONFIG either (processSetup).
 export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<string, string> {
   if (connectorId !== "codex") return {}
   let config: Record<string, unknown> = {}
@@ -112,6 +112,21 @@ export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<
       project_doc_max_bytes: 0,
       notify: [],
     }),
+  }
+}
+
+// What else an agent's process is set up with. After a session's first turn codex-acp starts a thread of
+// its own, with no config at all, to make up a title, so it started the user's MCP servers and loaded
+// their plugins and ChatGPT connectors for a turn told only to write a title. It skips that for a session
+// with a title given to it, so each of owlit's is named "Owlit" as soon as it opens (owlit names chats
+// itself; the name is what the user's Codex lists it by). Naming takes codex-acp's `_session/rename`, which
+// it offers only to a client that says it keeps a session index (JetBrains AIR's extension); owlit uses no
+// other part of it. Checked 2026-10-16 with codex-acp 2.2.1: no title thread starts.
+export function processSetup(connectorId: string): Pick<ProcessOptions, "clientMeta" | "opened"> {
+  if (connectorId !== "codex") return {}
+  return {
+    clientMeta: { jetbrains: { air: { version: 1, capabilities: ["sessionIndex"] } } },
+    opened: (sessionId) => ({ method: "_session/rename", params: { sessionId, title: "Owlit" } }),
   }
 }
 

@@ -8,7 +8,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
 import { AcpProcess, endingSentence, isAuthError } from "./process.ts"
-import { cannotRead, processEnv } from "./profiles.ts"
+import { cannotRead, processEnv, processSetup } from "./profiles.ts"
 import { AgentSetups, MANAGED, type SetupOptions } from "./setup.ts"
 import { messageOf } from "../util.ts"
 
@@ -298,6 +298,7 @@ export class Agents {
       },
       onStart: () => this.setLive(id, { status: "connected", error: undefined }),
       log: process.env.OWLIT_LOG_AGENTS ? (line) => console.log(`[${id}] ${line}`) : undefined,
+      ...processSetup(id),
     })
     this.processes.set(id, proc)
     return proc
