@@ -5,14 +5,23 @@
 import type { ClaudeNote, MemoryKind, MemoryLine } from "@owlit/protocol"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { openSettings } from "./store"
 
 interface MemoryState {
   lines: MemoryLine[]
   claudeNotes: ClaudeNote[]
   loaded: boolean
+  // The list's dialog is open, above Settings
+  managing: boolean
 }
 
-export const useMemory = create<MemoryState>()(() => ({ lines: [], claudeNotes: [], loaded: false }))
+export const useMemory = create<MemoryState>()(() => ({ lines: [], claudeNotes: [], loaded: false, managing: false }))
+
+// Opens the list above Settings › Owlit (a result row's line goes straight to it)
+export function manageMemory(open: boolean) {
+  if (open) openSettings("memory")
+  useMemory.setState({ managing: open })
+}
 
 export async function loadMemory() {
   if (!isDesktop) return useMemory.setState({ loaded: true })

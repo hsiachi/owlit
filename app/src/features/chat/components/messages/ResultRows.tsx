@@ -12,7 +12,7 @@ import { openEditor } from "@/features/docs/editors"
 import { fileAt, filesByPath, useDocsStore } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
-import { openSettings } from "@/features/settings/store"
+import { manageMemory } from "@/features/settings/memory"
 import type { ChatMessage } from "../../types"
 import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
 import { countParts } from "../../lib/edit-counts"
@@ -289,7 +289,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
     rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
   }
-  // Lines Owlit now keeps in mind, in its words; the row goes to them in Settings
+  // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
   for (const r of results.filter((r) => r.kind === "memory")) {
     rows.push({
       key: `memory:${r.versionId}`,
@@ -302,7 +302,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
           ? t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
           : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
       ...of([r]),
-      view: () => openSettings("memory"),
+      view: () => manageMemory(true),
       removed: r.removed,
     })
   }

@@ -241,7 +241,7 @@ msgstr ""
 #. open the chat a line Owlit keeps in mind came from
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Chat"
 msgstr ""
 
@@ -405,7 +405,7 @@ msgstr ""
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/toast.ts
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
@@ -2976,7 +2976,7 @@ msgstr ""
 #. verb: take a line out of what Owlit keeps in mind
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/Memo.tsx
 msgid "Remove"
@@ -4764,63 +4764,87 @@ msgstr ""
 msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
 msgstr ""
 
-#. a group of lines Owlit keeps in mind: the user's preferences
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "How you like Owlit to work"
+#. placeholder {0}: lines.length
+#: app/src/features/settings/sections/Memory.tsx
+msgid "{0, plural, one {# line} other {# lines}}"
 msgstr ""
 
-#. a group of lines Owlit keeps in mind: facts about the user's work
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "About your work"
+#. Owlit keeps nothing in mind about the user yet
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Nothing yet"
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#. placeholder {0}: claudeNotes.length
+#: app/src/features/settings/sections/Memory.tsx
+msgid "{0, plural, one {# from Claude Code to look at} other {# from Claude Code to look at}}"
+msgstr ""
+
+#: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/settings/store.ts
 msgid "What Owlit keeps in mind"
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. It is kept in .owlit/memory.md in this folder; you can edit that file too."
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too."
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
+#. open the list of what Owlit keeps in mind
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Manage…"
+msgstr ""
+
+#. a group of lines Owlit keeps in mind: the user's preferences
+#: app/src/features/settings/sections/Memory.tsx
+msgid "How you like Owlit to work"
+msgstr ""
+
+#. a group of lines Owlit keeps in mind: facts about the user's work
+#: app/src/features/settings/sections/Memory.tsx
+msgid "About your work"
+msgstr ""
+
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Every chat in this workspace starts with this list, whichever agent runs it. Kept in .owlit/memory.md in this folder."
 msgstr ""
 
 #. add a line Owlit keeps in mind
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Add one"
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "e.g. Answer in Chinese"
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "e.g. I'm writing my thesis on proactive agents"
 msgstr ""
 
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
+msgstr ""
+
 #. verb: change a line Owlit keeps in mind
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 #: apps/desktop/src/main.ts
 msgid "Edit"
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr ""
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Claude Code kept these about you in this folder. Keep the ones Owlit should keep in mind."
 msgstr ""
 
 #. verb: don't keep a note Claude Code had kept
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
 msgstr ""
 
 #. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Keep"
 msgstr ""
 

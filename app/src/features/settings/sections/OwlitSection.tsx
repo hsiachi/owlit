@@ -7,7 +7,7 @@ import { useChatStore } from "@/features/chat/store"
 import { toastError } from "@/lib/toast"
 import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
-import { MemoryGroup } from "./MemoryGroup"
+import { KeptInMindRow } from "./Memory"
 
 // What Owlit calls you, what it keeps in mind about you, the work it does when nobody is waiting, and
 // what it records of what you do.
@@ -19,9 +19,9 @@ export function OwlitSection() {
       <Group id="profile">
         <List>
           <NameRow />
+          <KeptInMindRow />
         </List>
       </Group>
-      <MemoryGroup />
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
       </Group>

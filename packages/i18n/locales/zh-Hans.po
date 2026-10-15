@@ -241,7 +241,7 @@ msgstr "主页"
 #. open the chat a line Owlit keeps in mind came from
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Chat"
 msgstr "对话"
 
@@ -405,7 +405,7 @@ msgstr "关闭弹出框"
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/toast.ts
 #: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
@@ -2976,7 +2976,7 @@ msgstr "复制 BibTeX"
 #. verb: take a line out of what Owlit keeps in mind
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/Memo.tsx
 msgid "Remove"
@@ -4764,63 +4764,87 @@ msgstr "请在浏览器中完成登录。"
 msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
 msgstr "会打开浏览器登录。模型请求使用你的 ChatGPT 套餐。"
 
-#. a group of lines Owlit keeps in mind: the user's preferences
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "How you like Owlit to work"
-msgstr "你希望 Owlit 怎么做"
+#. placeholder {0}: lines.length
+#: app/src/features/settings/sections/Memory.tsx
+msgid "{0, plural, one {# line} other {# lines}}"
+msgstr "{0, plural, other {# 条}}"
 
-#. a group of lines Owlit keeps in mind: facts about the user's work
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "About your work"
-msgstr "关于你的工作"
+#. Owlit keeps nothing in mind about the user yet
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Nothing yet"
+msgstr "还没有"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#. placeholder {0}: claudeNotes.length
+#: app/src/features/settings/sections/Memory.tsx
+msgid "{0, plural, one {# from Claude Code to look at} other {# from Claude Code to look at}}"
+msgstr "{0, plural, other {Claude Code 留下的 # 条待看}}"
+
+#: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/settings/store.ts
 msgid "What Owlit keeps in mind"
 msgstr "Owlit 记着的事"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. It is kept in .owlit/memory.md in this folder; you can edit that file too."
-msgstr "这个工作区里的每个对话都从这份清单开始，不论用哪个 agent，后台工作也是。它存在这个文件夹的 .owlit/memory.md 里，你也可以直接编辑那个文件。"
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too."
+msgstr "这个工作区里的每个对话都从这份清单开始，不论用哪个 agent，后台工作也是。你告诉 Owlit 值得记住的事时，它会加进来，并在对话里说一声。清单存在这个文件夹的 .owlit/memory.md 里，你也可以直接编辑那个文件。"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
-msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
-msgstr "还没有。在任何对话里告诉 Owlit 要记住的事（“以后都用 APA 引用”），或在这里添加一条。"
+#. open the list of what Owlit keeps in mind
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Manage…"
+msgstr "管理…"
+
+#. a group of lines Owlit keeps in mind: the user's preferences
+#: app/src/features/settings/sections/Memory.tsx
+msgid "How you like Owlit to work"
+msgstr "你希望 Owlit 怎么做"
+
+#. a group of lines Owlit keeps in mind: facts about the user's work
+#: app/src/features/settings/sections/Memory.tsx
+msgid "About your work"
+msgstr "关于你的工作"
+
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Every chat in this workspace starts with this list, whichever agent runs it. Kept in .owlit/memory.md in this folder."
+msgstr "这个工作区里的每个对话都从这份清单开始，不论用哪个 agent。存在这个文件夹的 .owlit/memory.md 里。"
 
 #. add a line Owlit keeps in mind
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Add one"
 msgstr "添加一条"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "e.g. Answer in Chinese"
 msgstr "例如：用中文回答"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "e.g. I'm writing my thesis on proactive agents"
 msgstr "例如：我的毕业论文写主动式 agent"
 
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
+msgstr "还没有。在任何对话里告诉 Owlit 要记住的事（“以后都用 APA 引用”），或在这里添加一条。"
+
 #. verb: change a line Owlit keeps in mind
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 #: apps/desktop/src/main.ts
 msgid "Edit"
 msgstr "编辑"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr "Owlit 记着的一条"
 
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Claude Code kept these about you in this folder. Keep the ones Owlit should keep in mind."
 msgstr "Claude Code 在这个文件夹里记过这些关于你的事。保留 Owlit 应该记着的那些。"
 
 #. verb: don't keep a note Claude Code had kept
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
 msgstr "不要"
 
 #. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#: app/src/features/settings/sections/MemoryGroup.tsx
+#: app/src/features/settings/sections/Memory.tsx
 msgid "Keep"
 msgstr "保留"
 
