@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { cn, scrollMotion } from "@/lib/utils"
 import { CopyButton } from "@/components/copy-button"
 import { GroupLabel } from "@/components/group-label"
 import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
@@ -71,7 +71,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
 
   // Clicked in the PDF: bring it into view here
   useEffect(() => {
-    if (focused) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    if (focused) ref.current?.scrollIntoView({ block: "nearest", behavior: scrollMotion() })
   }, [focused])
 
   const jump = () => useReaderStore.getState().api?.jumpToHighlight(h)

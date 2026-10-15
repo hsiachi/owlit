@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
-import { BookPlusIcon, FileIcon, FileTextIcon, FolderIcon, ImageIcon, Loader2Icon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { BookPlusIcon, FileIcon, FileTextIcon, FolderIcon, ImageIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 import { fileKindOf, type FileKind } from "@owlit/protocol"
 import {
   Attachment,
@@ -17,6 +17,8 @@ import { Tip } from "@/components/tip"
 import { isDesktop } from "@/lib/rpc"
 import type { AttachmentFile } from "../../types"
 import { formatBytes, type ChipFile, type Reader } from "../../lib/attachments"
+import { Spinner } from "@/components/ui/spinner"
+import { useAfterWait } from "@/hooks/use-after-wait"
 
 function iconFor(mime: string) {
   if (mime.startsWith("image/")) return <ImageIcon />
@@ -90,6 +92,7 @@ function FileChip({
   onAddToLibrary?: (file: AttachmentFile) => Promise<unknown>
 }) {
   const [adding, setAdding] = useState(false)
+  const addingAWhile = useAfterWait(adding)
   const picture = pictureOf(f)
   const kind = fileKindOf(f.name, f.mimeType)
   // Said before sending, while the composer holds it; a sent message doesn't repeat it
@@ -136,7 +139,7 @@ function FileChip({
                   void onAddToLibrary?.(f).finally(() => setAdding(false))
                 }}
               >
-                {adding ? <Loader2Icon className="animate-spin" /> : <BookPlusIcon />}
+                {addingAWhile ? <Spinner wait={false} /> : <BookPlusIcon />}
               </AttachmentAction>
             </Tip>
           )}

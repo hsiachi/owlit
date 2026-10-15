@@ -16,6 +16,7 @@ import { Memo } from "../components/Memo"
 import { shown as shownOf } from "../lib"
 import { editThread, useThread, useThreadsStore } from "../store"
 import { useThreadsUi } from "../ui-store"
+import { scrollMotion } from "@/lib/utils"
 
 // After this long on the page, what Owlit changed counts as seen; its dots stay for this visit
 const SEEN_AFTER_MS = 1500
@@ -71,7 +72,7 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const openRow = (paperId: string) => {
     if (!shown.rows.some((r) => r.id === paperId)) return false
     set({ peek: paperId })
-    requestAnimationFrame(() => document.getElementById(`row-${paperId}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }))
+    requestAnimationFrame(() => document.getElementById(`row-${paperId}`)?.scrollIntoView({ block: "nearest", behavior: scrollMotion() }))
     return true
   }
   return (
