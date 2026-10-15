@@ -63,9 +63,14 @@ const TOPICS: GuideTopic[] = [
     text: `Every change Owlit makes outside a chat (a paper added, a note on a doc, a topic line, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit proposes to a doc or a note is shown in place first, with Apply or Discard; once applied, ⌘Z undoes it in one step.`,
   },
   {
+    id: "memory",
+    title: "What Owlit keeps in mind",
+    text: `Owlit keeps a short list about the user for this workspace: how they like it to work ("cite as (Author, Year)", "answer in Chinese") and facts about their work ("I'm writing my thesis on…"). Every chat starts with it, whichever agent runs, and so does background work. Owlit adds a line when the user tells it to remember something or says "from now on", when they correct how it works, or when they state a fact about their work; the answer's result card shows "Remembered" with Undo. The list is in Settings › Owlit › What Owlit keeps in mind (Edit, Remove, Add one) and in the file .owlit/memory.md. The agents' own memory features are off inside owlit; this list is the only memory.`,
+  },
+  {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, the agent and language for background work such as digests, and whether owlit remembers what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, what Owlit keeps in mind about them, the agent and language for background work such as digests, and whether owlit records what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",

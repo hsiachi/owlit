@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { editStats, type EditStats } from "@owlit/protocol"
-import { ArrowUpRightIcon, type LucideIcon } from "lucide-react"
+import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import { KIND_ICON } from "@/lib/kinds"
@@ -12,6 +12,7 @@ import { openEditor } from "@/features/docs/editors"
 import { fileAt, filesByPath, useDocsStore } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
+import { manageMemory } from "@/features/settings/memory"
 import type { ChatMessage } from "../../types"
 import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
 import { countParts } from "../../lib/edit-counts"
@@ -20,7 +21,8 @@ import { toastError } from "@/lib/toast"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, papers gathered into a thread, digests asked for (followed until written). A row goes to what it names, in the main view rather than opening
+// notes left, papers gathered into a thread, digests asked for (followed until written), lines Owlit now
+// keeps in mind. A row goes to what it names, in the main view rather than opening
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
 // of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
@@ -39,7 +41,7 @@ export interface ResultRow {
   // One more thing the row offers on hover, before Undo ("Keep it separate")
   extra?: { label: string; run: () => Promise<void> | void }
   // For the summary line: what kind of change, and how much an edit changed
-  kind: "doc" | "paper" | "note" | "digest" | "thread"
+  kind: "doc" | "paper" | "note" | "digest" | "thread" | "memory"
   // A thread: whether the reply started it, and how many papers it gathered
   created?: boolean
   papers?: number
@@ -287,6 +289,23 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
     rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
   }
+  // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
+  for (const r of results.filter((r) => r.kind === "memory")) {
+    rows.push({
+      key: `memory:${r.versionId}`,
+      kind: "memory",
+      icon: BookmarkIcon,
+      name: r.label,
+      detail: r.removed
+        ? t({ message: "Removed", comment: "a line the agent took out of what it keeps in mind" })
+        : r.replaced
+          ? t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
+          : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
+      ...of([r]),
+      view: () => manageMemory(true),
+      removed: r.removed,
+    })
+  }
   return rows
 }
 
@@ -309,6 +328,7 @@ function summary(rows: ResultRow[]) {
     started(rows) && plural(started(rows), { one: "started a thread", other: "started # threads" }),
     gathered(rows) && plural(gathered(rows), { one: "added a paper to a thread", other: "added # papers to threads" }),
     n("digest") && plural(n("digest"), { one: "asked for a digest", other: "asked for # digests" }),
+    n("memory") && plural(n("memory"), { one: "changed what it keeps in mind", other: "changed # lines it keeps in mind" }),
   ].filter(Boolean) as string[]
   return capital(joinActions(said))
 }

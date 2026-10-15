@@ -8,7 +8,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
 import { AcpProcess, endingSentence, isAuthError } from "./process.ts"
-import { cannotRead } from "./profiles.ts"
+import { cannotRead, processEnv } from "./profiles.ts"
 import { AgentSetups, MANAGED, type SetupOptions } from "./setup.ts"
 import { messageOf } from "../util.ts"
 
@@ -286,7 +286,7 @@ export class Agents {
     const proc = new AcpProcess({
       file,
       args,
-      env: { ...process.env, PATH: searchPath, ...launch?.env },
+      env: { ...process.env, PATH: searchPath, ...processEnv(id, process.env), ...launch?.env },
       freshEnv: this.options.proxyEnv,
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,

@@ -311,6 +311,21 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     annotations: { readOnlyHint: true },
   },
   {
+    name: "memory_write",
+    description:
+      "Change what Owlit keeps in mind about the user: owlit's memory, one short list for this workspace that every session hears at its start. Keep a line when the user tells you to remember something or says \"from now on\", \"always\" or \"never\"; when they correct how you work in plain words; or when they state a fact about their work that will matter in a later chat. Not for guesses from habits, one-off requests, what papers say or what the user did. The user sees each change in the chat and can undo it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        op: { type: "string", enum: ["add", "replace", "remove"], description: "add a line; replace one (its id) when the user changed their mind or a line needs merging; remove one they take back" },
+        kind: { type: "string", enum: ["work", "about"], description: "add, or to move a line on replace: work = how the user wants Owlit to work; about = a fact about their work" },
+        text: { type: "string", description: "add and replace: one short sentence, in the user's words and language" },
+        id: { type: "string", description: "replace and remove: the line's id (m1, m2…), as the memory note lists it" },
+      },
+      required: ["op"],
+    },
+  },
+  {
     name: "chats_list",
     description: "The user's chats with owlit, most recent first: id, title, when.",
     inputSchema: { type: "object", properties: {} },

@@ -99,8 +99,9 @@ export const isOpenComment = (c: DocComment) => !c.resolvedAt && c.entries.lengt
 // version too (by "undo"), so it can be undone in turn.
 export interface VersionInfo {
   id: string
-  kind: "file" | "note" | "paper" | "thread"
-  // file: workspace-relative path; note: the doc's path; paper: the paper's id; thread: its id
+  kind: "file" | "note" | "paper" | "thread" | "memory"
+  // file: workspace-relative path; note: the doc's path; paper: the paper's id; thread: its id; memory:
+  // the line's id
   path: string
   at: number
   chatId?: string

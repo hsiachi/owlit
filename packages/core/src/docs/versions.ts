@@ -1,4 +1,4 @@
-import type { DocComment } from "@owlit/protocol"
+import type { DocComment, MemoryLine } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -12,7 +12,8 @@ import { Serial } from "../util.ts"
 //           kept before comments hold an agent's note, read as a comment)
 //   paper   a paper added to the library (or removed by an undo)
 //   thread  a thread's thread.json before an agent wrote to it (path is the thread's id)
-export type VersionKind = "file" | "note" | "paper" | "thread"
+//   memory  one line of Owlit's memory before an agent changed it (path is the line's id; null: it was new)
+export type VersionKind = "file" | "note" | "paper" | "thread" | "memory"
 
 export interface Version {
   id: string
@@ -25,7 +26,7 @@ export interface Version {
   by: "agent" | "undo"
   // file and thread: whether it existed before; restoring a version of one that didn't removes it
   existed?: boolean
-  // file: sha1 of what was written, so a restore can tell whether anyone changed the file since
+  // file and memory: sha1 of what was written, so a restore can tell whether anyone changed it since
   after?: string
   // file: the write deleted it; restoring writes it back
   deleted?: true
@@ -74,6 +75,11 @@ export class Versions {
 
   savePaper(id: string, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
     return this.save({ kind: "paper", path: id, op }, "", meta)
+  }
+
+  // before is null when the change added the line, after when it removed it
+  saveMemory(id: string, before: MemoryLine | null, after: string | null, meta: { chatId?: string; by?: Version["by"] } = {}) {
+    return this.save({ kind: "memory", path: id, existed: before !== null, after: sha1(after ?? "") }, JSON.stringify({ before }), meta)
   }
 
   // before is null when the write started the thread

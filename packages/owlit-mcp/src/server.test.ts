@@ -337,6 +337,25 @@ describe("owlit-mcp", () => {
     expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: "agent" }])
   })
 
+  it("keeps a line in Owlit's memory for the chat, which Undo takes back", async () => {
+    const { root, core, call, tool } = await setup()
+    const changed: { kind: string; op?: string; versionId: string; label: string; memory?: string; chatId?: string }[] = []
+    core.onNotify((n) => {
+      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+    })
+    expect((await tool("memory_write", { op: "add", kind: "work", text: "Cite as (Author, Year)." })).text).toMatch(/^Kept as m1: "Cite as \(Author, Year\)\."/)
+    expect((await tool("memory_write", { op: "replace", id: "m1", text: "Cite in APA 7." })).text).toMatch(/^Replaced m1: "Cite in APA 7\.".*replaces "Cite as/)
+    expect((await tool("memory_write", { op: "remove", id: "m7" })).text).toMatch(/no line m7/)
+    expect((await tool("memory_write", { op: "add", text: "No kind" })).text).toMatch(/needs kind/)
+    expect(changed).toMatchObject([
+      { kind: "memory", label: "Cite as (Author, Year).", memory: "work", chatId: "chat-1" },
+      { kind: "memory", op: "updated", label: "Cite in APA 7.", chatId: "chat-1" },
+    ])
+    expect(readFileSync(path.join(root, ".owlit/memory.md"), "utf8")).toContain("- Cite in APA 7. <!-- m1 ·")
+    await call("versions.restore", { id: changed[1].versionId })
+    expect((await call("memory.list")).lines).toMatchObject([{ id: "m1", text: "Cite as (Author, Year)." }])
+  })
+
   it("answers mistakes in a sentence instead of failing", async () => {
     const { tool } = await setup()
     expect(await tool("library_get")).toEqual({ text: "library_get needs id.", isError: true })

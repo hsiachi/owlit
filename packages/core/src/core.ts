@@ -14,6 +14,7 @@ import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
@@ -166,6 +167,7 @@ export class Core {
       lateQuietMs: options.lateQuietMs,
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
+      memory: async () => (await this.workspace?.memory.list()) ?? [],
     })
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its digest comes first
@@ -415,6 +417,49 @@ export class Core {
       "ui.mark",
       z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }),
       (params) => this.ui.act("mark", params),
+    )
+    this.router.register("memory.list", noParams, async () => {
+      const memory = this.requireWorkspace().memory
+      return { lines: await memory.list(), claudeNotes: await memory.claudeNotes() }
+    })
+    const memoryKind = z.enum(["work", "about"])
+    this.router.register(
+      "memory.write",
+      z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
+      async ({ op, id, kind, text, chatId }) => {
+        // Said to the agent, so plain English
+        const need = (what: string) => {
+          throw new RpcFailure(RpcErrorCode.InvalidParams, `memory_write with op "${op}" needs ${what}.`)
+        }
+        const change = await this.requireWorkspace().memory.agentWrite(
+          op === "add" ? { op, kind: kind ?? need("kind"), text: text ?? need("text") } : op === "replace" ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}) } : { op, id: id ?? need("id") },
+          chatId ? { chatId } : {},
+        )
+        const shown = change.line ?? change.before
+        if (change.versionId && shown) {
+          this.notifier.notify("agent.changed", {
+            kind: "memory",
+            versionId: change.versionId,
+            path: shown.id,
+            label: shown.text,
+            memory: shown.kind,
+            ...(change.line === null ? { op: "removed" as const } : change.before ? { op: "updated" as const } : {}),
+            ...(chatId ? { chatId } : {}),
+          })
+        }
+        return change
+      },
+    )
+    this.router.register(
+      "memory.put",
+      z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }),
+      (input) => this.requireWorkspace().memory.put(input),
+    )
+    this.router.register("memory.remove", z.object({ id: z.string().min(1) }), ({ id }) => this.requireWorkspace().memory.remove(id))
+    this.router.register(
+      "memory.decideClaudeNotes",
+      z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }),
+      ({ keep, drop }) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop),
     )
     this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
     this.router.register("versions.stats", z.object({ from: z.string().min(1), to: z.string().min(1) }), ({ from, to }) => this.fs.stats(from, to))
@@ -824,7 +869,7 @@ export class Core {
                 // once a run finds the sign-in page, and signed in again once a PDF comes through
                 proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
                 agent: async (prompt, signal, pictures) =>
-                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
+                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
                   const settings = await this.settings.get()
                   const chosen = settings.library.digestLanguage
@@ -839,13 +884,16 @@ export class Core {
                   const mcpServers = this.mcpServers(root, undefined, run)
                   if (!mcpServers.length && this.workspace?.root !== root) return null
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
+                  return this.background.run({ prompt, root, mcpServers, signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
                 },
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
                 // A chat's agent gathered papers into a thread: the chat shows it with Undo, as for any agent write
                 wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change }),
+              },
+              memoryChanged: (lines) => {
+                if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
               },
               shares: {
                 server: () => this.options.shareServer ?? null,

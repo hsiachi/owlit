@@ -50,6 +50,8 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`Delete docs`, done: t`Deleted docs` }
     case "docs_move":
       return { now: t`Move a doc`, done: t`Moved a doc` }
+    case "memory_write":
+      return { now: t`Keep something in mind`, done: t`Kept something in mind` }
     case "chats_list":
       return { now: t`List your chats`, done: t`Listed your chats` }
     case "chats_read":

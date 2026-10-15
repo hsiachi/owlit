@@ -200,6 +200,11 @@ export class AgentFs {
       return { path: version.path, kind: "paper", redoId: redo.id }
     }
 
+    if (version.kind === "memory") {
+      const { redoId } = await ws.memory.restoreVersion(version.path, version.content, version.after, force, version.chatId ? { chatId: version.chatId } : {})
+      return { path: version.path, kind: "memory", redoId }
+    }
+
     if (version.kind === "thread") {
       const { redoId } = await ws.threads.restoreVersion(version.path, version.content, version.existed !== false, version.chatId ? { chatId: version.chatId } : {})
       return { path: version.path, kind: "thread", redoId }

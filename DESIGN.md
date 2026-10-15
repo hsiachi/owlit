@@ -442,7 +442,7 @@ owlit is a Mac app for reading, writing and thinking through papers with an assi
 
 ### Vocabulary
 
-**Owlit** is the assistant; everything it says, edits or leaves is signed Owlit. **Ask Owlit** is the one name for sending a passage or question to it (the feather in icon rows). **Agent** is the local coding agent underneath (Claude Code, Codex, Gemini CLI, a custom command), and the agents it hands work to; **connector** is reserved for data sources and MCP servers. **Steps** are one answer's thoughts and tool calls. The **agent window** is the app-wide place to talk to Owlit: the **ask bar** at the bottom of a page, and the **panel** docked beside it. A **thread** is papers Owlit gathered for a question, with an **answer** from each; its **memo** is Owlit's reading of them. The **places** are Home, Chat, Docs, Threads and Library.
+**Owlit** is the assistant; everything it says, edits or leaves is signed Owlit. **Ask Owlit** is the one name for sending a passage or question to it (the feather in icon rows). **Agent** is the local coding agent underneath (Claude Code, Codex, Gemini CLI, a custom command), and the agents it hands work to; **connector** is reserved for data sources and MCP servers. **Steps** are one answer's thoughts and tool calls. The **agent window** is the app-wide place to talk to Owlit: the **ask bar** at the bottom of a page, and the **panel** docked beside it. A **thread** is papers Owlit gathered for a question, with an **answer** from each; its **memo** is Owlit's reading of them. **What Owlit keeps in mind** is its memory of you, a short list in your words (a line it keeps says Remembered); what owlit records of what you do is never called memory. The **places** are Home, Chat, Docs, Threads and Library.
 
 ### Brand
 
