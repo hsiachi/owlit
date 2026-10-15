@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url"
 import { createBrowserHost } from "./browser.ts"
 import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
+import { hostFetch } from "./net-fetch.ts"
 import { attachTextMenu } from "./text-menu.ts"
 
 // The share server named at build time (scripts/shared.mjs); "" when none was
@@ -491,7 +492,7 @@ if (!app.requestSingleInstanceLock()) {
       exampleDir: path.join(__dirname, "example-workspace"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
-        fetch: (input, init) => net.fetch(input as string, init),
+        fetch: hostFetch,
         // A browser for publishers that want one (cookies, checks, the library proxy): hidden, or inside
         // the window when the user asks to see the page
         browser,
