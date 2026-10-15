@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import type { AgentQuestion, QuestionAnswer } from "@owlit/protocol"
 import type { QuestionPart } from "./types"
+import { toggle } from "@/lib/multi-select"
 import { useChatStore } from "./store"
 
 // A question the agent asked, while the user works through it: which of its questions is showing, what
@@ -18,7 +19,6 @@ interface Draft {
 
 interface AskDraftState {
   drafts: Record<string, Draft>
-  draft: (chatId: string, ask: QuestionPart) => Draft
   // Picks an option of the question showing; a single choice moves on to the next question without an answer
   pick: (chatId: string, ask: QuestionPart, label: string) => void
   // Words of the user's own for the question showing; sent at once when they complete the answers
@@ -64,14 +64,12 @@ export const useAskDraft = create<AskDraftState>()((set, get) => {
   }
   return {
     drafts: {},
-    draft: (chatId, ask) => current(chatId, ask),
     pick(chatId, ask, label) {
       const d = current(chatId, ask)
       const q = ask.questions[d.index]
       if (!q) return
       if (q.multiSelect) {
-        const picks = d.answers[q.id]?.picks ?? []
-        put(chatId, withAnswer(d, q, { picks: picks.includes(label) ? picks.filter((p) => p !== label) : [...picks, label] }))
+        put(chatId, withAnswer(d, q, { picks: toggle(d.answers[q.id]?.picks ?? [], label) }))
         return
       }
       put(chatId, advanced(ask, withAnswer(d, q, { picks: [label] })))

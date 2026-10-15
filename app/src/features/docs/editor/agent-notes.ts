@@ -1,11 +1,12 @@
 import { t } from "@lingui/core/macro"
 import { ago } from "@/lib/time"
-import { Facet, StateEffect, StateField, type EditorState, type Extension, type Range } from "@codemirror/state"
-import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from "@codemirror/view"
-import { sharedEnd, sharedStart } from "@/lib/text-diff"
+import { findAnchor } from "@owlit/protocol"
+import type { Extension } from "@codemirror/state"
+import { EditorView, WidgetType } from "@codemirror/view"
+import { shorten } from "@/lib/words"
 import type { AgentNote } from "../types"
 import { renderInline } from "./render-inline"
-import { sideCardTheme, washOpen } from "./side-card"
+import { anchoredCards, cardButton, sideCardFold, sideCardTheme, washOpen, type Spot } from "./side-card"
 
 // Agents' notes on a doc. The words a note is on carry an underline in the note colour; clicking them opens
 // the note under the paragraph, pushing the text down rather than covering it, and the words take a wash of
@@ -13,56 +14,7 @@ import { sideCardTheme, washOpen } from "./side-card"
 // follows every edit; when the doc is opened again it finds the passage by the quoted words and the text
 // around them, and says so when the passage is gone.
 
-export const setNotes = StateEffect.define<AgentNote[]>()
-export const setOpenNote = StateEffect.define<string | null>()
-
-// Where a note sits in the doc now. A lost note has no passage and sits on the title line.
-export interface NoteSpot {
-  note: AgentNote
-  from: number
-  to: number
-  lost: boolean
-}
-
-interface NotesState {
-  spots: NoteSpot[]
-  open: string | null
-  decos: DecorationSet
-}
-
-// How much text either side of a note's passage it keeps, to find the passage again
-const CONTEXT = 32
-
-// A note's anchor on the passage from..to of a doc: its words and a little text either side
-export const noteAnchor = (doc: string, from: number, to: number): Pick<AgentNote, "quote" | "prefix" | "suffix"> => ({
-  quote: doc.slice(from, to),
-  prefix: doc.slice(Math.max(0, from - CONTEXT), from),
-  suffix: doc.slice(to, to + CONTEXT),
-})
-
-// Where the note's passage starts in this text, or null when the words are no longer there
-export function anchor(doc: string, note: AgentNote): number | null {
-  if (!note.quote) return null
-  let best: number | null = null
-  let bestScore = -1
-  for (let i = doc.indexOf(note.quote); i >= 0; i = doc.indexOf(note.quote, i + 1)) {
-    const score =
-      sharedEnd(doc.slice(Math.max(0, i - note.prefix.length), i), note.prefix) +
-      sharedStart(doc.slice(i + note.quote.length, i + note.quote.length + note.suffix.length), note.suffix)
-    if (score > bestScore) {
-      best = i
-      bestScore = score
-    }
-  }
-  return best
-}
-
-const lostSpot = (state: EditorState, note: AgentNote): NoteSpot => ({ note, from: 0, to: state.doc.line(1).to, lost: true })
-
-function locate(state: EditorState, note: AgentNote): NoteSpot {
-  const at = anchor(state.doc.toString(), note)
-  return at === null ? lostSpot(state, note) : { note, from: at, to: at + note.quote.length, lost: false }
-}
+type NoteSpot = Spot<AgentNote>
 
 // Reading order: notes whose passage is gone first, as they sit by the title, then by where they start
 const byPlace = (a: NoteSpot, b: NoteSpot) => (a.lost ? -1 : a.from) - (b.lost ? -1 : b.from)
@@ -118,23 +70,13 @@ class NoteWidget extends WidgetType {
     this.actions = actions
   }
   eq(other: NoteWidget) {
-    return other.spot.note === this.spot.note && other.spot.lost === this.spot.lost && other.order.join() === this.order.join()
+    return other.spot.item === this.spot.item && other.spot.lost === this.spot.lost && other.order.join() === this.order.join()
   }
   toDOM(view: EditorView) {
-    const { note, lost } = this.spot
+    const { item: note, lost } = this.spot
     const i = this.order.indexOf(note.id)
     const n = this.order.length
     const step = (by: number) => this.order[(i + by + n) % n]
-
-    const button = (label: string, run: () => void, className?: string) => {
-      const b = document.createElement("button")
-      b.type = "button"
-      b.textContent = label
-      if (className) b.className = className
-      b.onmousedown = (e) => e.preventDefault()
-      b.onclick = run
-      return b
-    }
 
     const box = document.createElement("div")
     box.className = "cm-note"
@@ -152,11 +94,11 @@ class NoteWidget extends WidgetType {
       const count = document.createElement("span")
       const at = i + 1
       count.textContent = t({ message: `${at} of ${n}`, comment: "which note of the doc's notes is open: 2 of 5" })
-      const prev = button("", () => this.actions.onOpen(step(-1)))
+      const prev = cardButton("", () => this.actions.onOpen(step(-1)))
       prev.innerHTML = chevron("m15 18-6-6 6-6")
       prev.setAttribute("aria-label", t`Previous note`)
       prev.title = t`Previous note`
-      const next = button("", () => this.actions.onOpen(step(1)))
+      const next = cardButton("", () => this.actions.onOpen(step(1)))
       next.innerHTML = chevron("m9 18 6-6-6-6")
       next.setAttribute("aria-label", t`Next note`)
       next.title = t`Next note`
@@ -168,8 +110,7 @@ class NoteWidget extends WidgetType {
     if (lost) {
       const gone = document.createElement("p")
       gone.className = "cm-note-lost"
-      const q = note.quote
-      const passage = q.length > 90 ? `${q.slice(0, 90)}…` : q
+      const passage = shorten(note.quote, 90)
       gone.textContent = t`The passage this note was on has changed: “${passage}”`
       box.append(gone)
     }
@@ -178,114 +119,36 @@ class NoteWidget extends WidgetType {
     const actions = document.createElement("div")
     actions.className = "cm-note-actions"
     actions.append(
-      button(t`Dismiss`, () => this.actions.onDismiss(note, n > 1 ? step(1) : null)),
-      button(t`Chat about this`, () => this.actions.onChat(note)),
+      cardButton(t`Dismiss`, () => this.actions.onDismiss(note, n > 1 ? step(1) : null)),
+      cardButton(t`Chat about this`, () => this.actions.onChat(note)),
     )
     box.append(text, actions)
 
-    // The note opens under its paragraph the way a peek does (index.css, Unfold): the fold is laid out closed
-    // once the widget is in the doc, then opens, pushing the text below it over --t-layout. CodeMirror measures
-    // block heights itself, so it is told once the height has stopped moving.
-    const fold = document.createElement("div")
-    fold.className = "unfold cm-note-fold"
-    const inner = document.createElement("div")
-    inner.className = "unfold-inner"
-    inner.append(box)
-    fold.append(inner)
-    requestAnimationFrame(() => {
-      fold.dataset.state = "open"
-    })
-    fold.addEventListener("transitionend", (e) => {
-      if (e.target === fold && e.propertyName === "grid-template-rows") {
-        fold.dataset.settled = ""
-        view.requestMeasure()
-      }
-    })
-    return fold
+    return sideCardFold(view, box, "cm-note-fold")
   }
   ignoreEvent() {
     return true
   }
 }
 
-const noteActions = Facet.define<Actions, Actions>({ combine: (values) => values[0] })
-
-const notesField = StateField.define<NotesState>({
-  create: () => ({ spots: [], open: null, decos: Decoration.none }),
-  update(value, tr) {
-    let { spots, open } = value
-    // While the doc is open a passage follows the edits: text typed at either end stays outside it, and a
-    // passage deleted whole is lost until its words come back (an undo)
-    if (tr.docChanged)
-      spots = spots.map((s) => {
-        if (s.lost) return locate(tr.state, s.note)
-        const from = tr.changes.mapPos(s.from, 1)
-        const to = tr.changes.mapPos(s.to, -1)
-        return to > from ? { ...s, from, to } : lostSpot(tr.state, s.note)
-      })
-    for (const e of tr.effects) {
-      if (e.is(setNotes)) {
-        const kept = new Map(spots.map((s) => [s.note.id, s]))
-        spots = e.value.map((note) => {
-          const spot = kept.get(note.id)
-          return spot ? { ...spot, note } : locate(tr.state, note)
-        })
-      }
-      if (e.is(setOpenNote)) open = e.value
-    }
-    if (open && !spots.some((s) => s.note.id === open)) open = null
-    if (spots === value.spots && open === value.open) return value
-
-    const order = [...spots].sort(byPlace).map((s) => s.note.id)
-    const decos: Range<Decoration>[] = []
-    for (const s of spots) {
-      if (s.lost) continue
-      const isOpen = s.note.id === open
-      decos.push(
-        Decoration.mark({ class: isOpen ? "cm-note-mark cm-note-mark-open" : "cm-note-mark", attributes: { "data-note": s.note.id } }).range(s.from, s.to),
-      )
-    }
-    const opened = spots.find((s) => s.note.id === open)
-    if (opened)
-      decos.push(
-        Decoration.widget({ widget: new NoteWidget(opened, order, tr.state.facet(noteActions)), block: true, side: 1 }).range(tr.state.doc.lineAt(opened.to).to),
-      )
-    return { spots, open, decos: Decoration.set(decos, true) }
+const notes = anchoredCards<AgentNote, Actions>({
+  attr: "note",
+  mark: "cm-note-mark",
+  id: (note) => note.id,
+  // A note opened again finds its passage by the quoted words and the text around them
+  find: (text, note) => {
+    const at = findAnchor(text, note)
+    return at === null ? null : { from: at, to: at + note.quote.length }
   },
-  provide: (f) => EditorView.decorations.from(f, (v) => v.decos),
+  card: (opened, spots, actions) => new NoteWidget(opened, [...spots].sort(byPlace).map((s) => s.item.id), actions),
 })
 
+export const { setItems: setNotes, setOpen: setOpenNote } = notes
+
 // The doc's notes as they sit now, for saving their moved passages back to the store
-export function noteSpots(state: EditorState): NoteSpot[] {
-  return state.field(notesField, false)?.spots ?? []
-}
+export const noteSpots = notes.spotsOf
 
 export function agentNotes(actions: Actions): Extension {
-  // A click on underlined words opens their note, and the caret lands where it was clicked as usual; a
-  // click anywhere else in the text puts the open note away. Moving the caret in by keyboard opens nothing,
-  // so a note never springs open while the writer types.
-  const clicks = EditorView.domEventHandlers({
-    click(e, view) {
-      if (e.button !== 0 || !view.state.selection.main.empty) return false
-      const id = (e.target as HTMLElement).closest?.("[data-note]")?.getAttribute("data-note") ?? null
-      const { open } = view.state.field(notesField)
-      if (id !== open && (id || open)) actions.onOpen(id)
-      return false
-    },
-  })
-
-  // Esc puts an open note away
-  const esc = keymap.of([
-    {
-      key: "Escape",
-      run: (view) => {
-        if (!view.state.field(notesField).open) return false
-        actions.onOpen(null)
-        return true
-      },
-    },
-  ])
-
   const theme = EditorView.theme({
     // The passage underlined and the open note's card in Owlit's mark green (side-card.ts). A doc's own
     // ==highlights== are a different, lemon yellow, so the two never pass for each other.
@@ -310,5 +173,5 @@ export function agentNotes(actions: Actions): Extension {
     ".cm-note-actions button:last-child": { color: "var(--foreground)" },
   })
 
-  return [noteActions.of(actions), notesField, clicks, esc, theme]
+  return [notes.extension(actions), theme]
 }

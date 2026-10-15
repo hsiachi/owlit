@@ -2,6 +2,7 @@ import type { AgentNote, DocConflict, DocsChange, DocStat, NoteAnchor, Workspace
 import { RpcErrorCode } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
+import { toastError } from "@/lib/toast"
 import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { countDown, countUp } from "@/lib/counts"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -54,7 +55,7 @@ const remember = (stat: DocStat, content?: string) => {
 }
 
 async function failed(error: unknown) {
-  toast.error(error instanceof Error ? error.message : t`Couldn't save the change.`)
+  toastError(error, t`Couldn't save the change.`)
   await load()
 }
 
@@ -312,7 +313,7 @@ export function reanchorOnDisk(id: string, moved: Record<string, NoteAnchor>) {
 }
 
 export function openOnDisk(path: string) {
-  rpc.docs.open({ path }).catch((error: Error) => toast.error(error.message))
+  rpc.docs.open({ path }).catch(toastError)
 }
 
 // ---- When the disk disagrees ----

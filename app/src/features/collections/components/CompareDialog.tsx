@@ -1,6 +1,5 @@
 import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
-import { toast } from "sonner"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -8,7 +7,9 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
+import { desktopOnly } from "../runs"
 import { put } from "../store"
 
 // At most this many sentences in one comparison: each becomes a group when the table is grouped by them
@@ -16,7 +17,7 @@ const MOST = 12
 
 // A doc's sentences, as the user might want them weighed: its lines split at sentence ends, headings and
 // list marks taken off, very short pieces left out
-export function sentencesOf(markdown: string): string[] {
+function sentencesOf(markdown: string): string[] {
   const out: string[] = []
   for (const raw of markdown.split("\n")) {
     const line = raw
@@ -46,8 +47,8 @@ export function CompareDialog({ collectionId, open, onOpenChange }: { collection
   )
   const [doc, setDoc] = useState<string | null>(null)
   const [picked, setPicked] = useState<string[]>([])
-  const file = docs.find((f) => f.path === doc)
-  const sentences = useMemo(() => (file?.content ? sentencesOf(file.content) : []), [file?.content])
+  const file = useMemo(() => docs.find((f) => f.path === doc), [docs, doc])
+  const sentences = useMemo(() => (file?.content ? sentencesOf(file.content) : []), [file])
   const close = () => {
     onOpenChange(false)
     setDoc(null)
@@ -56,14 +57,14 @@ export function CompareDialog({ collectionId, open, onOpenChange }: { collection
   const compare = async () => {
     if (!doc || !picked.length) return
     if (!isDesktop) {
-      toast(t`Owlit works on collections in the desktop app.`)
+      desktopOnly()
       return close()
     }
     try {
       put(await rpc.collections.compare({ id: collectionId, doc, sentences: picked }))
       close()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
+      toastError(error)
     }
   }
   const toggle = (s: string) => setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : p.length < MOST ? [...p, s] : p))

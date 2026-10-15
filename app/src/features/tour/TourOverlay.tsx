@@ -4,6 +4,8 @@ import { Trans } from "@lingui/react/macro"
 import { useLocation, useNavigate, type NavigateFunction } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { useDocsStore } from "@/features/docs/store"
+import { isMarkdown } from "@/features/docs/types"
+import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { cn } from "@/lib/utils"
 import { useTour } from "./store"
 
@@ -73,7 +75,7 @@ const STOPS: Stop[] = [
     enter: (navigate, pathname) => {
       if (pathname.startsWith("/docs/")) return
       const files = Object.values(useDocsStore.getState().files)
-      const draft = files.find((f) => f.path === DRAFT) ?? files.find((f) => f.path.endsWith(".md"))
+      const draft = files.find((f) => f.path === DRAFT) ?? files.find((f) => isMarkdown(f.path))
       navigate(draft ? `/docs/${draft.id}` : "/docs")
     },
   },
@@ -148,11 +150,7 @@ function Tour({ index }: { index: number }) {
     return () => cancelAnimationFrame(raf)
   }, [stop, index, go])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && end()
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [end])
+  useWindowKeydown((e) => e.key === "Escape" && end())
 
   // The card beside the spotlight: below it when there's room, else above, else to its side
   useLayoutEffect(() => {

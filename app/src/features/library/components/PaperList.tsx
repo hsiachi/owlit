@@ -2,12 +2,13 @@ import { msg, t } from "@lingui/core/macro"
 import { ago } from "@/lib/time"
 import { i18n } from "@/lib/i18n"
 import { MARK_CLOSE, MARK_OPEN } from "@owlit/protocol"
-import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
-import { NoteDot } from "@/components/marks"
+import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
+import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
 import { noPdfReason, type PaperGroup } from "../lib/filter"
@@ -36,13 +37,22 @@ function RowMenu({ id, children }: { id: string; children: React.ReactNode }) {
   )
 }
 
+// A row's star and its ellipsis, in the list's end slot and the table's last cell alike
+function RowStar({ paper, className }: { paper: Paper; className?: string }) {
+  return <StarButton size="icon-xs" starred={paper.starred} onToggle={() => useLibraryStore.getState().setStarred([paper.id], !paper.starred)} className={className} />
+}
+
+function RowMore({ id, className }: { id: string; className?: string }) {
+  return <RowMenuButton menu={<PaperRowMenu id={id} />} label={t`More actions`} menuClassName="w-48" className={className} />
+}
+
 // Star and ellipsis, shown while the row is hovered, holds keyboard focus or has its menu up (the table's
 // last cell, where the date gives way to them)
 function RowActions({ paper, className }: { paper: Paper; className?: string }) {
   return (
     <span className={cn("hidden shrink-0 items-center group-hover/row:flex group-has-focus-key/row:flex group-has-data-menu-up/row:flex", className)}>
-      <StarButton size="icon-xs" starred={paper.starred} onToggle={() => useLibraryStore.getState().setStarred([paper.id], !paper.starred)} />
-      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label={t`More actions`} menuClassName="w-48" />
+      <RowStar paper={paper} />
+      <RowMore id={paper.id} />
     </span>
   )
 }
@@ -57,13 +67,8 @@ function RowSlot({ paper, open }: { paper: Paper; open: boolean }) {
   const onHover = cn(ON_HOVER, open && ON_CARD_HOVER)
   return (
     <span className="flex shrink-0 items-center">
-      <RowMenuButton menu={<PaperRowMenu id={paper.id} />} label={t`More actions`} menuClassName="w-48" className={cn("flex", onHover, "data-menu-up:visible")} />
-      <StarButton
-        size="icon-xs"
-        starred={paper.starred}
-        onToggle={() => useLibraryStore.getState().setStarred([paper.id], !paper.starred)}
-        className={paper.starred ? undefined : onHover}
-      />
+      <RowMore id={paper.id} className={cn("flex", onHover, "data-menu-up:visible")} />
+      <RowStar paper={paper} className={paper.starred ? undefined : onHover} />
     </span>
   )
 }
@@ -86,16 +91,10 @@ function DigestMark({ state }: { state: DigestState }) {
     return <span role="img" aria-label={label} title={label} className="size-2 shrink-0 animate-ring-breathe rounded-full bg-muted-foreground motion-reduce:animate-none" />
   }
   if (state === "new") return <NoteDot label={t`New digest`} />
-  if (state === "failed") {
-    const label = t`Digest stopped`
-    return <span role="img" aria-label={label} title={label} className="size-2 shrink-0 rounded-full bg-destructive" />
-  }
+  if (state === "failed") return <StoppedDot label={t`Digest stopped`} />
   return null
 }
 
-// The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
-// while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
-// one place and the ring comes or goes without moving the row.
 // A paper without its PDF says why in its row: Needs you while a publisher waits on the user; otherwise
 // what happened (turned away, nothing came, nothing found), a plain detail, since nothing waits on them
 function noPdfWord(p: Paper) {
@@ -114,6 +113,9 @@ function noPdfWord(p: Paper) {
   return undefined
 }
 
+// The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
+// while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
+// one place and the ring comes or goes without moving the row.
 function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState }) {
   const label = paper.status === "reading" ? statusLabel("reading") : undefined
   if (digest) {
@@ -125,9 +127,7 @@ function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState 
   }
   return (
     <span className="grid size-4 shrink-0 place-items-center" title={label}>
-      {paper.status === "reading" && (
-        <span className="size-2 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]" />
-      )}
+      {paper.status === "reading" && <ReadingRing />}
       {label && <span className="sr-only">{label}</span>}
     </span>
   )
@@ -138,7 +138,8 @@ function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState 
 // does. Open, the shell is the card (a peek's material, 6px of sheet above and below), the row its first
 // line, and the details unfold under it, so the paper clicked stays under the pointer and a second click
 // lands on it again. The card's padding is a peek's: the row's own 8px and 10px plus the shell's.
-function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; snippet?: string }) {
+// Memoized, as the table's rows are: a change to one paper redraws its row, not the list.
+const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; snippet?: string }) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   return (
@@ -167,7 +168,7 @@ function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; s
       </Unfold>
     </div>
   )
-}
+})
 
 export function PaperList({ groups, snippets }: { groups: PaperGroup[]; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useLibraryUi((s) => s.peekId)
@@ -252,7 +253,18 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
   return useMemo(() => kept.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [kept, hidden])
 }
 
-function TableRow({ paper, peeked, last, columns, snippet, tagFilter, holding }: { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[]; holding?: { id: string; title: string }[] }) {
+type TableRowProps = { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[]; holding?: { id: string; title: string }[] }
+
+// The collections holding a paper come fresh from every library change, so they are compared by what they say
+const sameHolding = (a: TableRowProps["holding"], b: TableRowProps["holding"]) =>
+  a === b || (!!a && !!b && a.length === b.length && a.every((c, i) => c.id === b[i]!.id && c.title === b[i]!.title))
+
+const TableRow = memo(TableRowView, (a, b) => {
+  for (const key of Object.keys(a) as (keyof TableRowProps)[]) if (key !== "holding" && !Object.is(a[key], b[key])) return false
+  return Object.keys(a).length === Object.keys(b).length && sameHolding(a.holding, b.holding)
+})
+
+function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holding }: TableRowProps) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   const tags = tagsFirst(paper.tags, tagFilter)
@@ -336,20 +348,14 @@ function TableRow({ paper, peeked, last, columns, snippet, tagFilter, holding }:
   )
 }
 
-// A row's card in the table: a full-width row under it that unfolds, the paper's row staying where it was
-// as its title line. Every paper has one, closed and empty until opened, so a card can fold away again.
-// The card overhangs the row by 6px a side, so the fold's clip box is widened by as much.
-function PeekRow({ paper, open, span }: { paper: Paper; open: boolean; span: number }) {
+// A row's card in the table, the paper's row staying where it was as its title line
+const PeekRow = memo(function PeekRow({ paper, open, span }: { paper: Paper; open: boolean; span: number }) {
   return (
-    <tr>
-      <td colSpan={span} className="px-1.5">
-        <Unfold open={open} innerClassName="-mx-1.5 px-1.5">
-          <PaperPeek paper={paper} rowActions className="my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 shadow-sm" />
-        </Unfold>
-      </td>
-    </tr>
+    <TablePeekRow open={open} span={span}>
+      <PaperPeek paper={paper} rowActions className={tablePeekCard} />
+    </TablePeekRow>
   )
-}
+})
 
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
 // Column headers sort; clicking a row opens its card in a full-width row beneath it. Sorted by
@@ -361,7 +367,9 @@ export function PaperTable({ papers, groups, byCollection, snippets }: { papers:
   const tagFilter = useLibraryUi((s) => s.tags)
   const table = useRef<HTMLTableElement>(null)
   const columns = useColumns(table, papers, byCollection)
-  const shown = useMemo(() => new Set(columns.map((c) => c.key)), [columns])
+  // Kept while the same columns show, so the memoized rows aren't redrawn by every library change
+  const keys = columns.map((c) => c.key).join(" ")
+  const shown = useMemo(() => new Set(keys.split(" ") as ColumnKey[]), [keys])
   return (
     <table ref={table} className="w-full table-fixed border-separate border-spacing-0">
       <colgroup>
@@ -374,17 +382,7 @@ export function PaperTable({ papers, groups, byCollection, snippets }: { papers:
           {columns.map((c, i) => {
             const active = "sort" in c && sort.key === c.sort
             return (
-              <th
-                key={c.key}
-                aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}
-                className="sticky top-0 z-10 h-9 border-b-4 border-background bg-background px-2.5 text-left text-xs font-medium text-muted-foreground"
-              >
-                {/* The tint sits on a layer inside the cell's padding, so the sticky header stays opaque over scrolled
-                    rows and a 4px band of sheet separates it from the first row's hover fill */}
-                <span
-                  aria-hidden
-                  className={cn("absolute inset-0 -z-10 bg-muted", i === 0 && "rounded-l-md", i === columns.length - 1 && "rounded-r-md")}
-                />
+              <HeadCell key={c.key} first={i === 0} last={i === columns.length - 1} aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}>
                 {"sort" in c ? (
                   <button
                     type="button"
@@ -397,7 +395,7 @@ export function PaperTable({ papers, groups, byCollection, snippets }: { papers:
                 ) : (
                   i18n._(c.label)
                 )}
-              </th>
+              </HeadCell>
             )
           })}
         </tr>

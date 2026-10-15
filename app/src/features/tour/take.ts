@@ -1,5 +1,5 @@
-import { toast } from "sonner"
 import { rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { useWorkspace } from "@/lib/workspace"
 import { isExample, tourWhenExampleOpens, useTour } from "./store"
 
@@ -8,5 +8,5 @@ import { isExample, tourWhenExampleOpens, useTour } from "./store"
 export function takeTour() {
   if (isExample(useWorkspace.getState().current?.name)) return useTour.getState().start()
   tourWhenExampleOpens()
-  rpc.workspace.createExample().catch((error: unknown) => toast.error(error instanceof Error ? error.message : String(error)))
+  rpc.workspace.createExample().catch(toastError)
 }

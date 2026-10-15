@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { ToolInfo } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
-import { capital } from "@/lib/words"
+import { capital, shorten } from "@/lib/words"
 
 // What a tool call is called on screen. Agents name owlit's own tools by their MCP name
 // (mcp__owlit__library_search from Claude Code, mcp.owlit.library_search from Codex) and a paper's note by its file (library/papers/<id>/note.md, or
@@ -82,7 +82,7 @@ const plainWords = (tool: string): ToolWords => {
 // owlit's own tool a name or title calls, by Claude Code (mcp__owlit__x) or Codex (mcp.owlit.x): "x"
 export const owlitToolOf = (name: string) => /^mcp(?:__|\.)owlit(?:__|\.)(\w+)/.exec(name)?.[1]
 
-export const quote = (s: string) => `“${s.length > 80 ? `${s.slice(0, 80)}…` : s}”`
+export const quote = (s: string) => `“${shorten(s, 80)}”`
 
 // What a step with one of owlit's tools does, with what it is about when the agent's input says (Claude
 // Code sends it): seven searches in a row each name their query, instead of reading "Search for papers"

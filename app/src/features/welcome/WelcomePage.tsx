@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { t } from "@lingui/core/macro"
 import type { RecentWorkspace, WelcomeInfo } from "@owlit/protocol"
 import { FolderIcon, FolderOpenIcon, FolderPlusIcon, FolderXIcon, XIcon } from "lucide-react"
-import { toast } from "sonner"
-import { RowIcon, RowList, rowClass, rowHover } from "@/components/row-list"
+import { RowIcon, RowList, revealOnHover, rowClass, rowHover } from "@/components/row-list"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { ListRow } from "@/components/list-row"
@@ -17,20 +16,19 @@ import { useSettingsShortcut } from "@/features/settings/hooks"
 import { CommitInput } from "@/features/settings/parts"
 import { updateSettings, useSettings } from "@/features/settings/store"
 import { bridge, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { useControlsRoom } from "@/lib/window-frame"
+import { pickParent, pickWorkspaceFolder, tilde } from "@/lib/workspace"
 import { AgentCheck } from "./AgentCheck"
 import { cn } from "@/lib/utils"
 
-// The page the window shows while no workspace is open: on a first launch, or when the last workspace is
-// no longer where it was. It asks where to work, and, until the user has given one, what Owlit should
-// call them (optional; Settings › Owlit keeps it). Either workspace choice opens Home at once; there
-// are no further steps. The window has no rail here, since none of the places exist yet.
+// The page the window shows while no workspace is open once the first launch is over (a first launch gets
+// the onboarding flow instead, app/Shell.tsx), as when the last workspace is no longer where it was. It
+// asks where to work, and, until the user has given one, what Owlit should call them (optional; Settings
+// › Owlit keeps it). Either workspace choice opens Home at once; there are no further steps. The window
+// has no rail here, since none of the places exist yet.
 
-// "~/Documents" rather than the whole home path
-const tilde = (p: string) => p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~")
 const parentOf = (p: string) => p.slice(0, p.lastIndexOf("/")) || "/"
-
-const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
 
 export function WelcomePage() {
   const [info, setInfo] = useState<WelcomeInfo | null>(null)
@@ -48,24 +46,20 @@ export function WelcomePage() {
         setName(next.suggestion.name)
         setParent(next.suggestion.parent)
       })
-      .catch(failed)
+      .catch(toastError)
   useEffect(() => {
     void load()
   }, [])
 
-  const create = () => rpc.workspace.create({ parent, name: name.trim() || info!.suggestion.name }).catch(failed)
+  const create = () => rpc.workspace.create({ parent, name: name.trim() || info!.suggestion.name }).catch(toastError)
 
   const openFolder = async () => {
-    const folder = await bridge?.chooseFolder({
-      title: t`Open a Folder`,
-      message: t`Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit.`,
-      buttonLabel: t({ message: "Open", comment: "button of the folder picker" }),
-    })
-    if (folder) await rpc.workspace.open({ path: folder }).catch(failed)
+    const folder = await pickWorkspaceFolder()
+    if (folder) await rpc.workspace.open({ path: folder }).catch(toastError)
   }
 
   const chooseParent = async () => {
-    const folder = await bridge?.chooseFolder({ title: t`Where the Workspace Goes`, buttonLabel: t({ message: "Choose", comment: "button of the folder picker" }), defaultPath: parent })
+    const folder = await pickParent(parent)
     if (folder) setParent(folder)
   }
 
@@ -78,7 +72,7 @@ export function WelcomePage() {
       await rpc.workspace.open({ path: folder })
       await rpc.workspace.forget({ path: gone.path })
     } catch (error) {
-      failed(error)
+      toastError(error)
     }
   }
 
@@ -86,7 +80,7 @@ export function WelcomePage() {
     rpc.workspace
       .forget({ path: gone.path })
       .then(load)
-      .catch(failed)
+      .catch(toastError)
 
   return (
     <TooltipProvider>
@@ -156,7 +150,7 @@ export function WelcomePage() {
                   {info.recent.map((w) => {
                     const where = tilde(w.path)
                     return w.missing ? (
-                      <div key={w.path} className="group/gone flex h-9 min-w-0 items-center gap-2.5 rounded-md pr-1 pl-2.5 text-sm">
+                      <div key={w.path} className="group/row flex h-9 min-w-0 items-center gap-2.5 rounded-md pr-1 pl-2.5 text-sm">
                         <FolderXIcon className="size-4 shrink-0 text-muted-foreground" />
                         <span className="max-w-[60%] shrink-0 truncate text-muted-foreground">{w.name}</span>
                         <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground" title={w.path}>
@@ -165,12 +159,12 @@ export function WelcomePage() {
                         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => locate(w)}>
                           {t`Locate…`}
                         </Button>
-                        <IconButton label={t`Remove from Recent`}size="icon-xs" className="opacity-0 group-hover/gone:opacity-100 focus-key:opacity-100" onClick={() => forget(w)}>
+                        <IconButton label={t`Remove from Recent`} size="icon-xs" className={revealOnHover} onClick={() => forget(w)}>
                           <XIcon />
                         </IconButton>
                       </div>
                     ) : (
-                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={where} onClick={() => rpc.workspace.open({ path: w.path }).catch(failed)} />
+                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={where} onClick={() => rpc.workspace.open({ path: w.path }).catch(toastError)} />
                     )
                   })}
                 </div>
@@ -203,7 +197,7 @@ function NameField() {
       <CommitInput
         id="welcome-name"
         value={view?.profile.name ?? ""}
-        onCommit={(name) => void updateSettings({ profile: { name: name || null } }).catch(failed)}
+        onCommit={(name) => void updateSettings({ profile: { name: name || null } }).catch(toastError)}
         placeholder={t`Your name`}
         spellCheck={false}
         autoComplete="off"

@@ -5,7 +5,7 @@
 import { bridge } from "@/lib/rpc"
 
 // A selection shorter than this is a stray click-drag, not a passage to ask about
-export const MIN_PASSAGE = 3
+const MIN_PASSAGE = 3
 export const isPassage = (text: string) => text.trim().length >= MIN_PASSAGE
 
 // Given at the moment of the right-click: what "Ask Owlit" will do, or null when there is nothing to ask

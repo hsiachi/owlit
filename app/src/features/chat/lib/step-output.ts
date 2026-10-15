@@ -1,9 +1,10 @@
 import { plural } from "@lingui/core/macro"
 import { editStats } from "@owlit/protocol"
-import type { QuestionPart } from "../types"
+import { hostOf } from "@/lib/names"
+import type { QuestionPart, ToolCall } from "../types"
 import { countsText } from "./edit-counts"
-import { fetchUrlOf, hostOf, owlitToolOf, stepGroup, type ToolCall } from "./step-words"
-
+import { fetchUrlOf, stepGroup } from "./step-words"
+import { owlitToolOf } from "./tool-title"
 
 // What a step got back, read for its row: the text a tool sent, a web search's hits, the detail at the
 // row's right end, and whether the row has anything to open to.
@@ -74,7 +75,7 @@ export function stepMeta(call: ToolCall): string | undefined {
 // open; the card's row is where the person sees and undoes it. One that failed still opens to why.
 const SHOWN_AS_RESULT = new Set(["library_add", "library_remove", "docs_add_note", "collection_write"])
 
-export function shownAsResult(call: ToolCall) {
+function shownAsResult(call: ToolCall) {
   if (call.status === "failed") return false
   // By the MCP name, or bare as the Owlit engine may name them
   const name = call.tool?.name ?? call.title

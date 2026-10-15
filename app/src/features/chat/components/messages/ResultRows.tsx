@@ -3,7 +3,6 @@ import { useEffect, useState } from "react"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { editStats, type EditStats } from "@owlit/protocol"
-import { toast } from "sonner"
 import { ArrowUpRightIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
@@ -17,6 +16,7 @@ import type { ChatMessage } from "../../types"
 import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
 import { countParts } from "../../lib/edit-counts"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
@@ -78,7 +78,7 @@ function statsFromParts(parts: ChatMessage["parts"], path: string): EditStats | 
 
 // "+31 −1": new words in Owlit's green, as the doc marks its edits; removals muted, never red.
 // A doc mostly replaced says "Rewritten" instead of two large numbers. Lines say their unit.
-export function EditCounts({ stats }: { stats: EditStats }) {
+function EditCounts({ stats }: { stats: EditStats }) {
   if (stats.rewritten) return <span>{t({ message: "Rewritten", comment: "a doc an edit mostly replaced" })}</span>
   const { added, removed, unit } = countParts(stats)
   return (
@@ -104,8 +104,6 @@ function rememberApplied(messageId: string, path: string) {
   if (text !== undefined) appliedText.set(appliedKey(messageId, path), { text, left: false })
 }
 
-const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
-
 // Takes a row's changes back, newest first, so each restore finds the file as the next one left it
 async function undoResults(messageId: string, results: AgentResult[]) {
   const done: Record<string, string | undefined> = {}
@@ -116,7 +114,7 @@ async function undoResults(messageId: string, results: AgentResult[]) {
       done[r.versionId] = await undoResult(r.versionId)
     }
   } catch (error) {
-    failed(error)
+    toastError(error)
   } finally {
     if (Object.keys(done).length) useResultsStore.getState().markUndone(messageId, done)
   }
@@ -132,7 +130,7 @@ async function redoResults(messageId: string, results: AgentResult[]) {
       done.push(r.versionId)
     }
   } catch (error) {
-    failed(error)
+    toastError(error)
   } finally {
     if (done.length) {
       appliedText.delete(appliedKey(messageId, results[0].path))
@@ -225,12 +223,12 @@ function useResultRows(message: ChatMessage): ResultRow[] {
   for (const [id, list] of byCollection) {
     const last = list.at(-1)!
     const created = list.some((r) => r.created)
-    const papers = new Set(list.flatMap((r) => r.rows ?? [])).size
+    const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
+    const papers = rowIds.length
     const updated = list.reduce((n, r) => n + (r.updated ?? 0), 0)
     const answers = updated ? plural(updated, { one: "# answer updated", other: "# answers updated" }) : undefined
     const separate = last.separate
     const asked = list.find((r) => r.asked)?.asked
-    const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
     rows.push({
       key: `collection:${id}`,
       kind: "collection",
@@ -259,7 +257,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
                 await rpc.collections.unsplit({ id: separate.id })
                 useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), null)
               } catch (error) {
-                failed(error)
+                toastError(error)
               }
             },
           }
@@ -275,7 +273,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
                   const c = await rpc.collections.split({ id, rows: rowIds, asked: asked ?? "" })
                   useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), { id: c.id, title: c.title })
                 } catch (error) {
-                  failed(error)
+                  toastError(error)
                 }
               },
             },

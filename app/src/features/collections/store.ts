@@ -1,10 +1,10 @@
 import { t } from "@lingui/core/macro"
-import { applyCollectionEdit, itemId, shownCollection, summarize, type Collection, type CollectionEdit, type CollectionSummary } from "@owlit/protocol"
-import { toast } from "sonner"
+import { applyCollectionEdit, itemId, type Collection, type CollectionEdit, type CollectionSummary } from "@owlit/protocol"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { isDesktop, rpc } from "@/lib/rpc"
-import { toastUndo } from "@/lib/toast"
+import { toastError, toastUndo } from "@/lib/toast"
+import { shown, summaryOf } from "./lib"
 import { seedCollections } from "./mocks/seed"
 
 // The collections of the open workspace, whole, by id. Core owns them (.owlit/collections/): in the
@@ -35,8 +35,6 @@ export const drop = (id: string) =>
     return { collections: rest }
   })
 
-const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
-
 // One of the user's changes. Resolves to whether it was made.
 export async function editCollection(id: string, edit: CollectionEdit): Promise<boolean> {
   if (isDesktop) {
@@ -44,7 +42,7 @@ export async function editCollection(id: string, edit: CollectionEdit): Promise<
       put(await rpc.collections.edit({ id, edit }))
       return true
     } catch (error) {
-      failed(error)
+      toastError(error)
       return false
     }
   }
@@ -68,12 +66,12 @@ export const removeRow = (id: string, row: string) => removeItem(id, itemId.row(
 export async function deleteCollection(id: string) {
   const c = useCollectionsStore.getState().collections[id]
   if (!c) return
-  const title = shownCollection(c).title
+  const title = shown(c).title
   if (isDesktop) {
     try {
       await rpc.collections.delete({ id })
     } catch (error) {
-      failed(error)
+      toastError(error)
       return
     }
   }
@@ -88,7 +86,7 @@ export async function deleteCollection(id: string) {
 export function useSummaries(): CollectionSummary[] {
   const collections = useCollectionsStore((s) => s.collections)
   return Object.values(collections)
-    .map(summarize)
+    .map(summaryOf)
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
 

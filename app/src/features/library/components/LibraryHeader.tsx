@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IconButton } from "@/components/icon-button"
+import { WaitingDot } from "@/components/marks"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
 import { type Layout, usePrefsStore } from "../prefs-store"
@@ -146,7 +147,7 @@ export function FilterBar() {
           className={cn(chip, filter === f.id && "bg-accent text-foreground hover:bg-accent")}
         >
           {/* Needs you carries the rail's dot, so the trail from the rail goes on to the papers that wait */}
-          {f.id === "needs" && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning" />}
+          {f.id === "needs" && <WaitingDot className="size-1.5" />}
           {f.label}
           <span className="text-xs tabular-nums">{counts[f.id]}</span>
         </button>

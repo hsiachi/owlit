@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { chatUri, shownCollection, type Collection, type CollectionBatch, type CollectionSearch } from "@owlit/protocol"
+import { chatUri, type Collection, type CollectionBatch, type CollectionSearch } from "@owlit/protocol"
 import { useEffect, useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { GroupLabel } from "@/components/group-label"
@@ -10,6 +10,7 @@ import { useChatStore } from "@/features/chat/store"
 import { mentionRoute } from "@/features/docs/lib/mentions"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { shortDate } from "@/lib/time"
+import { shown } from "../lib"
 import { useCollectionsStore } from "../store"
 
 // Where the collection came from and how Owlit worked on it, at the page's end so the page opens on the
@@ -18,7 +19,7 @@ import { useCollectionsStore } from "../store"
 // said the search couldn't reach. Core works the batches out from the collection's history.
 export function About({ collection: c }: { collection: Collection }) {
   const batches = useBatches(c)
-  const rows = shownCollection(c).rows
+  const rows = shown(c).rows
   const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
   const papers = rows.length
   return (
@@ -82,7 +83,7 @@ function Question({ collection: c }: { collection: Collection }) {
   const when = shortDate(question.at)
   const from = question.chatId && (chat || !isDesktop) ? chatUri(question.chatId) : undefined
   const chatTitle = chat?.title || t`a chat`
-  const originLink = origin ? <MentionLink label={shownCollection(origin).title} to={`/collections/${origin.id}`} /> : t`another collection`
+  const originLink = origin ? <MentionLink label={shown(origin).title} to={`/collections/${origin.id}`} /> : t`another collection`
   if (fromGroup)
     return (
       <p className="text-detail text-muted-foreground">

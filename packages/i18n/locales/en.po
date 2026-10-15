@@ -145,8 +145,8 @@ msgstr "Nothing found."
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
 #: app/src/features/library/digests.ts
-#: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: app/src/lib/workspace.ts
 #: apps/desktop/src/main.ts
 msgid "Open"
 msgstr "Open"
@@ -263,11 +263,10 @@ msgid "in the Library and Collections"
 msgstr "in the Library and Collections"
 
 #: app/src/app/shortcuts.ts
+#: app/src/components/selection-menu.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/docs/editor/selection-menu.ts
-#: app/src/features/library/notes/NoteEditor.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -492,7 +491,6 @@ msgstr "New since you last looked"
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -1496,9 +1494,7 @@ msgid "Not checked"
 msgstr "Not checked"
 
 #. an agent's status: checking whether it is installed
-#. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
-#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Checking…"
 msgstr "Checking…"
 
@@ -2487,17 +2483,6 @@ msgstr "Export as a doc"
 msgid "Export as CSV"
 msgstr "Export as CSV"
 
-#. column: what a paper says about the collection's question
-#: app/src/features/collections/components/CollectionTable.tsx
-#: app/src/features/docs/save-as-doc.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Answer"
-msgstr "Answer"
-
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Compared with {doc}"
-msgstr "Compared with {doc}"
-
 #. papers of a collection in none of its groups
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Not in a group"
@@ -2562,7 +2547,7 @@ msgstr "Paper"
 
 #. placeholder {0}: p.total
 #. placeholder {0}: papers.length
-#. placeholder {0}: s.total.length
+#. placeholder {0}: rows.length
 #: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/collections/pages/CollectionsPage.tsx
 #: app/src/features/docs/lib/mentions.ts
@@ -2649,11 +2634,6 @@ msgstr "Use Owlit's words"
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Open at p. {0}"
 msgstr "Open at p. {0}"
-
-#: app/src/features/collections/components/CompareDialog.tsx
-#: app/src/features/collections/runs.ts
-msgid "Owlit works on collections in the desktop app."
-msgstr "Owlit works on collections in the desktop app."
 
 #. placeholder {0}: displayName(file.path)
 #: app/src/features/collections/components/CompareDialog.tsx
@@ -2807,6 +2787,17 @@ msgstr "Exported as a doc"
 msgid "Not in a project"
 msgstr "Not in a project"
 
+#. column: what a paper says about the collection's question
+#: app/src/features/collections/lib.ts
+#: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Answer"
+msgstr "Answer"
+
+#: app/src/features/collections/lib.ts
+msgid "Compared with {doc}"
+msgstr "Compared with {doc}"
+
 #. a paper's findings back one of the user's sentences
 #: app/src/features/collections/lib.ts
 msgid "Supports"
@@ -2915,6 +2906,10 @@ msgstr "Reading papers in full…"
 #: app/src/features/collections/runs.ts
 msgid "Looking for new papers…"
 msgstr "Looking for new papers…"
+
+#: app/src/features/collections/runs.ts
+msgid "Owlit works on collections in the desktop app."
+msgstr "Owlit works on collections in the desktop app."
 
 #: app/src/features/collections/runs.ts
 msgid "Owlit gathers papers in the desktop app."
@@ -3127,7 +3122,7 @@ msgstr "No doc with this name"
 msgid "{0} (you)"
 msgstr "{0} (you)"
 
-#. placeholder {0}: q.length > 90 ? `${q.slice(0, 90)}…` : q
+#. placeholder {0}: shorten(q, 90)
 #: app/src/features/docs/editor/reader-comments.ts
 msgid "The words this comment was on have changed: “{0}”"
 msgstr "The words this comment was on have changed: “{0}”"
@@ -3409,7 +3404,7 @@ msgstr "This folder is your workspace. Papers, notes and chats you add live in i
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 
-#. placeholder {0}: shown.rows.length
+#. placeholder {0}: view.rows.length
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{0, plural, one {New collection · # paper} other {New collection · # papers}}"
 msgstr "{0, plural, one {New collection · # paper} other {New collection · # papers}}"
@@ -3842,8 +3837,7 @@ msgstr "{n, plural, one {# couldn't be added} other {# couldn't be added}}"
 
 #. button of the folder picker
 #: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
+#: app/src/lib/workspace.ts
 msgid "Choose"
 msgstr "Choose"
 
@@ -4192,14 +4186,12 @@ msgid "Tag"
 msgstr "Tag"
 
 #: app/src/features/library/digest-rows.tsx
-#: app/src/features/library/digests.ts
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Couldn't ask for the digest again."
-msgstr "Couldn't ask for the digest again."
-
-#: app/src/features/library/digest-rows.tsx
 msgid "Writing the digest…"
 msgstr "Writing the digest…"
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't ask for the digest again."
+msgstr "Couldn't ask for the digest again."
 
 #: app/src/features/library/digests.ts
 msgid "Couldn't write the digest"
@@ -4900,11 +4892,6 @@ msgstr "No PDF found. Drop one here if you have it."
 msgid "Agent for Owlit"
 msgstr "Agent for Owlit"
 
-#. placeholder {0}: Math.round(progress * 100)
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "Setting up… {0}%"
-msgstr "Setting up… {0}%"
-
 #: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copy the install command"
@@ -5032,27 +5019,6 @@ msgstr "Make it yours."
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Pick a theme and a paper tone. You can change both in Settings."
 msgstr "Pick a theme and a paper tone. You can change both in Settings."
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Your name"
-msgstr "Your name"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Where the Workspace Goes"
-msgstr "Where the Workspace Goes"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Open a Folder"
-msgstr "Open a Folder"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Where to begin?"
@@ -5209,16 +5175,16 @@ msgid "{engineName} can be signed in to several providers at once. Each chat pic
 msgstr "{engineName} can be signed in to several providers at once. Each chat picks its model, from any of them, in the composer."
 
 #: app/src/features/settings/sections/AgentsSection.tsx
-msgid "Setting up… {percent}%"
-msgstr "Setting up… {percent}%"
-
-#: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Not set up · about {size} MB"
 msgstr "Not set up · about {size} MB"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Update to {latest}"
 msgstr "Update to {latest}"
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Setting up… {percent}%"
+msgstr "Setting up… {percent}%"
 
 #. verb: check whether the agent is installed and works
 #: app/src/features/settings/sections/AgentsSection.tsx
@@ -5357,6 +5323,11 @@ msgstr "Privacy"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr "What owlit remembers stays in this workspace and is never sent anywhere."
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Your name"
+msgstr "Your name"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
@@ -5864,6 +5835,18 @@ msgstr ", "
 msgctxt "the last action in a sentence"
 msgid "{rest} and {last}"
 msgstr "{rest} and {last}"
+
+#: app/src/lib/workspace.ts
+msgid "Where the Workspace Goes"
+msgstr "Where the Workspace Goes"
+
+#: app/src/lib/workspace.ts
+msgid "Open a Folder"
+msgstr "Open a Folder"
+
+#: app/src/lib/workspace.ts
+msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+msgstr "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 
 #. title of the window that shows a publisher's or library's sign-in page
 #: apps/desktop/src/browser.ts

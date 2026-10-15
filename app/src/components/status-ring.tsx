@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { NoteDot } from "@/components/marks"
+import { NoteDot, StoppedDot, WaitingDot } from "@/components/marks"
 import { STATUS_LABEL, type ChatStatus } from "@/features/chat/status"
 
 // The slot before a chat's title, as Claude Code's session list draws it: a hollow ring while nothing is
@@ -15,8 +15,8 @@ export function StatusRing({ status, className }: { status: ChatStatus; classNam
       <span data-mark="ring" className="size-2 rounded-full border-[1.5px] border-muted-foreground/55" />
       <span data-mark="working" className={cn("size-2 rounded-full bg-muted-foreground", status === "working" && "animate-ring-breathe motion-reduce:animate-none")} />
       <NoteDot data-mark="finished" label={false} />
-      <span data-mark="failed" className="size-2 rounded-full bg-destructive" />
-      <span data-mark="waiting" className="size-2 rounded-full bg-warning" />
+      <StoppedDot data-mark="failed" />
+      <WaitingDot data-mark="waiting" />
       {status !== "idle" && <span className="sr-only">{STATUS_LABEL[status]}</span>}
     </span>
   )

@@ -4,7 +4,8 @@ import { toast } from "sonner"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
-import { useDocsStore } from "../store"
+import { shorten } from "@/lib/words"
+import { fileAt } from "../store"
 import { displayName } from "../types"
 import { useDocsUiStore } from "../ui-store"
 
@@ -60,12 +61,12 @@ function sayNew(path: string, before: ShareComment[] | undefined, after: ShareCo
   const known = new Set(before.map((c) => c.id))
   const fresh = after.filter((c) => !known.has(c.id) && c.by === "reader")
   if (!fresh.length) return
-  const file = Object.values(useDocsStore.getState().files).find((f) => f.path === path)
+  const file = fileAt(path)
   const doc = displayName(path)
   const first = fresh[0]
   const name = first.name
   toast(fresh.length === 1 ? t`${name} commented on ${doc}` : t`${fresh.length} new comments on ${doc}`, {
-    description: first.text.length > 120 ? `${first.text.slice(0, 120)}…` : first.text,
+    description: shorten(first.text, 120),
     action: file
       ? {
           label: t`Open`,

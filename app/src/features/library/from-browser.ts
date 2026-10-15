@@ -1,10 +1,10 @@
 import { t } from "@lingui/core/macro"
 import { isTaskFinished, type Task } from "@owlit/protocol"
-import { toast } from "sonner"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { rpc } from "@/lib/rpc"
-import { useTasksStore } from "@/features/tasks/store"
+import { toastError } from "@/lib/toast"
+import { tasksOfKind, useTasksStore } from "@/features/tasks/store"
 import { mightComeThroughBrowser } from "./lib/filter"
 import { useLibraryStore } from "./store"
 import type { Paper } from "./types"
@@ -17,28 +17,36 @@ const KIND = "papers.fromBrowser"
 
 // The run, while it goes on: its progress (done of total), and waiting_for_you when it stopped for the
 // user (the paper it stopped on carries why, in noPdf.fromBrowser)
-export const useFromBrowserRun = () => useTasksStore((s) => Object.values(s.byId).find((task) => task.kind === KIND && !isTaskFinished(task)))
+export const useFromBrowserRun = () => useTasksStore((s) => tasksOfKind(s.byId, KIND).find((task) => !isTaskFinished(task)))
 
 // The paper a run stopped on, and what its tab showed
 export const useStoppedOn = () =>
   useLibraryStore((s) => Object.values(s.papers).find((p) => p.noPdf?.fromBrowser?.state === "waiting"))
 
-// Papers the user's browser hasn't been sent to yet: owlit couldn't get them alone, and no run tried
-// them. Ones a run tried (no access, didn't come) are left to their own card's Try again, so Get them
-// doesn't open the same paywalls again. The longest waiting first.
-export const useWaitingForBrowser = () =>
-  useLibraryStore(
-    useShallow((s) =>
-      Object.values(s.papers)
-        .filter((p) => !p.pdf && p.noPdf?.needs === "browser" && !p.noPdf.noAccess && !p.noPdf.fromBrowser)
-        .sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0)),
-    ),
-  )
+// The papers waiting on the user's browser, found once per papers object: the store's other changes (a
+// highlight, a note) keep it, and the sidebar asks on every one. Shared: don't sort or change them.
+type ForBrowser = { waiting: Paper[]; pages: Paper[] }
+const forBrowser = new WeakMap<Record<string, Paper>, ForBrowser>()
+function forBrowserOf(papers: Record<string, Paper>): ForBrowser {
+  let found = forBrowser.get(papers)
+  if (found) return found
+  const all = Object.values(papers)
+  found = {
+    // Papers the user's browser hasn't been sent to yet: owlit couldn't get them alone, and no run tried
+    // them. Ones a run tried (no access, didn't come) are left to their own card's Try again, so Get them
+    // doesn't open the same paywalls again. The longest waiting first.
+    waiting: all.filter((p) => !p.pdf && p.noPdf?.needs === "browser" && !p.noPdf.noAccess && !p.noPdf.fromBrowser).sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0)),
+    // Article pages a run left open in the user's browser for them to save the PDF from, while Downloads
+    // is watched for it: they need the user too, though Get them has nothing to open for them
+    pages: all.filter((p) => !p.pdf && p.noPdf?.fromBrowser?.state === "page"),
+  }
+  forBrowser.set(papers, found)
+  return found
+}
 
-// Article pages a run left open in the user's browser for them to save the PDF from, while Downloads is
-// watched for it: they need the user too, though Get them has nothing to open for them
-export const usePagesToSave = () =>
-  useLibraryStore(useShallow((s) => Object.values(s.papers).filter((p) => !p.pdf && p.noPdf?.fromBrowser?.state === "page")))
+export const useWaitingForBrowser = () => useLibraryStore(useShallow((s) => forBrowserOf(s.papers).waiting))
+export const useWaitingForBrowserCount = () => useLibraryStore((s) => forBrowserOf(s.papers).waiting.length)
+export const usePagesToSave = () => useLibraryStore(useShallow((s) => forBrowserOf(s.papers).pages))
 
 // Papers owlit found nothing for that the user's browser hasn't been sent for: a long shot, offered only
 // in the No PDF view (lib/filter.ts)
@@ -62,8 +70,8 @@ export const dismissRun = (id: string) => useDismissed.setState((s) => ({ ids: [
 export function useLastRun(): { task: Task; tally: RunTally } | undefined {
   const dismissed = useDismissed((s) => s.ids)
   const task = useTasksStore((s) => {
-    const runs = Object.values(s.byId).filter((task) => task.kind === KIND)
-    const latest = runs.sort((a, b) => b.createdAt - a.createdAt)[0]
+    // The first of the newest, as a stable sort would put it
+    const latest = tasksOfKind(s.byId, KIND).reduce<Task | undefined>((a, b) => (!a || b.createdAt > a.createdAt ? b : a), undefined)
     return latest && latest.state === "done" ? latest : undefined
   })
   if (!task || dismissed.includes(task.id)) return undefined
@@ -109,7 +117,7 @@ export async function getInBrowser(ids: string[]) {
     const { updatePaper } = useLibraryStore.getState()
     for (const paper of papers) updatePaper(paper.id, { noPdf: paper.noPdf })
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : t`Couldn't open your browser.`)
+    toastError(e, t`Couldn't open your browser.`)
   }
 }
 
@@ -118,6 +126,6 @@ export async function showBrowser(id?: string) {
   try {
     await rpc.library.showBrowser({ id })
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : t`Couldn't open your browser.`)
+    toastError(e, t`Couldn't open your browser.`)
   }
 }

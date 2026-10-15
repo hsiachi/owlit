@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { itemId, QUESTION_COLUMN, type Collection, type CollectionCell, type CollectionColumn, type CollectionGroup, type CollectionRow, type Relation } from "@owlit/protocol"
+import { isTaskFinished, itemId, QUESTION_COLUMN, type Collection, type CollectionCell, type CollectionColumn, type CollectionGroup, type CollectionRow, type Relation } from "@owlit/protocol"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { Fragment, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -9,20 +9,18 @@ import { NoteDot } from "@/components/marks"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { RenameInput } from "@/components/rename-input"
+import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { SentenceEditor } from "@/components/sentence-editor"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Unfold } from "@/components/unfold"
 import { displayName } from "@/features/docs/types"
-import { useTasksStore } from "@/features/tasks/store"
+import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { isDesktop, rpc } from "@/lib/rpc"
-import { toastUndo } from "@/lib/toast"
+import { toastError, toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
-import { isTaskFinished } from "@owlit/protocol"
-import { citeOf, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
+import { citeOf, columnLabel, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
 import { editCollection, put } from "../store"
-import { toast } from "sonner"
 import { ReadingMark, RowPeek } from "./AnswerRows"
 import { useCollectionsUi } from "../ui-store"
 import { AskEach } from "./Work"
@@ -33,8 +31,6 @@ import { AskEach } from "./Work"
 
 // Rows a group shows before "Show N more"
 const SHOWN = 8
-
-export const REL_WORDS = (): Record<Relation, string> => ({ supports: relWord("supports"), challenges: relWord("challenges"), related: relWord("related") })
 
 type GroupBy = "topic" | "none" | `column:${string}`
 
@@ -51,15 +47,6 @@ interface Section {
   depth: number
 }
 
-export function columnLabel(col: CollectionColumn) {
-  if (col.id === QUESTION_COLUMN) return t({ message: "Answer", comment: "column: what a paper says about the collection's question" })
-  if (col.kind === "compare") {
-    const doc = displayName(col.doc ?? col.question)
-    return t`Compared with ${doc}`
-  }
-  return col.question
-}
-
 function relCounts(rows: CollectionRow[], column: CollectionColumn | undefined) {
   if (!column) return ""
   const n = { supports: 0, challenges: 0, related: 0 }
@@ -68,10 +55,9 @@ function relCounts(rows: CollectionRow[], column: CollectionColumn | undefined) 
     if (rel) n[rel]++
   }
   // The column's own words with a number after each, so the counts read as tallies beside "5 papers"
-  const words = REL_WORDS()
   return (["supports", "challenges", "related"] as const)
     .filter((rel) => n[rel])
-    .map((rel) => `${words[rel]} ${n[rel]}`)
+    .map((rel) => `${relWord(rel)} ${n[rel]}`)
     .join(" · ")
 }
 
@@ -163,15 +149,15 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
         </colgroup>
         <thead>
           <tr>
-            <Th first>{t`Paper`}</Th>
+            <HeadCell first>{t`Paper`}</HeadCell>
             {columns.map((c) => (
-              <Th key={c.id}>
+              <HeadCell key={c.id}>
                 <ColumnHeader collection={collection} column={c} />
-              </Th>
+              </HeadCell>
             ))}
-            <Th last>
+            <HeadCell last>
               <AskEach collection={collection} trigger="plus" />
-            </Th>
+            </HeadCell>
           </tr>
         </thead>
         <tbody>
@@ -241,18 +227,9 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
   )
 }
 
-function Th({ children, first, last }: { children?: React.ReactNode; first?: boolean; last?: boolean }) {
-  return (
-    <th className="sticky top-0 z-10 h-9 border-b-4 border-background bg-background px-2.5 text-left text-xs font-medium text-muted-foreground">
-      <span aria-hidden className={cn("absolute inset-0 -z-10 bg-muted", first && "rounded-l-md", last && "rounded-r-md")} />
-      {children}
-    </th>
-  )
-}
-
 // A column's name, with what can be done to it; while Owlit fills it, how far it got
 function ColumnHeader({ collection, column }: { collection: Collection; column: CollectionColumn }) {
-  const filling = useTasksStore((s) => Object.values(s.byId).some((task) => task.kind === "collections.fill" && task.subject === `${collection.id}:${column.id}` && !isTaskFinished(task)))
+  const filling = useTasksStore((s) => tasksFor(s.byId, `${collection.id}:${column.id}`).some((task) => task.kind === "collections.fill" && !isTaskFinished(task)))
   const done = collection.rows.filter((r) => r.cells[column.id] && !collection.yours.removed[itemId.row(r.id)]).length
   const of = collection.rows.filter((r) => !collection.yours.removed[itemId.row(r.id)]).length
   const label = columnLabel(column)
@@ -284,7 +261,7 @@ function ColumnHeader({ collection, column }: { collection: Collection; column: 
 // Fills what the column still lacks; the answers there stay, and the user's own stay whatever happens
 async function askAgain(id: string, column: string) {
   if (!isDesktop) return
-  await rpc.collections.fill({ id, column }).catch((error) => toast.error(error instanceof Error ? error.message : String(error)))
+  await rpc.collections.fill({ id, column }).catch(toastError)
 }
 
 function GroupRow({ collection, section, open, span, count, rels, onToggle }: { collection: Collection; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
@@ -313,13 +290,13 @@ function GroupRow({ collection, section, open, span, count, rels, onToggle }: { 
                 put(c)
                 navigate(`/collections/${c.id}`)
                 toastUndo(t`Made a collection of its own`, async () => {
-                  const from = await rpc.collections.unsplit({ id: c.id }).catch((error) => void toast.error(error instanceof Error ? error.message : String(error)))
+                  const from = await rpc.collections.unsplit({ id: c.id }).catch(toastError)
                   if (!from) return
                   put(from)
                   navigate(`/collections/${from.id}`)
                 })
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : String(error))
+                toastError(error)
               }
             },
           },
@@ -386,13 +363,9 @@ function TableRow({ collection, row, columns, sentenceShown, indent, seenBefore,
 function PeekRow({ collection, row, open, span }: { collection: Collection; row: CollectionRow; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
-    <tr>
-      <td colSpan={span} className="px-1.5">
-        <Unfold open={open} innerClassName="-mx-1.5 px-1.5">
-          <RowPeek collection={collection} row={row} library={library} className="my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 shadow-sm" />
-        </Unfold>
-      </td>
-    </tr>
+    <TablePeekRow open={open} span={span}>
+      <RowPeek collection={collection} row={row} library={library} className={tablePeekCard} />
+    </TablePeekRow>
   )
 }
 
@@ -416,7 +389,7 @@ function Cell({ collection, row, column, cell, fresh, showSentence, libraryId }:
   const body =
     column.kind === "compare" && cell.rel ? (
       <>
-        <span className={cn("font-medium", cell.rel === "related" ? "font-normal text-muted-foreground" : "text-foreground")}>{REL_WORDS()[cell.rel]}</span>
+        <span className={cn("font-medium", cell.rel === "related" ? "font-normal text-muted-foreground" : "text-foreground")}>{relWord(cell.rel)}</span>
         {text && <span className="text-foreground"> · {text}</span>}
         {pageMark}
         {showSentence && sentence && <span className="block truncate text-muted-foreground">“{sentence.text}”</span>}
@@ -452,7 +425,7 @@ function Cell({ collection, row, column, cell, fresh, showSentence, libraryId }:
           </div>
         ) : (
           <p className="mt-1.5 text-sm leading-relaxed">
-            {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{REL_WORDS()[cell.rel]}:</span>}
+            {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
             {text}
           </p>
         )}

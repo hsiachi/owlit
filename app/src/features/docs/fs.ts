@@ -1,4 +1,5 @@
 import { t } from "@lingui/core/macro"
+import { anchorAt } from "@owlit/protocol"
 import { undo } from "@codemirror/commands"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
@@ -8,7 +9,6 @@ import { clientId, registerUiHandler } from "@/lib/ui-actions"
 import { undoChange } from "@/lib/versions"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { spanChange } from "@/lib/text-diff"
-import { noteAnchor } from "./editor/agent-notes"
 import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor } from "./editors"
 import { fileAt, perFiles, useDocsStore } from "./store"
 import { displayName, docUri, isMarkdown, type WorkspaceFile } from "./types"
@@ -187,7 +187,7 @@ setWorkspaceNotes({
     if (at < 0 || !quote.trim()) return false
     useDocsStore.getState().addNote(file.id, {
       id: newId(),
-      ...noteAnchor(doc, at, at + quote.length),
+      ...anchorAt(doc, at, at + quote.length),
       text,
       by,
       chatId,

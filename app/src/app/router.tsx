@@ -14,6 +14,7 @@ import { HomePage } from "@/features/home/HomePage"
 import { CollectionsPage } from "@/features/collections/pages/CollectionsPage"
 import { CollectionPage } from "@/features/collections/pages/CollectionPage"
 
+// route-subject.ts matches the same paths to say what a page is about: a new page goes there too
 export const router = createBrowserRouter([
   {
     path: "/",

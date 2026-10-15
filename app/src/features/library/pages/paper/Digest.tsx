@@ -1,18 +1,16 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import type { PaperFigure } from "@owlit/protocol"
-import { toast } from "sonner"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
+import { useSelectionMenu } from "@/components/selection-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
-import { openTasksFor, useTasksStore } from "@/features/tasks/store"
 import { askAboutPassage } from "../../actions"
-import { retryDigest, showingDigest, useDigestFailed, useDigestMarks, waitForDigest } from "../../digests"
+import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useDigestMarks, useWritingDigest, waitForDigest } from "../../digests"
 import type { Paper } from "../../types"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: most of the time
@@ -20,10 +18,6 @@ import type { Paper } from "../../types"
 // where the digest puts them, and every page it points at (p. 7) can be glanced at and gone to. A
 // selected passage can be asked about, as in the PDF; it can't be highlighted, since a rewrite would
 // leave a highlight on words that are gone: highlights belong on the paper.
-
-export function useWritingDigest(paperId: string) {
-  return useTasksStore((s) => openTasksFor(s, paperId).some((task) => task.kind === "paper.digest"))
-}
 
 export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page: number) => void }) {
   const writing = useWritingDigest(paper.id)
@@ -116,10 +110,6 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
   )
 }
 
-// The menu's distance from the selection, and its height, as the note's
-const MENU_GAP = 8
-const MENU_HEIGHT = 30
-
 // The reading column. A selected passage offers "Ask Owlit" above it, as a note's does (under it on the
 // first lines, where above would leave the view), and on the right-click menu; not while the mouse is
 // still choosing.
@@ -127,9 +117,9 @@ function Column({ paperId, children }: { paperId: string; children: ReactNode })
   const scroller = useRef<HTMLDivElement>(null)
   const page = useRef<HTMLDivElement>(null)
   const article = useRef<HTMLElement>(null)
-  const [menu, setMenu] = useState<{ left: number; top: number; below: boolean } | null>(null)
   // What the menu's button runs: set by the effect, which knows the selection
   const askRef = useRef<() => void>(undefined)
+  const { menu, control: selectionMenu } = useSelectionMenu(() => askRef.current?.())
 
   useEffect(() => {
     const el = article.current
@@ -145,47 +135,29 @@ function Column({ paperId, children }: { paperId: string; children: ReactNode })
     const ask = () => {
       const passage = selected()
       if (!passage) return
-      setMenu(null)
+      selectionMenu.hide()
       window.getSelection()?.removeAllRanges()
       askAboutPassage(paperId, { text: passage.text, inDigest: true })
     }
     askRef.current = ask
-    let choosing = false
     const place = () => {
-      const passage = choosing ? null : selected()
-      if (!passage || !page.current || !scroller.current) return setMenu(null)
+      const passage = mouse.choosing() ? null : selected()
+      if (!passage || !page.current || !scroller.current) return selectionMenu.hide()
       const rects = passage.range.getClientRects()
       const first = rects[0] ?? passage.range.getBoundingClientRect()
       const last = rects[rects.length - 1] ?? first
-      const outer = page.current.getBoundingClientRect()
-      const left = first.left - outer.left
-      if (first.top - MENU_GAP - MENU_HEIGHT >= scroller.current.getBoundingClientRect().top) setMenu({ left, top: first.top - outer.top - MENU_GAP, below: false })
-      else setMenu({ left, top: last.bottom - outer.top + MENU_GAP, below: true })
+      selectionMenu.show(page.current.getBoundingClientRect(), first, () => last.bottom, scroller.current.getBoundingClientRect().top)
     }
-    const down = (e: MouseEvent) => {
-      if (e.button !== 0) return
-      choosing = true
-      setMenu(null)
-      document.addEventListener(
-        "mouseup",
-        () => {
-          choosing = false
-          // After the release has settled the selection
-          setTimeout(place)
-        },
-        { once: true },
-      )
-    }
-    el.addEventListener("mousedown", down)
+    const mouse = selectionMenu.watch(el, place, { primary: true })
     // Keys that change the selection, and a selection cleared elsewhere
     document.addEventListener("selectionchange", place)
     const unregister = askOwlitOnRightClick(el, () => (selected() ? ask : null))
     return () => {
-      el.removeEventListener("mousedown", down)
+      mouse.stop()
       document.removeEventListener("selectionchange", place)
       unregister()
     }
-  }, [paperId])
+  }, [paperId, selectionMenu])
 
   return (
     <div ref={scroller} className="h-full overflow-y-auto bg-background">
@@ -193,14 +165,8 @@ function Column({ paperId, children }: { paperId: string; children: ReactNode })
         <article ref={article} className="px-6 pt-6 pb-16">
           {children}
         </article>
-        {menu && (
-          // The Docs selection menu, outside the article so pressing it doesn't start a new selection
-          <div className={cn("selection-menu absolute z-20", !menu.below && "-translate-y-full")} style={{ left: menu.left, top: menu.top }}>
-            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => askRef.current?.()}>
-              {t`Ask Owlit`}
-            </button>
-          </div>
-        )}
+        {/* Outside the article, so pressing it doesn't start a new selection */}
+        {menu}
       </div>
     </div>
   )
@@ -211,40 +177,40 @@ const SEEN_AFTER_MS = 1000
 
 // The last run broke: said in words, with Retry. Again when it was a rewrite and the old digest stays.
 function Stopped({ paper, again }: { paper: Paper; again?: boolean }) {
-  const [asked, setAsked] = useState(false)
-  const retry = () => {
-    setAsked(true)
-    void retryDigest(paper).catch(() => {
-      setAsked(false)
-      toast.error(t`Couldn't ask for the digest again.`)
-    })
-  }
   return (
-    <p className="mt-1 flex flex-wrap items-center gap-x-2 text-detail text-muted-foreground">
-      {again ? t`Owlit couldn't write this digest again.` : t`Owlit couldn't write a digest of this paper.`}
-      <Button variant="ghost" size="sm" className="-ml-1 h-6 px-1.5 text-detail font-normal text-foreground" disabled={asked} onClick={retry}>
-        {t`Retry`}
-      </Button>
-    </p>
+    <AskAgain
+      sentence={again ? t`Owlit couldn't write this digest again.` : t`Owlit couldn't write a digest of this paper.`}
+      label={t`Retry`}
+      ask={() => retryDigest(paper)}
+    />
   )
 }
 
 // The digest says it was written another way, or in another language, than digests are now; rewriting it
 // is the user's call, offered here where they read it and nowhere else
 function Outdated({ paper }: { paper: Paper }) {
+  return (
+    <AskAgain
+      sentence={paper.digestOutdated === "language" ? t`This digest is in another language than the one set for digests.` : t`This digest was written the old way.`}
+      label={t({ message: "Rewrite", comment: "button: write the digest again" })}
+      ask={() => askDigestAgain(paper, true)}
+    />
+  )
+}
+
+// A sentence about the digest and the button that asks for it again, held down once pressed unless the
+// asking failed
+function AskAgain({ sentence, label, ask }: { sentence: string; label: string; ask: () => Promise<boolean> }) {
   const [asked, setAsked] = useState(false)
-  const rewrite = () => {
+  const run = () => {
     setAsked(true)
-    void rpc.library.requestDigest({ id: paper.id, rewrite: true }).catch(() => {
-      setAsked(false)
-      toast.error(t`Couldn't ask for the digest again.`)
-    })
+    void ask().then((ok) => ok || setAsked(false))
   }
   return (
     <p className="mt-1 flex flex-wrap items-center gap-x-2 text-detail text-muted-foreground">
-      {paper.digestOutdated === "language" ? t`This digest is in another language than the one set for digests.` : t`This digest was written the old way.`}
-      <Button variant="ghost" size="sm" className="-ml-1 h-6 px-1.5 text-detail font-normal text-foreground" disabled={asked} onClick={rewrite}>
-        {t({ message: "Rewrite", comment: "button: write the digest again" })}
+      {sentence}
+      <Button variant="ghost" size="sm" className="-ml-1 h-6 px-1.5 text-detail font-normal text-foreground" disabled={asked} onClick={run}>
+        {label}
       </Button>
     </p>
   )
