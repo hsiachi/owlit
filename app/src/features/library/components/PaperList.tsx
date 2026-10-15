@@ -97,11 +97,13 @@ function DigestMark({ state }: { state: DigestState }) {
 // while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
 // one place and the ring comes or goes without moving the row.
 // A paper without its PDF says why in its row: Needs you while a publisher waits on the user; once their
-// browser was turned away, what it said, a plain detail, since nothing waits on them any more
+// browser was turned away or nothing came of it, what happened, a plain detail, since nothing waits on
+// them any more
 function noPdfWord(p: Paper) {
   if (needsYou(p)) return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
   const said = p.noPdf?.noAccess
   if (said) return said.missing ? t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" }) : t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+  if (p.noPdf?.fromBrowser?.state === "missed") return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
   return undefined
 }
 

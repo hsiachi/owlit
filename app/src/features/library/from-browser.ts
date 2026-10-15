@@ -34,6 +34,11 @@ export const useWaitingForBrowser = () =>
     ),
   )
 
+// Article pages a run left open in the user's browser for them to save the PDF from, while Downloads is
+// watched for it: they need the user too, though Get them has nothing to open for them
+export const usePagesToSave = () =>
+  useLibraryStore(useShallow((s) => Object.values(s.papers).filter((p) => !p.pdf && p.noPdf?.fromBrowser?.state === "page")))
+
 // What a run did, by paper id: its progress note once it has ended
 export interface RunTally {
   browser?: string

@@ -3648,6 +3648,16 @@ msgstr "正在用浏览器获取 PDF · {done}/{total}"
 msgid "{0, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
 msgstr "{0, plural, other {# 篇论文需要用你的浏览器获取}}"
 
+#. placeholder {0}: pages.length
+#. placeholder {0}: tally.pages.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
+msgstr "{0, plural, other {# 篇需在页面上保存}}"
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "To save from their pages"
+msgstr "需在页面上保存"
+
 #. placeholder {0}: waiting.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {Get it} other {Get them}}"
@@ -3676,21 +3686,14 @@ msgstr "{0, plural, other {# 篇无权限}}"
 msgid "No access"
 msgstr "无权限"
 
-#. placeholder {0}: tally.pages.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
-msgstr "{0, plural, other {# 篇需在页面上保存}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "To save from their pages"
-msgstr "需在页面上保存"
-
 #. placeholder {0}: tally.missed.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {# didn't come} other {# didn't come}}"
 msgstr "{0, plural, other {# 篇没有下载下来}}"
 
+#. the user's browser was sent for the PDF and none arrived
 #: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/components/PaperList.tsx
 msgid "Didn't come"
 msgstr "没有下载下来"
 
