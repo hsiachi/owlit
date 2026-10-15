@@ -92,11 +92,13 @@ export interface AgentsOptions {
   idleMs?: number
   // PATH to look agents up on; by default the login shell's
   searchPath?: () => Promise<string>
+  // The system proxy as environment variables, asked before each agent or npm starts (proxy.ts)
+  proxyEnv?: () => Promise<Record<string, string>>
   // How to start the Owlit engine; without it the engine isn't offered
   engine?: Launch
   // Where and how owlit sets up its own copy of Claude Code's and Codex's adapters; without it the user
   // installs them
-  setup?: Omit<SetupOptions, "changed" | "searchPath">
+  setup?: Omit<SetupOptions, "changed" | "searchPath" | "proxyEnv">
 }
 
 // Live state on top of what settings remember
@@ -122,6 +124,7 @@ export class Agents {
       new AgentSetups({
         ...options.setup,
         searchPath: options.searchPath ?? userPath,
+        proxyEnv: options.proxyEnv,
         changed: (id) => void this.def(id).then((def) => this.connectorOf(def)).then(options.notify, () => undefined),
       })
   }
@@ -268,6 +271,7 @@ export class Agents {
       file,
       args,
       env: { ...process.env, PATH: searchPath, ...launch?.env },
+      freshEnv: this.options.proxyEnv,
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
       onCrash: (ending) => {

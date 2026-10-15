@@ -65,6 +65,8 @@ class FakeAgent implements acp.Agent {
       agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} }, promptCapabilities: { image: true }, ...(reports ? { _meta: { authStatus: {} } } : {}) },
       agentInfo: { name: "fake-acp", version: "1.2.3" },
       authMethods: process.env.FAKE_ACP_AUTH ? [{ id: "login", name: "Log in" }] : [],
+      // The proxy it was started with, for the tests of proxy.ts
+      _meta: { proxy: process.env.HTTPS_PROXY ?? null },
     }
   }
 

@@ -8,6 +8,7 @@ import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
+import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
@@ -125,8 +126,10 @@ export class Core {
     this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
     limitMetadataHosts(this.http)
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
+    const resolveProxy = options.host?.resolveProxy
     this.agents = new Agents({
       settings: this.settings,
+      proxyEnv: resolveProxy && !hasProxyEnv(process.env) ? () => systemProxyEnv(resolveProxy) : undefined,
       setup: options.node && options.npm ? { dir: path.join(options.userDataDir, "agents"), node: options.node, npm: options.npm, fetchJson: async (url) => JSON.parse(await this.http.text(url)) } : undefined,
       probeDir: path.join(options.userDataDir, "agents", "probe"),
       cwd: () => this.workspace?.root ?? null,

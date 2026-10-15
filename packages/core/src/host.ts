@@ -10,6 +10,9 @@ export interface Host {
   // fetch that goes the way the system's network goes (its proxy settings, its certificates). Node's
   // own fetch ignores both; Electron's net.fetch follows them.
   fetch?: typeof fetch
+  // How the system's network would reach a URL, as a PAC script answers ("PROXY host:port; DIRECT"):
+  // agents and npm are told it in their environment (agents/proxy.ts)
+  resolveProxy?(url: string): Promise<string>
   // A real browser session (the desktop app's hidden window) for publishers that want cookies, a
   // passed challenge or a library login before they hand over a PDF
   browser?: BrowserHost
