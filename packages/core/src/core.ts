@@ -816,11 +816,10 @@ export class Core {
               },
               collections: {
                 agent: async (prompt, signal, allow, run) => {
-                  // Without owlit's tools the agent couldn't write the collection at all. The workspace
-                  // becomes the open one only once its socket is up (or failed to open, for good).
-                  // The run's tools sign its searches and writes, so About can show them as one batch.
+                  // Without owlit's tools (no socket: it failed to open) the agent couldn't write the
+                  // collection at all. The run's tools sign its searches and writes, so About can show
+                  // them as one batch.
                   const mcpServers = this.mcpServers(root, undefined, run)
-                  if (!mcpServers.length && this.workspace?.root !== root) return null
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
                   return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
                 },
@@ -846,6 +845,8 @@ export class Core {
                 definitions: (workspace) => this.taskDefinitions(workspace),
                 onChange: (task) => this.taskChanges.push(task),
                 limits: { parse: (await this.settings.get()).parsing.concurrency ?? 2 },
+                // Started below, once the workspace's socket is up
+                start: false,
               },
             })
       if (this.workspace !== next) {
@@ -905,6 +906,8 @@ export class Core {
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
+      // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
+      if (opened) await next.tasks.start()
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
       // Only the recent list: the switch has happened either way
@@ -954,7 +957,7 @@ export class Core {
   // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)
   private mcpServers(root: string, chatId?: string, run?: string) {
     const mcp = this.options.mcp
-    if (!mcp || !this.socket) return []
+    if (!mcp || this.socket?.root !== root) return []
     return [
       {
         name: "owlit",

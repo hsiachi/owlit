@@ -260,7 +260,7 @@ describe("uniqueId", () => {
 })
 
 describe("Collections, Owlit's work in the background", () => {
-  function withRuns({ opening = 0 } = {}) {
+  function withRuns() {
     const prompts: { prompt: string; allow: string }[] = []
     // What the run and a chat searched, as the Library logs it
     const searched: { by: string; at: number; query: string; source: string; results: string[] }[] = []
@@ -268,8 +268,6 @@ describe("Collections, Owlit's work in the background", () => {
       searches: async (by, since) => searched.filter((s) => s.by === by && s.at > since),
       // The agent writes the way it would through owlit-mcp: a row and a title on the first write
       agent: async (prompt, _signal, allow, run) => {
-        // The workspace still opening: owlit's tools not reachable yet
-        if (opening-- > 0) return null
         prompts.push({ prompt, allow: allow.source })
         const id = /collection_write,? id ([\w-]+)/.exec(prompt)?.[1]
         searched.push(
@@ -283,6 +281,7 @@ describe("Collections, Owlit's work in the background", () => {
     })
     const scheduler = new Scheduler({ store: new TaskStore(mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))), definitions: ctx.collections.tasks(), retryDelay: () => 5 })
     ctx.collections.attach(scheduler)
+    void scheduler.start()
     return { ...ctx, scheduler, prompts, searched }
   }
 
@@ -315,14 +314,6 @@ describe("Collections, Owlit's work in the background", () => {
     expect(now.rows.map((r) => r.id)).toEqual(["doi-10.1145-1"])
     expect(prompts[0]?.prompt).toMatch(/about ten papers/)
     expect(prompts[0]?.allow).toMatch(/library_\(search\|related\|journal\)/)
-  })
-
-  it("waits for owlit's tools while the workspace opens, without using up its tries", async () => {
-    const { collections, scheduler } = withRuns({ opening: 1 })
-    const c = await collections.gather({ question: "回放评价可靠吗？", size: "few" })
-    const task = (await scheduler.list()).find((t) => t.subject === c.id)!
-    expect(await scheduler.wait(task.id)).toMatchObject({ state: "done", attempts: 1 })
-    expect((await collections.get(c.id)).rows).toHaveLength(1)
   })
 
   it("adds a column and asks the agent to fill it, with only collection_write besides reading", async () => {

@@ -106,6 +106,8 @@ export class Scheduler {
   private readonly retryDelay: (attempts: number) => number
   private entries = new Map<string, Entry>()
   private timer: ReturnType<typeof setTimeout> | undefined
+  private loaded = false
+  private started = false
   private stopped = false
   private waking = false
 
@@ -117,8 +119,11 @@ export class Scheduler {
     this.retryDelay = options.retryDelay ?? ((attempts) => 2000 * 4 ** (attempts - 1))
   }
 
-  // Picks up what the last session left unfinished and starts running
-  async start() {
+  // Picks up what the last session left unfinished, without running anything yet: tasks queued from
+  // now on wait for start()
+  async load() {
+    if (this.loaded) return
+    this.loaded = true
     const now = Date.now()
     const loaded = await this.store.load()
     const open = new Set(loaded.map((task) => task.id))
@@ -138,6 +143,12 @@ export class Scheduler {
       if (task !== stored) changed.push(task)
     }
     changed.forEach((task, i) => this.store.record(task, i === changed.length - 1 ? this.openTasks() : undefined))
+  }
+
+  // Starts running, picking up the last session's tasks first if load() hasn't
+  async start() {
+    await this.load()
+    this.started = true
     this.wake()
   }
 
@@ -303,7 +314,7 @@ export class Scheduler {
 
   // Starts whatever may start now, and wakes up again when a delayed task becomes due
   private pump() {
-    if (this.stopped) return
+    if (!this.started || this.stopped) return
     clearTimeout(this.timer)
     const now = Date.now()
     let nextDue = Infinity
