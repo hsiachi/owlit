@@ -110,15 +110,21 @@ const PROXY_GAP_MS = 30_000
 const LIMIT_WAIT_MS = 2 * 60_000
 // An article page opened for the user: when to look at where it landed (a sign-in stops the run)
 const PAGE_LOOK_MS = 10_000
+// A check found there is looked at again this often, for this long, before the run stops for it: many
+// pass by themselves (2026-10-15: Cloudflare's "Just a moment..." on JAMA, AJPM and OUP was still
+// running at the 10 s look, 6 s into it)
+const CHECK_LOOK_MS = 2_000
+const CHECK_WAIT_MS = 30_000
 // How long an opened PDF may take to land before it counts as not coming (2026-10-14: 2–12 s each
 // through Dia, 12 s for 40 MB); while a download is still being written, up to the longer limit
 const ARRIVAL_MS = 40_000
 const ARRIVAL_MAX_MS = 3 * 60_000
-// Tests set them shorter (OWLIT_BROWSER_GAP_MS for both gaps, OWLIT_BROWSER_WAIT_MS, _LIMIT_MS, _LOOK_MS)
+// Tests set them shorter (OWLIT_BROWSER_GAP_MS for both gaps, OWLIT_BROWSER_WAIT_MS, _LIMIT_MS, _LOOK_MS, _CHECK_MS)
 const openGap = (proxied: boolean) => Number(process.env.OWLIT_BROWSER_GAP_MS ?? (proxied ? PROXY_GAP_MS : OPEN_GAP_MS))
 const arrivalWait = () => Number(process.env.OWLIT_BROWSER_WAIT_MS ?? ARRIVAL_MS)
 const limitWait = () => Number(process.env.OWLIT_BROWSER_LIMIT_MS ?? LIMIT_WAIT_MS)
 const pageLook = () => Number(process.env.OWLIT_BROWSER_LOOK_MS ?? PAGE_LOOK_MS)
+const checkWait = () => Number(process.env.OWLIT_BROWSER_CHECK_MS ?? CHECK_WAIT_MS)
 // A paper's turn in a run in the user's browser (Paper.noPdf.fromBrowser, without the browser's name)
 type FromBrowser = NonNullable<NonNullable<Paper["noPdf"]>["fromBrowser"]>
 
@@ -312,7 +318,10 @@ export class Library {
         }
         if (from) paper.noPdf.fromBrowser = { ...from, ...(this.browserLabel ? { browser: this.browserLabel } : {}) }
         const said = acquisition.yourBrowser
-        if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", ...(said.outcome === "missing" ? { missing: true } : {}), at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}) }
+        // A run that sent the browser and got nothing, before this start: still tried, so Get them
+        // doesn't open the same page again
+        if (said?.outcome === "missed" && !from) paper.noPdf.fromBrowser = { state: "missed", ...(this.browserLabel ? { browser: this.browserLabel } : {}) }
+        else if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", ...(said.outcome === "missing" ? { missing: true } : {}), at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}) }
         const offered = this.offered.get(id)
         if (offered) paper.noPdf.offered = path.basename(offered)
       }
@@ -1319,7 +1328,13 @@ export class Library {
               this.browserOpenedAt = Date.now()
               const at = await openIt(id, address.url)
               // Where it landed, a moment later: a sign-in or a check is the user's to pass first
-              const look = at ? await sleep(pageLook(), ctx.signal).then(() => endedAt(id, at, address)) : undefined
+              let look = at ? await sleep(pageLook(), ctx.signal).then(() => endedAt(id, at, address)) : undefined
+              // A check that passes by itself isn't the user's: the page it goes on to is
+              const checkUntil = Date.now() + checkWait()
+              while (look?.ended === "check" && Date.now() < checkUntil) {
+                await sleep(Math.min(CHECK_LOOK_MS, Math.max(0, checkUntil - Date.now())), ctx.signal)
+                look = await endedAt(id, at, address)
+              }
               if (look?.ended === "limit" && !retried.has(id)) {
                 retried.add(id)
                 limitUntil = Date.now() + limitWait()
@@ -1394,6 +1409,7 @@ export class Library {
                 tally.got.push(id)
               } else {
                 this.fromBrowser.set(id, { state: "missed" })
+                await this.saidNo(id, "missed")
                 tally.missed.push(id)
               }
               done++
@@ -1403,6 +1419,7 @@ export class Library {
 
             // Nothing to read (the browser can't be driven, or the tab closed itself), or read twice to no end
             this.fromBrowser.set(id, { state: "missed" })
+            await this.saidNo(id, "missed")
             tally.missed.push(id)
             done++
             await this.announce([id])
@@ -1437,9 +1454,9 @@ export class Library {
     })
   }
 
-  // The user's browser reached the publisher and was told no: kept on the paper until a PDF comes or it
-  // is sent there again
-  private async saidNo(id: string, ended: "no-access" | "refused" | "missing", page: { title: string; host: string }) {
+  // The user's browser reached the publisher and was told no, or nothing came of sending it there: kept
+  // on the paper until a PDF comes or it is sent there again
+  private async saidNo(id: string, ended: "no-access" | "refused" | "missing" | "missed", page: { title: string; host: string } = { title: "", host: "" }) {
     await this.serial(async () => {
       const acquisition = await readAcquisition(this.root, id)
       if (acquisition?.result !== "no_pdf") return

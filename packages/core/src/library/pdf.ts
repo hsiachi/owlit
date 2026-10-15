@@ -84,9 +84,9 @@ export interface Acquisition {
   // publisher lets only the user's own browser in, which gets the PDF at url.
   needs?: { reason: "challenge" | "login" | "refused" | "browser"; route: string; at: number; host?: string; url?: string }
   // The user's own browser reached the publisher and was told no (refused: the library proxy hasn't got
-  // it), with the page it ended on. Kept across owlit's own looks, until a PDF comes or the user's
-  // browser is sent again.
-  yourBrowser?: { outcome: "no-access" | "refused" | "missing"; at: number; host?: string; title?: string }
+  // it), with the page it ended on; or it was sent and nothing came (missed). Kept across owlit's own
+  // looks and restarts, until a PDF comes or the user's browser is sent again and ends otherwise.
+  yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
 }
 
 // Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}

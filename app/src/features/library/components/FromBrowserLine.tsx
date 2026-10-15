@@ -4,7 +4,7 @@ import { IconButton } from "@/components/icon-button"
 import { InlineLink } from "@/components/inline-link"
 import { Button } from "@/components/ui/button"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
-import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useLastRun, useStoppedOn, useWaitingForBrowser, type RunTally } from "../from-browser"
+import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useLastRun, usePagesToSave, useStoppedOn, useWaitingForBrowser, type RunTally } from "../from-browser"
 import { useLibraryUi } from "../ui-store"
 
 // Getting PDFs from the user's own browser, in the import's place at the top of the Library and on the
@@ -13,15 +13,18 @@ import { useLibraryUi } from "../ui-store"
 // signed in, for a sign-in). Once it has ended, what it did, each part opening its papers, until put
 // away. With no run going, the dot again with the papers not yet tried and Get them, whatever the
 // filter: the rail's dot sends the user here, so what it waits for is the first thing on the page, and the
-// sentence shows those papers under Needs you.
+// sentence shows those papers under Needs you. Article pages still open for the user to save from are
+// named after them, so the two add up to Needs you.
 export function FromBrowserLine() {
   const run = useFromBrowserRun()
   const stoppedOn = useStoppedOn()
   const last = useLastRun()
   const waiting = useWaitingForBrowser()
+  const pages = usePagesToSave()
   const filter = useLibraryUi((s) => s.filter)
   const setFilter = useLibraryUi((s) => s.setFilter)
-  if (!run && !last && !waiting.length) return null
+  const showOnly = useLibraryUi((s) => s.showOnly)
+  if (!run && !last && !waiting.length && !pages.length) return null
 
   let mark: React.ReactNode = null
   let words: React.ReactNode
@@ -63,8 +66,18 @@ export function FromBrowserLine() {
   } else {
     mark = <span className="size-2 rounded-full bg-warning" />
     const sentence = plural(waiting.length, { one: "# paper waits for your browser", other: "# papers wait for your browser" })
-    words = filter === "needs" ? sentence : <InlineLink onClick={() => setFilter("needs")}>{sentence}</InlineLink>
-    actions = (
+    const toSave = plural(pages.length, { one: "# to save from its page", other: "# to save from their pages" })
+    const pagesLink = (
+      <InlineLink onClick={() => showOnly(pages.map((p) => p.id), t`To save from their pages`)}>{toSave}</InlineLink>
+    )
+    words = (
+      <>
+        {waiting.length > 0 && (filter === "needs" ? sentence : <InlineLink onClick={() => setFilter("needs")}>{sentence}</InlineLink>)}
+        {waiting.length > 0 && pages.length > 0 && " · "}
+        {pages.length > 0 && pagesLink}
+      </>
+    )
+    actions = waiting.length > 0 && (
       <Button variant="text" size="inline" onClick={() => void getInBrowser(waiting.map((p) => p.id))}>
         {plural(waiting.length, { one: "Get it", other: "Get them" })}
       </Button>

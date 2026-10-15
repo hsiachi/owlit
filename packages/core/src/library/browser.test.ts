@@ -620,7 +620,7 @@ describe("your own browser", () => {
   it("goes on past a paper that doesn't come once the site has given one", async () => {
     // Downloads takes a file once it has been still for 1.5 s: each wait outlasts that
     quick(0, 2_500)
-    const { call, opened, heard, downloads } = await withDownloads()
+    const { root, call, opened, heard, downloads } = await withDownloads()
     for (const paper of [acm, second, third]) {
       await call("library.add", { paper })
       await call("library.fetchPdf", { id: paper.id })
@@ -636,7 +636,60 @@ describe("your own browser", () => {
     expect(opened).toHaveLength(3)
     expect((await paperIn(call, acm.id)).pdf).toBeDefined()
     expect((await paperIn(call, third.id)).noPdf.fromBrowser).toMatchObject({ state: "missed" })
+    // Noted on the paper, so a restart doesn't put it back with the papers Get them opens
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", third.id, "acquisition.json"), "utf8"))
+    expect(acquisition.yourBrowser).toMatchObject({ outcome: "missed" })
   }, 30_000)
+
+  it("keeps a paper whose PDF didn't come out of Get them after a restart", async () => {
+    const { root, call } = await withDownloads()
+    await call("library.add", { paper: acm })
+    await call("library.fetchPdf", { id: acm.id })
+    const file = path.join(root, "library/papers", acm.id, "acquisition.json")
+    const acquisition = JSON.parse(readFileSync(file, "utf8"))
+    writeFileSync(file, JSON.stringify({ ...acquisition, yourBrowser: { outcome: "missed", at: 1 } }))
+    const paper = await paperIn(call, acm.id)
+    expect(paper.noPdf.fromBrowser).toEqual({ state: "missed" })
+    expect(paper.noPdf.noAccess).toBeUndefined()
+  })
+
+  it("waits for a check on an article page to pass by itself before stopping for it", async () => {
+    quick(0, 150)
+    process.env.OWLIT_BROWSER_LOOK_MS = "50"
+    process.env.OWLIT_BROWSER_CHECK_MS = "5000"
+    onTestFinished(() => {
+      delete process.env.OWLIT_BROWSER_LOOK_MS
+      delete process.env.OWLIT_BROWSER_CHECK_MS
+    })
+    let looks = 0
+    const fake = fakeControl((url) =>
+      ++looks < 2 ? { url: `${url}?__cf_chl_rt_tk=x`, title: "Just a moment..." } : { url: "https://www.cell.com/cell/fulltext/S0092-8674(20)30001-1", title: "A Cell paper: Cell" },
+    )
+    const { call, heard } = await withDownloads({ control: fake.control })
+    await call("library.add", { paper: cell })
+    await call("library.fetchPdf", { id: cell.id })
+    await call("library.getInBrowser", { ids: [cell.id] })
+    await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
+    expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
+    expect((await paperIn(call, cell.id)).noPdf.fromBrowser).toMatchObject({ state: "page" })
+  })
+
+  it("stops for a check on an article page that doesn't pass", async () => {
+    quick(0, 150)
+    process.env.OWLIT_BROWSER_LOOK_MS = "50"
+    process.env.OWLIT_BROWSER_CHECK_MS = "300"
+    onTestFinished(() => {
+      delete process.env.OWLIT_BROWSER_LOOK_MS
+      delete process.env.OWLIT_BROWSER_CHECK_MS
+    })
+    const fake = fakeControl((url) => ({ url: `${url}?__cf_chl_rt_tk=x`, title: "Just a moment..." }))
+    const { call, heard } = await withDownloads({ control: fake.control })
+    await call("library.add", { paper: cell })
+    await call("library.fetchPdf", { id: cell.id })
+    await call("library.getInBrowser", { ids: [cell.id] })
+    await until(async () => heard.find((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you"))
+    expect((await paperIn(call, cell.id)).noPdf.fromBrowser).toMatchObject({ state: "waiting", why: "check" })
+  })
 
   it("opens a run's papers in a window of its own, and closes a tab a check left once its PDF came", async () => {
     quick(0, 5_000)

@@ -3648,6 +3648,16 @@ msgstr "Getting PDFs in your browser · {done} of {total}"
 msgid "{0, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
 msgstr "{0, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
 
+#. placeholder {0}: pages.length
+#. placeholder {0}: tally.pages.length
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
+msgstr "{0, plural, one {# to save from its page} other {# to save from their pages}}"
+
+#: app/src/features/library/components/FromBrowserLine.tsx
+msgid "To save from their pages"
+msgstr "To save from their pages"
+
 #. placeholder {0}: waiting.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {Get it} other {Get them}}"
@@ -3676,21 +3686,14 @@ msgstr "{0, plural, one {# no access} other {# no access}}"
 msgid "No access"
 msgstr "No access"
 
-#. placeholder {0}: tally.pages.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
-msgstr "{0, plural, one {# to save from its page} other {# to save from their pages}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "To save from their pages"
-msgstr "To save from their pages"
-
 #. placeholder {0}: tally.missed.length
 #: app/src/features/library/components/FromBrowserLine.tsx
 msgid "{0, plural, one {# didn't come} other {# didn't come}}"
 msgstr "{0, plural, one {# didn't come} other {# didn't come}}"
 
+#. the user's browser was sent for the PDF and none arrived
 #: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/components/PaperList.tsx
 msgid "Didn't come"
 msgstr "Didn't come"
 
