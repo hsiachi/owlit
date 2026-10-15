@@ -1,6 +1,7 @@
 import { appendFile, rename, stat } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import { REDIRECTORS } from "./publisher-table.ts"
 
 // How often owlit visits each publisher's site on its own, so that it reads to the site as one reader
 // rather than a script. Sites put a check in front of clients that come in bursts or come back right
@@ -20,11 +21,6 @@ export const VISIT_GAP_MS = 90_000
 export const HOLD_MS = 24 * 60 * 60 * 1000
 const PLAIN_REFUSED_MS = 7 * 24 * 60 * 60 * 1000
 const LOG_MAX_BYTES = 2 * 1024 * 1024
-
-// Sites that only send a link on to the publisher's own site: what happens after the redirect is the
-// publisher's doing, so they are never held, and a record kept for one (before 2026-10-14 a doi.org
-// route that landed on a check refused doi.org itself) is ignored
-const REDIRECTORS = new Set(["doi.org", "handle.net"])
 
 export type HoldReason = "challenge" | "refused"
 
@@ -54,7 +50,9 @@ export class Publishers {
     this.logFile = path.join(dataDir, "publisher-log.jsonl")
   }
 
-  // The hold on a site, while it lasts
+  // The hold on a site, while it lasts. A redirector (publisher-table.ts) is never held, and a record
+  // kept for one (before 2026-10-14 a doi.org route that landed on a check refused doi.org itself) is
+  // ignored.
   async held(site: string): Promise<{ until: number; reason: HoldReason } | undefined> {
     if (REDIRECTORS.has(site)) return undefined
     const record = (await this.load())[site]
