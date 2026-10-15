@@ -43,8 +43,8 @@ import { Serial } from "../util.ts"
 
 export interface ThreadsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
-  // is a line on what it did. Null while the workspace is still opening and its tools can't be reached.
-  agent?: (prompt: string, signal: AbortSignal, allow: RegExp, run: string) => Promise<{ text: string } | null>
+  // is a line on what it did
+  agent?: (prompt: string, signal: AbortSignal, allow: RegExp, run: string) => Promise<{ text: string }>
   // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
   searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
@@ -150,8 +150,6 @@ export class Threads {
           ctx.progress(0, undefined, kind)
           // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
           const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow, `${kind}:${ctx.task.id}`)
-          // Queued tasks start with the workspace, a moment before its socket opens: try again then
-          if (!done) return ctx.later(1000)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },

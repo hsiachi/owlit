@@ -46,6 +46,9 @@ export interface WorkspaceTasks {
   definitions?: (workspace: Workspace) => TaskDefinition[]
   onChange?: (task: Task) => void
   limits?: SchedulerOptions["limits"]
+  // Run them once the workspace has opened (the default). Core starts them itself once the workspace's
+  // socket is up, so no agent run starts without owlit's tools.
+  start?: boolean
 }
 
 // One open workspace. Everything tied to it hangs off this object, so switching workspaces is
@@ -117,7 +120,7 @@ export class Workspace {
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
-  // left unfinished. Creates nothing else inside the folder.
+  // left unfinished (running them unless asked not to yet). Creates nothing else inside the folder.
   static async open(folder: string, userDataDir: string, options: WorkspaceOptions = {}) {
     const root = await resolveFolder(folder)
     const dataDir = workspaceDataDir(userDataDir, root)
@@ -137,7 +140,8 @@ export class Workspace {
     try {
       await ensureWorkspaceFile(root)
       const workspace = new Workspace(root, dataDir, release, options)
-      await workspace.tasks.start()
+      await workspace.tasks.load()
+      if (options.tasks?.start !== false) await workspace.tasks.start()
       // Versions past the keep rules go when the workspace opens
       void workspace.versions.cleanup().catch((error) => console.error("[core] couldn't clean up versions", error))
       workspace.search.attach(() => workspace.tasks.debounce("index.sync", "workspace", SETTLE_MS))
