@@ -3469,21 +3469,10 @@ msgstr "正在用浏览器获取 PDF"
 msgid "· {done} of {total}"
 msgstr "· {done}/{total}"
 
+#. placeholder {0}: waiting.length
 #: app/src/features/home/WaitingOnYou.tsx
-msgid "A paper waits for your browser"
-msgstr "一篇论文需要用你的浏览器获取"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Papers wait for your browser"
-msgstr "几篇论文需要用你的浏览器获取"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {cite}"
-msgstr "· {cite}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {names}"
-msgstr "· {names}"
+msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
+msgstr "{0, plural, one {一篇论文需要用你的浏览器获取} other {# 篇论文需要用你的浏览器获取}}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "Show them"
@@ -3505,10 +3494,9 @@ msgstr "{n, plural, one {在 {browser} 打开的页面上保存 PDF} other {在 
 msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
 msgstr "{n, plural, one {在浏览器打开的页面上保存 PDF} other {在浏览器打开的 # 个页面上保存 PDF}}"
 
-#. placeholder {0}: papers.length - 2
 #: app/src/features/home/WaitingOnYou.tsx
-msgid "{0, plural, one {{named} and # more} other {{named} and # more}}"
-msgstr "{0, plural, other {{named} 及另外 # 篇}}"
+msgid "for {names}"
+msgstr "· {names}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"

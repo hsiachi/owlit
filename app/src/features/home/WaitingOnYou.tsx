@@ -148,14 +148,11 @@ function useWaiting(): Waiting[] {
       }
     } else if (waiting.length) {
       const one = waiting.length === 1
-      const cite = citationLabel(waiting[0])
-      const names = namesOf(waiting)
       out.push({
         key: "papers:browser",
         icon: KIND_ICON.paper,
-        what: one ? t`A paper waits for your browser` : t`Papers wait for your browser`,
-        where: one ? t`for ${cite}` : t`for ${names}`,
-        detail: one ? undefined : waiting.map(citationLabel).join("\n"),
+        what: plural(waiting.length, { one: "A paper waits for your browser", other: "# papers wait for your browser" }),
+        where: namesOf(waiting),
         open: one
           ? { label: t({ message: "Open", comment: "verb: open the paper that waits" }), run: () => navigate(`/library/${waiting[0].id}`) }
           : {
@@ -169,7 +166,6 @@ function useWaiting(): Waiting[] {
       })
     }
     if (pages.length) {
-      const names = namesOf(pages)
       const n = pages.length
       out.push({
         key: "papers:pages",
@@ -177,8 +173,7 @@ function useWaiting(): Waiting[] {
         what: browser
           ? plural(n, { one: `Save the PDF from the page open in ${browser}`, other: `Save # PDFs from the pages open in ${browser}` })
           : plural(n, { one: "Save the PDF from the page open in your browser", other: "Save # PDFs from the pages open in your browser" }),
-        where: t`for ${names}`,
-        detail: n > 1 ? pages.map(citationLabel).join("\n") : undefined,
+        where: namesOf(pages),
         open: show,
       })
     }
@@ -186,10 +181,13 @@ function useWaiting(): Waiting[] {
   }, [chats, streaming, connectors, selected, background, dismissed, papers, imports, tasks, fromBrowser, stoppedOn, waiting, navigate])
 }
 
-// "McDaniel & Einstein 2000, Nahum-Shani et al. 2016 and 5 more"
+// "for McDaniel & Einstein 2000, Nahum-Shani et al. 2016": one or two papers by name. More are only
+// counted in the row's words: two names picked from many say nothing, and Show them lists them all with
+// their titles (a hover list of authors and years didn't either)
 function namesOf(papers: Paper[]) {
-  const named = papers.slice(0, 2).map(citationLabel).join(", ")
-  return papers.length > 2 ? plural(papers.length - 2, { one: `${named} and # more`, other: `${named} and # more` }) : named
+  if (papers.length > 2) return undefined
+  const names = papers.map(citationLabel).join(", ")
+  return t`for ${names}`
 }
 
 // The row as a screen reader hears it: "Owlit stopped in “Draft”: Open"

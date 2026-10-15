@@ -3469,20 +3469,9 @@ msgstr ""
 msgid "· {done} of {total}"
 msgstr ""
 
+#. placeholder {0}: waiting.length
 #: app/src/features/home/WaitingOnYou.tsx
-msgid "A paper waits for your browser"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Papers wait for your browser"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {cite}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {names}"
+msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3505,9 +3494,8 @@ msgstr ""
 msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
 msgstr ""
 
-#. placeholder {0}: papers.length - 2
 #: app/src/features/home/WaitingOnYou.tsx
-msgid "{0, plural, one {{named} and # more} other {{named} and # more}}"
+msgid "for {names}"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
