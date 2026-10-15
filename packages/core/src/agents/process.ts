@@ -49,6 +49,11 @@ export interface ProcessOptions {
   // Any end: idle, stopped, crashed
   onExit?(): void
   log?(line: string): void
+  // What owlit tells this agent's adapter at initialize beyond ACP (clientCapabilities._meta)
+  clientMeta?: Record<string, unknown>
+  // A request of the adapter's own sent as soon as a session is opened (new or loaded), before anything
+  // runs in it; one the adapter refuses is let go
+  opened?(sessionId: string): { method: string; params: Record<string, unknown> } | undefined
 }
 
 const STDERR_KEPT = 20
@@ -162,6 +167,7 @@ export class AcpProcess {
     return this.call(async (c) => {
       const response = await c.newSession(params)
       this.handlers.set(response.sessionId, handler)
+      await this.afterOpen(c, response.sessionId)
       return response
     })
   }
@@ -184,8 +190,15 @@ export class AcpProcess {
     return this.call(async (c) => {
       // Updates replaying the history arrive while the request runs, so the handler goes in first
       this.handlers.set(params.sessionId, handler)
-      return c.loadSession(params)
+      const response = await c.loadSession(params)
+      await this.afterOpen(c, params.sessionId)
+      return response
     })
+  }
+
+  private async afterOpen(connection: acp.ClientSideConnection, sessionId: string) {
+    const request = this.options.opened?.(sessionId)
+    if (request) await connection.extMethod(request.method, request.params).catch(() => undefined)
   }
 
   prompt(params: acp.PromptRequest) {
@@ -341,7 +354,12 @@ export class AcpProcess {
         // Forms: without them Claude Code turns its AskUserQuestion into a permission request, which
         // can only be allowed or rejected, never answered. Subagents: an agent's own agents then work in
         // sessions of their own, so their steps and questions say whose they are.
-        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, elicitation: { form: {} }, subagents: {} },
+        clientCapabilities: {
+          fs: { readTextFile: true, writeTextFile: true },
+          elicitation: { form: {} },
+          subagents: {},
+          ...(this.options.clientMeta ? { _meta: this.options.clientMeta } : {}),
+        },
         clientInfo: { name: "owlit", version: "0.0.0" },
       }),
     ])
