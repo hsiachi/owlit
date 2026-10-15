@@ -1,0 +1,354 @@
+import { plural, t } from "@lingui/core/macro"
+import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Textarea } from "@/components/ui/textarea"
+import { FoldButton } from "@/components/fold"
+import { IconButton } from "@/components/icon-button"
+import { OwlitMark } from "@/components/owlit-mark"
+import { Tip } from "@/components/tip"
+import { ago } from "@/lib/time"
+import { shorten } from "@/lib/words"
+import { cn } from "@/lib/utils"
+import { Markdown } from "@/features/chat/components/messages/Markdown"
+import { useAgentWindow } from "@/features/agent/store"
+import { useChatStore } from "@/features/chat/store"
+import { useDocsUiStore } from "../ui-store"
+import { mentionLabel } from "../lib/mentions"
+import { askedChat, type CommentView, type EntryView } from "./model"
+
+// A comment's card in the column beside the doc. Closed, it is a few quiet lines: who started it, the
+// start of what they said, how many replies. Open, it is a raised card, laid out the way Google Docs and
+// Feishu lay theirs out: the first row is the first entry's author and the actions on the whole comment
+// (Ask Owlit, Resolve); each entry of yours has its own ⋯ (Edit, Delete); replies are flat, and the field to
+// add one is always at the bottom. A long thread opens with its middle folded, as in Google Docs.
+
+// A bare owlit:// address an agent left in its words reads under its short name, never as the raw text
+const BARE_URI = /(?<!\]\()owlit:\/\/[^\s)）\]]+/g
+const withLabels = (text: string) =>
+  text.replace(BARE_URI, (uri) => {
+    const label = mentionLabel(uri)
+    return label ? `[${label.replace(/[[\]]/g, "")}](${uri})` : uri
+  })
+
+// The words alone, for the closed card's few lines: links by their labels, no emphasis marks
+const plainText = (text: string) =>
+  withLabels(text)
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, "$2")
+    .replace(/[*_`]+/g, "")
+
+function Signed({ entry, className }: { entry: EntryView; className?: string }) {
+  return (
+    <span className={cn("min-w-0 truncate text-xs text-muted-foreground", className)}>
+      {/* In ink whoever wrote it: green is Owlit's hand on your words, and a comment changes none */}
+      <span className="font-medium text-foreground">{entry.name}</span>
+      {" · "}
+      {ago(entry.at)}
+      {entry.editedAt ? ` · ${t({ message: "edited", comment: "after a comment's time: it was changed after it was written" })}` : ""}
+    </span>
+  )
+}
+
+export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView; lost: boolean; onOpen: () => void; onHover: (on: boolean) => void }) {
+  const first = view.entries[0]
+  const last = view.entries[view.entries.length - 1]
+  const replies = view.entries.length - 1
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return
+        e.preventDefault()
+        onOpen()
+      }}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      className="group relative w-full cursor-default rounded-lg py-1.5 pr-2.5 pl-4 text-left transition-colors outline-none hover:bg-accent focus-visible:bg-accent"
+    >
+      {/* The comment colour, as on its words */}
+      <span aria-hidden className="absolute top-2.5 bottom-2.5 left-1.5 w-0.5 rounded-full bg-comment-mark" />
+      <div className="flex">
+        <Signed entry={first} />
+      </div>
+      {lost && <p className="text-xs text-muted-foreground">{t`Its passage has changed`}</p>}
+      <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-foreground/80">{plainText(first.text)}</p>
+      {/* Who answered last, so a reply that came while you were away shows without opening the card */}
+      {replies > 0 && (
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {plural(replies, { one: "# reply", other: "# replies" })}
+          {" · "}
+          {t({ message: `${last.name} replied ${ago(last.at, { inSentence: true })}`, comment: "after a comment's reply count: who wrote the latest reply, and when" })}
+        </p>
+      )}
+    </div>
+  )
+}
+
+interface OpenActions {
+  onAsk: () => void
+  onResolve: () => void
+  onReply: (text: string) => Promise<void> | void
+  // Owlit's comments only: the reply is kept and asked in a chat too, since Owlit doesn't read replies
+  onReplyAndAsk?: (text: string) => Promise<void>
+  onEdit: (entryId: string, text: string) => void
+  onDelete: (entryId: string) => void
+  onClose: () => void
+}
+
+export function OpenCard({ view, lost, actions, focusReply }: { view: CommentView; lost: boolean; actions: OpenActions; focusReply?: boolean }) {
+  const [first, ...replies] = view.entries
+  const [editing, setEditing] = useState<string | null>(null)
+  // More than three replies open folded down to the latest. Which one that is is fixed when the card
+  // opens, so your own reply lands under it rather than pushing it into the fold.
+  const [shownFrom, setShownFrom] = useState(() => (replies.length > 3 ? replies[replies.length - 1].id : null))
+  const cut = shownFrom === null ? 0 : Math.max(0, replies.findIndex((e) => e.id === shownFrom))
+  return (
+    <div className="rounded-xl border bg-card py-2 pr-1.5 pl-3 shadow-md" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && actions.onClose()}>
+      {/* The first row: who started it, then what acts on the whole comment */}
+      <div className="flex h-6 items-center gap-1">
+        <Signed entry={first} className="flex-1" />
+        <IconButton label={t`Ask Owlit about this comment`} size="icon-xs" onClick={actions.onAsk}>
+          <OwlitMark />
+        </IconButton>
+        <IconButton label={t({ message: "Resolve", comment: "put a comment away" })} size="icon-xs" onClick={actions.onResolve}>
+          <CheckIcon />
+        </IconButton>
+        {first.editable && <EntryMenu entry={first} first hasReplies={replies.length > 0} onEdit={() => setEditing(first.id)} onDelete={() => actions.onDelete(first.id)} />}
+      </div>
+      <div className="pr-1.5">
+        {lost && <p className="mt-0.5 text-xs text-muted-foreground">{t`The passage this comment was on has changed: “${shorten(view.quote, 90)}”`}</p>}
+        <EntryText entry={first} editing={editing === first.id} onSave={(text) => {
+            actions.onEdit(first.id, text)
+            setEditing(null)
+          }} onCancel={() => setEditing(null)} />
+        {cut > 0 && (
+          <FoldButton open={false} onClick={() => setShownFrom(null)} className="mt-2">
+            {plural(cut, { one: "# more reply", other: "# more replies" })}
+          </FoldButton>
+        )}
+        {replies.slice(cut).map((entry) => (
+          <div key={entry.id} className="group/entry mt-3">
+            <div className="-mr-1.5 flex h-6 items-center gap-0.5">
+              <Signed entry={entry} className="flex-1" />
+              {entry.editable && <EntryMenu entry={entry} onEdit={() => setEditing(entry.id)} onDelete={() => actions.onDelete(entry.id)} />}
+            </div>
+            <EntryText entry={entry} editing={editing === entry.id} onSave={(text) => {
+                actions.onEdit(entry.id, text)
+                setEditing(null)
+              }} onCancel={() => setEditing(null)} />
+          </div>
+        ))}
+        <AskedLine commentKey={view.key} />
+        {/* Keyed by the comment, so another comment opened in its place starts with an empty field */}
+        <ReplyField key={view.key} view={view} autoFocus={focusReply} onReply={actions.onReply} onReplyAndAsk={actions.onReplyAndAsk} />
+      </div>
+    </div>
+  )
+}
+
+function EntryText({ entry, editing, onSave, onCancel }: { entry: EntryView; editing: boolean; onSave: (text: string) => void; onCancel: () => void }) {
+  const [text, setText] = useState(entry.text)
+  if (!editing) return <Markdown text={withLabels(entry.text)} className="comment-text text-sm" />
+  const save = () => text.trim() && onSave(text.trim())
+  return (
+    <div className="mt-1">
+      <Textarea
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            save()
+          }
+          if (e.key === "Escape") {
+            e.preventDefault()
+            onCancel()
+          }
+        }}
+        className="min-h-8 resize-none px-2 py-1.5 text-sm md:text-sm"
+      />
+      <FieldButtons label={t({ message: "Save", comment: "save an edited comment" })} disabled={!text.trim()} onCancel={onCancel} onSubmit={save} />
+    </div>
+  )
+}
+
+// Your own entries only: the share server keeps readers' words as they wrote them, and Owlit's are Owlit's
+function EntryMenu({ first, hasReplies, onEdit, onDelete }: { entry: EntryView; first?: boolean; hasReplies?: boolean; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <DropdownMenu>
+      <Tip label={t`More`}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t`More`}
+            className={cn("text-muted-foreground", !first && "opacity-0 group-hover/entry:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100")}
+          >
+            <EllipsisIcon />
+          </Button>
+        </DropdownMenuTrigger>
+      </Tip>
+      {/* As wide as its words: the default is the 24px ⋯ it opens from */}
+      <DropdownMenuContent align="end" className="w-auto">
+        <DropdownMenuItem onSelect={onEdit}>
+          <PencilIcon />
+          {t({ message: "Edit", comment: "edit your comment or reply" })}
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash2Icon />
+          {/* As in Google Docs, the first entry is the comment: deleting it takes the replies too */}
+          {first ? (hasReplies ? t`Delete comment and replies` : t`Delete comment`) : t`Delete reply`}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// The field's buttons: Cancel, anything else it offers, then the one ⌘↵ presses
+function FieldButtons({ label, disabled, onCancel, onSubmit, children }: { label: string; disabled: boolean; onCancel: () => void; onSubmit: () => void; children?: React.ReactNode }) {
+  return (
+    <div className="mt-1.5 flex justify-end gap-1">
+      <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+        {t`Cancel`}
+      </Button>
+      {children}
+      <Tip label={label} shortcut="save-comment">
+        <Button size="sm" disabled={disabled} onClick={onSubmit}>
+          {label}
+        </Button>
+      </Tip>
+    </div>
+  )
+}
+
+// Where the comment was asked about, once it was: the chat with Owlit's answer, opened beside the doc
+function AskedLine({ commentKey }: { commentKey: string }) {
+  const asked = useDocsUiStore((s) => s.askedChats[commentKey])
+  const title = useChatStore((s) => (asked ? s.chats[asked.chatId]?.title : undefined))
+  if (!asked || title === undefined || !askedChat(commentKey)) return null
+  return (
+    <Tip label={t`Open the chat beside the doc`}>
+      <button
+        type="button"
+        onClick={() => useAgentWindow.getState().showChat(asked.chatId)}
+        className="mt-2 -ml-1 flex h-6 max-w-full items-center gap-1.5 rounded-md px-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3 [&_svg]:shrink-0"
+      >
+        <OwlitMark />
+        <span className="truncate">
+          {title
+            ? t({ message: `Asked Owlit ${ago(asked.at, { inSentence: true })} in “${title}”`, comment: "on a comment's card: when it was asked about in a chat, and the chat's title" })
+            : t({ message: `Asked Owlit ${ago(asked.at, { inSentence: true })}`, comment: "on a comment's card: when it was asked about in a chat" })}
+        </span>
+        <ChevronRightIcon />
+      </button>
+    </Tip>
+  )
+}
+
+// The reply field, always at the bottom: it adds to the whole comment. Who hears it is said once there is
+// something to send.
+function ReplyField({
+  view,
+  autoFocus,
+  onReply,
+  onReplyAndAsk,
+}: {
+  view: CommentView
+  autoFocus?: boolean
+  onReply: (text: string) => Promise<void> | void
+  onReplyAndAsk?: (text: string) => Promise<void>
+}) {
+  const [text, setText] = useState("")
+  const [sending, setSending] = useState(false)
+  const send = async (ask = false) => {
+    const said = text.trim()
+    if (!said || sending) return
+    setSending(true)
+    try {
+      await (ask && onReplyAndAsk ? onReplyAndAsk(said) : onReply(said))
+      setText("")
+    } catch {
+      // The error was shown; what was typed stays
+    } finally {
+      setSending(false)
+    }
+  }
+  const startedBy = view.entries[0]
+  const hint = view.thread
+    ? { icon: <LinkIcon />, text: t`${startedBy.name} sees replies on the shared page.` }
+    : startedBy.who === "owlit"
+      ? { icon: null, text: t`Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat.` }
+      : null
+  // Replying is what people do to a remark, so on Owlit's the field says from the start that it can go to Owlit
+  const toOwlit = startedBy.who === "owlit" && !!onReplyAndAsk
+  return (
+    <div className="mt-3 mb-0.5">
+      <Textarea
+        rows={1}
+        autoFocus={autoFocus}
+        value={text}
+        placeholder={toOwlit ? t`Reply, or ask Owlit…` : t`Reply…`}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            void send()
+          }
+          if (e.key === "Escape" && text) {
+            e.preventDefault()
+            setText("")
+          }
+        }}
+        className="min-h-8 resize-none px-2.5 py-1.5 text-sm md:text-sm"
+      />
+      {text && (
+        <>
+          {hint && <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3 [&_svg]:shrink-0">{hint.icon}{hint.text}</p>}
+          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={() => setText("")} onSubmit={() => void send()}>
+            {toOwlit && (
+              <Button variant="outline" size="sm" disabled={sending} onClick={() => void send(true)}>
+                <OwlitMark />
+                {t`Ask Owlit`}
+              </Button>
+            )}
+          </FieldButtons>
+        </>
+      )}
+    </div>
+  )
+}
+
+// The comment being started on selected words: a card with the field ready
+export function NewCard({ onSave, onCancel }: { onSave: (text: string) => void; onCancel: () => void }) {
+  const [text, setText] = useState("")
+  const save = () => text.trim() && onSave(text.trim())
+  return (
+    <div className="rounded-xl border bg-card py-2 pr-3 pl-3 shadow-md">
+      <div className="flex h-6 items-center text-xs font-medium">{t({ message: "You", comment: "who wrote a comment or reply: the user" })}</div>
+      <Textarea
+        autoFocus
+        rows={2}
+        value={text}
+        placeholder={t`Comment…`}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            save()
+          }
+          if (e.key === "Escape") {
+            e.preventDefault()
+            onCancel()
+          }
+        }}
+        className="mt-1 min-h-14 resize-none px-2.5 py-1.5 text-sm md:text-sm"
+      />
+      <FieldButtons label={t({ message: "Comment", context: "verb: say something about the selected words" })} disabled={!text.trim()} onCancel={onCancel} onSubmit={save} />
+    </div>
+  )
+}

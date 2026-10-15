@@ -70,7 +70,7 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 15/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 16/)
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {
@@ -95,6 +95,15 @@ describe("turns", () => {
         .find((t) => t.startsWith("The user selected"))
     expect(said({ page: 3 })).toBe("The user selected this passage in A paper, on page 3:\n> a claim")
     expect(said({ inDigest: true })).toContain("in Owlit's digest of A paper (its digest.md, written from the full text; check the paper itself")
+  })
+
+  it("gives the agent the comment Ask Owlit was pressed on, beside the passage it is on", () => {
+    const source = { kind: "doc" as const, id: "d1", uri: "owlit://docs/Draft.md", title: "Draft" }
+    const comment = { entries: [{ who: "Owlit", text: "This overstates it." }, { who: "You", text: "How so?" }] }
+    const text = promptBlocks({ text: "Draft the change", mentions: [], attachments: [], selection: { text: "a claim", source, comment } }, "/ws", null)
+      .map((b) => (b as { text?: string }).text ?? "")
+      .find((t) => t.startsWith("The user is asking about a comment"))
+    expect(text).toBe("The user is asking about a comment on this passage in Draft:\n> a claim\n\nThe comment, beside the doc (not in its text):\nOwlit: This overstates it.\nYou: How so?")
   })
 
   it("gives the agent each attached file as a link to owlit's copy, and an image as a picture too", async () => {

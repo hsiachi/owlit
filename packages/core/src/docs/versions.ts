@@ -1,4 +1,4 @@
-import type { AgentNote } from "@owlit/protocol"
+import type { DocComment } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -8,7 +8,8 @@ import { Serial } from "../util.ts"
 // One snapshot: something as it was before an agent (or an undo) changed it, so the change can be
 // taken back. Every kind of agent write goes through here, so they share one way to undo:
 //   file    a doc's text before the write
-//   note    a note left on a doc (added, or removed by an undo), with the note itself
+//   note    a comment left on a doc (added, or removed by an undo), with the comment itself (versions
+//           kept before comments hold an agent's note, read as a comment)
 //   paper   a paper added to the library (or removed by an undo)
 //   thread  a thread's thread.json before an agent wrote to it (path is the thread's id)
 export type VersionKind = "file" | "note" | "paper" | "thread"
@@ -39,7 +40,7 @@ export const KEEP_MS = 30 * 24 * 3_600_000
 
 export const sha1 = (text: string) => createHash("sha1").update(text).digest("hex")
 
-// .owlit/versions/: each version's content in <id> (a file's text, a note's JSON), and a line
+// .owlit/versions/: each version's content in <id> (a file's text, a comment's JSON), and a line
 // describing it in index.jsonl
 export class Versions {
   private readonly dir: string
@@ -67,8 +68,8 @@ export class Versions {
     )
   }
 
-  saveNote(docPath: string, note: AgentNote, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
-    return this.save({ kind: "note", path: docPath, op, noteId: note.id }, JSON.stringify(note), meta)
+  saveComment(docPath: string, comment: DocComment, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {
+    return this.save({ kind: "note", path: docPath, op, noteId: comment.id }, JSON.stringify(comment), meta)
   }
 
   savePaper(id: string, op: "added" | "removed", meta: { chatId?: string; by?: Version["by"] } = {}) {

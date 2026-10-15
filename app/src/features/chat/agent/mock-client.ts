@@ -67,7 +67,7 @@ export class MockAgentClient implements AgentClient {
       // Asked from the paper's note: the note is the user's, so a rewrite is proposed in it, not made
       if (selection?.notePath && WANTS_REWRITE.test(text)) return await this.proposeNoteEdit(emit, signal, selection, mode)
 
-      // Asked to review a doc: notes in its margin rather than edits
+      // Asked to review a doc: comments on it rather than edits
       const doc = selection?.source.kind === "doc" ? selection.source : sources.find((s) => s.kind === "doc")
       if (doc && WANTS_REVIEW.test(text)) {
         return await this.review(emit, signal, doc, "Owlit", req.chatId)
@@ -264,7 +264,7 @@ export class MockAgentClient implements AgentClient {
     return "end_turn"
   }
 
-  // Reads the doc and leaves a note beside each sentence that claims more than it shows
+  // Reads the doc and leaves a comment on each sentence that claims more than it shows
   private async review(emit: (u: SessionUpdate) => void, signal: AbortSignal, doc: Mentionable, by: string, chatId: string): Promise<StopReason> {
     const path = docPath(doc.uri)
     const fs = getWorkspaceFs()
@@ -278,7 +278,7 @@ export class MockAgentClient implements AgentClient {
     let left = 0
     for (const f of found) {
       const id = `tc-${crypto.randomUUID()}`
-      emit({ type: "tool_call", toolCallId: id, title: `Note on ${doc.title}`, kind: "other", status: "in_progress", locations: [{ path }] })
+      emit({ type: "tool_call", toolCallId: id, title: `Comment on ${doc.title}`, kind: "other", status: "in_progress", locations: [{ path }] })
       await sleep(500, signal)
       const ok = await notes.addNote({ path, quote: f.quote, text: f.note, by, chatId })
       if (ok) left++
@@ -286,8 +286,8 @@ export class MockAgentClient implements AgentClient {
     }
     await sleep(300, signal)
     const answer = left
-      ? `I left ${left} ${left === 1 ? "note" : "notes"} in the margin of [${doc.title}](${doc.uri}), beside the sentences that claim more than the text shows. Dismiss any you disagree with; the doc itself is unchanged.`
-      : `Nothing in [${doc.title}](${doc.uri}) claims more than it shows, so I left no notes.`
+      ? `I left ${left} ${left === 1 ? "comment" : "comments"} on [${doc.title}](${doc.uri}), on the sentences that claim more than the text shows. Resolve any you disagree with; the doc itself is unchanged.`
+      : `Nothing in [${doc.title}](${doc.uri}) claims more than it shows, so I left no comments.`
     await this.stream(emit, signal, answer, "agent_message_chunk", 14)
     return "end_turn"
   }

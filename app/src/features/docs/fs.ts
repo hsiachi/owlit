@@ -150,18 +150,20 @@ if (isDesktop) {
     return { applied }
   })
 
-  // An undo took a note an agent left away
-  onNotify("notes.removed", ({ path, id }) => {
+  // An undo took a comment an agent left away
+  onNotify("comments.removed", ({ path, id }) => {
     const file = fileAt(path)
-    if (!file || !useDocsStore.getState().notes[file.id]?.some((n) => n.id === id)) return
-    useDocsStore.setState((s) => ({ notes: { ...s.notes, [file.id]: (s.notes[file.id] ?? []).filter((n) => n.id !== id) } }))
+    if (!file || !useDocsStore.getState().comments[file.id]?.some((c) => c.id === id)) return
+    useDocsStore.setState((s) => ({ comments: { ...s.comments, [file.id]: (s.comments[file.id] ?? []).filter((c) => c.id !== id) } }))
   })
 
-  // A note an agent left over owlit-mcp; the window's own notes are already here
-  onNotify("notes.added", ({ path, note }) => {
+  // A comment an agent left over owlit-mcp, or one an undo put back; the window's own changes are here already
+  onNotify("comments.changed", ({ path, comment }) => {
     const file = fileAt(path)
-    if (!file || useDocsStore.getState().notes[file.id]?.some((n) => n.id === note.id)) return
-    useDocsStore.setState((s) => ({ notes: { ...s.notes, [file.id]: [...(s.notes[file.id] ?? []), note] } }))
+    if (!file) return
+    useDocsStore.setState((s) => ({
+      comments: { ...s.comments, [file.id]: [...(s.comments[file.id] ?? []).filter((c) => c.id !== comment.id), comment].sort((a, b) => a.createdAt - b.createdAt) },
+    }))
   })
 
   // A doc no window had open: core wrote it; the change itself arrives as docs.changed
@@ -177,7 +179,7 @@ if (isDesktop) {
   })
 }
 
-// Agents' notes land beside the doc, anchored by the quoted passage and a little text either side of it
+// Agents' comments land beside the doc, anchored by the quoted passage and a little text either side of it
 setWorkspaceNotes({
   async addNote({ path, quote, text, by, chatId }) {
     const file = fileAt(path)
@@ -185,13 +187,12 @@ setWorkspaceNotes({
     const doc = currentText(file.id)
     const at = doc.indexOf(quote)
     if (at < 0 || !quote.trim()) return false
-    useDocsStore.getState().addNote(file.id, {
+    const now = Date.now()
+    useDocsStore.getState().addComment(file.id, {
       id: newId(),
       ...anchorAt(doc, at, at + quote.length),
-      text,
-      by,
-      chatId,
-      createdAt: Date.now(),
+      entries: [{ id: newId(), by: "owlit", agent: by, text, at: now, ...(chatId ? { chatId } : {}) }],
+      createdAt: now,
     })
     return true
   },

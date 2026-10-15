@@ -152,9 +152,9 @@ export class Core {
       ui: this.ui,
       journal: this.journal,
       wrote: (record) => this.notifier.notify("agent.wrote", record),
-      notesChanged: ({ path, added, removed }) => {
-        if (added) this.notifier.notify("notes.added", { path, note: added })
-        if (removed) this.notifier.notify("notes.removed", { path, id: removed })
+      commentsChanged: ({ path, changed, removed }) => {
+        if (changed) this.notifier.notify("comments.changed", { path, comment: changed })
+        if (removed) this.notifier.notify("comments.removed", { path, id: removed })
       },
     })
     this.turns = new Turns({
@@ -294,12 +294,21 @@ export class Core {
     this.router.register("docs.reveal", z.object({ path: rel }), ({ path }) => docs().reveal(path))
 
     const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
-    const note = anchor.extend({
+    const commentSchema = anchor.extend({
       id: z.string().min(1),
-      text: z.string(),
-      by: z.string(),
-      chatId: z.string().optional(),
+      entries: z.array(
+        z.object({
+          id: z.string().min(1),
+          by: z.enum(["you", "owlit"]),
+          agent: z.string().optional(),
+          text: z.string(),
+          at: z.number(),
+          editedAt: z.number().optional(),
+          chatId: z.string().optional(),
+        }),
+      ),
       createdAt: z.number(),
+      resolvedAt: z.number().optional(),
     })
     const chats = () => this.requireWorkspace().chats
     const chatId = z.string().regex(/^[\w-]+$/)
@@ -710,19 +719,24 @@ export class Core {
     this.router.register("threads.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => threads().ask(id, question))
     this.router.register("threads.delete", z.object({ id: z.string().min(1) }), ({ id }) => threads().delete(id))
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), ({ id }) => threads().undelete(id))
-    this.router.register("notes.all", noParams, () => docs().notesAll())
-    this.router.register("notes.add", z.object({ path: rel, note, agent: z.object({ chatId: z.string().optional() }).optional() }), async ({ path, note, agent }) => {
-      await docs().addNote(path, note)
-      this.notifier.notify("notes.added", { path, note })
-      if (agent) {
-        const version = await this.requireWorkspace().versions.saveNote(path, note, "added", agent)
-        this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
-      }
-      return null
-    })
-    this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
-    this.router.register("notes.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
-      docs().reanchorNotes(path, moved),
+    this.router.register("comments.all", noParams, () => docs().commentsAll())
+    this.router.register(
+      "comments.add",
+      z.object({ path: rel, comment: commentSchema, agent: z.object({ chatId: z.string().optional() }).optional() }),
+      async ({ path, comment, agent }) => {
+        await docs().addComment(path, comment)
+        this.notifier.notify("comments.changed", { path, comment })
+        if (agent) {
+          const version = await this.requireWorkspace().versions.saveComment(path, comment, "added", agent)
+          this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
+        }
+        return null
+      },
+    )
+    this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), ({ path, comment }) => docs().putComment(path, comment))
+    this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeComment(path, id))
+    this.router.register("comments.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
+      docs().reanchorComments(path, moved),
     )
 
     const shares = () => this.requireWorkspace().shares

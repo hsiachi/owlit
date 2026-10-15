@@ -1,9 +1,12 @@
-import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
+import { SelectionMenuItems } from "./selection-menu-items"
 
-// The Docs selection menu: one action, "Ask Owlit", above a selected passage (under it where above would
-// leave the view), and not while the mouse is still choosing. Used by a paper's note and its digest.
+// The selection menu above a selected passage (under it where above would leave the view), not while the
+// mouse is still choosing: "Ask Owlit" in words, the one thing it is for, then a divider and the tools on the
+// text as icons with tooltips (Copy, and in a doc Comment), so more tools can join without the row getting
+// loud (selection-menu-items.tsx). Used by a paper's note and its digest; a doc builds the same menu in its
+// editor (features/docs/editor/selection-menu.ts).
 
 // Clear of the selected line, as the Docs selection menu sits
 const MENU_GAP = 8
@@ -50,12 +53,9 @@ export function useSelectionMenu(onAsk: () => void) {
     }),
     [],
   )
-  // Pressing the button keeps the selection (and the focus) where it is
   const element = menu && (
     <div className={cn("selection-menu absolute z-20", !menu.below && "-translate-y-full")} style={{ left: menu.left, top: menu.top }}>
-      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onAsk}>
-        {t`Ask Owlit`}
-      </button>
+      <SelectionMenuItems onAsk={onAsk} selected={() => document.getSelection()?.toString() ?? ""} />
     </div>
   )
   return { menu: element, control }

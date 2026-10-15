@@ -257,7 +257,7 @@ describe("Owlit engine", () => {
 
       expect((await run("tool docs_list")).text).toMatch(/^tool said: .*notes\.md/)
       // Writing a margin note or a file isn't for a background run
-      expect((await run(`tool docs_add_note ${JSON.stringify({ path: "notes.md", quote: "twelve", text: "hm" })}`)).text).toBe("tool failed: Tool docs_add_note not found")
+      expect((await run(`tool docs_add_comment ${JSON.stringify({ path: "notes.md", quote: "twelve", comment: "hm" })}`)).text).toBe("tool failed: Tool docs_add_comment not found")
       expect((await run(`tool write_file ${JSON.stringify({ path: "x.md", content: "x" })}`)).text).toBe("tool failed: Tool write_file not found")
       expect(existsSync(path.join(root, "x.md"))).toBe(false)
       // Nothing of a background run is kept in the workspace

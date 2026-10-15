@@ -64,7 +64,7 @@ describe("owlit-mcp", () => {
   it("lists owlit's tools and tells the agent how to work", async () => {
     const { mcp } = await setup()
     const { tools } = await mcp.listTools()
-    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["library_list", "library_read", "library_search", "library_add", "library_remove", "docs_add_note", "chats_read"]))
+    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["library_list", "library_read", "library_search", "library_add", "library_remove", "docs_add_comment", "chats_read"]))
     expect(mcp.getInstructions()).toMatch(/owlit/)
   })
 
@@ -225,20 +225,20 @@ describe("owlit-mcp", () => {
     expect((await tool("library_journal", { journal: "Information Processing and Management", year: "2015-2024" })).text).toMatch(/at most five years/)
   })
 
-  it("leaves a note on a doc without changing the file", async () => {
+  it("leaves a comment on a doc without changing the file", async () => {
     const { root, core, call, tool } = await setup()
     const doc = "# Related work\n\nFirst paragraph.\n\nSecond paragraph argues that attention\nis all you need.\n"
     writeFileSync(path.join(root, "Related work.md"), doc)
     const told: unknown[] = []
-    core.onNotify((n) => n.method === "notes.added" && told.push(n.params))
-    const result = await tool("docs_add_note", { path: "Related work.md", quote: "attention is all you need", note: "Cite Vaswani 2017 here." })
+    core.onNotify((n) => n.method === "comments.changed" && told.push(n.params))
+    const result = await tool("docs_add_comment", { path: "Related work.md", quote: "attention is all you need", comment: "Cite Vaswani 2017 here." })
     expect(result.isError).toBe(false)
     expect(readFileSync(path.join(root, "Related work.md"), "utf8")).toBe(doc)
-    const notes = await call("notes.all")
-    expect(notes["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", text: "Cite Vaswani 2017 here.", by: "Owlit", chatId: "chat-1" }])
-    // Windows hear of it, so the note shows up in an open doc
-    expect(told).toMatchObject([{ path: "Related work.md", note: { text: "Cite Vaswani 2017 here." } }])
-    expect((await tool("docs_add_note", { path: "Related work.md", quote: "not in the doc", note: "x" })).text).toMatch(/isn't in Related work\.md word for word/)
+    const comments = await call("comments.all")
+    expect(comments["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", entries: [{ text: "Cite Vaswani 2017 here.", by: "owlit", chatId: "chat-1" }] }])
+    // Windows hear of it, so the comment shows up in an open doc
+    expect(told).toMatchObject([{ path: "Related work.md", comment: { entries: [{ text: "Cite Vaswani 2017 here." }] } }])
+    expect((await tool("docs_add_comment", { path: "Related work.md", quote: "not in the doc", comment: "x" })).text).toMatch(/isn't in Related work\.md word for word/)
   })
 
   it("shows things in the window the user is in", async () => {
@@ -308,17 +308,17 @@ describe("owlit-mcp", () => {
     expect((await tool("thread_write", { id, rows: "[{" })).text).toBe("rows should be a JSON array.")
   })
 
-  it("lets the user undo an agent's note and paper, and undo the undo", async () => {
+  it("lets the user undo an agent's comment and paper, and undo the undo", async () => {
     const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
     const { root, core, call, tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })
     const changed: { kind: string; versionId: string; label: string; chatId?: string }[] = []
     const removed: unknown[] = []
     core.onNotify((n) => {
       if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
-      if (n.method === "notes.removed") removed.push(n.params)
+      if (n.method === "comments.removed") removed.push(n.params)
     })
     writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
-    await tool("docs_add_note", { path: "Draft.md", quote: "all you need", note: "Cite it." })
+    await tool("docs_add_comment", { path: "Draft.md", quote: "all you need", comment: "Cite it." })
     await tool("library_add", { refs: ["10.1145/3626772.3657891"] })
     expect(changed).toMatchObject([
       { kind: "note", label: "Draft", chatId: "chat-1" },
@@ -326,10 +326,10 @@ describe("owlit-mcp", () => {
     ])
 
     const note = await call("versions.restore", { id: changed[0].versionId })
-    expect((await call("notes.all"))["Draft.md"]).toBeUndefined()
+    expect((await call("comments.all"))["Draft.md"]).toBeUndefined()
     expect(removed).toMatchObject([{ path: "Draft.md" }])
     await call("versions.restore", { id: note.redoId })
-    expect((await call("notes.all"))["Draft.md"]).toMatchObject([{ text: "Cite it." }])
+    expect((await call("comments.all"))["Draft.md"]).toMatchObject([{ entries: [{ text: "Cite it." }] }])
 
     const paper = await call("versions.restore", { id: changed[1].versionId })
     expect((await call("library.list")).papers).toEqual([])
