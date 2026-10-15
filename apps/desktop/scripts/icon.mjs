@@ -13,7 +13,7 @@ const out = path.join(path.dirname(new URL(import.meta.url).pathname), "../resou
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "owlit-icon-"))
 const FEATHER = "M 53 225 C 55 167 85 93 136 58 C 164 39 199 32 211 45 C 228 64 191 96 155 111 C 128 122 107 137 91 154 C 108 140 126 128 146 124 C 171 117 176 128 159 145 C 146 158 124 164 111 169 C 134 163 143 177 125 190 C 114 198 101 201 91 201"
 // Forest tile, warm-white feather, two green bars under the lower curls (a highlighted passage).
-const T = { top: "#1d4a35", bottom: "#123325", feather: "#f6f5f0", bars: "#589a70", shadow: 0.4, edgeOp: 0.1, lineOp: 0.06 }
+const T = { top: "#30684d", bottom: "#264f3d", feather: "#f6f5f0", bars: "#70b388", shadow: 0.4, edgeOp: 0.1, lineOp: 0.06 }
 const BARS = [[106, 127, 96, 30], [106, 171, 74, 28]]
 // Line weight in feather units by the point size it is drawn for: 14.5 at full size, heavier when small so
 // the line keeps about a pixel.
