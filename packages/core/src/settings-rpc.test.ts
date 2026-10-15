@@ -152,6 +152,24 @@ describe("settings", () => {
     expect((await call("settings.check", { target: "s2ApiKey" })).result).toBe("unknown")
   })
 
+  it("tells an Elsevier key asked from outside the subscription from one Elsevier doesn't know", async () => {
+    // Elsevier's answers by API: the entitlement one is refused off campus, the abstract one isn't
+    const answers = { entitlement: 403, abstract: 200 }
+    const fetch = (async (input: string) => {
+      const status = input.includes("/entitlement/") ? answers.entitlement : answers.abstract
+      return new Response(status === 200 ? '{"entitlement-response":{"document-entitlement":{"entitled":true}}}' : "{}", { status })
+    }) as typeof globalThis.fetch
+    const { call } = setup({ fetch })
+    await call("settings.setSecret", { name: "elsevierApiKey", value: "els-key" })
+    expect(await call("settings.check", { target: "elsevierApiKey" })).toEqual({ result: "works", message: expect.stringContaining("no subscription from this network") })
+    answers.abstract = 401
+    expect(await call("settings.check", { target: "elsevierApiKey" })).toEqual({ result: "rejected", message: expect.stringContaining("refused this key") })
+    answers.entitlement = 401
+    expect(await call("settings.check", { target: "elsevierApiKey" })).toEqual({ result: "rejected", message: expect.stringContaining("isn't valid") })
+    answers.entitlement = 200
+    expect(await call("settings.check", { target: "elsevierApiKey" })).toEqual({ result: "works" })
+  })
+
   it("checks a MinerU token by its answer code, and a self-hosted server by whether it answers", async () => {
     let body: unknown = { code: "A0202", msg: "token error" }
     let up = true

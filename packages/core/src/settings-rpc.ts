@@ -253,10 +253,31 @@ async function checkPublisherKey(http: Http, s: AppSettings, target: "elsevierAp
     if (error instanceof HttpError && error.status === 401) return { result: "rejected", message: t`${service} says this key isn't valid. Check it was copied whole.` }
     if (error instanceof HttpError && error.status === 403) {
       return elsevier
-        ? { result: "rejected", message: t`Elsevier refused this key. Check it was copied whole.` }
+        ? checkElsevierOffNetwork(http, key)
         : { result: "unknown", message: t`Wiley refused: either the token isn't valid or it sees no subscription from this network.` }
     }
     if (error instanceof HttpError && error.status === 429) return { result: "unknown", message: t`${service} is busy; the key will be tried on the next paper.` }
     return { result: "unknown", message: t`Couldn't reach ${service} to check the key.` }
+  }
+}
+
+// Elsevier answers a key it doesn't know with 401, and a known key asking from outside a subscribing
+// network with 403 ("Requestor configuration settings insufficient"), even for the entitlement question
+// (2026-10-15, off campus with a split-tunnel campus VPN that doesn't carry api.elsevier.com). Its
+// abstract API needs no subscription, so it tells a sound key on the wrong network from a refused one.
+async function checkElsevierOffNetwork(http: Http, key: string): Promise<SettingsCheck> {
+  try {
+    const response = await http.get(`https://${ELSEVIER_API_HOST}/content/abstract/doi/10.1016/j.chb.2019.07.016`, {
+      headers: { "x-els-apikey": key, accept: "application/json" },
+      retries: 0,
+      timeoutMs: 15_000,
+    })
+    await response.body?.cancel().catch(() => {})
+    return { result: "works", message: t`The key works, but Elsevier sees no subscription from this network. On the university's network it will.` }
+  } catch (error) {
+    if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
+      return { result: "rejected", message: t`Elsevier refused this key. Check it was copied whole.` }
+    }
+    return { result: "unknown", message: t`Elsevier sees no subscription from this network, and couldn't be asked whether the key itself works.` }
   }
 }

@@ -6771,16 +6771,20 @@ msgid "The key works, but Elsevier sees no subscription from this network. On th
 msgstr "密钥有效，但 Elsevier 在当前网络下检测不到订阅。在校园网内就可以。"
 
 #: packages/core/src/settings-rpc.ts
-msgid "Elsevier refused this key. Check it was copied whole."
-msgstr "Elsevier 拒绝了这个密钥。请检查是否完整复制。"
-
-#: packages/core/src/settings-rpc.ts
 msgid "Wiley refused: either the token isn't valid or it sees no subscription from this network."
 msgstr "Wiley 拒绝了：令牌无效，或在当前网络下检测不到订阅。"
 
 #: packages/core/src/settings-rpc.ts
 msgid "{service} is busy; the key will be tried on the next paper."
 msgstr "{service} 正忙，会在下一篇论文时再试这个密钥。"
+
+#: packages/core/src/settings-rpc.ts
+msgid "Elsevier refused this key. Check it was copied whole."
+msgstr "Elsevier 拒绝了这个密钥。请检查是否完整复制。"
+
+#: packages/core/src/settings-rpc.ts
+msgid "Elsevier sees no subscription from this network, and couldn't be asked whether the key itself works."
+msgstr "Elsevier 在当前网络下检测不到订阅，也没能确认密钥本身是否有效。"
 
 #: packages/core/src/share/client.ts
 msgid "Couldn't reach the share server ({host})."
