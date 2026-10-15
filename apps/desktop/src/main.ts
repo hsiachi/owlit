@@ -469,6 +469,7 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app gets its icon from the bundle; a dev run is Electron's own binary, so set it here
     if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon.png"))
     const browser = createBrowserHost()
+    const proxy = await systemProxy()
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
@@ -478,10 +479,10 @@ if (!app.requestSingleInstanceLock()) {
       // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way
-      engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
+      engine: { command: process.execPath, args: [path.join(__dirname, "owlit-agent.cjs")], env: { ELECTRON_RUN_AS_NODE: "1", ...proxy } },
       // Claude Code's and Codex's adapters, set up by owlit with its own npm and run the same way. A
       // packaged app keeps npm outside the asar archive (asarUnpack), since npm runs its own scripts.
-      node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1", ...(await systemProxy()) } },
+      node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1", ...proxy } },
       npm: path.join(__dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked"), "npm", "bin", "npm-cli.js"),
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),

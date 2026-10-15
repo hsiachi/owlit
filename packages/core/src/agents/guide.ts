@@ -20,7 +20,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "papers",
     title: "Adding papers",
-    text: `In the Library, paste a DOI, an arXiv id or a paper's link into the find field at the top: owlit looks it up and offers to add it. PDFs can be dropped anywhere in the window, or chosen from the find field. File › Import a pitta Library… brings in a pitta library. To have papers found and added, ask in Chat ("Find recent papers on … and add the ones that fit"). Importing from Zotero or BibTeX isn't there yet.`,
+    text: `In the Library, paste a DOI, an arXiv id or a paper's link into the find field at the top: owlit looks it up and offers to add it. PDFs can be dropped anywhere in the window, or chosen from the find field. File › Import Papers… brings in a Zotero library, a BibTeX file or a folder of PDFs, and File › Import a pitta Library… a pitta library. To have papers found and added, ask in Chat ("Find recent papers on … and add the ones that fit").`,
   },
   {
     id: "pdfs",

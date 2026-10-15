@@ -1,5 +1,6 @@
 import type { TaskLane } from "@owlit/protocol"
 import { LANE_LIMITS, defineTask, type TaskDefinition } from "./scheduler.ts"
+import { sleep } from "../net/http.ts"
 
 export interface DebugTaskParams {
   ms?: number
@@ -30,15 +31,4 @@ export function debugTasks() {
     }),
   )
   return { definitions, params }
-}
-
-function sleep(ms: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal.aborted) return reject(signal.reason)
-    const timer = setTimeout(resolve, ms)
-    signal.addEventListener("abort", () => {
-      clearTimeout(timer)
-      reject(signal.reason)
-    }, { once: true })
-  })
 }

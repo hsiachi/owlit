@@ -41,9 +41,8 @@ export interface ProcessOptions {
   cwd: string
   // Ends the process after this long without a request or a running turn
   idleMs: number
-  // The process ended without being asked to (crashed, was killed); the next call starts it again.
-  // detail: "stopped (SIGKILL)", "exited with code 1: <its last line on stderr>"
-  onCrash(detail: string, ending: Ending): void
+  // The process ended without being asked to (crashed, was killed); the next call starts it again
+  onCrash(ending: Ending): void
   onStart?(): void
   // Any end: idle, stopped, crashed
   onExit?(): void
@@ -53,17 +52,15 @@ export interface ProcessOptions {
 const STDERR_KEPT = 20
 
 // A call cut off because the agent's process ended under it: owlit stopped it (the app quitting, a sign-out)
-// or it quit on its own, in which case `detail` says how ("exited with code 1: <its last line on stderr>")
+// or it quit on its own, in which case `ending` says how (its exit code and last line on stderr)
 export class AgentEnded extends Error {
   readonly stopped: boolean
-  readonly detail?: string
   readonly ending?: Ending
 
   constructor(stopped: boolean, ending?: Ending) {
     const detail = ending && describeEnding(ending)
     super(stopped ? "The agent was stopped." : `The agent ${detail ?? "quit"}.`)
     this.stopped = stopped
-    this.detail = detail
     this.ending = ending
   }
 }
@@ -76,6 +73,13 @@ const describeEnding = (ending: Ending) => ("signal" in ending ? `stopped (${end
 
 // The same as the user reads it, with the agent's name: whole sentences, so each language orders them its
 // own way. `again` adds that the next message starts it again.
+// A select option's values, flattening groups
+export const flatValues = (options: unknown) =>
+  (options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
+
+// ACP's "auth_required" error
+export const isAuthError = (error: unknown) => typeof error === "object" && error !== null && "code" in error && (error as { code: number }).code === -32000
+
 export function endingSentence(name: string, ending: Ending, again = false): string {
   if ("signal" in ending) {
     const signal = ending.signal
@@ -286,7 +290,7 @@ export class AcpProcess {
       const ending: Ending = signal ? { signal } : { code: code ?? 0, ...(last ? { last } : {}) }
       ended(ending)
       if (life.stopping) return
-      this.options.onCrash(describeEnding(ending), ending)
+      this.options.onCrash(ending)
       this.options.onExit?.()
     })
 

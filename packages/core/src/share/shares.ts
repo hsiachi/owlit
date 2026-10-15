@@ -7,6 +7,7 @@ import type { SecretBox } from "../host.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { buildBundle, type PaperSource } from "./bundle.ts"
 import { ShareClient, ShareError } from "./client.ts"
+import { messageOf, Serial } from "../util.ts"
 
 // The workspace's shared docs. Which doc has which link is kept in .owlit/shares.json, so it travels with
 // the folder; the key that lets this computer change a link is kept on this computer only (the workspace's
@@ -79,7 +80,7 @@ export class Shares {
   private cites = new Map<string, Set<string>>()
   // What changed since the last push: everything, or these docs and papers
   private dirty: { all: true } | { docs: Set<string>; papers: Set<string> } = { all: true }
-  private queue: Promise<unknown> = Promise.resolve()
+  private readonly serial = new Serial()
   // Why a share's latest changes haven't reached the server, by share id
   private problems = new Map<string, string>()
   private comments = new Map<string, ShareComment[]>()
@@ -93,7 +94,7 @@ export class Shares {
 
   // Loads the shares and starts following them
   async start() {
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       await this.load()
       this.follow()
     })
@@ -103,14 +104,14 @@ export class Shares {
   }
 
   list() {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const records = await this.load()
       return { server: this.services.server(), shares: await Promise.all(records.map((r) => this.view(r))) }
     })
   }
 
   create(docPath: string, notes: boolean) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const records = await this.load()
       const existing = records.find((r) => r.path === docPath)
       if (existing) return this.view(existing)
@@ -150,7 +151,7 @@ export class Shares {
   }
 
   update(docPath: string, change: { permission?: SharePermission; notes?: boolean }) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const record = await this.mine(docPath)
       const token = (await this.loadKeys()).get(record.id)!
       if (change.permission && change.permission !== record.permission) {
@@ -176,7 +177,7 @@ export class Shares {
   }
 
   stop(docPath: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const record = await this.mine(docPath)
       const token = (await this.loadKeys()).get(record.id)!
       await this.client(record.server)
@@ -191,7 +192,7 @@ export class Shares {
   }
 
   commentsOf(docPath: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const record = (await this.load()).find((r) => r.path === docPath)
       if (!record) return []
       await this.fetchComments(record).catch(() => undefined)
@@ -200,7 +201,7 @@ export class Shares {
   }
 
   reply(docPath: string, parent: string, text: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const record = await this.mine(docPath)
       const token = (await this.loadKeys()).get(record.id)!
       const name = (await this.services.author()) || t`The author`
@@ -213,7 +214,7 @@ export class Shares {
   }
 
   resolve(docPath: string, id: string, resolved: boolean) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const record = await this.mine(docPath)
       const token = (await this.loadKeys()).get(record.id)!
       await this.client(record.server)
@@ -240,7 +241,7 @@ export class Shares {
 
   // A doc or folder was renamed or moved: its shares go with it
   moved(from: string, to: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const records = await this.load()
       let any = false
       for (const record of records) {
@@ -264,22 +265,28 @@ export class Shares {
   // ---- inside
 
   private pushAll() {
-    return this.serial(async () => {
-      const keys = await this.loadKeys()
+    return this.serial.run(async () => {
       const dirty = this.dirty
       this.dirty = { docs: new Set(), papers: new Set() }
+      const records = await this.load()
+      if (!records.length) return
+      const keys = await this.loadKeys()
+      const before = JSON.stringify(records)
       // A share is built again when its doc or a paper it cites changed, or its last push didn't get through
       const stale = (record: ShareRecord) => {
         const cites = this.cites.get(record.id)
-        if ("all" in dirty || !cites || this.problems.has(record.id) || dirty.docs.has(record.path)) return true
+        if ("all" in dirty || !cites || this.problems.has(record.id)) return true
+        // A folder renamed, moved or deleted names the folder, not the docs in it
+        for (const doc of dirty.docs) if (record.path === doc || isWithin(record.path, doc)) return true
         for (const id of cites) if (dirty.papers.has(id)) return true
         return false
       }
-      for (const record of [...(await this.load())]) {
+      for (const record of [...records]) {
         const token = keys.get(record.id)
         if (token && stale(record)) await this.push(record, token).catch(() => undefined)
       }
-      await this.save()
+      // Most pushes find the bundle unchanged: shares.json is written only when one went out
+      if (JSON.stringify(this.records) !== before) await this.save()
     })
   }
 
@@ -301,7 +308,7 @@ export class Shares {
         await this.forget(record)
         return
       }
-      this.setProblem(record, error instanceof Error ? error.message : String(error))
+      this.setProblem(record, messageOf(error))
       throw error
     }
     record.pushedHash = hash
@@ -325,7 +332,7 @@ export class Shares {
   }
 
   private poll() {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const records = await this.load()
       for (const record of records) await this.fetchComments(record).catch(() => undefined)
       if (this.problems.size) this.touched({})
@@ -385,7 +392,7 @@ export class Shares {
 
   // Runs after the current queued work, for cleanup a failing call asks for
   private serialFree(work: () => Promise<unknown>) {
-    return this.queue.then(work).catch(() => undefined)
+    return this.serial.idle.then(work).catch(() => undefined)
   }
 
   private async view(record: ShareRecord): Promise<DocShare> {
@@ -469,11 +476,6 @@ export class Shares {
     await writeJsonAtomic(this.keysFile, { version: 1, keys } satisfies KeysFile)
   }
 
-  private serial<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(work)
-    this.queue = run.catch(() => undefined)
-    return run
-  }
 }
 
 const withResolved = (comment: ShareComment, resolved: boolean): ShareComment => {

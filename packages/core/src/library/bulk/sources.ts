@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import type { DatabaseSync } from "node:sqlite"
 import { parseRef, stripArxivVersion } from "../refs.ts"
+import { clean } from "../../util.ts"
 
 // The papers an existing collection holds, read as a flat list for a bulk import: a Zotero library
 // (its zotero.sqlite, or a Better BibTeX JSON export), a .bib file, or a folder of PDFs. Every source
@@ -686,9 +687,4 @@ function tagList(names: string[]): string[] | undefined {
 
 async function isFile(file: string): Promise<boolean> {
   return (await stat(file).catch(() => undefined))?.isFile() ?? false
-}
-
-// Without the fields nobody filled
-function clean(entry: ImportEntry): ImportEntry {
-  return Object.fromEntries(Object.entries(entry).filter(([, v]) => v !== undefined)) as unknown as ImportEntry
 }

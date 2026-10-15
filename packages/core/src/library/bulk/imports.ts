@@ -15,6 +15,7 @@ import { RpcFailure } from "../../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../../tasks/index.ts"
 import { paperIdOf } from "../refs.ts"
 import { readSource, type ImportEntry } from "./sources.ts"
+import { messageOf } from "../../util.ts"
 
 // Past this many papers an import asks before MinerU reads them all, since each one is paid for
 export const ASK_BEFORE_PARSING = 100
@@ -135,7 +136,7 @@ export class Imports {
       entries = await readSource(source, await checkPath(source, from), { collectionsAsTags: true })
     } catch (error) {
       if (error instanceof RpcFailure) throw error
-      throw new RpcFailure(RpcErrorCode.InvalidParams, error instanceof Error ? error.message : String(error))
+      throw new RpcFailure(RpcErrorCode.InvalidParams, messageOf(error))
     }
     const known = await Promise.all(entries.map((e) => this.host.find(e.ids)))
     const fresh = known.filter((id) => !id).length
@@ -201,7 +202,7 @@ export class Imports {
       try {
         entries = await readSource(record.source, record.path, { collectionsAsTags: record.collectionsAsTags })
       } catch (error) {
-        throw new TaskFailure(error instanceof Error ? error.message : String(error))
+        throw new TaskFailure(messageOf(error))
       }
       record.entries = entries
       await this.write(record)
@@ -260,7 +261,7 @@ export class Imports {
       }
       return result.existed ? ours(result.paper.id) : { result: "added", id: result.paper.id }
     } catch (error) {
-      return { result: "failed", ...(entry.title ? { title: entry.title } : {}), error: error instanceof Error ? error.message : String(error) }
+      return { result: "failed", ...(entry.title ? { title: entry.title } : {}), error: messageOf(error) }
     }
   }
 

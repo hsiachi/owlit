@@ -2,10 +2,11 @@ import { t } from "@lingui/core/macro"
 import type { PaperIds, PaperKind, PaperRecord } from "@owlit/protocol"
 import { cp, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
-import { readJson, writeFileAtomic } from "../fs-util.ts"
+import { exists, readJson, writeFileAtomic } from "../fs-util.ts"
 import type { Acquisition, Attempt } from "./pdf.ts"
 import { isPaperId, paperDir } from "./paths.ts"
-import { cleanDoi, parseRef, stripArxivVersion } from "./refs.ts"
+import { cleanDoi, isArxivDoi, parseRef, stripArxivVersion } from "./refs.ts"
+import { clean } from "../util.ts"
 
 // A pitta library (~/.pitta) brought into the workspace once. Each papers/<id>/ becomes
 // library/papers/<id>/ under the same id: metadata.json → paper.json, the PDF, the raw service
@@ -105,7 +106,7 @@ function idsOf(id: string, meta: PittaMetadata): PaperIds {
   const external = meta.external_ids ?? {}
   if (external.arxiv) ids.arxiv = stripArxivVersion(external.arxiv)
   const doi = external.doi ?? meta.doi
-  if (doi && !/^10\.48550\//i.test(doi)) ids.doi = cleanDoi(doi)
+  if (doi && !isArxivDoi(doi)) ids.doi = cleanDoi(doi)
   if (external.s2) ids.s2 = external.s2.toLowerCase()
   return ids
 }
@@ -133,13 +134,4 @@ function acquisitionOf(download: PittaDownload | undefined, pdf: boolean, dest: 
     at,
     dropHere: path.join(dest, "paper.pdf"),
   })
-}
-
-const exists = (file: string) => stat(file).then(
-  () => true,
-  () => false,
-)
-
-function clean<T extends object>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
 }

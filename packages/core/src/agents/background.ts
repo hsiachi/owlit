@@ -2,7 +2,8 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
-import { backgroundMeta, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
+import { flatValues } from "./process.ts"
+import { backgroundMeta, bareToolTitle, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
 import { preamble } from "./rules.ts"
 
@@ -14,7 +15,7 @@ import { preamble } from "./rules.ts"
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[background] ${line}`)
 
 // owlit-mcp tools a background session may use without asking
-const READ_ONLY = /^(mcp__owlit__)?(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|collection_(list|read)|activity_read|owlit_help)$/
+const READ_ONLY = /^(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|collection_(list|read)|activity_read|owlit_help)$/
 
 
 export interface BackgroundRun {
@@ -77,7 +78,8 @@ export class Background {
         },
         requestPermission: async (r) => {
           const name = r.toolCall.title ?? ""
-          const allowed = READ_ONLY.test(name) || !!run.allow?.test(name)
+          const tool = bareToolTitle(name)
+          const allowed = READ_ONLY.test(tool) || !!run.allow?.test(tool)
           log(`${allowed ? "allowed" : "refused"} ${name}`)
           const allow = allowed ? r.options.find((o) => o.kind === "allow_once") : undefined
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
@@ -143,7 +145,7 @@ async function setModel(proc: Awaited<ReturnType<Agents["process"]>>, session: a
   const option = session.configOptions?.find((o) => o.category === "model" && o.type === "select")
   if (!option || option.type !== "select") return false
   if (option.currentValue === model) return true
-  const values = (option.options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
+  const values = flatValues(option.options)
   if (values.includes(model)) {
     await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: model })
     return true
@@ -157,7 +159,7 @@ async function setModel(proc: Awaited<ReturnType<Agents["process"]>>, session: a
 async function setMode(proc: Awaited<ReturnType<Agents["process"]>>, session: acp.NewSessionResponse, mode: string) {
   const option = session.configOptions?.find((o) => o.category === "mode" && o.type === "select")
   if (option && option.type === "select") {
-    const values = (option.options as ({ value: string } | { options: { value: string }[] })[]).flatMap((o) => ("options" in o ? o.options : [o])).map((o) => o.value)
+    const values = flatValues(option.options)
     if (values.includes(mode) && option.currentValue !== mode) await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: mode })
   } else if (session.modes?.availableModes.some((m) => m.id === mode) && session.modes.currentModeId !== mode) {
     await proc.setMode({ sessionId: session.sessionId, modeId: mode })

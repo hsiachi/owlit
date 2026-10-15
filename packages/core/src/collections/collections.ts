@@ -22,13 +22,14 @@ import {
   type CollectionWrite,
 } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
-import { appendFile, mkdir, readdir, readFile, rename, rm } from "node:fs/promises"
+import { mkdir, readdir, rename } from "node:fs/promises"
 import path from "node:path"
 import type { Versions } from "../docs/versions.ts"
-import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
 import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from "./prompts.ts"
+import { Serial } from "../util.ts"
 
 // Collections: papers Owlit gathered for a question, in .owlit/collections/<id>/:
 //
@@ -81,17 +82,17 @@ const FILE = "collection.json"
 const DAY = 24 * 3_600_000
 
 // What each kind of run may use besides owlit's read-only tools
-const GATHER_TOOLS = /^(mcp__owlit__)?(library_(search|related|journal)|collection_write)$/
-const FILL_TOOLS = /^(mcp__owlit__)?collection_write$/
+const GATHER_TOOLS = /^(library_(search|related|journal)|collection_write)$/
+const FILL_TOOLS = /^collection_write$/
 // Reading in full means the paper is used: it joins the library
-const READ_TOOLS = /^(mcp__owlit__)?(library_add|collection_write)$/
+const READ_TOOLS = /^(library_add|collection_write)$/
 
 export class Collections {
   private readonly dir: string
   private readonly trashDir: string
   private readonly versions: Versions
   private readonly services: CollectionsServices
-  private writing: Promise<unknown> = Promise.resolve()
+  private readonly serial = new Serial()
   private scheduler: Scheduler | null = null
   // When each chat's or run's searches were last given to a write
   private attributed = new Map<string, number>()
@@ -171,7 +172,7 @@ export class Collections {
   // Owlit gathers papers for a question: the collection is there at once, titled by the question until
   // Owlit names it, and the task fills it
   gather(input: { question: string; project?: string; size: CollectionSize }) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const now = Date.now()
       const question = input.question.trim()
       if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
@@ -191,7 +192,7 @@ export class Collections {
 
   // A new column: one question for every paper, answered in the background
   ask(id: string, question: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const c = await this.get(id)
       const q = question.trim()
       if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to ask of each paper.`)
@@ -222,7 +223,7 @@ export class Collections {
   // A column that sets every paper against sentences the user picked from a doc of theirs. The column is
   // theirs (they chose the sentences); its cells are Owlit's reading.
   compare(id: string, doc: string, sentences: string[]) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const c = await this.get(id)
       const lines = sentences.map((text) => text.trim()).filter(Boolean)
       if (!lines.length) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Pick at least one sentence to compare with.`)
@@ -247,7 +248,7 @@ export class Collections {
   }
 
   private async checked(id: string) {
-    await this.serial(async () => {
+    await this.serial.run(async () => {
       const c = await this.load(id)
       if (!c) return
       c.checkedAt = Date.now()
@@ -263,7 +264,7 @@ export class Collections {
   // ---- Owlit's writes ----
 
   write(input: CollectionWrite) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const now = Date.now()
       const existing = input.id ? await this.load(input.id) : undefined
       if (input.id && !existing) throw new RpcFailure(RpcErrorCode.NotFound, `There is no collection ${input.id}; leave id out to start one.`)
@@ -446,7 +447,7 @@ export class Collections {
   // ---- The user's changes ----
 
   edit(id: string, edit: CollectionEdit) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const c = await this.get(id)
       const now = Date.now()
       const done = applyCollectionEdit(c, edit, now)
@@ -472,7 +473,7 @@ export class Collections {
   // collection of their own for that question. The user's words make its title until they rename it;
   // there is no memo yet, since Owlit's reading was of the other collection.
   split(id: string, rowIds: string[], asked: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const from = await this.get(id)
       const now = Date.now()
       const rows = from.rows.filter((r) => rowIds.includes(r.id))
@@ -506,7 +507,7 @@ export class Collections {
   // Undo of split(): the rows go back as they were in the collection they came from, with what the user
   // wrote in their answers since; one they removed here stays out, and so does one already back there
   unsplit(id: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const c = await this.get(id)
       if (!c.splitFrom) throw new RpcFailure(RpcErrorCode.NotFound, t`This collection wasn't kept separate from another.`)
       const from = await this.load(c.splitFrom.id)
@@ -526,8 +527,7 @@ export class Collections {
       from.updatedAt = now
       await this.save(from)
       await this.record(from.id, { at: now, by: "you", why: `Put back from ${c.id}`, items: back.map((r) => itemId.row(r.id)) })
-      await mkdir(this.trashDir, { recursive: true })
-      await rename(path.join(this.dir, c.id), path.join(this.trashDir, `${now}-collection-${c.id}`))
+      await this.toTrash(c.id, now)
       this.services.changed?.(c.id, null)
       this.services.changed?.(from.id, from)
       return from
@@ -536,17 +536,16 @@ export class Collections {
 
   // To .owlit/trash/<stamp>-collection-<id>/, whole, so undelete() can put it back
   delete(id: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       await this.get(id)
-      await mkdir(this.trashDir, { recursive: true })
-      await rename(path.join(this.dir, id), path.join(this.trashDir, `${Date.now()}-collection-${id}`))
+      await this.toTrash(id)
       this.services.changed?.(id, null)
       return null
     })
   }
 
   undelete(id: string) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       if (await this.load(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That collection is already here.`, { id })
       const suffix = `-collection-${id}`
       const entry = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix)).sort().reverse()[0]
@@ -564,14 +563,11 @@ export class Collections {
   // putting the collection in the trash. What it replaces is kept as a version too, so the undo can be
   // undone.
   restoreVersion(id: string, content: string, existed: boolean, meta: { chatId?: string }) {
-    return this.serial(async () => {
+    return this.serial.run(async () => {
       const now = await this.load(id)
       const redo = await this.versions.saveCollection(id, now ? JSON.stringify(now) : null, { ...meta, by: "undo" })
       if (!existed) {
-        if (now) {
-          await mkdir(this.trashDir, { recursive: true })
-          await rename(path.join(this.dir, id), path.join(this.trashDir, `${Date.now()}-collection-${id}`))
-        }
+        if (now) await this.toTrash(id)
         this.services.changed?.(id, null)
       } else {
         const back = JSON.parse(content) as Collection
@@ -675,38 +671,24 @@ export class Collections {
     return readJson<Collection>(path.join(this.dir, id, FILE))
   }
 
+  // Into .owlit/trash as <when>-collection-<id>, where undelete finds the latest
+  private async toTrash(id: string, at = Date.now()) {
+    await mkdir(this.trashDir, { recursive: true })
+    await rename(path.join(this.dir, id), path.join(this.trashDir, `${at}-collection-${id}`))
+  }
+
   private async save(c: Collection) {
     await writeJsonAtomic(path.join(this.dir, c.id, FILE), c)
   }
 
   private async record(id: string, line: HistoryLine) {
-    await mkdir(path.join(this.dir, id), { recursive: true })
-    await appendFile(path.join(this.dir, id, "history.jsonl"), JSON.stringify(line) + "\n")
+    await appendJsonl(path.join(this.dir, id, "history.jsonl"), line)
   }
 
-  async history(id: string): Promise<HistoryLine[]> {
-    const text = await readFile(path.join(this.dir, id, "history.jsonl"), "utf8").catch(() => "")
-    return text
-      .split("\n")
-      .filter((l) => l.trim())
-      .flatMap((l) => {
-        try {
-          return [JSON.parse(l) as HistoryLine]
-        } catch {
-          return []
-        }
-      })
+  history(id: string): Promise<HistoryLine[]> {
+    return readJsonl<HistoryLine>(path.join(this.dir, id, "history.jsonl"))
   }
 
-  async remove(id: string) {
-    await rm(path.join(this.dir, id), { recursive: true, force: true })
-  }
-
-  private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.writing.then(fn, fn)
-    this.writing = next.catch(() => undefined)
-    return next
-  }
 }
 
 function sameCell(a: CollectionCell, b: CollectionCell) {

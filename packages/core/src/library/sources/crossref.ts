@@ -1,5 +1,6 @@
 import type { Http, RequestOptions } from "../../net/http.ts"
 import type { SourceRecord, Years } from "./types.ts"
+import { decodeEntities, squash } from "../html-text.ts"
 
 // Crossref: what a publisher registered. For a journal it is the full list, since every article gets
 // its DOI there, so it answers "everything this journal published in 2024" where a search index can
@@ -86,10 +87,10 @@ function parseWork(work: Work): JournalArticle {
   return {
     doi: work.DOI.toLowerCase(),
     title: plainTitle(work.title?.[0]) ?? "Untitled",
-    authors: (work.author ?? []).map((a) => squash(decode(a.name ?? [a.given, a.family].filter(Boolean).join(" ")))!).filter(Boolean),
+    authors: (work.author ?? []).map((a) => squash(decodeEntities(a.name ?? [a.given, a.family].filter(Boolean).join(" ")))!).filter(Boolean),
     year,
     date: year ? [year, month, day].filter(Boolean).map((n, i) => (i ? String(n).padStart(2, "0") : String(n))).join("-") : undefined,
-    journal: squash(decode(work["container-title"]?.[0] ?? "")),
+    journal: squash(decodeEntities(work["container-title"]?.[0] ?? "")),
     volume: work.volume,
     issue: work.issue,
     page: work.page,
@@ -169,7 +170,7 @@ export function joinSubtitle(title: string, subtitle: string | undefined) {
 }
 
 // Registered titles may carry markup (<i>, <sub>)
-const plainTitle = (text: string | undefined) => (text ? squash(decode(text).replace(/<[^>]+>/g, "")) : undefined)
+const plainTitle = (text: string | undefined) => (text ? squash(decodeEntities(text).replace(/<[^>]+>/g, "")) : undefined)
 
 // Volume, then issue, then first page; articles not yet in an issue go last, newest first among them
 function issueOrder(a: JournalArticle, b: JournalArticle) {
@@ -184,15 +185,4 @@ function issueOrder(a: JournalArticle, b: JournalArticle) {
 }
 
 // Crossref abstracts are JATS XML: <jats:p>, <jats:title>Abstract</jats:title>, entities
-const stripJats = (xml: string) => squash(decode(xml.replace(/<jats:title>\s*Abstract\s*<\/jats:title>/i, "").replace(/<[^>]+>/g, " ")))
-
-// Titles and names come with HTML entities too ("Information Processing &amp; Management")
-const decode = (text: string) =>
-  text
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&amp;/g, "&")
-
-const squash = (value: string | undefined) => value?.replace(/\s+/g, " ").trim() || undefined
+const stripJats = (xml: string) => squash(decodeEntities(xml.replace(/<jats:title>\s*Abstract\s*<\/jats:title>/i, "").replace(/<[^>]+>/g, " ")))

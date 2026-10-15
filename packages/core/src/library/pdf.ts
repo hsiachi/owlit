@@ -7,12 +7,16 @@ import { pipeline } from "node:stream/promises"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { paperDir } from "./paths.ts"
+import { messageOf } from "../util.ts"
 
 // Where a paper's PDF can come from, tried in order until one gives a real PDF. Not finding one is a
 // fact about this machine and moment (acquisition.json says what was tried), not an error.
 
 // The largest PDF owlit keeps
-const MAX_BYTES = 200 * 1024 * 1024
+export const PDF_MAX_BYTES = 200 * 1024 * 1024
+
+// Whether these are the first bytes of a PDF
+export const isPdfBytes = (head: Uint8Array) => head.length >= 5 && Buffer.from(head.subarray(0, 5)).toString("latin1") === "%PDF-"
 
 export type RouteKind = "arxiv" | "upstream" | "api" | "publisher" | "unpaywall" | "browser"
 
@@ -239,7 +243,7 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
   const response = await http.get(url, { signal, retries: 1, timeoutMs: 120_000, headers: { accept: "application/pdf,*/*;q=0.8", ...headers } })
   if (!response.body) throw new NotAPdf(`${hostOf(url)} sent nothing.`)
   const declared = Number(response.headers.get("content-length"))
-  if (declared > MAX_BYTES) {
+  if (declared > PDF_MAX_BYTES) {
     await response.body.cancel().catch(() => {})
     throw new NotAPdf(`The PDF at ${hostOf(url)} is larger than 200 MB.`)
   }
@@ -251,10 +255,10 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
   async function* checked(source: AsyncIterable<Uint8Array>) {
     for await (const chunk of source) {
       seen += chunk.byteLength
-      if (seen > MAX_BYTES) throw new NotAPdf(`The PDF at ${host} is larger than 200 MB.`)
+      if (seen > PDF_MAX_BYTES) throw new NotAPdf(`The PDF at ${host} is larger than 200 MB.`)
       if (head.length < 5) {
         head = Buffer.concat([head, Buffer.from(chunk)]).subarray(0, 5)
-        if (head.length >= 5 && head.toString("latin1") !== "%PDF-") {
+        if (head.length >= 5 && !isPdfBytes(head)) {
           throw new NotAPdf(type.includes("html") ? `${host} served a web page, not a PDF.` : `${host} didn't send a PDF.`)
         }
       }
@@ -291,5 +295,5 @@ export const hasPdfFile = (root: string, id: string) =>
 export function describeFailure(error: unknown): Pick<Attempt, "status" | "error"> {
   if (error instanceof HttpError) return { status: error.status, error: error.message }
   if (error instanceof NotAPdf) return { error: error.message }
-  return { error: error instanceof Error ? error.message : String(error) }
+  return { error: messageOf(error) }
 }

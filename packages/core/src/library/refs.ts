@@ -18,6 +18,7 @@ const S2_ID = /^(?:s2[:-])?([0-9a-f]{40})$/i
 const OPENALEX_ID = /^(?:openalex:)?(W\d{4,})$/i
 // The DOI DataCite gives every arXiv paper
 const ARXIV_DOI = /^10\.48550\/arxiv\.(.+)$/i
+export const isArxivDoi = (doi: string) => ARXIV_DOI.test(doi)
 
 // The identifier in what was pasted, or undefined when it is words rather than a reference
 export function parseRef(input: string): Ref | undefined {
@@ -98,7 +99,8 @@ function fromUrl(text: string): Ref | undefined {
   return { kind: "url", value: url.toString() }
 }
 
-function doiRef(raw: string): Ref {
+// A DOI as a reference: arXiv's own DOI is the arXiv paper
+export function doiRef(raw: string): Ref {
   const doi = cleanDoi(raw)
   const arxiv = doi.match(ARXIV_DOI)
   if (arxiv) return { kind: "arxiv", value: arxiv[1] }

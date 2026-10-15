@@ -153,8 +153,14 @@ export function ownTurnOver(connectorId: string, u: acp.SessionUpdate): boolean 
 // Claude Code titles it mcp__owlit__<tool>
 export function isOwlitCall(call: { title?: string | null; rawInput?: unknown }) {
   const input = call.rawInput as { server?: unknown } | undefined
-  return input?.server === "owlit" || /^mcp(\.|__)owlit(\.|__)/.test(call.title ?? "")
+  return input?.server === "owlit" || OWLIT_PREFIX.test(call.title ?? "")
 }
+
+const OWLIT_PREFIX = /^mcp(\.|__)owlit(\.|__)/
+
+// A tool call's title without the prefix either agent puts on owlit's tools: library_get for
+// mcp__owlit__library_get and mcp.owlit.library_get alike
+export const bareToolTitle = (title: string) => title.replace(OWLIT_PREFIX, "")
 
 // ---- Files the user attaches ----
 

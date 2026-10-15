@@ -25,6 +25,7 @@ import { tryServer, tryToken } from "./library/parse/mineru.ts"
 import { HttpError, type Http } from "./net/http.ts"
 import { noParams, RpcFailure, type Router } from "./rpc/index.ts"
 import type { SettingsStore } from "./settings.ts"
+import { clean } from "./util.ts"
 
 // Where each key the window may set lives in AppSettings
 const SECRET_FIELDS = {
@@ -53,7 +54,7 @@ export function settingsView(s: AppSettings, systemLanguages: readonly string[] 
     appearance: s.appearance,
     locale: interfaceLocale(s.appearance.language, systemLanguages),
     profile: s.profile,
-    library: defined({
+    library: clean({
       contactEmail: library.contactEmail,
       proxy: library.proxy,
       proxySignedInAt: library.proxySignedInAt,
@@ -61,18 +62,13 @@ export function settingsView(s: AppSettings, systemLanguages: readonly string[] 
       digestLanguageSystem: defaultNoteLanguage(s, systemLanguages),
       digestEveryPaper: library.digestEveryPaper,
     }),
-    parsing: defined({ service: parsing.service, url: parsing.url, auto: parsing.auto ?? true }),
+    parsing: clean({ service: parsing.service, url: parsing.url, auto: parsing.auto ?? true }),
     secrets,
-    ...defined({ backgroundAgent: s.connectors.background, backgroundModels: s.connectors.backgroundModels }),
+    ...clean({ backgroundAgent: s.connectors.background, backgroundModels: s.connectors.backgroundModels }),
     activity: s.activity,
     // Settings from before onboardedAt was kept: a recent workspace means the same
     onboarded: !!s.onboardedAt || s.recentWorkspaces.length > 0,
   }
-}
-
-// Leaves out what isn't set, so a view reads the same in process as after JSON
-function defined<T extends object>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
 }
 
 // Sets each field given, and removes each one given as null (back to its default)
