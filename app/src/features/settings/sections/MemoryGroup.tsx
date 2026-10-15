@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { shortDate } from "@/lib/time"
 import { toastError } from "@/lib/toast"
+import { useFoldWhile } from "../form-state"
 import { decideClaudeNote, loadMemory, putLine, removeLine, useMemory } from "../memory"
 import { Group, List, Row } from "../parts"
 import { closeSettings } from "../store"
@@ -160,6 +161,8 @@ function LineField({ value, placeholder, onDone }: { value: string; placeholder?
     setDone(true)
     onDone(text)
   }
+  // Esc folds the field before it closes the dialog
+  useFoldWhile(!done, () => finish(null))
   return (
     <Input
       autoFocus
@@ -172,12 +175,7 @@ function LineField({ value, placeholder, onDone }: { value: string; placeholder?
       onBlur={() => finish(draft.trim() || null)}
       onKeyDown={(e) => {
         if (e.key === "Enter") finish(draft.trim() || null)
-        if (e.key === "Escape") {
-          // Esc closes the field, not the dialog
-          e.stopPropagation()
-          e.preventDefault()
-          finish(null)
-        }
+        if (e.key === "Escape") finish(null)
       }}
     />
   )
