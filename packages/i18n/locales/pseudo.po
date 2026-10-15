@@ -6771,15 +6771,19 @@ msgid "The key works, but Elsevier sees no subscription from this network. On th
 msgstr ""
 
 #: packages/core/src/settings-rpc.ts
-msgid "Elsevier refused this key. Check it was copied whole."
-msgstr ""
-
-#: packages/core/src/settings-rpc.ts
 msgid "Wiley refused: either the token isn't valid or it sees no subscription from this network."
 msgstr ""
 
 #: packages/core/src/settings-rpc.ts
 msgid "{service} is busy; the key will be tried on the next paper."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Elsevier refused this key. Check it was copied whole."
+msgstr ""
+
+#: packages/core/src/settings-rpc.ts
+msgid "Elsevier sees no subscription from this network, and couldn't be asked whether the key itself works."
 msgstr ""
 
 #: packages/core/src/share/client.ts
