@@ -3,7 +3,9 @@ import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Kbd } from "@/components/ui/kbd"
 import { Textarea } from "@/components/ui/textarea"
+import { keysFor } from "@/app/shortcuts"
 import { FoldButton } from "@/components/fold"
 import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
@@ -209,19 +211,22 @@ function EntryMenu({ first, hasReplies, onEdit, onDelete }: { entry: EntryView; 
   )
 }
 
-// The field's buttons: Cancel, anything else it offers, then the one ⌘↵ presses
-function FieldButtons({ label, disabled, onCancel, onSubmit, children }: { label: string; disabled: boolean; onCancel: () => void; onSubmit: () => void; children?: React.ReactNode }) {
+// The field's buttons: Cancel (where there is room for it), anything else it offers, then the one ⌘↵ presses, with the key shown on it as
+// "New doc ⌘N" shows its own (Linear and GitHub label theirs the same way). Not in the placeholder, which is
+// gone by the time there is something to send; the buttons only appear once there is.
+function FieldButtons({ label, disabled, onCancel, onSubmit, children }: { label: string; disabled: boolean; onCancel?: () => void; onSubmit: () => void; children?: React.ReactNode }) {
   return (
     <div className="mt-1.5 flex justify-end gap-1">
-      <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
-        {t`Cancel`}
-      </Button>
-      {children}
-      <Tip label={label} shortcut="save-comment">
-        <Button size="sm" disabled={disabled} onClick={onSubmit}>
-          {label}
+      {onCancel && (
+        <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+          {t`Cancel`}
         </Button>
-      </Tip>
+      )}
+      {children}
+      <Button size="sm" disabled={disabled} onClick={onSubmit}>
+        {label}
+        <Kbd className="bg-transparent text-primary-foreground/60">{keysFor("save-comment")}</Kbd>
+      </Button>
     </div>
   )
 }
@@ -309,7 +314,9 @@ function ReplyField({
       {text && (
         <>
           {hint && <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3 [&_svg]:shrink-0">{hint.icon}{hint.text}</p>}
-          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={() => setText("")} onSubmit={() => void send()}>
+          {/* Beside Ask Owlit there is no room for Cancel in the column; Esc clears the field, as in Feishu
+              and Linear, whose comment fields have only their send button */}
+          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={toOwlit ? undefined : () => setText("")} onSubmit={() => void send()}>
             {toOwlit && (
               <Button variant="outline" size="sm" disabled={sending} onClick={() => void send(true)}>
                 <OwlitMark />

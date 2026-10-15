@@ -346,6 +346,10 @@ msgid "in a doc"
 msgstr "在文档中"
 
 #: app/src/app/shortcuts.ts
+msgid "Save a comment"
+msgstr "保存备注"
+
+#: app/src/app/shortcuts.ts
 msgid "Next comment"
 msgstr "下一条评论"
 
@@ -403,10 +407,6 @@ msgstr "使用颜色 1 到 4"
 #: app/src/app/shortcuts.ts
 msgid "Copy the selection"
 msgstr "拷贝所选内容"
-
-#: app/src/app/shortcuts.ts
-msgid "Save a comment"
-msgstr "保存备注"
 
 #: app/src/app/shortcuts.ts
 msgid "Close the popover"

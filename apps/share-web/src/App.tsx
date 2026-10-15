@@ -506,6 +506,8 @@ function NewComment({ anchor, name, onCancel, onSend }: { anchor: ShareAnchor; n
   )
 }
 
+const SEND_KEYS = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl ↵"
+
 function Composer({ name, placeholder, action, onSend, onCancel, autoFocus }: { name: string; placeholder: string; action: string; onSend: (text: string, name: string) => Promise<void>; onCancel?: () => void; autoFocus?: boolean }) {
   const [text, setText] = useState("")
   const [who, setWho] = useState(name)
@@ -573,8 +575,10 @@ function Composer({ name, placeholder, action, onSend, onCancel, autoFocus }: { 
             {t`Cancel`}
           </button>
         )}
-        <button type="submit" disabled={!text.trim() || !who.trim() || sending} className="h-7 rounded-lg bg-primary px-2.5 text-detail font-medium text-primary-foreground disabled:opacity-50">
+        <button type="submit" disabled={!text.trim() || !who.trim() || sending} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-detail font-medium text-primary-foreground disabled:opacity-50">
           {action}
+          {/* The key that sends, as owlit shows it on its own comment buttons; a reader may not be on a Mac */}
+          <kbd className="font-sans text-xs text-primary-foreground/60">{SEND_KEYS}</kbd>
         </button>
       </div>
     </form>

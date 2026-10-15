@@ -346,6 +346,10 @@ msgid "in a doc"
 msgstr "in a doc"
 
 #: app/src/app/shortcuts.ts
+msgid "Save a comment"
+msgstr "Save a comment"
+
+#: app/src/app/shortcuts.ts
 msgid "Next comment"
 msgstr "Next comment"
 
@@ -403,10 +407,6 @@ msgstr "in colour 1 to 4"
 #: app/src/app/shortcuts.ts
 msgid "Copy the selection"
 msgstr "Copy the selection"
-
-#: app/src/app/shortcuts.ts
-msgid "Save a comment"
-msgstr "Save a comment"
 
 #: app/src/app/shortcuts.ts
 msgid "Close the popover"

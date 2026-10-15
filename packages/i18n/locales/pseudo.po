@@ -346,6 +346,10 @@ msgid "in a doc"
 msgstr ""
 
 #: app/src/app/shortcuts.ts
+msgid "Save a comment"
+msgstr ""
+
+#: app/src/app/shortcuts.ts
 msgid "Next comment"
 msgstr ""
 
@@ -402,10 +406,6 @@ msgstr ""
 
 #: app/src/app/shortcuts.ts
 msgid "Copy the selection"
-msgstr ""
-
-#: app/src/app/shortcuts.ts
-msgid "Save a comment"
 msgstr ""
 
 #: app/src/app/shortcuts.ts
