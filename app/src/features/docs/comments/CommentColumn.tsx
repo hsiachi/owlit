@@ -11,7 +11,7 @@ import { useDocsUiStore } from "../ui-store"
 import { ClosedCard, NewCard, OpenCard } from "./CommentCard"
 import { useCommentSlot, useCommentTops } from "./layout"
 import { useCommentViews } from "./hooks"
-import { askAbout, deleteEntry, editEntry, reply, replyAndAsk, resolve, startComment, type CommentView } from "./model"
+import { askAbout, deleteEntry, editEntry, reply, resolve, startComment, type CommentView } from "./model"
 
 const GAP = 8
 
@@ -102,7 +102,6 @@ export function CommentColumn({ fileId, pins, width }: { fileId: string; pins: b
         onAsk: () => askAbout(fileId, view, fromOf(view.key)),
         onResolve: () => resolve(fileId, view),
         onReply: (text) => reply(fileId, view, text),
-        onReplyAndAsk: view.doc && view.entries[0]?.who === "owlit" ? (text) => replyAndAsk(fileId, view, text, fromOf(view.key)) : undefined,
         onEdit: (entryId, text) => view.doc && editEntry(fileId, view.doc.id, entryId, text),
         onDelete: (entryId) => view.doc && deleteEntry(fileId, view.doc.id, entryId),
         onClose: close,

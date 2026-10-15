@@ -94,8 +94,6 @@ interface OpenActions {
   onAsk: () => void
   onResolve: () => void
   onReply: (text: string) => Promise<void> | void
-  // Owlit's comments only: the reply is kept and asked in a chat too, since Owlit doesn't read replies
-  onReplyAndAsk?: (text: string) => Promise<void>
   onEdit: (entryId: string, text: string) => void
   onDelete: (entryId: string) => void
   onClose: () => void
@@ -146,7 +144,7 @@ export function OpenCard({ view, lost, actions, focusReply }: { view: CommentVie
         ))}
         <AskedLine commentKey={view.key} />
         {/* Keyed by the comment, so another comment opened in its place starts with an empty field */}
-        <ReplyField key={view.key} view={view} autoFocus={focusReply} onReply={actions.onReply} onReplyAndAsk={actions.onReplyAndAsk} />
+        <ReplyField key={view.key} view={view} autoFocus={focusReply} onReply={actions.onReply} />
       </div>
     </div>
   )
@@ -211,18 +209,15 @@ function EntryMenu({ first, hasReplies, onEdit, onDelete }: { entry: EntryView; 
   )
 }
 
-// The field's buttons: Cancel (where there is room for it), anything else it offers, then the one ⌘↵ presses, with the key shown on it as
+// The field's buttons: Cancel, then the one ⌘↵ presses, with the key shown on it as
 // "New doc ⌘N" shows its own (Linear and GitHub label theirs the same way). Not in the placeholder, which is
 // gone by the time there is something to send; the buttons only appear once there is.
-function FieldButtons({ label, disabled, onCancel, onSubmit, children }: { label: string; disabled: boolean; onCancel?: () => void; onSubmit: () => void; children?: React.ReactNode }) {
+function FieldButtons({ label, disabled, onCancel, onSubmit }: { label: string; disabled: boolean; onCancel: () => void; onSubmit: () => void }) {
   return (
     <div className="mt-1.5 flex justify-end gap-1">
-      {onCancel && (
-        <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
-          {t`Cancel`}
-        </Button>
-      )}
-      {children}
+      <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+        {t`Cancel`}
+      </Button>
       <Button size="sm" disabled={disabled} onClick={onSubmit}>
         {label}
         <Kbd className="bg-transparent text-primary-foreground/60">{keysFor("save-comment")}</Kbd>
@@ -257,25 +252,15 @@ function AskedLine({ commentKey }: { commentKey: string }) {
 
 // The reply field, always at the bottom: it adds to the whole comment. Who hears it is said once there is
 // something to send.
-function ReplyField({
-  view,
-  autoFocus,
-  onReply,
-  onReplyAndAsk,
-}: {
-  view: CommentView
-  autoFocus?: boolean
-  onReply: (text: string) => Promise<void> | void
-  onReplyAndAsk?: (text: string) => Promise<void>
-}) {
+function ReplyField({ view, autoFocus, onReply }: { view: CommentView; autoFocus?: boolean; onReply: (text: string) => Promise<void> | void }) {
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
-  const send = async (ask = false) => {
+  const send = async () => {
     const said = text.trim()
     if (!said || sending) return
     setSending(true)
     try {
-      await (ask && onReplyAndAsk ? onReplyAndAsk(said) : onReply(said))
+      await onReply(said)
       setText("")
     } catch {
       // The error was shown; what was typed stays
@@ -287,17 +272,17 @@ function ReplyField({
   const hint = view.thread
     ? { icon: <LinkIcon />, text: t`${startedBy.name} sees replies on the shared page.` }
     : startedBy.who === "owlit"
-      ? { icon: null, text: t`Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat.` }
+      ? // Owlit doesn't answer in a comment until it can be seen working outside a chat (docs/decisions,
+        // "Owlit's presence"); till then the feather in the card's first row asks it in the docked chat
+        { icon: <OwlitMark />, text: t`Owlit doesn’t answer in comments yet. To ask it, use the feather above.` }
       : null
-  // Replying is what people do to a remark, so on Owlit's the field says from the start that it can go to Owlit
-  const toOwlit = startedBy.who === "owlit" && !!onReplyAndAsk
   return (
     <div className="mt-3 mb-0.5">
       <Textarea
         rows={1}
         autoFocus={autoFocus}
         value={text}
-        placeholder={toOwlit ? t`Reply, or ask Owlit…` : t`Reply…`}
+        placeholder={t`Reply…`}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -313,17 +298,8 @@ function ReplyField({
       />
       {text && (
         <>
-          {hint && <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3 [&_svg]:shrink-0">{hint.icon}{hint.text}</p>}
-          {/* Beside Ask Owlit there is no room for Cancel in the column; Esc clears the field, as in Feishu
-              and Linear, whose comment fields have only their send button */}
-          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={toOwlit ? undefined : () => setText("")} onSubmit={() => void send()}>
-            {toOwlit && (
-              <Button variant="outline" size="sm" disabled={sending} onClick={() => void send(true)}>
-                <OwlitMark />
-                {t`Ask Owlit`}
-              </Button>
-            )}
-          </FieldButtons>
+          {hint && <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground [&_svg]:mt-0.5 [&_svg]:size-3 [&_svg]:shrink-0">{hint.icon}{hint.text}</p>}
+          <FieldButtons label={t({ message: "Reply", comment: "send a reply to a comment" })} disabled={sending} onCancel={() => setText("")} onSubmit={() => void send()} />
         </>
       )}
     </div>

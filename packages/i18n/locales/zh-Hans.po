@@ -285,7 +285,6 @@ msgstr "在文献库和脉络中"
 #: app/src/components/selection-menu-items.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -2455,17 +2454,13 @@ msgid "{0} sees replies on the shared page."
 msgstr "{0} 会在分享页面上看到回复。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
-msgstr "Owlit 不看回复。点“问 Owlit”，回复会留在这里，并在对话中问它。"
+msgid "Owlit doesn’t answer in comments yet. To ask it, use the feather above."
+msgstr "Owlit 暂时不会在评论里回复。要问它，请点上方的羽毛。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 #: apps/share-web/src/App.tsx
 msgid "Reply…"
 msgstr "回复…"
-
-#: app/src/features/docs/comments/CommentCard.tsx
-msgid "Reply, or ask Owlit…"
-msgstr "回复，或问 Owlit…"
 
 #. send a reply to a comment
 #: app/src/features/docs/comments/CommentCard.tsx

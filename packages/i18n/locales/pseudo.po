@@ -285,7 +285,6 @@ msgstr ""
 #: app/src/components/selection-menu-items.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -2455,16 +2454,12 @@ msgid "{0} sees replies on the shared page."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
+msgid "Owlit doesn’t answer in comments yet. To ask it, use the feather above."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
 #: apps/share-web/src/App.tsx
 msgid "Reply…"
-msgstr ""
-
-#: app/src/features/docs/comments/CommentCard.tsx
-msgid "Reply, or ask Owlit…"
 msgstr ""
 
 #. send a reply to a comment

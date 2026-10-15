@@ -188,9 +188,9 @@ export function askedChat(key: string) {
 // knows what was said there. It goes on in the chat this comment was asked about before, else in a new
 // one: the chat docked at the time is usually about something else. Once the question is sent, the comment
 // remembers that chat, so its card can lead to the answer.
-function askWith(fileId: string, view: CommentView, from?: number) {
+export function askAbout(fileId: string, view: CommentView, from?: number) {
   const file = useDocsStore.getState().files[fileId]
-  if (!file) return null
+  if (!file) return
   const selection: QuotedSelection = {
     text: view.quote,
     source: docMentionable(file),
@@ -209,17 +209,4 @@ function askWith(fileId: string, view: CommentView, from?: number) {
       if (s.chatId) useDocsUiStore.getState().setAsked(view.key, s.chatId)
     })
   }
-  return file
-}
-
-export function askAbout(fileId: string, view: CommentView, from?: number) {
-  askWith(fileId, view, from)
-}
-
-// A reply on Owlit's comment that is meant for Owlit: kept on the comment as a reply, and asked in the chat
-// as the question, since Owlit doesn't read replies
-export async function replyAndAsk(fileId: string, view: CommentView, text: string, from?: number) {
-  await reply(fileId, view, text)
-  const file = askWith(fileId, view, from)
-  if (file) useAgentWindow.getState().send({ text, mentions: [], attachments: [] }, [docMentionable(file)])
 }
