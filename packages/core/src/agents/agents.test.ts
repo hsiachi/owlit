@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { SettingsStore } from "../settings.ts"
-import { Agents, tidy } from "./agents.ts"
+import { agentEnv, Agents, tidy } from "./agents.ts"
 import { splitCommand } from "./command.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
@@ -45,6 +45,43 @@ describe("splitCommand", () => {
   it("splits on spaces and keeps quoted words whole", () => {
     expect(splitCommand(`gemini --experimental-acp`)).toEqual(["gemini", "--experimental-acp"])
     expect(splitCommand(`"/Applications/My Agent/bin" --x 'a b' ""`)).toEqual(["/Applications/My Agent/bin", "--x", "a b", ""])
+  })
+})
+
+describe("agentEnv", () => {
+  it("drops the variables of a Claude Code session owlit was started from, and keeps sign-in ones", () => {
+    const env = agentEnv({
+      PATH: "/usr/bin",
+      HOME: "/Users/me",
+      CLAUDECODE: "1",
+      CLAUDE_PID: "123",
+      CLAUDE_EFFORT: "medium",
+      AI_AGENT: "claude-code_2-1-295_agent",
+      CLAUDE_CODE_ENTRYPOINT: "claude-desktop",
+      CLAUDE_CODE_SESSION_ID: "abc",
+      CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH: "1",
+      CLAUDE_AGENT_SDK_VERSION: "0.3.295",
+      CLAUDE_PREVIEW_CLASSIFIER_FLOOR: "1",
+      CLAUDE_CODE_OAUTH_TOKEN: "token",
+      CLAUDE_CODE_USE_BEDROCK: "1",
+      CLAUDE_CONFIG_DIR: "/Users/me/.claude-work",
+      ANTHROPIC_API_KEY: "key",
+      HTTPS_PROXY: "http://127.0.0.1:7890",
+    })
+    expect(env).toEqual({
+      PATH: "/usr/bin",
+      HOME: "/Users/me",
+      CLAUDE_CODE_OAUTH_TOKEN: "token",
+      CLAUDE_CODE_USE_BEDROCK: "1",
+      CLAUDE_CONFIG_DIR: "/Users/me/.claude-work",
+      ANTHROPIC_API_KEY: "key",
+      HTTPS_PROXY: "http://127.0.0.1:7890",
+    })
+  })
+
+  it("leaves an environment from outside a Claude Code session as it is", () => {
+    const env = { PATH: "/usr/bin", CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8000" }
+    expect(agentEnv(env)).toEqual(env)
   })
 })
 

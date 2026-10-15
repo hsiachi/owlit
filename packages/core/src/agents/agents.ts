@@ -39,6 +39,41 @@ export interface Launch {
 
 export const ENGINE_ID = "owlit-engine"
 
+// owlit's environment as an agent gets it. An owlit started from inside a Claude Code session (`pnpm try`
+// run by Claude, say) inherits that session's variables, and an agent would take them as its own: with
+// CLAUDE_CODE_ENTRYPOINT=claude-desktop, Claude Code makes one more model request after each answer
+// and ends the turn about 2 s late, and counts owlit's chats as desktop sessions. So when owlit runs
+// inside such a session, the variables Claude Code sets for its children are dropped. What a person sets
+// to sign in or choose a provider stays (ANTHROPIC_*, CLAUDE_CONFIG_DIR and the CLAUDE_CODE_ names below);
+// the installed app, opened from the Finder, has none of this and is left as it is.
+const KEPT_CLAUDE_CODE = new Set([
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CLAUDE_CODE_USE_FOUNDRY",
+  "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+  "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+  "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
+  "CLAUDE_CODE_API_KEY_HELPER_TTL_MS",
+  "CLAUDE_CODE_CLIENT_CERT",
+  "CLAUDE_CODE_CLIENT_KEY",
+  "CLAUDE_CODE_CLIENT_KEY_PASSPHRASE",
+])
+const SESSION_ONLY = ["CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT", "AI_AGENT"]
+
+export function agentEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  if (!env.CLAUDECODE && !env.CLAUDE_CODE_ENTRYPOINT) return { ...env }
+  return Object.fromEntries(
+    Object.entries(env).filter(
+      ([name]) =>
+        !SESSION_ONLY.includes(name) &&
+        !name.startsWith("CLAUDE_AGENT_SDK_") &&
+        !name.startsWith("CLAUDE_PREVIEW_") &&
+        !(name.startsWith("CLAUDE_CODE_") && !KEPT_CLAUDE_CODE.has(name)),
+    ),
+  )
+}
+
 // The agents most people have, each through its ACP adapter. Their models, modes and efforts come from
 // the agent itself when it is checked; nothing about them is hard-coded here.
 export const BUILT_IN: ConnectorDef[] = [
@@ -286,7 +321,7 @@ export class Agents {
     const proc = new AcpProcess({
       file,
       args,
-      env: { ...process.env, PATH: searchPath, ...processEnv(id, process.env), ...launch?.env },
+      env: { ...agentEnv(process.env), PATH: searchPath, ...processEnv(id, process.env), ...launch?.env },
       freshEnv: this.options.proxyEnv,
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
