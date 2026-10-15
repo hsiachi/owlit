@@ -73,6 +73,9 @@ export interface QuotedSelection {
   notePath?: string
   // Selected in Owlit's digest of the paper (digest.md): Owlit's reading of it, not the paper's own words
   inDigest?: boolean
+  // Asked from a comment on the passage (Ask Owlit on its card): what was said there, in order, each
+  // entry with who said it ("Owlit", "You", a reader's name)
+  comment?: { entries: { who: string; text: string }[] }
 }
 
 export interface PlanEntry {

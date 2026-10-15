@@ -9,7 +9,7 @@ import {
   OWLIT_TOOLS,
   QUESTION_COLUMN,
   shownThread,
-  type AgentNote,
+  type DocComment,
   type Thread,
   type ThreadCell,
   type ThreadGroup,
@@ -38,7 +38,7 @@ export interface OwlitMcpOptions {
 }
 
 const FALLBACK_INSTRUCTIONS =
-  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and their chats (chats_*). Cite papers as [Author Year](owlit://library/<id>). Leave comments on docs with docs_add_note rather than editing them."
+  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and their chats (chats_*). Cite papers as [Author Year](owlit://library/<id>). Leave comments on docs with docs_add_comment rather than editing them."
 
 export function createServer(options: OwlitMcpOptions) {
   const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: options.instructions ?? FALLBACK_INSTRUCTIONS })
@@ -234,13 +234,19 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...asker })
       return `Moved ${str("path")} to ${moved.path}.`
     }
-    case "docs_add_note": {
+    case "docs_add_comment": {
       const { content } = await owlit.rpc.docs.read({ path: str("path") })
       const anchor = anchorOf(content, str("quote"))
       if (!anchor) return `That passage isn't in ${str("path")} word for word; quote it exactly as it appears.`
-      const note: AgentNote = { id: randomUUID(), ...anchor, text: str("note"), by: "Owlit", createdAt: Date.now(), ...(options.chatId ? { chatId: options.chatId } : {}) }
-      await owlit.rpc.notes.add({ path: str("path"), note, agent: asker })
-      return `Left a note on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
+      const at = Date.now()
+      const comment: DocComment = {
+        id: randomUUID(),
+        ...anchor,
+        entries: [{ id: randomUUID(), by: "owlit", text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) }],
+        createdAt: at,
+      }
+      await owlit.rpc.comments.add({ path: str("path"), comment, agent: asker })
+      return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":
       return owlit.rpc.agents.guide(optStr("topic") ? { topic: str("topic") } : {})

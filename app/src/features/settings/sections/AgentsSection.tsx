@@ -14,6 +14,7 @@ import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
 import { FoldedForm, Group, IconAction, List, Note, Row } from "../parts"
 import { EngineSignIns } from "./EngineSignIns"
+import { useAfterWait } from "@/hooks/use-after-wait"
 
 export function AgentsSection() {
   const connectors = useChatStore((s) => s.connectors)
@@ -99,12 +100,13 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
   // owlit sets this one up itself, so a missing adapter isn't a command to copy
   const owned = settingUp(c) !== undefined || canSetUp(c)
   const busy = c.status === "checking"
+  const spin = useAfterWait(busy)
   const name = c.name
 
   // A ready agent needs nothing, so its check shows on hover, before the version
   const checkAction = (
     <IconAction label={c.status === "unknown" ? t({ message: "Check", comment: "verb: check whether the agent is installed and works" }) : t({ message: "Check again", comment: "verb" })} onClick={() => check(c.id)} disabled={busy} className={cn(isReady(c) && !busy && revealOnHover)}>
-      {busy ? <Spinner /> : <RefreshCwIcon />}
+      {spin ? <Spinner wait={false} /> : <RefreshCwIcon />}
     </IconAction>
   )
 

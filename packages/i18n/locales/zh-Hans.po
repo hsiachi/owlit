@@ -282,10 +282,10 @@ msgid "in the Library and Threads"
 msgstr "在文献库和脉络中"
 
 #: app/src/app/shortcuts.ts
-#: app/src/components/selection-menu.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
-#: app/src/features/docs/editor/selection-menu.ts
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -325,7 +325,6 @@ msgstr "在文档、笔记或消息中"
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/docs/editor/reader-comments.ts
 msgid "Send"
 msgstr "发送"
 
@@ -336,6 +335,23 @@ msgstr "在输入框中"
 #: app/src/app/shortcuts.ts
 msgid "New line"
 msgstr "换行"
+
+#. in the keyboard shortcut list
+#: app/src/app/shortcuts.ts
+msgid "Comment on the selection"
+msgstr "评论所选文字"
+
+#: app/src/app/shortcuts.ts
+msgid "in a doc"
+msgstr "在文档中"
+
+#: app/src/app/shortcuts.ts
+msgid "Next comment"
+msgstr "下一条评论"
+
+#: app/src/app/shortcuts.ts
+msgid "Previous comment"
+msgstr "上一条评论"
 
 #. verb
 #. verb, in the keyboard shortcut list
@@ -426,7 +442,9 @@ msgstr "{label}：{choice}"
 #. verb: copy the sign-in command
 #. verb: copy the text
 #. verb: copy the text
+#. verb: copy the text
 #: app/src/components/copy-button.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 #: app/src/features/library/components/HighlightsList.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
@@ -437,6 +455,7 @@ msgid "Copy"
 msgstr "拷贝"
 
 #: app/src/components/copy-button.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -504,9 +523,16 @@ msgstr "路径导航"
 msgid "New since you last looked"
 msgstr "你上次查看后新增"
 
+#: app/src/components/selection-menu-items.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgctxt "verb: say something about the selected words"
+msgid "Comment"
+msgstr "评论"
+
 #: app/src/components/sentence-editor.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -521,7 +547,9 @@ msgstr "你上次查看后新增"
 msgid "Cancel"
 msgstr "取消"
 
+#. save an edited comment
 #: app/src/components/sentence-editor.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Save"
 msgstr "保存"
@@ -600,6 +628,12 @@ msgstr "不包含 {name}"
 #: app/src/features/agent/ContextChips.tsx
 msgid "Don't include the selection"
 msgstr "不包含所选内容"
+
+#. chip: a comment on a passage of a doc, asked about with Ask Owlit
+#: app/src/features/agent/page-context.ts
+msgctxt "noun: a comment on a doc"
+msgid "Comment"
+msgstr "评论"
 
 #. chip: a passage quoted from the paper's note
 #: app/src/features/agent/page-context.ts
@@ -1139,7 +1173,6 @@ msgstr "详细信息"
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -1191,11 +1224,11 @@ msgid "Lines added and removed"
 msgstr "增删的行数"
 
 #. placeholder {0}: list.length
-#. placeholder {0}: notes.length
+#. placeholder {0}: openThreads.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/docs/pages/DocPage.tsx
-msgid "{0, plural, one {# note} other {# notes}}"
-msgstr "{0, plural, other {# 条批注}}"
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {# 条评论}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Your note on {name}"
@@ -1260,8 +1293,8 @@ msgstr "{0, plural, other {移除了 # 篇论文}}"
 
 #. placeholder {0}: n("note")
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
-msgstr "{0, plural, other {在 # 个文档中留下了批注}}"
+msgid "{0, plural, one {left comments on a doc} other {left comments on # docs}}"
+msgstr "{0, plural, one {在一篇文档上留了评论} other {在 # 篇文档上留了评论}}"
 
 #. placeholder {0}: started(rows)
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1861,8 +1894,8 @@ msgid "{n, plural, one {read a doc} other {read # docs}}"
 msgstr "{n, plural, other {阅读了 # 个文档}}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
-msgstr "{n, plural, other {在文档上留下了 # 条批注}}"
+msgid "{n, plural, one {left a comment on a doc} other {left # comments on docs}}"
+msgstr "{n, plural, one {在文档上留了一条评论} other {在文档上留了 # 条评论}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {kept something in mind} other {changed what it keeps in mind # times}}"
@@ -2117,12 +2150,12 @@ msgid "Read a doc"
 msgstr "阅读了一篇文档"
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Leave a note on a doc"
-msgstr "在文档上留下批注"
+msgid "Leave a comment on a doc"
+msgstr "在文档上留评论"
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Left a note on a doc"
-msgstr "在文档上留下了批注"
+msgid "Left a comment on a doc"
+msgstr "在文档上留了评论"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Delete docs"
@@ -2315,6 +2348,10 @@ msgid "Versions…"
 msgstr "版本…"
 
 #: app/src/features/docs/actions.ts
+msgid "Resolved comments…"
+msgstr "已解决的评论…"
+
+#: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr "复制链接"
@@ -2332,6 +2369,169 @@ msgstr "新建文件夹"
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr "{count, plural, other {删除 # 项}}"
+
+#. after a comment's time: it was changed after it was written
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "edited"
+msgstr "已编辑"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Its passage has changed"
+msgstr "所评论的文字已改动"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "{replies, plural, one {# reply} other {# replies}}"
+msgstr "{replies, plural, other {# 条回复}}"
+
+#. after a comment's reply count: who wrote the latest reply, and when
+#. placeholder {0}: last.name
+#. placeholder {1}: ago(last.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} replied {1}"
+msgstr "{0} {1}回复"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Ask Owlit about this comment"
+msgstr "就这条评论问 Owlit"
+
+#. put a comment away
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Resolve"
+msgstr "解决"
+
+#. placeholder {0}: shorten(view.quote, 90)
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "The passage this comment was on has changed: “{0}”"
+msgstr "这条评论所在的文字已改动：“{0}”"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{cut, plural, one {# more reply} other {# more replies}}"
+msgstr "{cut, plural, other {还有 # 条回复}}"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "More"
+msgstr "更多"
+
+#. edit your comment or reply
+#. verb: change a line Owlit keeps in mind
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/settings/sections/Memory.tsx
+#: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr "编辑"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete comment and replies"
+msgstr "删除评论及回复"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete comment"
+msgstr "删除评论"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete reply"
+msgstr "删除回复"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Open the chat beside the doc"
+msgstr "在文档旁打开这段对话"
+
+#. on a comment's card: when it was asked about in a chat, and the chat's title
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0} in “{title}”"
+msgstr "{0}在“{title}”中问过 Owlit"
+
+#. on a comment's card: when it was asked about in a chat
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0}"
+msgstr "{0}问过 Owlit"
+
+#. placeholder {0}: startedBy.name
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} sees replies on the shared page."
+msgstr "{0} 会在分享页面上看到回复。"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
+msgstr "Owlit 不看回复。点“问 Owlit”，回复会留在这里，并在对话中问它。"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgid "Reply…"
+msgstr "回复…"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Reply, or ask Owlit…"
+msgstr "回复，或问 Owlit…"
+
+#. send a reply to a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgid "Reply"
+msgstr "回复"
+
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/model.ts
+msgid "You"
+msgstr "你"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Comment…"
+msgstr "评论…"
+
+#. placeholder {0}: v.entries[0].name
+#: app/src/features/docs/comments/CommentColumn.tsx
+msgid "Comment by {0}"
+msgstr "{0} 的评论"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "Hide comments"
+msgstr "隐藏评论"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "Show comments"
+msgstr "显示评论"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, other {# 条评论}}"
+
+#. placeholder {0}: displayName(file.path)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Resolved comments on {0}"
+msgstr "{0} 中已解决的评论"
+
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "No resolved comments."
+msgstr "没有已解决的评论。"
+
+#. placeholder {0}: shorten(v.quote, 80)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "On “{0}”"
+msgstr "关于“{0}”"
+
+#. put a resolved comment back beside its words
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Reopen"
+msgstr "重新打开"
+
+#: app/src/features/docs/comments/model.ts
+msgid "Comment deleted"
+msgstr "评论已删除"
+
+#: app/src/features/docs/comments/model.ts
+msgid "Reply deleted"
+msgstr "回复已删除"
+
+#: app/src/features/docs/comments/model.ts
+msgid "Comment resolved"
+msgstr "评论已解决"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "{name} opens in the system app"
@@ -2436,41 +2636,12 @@ msgid "Keep mine"
 msgstr "保留我的"
 
 #: app/src/features/docs/editor/DocEditor.tsx
-msgid "Note dismissed"
-msgstr "已忽略批注"
-
-#: app/src/features/docs/editor/DocEditor.tsx
-msgid "Comment resolved"
-msgstr "评论已解决"
-
-#: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
 msgstr "文档正文"
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Start writing"
 msgstr "开始写作"
-
-#. which note of the doc's notes is open: 2 of 5
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "{at} of {n}"
-msgstr "{at}/{n}"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Previous note"
-msgstr "上一条批注"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Next note"
-msgstr "下一条批注"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "The passage this note was on has changed: “{passage}”"
-msgstr "这条批注所在的段落已经改变：“{passage}”"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Chat about this"
-msgstr "就此对话"
 
 #: app/src/features/docs/editor/block-preview.ts
 msgid "Front matter"
@@ -2479,34 +2650,6 @@ msgstr "前置元数据"
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
 msgstr "没有这个名字的文档"
-
-#. placeholder {0}: c.name
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "{0} (you)"
-msgstr "{0}（你）"
-
-#. placeholder {0}: shorten(q, 90)
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "The words this comment was on have changed: “{0}”"
-msgstr "这条评论所指的文字已经改动：“{0}”"
-
-#: app/src/features/docs/editor/reader-comments.ts
-#: apps/share-web/src/App.tsx
-msgid "Reply…"
-msgstr "回复…"
-
-#: app/src/features/docs/editor/reader-comments.ts
-#: apps/share-web/src/App.tsx
-msgid "Reply"
-msgstr "回复"
-
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "Resolve"
-msgstr "解决"
-
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "{n, plural, one {# comment} other {# comments}}"
-msgstr "{n, plural, other {# 条评论}}"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -4824,12 +4967,6 @@ msgstr "例如：我的毕业论文写主动式 agent"
 msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 msgstr "还没有。在任何对话里告诉 Owlit 要记住的事（“以后都用 APA 引用”），或在这里添加一条。"
 
-#. verb: change a line Owlit keeps in mind
-#: app/src/features/settings/sections/Memory.tsx
-#: apps/desktop/src/main.ts
-msgid "Edit"
-msgstr "编辑"
-
 #: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr "Owlit 记着的一条"
@@ -6256,11 +6393,6 @@ msgstr "引用的论文"
 msgid "Read only"
 msgstr "只能查看"
 
-#. placeholder {0}: openThreads.length
-#: apps/share-web/src/App.tsx
-msgid "{0, plural, one {# comment} other {# comments}}"
-msgstr "{0, plural, other {# 条评论}}"
-
 #: apps/share-web/src/App.tsx
 msgid "Comments"
 msgstr "评论"
@@ -6277,11 +6409,6 @@ msgstr "{0}更新"
 #: apps/share-web/src/App.tsx
 msgid "Select words to comment on them."
 msgstr "选中文字即可评论。"
-
-#: apps/share-web/src/App.tsx
-msgctxt "verb: say something about the selected words"
-msgid "Comment"
-msgstr "评论"
 
 #: apps/share-web/src/App.tsx
 msgid "The papers this doc cites, in the order it first cites them."
@@ -6428,8 +6555,8 @@ msgid "That earlier version is no longer kept."
 msgstr "那个较早的版本已不再保留。"
 
 #: packages/core/src/agents/fs.ts
-msgid "That note is already gone."
-msgstr "那条笔记已经不在了。"
+msgid "That comment is already gone."
+msgstr "这条评论已经不在了。"
 
 #: packages/core/src/agents/fs.ts
 msgid "The note changed after the agent's edit, so owlit left it as it is."

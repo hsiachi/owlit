@@ -282,10 +282,10 @@ msgid "in the Library and Threads"
 msgstr "in the Library and Threads"
 
 #: app/src/app/shortcuts.ts
-#: app/src/components/selection-menu.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
-#: app/src/features/docs/editor/selection-menu.ts
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -325,7 +325,6 @@ msgstr "in a doc, note or message"
 #: app/src/app/shortcuts.ts
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/docs/editor/reader-comments.ts
 msgid "Send"
 msgstr "Send"
 
@@ -336,6 +335,23 @@ msgstr "in the composer"
 #: app/src/app/shortcuts.ts
 msgid "New line"
 msgstr "New line"
+
+#. in the keyboard shortcut list
+#: app/src/app/shortcuts.ts
+msgid "Comment on the selection"
+msgstr "Comment on the selection"
+
+#: app/src/app/shortcuts.ts
+msgid "in a doc"
+msgstr "in a doc"
+
+#: app/src/app/shortcuts.ts
+msgid "Next comment"
+msgstr "Next comment"
+
+#: app/src/app/shortcuts.ts
+msgid "Previous comment"
+msgstr "Previous comment"
 
 #. verb
 #. verb, in the keyboard shortcut list
@@ -426,7 +442,9 @@ msgstr "{label}: {choice}"
 #. verb: copy the sign-in command
 #. verb: copy the text
 #. verb: copy the text
+#. verb: copy the text
 #: app/src/components/copy-button.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 #: app/src/features/library/components/HighlightsList.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
@@ -437,6 +455,7 @@ msgid "Copy"
 msgstr "Copy"
 
 #: app/src/components/copy-button.tsx
+#: app/src/components/selection-menu-items.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -504,9 +523,16 @@ msgstr "Breadcrumb"
 msgid "New since you last looked"
 msgstr "New since you last looked"
 
+#: app/src/components/selection-menu-items.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgctxt "verb: say something about the selected words"
+msgid "Comment"
+msgstr "Comment"
+
 #: app/src/components/sentence-editor.tsx
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/editor/reader-comments.ts
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -521,7 +547,9 @@ msgstr "New since you last looked"
 msgid "Cancel"
 msgstr "Cancel"
 
+#. save an edited comment
 #: app/src/components/sentence-editor.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Save"
 msgstr "Save"
@@ -600,6 +628,12 @@ msgstr "Don't include {name}"
 #: app/src/features/agent/ContextChips.tsx
 msgid "Don't include the selection"
 msgstr "Don't include the selection"
+
+#. chip: a comment on a passage of a doc, asked about with Ask Owlit
+#: app/src/features/agent/page-context.ts
+msgctxt "noun: a comment on a doc"
+msgid "Comment"
+msgstr "Comment"
 
 #. chip: a passage quoted from the paper's note
 #: app/src/features/agent/page-context.ts
@@ -1139,7 +1173,6 @@ msgstr "Details"
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/docs/editor/agent-notes.ts
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -1191,11 +1224,11 @@ msgid "Lines added and removed"
 msgstr "Lines added and removed"
 
 #. placeholder {0}: list.length
-#. placeholder {0}: notes.length
+#. placeholder {0}: openThreads.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/features/docs/pages/DocPage.tsx
-msgid "{0, plural, one {# note} other {# notes}}"
-msgstr "{0, plural, one {# note} other {# notes}}"
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, one {# comment} other {# comments}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Your note on {name}"
@@ -1260,8 +1293,8 @@ msgstr "{0, plural, one {removed a paper} other {removed # papers}}"
 
 #. placeholder {0}: n("note")
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
-msgstr "{0, plural, one {left notes on a doc} other {left notes on # docs}}"
+msgid "{0, plural, one {left comments on a doc} other {left comments on # docs}}"
+msgstr "{0, plural, one {left comments on a doc} other {left comments on # docs}}"
 
 #. placeholder {0}: started(rows)
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1861,8 +1894,8 @@ msgid "{n, plural, one {read a doc} other {read # docs}}"
 msgstr "{n, plural, one {read a doc} other {read # docs}}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
-msgstr "{n, plural, one {left a note on a doc} other {left # notes on docs}}"
+msgid "{n, plural, one {left a comment on a doc} other {left # comments on docs}}"
+msgstr "{n, plural, one {left a comment on a doc} other {left # comments on docs}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {kept something in mind} other {changed what it keeps in mind # times}}"
@@ -2117,12 +2150,12 @@ msgid "Read a doc"
 msgstr "Read a doc"
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Leave a note on a doc"
-msgstr "Leave a note on a doc"
+msgid "Leave a comment on a doc"
+msgstr "Leave a comment on a doc"
 
 #: app/src/features/chat/lib/tool-title.ts
-msgid "Left a note on a doc"
-msgstr "Left a note on a doc"
+msgid "Left a comment on a doc"
+msgstr "Left a comment on a doc"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Delete docs"
@@ -2315,6 +2348,10 @@ msgid "Versions…"
 msgstr "Versions…"
 
 #: app/src/features/docs/actions.ts
+msgid "Resolved comments…"
+msgstr "Resolved comments…"
+
+#: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr "Copy link"
@@ -2332,6 +2369,169 @@ msgstr "New folder"
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr "{count, plural, one {Delete # item} other {Delete # items}}"
+
+#. after a comment's time: it was changed after it was written
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "edited"
+msgstr "edited"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Its passage has changed"
+msgstr "Its passage has changed"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "{replies, plural, one {# reply} other {# replies}}"
+msgstr "{replies, plural, one {# reply} other {# replies}}"
+
+#. after a comment's reply count: who wrote the latest reply, and when
+#. placeholder {0}: last.name
+#. placeholder {1}: ago(last.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} replied {1}"
+msgstr "{0} replied {1}"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Ask Owlit about this comment"
+msgstr "Ask Owlit about this comment"
+
+#. put a comment away
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Resolve"
+msgstr "Resolve"
+
+#. placeholder {0}: shorten(view.quote, 90)
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "The passage this comment was on has changed: “{0}”"
+msgstr "The passage this comment was on has changed: “{0}”"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{cut, plural, one {# more reply} other {# more replies}}"
+msgstr "{cut, plural, one {# more reply} other {# more replies}}"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "More"
+msgstr "More"
+
+#. edit your comment or reply
+#. verb: change a line Owlit keeps in mind
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/settings/sections/Memory.tsx
+#: apps/desktop/src/main.ts
+msgid "Edit"
+msgstr "Edit"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete comment and replies"
+msgstr "Delete comment and replies"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete comment"
+msgstr "Delete comment"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Delete reply"
+msgstr "Delete reply"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Open the chat beside the doc"
+msgstr "Open the chat beside the doc"
+
+#. on a comment's card: when it was asked about in a chat, and the chat's title
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0} in “{title}”"
+msgstr "Asked Owlit {0} in “{title}”"
+
+#. on a comment's card: when it was asked about in a chat
+#. placeholder {0}: ago(asked.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Asked Owlit {0}"
+msgstr "Asked Owlit {0}"
+
+#. placeholder {0}: startedBy.name
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} sees replies on the shared page."
+msgstr "{0} sees replies on the shared page."
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
+msgstr "Owlit doesn’t read replies. Ask Owlit keeps yours here and asks it in a chat."
+
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgid "Reply…"
+msgstr "Reply…"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Reply, or ask Owlit…"
+msgstr "Reply, or ask Owlit…"
+
+#. send a reply to a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+#: apps/share-web/src/App.tsx
+msgid "Reply"
+msgstr "Reply"
+
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/model.ts
+msgid "You"
+msgstr "You"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Comment…"
+msgstr "Comment…"
+
+#. placeholder {0}: v.entries[0].name
+#: app/src/features/docs/comments/CommentColumn.tsx
+msgid "Comment by {0}"
+msgstr "Comment by {0}"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "Hide comments"
+msgstr "Hide comments"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "Show comments"
+msgstr "Show comments"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, one {# comment} other {# comments}}"
+
+#. placeholder {0}: displayName(file.path)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Resolved comments on {0}"
+msgstr "Resolved comments on {0}"
+
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "No resolved comments."
+msgstr "No resolved comments."
+
+#. placeholder {0}: shorten(v.quote, 80)
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "On “{0}”"
+msgstr "On “{0}”"
+
+#. put a resolved comment back beside its words
+#: app/src/features/docs/comments/ResolvedComments.tsx
+msgid "Reopen"
+msgstr "Reopen"
+
+#: app/src/features/docs/comments/model.ts
+msgid "Comment deleted"
+msgstr "Comment deleted"
+
+#: app/src/features/docs/comments/model.ts
+msgid "Reply deleted"
+msgstr "Reply deleted"
+
+#: app/src/features/docs/comments/model.ts
+msgid "Comment resolved"
+msgstr "Comment resolved"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "{name} opens in the system app"
@@ -2436,41 +2636,12 @@ msgid "Keep mine"
 msgstr "Keep mine"
 
 #: app/src/features/docs/editor/DocEditor.tsx
-msgid "Note dismissed"
-msgstr "Note dismissed"
-
-#: app/src/features/docs/editor/DocEditor.tsx
-msgid "Comment resolved"
-msgstr "Comment resolved"
-
-#: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
 msgstr "Doc text"
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Start writing"
 msgstr "Start writing"
-
-#. which note of the doc's notes is open: 2 of 5
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "{at} of {n}"
-msgstr "{at} of {n}"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Previous note"
-msgstr "Previous note"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Next note"
-msgstr "Next note"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "The passage this note was on has changed: “{passage}”"
-msgstr "The passage this note was on has changed: “{passage}”"
-
-#: app/src/features/docs/editor/agent-notes.ts
-msgid "Chat about this"
-msgstr "Chat about this"
 
 #: app/src/features/docs/editor/block-preview.ts
 msgid "Front matter"
@@ -2479,34 +2650,6 @@ msgstr "Front matter"
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
 msgstr "No doc with this name"
-
-#. placeholder {0}: c.name
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "{0} (you)"
-msgstr "{0} (you)"
-
-#. placeholder {0}: shorten(q, 90)
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "The words this comment was on have changed: “{0}”"
-msgstr "The words this comment was on have changed: “{0}”"
-
-#: app/src/features/docs/editor/reader-comments.ts
-#: apps/share-web/src/App.tsx
-msgid "Reply…"
-msgstr "Reply…"
-
-#: app/src/features/docs/editor/reader-comments.ts
-#: apps/share-web/src/App.tsx
-msgid "Reply"
-msgstr "Reply"
-
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "Resolve"
-msgstr "Resolve"
-
-#: app/src/features/docs/editor/reader-comments.ts
-msgid "{n, plural, one {# comment} other {# comments}}"
-msgstr "{n, plural, one {# comment} other {# comments}}"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -4824,12 +4967,6 @@ msgstr "e.g. I'm writing my thesis on proactive agents"
 msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 msgstr "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 
-#. verb: change a line Owlit keeps in mind
-#: app/src/features/settings/sections/Memory.tsx
-#: apps/desktop/src/main.ts
-msgid "Edit"
-msgstr "Edit"
-
 #: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr "A line Owlit keeps in mind"
@@ -6256,11 +6393,6 @@ msgstr "Cited papers"
 msgid "Read only"
 msgstr "Read only"
 
-#. placeholder {0}: openThreads.length
-#: apps/share-web/src/App.tsx
-msgid "{0, plural, one {# comment} other {# comments}}"
-msgstr "{0, plural, one {# comment} other {# comments}}"
-
 #: apps/share-web/src/App.tsx
 msgid "Comments"
 msgstr "Comments"
@@ -6277,11 +6409,6 @@ msgstr "Updated {0}"
 #: apps/share-web/src/App.tsx
 msgid "Select words to comment on them."
 msgstr "Select words to comment on them."
-
-#: apps/share-web/src/App.tsx
-msgctxt "verb: say something about the selected words"
-msgid "Comment"
-msgstr "Comment"
 
 #: apps/share-web/src/App.tsx
 msgid "The papers this doc cites, in the order it first cites them."
@@ -6428,8 +6555,8 @@ msgid "That earlier version is no longer kept."
 msgstr "That earlier version is no longer kept."
 
 #: packages/core/src/agents/fs.ts
-msgid "That note is already gone."
-msgstr "That note is already gone."
+msgid "That comment is already gone."
+msgstr "That comment is already gone."
 
 #: packages/core/src/agents/fs.ts
 msgid "The note changed after the agent's edit, so owlit left it as it is."

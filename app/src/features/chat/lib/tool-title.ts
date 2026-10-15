@@ -43,8 +43,9 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`List your docs`, done: t`Listed your docs` }
     case "docs_read":
       return { now: t`Read a doc`, done: t({ message: "Read a doc", context: "a step that ran" }) }
+    case "docs_add_comment":
     case "docs_add_note":
-      return { now: t`Leave a note on a doc`, done: t`Left a note on a doc` }
+      return { now: t`Leave a comment on a doc`, done: t`Left a comment on a doc` }
     case "docs_delete":
       return { now: t`Delete docs`, done: t`Deleted docs` }
     case "docs_move":

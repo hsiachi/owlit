@@ -18,8 +18,9 @@ import type { MemoryLine } from "@owlit/protocol"
 // Version 14 (2026-10-14): the memo describes the papers, not the search; what a search missed goes in note.
 // Version 15 (2026-10-15): papers found for a question go into threads, with thread_list, thread_read and
 // thread_write.
-// Version 16 (2026-10-16): owlit's memory, kept with memory_write; never the agent's own memory.
-export const RULES_VERSION = 16
+// Version 16 (2026-10-16): remarks on a doc are comments, left with docs_add_comment.
+// Version 17 (2026-10-16): owlit's memory, kept with memory_write; never the agent's own memory.
+export const RULES_VERSION = 17
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -34,7 +35,7 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 
 ## Docs
 - Docs belong to the user. Change a doc only when the user asks you to, and read it right before you do: they may have changed it since you last looked.
-- For comments, suggestions and questions about a doc, leave a note in its margin with docs_add_note. Don't write comments into the file.
+- For remarks, suggestions and questions about a doc, leave a comment on the passage with docs_add_comment. Don't write comments into the file.
 - Delete, move or rename docs with docs_delete and docs_move, not with shell commands: owlit keeps what they change so the user can undo it.
 
 ## Papers

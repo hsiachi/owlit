@@ -159,17 +159,17 @@ export const OWLIT_TOOLS: ToolSpec[] = [
     },
   },
   {
-    name: "docs_add_note",
+    name: "docs_add_comment",
     description:
-      "Leave a note in the margin of the user's doc, attached to a passage, without changing the file. Use this for comments and suggestions instead of editing the doc.",
+      "Leave a comment on a passage of the user's doc, shown beside it, without changing the file. Use this for remarks, questions and suggestions instead of editing the doc. One comment per passage.",
     inputSchema: {
       type: "object",
       properties: {
         path: { type: "string", description: "Workspace-relative path of the doc" },
-        quote: { type: "string", description: "The exact passage the note is about, as it appears in the doc" },
-        note: { type: "string", description: "What you want to say" },
+        quote: { type: "string", description: "The exact passage the comment is about, as it appears in the doc" },
+        comment: { type: "string", description: "What you want to say" },
       },
-      required: ["path", "quote", "note"],
+      required: ["path", "quote", "comment"],
     },
   },
   {

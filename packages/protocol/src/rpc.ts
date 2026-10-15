@@ -2,7 +2,7 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
-import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
+import type { CommentAnchor, DocComment, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -140,17 +140,20 @@ export interface Methods {
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }
 
-  // ---- Notes agents left on docs, kept beside the files (.owlit/docs/notes/); they follow renames,
-  // moves and deletes made through docs.* or outside owlit
-  // Every doc's notes, by path
-  "notes.all": { params: void; result: Record<string, AgentNote[]> }
-  // Adds a note, or puts a dismissed one back
-  // agent: the note is an agent's (owlit-mcp), kept as a version so the window can offer Undo
-  "notes.add": { params: { path: string; note: AgentNote; agent?: { chatId?: string } }; result: null }
-  // The note removed, or null if it wasn't there
-  "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
-  // Passages edited while the doc was open, saved as they read now: note id → its new anchor
-  "notes.reanchor": { params: { path: string; moved: Record<string, NoteAnchor> }; result: null }
+  // ---- Comments on docs, kept beside the files (.owlit/docs/comments/); they follow renames, moves and
+  // deletes made through docs.* or outside owlit
+  // Every doc's comments, by path, resolved ones included
+  "comments.all": { params: void; result: Record<string, DocComment[]> }
+  // Starts a comment, or puts back one deleted
+  // agent: the comment is an agent's (owlit-mcp), kept as a version so the window can offer Undo
+  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string } }; result: null }
+  // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
+  // comment as it was, or null if it wasn't there
+  "comments.put": { params: { path: string; comment: DocComment }; result: DocComment | null }
+  // The comment removed, or null if it wasn't there
+  "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
+  // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
+  "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
 
   // ---- Sharing a doc by link: the share server holds what readers see; their comments come back here.
   // Shares are by doc path and follow renames. server is where links point; null when none is set up.
@@ -486,9 +489,9 @@ export interface Notifications {
   "ui.request": UiRequest
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it
   // (its own) ignores it
-  "notes.added": { path: string; note: AgentNote }
+  "comments.changed": { path: string; comment: DocComment }
   // An undo took a note away
-  "notes.removed": { path: string; id: string }
+  "comments.removed": { path: string; id: string }
   // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
   "memory.changed": { lines: MemoryLine[] }
   // An agent wrote a file no window had open; versionId undoes it
@@ -534,8 +537,6 @@ export type MethodName = keyof Methods
 export type NotificationName = keyof Notifications
 export type ParamsOf<M extends MethodName> = Methods[M]["params"]
 export type ResultOf<M extends MethodName> = Methods[M]["result"]
-
-export type NoteAnchor = Pick<AgentNote, "quote" | "prefix" | "suffix">
 
 export interface CoreVersion {
   version: string

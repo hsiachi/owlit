@@ -4,8 +4,8 @@ import { isDesktop } from "@/lib/rpc"
 import { newId } from "@/lib/id"
 import * as disk from "./disk"
 import { cleanName, extOf, followFirstLine, timeName, uniquePath } from "./lib/naming"
-import { seedFiles, seedFolders, seedNotes } from "./mocks/seed"
-import { baseName, isMarkdown, isWithin as within, joinPath, parentPath, type AgentNote, type WorkspaceFile } from "./types"
+import { seedComments, seedFiles, seedFolders } from "./mocks/seed"
+import { baseName, isMarkdown, isWithin as within, joinPath, parentPath, type CommentAnchor, type DocComment, type WorkspaceFile } from "./types"
 
 // In the desktop app the store mirrors the workspace's files: core lists them when a workspace opens,
 // and every action below changes the store at once and then the disk (./disk). In a plain browser
@@ -47,13 +47,16 @@ interface DocsState {
   deleteFolder: (path: string) => Removed
   restore: (removed: Removed) => void
 
-  // Agents' notes, by file id, so a note stays with its doc through renames and moves
-  notes: Record<string, AgentNote[]>
-  addNote: (fileId: string, note: AgentNote) => void
-  removeNote: (fileId: string, noteId: string) => AgentNote | undefined
-  restoreNote: (fileId: string, note: AgentNote) => void
-  // Notes whose passage was edited keep finding it: their quote and context become the text as it is now
-  reanchorNotes: (fileId: string, moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">>) => void
+  // Comments on docs (Owlit's and yours; readers' are in the share store), by file id, so a comment stays
+  // with its doc through renames and moves. Resolved ones are kept too.
+  comments: Record<string, DocComment[]>
+  // Starts a comment, or puts one back (Undo of a delete)
+  addComment: (fileId: string, comment: DocComment) => void
+  // Replaces a comment as it reads now (a reply, an edit, resolved); the comment as it was
+  putComment: (fileId: string, comment: DocComment) => DocComment | undefined
+  removeComment: (fileId: string, commentId: string) => DocComment | undefined
+  // Comments whose passage was edited keep finding it: their quote and context become the text as it is now
+  reanchorComments: (fileId: string, moved: Record<string, CommentAnchor>) => void
 }
 
 // A path is taken by a file, a folder the user made, or a folder that exists because it holds files
@@ -79,7 +82,7 @@ export const useDocsStore = create<DocsState>()(
       files: isDesktop ? {} : Object.fromEntries(seedFiles.map((f) => [f.id, f])),
       missing: {},
       folders: isDesktop ? [] : seedFolders,
-      notes: isDesktop ? {} : seedNotes,
+      comments: isDesktop ? {} : seedComments,
 
       createDoc: (folder) => {
         const now = Date.now()
@@ -197,25 +200,28 @@ export const useDocsStore = create<DocsState>()(
         return removed
       },
 
-      addNote: (fileId, note) => {
-        set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []), note] } }))
-        if (disk.onDisk) disk.addNoteOnDisk(fileId, note)
+      addComment: (fileId, comment) => {
+        set((s) => ({ comments: { ...s.comments, [fileId]: [...(s.comments[fileId] ?? []).filter((c) => c.id !== comment.id), comment].sort((a, b) => a.createdAt - b.createdAt) } }))
+        if (disk.onDisk) disk.addCommentOnDisk(fileId, comment)
       },
 
-      removeNote: (fileId, noteId) => {
-        const note = get().notes[fileId]?.find((n) => n.id === noteId)
-        set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).filter((n) => n.id !== noteId) } }))
-        if (note && disk.onDisk) disk.removeNoteOnDisk(fileId, noteId)
-        return note
+      putComment: (fileId, comment) => {
+        const before = get().comments[fileId]?.find((c) => c.id === comment.id)
+        if (!before) return void get().addComment(fileId, comment)
+        set((s) => ({ comments: { ...s.comments, [fileId]: (s.comments[fileId] ?? []).map((c) => (c.id === comment.id ? comment : c)) } }))
+        if (disk.onDisk) disk.putCommentOnDisk(fileId, comment)
+        return before
       },
 
-      restoreNote: (fileId, note) => {
-        set((s) => ({ notes: { ...s.notes, [fileId]: [...(s.notes[fileId] ?? []).filter((n) => n.id !== note.id), note].sort((a, b) => a.createdAt - b.createdAt) } }))
-        if (disk.onDisk) disk.addNoteOnDisk(fileId, note)
+      removeComment: (fileId, commentId) => {
+        const comment = get().comments[fileId]?.find((c) => c.id === commentId)
+        set((s) => ({ comments: { ...s.comments, [fileId]: (s.comments[fileId] ?? []).filter((c) => c.id !== commentId) } }))
+        if (comment && disk.onDisk) disk.removeCommentOnDisk(fileId, commentId)
+        return comment
       },
 
-      reanchorNotes: (fileId, moved) => {
-        set((s) => ({ notes: { ...s.notes, [fileId]: (s.notes[fileId] ?? []).map((n) => (moved[n.id] ? { ...n, ...moved[n.id] } : n)) } }))
+      reanchorComments: (fileId, moved) => {
+        set((s) => ({ comments: { ...s.comments, [fileId]: (s.comments[fileId] ?? []).map((c) => (moved[c.id] ? { ...c, ...moved[c.id] } : c)) } }))
         if (disk.onDisk) disk.reanchorOnDisk(fileId, moved)
       },
 

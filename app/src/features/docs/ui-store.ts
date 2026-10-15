@@ -16,10 +16,19 @@ interface DocsUiState {
   lastDocId: string | null
   // The row being renamed in place, by file id or folder path
   renaming: string | null
-  // The agent note shown open under its paragraph, at most one at a time
-  openNote: { docId: string; noteId: string } | null
-  // A reader's comment on a shared doc shown open under its paragraph, the same way
-  openComment: { docId: string; threadId: string } | null
+  // The comment open in the doc's comment column, at most one at a time, by its key (comments/model.ts:
+  // "c:<id>" for Owlit's and yours, "r:<id>" for a share reader's)
+  openComment: { docId: string; key: string } | null
+  // The comment column beside a doc is shown; hidden, the underlines stay and a click on one shows it
+  commentsShown: boolean
+  // A comment being started on selected words, not saved yet
+  newComment: { docId: string; from: number; to: number } | null
+  // The chat each comment was last asked about in (Ask Owlit on its card), by comment key, so the card can
+  // lead to the answer and asking again goes on in the same chat. Kept here, not with the comment, because a
+  // share reader's comment lives on the share server.
+  askedChats: Record<string, { chatId: string; at: number }>
+  // The doc whose Resolved comments dialog is open
+  resolvedOf: string | null
   // Rows picked with ⌘- or ⇧-click to act on together, by row key (see rowKey); the anchor is where a
   // ⇧-click range starts
   picked: string[]
@@ -33,8 +42,12 @@ interface DocsUiState {
   selectFolder: (path: string | null) => void
   openedDoc: (id: string, folder: string) => void
   setRenaming: (key: string | null) => void
-  setOpenNote: (docId: string, noteId: string | null) => void
-  setOpenComment: (docId: string, threadId: string | null) => void
+  // Opening a comment shows the column
+  setOpenComment: (docId: string, key: string | null) => void
+  setCommentsShown: (shown: boolean) => void
+  setNewComment: (draft: { docId: string; from: number; to: number } | null) => void
+  setAsked: (key: string, chatId: string) => void
+  showResolved: (docId: string | null) => void
   setPicked: (picked: string[], anchor?: string | null) => void
   // The rows an action on one row covers: every picked row when it is one of several picked, else the row alone
   actingOn: (key: string) => string[]
@@ -54,8 +67,11 @@ export const useDocsUiStore = create<DocsUiState>()(
       selectedFolder: null,
       lastDocId: null,
       renaming: null,
-      openNote: null,
       openComment: null,
+      commentsShown: true,
+      newComment: null,
+      askedChats: {},
+      resolvedOf: null,
       picked: [],
       pickAnchor: null,
       versionsOf: null,
@@ -90,8 +106,11 @@ export const useDocsUiStore = create<DocsUiState>()(
       selectFolder: (path) => set(path === null ? { selectedFolder: null } : { selectedFolder: path, targetFolder: path }),
       openedDoc: (id, folder) => set({ lastDocId: id, targetFolder: folder, selectedFolder: null }),
       setRenaming: (renaming) => set({ renaming }),
-      setOpenNote: (docId, noteId) => set({ openNote: noteId ? { docId, noteId } : null }),
-      setOpenComment: (docId, threadId) => set({ openComment: threadId ? { docId, threadId } : null }),
+      setOpenComment: (docId, key) => set(key ? { openComment: { docId, key }, commentsShown: true, newComment: null } : { openComment: null }),
+      setCommentsShown: (commentsShown) => set(commentsShown ? { commentsShown } : { commentsShown, openComment: null, newComment: null }),
+      setNewComment: (newComment) => set(newComment ? { newComment, openComment: null, commentsShown: true } : { newComment }),
+      setAsked: (key, chatId) => set((s) => ({ askedChats: { ...s.askedChats, [key]: { chatId, at: Date.now() } } })),
+      showResolved: (resolvedOf) => set({ resolvedOf }),
       setPicked: (picked, anchor) => set((s) => ({ picked, pickAnchor: anchor === undefined ? s.pickAnchor : anchor })),
       actingOn: (key) => {
         const { picked } = get()
@@ -101,7 +120,7 @@ export const useDocsUiStore = create<DocsUiState>()(
     }),
     {
       name: "owlit-docs-ui",
-      partialize: (s) => ({ expanded: s.expanded, autoOpened: s.autoOpened, lastDocId: s.lastDocId }),
+      partialize: (s) => ({ expanded: s.expanded, autoOpened: s.autoOpened, lastDocId: s.lastDocId, commentsShown: s.commentsShown, askedChats: s.askedChats }),
     },
   ),
 )

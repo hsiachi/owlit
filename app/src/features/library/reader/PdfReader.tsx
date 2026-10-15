@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createPluginRegistration } from "@embedpdf/core"
 import { EmbedPDF, useDocumentState, useRegistry } from "@embedpdf/core/react"
 import { usePdfiumEngine } from "@embedpdf/engines/react"
@@ -291,14 +291,7 @@ function Page({
 }
 
 function Loading() {
-  const [show, setShow] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  // A spinner that flashes for a fast load is noise; wait a beat before showing one
-  useEffect(() => {
-    timer.current = setTimeout(() => setShow(true), 300)
-    return () => clearTimeout(timer.current)
-  }, [])
-  return <div className="flex h-full items-center justify-center text-muted-foreground">{show && <Spinner />}</div>
+  return <div className="flex h-full items-center justify-center text-muted-foreground"><Spinner /></div>
 }
 
 function Message({ title, detail, action }: { title: string; detail?: string; action?: React.ReactNode }) {

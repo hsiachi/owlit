@@ -2,7 +2,7 @@
 
 import { baseName, isMarkdown } from "@owlit/protocol"
 
-export type { WorkspaceFile, AgentNote } from "@owlit/protocol"
+export type { WorkspaceFile, DocComment, CommentEntry, CommentAnchor } from "@owlit/protocol"
 export { baseName, docUri, isMarkdown, isWithin, joinPath, parentPath } from "@owlit/protocol"
 
 // What a file is called in the tree and in the header: its name, without the Markdown extension

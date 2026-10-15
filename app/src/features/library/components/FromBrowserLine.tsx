@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { LoaderCircleIcon, XIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 import { useMemo } from "react"
 import { IconButton } from "@/components/icon-button"
 import { InlineLink } from "@/components/inline-link"
@@ -11,6 +11,7 @@ import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useF
 import { noPdfReason } from "../lib/filter"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
+import { Spinner } from "@/components/ui/spinner"
 
 // Getting PDFs from the user's own browser, in the import's place at the top of the Library and on the
 // same ladder (DESIGN.md): while it runs, one quiet grey line with how far it has got and Stop; stopped
@@ -57,7 +58,7 @@ export function FromBrowserLine() {
         </>
       )
     } else {
-      mark = <LoaderCircleIcon className="size-3.5 animate-spin" />
+      mark = <Spinner className="size-3.5" />
       words = t`Getting PDFs in your browser · ${done} of ${total}`
       actions = stop
     }

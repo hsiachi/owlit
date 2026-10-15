@@ -45,19 +45,53 @@ export interface DocConflict {
   modifiedAt: number | null
 }
 
-// A note an agent left on a passage of a doc. It lives beside the file, never in it, and finds its passage
-// again by the quoted words plus a little of the text on either side.
-export interface AgentNote {
+// A comment on a passage of a doc: the entry that started it, then replies, flat and in order, as Google
+// Docs and Feishu keep them. Owlit's comments and your own are the same thing; a shared doc's readers'
+// comments live on the share server (ShareComment) and are drawn with these. A comment lives beside the
+// file, never in it, and finds its passage again by the quoted words plus a little text on either side.
+export interface DocComment {
   id: string
   quote: string
   prefix: string
   suffix: string
+  entries: CommentEntry[]
+  createdAt: number
+  // Put away; kept, so Owlit can read what was said and dismissed
+  resolvedAt?: number
+}
+
+export interface CommentEntry {
+  id: string
+  by: "you" | "owlit"
+  // Owlit's entries: which agent wrote it ("Claude Code"); the app names it Owlit
+  agent?: string
   text: string
-  // Who wrote it, e.g. "Claude Code"
+  at: number
+  editedAt?: number
+  // Owlit's entries: the chat that wrote it
+  chatId?: string
+}
+
+export type CommentAnchor = Pick<DocComment, "quote" | "prefix" | "suffix">
+
+// A note as agents left them before comments: one text, no replies. Still read, as an Owlit comment.
+interface LegacyNote extends CommentAnchor {
+  id: string
+  text: string
   by: string
   chatId?: string
   createdAt: number
 }
+
+export function asComment(value: DocComment | LegacyNote): DocComment {
+  if ("entries" in value && Array.isArray(value.entries)) return value
+  const note = value as LegacyNote
+  const entry: CommentEntry = { id: note.id, by: "owlit", agent: note.by, text: note.text, at: note.createdAt, ...(note.chatId ? { chatId: note.chatId } : {}) }
+  return { id: note.id, quote: note.quote, prefix: note.prefix, suffix: note.suffix, entries: [entry], createdAt: note.createdAt }
+}
+
+// Still open: not resolved, and with something said
+export const isOpenComment = (c: DocComment) => !c.resolvedAt && c.entries.length > 0
 
 // A version kept so an agent's change can be taken back (.owlit/versions/): a doc's text
 // before a write, a note an agent left, a paper an agent added, a thread before an agent wrote to it.

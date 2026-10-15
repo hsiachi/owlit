@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { editStats, RpcErrorCode, type AgentNote, type AgentRecord } from "@owlit/protocol"
+import { asComment, editStats, RpcErrorCode, type AgentRecord, type DocComment } from "@owlit/protocol"
 import type { Journal } from "../activity/index.ts"
 import { sha1, type Version } from "../docs/versions.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -15,7 +15,7 @@ interface AgentFsOptions {
   // An agent wrote a file that no window had open: windows offer Undo for it
   wrote: (record: { path: string; versionId: string; chatId?: string }) => void
   // An undo added or removed a note; windows show it
-  notesChanged: (change: { path: string; added?: AgentNote; removed?: string }) => void
+  commentsChanged: (change: { path: string; changed?: DocComment; removed?: string }) => void
 }
 
 // What agents read and write (ACP fs/read_text_file and fs/write_text_file). A doc open in a window is
@@ -178,16 +178,18 @@ export class AgentFs {
     const meta = { by: "undo" as const, ...(version.chatId ? { chatId: version.chatId } : {}) }
 
     if (version.kind === "note") {
-      const note = JSON.parse(version.content) as AgentNote
+      const comment = asComment(JSON.parse(version.content))
       if (version.op === "added") {
-        const removed = await ws.docs.removeNote(version.path, note.id)
-        if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, t`That note is already gone.`, { path: version.path })
-        this.options.notesChanged({ path: version.path, removed: note.id })
-      } else {
-        await ws.docs.addNote(version.path, note)
-        this.options.notesChanged({ path: version.path, added: note })
+        // Taking back Owlit's comment takes the replies under it too; the redo brings them back
+        const removed = await ws.docs.removeComment(version.path, comment.id)
+        if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, t`That comment is already gone.`, { path: version.path })
+        const redo = await ws.versions.saveComment(version.path, removed, "removed", meta)
+        this.options.commentsChanged({ path: version.path, removed: comment.id })
+        return { path: version.path, kind: "note", redoId: redo.id }
       }
-      const redo = await ws.versions.saveNote(version.path, note, version.op === "added" ? "removed" : "added", meta)
+      await ws.docs.addComment(version.path, comment)
+      this.options.commentsChanged({ path: version.path, changed: comment })
+      const redo = await ws.versions.saveComment(version.path, comment, "added", meta)
       return { path: version.path, kind: "note", redoId: redo.id }
     }
 

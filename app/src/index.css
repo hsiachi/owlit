@@ -68,6 +68,18 @@
         0%, 100% { opacity: 0.45; }
         50% { opacity: 1; }
     }
+    /* A spinner waits 300ms before it shows, so a load that turns out fast never flashes one; its place
+       is kept meanwhile, so nothing moves when it arrives */
+    --animate-spinner: spinner-turn 1s linear infinite, spinner-wait var(--t-mark) var(--ease) 300ms backwards;
+    @keyframes spinner-turn {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes spinner-wait {
+        from { opacity: 0; }
+    }
+    /* Hovers and colour changes take the same easing as every other move (DESIGN.md › Motion) */
+    --default-transition-duration: var(--t-mark);
+    --default-transition-timing-function: var(--ease);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -81,7 +93,8 @@
     --color-owlit-mark: var(--owlit-mark);
     --color-warning: var(--warning);
     --color-text-highlight: var(--text-highlight);
-    --color-person-mark: var(--person-mark);
+    --color-comment-mark: var(--comment-mark);
+    --color-comment-wash: var(--comment-wash);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -129,19 +142,21 @@
     --accent-foreground: oklch(0.25 0.008 60);
     --destructive: oklch(0.55 0.16 25);
     /* Owlit's hand, one green: its proposed words are drawn in --owlit, deep enough to read as text; its
-       marks (the dot for what it changed, the underline and wash of its note) take --owlit-mark, a step
+       marks (the dot for what it changed) take --owlit-mark, a step
        lighter, which still holds 3:1 on paper. Amber (--warning) only ever means the user is needed. */
     --owlit: oklch(0.5 0.11 155);
     --owlit-mark: oklch(0.6 0.12 155);
     --warning: oklch(0.66 0.12 70);
-    /* A doc's own ==highlights==: the lemon of a yellow PDF highlight, so the two never pass for a note */
+    /* A doc's own ==highlights==: the lemon of a yellow PDF highlight, a fill, so it never passes for a comment */
     --text-highlight: oklch(0.93 0.11 98);
-    /* A person's mark: a reader's comment on a shared doc is underlined in the text's own ink, never a hue,
-       so it can't pass for Owlit's green or a link's blue; washed while open. Made from the foreground, so
-       it follows the theme and the paper tone by itself. At 50% it is 3.4:1 on paper (4.5:1 in dark), the 3:1
-       every mark keeps. */
-    --person-mark: color-mix(in oklch, var(--foreground) 50%, transparent);
-    --person-wash: color-mix(in oklch, var(--foreground) 7%, transparent);
+    /* A comment on a doc's words, whoever wrote it (Owlit, you, a reader): an orange-yellow like Feishu's,
+       so a comment is seen at a glance and who wrote it is read in its card. Lighter than amber (--warning,
+       only ever a dot or a triangle) and an underline, never a fill like a ==highlight==, so shape keeps the
+       three apart. At 2.3:1 it is under the 3:1 marks keep, so it never stands alone: always the 2px line
+       under words, washed while its card is open. The wash is faint (14%), a tint behind words being talked
+       about, well short of a highlight's lemon, so the two can't be confused side by side. */
+    --comment-mark: oklch(0.74 0.155 80);
+    --comment-wash: color-mix(in oklch, var(--comment-mark) 14%, transparent);
     --border: oklch(0.905 0.006 95);
     --input: oklch(0.9 0.006 95);
     --ring: oklch(0.7 0.012 70);
@@ -225,6 +240,8 @@
     --owlit-mark: oklch(0.75 0.12 155);
     --warning: oklch(0.78 0.11 75);
     --text-highlight: oklch(0.4 0.07 100);
+    --comment-mark: oklch(0.78 0.13 84);
+    --comment-wash: color-mix(in oklch, var(--comment-mark) 16%, transparent);
     --border: oklch(0.935 0.01 95 / 10%);
     --input: oklch(0.935 0.01 95 / 14%);
     --ring: oklch(0.55 0.012 70);
@@ -555,12 +572,32 @@
   .unfold, .strike::after { transition: none; }
   .unfold > .unfold-inner { transition: opacity var(--t-layout) var(--ease); transform: none; }
   .status-slot > * { transition: opacity var(--t-mark) var(--ease); }
+  /* Menus, popovers and dialogs keep their fade and lose the scale and the nudge */
+  * {
+    --tw-enter-scale: 1 !important; --tw-exit-scale: 1 !important;
+    --tw-enter-translate-x: 0 !important; --tw-enter-translate-y: 0 !important;
+    --tw-exit-translate-x: 0 !important; --tw-exit-translate-y: 0 !important;
+  }
 }
+/* A theme or tone switch (appearance.ts) changes every colour in one frame */
+.no-transitions, .no-transitions *, .no-transitions *::before, .no-transitions *::after { transition: none !important; }
 /* ---- Owlit in a doc or a note ---- */
-/* A selected passage's menu, "Ask Owlit": one compact row in a thin frame of the floating material,
-   covering as little text as it can; 8px corners concentric with the 6px item inside */
-.selection-menu { @apply menu-surface flex gap-0.5 rounded-[8px] p-0.5 font-sans text-detail; }
+/* A selected passage's menu: "Ask Owlit", a divider, then icons, one compact row in a thin frame of the
+   floating material, covering as little text as it can; 8px corners concentric with the 6px items inside */
+.selection-menu { @apply menu-surface flex items-center gap-0.5 rounded-[8px] p-0.5 font-sans text-detail; }
 .selection-menu button { @apply h-6 rounded-md px-2 text-foreground hover:bg-accent; cursor: default; }
+.selection-menu button.selection-menu-icon { @apply grid w-6 place-items-center px-0 text-muted-foreground hover:text-foreground; }
+.selection-menu-icon svg { @apply size-[15px]; }
+/* Between "Ask Owlit" and the tools on the text, as the PDF highlight toolbar parts its colours from its tools */
+.selection-menu-divider { @apply mx-0.5 h-4 w-px bg-border; }
+/* What was said in a comment's card (comments/CommentCard.tsx): Markdown, with paragraphs close together */
+.markdown.comment-text { @apply leading-normal; }
+.markdown.comment-text > :first-child { margin-top: 0; }
+.markdown.comment-text > :last-child { margin-bottom: 0; }
+.markdown.comment-text p { margin-block: 0.4em; }
+/* Where the open comment card goes in the text while the column is folded to pins: under its paragraph,
+   pushing the lines below down (editor/comment-marks.ts) */
+.cm-comment-slot { padding: 8px 0 12px; max-width: 480px; white-space: normal; font-size: 14px; line-height: normal; cursor: auto; }
 /* Owlit's proposed edit, marked as one more editor would, in Owlit's green. Removed words keep the muted
    tone with a strike in that colour (removal is not an error, so never red); new words take the colour,
    with an underline so the two differ in shape too. A rule at the left runs down the lines (a doc) or

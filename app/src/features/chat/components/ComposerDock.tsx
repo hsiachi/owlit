@@ -34,8 +34,11 @@ export function ComposerDock({
   )
   return (
     <div className={panel ? "relative shrink-0 px-3 pb-3" : "relative mx-auto w-full max-w-3xl px-4 pb-4"}>
-      {/* Messages fade out above the composer instead of running into it */}
-      <div aria-hidden className={cn("pointer-events-none absolute inset-x-0 bg-gradient-to-t to-transparent", panel ? "-top-6 h-6 from-sidebar-panel" : "-top-8 h-8 from-background")} />
+      {/* Messages fade out above the composer instead of running into it. Not in an empty chat, where nothing
+          scrolls under it and the fade would only dim the empty state's last line. */}
+      {!!chat?.messages.length && (
+        <div aria-hidden className={cn("pointer-events-none absolute inset-x-0 bg-gradient-to-t to-transparent", panel ? "-top-6 h-6 from-sidebar-panel" : "-top-8 h-8 from-background")} />
+      )}
       {chat && <WaitingDock chat={chat} compact={compact} onTypeInstead={() => handle.current?.focus()} />}
       <Composer
         ref={setHandle}

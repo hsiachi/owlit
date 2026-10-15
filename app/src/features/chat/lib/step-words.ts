@@ -283,8 +283,10 @@ function kindPhrase(group: string, n: number): string | undefined {
       return plural(n, { one: "listed your docs", "=2": "listed your docs twice", other: "listed your docs # times" } as Twice)
     case "owlit:docs_read":
       return plural(n, { one: "read a doc", other: "read # docs" })
+    // docs_add_note: chats from before comments
+    case "owlit:docs_add_comment":
     case "owlit:docs_add_note":
-      return plural(n, { one: "left a note on a doc", other: "left # notes on docs" })
+      return plural(n, { one: "left a comment on a doc", other: "left # comments on docs" })
     case "owlit:memory_write":
       return plural(n, { one: "kept something in mind", other: "changed what it keeps in mind # times" })
     case "owlit:docs_move":

@@ -779,13 +779,17 @@ export function promptBlocks(
   blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {
     const quoted = input.selection.text.split("\n").map((l) => `> ${l}`).join("\n")
-    const { source, page, notePath, inDigest } = input.selection
+    const { source, page, notePath, inDigest, comment } = input.selection
     const where = notePath
       ? `in their own note on ${source.title} (the file ${notePath}; it is the user's, so change it only when asked, by editing that file)`
       : inDigest
         ? `in Owlit's digest of ${source.title} (its digest.md, written from the full text; check the paper itself before taking a claim from it as the paper's)`
         : `in ${source.title}${page ? `, on page ${page}` : ""}`
-    blocks.push({ type: "text", text: `The user selected this passage ${where}:\n${quoted}` })
+    if (comment?.entries.length) {
+      // The comment is beside the doc, not in it; the agent reads what was said there here
+      const said = comment.entries.map((e) => `${e.who}: ${e.text.split("\n").join("\n  ")}`).join("\n")
+      blocks.push({ type: "text", text: `The user is asking about a comment on this passage ${where}:\n${quoted}\n\nThe comment, beside the doc (not in its text):\n${said}` })
+    } else blocks.push({ type: "text", text: `The user selected this passage ${where}:\n${quoted}` })
   }
   const seen = new Set<string>()
   for (const m of [...input.mentions, ...(input.context ?? []), ...(input.selection ? [input.selection.source] : [])]) {

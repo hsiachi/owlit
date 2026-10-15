@@ -1,6 +1,5 @@
 import { t } from "@lingui/core/macro"
 import type { Connector } from "@owlit/protocol"
-import { LoaderCircleIcon } from "lucide-react"
 import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
@@ -9,6 +8,7 @@ import { useChatStore } from "@/features/chat/store"
 import { SetupProgress } from "@/features/settings/sections/AgentsSection"
 import { updateSettings, useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/spinner"
 
 // The agents on this Mac, and which one Owlit uses. The choice is both background work's agent and new
 // chats' agent, so the first day has one answer to "what runs Owlit"; Settings can part them later. Agents
@@ -58,7 +58,7 @@ export function AgentChoice() {
               <span className="flex items-center gap-1.5 text-detail text-muted-foreground">
                 {isChecking(c) ? (
                   <>
-                    <LoaderCircleIcon className="size-3 animate-spin" />
+                    <Spinner className="size-3" />
                     {statusLabel("checking")}
                   </>
                 ) : ready ? (

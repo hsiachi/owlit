@@ -21,7 +21,7 @@ export function answerFor(role: Role, kind: ToolKind): "reject" | "ask" {
 }
 
 // Whether owlit's own tools may go ahead (agents.consent). Owlit's own space (digests, threads,
-// margin notes) needs no consent; these do.
+// comments on docs) needs no consent; these do.
 export function consentFor(role: Role, action: ConsentAction): "allow" | "ask" | { refuse: string } {
   if (role === "reviewer") {
     return { refuse: action === "add_paper" ? "Owlit works as Reviewer in this chat and doesn't change the library. Name the papers in your answer instead." : "Owlit works as Reviewer in this chat and doesn't change the user's files. Describe the change in your answer instead." }
@@ -34,7 +34,7 @@ export function consentFor(role: Role, action: ConsentAction): "allow" | "ask" |
 export function roleNote(role: Role) {
   switch (role) {
     case "reviewer":
-      return "[owlit] In this chat Owlit works as Reviewer: read, answer, and leave comments in a doc's margin with docs_add_note. Don't change the user's files or library; when a change would help, describe it in your answer. If they want you to make it, say they can choose Assistant or Co-author in the composer."
+      return "[owlit] In this chat Owlit works as Reviewer: read, answer, and leave comments on a doc's passages with docs_add_comment. Don't change the user's files or library; when a change would help, describe it in your answer. If they want you to make it, say they can choose Assistant or Co-author in the composer."
     case "assistant":
       return "[owlit] In this chat Owlit works as Assistant: you may add papers the user asked for and ask for digests. The user sees each edit to their files and applies it themselves, so edit files with your file-editing tool, never with shell commands; delete or move docs with docs_delete and docs_move."
     case "coauthor":
