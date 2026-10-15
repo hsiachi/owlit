@@ -96,6 +96,14 @@ describe("agents", () => {
     expect(codex).toMatchObject({ status: "not_installed", installHint: "npm install -g @agentclientprotocol/codex-acp" })
   })
 
+  // A turn ends with this sentence; before, it was the bare name ("Claude Code") under "Owlit stopped"
+  it("explains a missing agent when a turn starts it", async () => {
+    const empty = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-empty-path-")))
+    const { agents } = await setup(60_000, async () => empty)
+    const error = await agents.process("codex").catch((e: Error) => e)
+    expect((error as Error).message).toBe("Codex isn't installed, or Owlit can't find it. Run npm install -g @agentclientprotocol/codex-acp in a terminal to install it, then try again.")
+  })
+
   it("says when an agent isn't signed in", async () => {
     const { agents, id } = await setup()
     process.env.FAKE_ACP_AUTH = "required"

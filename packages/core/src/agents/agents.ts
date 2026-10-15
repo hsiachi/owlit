@@ -9,7 +9,7 @@ import type { SettingsStore } from "../settings.ts"
 import { resolveExecutable, splitCommand, userPath } from "./command.ts"
 import { AcpProcess, endingSentence, isAuthError } from "./process.ts"
 import { cannotRead } from "./profiles.ts"
-import { AgentSetups, type SetupOptions } from "./setup.ts"
+import { AgentSetups, MANAGED, type SetupOptions } from "./setup.ts"
 import { messageOf } from "../util.ts"
 
 const IDLE_MS = 10 * 60_000
@@ -206,6 +206,22 @@ export class Agents {
     return error
   }
 
+  // The sentence a turn ends with when the agent's program isn't there. "Or can't find it": it may be
+  // installed somewhere the PATH owlit got doesn't reach.
+  private notInstalled(def: ConnectorDef) {
+    const agent = def.name
+    const hint = def.installHint
+    // Where owlit can set up its own copy of the adapter, that needs no terminal
+    const error =
+      this.setups && MANAGED[def.id]
+        ? t`${agent} isn't installed, or Owlit can't find it. Set it up under Settings › Agents, then try again.`
+        : hint
+          ? t`${agent} isn't installed, or Owlit can't find it. Run ${hint} in a terminal to install it, then try again.`
+          : t`${agent} isn't installed, or Owlit can't find it. Check its command under Settings › Agents, then try again.`
+    this.setLive(def.id, { status: "not_installed", error })
+    return error
+  }
+
   // The agent's service refused a request it was signed in for (a 403: the network, a proxy, the region or
   // the account), which signing in again doesn't fix; the agent isn't marked signed out
   async refused(id: string) {
@@ -266,7 +282,7 @@ export class Agents {
     const [name, ...args] = launch ? [launch.command, ...launch.args] : splitCommand(def.command)
     const searchPath = await (this.options.searchPath ?? userPath)()
     const file = launch ? launch.command : name ? await resolveExecutable(name, searchPath) : null
-    if (!file) throw new NotInstalled(def.name)
+    if (!file) throw new NotInstalled(this.notInstalled(def))
     const proc = new AcpProcess({
       file,
       args,

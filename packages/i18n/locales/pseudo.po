@@ -6273,6 +6273,18 @@ msgid "{agent} isn't signed in. Run {command} in a terminal to sign in, then try
 msgstr ""
 
 #: packages/core/src/agents/agents.ts
+msgid "{agent} isn't installed, or Owlit can't find it. Set it up under Settings › Agents, then try again."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "{agent} isn't installed, or Owlit can't find it. Run {hint} in a terminal to install it, then try again."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "{agent} isn't installed, or Owlit can't find it. Check its command under Settings › Agents, then try again."
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
 msgid "{agent}'s service refused the request (403). If {agent} is signed in, this is usually the network or a proxy; try again in a moment."
 msgstr ""
 
