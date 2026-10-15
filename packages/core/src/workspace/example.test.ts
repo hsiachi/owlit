@@ -1,4 +1,4 @@
-import { MENTION_LINK, parseOwlitUri, type Collection, type CollectionSummary, type Paper } from "@owlit/protocol"
+import { MENTION_LINK, parseOwlitUri, type Thread, type ThreadSummary, type Paper } from "@owlit/protocol"
 import { existsSync, realpathSync } from "node:fs"
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -16,8 +16,8 @@ async function source() {
   await writeFile(path.join(dir, ".owlit", "workspace.json"), JSON.stringify({ version: 1, layout: {} }))
   await writeFile(path.join(dir, ".owlit", "papers", "p1", "state.json"), JSON.stringify({ addedAt: 1_760_000_000_000, status: "read", page: 3 }))
   await writeFile(path.join(dir, ".owlit", "papers", "p1", "highlights.jsonl"), JSON.stringify({ createdAt: 1_760_000_500_000, page: 2 }) + "\n")
-  await mkdir(path.join(dir, ".owlit", "collections", "c1"), { recursive: true })
-  await writeFile(path.join(dir, ".owlit", "collections", "c1", "collection.json"), JSON.stringify({ seenAt: 1_760_000_100_000, changedAt: { "memo:s1": 1_760_000_100_000 } }))
+  await mkdir(path.join(dir, ".owlit", "threads", "c1"), { recursive: true })
+  await writeFile(path.join(dir, ".owlit", "threads", "c1", "thread.json"), JSON.stringify({ seenAt: 1_760_000_100_000, changedAt: { "memo:s1": 1_760_000_100_000 } }))
   await writeFile(path.join(dir, "Draft.md"), "# Draft\n")
   return dir
 }
@@ -35,9 +35,9 @@ describe("copyExample", () => {
     // Not a time: left alone
     expect(state.page).toBe(3)
     // A map of times moves with the rest
-    const collection = JSON.parse(await readFile(path.join(folder, ".owlit", "collections", "c1", "collection.json"), "utf8"))
-    expect(collection.changedAt["memo:s1"]).toBe(collection.seenAt)
-    expect(collection.seenAt).toBe(now - 3_600_000 - 400_000)
+    const thread = JSON.parse(await readFile(path.join(folder, ".owlit", "threads", "c1", "thread.json"), "utf8"))
+    expect(thread.changedAt["memo:s1"]).toBe(thread.seenAt)
+    expect(thread.seenAt).toBe(now - 3_600_000 - 400_000)
     expect((await stat(path.join(folder, "Draft.md"))).mtimeMs).toBeLessThanOrEqual(now)
   })
 
@@ -57,7 +57,7 @@ describe("copyExample", () => {
 })
 
 describe("the shipped example workspace", () => {
-  it("opens with its collections, every paper they name in the library or the collection", async () => {
+  it("opens with its threads, every paper they name in the library or the thread", async () => {
     const parent = realpathSync(await mkdtemp(path.join(tmpdir(), "owlit-example-dst-")))
     const folder = await copyExample(SHIPPED, parent)
     const core = new Core({ userDataDir: path.join(parent, "userData") })
@@ -68,12 +68,12 @@ describe("the shipped example workspace", () => {
         return response.result as T
       }
       await call("workspace.open", { path: folder })
-      const list = await call<CollectionSummary[]>("collections.list")
+      const list = await call<ThreadSummary[]>("threads.list")
       expect(list.length).toBeGreaterThanOrEqual(2)
       const { papers, aliases } = await call<{ papers: Paper[]; aliases: Record<string, string> }>("library.list")
       const inLibrary = (id: string) => papers.some((p) => p.id === id) || !!aliases[id]
       for (const summary of list) {
-        const c = await call<Collection>("collections.get", { id: summary.id })
+        const c = await call<Thread>("threads.get", { id: summary.id })
         expect(c.rows.length).toBeGreaterThan(0)
         // Times moved with the copy: nothing in it is from the future
         expect(c.updatedAt).toBeLessThanOrEqual(Date.now())

@@ -1,9 +1,9 @@
 import type { PaperView } from "@owlit/protocol"
 
 // Reading time sent in pieces of this much, so a crash or a closed lid loses little of it
-export const FOCUS_EVERY = 30_000
+const FOCUS_EVERY = 30_000
 // How long a page must stay at the top before the stay counts
-export const DWELL_MIN = 5_000
+const DWELL_MIN = 5_000
 
 export type ReadingEvent =
   | { kind: "paper.focus"; paperId: string; view: PaperView; seconds: number }

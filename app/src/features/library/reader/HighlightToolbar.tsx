@@ -6,6 +6,8 @@ import { OwlitMark } from "@/components/owlit-mark"
 import { Tip } from "@/components/tip"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { isTyping } from "@/lib/keys"
+import { useCopyFlash } from "@/hooks/use-copy-flash"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_VAR, highlightLabel } from "../lib/highlights"
 import type { HighlightColor } from "../types"
@@ -40,17 +42,15 @@ export function HighlightToolbar({
   onCommentChange?: (text: string) => void
   onClose: () => void
 }) {
-  const [copied, setCopied] = useState(false)
+  const [copied, flash] = useCopyFlash()
 
   const copy = async () => {
-    if (!(await onCopy())) return
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1200)
+    if (await onCopy()) flash()
   }
 
   // 1–4 pick a colour, ⌘C copies, Esc closes; not while typing a comment
   useWindowKeydown((e) => {
-    const typing = e.target instanceof HTMLElement && e.target.closest("input, textarea, [contenteditable=true]")
+    const typing = isTyping(e.target)
     if (e.key === "Escape") {
       e.preventDefault()
       onClose()

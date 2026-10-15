@@ -2,7 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import type { ImportPreview, ImportSource } from "@owlit/protocol"
-import { ChevronRightIcon, FileTextIcon, FolderIcon, LibraryIcon, LoaderCircleIcon } from "lucide-react"
+import { ChevronRightIcon, FileTextIcon, FolderIcon, LibraryIcon } from "lucide-react"
 import { toast } from "sonner"
 import { RowIcon, RowList, rowClass, rowHover } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { RpcError } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
+import { tilde } from "@/lib/workspace"
 import { closeImportDialog, openImportDialog, pickImport, previewImport, reviewImport, startImport, useImportDialog } from "../imports"
+import { Spinner } from "@/components/ui/spinner"
 
-const tilde = (p: string) => p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~")
 
 // File › Import Papers…: where the papers come from, then what importing them will do, before anything
 // is added. Global, so the menu opens it from any page; starting an import goes to the Library, where
@@ -87,7 +88,7 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
     let live = true
     previewImport(source, path).then(
       (p) => live && setPreview(p),
-      (e) => live && setProblem(e instanceof RpcError ? e.message : t`That collection couldn't be read.`),
+      (e) => live && setProblem(e instanceof RpcError ? e.message : t`That library couldn't be read.`),
     )
     return () => {
       live = false
@@ -116,14 +117,14 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
           {tilde(path)}
         </span>
         <Button variant="text" size="inline" onClick={openImportDialog}>
-          {t({ message: "Change…", comment: "pick another collection to import" })}
+          {t({ message: "Change…", comment: "pick another library, file or folder to import" })}
         </Button>
       </div>
       {problem ? (
         <p className="text-sm text-destructive">{problem}</p>
       ) : !preview ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoaderCircleIcon className="size-4 animate-spin" />
+          <Spinner />
           {t`Reading…`}
         </p>
       ) : (
@@ -131,10 +132,10 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
           <p className="text-sm">{summary(source, preview)}</p>
           {/* The choices as Settings rows, one switch each */}
           <div className="divide-y">
-            {source === "zotero" && preview.collections > 0 && (
+            {source === "zotero" && preview.zoteroCollections > 0 && (
               <FormRow
                 name={t`Collections become tags`}
-                help={plural(preview.collections, { one: "# collection", other: "# collections" })}
+                help={plural(preview.zoteroCollections, { one: "# collection", other: "# collections" })}
                 control={<Switch checked={tags} onCheckedChange={setTags} />}
               />
             )}

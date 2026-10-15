@@ -1,20 +1,24 @@
-import { plural, t } from "@lingui/core/macro"
-import { useEffect } from "react"
+import { t } from "@lingui/core/macro"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
-import { EllipsisVerticalIcon } from "lucide-react"
-import { ActionsDropdownContent } from "@/components/action-menu"
+import { ActionsDropdownContent, MenuButton, MenuItems, type MenuGroups } from "@/components/action-menu"
 import { NotFound, PageHeader } from "@/components/page"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { useDocActions } from "../actions"
 import { saveAgain } from "../disk"
 import { DocEditor } from "../editor/DocEditor"
-import { anchor } from "../editor/agent-notes"
 import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
 import { useDocsUiStore } from "../ui-store"
 import { DocShareControls } from "../share/DocShareControls"
+import { CommentColumn } from "../comments/CommentColumn"
+import { openEditor } from "../editors"
+import { setInlineCards } from "../editor/comment-marks"
+import { useCommentSteps, useCommentViews } from "../comments/hooks"
+import { CommentsToggle } from "../comments/CommentsToggle"
+import { cn } from "@/lib/utils"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
 export function DocPage() {
@@ -59,23 +63,20 @@ export function DocPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader trail={trail} current={displayName(file.path)}>
         <DeletedOnDisk docId={file.id} />
-        <NoteCount docId={file.id} />
+        <CommentsToggle docId={file.id} />
         <DocShareControls file={file} />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label={t`Doc actions`} className="text-muted-foreground">
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
+          <MenuButton label={t`Doc actions`} />
           {/* The same actions as the doc's row in the list */}
-          <ActionsDropdownContent groups={fileGroups(file)} align="end" />
+          {/* Built as the menu opens, so it shows what is true then (Resolved comments… once one was) */}
+          <ActionsDropdownContent align="end">
+            <DocMenuItems groups={() => fileGroups(file)} />
+          </ActionsDropdownContent>
         </DropdownMenu>
       </PageHeader>
-      <main data-tour="doc" className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 pt-6">
-          <DocEditor key={file.id} file={file} />
-        </div>
-      </main>
+      <DocBody docId={file.id}>
+        <DocEditor key={file.id} file={file} />
+      </DocBody>
     </div>
   )
 }
@@ -95,23 +96,65 @@ function DeletedOnDisk({ docId }: { docId: string }) {
   )
 }
 
-// Shown only when agents left notes on the doc: "2 notes", which opens them one after another in reading order
-function NoteCount({ docId }: { docId: string }) {
-  const notes = useDocsStore((s) => s.notes[docId])
-  const open = useDocsUiStore((s) => (s.openNote?.docId === docId ? s.openNote.noteId : null))
-  if (!notes?.length) return null
+function DocMenuItems({ groups }: { groups: () => MenuGroups }) {
+  return <MenuItems groups={groups()} />
+}
 
-  const next = () => {
-    const text = useDocsStore.getState().files[docId]?.content ?? ""
-    // Notes whose passage is gone sort first, as they sit beside the title
-    const ordered = [...notes].sort((a, b) => (anchor(text, a) ?? -1) - (anchor(text, b) ?? -1))
-    const i = ordered.findIndex((n) => n.id === open)
-    useDocsUiStore.getState().setOpenNote(docId, ordered[(i + 1) % ordered.length].id)
-  }
-
+// The reading column, and the doc's comments in a column to its right. Wide enough, the doc stays centred
+// with the comments in the margin; less wide, the two are centred together, the column a little slimmer
+// and the text narrower before anything folds; too narrow for both, the comments fold to pins at the doc's
+// edge and an open card goes into the text (CommentColumn).
+const DOC = 768
+const GAP = 40
+const COLUMN = 272
+const SLIM = 240
+// The narrowest the text gets beside the column: about 65 characters of the doc's 15px type
+const DOC_MIN = 520
+function DocBody({ docId, children }: { docId: string; children: React.ReactNode }) {
+  const main = useRef<HTMLElement>(null)
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const el = main.current
+    if (!el) return
+    const measure = () => setWidth(el.clientWidth)
+    measure()
+    const resized = new ResizeObserver(measure)
+    resized.observe(el)
+    return () => resized.disconnect()
+  }, [])
+  const shown = useDocsUiStore((s) => s.commentsShown)
+  const drafting = useDocsUiStore((s) => s.newComment?.docId === docId)
+  const any = useCommentViews(docId).length > 0
+  const column = shown && (any || drafting)
+  // 48px of side padding around the pair
+  const layout = !column ? "alone" : width >= DOC + 2 * (COLUMN + GAP) ? "margin" : width >= DOC_MIN + SLIM + GAP + 48 ? "beside" : "pins"
+  const columnWidth = layout === "beside" && width < DOC + COLUMN + GAP + 48 ? SLIM : COLUMN
+  const pins = layout === "pins"
+  useCommentSteps(docId)
+  // The editor draws the slot for an open card only while the column is folded
+  useEffect(() => {
+    openEditor(docId)?.dispatch({ effects: setInlineCards.of(pins) })
+  }, [docId, pins])
   return (
-    <Button variant="ghost" size="sm" onClick={next} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-      {plural(notes.length, { one: "# note", other: "# notes" })}
-    </Button>
+    <main ref={main} data-tour="doc" className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className={cn(
+          "mx-auto px-6 pt-6",
+          layout === "alone" && "max-w-3xl",
+          layout === "margin" && "grid grid-cols-[1fr_minmax(0,48rem)_1fr] items-start px-0",
+          layout === "beside" && "flex items-start gap-10",
+          layout === "pins" && "flex max-w-[calc(48rem+2.5rem)] items-start gap-3",
+        )}
+        // Beside, the text keeps its own measure and the pair is centred
+        style={layout === "beside" ? { maxWidth: DOC + GAP + columnWidth + 48 } : undefined}
+      >
+        <div className={cn("min-w-0", layout === "margin" ? "col-start-2 px-6" : "flex-1")}>{children}</div>
+        {column && (
+          <div className={cn(layout === "margin" && "col-start-3 flex justify-start pr-6 pl-4", layout !== "margin" && "contents")}>
+            <CommentColumn fileId={docId} pins={pins} width={columnWidth} />
+          </div>
+        )}
+      </div>
+    </main>
   )
 }

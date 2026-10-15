@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { memo } from "react"
+import { memo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import {
@@ -9,6 +9,7 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from "@/components/ui/message-scroller"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
@@ -19,13 +20,29 @@ import type { Chat, ChatMessage } from "../types"
 import { AssistantMessage, UserMessage } from "./messages/MessageItem"
 
 // A chat's messages, on the Chat page or in the docked agent panel (`panel`): the same conversation at
-// two sizes. `onEdit` puts a sent question back in the composer.
-export function ChatMessages({ chat, streaming, panel = false, onEdit }: { chat: Chat; streaming: boolean; panel?: boolean; onEdit?: (text: string) => void }) {
+// two sizes. `onEdit` puts a sent question back in the composer; `seek` is a message to bring up, once
+// (`onSought` says it was asked for).
+export function ChatMessages({
+  chat,
+  streaming,
+  panel = false,
+  onEdit,
+  seek,
+  onSought,
+}: {
+  chat: Chat
+  streaming: boolean
+  panel?: boolean
+  onEdit?: (text: string) => void
+  seek?: string
+  onSought?: () => void
+}) {
   const connectors = useChatStore((s) => s.connectors)
   const broken = useBrokenReply(chat)
   return (
     // One scroller per chat, so switching chats opens the next one at its end
     <MessageScrollerProvider key={chat.id}>
+      {seek && <SeekMessage messageId={seek} onDone={onSought} />}
       <MessageScroller className={cn("flex-1", panel && "min-h-0")}>
         <MessageScrollerViewport className="px-4" aria-label={t`Messages`}>
           <MessageScrollerContent className={panel ? "w-full gap-1 py-2 pb-10" : "mx-auto w-full max-w-3xl gap-1 py-6 pb-12"}>
@@ -55,6 +72,17 @@ export function ChatMessages({ chat, streaming, panel = false, onEdit }: { chat:
       </MessageScroller>
     </MessageScrollerProvider>
   )
+}
+
+// Brings one message to the top. The scroller holds the request until the message is drawn (a chat whose
+// messages are still loading), and it then skips settling at the chat's end.
+function SeekMessage({ messageId, onDone }: { messageId: string; onDone?: () => void }) {
+  const { scrollToMessage } = useMessageScroller()
+  useEffect(() => {
+    scrollToMessage(messageId, { align: "start", behavior: "smooth" })
+    onDone?.()
+  }, [messageId, scrollToMessage, onDone])
+  return null
 }
 
 // One message, drawn again only when it changes: a streamed token changes the reply it belongs to, not the

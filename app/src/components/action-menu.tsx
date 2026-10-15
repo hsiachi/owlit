@@ -1,6 +1,7 @@
 import { createContext, Fragment, useContext, useState } from "react"
 import { CheckIcon, EllipsisVerticalIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -203,5 +204,17 @@ export function RowMenuButton({
         </ActionsDropdownContent>
       )}
     </DropdownMenu>
+  )
+}
+
+// A page header's ⋯, the trigger of its DropdownMenu (the menu's content goes beside it): a ghost icon
+// button that keeps the `muted` fill while its menu is up
+export function MenuButton({ label, className }: { label: string; className?: string }) {
+  return (
+    <DropdownMenuTrigger asChild>
+      <Button variant="ghost" size="icon-sm" aria-label={label} className={cn("text-muted-foreground data-[state=open]:bg-muted", className)}>
+        <EllipsisVerticalIcon />
+      </Button>
+    </DropdownMenuTrigger>
   )
 }

@@ -18,7 +18,7 @@ export const PANEL_WIDTH = 400
 const PANEL_MIN = 320
 // The page beside the panel keeps at least this much of the window
 export const PAGE_MIN = 560
-export const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
+const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
 
 // ⇧⌘J and the feather open the panel on the current chat, unless the person left it this long ago: by then
 // they are usually on another paper or doc, and the old conversation would go along with every question
@@ -62,6 +62,9 @@ interface AgentWindowState {
 
   // Ask Owlit (⌘J, or on a selection): into the panel when it is open, else the ask bar for a new chat
   open: (selection?: QuotedSelection, rects?: { paperId: string; rects: PageRect[] }) => void
+  // Ask Owlit on a comment: the docked panel with the passage, in the chat given or in a new one, never
+  // in whatever chat happened to be docked
+  askIn: (chatId: string | null, selection: QuotedSelection) => void
   close: () => void
   // ⌘J: the ask bar, or the cursor into the panel's input when the panel is open
   toggle: () => void
@@ -105,6 +108,8 @@ export const useAgentWindow = create<AgentWindowState>()(
           fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
           focusTick: s.focusTick + 1,
         })),
+      askIn: (chatId, selection) =>
+        set((s) => ({ stage: "open", chatId, selection, selectionRects: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
       close: () => set({ stage: "closed", listShown: false, fromNote: null, hint: null }),
       toggle: () => (get().stage === "bar" ? get().close() : get().open()),
       togglePanel: () => {

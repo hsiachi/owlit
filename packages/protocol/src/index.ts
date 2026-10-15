@@ -2,7 +2,7 @@
 // rules both sides must agree on; nothing here may depend on Electron, React or the app.
 
 export type * from "./chat.ts"
-export type * from "./docs.ts"
+export * from "./docs.ts"
 export type * from "./library.ts"
 export * from "./search.ts"
 export * from "./rpc.ts"
@@ -13,7 +13,8 @@ export * from "./naming.ts"
 export * from "./chat-updates.ts"
 export * from "./tasks.ts"
 export * from "./mcp-tools.ts"
-export * from "./collections.ts"
+export * from "./threads.ts"
+export * from "./memory.ts"
 export * from "./roles.ts"
 export * from "./edit-stats.ts"
 export * from "./files.ts"

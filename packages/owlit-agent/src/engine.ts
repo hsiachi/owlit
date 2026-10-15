@@ -126,7 +126,7 @@ export class Engine implements acp.Agent {
   // Without any sign-in there is no model to talk to: owlit shows that as "not signed in"
   // owlit's role for the chat decides which file tools the session has and whether they ask; a new role
   // comes as a new session (owlit loads it again with the role's _meta)
-  // A background session (a digest, a Knowledge run) has nobody to ask and no files to touch: it
+  // A background session (a digest, a thread run) has nobody to ask and no files to touch: it
   // gets only the owlit tools owlit names for it, and its answer is the result
   private async open(id: string, cwd: string, servers: acp.McpServer[], role: Role, userName: string | undefined, saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}, background?: RegExp[]) {
     const available = await availableModels(this.models, this.credentials)

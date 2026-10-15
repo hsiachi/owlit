@@ -29,8 +29,23 @@ const prepareMath = (text: string) =>
     )
     .join("")
 
+// KaTeX output by display flag and source: a streaming reply draws its math again with every chunk, and the
+// same formulas come back across replies. Bounded, the oldest dropped first.
+const TEX_CACHE_SIZE = 500
+const texCache = new Map<string, string>()
+function texHtml(tex: string, display: boolean) {
+  const key = `${display ? "d" : "i"}${tex}`
+  let html = texCache.get(key)
+  if (html === undefined) {
+    html = katex.renderToString(tex, { displayMode: display, throwOnError: false })
+    if (texCache.size >= TEX_CACHE_SIZE) texCache.delete(texCache.keys().next().value!)
+    texCache.set(key, html)
+  }
+  return html
+}
+
 function TeX({ tex, display }: { tex: string; display: boolean }) {
-  const html = katex.renderToString(tex, { displayMode: display, throwOnError: false })
+  const html = texHtml(tex, display)
   return display ? <div className="math-display" dangerouslySetInnerHTML={{ __html: html }} /> : <span dangerouslySetInnerHTML={{ __html: html }} />
 }
 

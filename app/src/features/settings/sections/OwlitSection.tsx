@@ -4,17 +4,23 @@ import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
+import { toastError } from "@/lib/toast"
 import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
+import { KeptInMindRow } from "./Memory"
 
-// What Owlit calls you, the work it does when nobody is waiting, and what it remembers of how you work.
+// What Owlit calls you, what it keeps in mind about you, the work it does when nobody is waiting, and
+// what it records of what you do.
 // The agent for background work sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
 export function OwlitSection() {
   return (
     <>
       <Group id="profile">
-        <NameRow />
+        <List>
+          <NameRow />
+          <KeptInMindRow />
+        </List>
       </Group>
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
@@ -26,29 +32,29 @@ export function OwlitSection() {
   )
 }
 
-function NameRow() {
+// What Owlit calls the user; the first launch's About you step shows this row too, narrower
+export function NameRow({ className }: { className?: string }) {
   const name = useSettings((s) => s.view?.profile.name ?? "")
   return (
-    <List>
-      <Row
-        name={t`Your name`}
-        control={
-          <CommitInput
-            value={name}
-            onCommit={(next) => void updateSettings({ profile: { name: next || null } })}
-            placeholder={t`What Owlit calls you`}
-            spellCheck={false}
-            autoComplete="off"
-            maxLength={60}
-            aria-label={t`Your name`}
-          />
-        }
-      />
-    </List>
+    <Row
+      name={t`Your name`}
+      control={
+        <CommitInput
+          value={name}
+          onCommit={(next) => void updateSettings({ profile: { name: next || null } }).catch(toastError)}
+          placeholder={t`What Owlit calls you`}
+          spellCheck={false}
+          autoComplete="off"
+          maxLength={60}
+          aria-label={t`Your name`}
+          className={className}
+        />
+      }
+    />
   )
 }
 
-// Work nobody is waiting on: digests, and gathering papers into collections
+// Work nobody is waiting on: digests, and gathering papers into threads
 function BackgroundWork() {
   const connectors = useChatStore((s) => s.connectors)
   const view = useSettings((s) => s.view)
@@ -76,7 +82,7 @@ function BackgroundWork() {
     <List>
       <Row
         name={t`Agent`}
-        help={t`Writes digests and gathers papers into collections.`}
+        help={t`Writes digests and gathers papers into threads.`}
         control={<Picker label={t`Agent for background work`} value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (

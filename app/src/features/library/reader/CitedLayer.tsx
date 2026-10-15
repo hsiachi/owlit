@@ -14,8 +14,8 @@ const WIDTH = 2
 const HIT = 12
 
 // Owlit's trace on a page: a thin bar in the margin beside each sentence its answers rested on, in a chat
-// or a collection. Hovering it rings the sentence and says where; a click goes back to the latest answer
-// (the chat's message, or the paper's row opened in its collection). Fixed colour, since the
+// or a thread. Hovering it rings the sentence and says where; a click goes back to the latest answer
+// (the chat's message, or the paper's row opened in its thread). Fixed colour, since the
 // page is white in both themes.
 export function CitedLayer({ documentId, pageIndex }: { documentId: string; pageIndex: number }) {
   const scale = useDocumentState(documentId)?.scale ?? 1
@@ -44,12 +44,12 @@ function Mark({ mark, scale }: { mark: CitedMark; scale: number }) {
   const label = (
     <span className="flex flex-col gap-0.5">
       {mark.cited.slice(-3).map((c) => (
-        <span key={c.kind === "chat" ? `${c.chatId}-${c.messageId}` : `${c.collectionId}-${c.column ?? ""}`}>{sourceLine(c)}</span>
+        <span key={c.kind === "chat" ? `${c.chatId}-${c.messageId}` : `${c.threadId}-${c.column ?? ""}`}>{sourceLine(c)}</span>
       ))}
     </span>
   )
   const open = () =>
-    navigate(latest.kind === "chat" ? `/chat/${latest.chatId}?message=${encodeURIComponent(latest.messageId)}` : `/collections/${latest.collectionId}?paper=${encodeURIComponent(latest.row)}`)
+    navigate(latest.kind === "chat" ? `/chat/${latest.chatId}?message=${encodeURIComponent(latest.messageId)}` : `/threads/${latest.threadId}?paper=${encodeURIComponent(latest.row)}`)
   return (
     // Above the sentence: the margin is too narrow for it at the side, and below would cover what is ringed
     <Tip label={label} side="top">
@@ -76,7 +76,7 @@ function Mark({ mark, scale }: { mark: CitedMark; scale: number }) {
 
 function sourceName(c: WearSource) {
   if (c.kind === "chat") return t`Owlit cited this in “${c.chatTitle}”`
-  const title = c.collectionTitle
+  const title = c.threadTitle
   const column = c.column
   return column ? t`An answer in “${title}” rests on this: ${column}` : t`An answer in “${title}” rests on this`
 }

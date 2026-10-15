@@ -200,7 +200,7 @@ function PageIndicator({ documentId, back, onBack }: { documentId: string; back:
     <div
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      className={cn(PILL, "absolute bottom-3 left-1/2 -translate-x-1/2 transition-opacity duration-300", !shown && "opacity-0")}
+      className={cn(PILL, "absolute bottom-3 left-1/2 -translate-x-1/2 transition-opacity duration-(--t-layout)", !shown && "opacity-0")}
     >
       {back && (
         <>

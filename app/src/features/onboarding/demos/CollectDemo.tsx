@@ -8,7 +8,7 @@ import { useDemoPlace } from "./place"
 import s from "./demos.module.css"
 
 interface CollectState {
-  // The question as typed so far, then the collection it became
+  // The question as typed so far, then the thread it became
   typed: string
   gathered: boolean
   rows: number
@@ -21,11 +21,11 @@ interface CollectState {
 
 const FIRST: CollectState = { typed: "", gathered: false, rows: 0, memo: 0, editing: false, rewritten: null, corrected: false }
 
-// Collect: a question typed on the Collections page becomes papers, each with what it says about the
+// Collect: a question typed on the Threads page becomes papers, each with what it says about the
 // question (with its page when it came from the full text) and the paper's name, and Owlit's short reading
 // of them, which names the papers the same way; one answer is corrected by hand
 export function CollectDemo() {
-  useDemoPlace("collections")
+  useDemoPlace("threads")
   const { layers, cursor, root, reg } = useScript<CollectState>({
     initial: () => FIRST,
     final: () => ({ ...FIRST, typed: COLLECT.question, gathered: true, rows: COLLECT.rows.length, memo: COLLECT.memo.length, rewritten: COLLECT.corrected, corrected: true }),
@@ -59,7 +59,7 @@ export function CollectDemo() {
 
   return (
     <div ref={root} className="absolute inset-0">
-      <Layers layers={layers}>{(st) => <CollectionView st={st} reg={reg} />}</Layers>
+      <Layers layers={layers}>{(st) => <ThreadView st={st} reg={reg} />}</Layers>
       <Cursor {...cursor} />
     </div>
   )
@@ -67,12 +67,12 @@ export function CollectDemo() {
 
 type Reg = (name: string) => (el: HTMLElement | null) => () => void
 
-function CollectionView({ st, reg }: { st: CollectState; reg: Reg }) {
+function ThreadView({ st, reg }: { st: CollectState; reg: Reg }) {
   return (
     <div className={s.kn}>
       {!st.gathered ? (
         <>
-          <div className={s.h}>{t`Collections`}</div>
+          <div className={s.h}>{t`Threads`}</div>
           <div className={s.collectField}>
             <SearchIcon />
             <span className={cn(!st.typed && s.mut)}>{st.typed || t`Collect papers on…`}</span>

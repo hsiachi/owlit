@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
-import { FromBrowserLine } from "../components/FromBrowserLine"
+import { FromBrowserLine, NoPdfLine } from "../components/FromBrowserLine"
 import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
@@ -18,8 +18,8 @@ import { addPdfFiles } from "../lib/add-pdfs"
 import { openImportDialog, reviewImport } from "../imports"
 import { filePath } from "@/lib/rpc"
 import { groupPapers, matchesQuery, visiblePapers } from "../lib/filter"
-import { useCollectionsStore } from "@/features/collections/store"
-import { collectionsByPaper } from "@/features/collections/lib"
+import { useThreadsStore } from "@/features/threads/store"
+import { threadsByPaper } from "@/features/threads/lib"
 import { useTextHits } from "@/features/search/full-text"
 import { looksLikeRef } from "../lib/ref"
 import { usePaperListKeys } from "../lib/use-list-keys"
@@ -40,8 +40,8 @@ export function LibraryPage() {
   const sort = useLibraryUi((s) => s.sort)
   const layout = usePrefsStore((s) => s.layout)
   const { dragging, dropProps } = useFileDrop((data) => {
-    const collection = droppedCollection(data)
-    if (collection) reviewImport(collection.source, collection.path)
+    const dropped = droppedImport(data)
+    if (dropped) reviewImport(dropped.source, dropped.path)
     else void addPdfFiles(Array.from(data.files))
   })
 
@@ -58,23 +58,24 @@ export function LibraryPage() {
     [papers, searchText, filter, tags, sort, only, textHits],
   )
   // A paper found by its text, not its details, shows where the words were
-  const snippets = useMemo(() => {
-    const q = searchText.trim()
-    return new Map(visible.flatMap((p) => (!matchesQuery(p, q) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : [])))
-  }, [visible, textHits, searchText])
-  const collections = useCollectionsStore((s) => s.collections)
+  const snippets = useMemo(
+    () => new Map(visible.flatMap((p) => (!matchesQuery(p, words) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : []))),
+    [visible, textHits, words],
+  )
+  const threads = useThreadsStore((s) => s.threads)
   const aliases = useLibraryStore((s) => s.aliases)
-  // The table's Collection column wants it whatever the order; the list only when grouped by collection
+  // The table's Thread column wants it whatever the order; the list only when grouped by thread
   const table = layout === "table"
-  const byCollection = useMemo(() => (table || sort.key === "collection" ? collectionsByPaper(collections, papers, aliases) : undefined), [table, sort.key, collections, papers, aliases])
-  const searching = searchText.trim().length > 0
-  const groups = useMemo(() => groupPapers(visible, sort, searching, Date.now(), byCollection), [visible, sort, searching, byCollection])
-  // Grouped by collection, papers show in their groups' order, which the keys follow
-  const byGroups = sort.key === "collection" && !searching
+  const byThread = useMemo(() => (table || sort.key === "thread" ? threadsByPaper(threads, papers, aliases) : undefined), [table, sort.key, threads, papers, aliases])
+  const searching = words.length > 0
+  const byReason = filter === "no-pdf"
+  const groups = useMemo(() => groupPapers(visible, sort, searching, Date.now(), byThread, byReason), [visible, sort, searching, byThread, byReason])
+  // Grouped by thread or by why there is no PDF, papers show in their groups' order, which the keys follow
+  const byGroups = (sort.key === "thread" || byReason) && !searching
   const order = useMemo(() => (byGroups ? groups.flatMap((g) => g.papers.map((p) => p.id)) : visible.map((p) => p.id)), [byGroups, groups, visible])
   const { scroller, listProps } = usePaperListKeys(order)
   const empty = Object.keys(papers).length === 0
-  const noMatch = words.length > 0 && visible.length === 0
+  const noMatch = searching && visible.length === 0
   const unfiltered = !refInput && !words && filter === "all" && tags.length === 0 && !only
 
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the
@@ -104,6 +105,7 @@ export function LibraryPage() {
         />
         <ImportBanner />
         <FromBrowserLine />
+        {filter === "no-pdf" && <NoPdfLine />}
         <LibraryFindField onSubmit={submit} onPickFiles={addPdfFiles} />
         {refInput ? (
           <AddCandidate lookup={lookup} onAdd={add} input={refInput} />
@@ -120,7 +122,7 @@ export function LibraryPage() {
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">{t`No papers match.`}</p>
               ) : table ? (
-                <PaperTable papers={visible} groups={byGroups ? groups : undefined} byCollection={byCollection} snippets={snippets} />
+                <PaperTable papers={visible} groups={byGroups ? groups : undefined} byThread={byThread} snippets={snippets} />
               ) : (
                 <PaperList groups={groups} snippets={snippets} />
               )}
@@ -148,8 +150,8 @@ function NoMatch({ words, onAsk }: { words: string; onAsk: () => void }) {
   )
 }
 
-// A .bib file or a folder dropped on the Library is a collection to import, not papers to add one by one
-function droppedCollection(data: DataTransfer): { source: "bibtex" | "folder"; path: string } | null {
+// A .bib file or a folder dropped on the Library is a library to import, not papers to add one by one
+function droppedImport(data: DataTransfer): { source: "bibtex" | "folder"; path: string } | null {
   const files = Array.from(data.files)
   if (files.length !== 1) return null
   const entry = data.items[0]?.webkitGetAsEntry()
@@ -185,7 +187,7 @@ function EmptyLibrary() {
         }
       >
         <p className="text-detail text-muted-foreground">
-          {t`Coming from Zotero or BibTeX?`} <InlineLink onClick={openImportDialog}>{t`Import your collection`}</InlineLink>
+          {t`Coming from Zotero or BibTeX?`} <InlineLink onClick={openImportDialog}>{t`Import your library`}</InlineLink>
         </p>
       </DropCard>
       <PdfFileInput ref={fileInput} multiple onFiles={(files) => void addPdfFiles(files)} />

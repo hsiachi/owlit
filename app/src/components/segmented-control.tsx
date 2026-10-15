@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { useLayoutEffect, useRef } from "react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTravel } from "@/hooks/use-travel"
 import { NoteDot } from "@/components/marks"
 import { Tip } from "@/components/tip"
 
@@ -23,32 +23,8 @@ export function SegmentedControl<T extends string>({
   options: { value: T; label: string; icon?: LucideIcon; dot?: boolean }[]
   className?: string
 }) {
-  const box = useRef<HTMLDivElement>(null)
-  const thumb = useRef<HTMLSpanElement>(null)
-  const placed = useRef(false)
-  // The thumb sits under the checked segment; measured again as the box resizes (a font settling)
-  useLayoutEffect(() => {
-    const el = box.current
-    const mark = thumb.current
-    if (!el || !mark) return
-    const place = () => {
-      const on = el.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
-      if (!on) return
-      // The first placement is not a move
-      if (!placed.current) mark.style.transition = "none"
-      mark.style.left = `${on.offsetLeft}px`
-      mark.style.width = `${on.offsetWidth}px`
-      if (!placed.current) {
-        void mark.offsetWidth
-        mark.style.transition = ""
-        placed.current = true
-      }
-    }
-    place()
-    const ro = new ResizeObserver(place)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [value])
+  // The thumb sits under the checked segment
+  const { box, mark: thumb } = useTravel<HTMLDivElement, HTMLSpanElement>(options.findIndex((o) => o.value === value))
   return (
     <div ref={box} role="radiogroup" aria-label={label} className={cn("relative flex gap-0.5 rounded-lg bg-muted p-0.5", className)}>
       <span
@@ -64,6 +40,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={on}
+            data-item
             aria-label={o.icon ? o.label : undefined}
             onClick={() => onChange(o.value)}
             className={cn(

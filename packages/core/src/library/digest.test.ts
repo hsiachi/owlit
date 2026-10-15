@@ -1,9 +1,12 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import type { Task } from "@owlit/protocol"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { Background } from "../agents/background.ts"
 import { Core } from "../core.ts"
-import type { Workspace } from "../workspace/workspace.ts"
+import { TaskStore } from "../tasks/index.ts"
+import { workspaceDataDir, type Workspace } from "../workspace/workspace.ts"
 import { cleanDigest } from "./library.ts"
 
 const fake = path.join(import.meta.dirname, "../agents/fake-acp.ts")
@@ -11,6 +14,7 @@ const fake = path.join(import.meta.dirname, "../agents/fake-acp.ts")
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((c) => c.dispose()))
+  vi.restoreAllMocks()
 })
 
 // A workspace whose background agent is the fake one, and a paper with its text read
@@ -132,6 +136,34 @@ describe("digests", () => {
     await new Promise((r) => setTimeout(r, 100))
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
     expect(existsSync(path.join(root, "library/papers/doi-10.1-none/digest.md"))).toBe(false)
+  })
+})
+
+describe("background runs at open", () => {
+  it("start only once owlit's tools are reachable: a digest left queued gets owlit-mcp", async () => {
+    const { root, addPaper } = await setup()
+    await addPaper("doi-10.1-left")
+    await cores.pop()!.dispose()
+    // The last session queued the digest and stopped before it ran
+    const userDataDir = path.join(path.dirname(root), "userData")
+    const store = new TaskStore(path.join(workspaceDataDir(userDataDir, root), "tasks"))
+    const left: Task = { id: "left-digest", kind: "paper.digest", subject: "doi-10.1-left", lane: "agent", priority: "background", state: "queued", attempts: 0, createdAt: Date.now() }
+    store.record(left, [left])
+    await store.flush()
+
+    const runs: unknown[] = []
+    vi.spyOn(Background.prototype, "run").mockImplementation(async (run) => {
+      runs.push(run.mcpServers)
+      return { text: `# Paper doi-10.1-left\n\n## Summary\n\n${"- A line of the note.\n".repeat(12)}`, connectorId: "fake" }
+    })
+    // A short folder: a Unix socket's path has to fit in about a hundred bytes
+    const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
+    const core = new Core({ userDataDir, socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: [] } })
+    cores.push(core)
+    await core.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const workspace = (core as unknown as { workspace: Workspace }).workspace
+    expect(await workspace.tasks.wait("left-digest")).toMatchObject({ state: "done" })
+    expect(runs).toEqual([[expect.objectContaining({ name: "owlit", command: "owlit-mcp", args: ["--workspace", root] })]])
   })
 })
 

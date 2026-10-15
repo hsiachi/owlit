@@ -20,10 +20,10 @@ function tempDir() {
   return dir
 }
 
-async function newScheduler(definitions: TaskDefinition[], dir = tempDir(), onChange?: (task: Task) => void) {
+async function newScheduler(definitions: TaskDefinition[], dir = tempDir(), onChange?: (task: Task) => void, { start = true } = {}) {
   const scheduler = new Scheduler({ store: new TaskStore(dir), definitions, onChange, retryDelay: () => 5 })
   schedulers.push(scheduler)
-  await scheduler.start()
+  await (start ? scheduler.start() : scheduler.load())
   return { scheduler, dir }
 }
 
@@ -56,6 +56,32 @@ describe("Scheduler", () => {
     const finished = await Promise.all(tasks.map((t) => scheduler.wait(t.id)))
     expect(finished.every((t) => t.state === "done")).toBe(true)
     expect(most).toBe(3)
+  })
+
+  it("runs nothing, the last session's tasks or new ones, until started", async () => {
+    const ran: string[] = []
+    const work = defineTask("fake.work", {
+      lane: "network",
+      async run(ctx) {
+        ran.push(ctx.task.subject)
+      },
+    })
+    const dir = tempDir()
+    const before = await newScheduler([work], dir, undefined, { start: false })
+    before.scheduler.enqueue("fake.work", "left")
+    await before.scheduler.dispose()
+
+    const { scheduler } = await newScheduler([work], dir, undefined, { start: false })
+    const queued = scheduler.enqueue("fake.work", "new")
+    await tick(20)
+    expect(ran).toEqual([])
+    expect(scheduler.list().map((t) => [t.subject, t.state])).toEqual([
+      ["left", "queued"],
+      ["new", "queued"],
+    ])
+    await scheduler.start()
+    await scheduler.wait(queued.id)
+    expect(ran.sort()).toEqual(["left", "new"])
   })
 
   it("lets a task someone is waiting for go first", async () => {

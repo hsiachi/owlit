@@ -1,19 +1,16 @@
-import { useEffect, useRef } from "react"
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import type { Connector } from "@owlit/protocol"
-import { CopyIcon, LoaderCircleIcon } from "lucide-react"
+import { CopyIcon } from "lucide-react"
 import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
 import { InlineLink } from "@/components/inline-link"
 import { KindIcon } from "@/components/kind-icon"
 import { Button } from "@/components/ui/button"
-import { canRun, canSetUp, connectorProblem, problemSentence, settingUp } from "@/features/chat/lib/connector-status"
+import { canRun, canSetUp, connectorProblem, isChecking, problemSentence, settingUp, useConnectorRecheck } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { openSettings } from "@/features/settings/store"
 import { copyText } from "@/lib/clipboard"
-
-const isChecking = (c: Connector) => c.status === "checking" || c.status === "unknown"
+import { Spinner } from "@/components/ui/spinner"
 
 // One line at the bottom of the welcome page: whether an agent on this Mac can run Owlit. It only
 // reports; Create and Open work either way. Every agent is checked afresh when the page opens, and the
@@ -22,23 +19,7 @@ const isChecking = (c: Connector) => c.status === "checking" || c.status === "un
 export function AgentCheck() {
   const connectors = useChatStore((s) => s.connectors)
   const check = useChatStore((s) => s.checkConnector)
-  const checked = useRef(false)
-
-  useEffect(() => {
-    if (checked.current || !connectors.length) return
-    checked.current = true
-    for (const c of connectors) if (c.status !== "checking") void check(c.id)
-  }, [connectors, check])
-
-  useEffect(() => {
-    const onFocus = () => {
-      const all = useChatStore.getState().connectors
-      if (all.some(canRun)) return
-      for (const c of all) if (!isChecking(c)) void check(c.id)
-    }
-    window.addEventListener("focus", onFocus)
-    return () => window.removeEventListener("focus", onFocus)
-  }, [check])
+  useConnectorRecheck(connectors, { untilOneRuns: true })
 
   // Built-in agents come first, Claude Code first of all, as background work picks them
   const ready = connectors.find(canRun)
@@ -82,7 +63,7 @@ export function AgentCheck() {
     )
   } else if (checking) {
     body = (
-      <Line icon={<LoaderCircleIcon className="animate-spin" />}>
+      <Line icon={<Spinner />}>
         <span>{t`Looking for an agent on this Mac…`}</span>
       </Line>
     )
@@ -90,7 +71,7 @@ export function AgentCheck() {
     const name = busy.name
     const percent = Math.round((settingUp(busy) ?? 0) * 100)
     body = (
-      <Line icon={<LoaderCircleIcon className="animate-spin" />}>
+      <Line icon={<Spinner />}>
         <span className="flex-1 tabular-nums">{t`Setting up ${name}… ${percent}%`}</span>
         <Button variant="text" size="inline" className="-my-1 -mr-1.5" onClick={() => void cancelSetUp(busy.id)}>
           {t`Cancel`}

@@ -3,19 +3,21 @@ import { useState } from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { FoldChevron } from "@/components/fold"
+import { IconButton } from "@/components/icon-button"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { editStats, parentPath, type AgentQuestion } from "@owlit/protocol"
+import { isTyping } from "@/lib/keys"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Kbd } from "@/components/ui/kbd"
 import { Unfold } from "@/components/unfold"
-import type { Chat, Part, PermissionKind } from "../types"
+import type { Chat, Part, PermissionKind, ToolCall } from "../types"
 import { allAnswered, answered, nextOpen, useAskDraft } from "../ask-draft"
 import { useInPlace } from "../in-place"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { amount } from "../lib/edit-counts"
-import { askSentence, runsCommand, shortUrl, type ToolCall } from "../lib/step-words"
+import { askSentence, runsCommand, shortUrl } from "../lib/step-words"
 import { callOf, pendingAsk } from "../status"
 import { useChatStore } from "../store"
 import { DiffPreview } from "./messages/step-results"
@@ -133,8 +135,6 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
   )
 }
 
-const editable = (el: Element | null) => !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable)
-
 // A question's choices: a radio (one pick) or a checkbox (several) before the label, its description under
 // it, the key that picks it at the end; and, when words of one's own are taken, a last row that hands over
 // to the composer. Plain rows, no frame (a card inside the card would stack outlines): the `muted` fill on
@@ -182,7 +182,7 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
 
   // A number picks that option, unless the user is typing somewhere
   useWindowKeydown((e) => {
-    if (!q || e.metaKey || e.ctrlKey || e.altKey || editable(document.activeElement)) return
+    if (!q || e.metaKey || e.ctrlKey || e.altKey || isTyping(document.activeElement)) return
     const n = Number(e.key)
     const option = Number.isInteger(n) && n >= 1 ? q.options[n - 1] : undefined
     if (!option) return
@@ -219,15 +219,15 @@ function QuestionCard({ chatId, ask, agent, compact, onTypeInstead }: { chatId: 
         {/* Several questions: a pager at the line's end, so an answered one can be gone back to */}
         {!folded && several && (
           <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon-xs" aria-label={t`Previous question`} disabled={index === 0} className="text-muted-foreground" onClick={() => goTo(index - 1)}>
+            <IconButton label={t`Previous question`} size="icon-xs" disabled={index === 0} onClick={() => goTo(index - 1)}>
               <ChevronLeftIcon />
-            </Button>
+            </IconButton>
             <span className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
               {index + 1} / {ask.questions.length}
             </span>
-            <Button variant="ghost" size="icon-xs" aria-label={t`Next question`} disabled={index === ask.questions.length - 1} className="text-muted-foreground" onClick={() => goTo(index + 1)}>
+            <IconButton label={t`Next question`} size="icon-xs" disabled={index === ask.questions.length - 1} onClick={() => goTo(index + 1)}>
               <ChevronRightIcon />
-            </Button>
+            </IconButton>
           </span>
         )}
         {folded ? (

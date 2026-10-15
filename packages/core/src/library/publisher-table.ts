@@ -73,7 +73,9 @@ const SPRINGER_PDF = "https://link.springer.com/content/pdf/{doi}.pdf"
 export const PUBLISHERS: Publisher[] = [
   {
     name: "acm",
-    prefixes: ["10.1145/"],
+    // 10.5555/: ACM's own DOIs for papers it lists from elsewhere (10.5555/2034396.2034432): doi.org
+    // doesn't know them (404), the Digital Library does
+    prefixes: ["10.1145/", "10.5555/"],
     hosts: ["dl.acm.org"],
     pdf: "https://dl.acm.org/doi/pdf/{doi}",
     browser: { landing: "https://dl.acm.org/doi/{doi}", download: true, browserOnly: true, open: true },

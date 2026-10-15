@@ -6,22 +6,22 @@ import { cn } from "@/lib/utils"
 import { NotFound, PageHeader } from "@/components/page"
 import { IconButton } from "@/components/icon-button"
 import { SegmentedControl } from "@/components/segmented-control"
+import { useTakeParam } from "@/hooks/use-take-param"
 import { reportPaperView } from "@/app/activity"
 import { useAgentWindow } from "@/features/agent/store"
-import { useDigestState } from "../digests"
+import { useDigestState, useWritingDigest } from "../digests"
 import { visiblePapers } from "../lib/filter"
 import { useReadingVisit } from "../lib/reading"
-import { useTakeParam } from "../lib/use-take-param"
 import { notePathOf } from "../notes/note-actions"
 import { usePrefsStore } from "../prefs-store"
 import { PdfReader } from "../reader/PdfReader"
 import { useReaderStore, whenReaderReady } from "../reader/reader-store"
-import { useLibraryStore } from "../store"
+import { paperById, useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
 import { DetailsPanel } from "./paper/DetailsPanel"
 import { NoPdf } from "./paper/NoPdf"
-import { Digest, useWritingDigest } from "./paper/Digest"
+import { Digest } from "./paper/Digest"
 
 // One paper: Owlit's digest of it, or the PDF on a darker well, with details beside it
 export function PaperPage() {
@@ -30,7 +30,7 @@ export function PaperPage() {
   const papers = usePapersAtRest()
   const paper = papers[paperId]
   // A paper that moved (a local file given its DOI) still opens from its old link
-  const movedTo = useLibraryStore((s) => (s.papers[paperId] ? undefined : s.aliases[paperId]))
+  const movedTo = useLibraryStore((s) => paperById(s.papers, s.aliases, paperId)?.id)
   const prefersPanel = usePrefsStore((s) => s.panelOpen)
   const setPanelOpen = usePrefsStore((s) => s.setPanelOpen)
   // The right side holds one panel at a time: a docked agent window takes the details panel's place,
@@ -89,7 +89,7 @@ export function PaperPage() {
     showView("pdf")
     void whenReaderReady(paperId).then((api) => api.showPage(page), () => undefined)
   }
-  // A jump into the PDF from elsewhere (a highlight in the list, a collection's answer) shows the PDF
+  // A jump into the PDF from elsewhere (a highlight in the list, a thread's answer) shows the PDF
   useEffect(
     () =>
       useReaderStore.subscribe((s, prev) => {
@@ -100,7 +100,7 @@ export function PaperPage() {
     [paperId],
   )
 
-  // Opened at a quote (a collection's answer that rests on it): go to those words on that page
+  // Opened at a quote (a thread's answer that rests on it): go to those words on that page
   useTakeParam(
     "quote",
     (quote, params) => {
@@ -110,10 +110,10 @@ export function PaperPage() {
       setChosen({ paperId, view: "pdf" })
       void whenReaderReady(paperId).then((api) => api.showPassage({ id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), page: page ? page - 1 : undefined }, "jump"), () => undefined)
     },
-    ["page"],
+    { also: ["page"] },
   )
 
-  if (!paper && movedTo) return <Navigate to={`/library/${movedTo}`} replace />
+  if (!paper && movedTo && movedTo !== paperId) return <Navigate to={`/library/${movedTo}`} replace />
   if (!paper) return <NotFound title={t`This paper is not in the library`} detail={t`It may have been removed.`} back={{ label: t`Back to library`, to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })

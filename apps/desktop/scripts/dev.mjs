@@ -1,11 +1,15 @@
 // pnpm dev: Vite's dev server for the renderer (HMR), esbuild watching main and preload, and Electron
 // restarted whenever either of those rebuilds. Closing the app ends the whole thing.
+//
+// It runs as Owlit Dev on a clone of your data (scripts/preview.mjs), so it can stay open beside the Owlit
+// you use. --fresh clones the data again; OWLIT_USER_DATA picks another folder and clones nothing.
 
 import { spawn } from "node:child_process"
 import { createRequire } from "node:module"
 import net from "node:net"
 import path from "node:path"
 import * as esbuild from "esbuild"
+import { checkoutLabel, devBundle, previewData } from "./preview.mjs"
 import { appDir, copyMainAssets, desktopDir, esbuildOptions } from "./shared.mjs"
 
 const require = createRequire(import.meta.url)
@@ -24,15 +28,27 @@ vite.on("exit", (code) => shutdown(code ?? 1))
 await waitForServer(devUrl)
 
 // Extra flags go to Electron, e.g. pnpm dev -- --remote-debugging-port=9333
-const electronArgs = process.argv.slice(2).filter((arg) => arg !== "--")
+const args = process.argv.slice(2).filter((arg) => arg !== "--")
+const electronArgs = args.filter((arg) => arg !== "--fresh")
+
+const checkout = path.resolve(desktopDir, "../..")
+const label = checkoutLabel(checkout)
+const name = label ? `Owlit Dev (${label})` : "Owlit Dev"
+const devBin = devBundle({
+  electronBin,
+  cacheDir: path.join(desktopDir, "node_modules/.cache/owlit-dev"),
+  name,
+  icon: path.join(desktopDir, "resources/icon-dev.icns"),
+})
+const userData = process.env.OWLIT_USER_DATA || previewData({ checkout, fresh: args.includes("--fresh") })
 
 let electron = null
 let restarting = false
 
 function startElectron() {
-  electron = spawn(electronBin, [desktopDir, ...electronArgs], {
+  electron = spawn(devBin, [desktopDir, ...electronArgs], {
     stdio: "inherit",
-    env: { ...process.env, OWLIT_DEV_URL: devUrl },
+    env: { ...process.env, OWLIT_DEV_URL: devUrl, OWLIT_DEV_NAME: name, OWLIT_USER_DATA: userData },
   })
   electron.on("exit", (code) => {
     if (restarting) return

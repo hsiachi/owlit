@@ -1,19 +1,23 @@
 import { plural, t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import type { ImportSummary, Task } from "@owlit/protocol"
-import { CheckIcon, CircleXIcon, LoaderCircleIcon, XIcon } from "lucide-react"
+import { CheckIcon, CircleXIcon, XIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
 import { InlineLink } from "@/components/inline-link"
+import { WaitingDot } from "@/components/marks"
+import { JoinDots, StatusLine } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { fileName } from "@/lib/names"
 import { cancelTask, useTasksStore } from "@/features/tasks/store"
 import { answerImport, continueImport, dismissImport, importAsks, useImports } from "../imports"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
+import { Spinner } from "@/components/ui/spinner"
 
 // "from Zotero", "from refs.bib", "from the Papers folder"
 export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
-  const name = i.path.split("/").filter(Boolean).at(-1) ?? i.path
+  const name = fileName(i.path)
   return i.source === "zotero" ? t`from Zotero` : i.source === "bibtex" ? t`from ${name}` : t`from the ${name} folder`
 }
 
@@ -21,7 +25,7 @@ export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
 // other work (DESIGN.md): while it runs, one quiet grey line; asking, the same line led by the amber dot
 // with its two answers; broken, a red "Stopped" with why in owlit's words and the error behind Details. One
 // the person stopped is not an error and stays muted. Once it is done it becomes the one card on the page,
-// since a whole collection arriving is news worth seeing, with Show the 104 as its button. It stays until
+// since a whole thread arriving is news worth seeing, with Show the 104 as its button. It stays until
 // dismissed.
 export function ImportBanner() {
   const list = useImports((s) => s.list)
@@ -62,7 +66,7 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
   let words: React.ReactNode
   let actions: React.ReactNode
   if (asks) {
-    mark = <span className="size-2 rounded-full bg-warning" />
+    mark = <WaitingDot />
     words = plural(fresh, { one: `Import ${origin}: should MinerU read the new paper's PDF?`, other: `Import ${origin}: should MinerU read the PDFs of # new papers?` })
     actions = (
       <>
@@ -103,8 +107,8 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
       </>
     )
   } else {
-    mark = <LoaderCircleIcon className="size-3.5 animate-spin" />
-    words = total === undefined ? t`Reading the collection ${origin}…` : t`Importing ${origin} · ${done} of ${total}`
+    mark = <Spinner className="size-3.5" />
+    words = total === undefined ? t`Reading ${origin}…` : t`Importing ${origin} · ${done} of ${total}`
     actions = (
       <Button variant="text" size="inline" onClick={() => task && void cancelTask(task.id)}>
         {t`Cancel`}
@@ -112,19 +116,18 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
     )
   }
   return (
-    <div className="mt-3 -mb-1 text-detail text-muted-foreground" role="status">
-      <div className="flex min-h-7 items-center gap-3">
-        <span className="flex min-w-0 flex-1 items-center gap-2 tabular-nums">
-          {mark && <span className="grid size-3.5 shrink-0 place-items-center">{mark}</span>}
-          {words}
-        </span>
-        <span className="-mr-1.5 flex shrink-0 items-center gap-0.5">{actions}</span>
-      </div>
-      {/* The error in the library's or the network's own words, a detail as under a broken reply */}
-      {details && broken && task?.error && (
-        <p className="mt-1 ml-5.5 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">{task.error}</p>
-      )}
-    </div>
+    <StatusLine
+      mark={mark}
+      actions={actions}
+      below={
+        // The error in the library's or the network's own words, a detail as under a broken reply
+        details &&
+        broken &&
+        task?.error && <p className="mt-1 ml-5.5 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">{task.error}</p>
+      }
+    >
+      {words}
+    </StatusLine>
   )
 }
 
@@ -156,12 +159,7 @@ function Done({ summary }: { summary: ImportSummary }) {
         </p>
         {parts.length > 0 && (
           <p className="text-detail text-muted-foreground">
-            {parts.map((part, i) => (
-              <span key={i}>
-                {i > 0 && " · "}
-                {part}
-              </span>
-            ))}
+            <JoinDots items={parts} />
           </p>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { isTyping } from "@/lib/keys"
 import { usePaperActions } from "../actions"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
@@ -128,7 +129,7 @@ export function usePaperListKeys(order: string[]) {
     // A menu button already used the key (↓ opens its menu)
     if (e.defaultPrevented) return
     const target = e.target as HTMLElement
-    if (target.closest("input, textarea, [contenteditable], [role=menu], [role=tablist]")) return
+    if (isTyping(target) || target.closest("[role=menu], [role=tablist]")) return
     // A button keeps Enter and Space, but ↑↓ still reach the list, so a click on a chip or the
     // layout toggle doesn't leave the keyboard stranded in the toolbar
     const onControl = !!target.closest("button, a")

@@ -34,7 +34,7 @@ Claude Code, Codex or Gemini CLI, or owlit's own engine.
   writes a digest of each one; your highlights and notes sit beside it.
 - **Chat**: ask about your papers, docs and notes, or hand work off. Answers cite the page they came from.
 - **Docs**: write in Markdown. Ask Owlit about a passage, or let it suggest an edit you can see and undo.
-- **Collections**: give Owlit a question and it gathers papers on it, with what each one says and how far
+- **Threads**: give Owlit a question and it gathers papers on it, with what each one says and how far
   it read, in a list or a table you can sort, group and correct. Papers stay out of your Library until you
   use them.
 - **Home**: where you land, with what you were in the middle of.
@@ -69,7 +69,7 @@ After an update, macOS may ask once for your password so Owlit can read its save
 
 ## Your data
 
-- **A folder is the workspace.** Docs are Markdown files, papers are in `library/`, collections and chats
+- **A folder is the workspace.** Docs are Markdown files, papers are in `library/`, threads and chats
   sit beside them in `.owlit/`. Back it up, sync it or put it in git like any folder. Exporting is
   copying it.
 - **Other programs are welcome.** Edit your docs in any editor; owlit follows changes on disk and never

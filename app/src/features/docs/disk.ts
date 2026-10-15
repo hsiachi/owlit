@@ -1,7 +1,8 @@
-import type { AgentNote, DocConflict, DocsChange, DocStat, NoteAnchor, WorkspaceFile } from "@owlit/protocol"
+import type { CommentAnchor, DocComment, DocConflict, DocsChange, DocStat, WorkspaceFile } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
+import { toastError } from "@/lib/toast"
 import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { countDown, countUp } from "@/lib/counts"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -54,7 +55,7 @@ const remember = (stat: DocStat, content?: string) => {
 }
 
 async function failed(error: unknown) {
-  toast.error(error instanceof Error ? error.message : t`Couldn't save the change.`)
+  toastError(error, t`Couldn't save the change.`)
   await load()
 }
 
@@ -62,7 +63,7 @@ async function failed(error: unknown) {
 
 // Replaces the store with the workspace as it is on disk. New docs that were never written stay.
 async function load() {
-  const [listing, notes] = await Promise.all([rpc.docs.list(), rpc.notes.all()])
+  const [listing, comments] = await Promise.all([rpc.docs.list(), rpc.comments.all()])
   const before = new Map(written)
   known.clear()
   written.clear()
@@ -73,8 +74,8 @@ async function load() {
       return {
         files: Object.fromEntries([...listing.files, ...unsaved].map((f) => [f.id, f])),
         folders: listing.folders,
-        // The store keeps notes by file id, so they stay with a doc through renames
-        notes: Object.fromEntries(listing.files.filter((f) => notes[f.path]).map((f) => [f.id, notes[f.path]])),
+        // The store keeps comments by file id, so they stay with a doc through renames
+        comments: Object.fromEntries(listing.files.filter((f) => comments[f.path]).map((f) => [f.id, comments[f.path]])),
         loaded: true,
       }
     }),
@@ -285,34 +286,41 @@ export function restoreOnDisk(files: WorkspaceFile[], folders: string[]) {
   )
 }
 
-// ---- Agents' notes, beside the file they belong to ----
+// ---- Comments, beside the file they belong to ----
 
-// Where a doc's notes live: by its path on disk, or where it will be written if it isn't yet
-const notesPath = (id: string) => known.get(id)?.path ?? useDocsStore.getState().files[id]?.path
+// Where a doc's comments live: by its path on disk, or where it will be written if it isn't yet
+const commentsPath = (id: string) => known.get(id)?.path ?? useDocsStore.getState().files[id]?.path
 
-export function addNoteOnDisk(id: string, note: AgentNote) {
+export function addCommentOnDisk(id: string, comment: DocComment) {
   enqueue([id], async () => {
-    const path = notesPath(id)
-    if (path) await rpc.notes.add({ path, note })
+    const path = commentsPath(id)
+    if (path) await rpc.comments.add({ path, comment })
   })
 }
 
-export function removeNoteOnDisk(id: string, noteId: string) {
+export function putCommentOnDisk(id: string, comment: DocComment) {
   enqueue([id], async () => {
-    const path = notesPath(id)
-    if (path) await rpc.notes.remove({ path, id: noteId })
+    const path = commentsPath(id)
+    if (path) await rpc.comments.put({ path, comment })
   })
 }
 
-export function reanchorOnDisk(id: string, moved: Record<string, NoteAnchor>) {
+export function removeCommentOnDisk(id: string, commentId: string) {
   enqueue([id], async () => {
-    const path = notesPath(id)
-    if (path) await rpc.notes.reanchor({ path, moved })
+    const path = commentsPath(id)
+    if (path) await rpc.comments.remove({ path, id: commentId })
+  })
+}
+
+export function reanchorOnDisk(id: string, moved: Record<string, CommentAnchor>) {
+  enqueue([id], async () => {
+    const path = commentsPath(id)
+    if (path) await rpc.comments.reanchor({ path, moved })
   })
 }
 
 export function openOnDisk(path: string) {
-  rpc.docs.open({ path }).catch((error: Error) => toast.error(error.message))
+  rpc.docs.open({ path }).catch(toastError)
 }
 
 // ---- When the disk disagrees ----
@@ -372,7 +380,7 @@ if (onDisk) {
     written.clear()
     pending = {}
     freshDocIds.clear()
-    useDocsStore.setState({ files: {}, folders: [], notes: {}, missing: {}, loaded: false })
+    useDocsStore.setState({ files: {}, folders: [], comments: {}, missing: {}, loaded: false })
     reload()
   })
   onNotify("docs.changed", (change) => enqueue([], () => applyChange(change)))

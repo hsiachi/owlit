@@ -1,4 +1,4 @@
-import type { AgentNote, WorkspaceFile } from "../types"
+import type { DocComment, WorkspaceFile } from "../types"
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -122,15 +122,23 @@ export const seedFolders = ["writing", "notes", "meetings", "experiments"]
 
 // Notes an agent left on the draft, as if from an earlier review: one on a sentence inside a paragraph, one
 // on the closing overclaim
-export const seedNotes: Record<string, AgentNote[]> = {
+export const seedComments: Record<string, DocComment[]> = {
   d1: [
     {
       id: "n2",
       quote: "The gains appear only at scale",
       prefix: "(owlit://library/p5). ",
       suffix: ", which fits the broader",
-      text: "“Only” is stronger than the paper: the threshold varies by task. “Mostly at scale” would hold, or cite a second source.",
-      by: "Owlit",
+      entries: [
+        {
+          id: "n2-1",
+          by: "owlit",
+          agent: "Claude Code",
+          text: "“Only” is stronger than the paper: the threshold varies by task. “Mostly at scale” would hold, or cite a second source.",
+          at: ago(2 * DAY + HOUR),
+        },
+        { id: "n2-2", by: "you", text: "Which tasks break the pattern?", at: ago(DAY) },
+      ],
       createdAt: ago(2 * DAY + HOUR),
     },
     {
@@ -138,8 +146,15 @@ export const seedNotes: Record<string, AgentNote[]> = {
       quote: "To our knowledge, no work has compared learned tool calls with retrieval on the same tasks.",
       prefix: "partly outside its weights.\n\n",
       suffix: "\n",
-      text: "\u201cNo work has compared\u201d goes further than your reading can show. Narrow it to the studies you've read, or search further before you submit.",
-      by: "Owlit",
+      entries: [
+        {
+          id: "n1-1",
+          by: "owlit",
+          agent: "Claude Code",
+          text: "\u201cNo work has compared\u201d goes further than your reading can show. Narrow it to the studies you've read, or search further before you submit.",
+          at: ago(2 * DAY),
+        },
+      ],
       createdAt: ago(2 * DAY),
     },
   ],

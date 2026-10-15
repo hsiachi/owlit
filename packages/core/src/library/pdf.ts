@@ -30,6 +30,9 @@ export interface Route {
   headers?: Record<string, string>
   // Refuses a PDF the route gave that isn't the paper (PublisherApi.verify)
   verify?: PublisherApi["verify"]
+  // Found on a page or by title rather than built from the paper's ids: the PDF's first pages must be
+  // the paper's before it is kept
+  checkTitle?: boolean
 }
 
 // The publisher's API route for a DOI, when owlit has its key
@@ -70,6 +73,12 @@ export interface Acquisition {
   // it), with the page it ended on; or it was sent and nothing came (missed). Kept across owlit's own
   // looks and restarts, until a PDF comes or the user's browser is sent again and ends otherwise.
   yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
+  // What owlit's own browser found on the publisher's page when it gave no PDF: an offer to buy, reached
+  // through the library's proxy (no-access), or a page that wasn't there (missing). Kept through the
+  // plain routes' looks, until owlit's browser looks again.
+  looked?: { outcome: "no-access" | "missing"; at: number; host?: string; title?: string }
+  // How many looks in a row found no PDF, for spacing out the daily look (library.retryMissingDaily)
+  looks?: number
   // When the user's browser was last sent for it, and whether to an article page for them to save the
   // PDF from: their Downloads is looked at from then, across restarts (library.resumeDownloads)
   sentToBrowser?: { at: number; page: boolean }
@@ -117,6 +126,13 @@ export async function* routesFor(
       const route: Route = { kind: "publisher", name: `publisher:${publisher.name}`, url }
       if (fresh(route)) yield route
     }
+  }
+  // OSF's preprints (PsyArXiv, SocArXiv: 10.31234/osf.io/hcn5a) are open, as a file under their id; one
+  // that isn't a PDF (a Word manuscript) is turned away like any other
+  const osf = /^10\.\d+\/osf\.io\/([a-z0-9]+)$/i.exec(doi)
+  if (osf) {
+    const route: Route = { kind: "publisher", name: "publisher:osf", url: `https://osf.io/${osf[1]}/download` }
+    if (fresh(route)) yield route
   }
   for (const route of await lookups.unpaywall(doi)) if (fresh(route)) yield route
 }
@@ -183,9 +199,12 @@ export async function registeredUrl(http: Http, doi: string, signal?: AbortSigna
 
 // Refused as not being a PDF: an HTML page, a login wall, an empty answer
 export class NotAPdf extends Error {
-  constructor(message: string) {
+  // The web page that came instead, when one did: a repository's page for the paper may link its PDF
+  readonly page?: string
+  constructor(message: string, page?: string) {
     super(message)
     this.name = "NotAPdf"
+    if (page) this.page = page
   }
 }
 
@@ -193,6 +212,15 @@ export class NotAPdf extends Error {
 // half-downloaded file never takes its name.
 export async function downloadPdf(http: Http, url: string, dest: string, signal?: AbortSignal, headers?: Record<string, string>) {
   const response = await http.get(url, { signal, retries: 1, timeoutMs: 120_000, headers: { accept: "application/pdf,*/*;q=0.8", ...headers } })
+  // An AWS WAF check (JMIR, 2026-10-15) answers 202 with an empty body and a script for browsers: a check,
+  // not an empty file
+  if (response.status === 202) {
+    await response.body?.cancel().catch(() => {})
+    const error = new HttpError(202, url, `${hostOf(response.url || url)} only lets browsers in.`)
+    error.finalUrl = response.url || url
+    error.challenged = true
+    throw error
+  }
   if (!response.body) throw new NotAPdf(`${hostOf(url)} sent nothing.`)
   const declared = Number(response.headers.get("content-length"))
   if (declared > PDF_MAX_BYTES) {
@@ -211,7 +239,7 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
       if (head.length < 5) {
         head = Buffer.concat([head, Buffer.from(chunk)]).subarray(0, 5)
         if (head.length >= 5 && !isPdfBytes(head)) {
-          throw new NotAPdf(type.includes("html") ? `${host} served a web page, not a PDF.` : `${host} didn't send a PDF.`)
+          throw type.includes("html") ? new NotAPdf(`${host} served a web page, not a PDF.`, response.url || url) : new NotAPdf(`${host} didn't send a PDF.`)
         }
       }
       yield chunk
@@ -227,6 +255,51 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
     await rm(part, { force: true })
     throw error
   }
+}
+
+// The PDF a repository's page for a paper names (its citation_pdf_url, or a link to the PDF as an
+// alternate form of the page), for an open-access link that leads to the page rather than the file
+// (2026-10-15: qucosa's and DORAS's pages; edoc.unibas.ch's names its logo, which isn't a PDF and is
+// turned away when downloaded). The page is read up to 2 MB.
+export async function pdfNamedOnPage(http: Http, page: string, signal?: AbortSignal): Promise<string | undefined> {
+  try {
+    const response = await http.get(page, { signal, retries: 1, headers: { accept: "text/html" } })
+    if (!response.body) return undefined
+    let html = ""
+    const decoder = new TextDecoder()
+    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      html += decoder.decode(chunk, { stream: true })
+      if (html.length > 2 * 1024 * 1024) break
+    }
+    await response.body.cancel().catch(() => {})
+    const found = pdfInHtml(html, response.url || page)
+    return found && found !== page ? found : undefined
+  } catch (error) {
+    if (signal?.aborted) throw error
+    return undefined
+  }
+}
+
+export function pdfInHtml(html: string, page: string) {
+  const attr = (tag: string, name: string) => new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(tag)?.slice(2).find((v) => v !== undefined)
+  const candidates: string[] = []
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    if (/^citation_pdf_url$/i.test(attr(tag, "name") ?? attr(tag, "property") ?? "")) candidates.push(attr(tag, "content") ?? "")
+  }
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    if (/\balternate\b/i.test(attr(tag, "rel") ?? "") && /application\/pdf/i.test(attr(tag, "type") ?? "")) candidates.push(attr(tag, "href") ?? "")
+  }
+  for (const candidate of candidates) {
+    const text = candidate.replace(/&amp;/g, "&").trim()
+    if (!text) continue
+    try {
+      const url = new URL(text, page)
+      if (/^https?:$/.test(url.protocol)) return url.toString()
+    } catch {
+      // Not an address
+    }
+  }
+  return undefined
 }
 
 export const acquisitionFile = (root: string, id: string) => path.join(paperDir(root, id), "acquisition.json")

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom"
+import { createBrowserRouter } from "react-router-dom"
 import { Shell } from "@/app/Shell"
 import { ChatLayout } from "@/features/chat/ChatLayout"
 import { ChatEmpty } from "@/features/chat/components/ChatEmpty"
@@ -11,9 +11,10 @@ import { LibraryPage } from "@/features/library/pages/LibraryPage"
 import { PaperPage } from "@/features/library/pages/PaperPage"
 import { UpNextPage } from "@/features/library/pages/UpNextPage"
 import { HomePage } from "@/features/home/HomePage"
-import { CollectionsPage } from "@/features/collections/pages/CollectionsPage"
-import { CollectionPage } from "@/features/collections/pages/CollectionPage"
+import { ThreadsPage } from "@/features/threads/pages/ThreadsPage"
+import { ThreadPage } from "@/features/threads/pages/ThreadPage"
 
+// route-subject.ts matches the same paths to say what a page is about: a new page goes there too
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -37,14 +38,12 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        path: "collections",
+        path: "threads",
         children: [
-          { index: true, element: <CollectionsPage /> },
-          { path: ":collectionId", element: <CollectionPage /> },
+          { index: true, element: <ThreadsPage /> },
+          { path: ":threadId", element: <ThreadPage /> },
         ],
       },
-      // Knowledge became Collections: an old link or a bookmark lands there
-      { path: "knowledge/*", element: <Navigate to="/collections" replace /> },
       {
         path: "library",
         element: <LibraryLayout />,

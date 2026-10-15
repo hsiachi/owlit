@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { MentionToken } from "@/components/mention/mention-token"
-import { useCollectionsStore } from "@/features/collections/store"
-import { collectionsByPaper } from "@/features/collections/lib"
+import { useThreadsStore } from "@/features/threads/store"
+import { threadsByPaper } from "@/features/threads/lib"
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
@@ -41,8 +41,7 @@ function ResizeHandle() {
 export function DetailsPanel({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const width = usePrefsStore((s) => s.panelWidth)
-  // A panel last left on the Knowledge tab, which is gone, opens on About
-  const tab = usePrefsStore((s) => ((s.panelTab as string) === "knowledge" ? "about" : s.panelTab))
+  const tab = usePrefsStore((s) => s.panelTab)
   const setTab = usePrefsStore((s) => s.setPanelTab)
   const highlightCount = useHighlightCount(paper.id)
 
@@ -99,9 +98,9 @@ function About({ paper }: { paper: Paper }) {
   const links = externalLinks(paper)
   const when = ago(paper.addedAt)
   const pages = paper.pdf?.pages
-  const collections = useCollectionsStore((s) => s.collections)
+  const threads = useThreadsStore((s) => s.threads)
   const aliases = useLibraryStore((s) => s.aliases)
-  const inCollections = useMemo(() => collectionsByPaper(collections, { [paper.id]: paper }, aliases).get(paper.id) ?? [], [collections, paper, aliases])
+  const inThreads = useMemo(() => threadsByPaper(threads, { [paper.id]: paper }, aliases).get(paper.id) ?? [], [threads, paper, aliases])
   return (
     <div>
       {paper.abstract ? <Abstract text={stripLatex(paper.abstract)} folded={!!paper.hasDigest} /> : <p className="text-sm text-muted-foreground">{t`No abstract.`}</p>}
@@ -129,15 +128,15 @@ function About({ paper }: { paper: Paper }) {
         ))}
         <dt className="text-muted-foreground">{t({ message: "Added", context: "when the paper was added to the library" })}</dt>
         <dd>{paper.addedBy === "agent" ? t`${when} by Owlit` : when}</dd>
-        {inCollections.length > 0 && (
+        {inThreads.length > 0 && (
           <>
-            <dt className="text-muted-foreground">{t({ message: "In", context: "label before the collections that hold this paper" })}</dt>
-            {/* Each collection with what it says about this paper, so reading the paper shows Owlit's take on
+            <dt className="text-muted-foreground">{t({ message: "In", context: "label before the threads that hold this paper" })}</dt>
+            {/* Each thread with what it says about this paper, so reading the paper shows Owlit's take on
                 it without going there */}
             <dd className="flex min-w-0 flex-col gap-2.5">
-              {inCollections.map((c) => (
+              {inThreads.map((c) => (
                 <div key={c.id}>
-                  <MentionToken label={c.title} onClick={() => navigate(`/collections/${c.id}?paper=${encodeURIComponent(paper.id)}`)} />
+                  <MentionToken label={c.title} onClick={() => navigate(`/threads/${c.id}?paper=${encodeURIComponent(paper.id)}`)} />
                   {c.lines.map((l, i) => (
                     <p key={i} className="mt-0.5 line-clamp-2 leading-normal text-muted-foreground">
                       {l.label && <span className="text-foreground/80">{l.label}: </span>}

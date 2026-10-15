@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import type { Chat, ChatMessage, ChatSummary } from "@owlit/protocol"
-import { toast } from "sonner"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { useChatStore } from "./store"
@@ -14,7 +14,7 @@ export const onDisk = isDesktop
 
 const SEND_EVERY_MS = 250
 
-const queue = createWorkspaceQueue({ onError: (error) => toast.error(error instanceof Error ? error.message : t`Couldn't save the chat.`) })
+const queue = createWorkspaceQueue({ onError: (error) => toastError(error, t`Couldn't save the chat.`) })
 const enqueue = (op: () => Promise<unknown>) => queue.enqueue(op)
 
 // Up while the store takes chats read from disk, so nothing mistakes them for messages just sent

@@ -3,7 +3,6 @@ import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import type { WelcomeInfo } from "@owlit/protocol"
 import { FolderPlusIcon, PaletteIcon, UserIcon, XIcon, type LucideIcon } from "lucide-react"
-import { toast } from "sonner"
 import { IconButton } from "@/components/icon-button"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
@@ -11,20 +10,24 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { canRun } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
-import { CommitInput, List, Row } from "@/features/settings/parts"
+import { List } from "@/features/settings/parts"
 import { AppearanceSection } from "@/features/settings/sections/AppearanceSection"
-import { LanguageRow } from "@/features/settings/sections/OwlitSection"
+import { LanguageRow, NameRow } from "@/features/settings/sections/OwlitSection"
 import { ProxyGroup } from "@/features/settings/sections/ProxyGroup"
-import { updateSettings, useSettings } from "@/features/settings/store"
+import { useSettings } from "@/features/settings/store"
 import { tourWhenExampleOpens } from "@/features/tour/store"
 import { AgentChoice } from "@/features/onboarding/AgentChoice"
 import { EXAMPLE_PAPERS } from "@/features/onboarding/content"
 import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, CollectDemo, WriteDemo, type DemoPlace } from "@/features/onboarding/demos"
 import { WelcomeLockup } from "@/features/onboarding/WelcomeLockup"
 import { KIND_ICON } from "@/lib/kinds"
-import { bridge, rpc } from "@/lib/rpc"
+import { isTyping } from "@/lib/keys"
+import { rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { useControlsRoom } from "@/lib/window-frame"
+import { pickParent, pickWorkspaceFolder, tilde } from "@/lib/workspace"
+import { useWindowKeydown } from "@/hooks/use-window-keydown"
 
 // The first launch: a welcome, four steps that show what owlit does (each a small demo in a small owlit
 // window whose rail lifts the place being shown, so where things are is learned with what they do), three
@@ -36,10 +39,6 @@ import { useControlsRoom } from "@/lib/window-frame"
 type StepId = "welcome" | "read" | "write" | "ask" | "collect" | "you" | "agent" | "look" | "start"
 const INTRO: StepId[] = ["read", "write", "ask", "collect"]
 const FIRST: StepId[] = ["welcome", ...INTRO, "you", "agent", "look", "start"]
-
-const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
-// "~/Documents" rather than the whole home path
-const tilde = (p: string) => p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~")
 
 export function OnboardingFlow({ mode = "first", onClose }: { mode?: "first" | "replay"; onClose?: () => void }) {
   const steps = mode === "first" ? FIRST : INTRO
@@ -58,17 +57,13 @@ export function OnboardingFlow({ mode = "first", onClose }: { mode?: "first" | "
   const forward = () => (last ? onClose?.() : go(index + 1))
 
   // ← and → move between steps, Enter goes on, Esc leaves the replay; not while typing in a field
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.closest("input, textarea, [role=menu], [role=dialog]")) return
-      if (e.key === "Escape" && mode === "replay") onClose?.()
-      if (step === "welcome" || step === "start") return
-      if (e.key === "ArrowRight" || (e.key === "Enter" && !target?.closest("button"))) forward()
-      if (e.key === "ArrowLeft") go(index - 1)
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+  useWindowKeydown((e) => {
+    const target = e.target instanceof Element ? e.target : null
+    if (isTyping(e.target) || target?.closest("[role=menu], [role=dialog]")) return
+    if (e.key === "Escape" && mode === "replay") onClose?.()
+    if (step === "welcome" || step === "start") return
+    if (e.key === "ArrowRight" || (e.key === "Enter" && !target?.closest("button"))) forward()
+    if (e.key === "ArrowLeft") go(index - 1)
   })
 
   return (
@@ -236,15 +231,15 @@ function lesson(step: StepId): Lesson | null {
       }
     case "collect":
       return {
-        icon: KIND_ICON.collection,
-        kicker: t`Collections`,
+        icon: KIND_ICON.thread,
+        kicker: t`Threads`,
         title: t`Owlit gathers papers.`,
         body: (
           <Trans>
             Give Owlit a question and it gathers papers on it, with <b>what each one says</b> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer.
           </Trans>
         ),
-        place: "collections",
+        place: "threads",
       }
     case "you":
       return { icon: UserIcon, kicker: t`About you`, title: t`A little about you.`, body: t`So Owlit knows what to call you and how to reach your papers. All of it can wait.`, place: "chat" }
@@ -312,26 +307,11 @@ function useAgentName() {
 
 // The setup steps' controls are Settings' own rows, so what is set here reads the same there
 function Setup({ step }: { step: StepId }) {
-  const name = useSettings((s) => s.view?.profile.name) ?? ""
   if (step === "you")
     return (
       <div className="mt-6 flex flex-col gap-5">
         <List>
-          <Row
-            name={t`Your name`}
-            control={
-              <CommitInput
-                aria-label={t`Your name`}
-                value={name}
-                onCommit={(next) => void updateSettings({ profile: { name: next || null } }).catch(failed)}
-                placeholder={t`Your name`}
-                spellCheck={false}
-                autoComplete="off"
-                maxLength={60}
-                className="w-40"
-              />
-            }
-          />
+          <NameRow className="w-40" />
           <LanguageRow />
         </List>
         <ProxyGroup />
@@ -359,13 +339,13 @@ function Start() {
         setInfo(next)
         setParent(next.suggestion.parent)
       })
-      .catch(failed)
+      .catch(toastError)
   }, [])
 
   const run = (work: () => Promise<unknown>) => {
     setBusy(true)
     work()
-      .catch(failed)
+      .catch(toastError)
       .finally(() => setBusy(false))
   }
   const example = () =>
@@ -375,15 +355,11 @@ function Start() {
     })
   const fresh = () => info && run(() => rpc.workspace.create({ parent, name: info.suggestion.name }))
   const chooseParent = async () => {
-    const folder = await bridge?.chooseFolder({ title: t`Where the Workspace Goes`, buttonLabel: t`Choose`, defaultPath: parent })
+    const folder = await pickParent(parent)
     if (folder) setParent(folder)
   }
   const open = async () => {
-    const folder = await bridge?.chooseFolder({
-      title: t`Open a Folder`,
-      message: t`Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit.`,
-      buttonLabel: t`Open`,
-    })
+    const folder = await pickWorkspaceFolder()
     if (folder) run(() => rpc.workspace.open({ path: folder }))
   }
 

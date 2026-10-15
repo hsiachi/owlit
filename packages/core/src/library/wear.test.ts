@@ -87,11 +87,11 @@ describe("library.wear", () => {
   })
 })
 
-describe("library.wear, collections", () => {
-  it("gathers the passages a collection's answers read in full rest on, not abstract ones nor removed rows", async () => {
+describe("library.wear, threads", () => {
+  it("gathers the passages a thread's answers read in full rest on, not abstract ones nor removed rows", async () => {
     const { call, root } = await open()
     const row = (id: string, cells: object) => ({ id, paper: { title: id, authors: [], ids: {} }, cells })
-    const collection = {
+    const thread = {
       version: 1,
       id: "replay",
       title: "Replay ratings",
@@ -119,12 +119,12 @@ describe("library.wear, collections", () => {
       seenAt: 0,
       yours: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
     }
-    mkdirSync(path.join(root, ".owlit/collections/replay"), { recursive: true })
-    writeFileSync(path.join(root, ".owlit/collections/replay/collection.json"), JSON.stringify(collection))
+    mkdirSync(path.join(root, ".owlit/threads/replay"), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/threads/replay/thread.json"), JSON.stringify(thread))
 
     expect((await call("library.wear", { id: "p1" })).collected).toEqual([
-      { quote: "Replay ratings ran lower.", page: 5, collectionId: "replay", collectionTitle: "My replay papers", row: "p1", at: 30 },
-      { quote: "We ran a diary study.", page: 2, collectionId: "replay", collectionTitle: "My replay papers", row: "p1", column: "Method", at: 40 },
+      { quote: "Replay ratings ran lower.", page: 5, threadId: "replay", threadTitle: "My replay papers", row: "p1", at: 30 },
+      { quote: "We ran a diary study.", page: 2, threadId: "replay", threadTitle: "My replay papers", row: "p1", column: "Method", at: 40 },
     ])
     expect((await call("library.wear", { id: "p2" })).collected).toEqual([])
     expect((await call("library.wear", { id: "p3" })).collected).toEqual([])

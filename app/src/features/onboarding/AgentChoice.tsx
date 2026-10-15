@@ -1,16 +1,14 @@
-import { useEffect, useRef } from "react"
 import { t } from "@lingui/core/macro"
 import type { Connector } from "@owlit/protocol"
-import { LoaderCircleIcon } from "lucide-react"
 import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
-import { canRun, canSetUp, connectorProblem, problemSentence, settingUp, statusLabel } from "@/features/chat/lib/connector-status"
+import { canRun, canSetUp, connectorProblem, isChecking, problemSentence, settingUp, statusLabel, useConnectorRecheck } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
+import { SetupProgress } from "@/features/settings/sections/AgentsSection"
 import { updateSettings, useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
-
-const isChecking = (c: Connector) => c.status === "checking" || c.status === "unknown"
+import { Spinner } from "@/components/ui/spinner"
 
 // The agents on this Mac, and which one Owlit uses. The choice is both background work's agent and new
 // chats' agent, so the first day has one answer to "what runs Owlit"; Settings can part them later. Agents
@@ -19,27 +17,12 @@ const isChecking = (c: Connector) => c.status === "checking" || c.status === "un
 // first run leaves it out.
 export function AgentChoice() {
   const setUp = useChatStore((s) => s.setUpConnector)
-  const cancel = useChatStore((s) => s.cancelSetUp)
   const connectors = useChatStore((s) => s.connectors).filter((c) => !c.signsInHere)
   const check = useChatStore((s) => s.checkConnector)
   const setSelection = useChatStore((s) => s.setSelection)
   const background = useSettings((s) => s.view?.backgroundAgent)
   const chosen = connectors.find((c) => c.id === background && canRun(c)) ?? connectors.find(canRun)
-  const checked = useRef(false)
-
-  useEffect(() => {
-    if (checked.current || !connectors.length) return
-    checked.current = true
-    for (const c of connectors) if (!isChecking(c)) void check(c.id)
-  }, [connectors, check])
-
-  useEffect(() => {
-    const onFocus = () => {
-      for (const c of useChatStore.getState().connectors) if (!canRun(c) && !isChecking(c)) void check(c.id)
-    }
-    window.addEventListener("focus", onFocus)
-    return () => window.removeEventListener("focus", onFocus)
-  }, [check])
+  useConnectorRecheck(connectors)
 
   const choose = (c: Connector) => {
     void updateSettings({ backgroundAgent: c.id })
@@ -75,8 +58,8 @@ export function AgentChoice() {
               <span className="flex items-center gap-1.5 text-detail text-muted-foreground">
                 {isChecking(c) ? (
                   <>
-                    <LoaderCircleIcon className="size-3 animate-spin" />
-                    {t({ message: "Checking…", comment: "an agent's status: checking whether it is installed" })}
+                    <Spinner className="size-3" />
+                    {statusLabel("checking")}
                   </>
                 ) : ready ? (
                   // Fine is no mark at all (green is Owlit's hand, not "healthy"): its version, as Settings
@@ -93,10 +76,7 @@ export function AgentChoice() {
             {/* Set up as Settings › Agents draws it: progress with Cancel, Set up, or Try again after a failure */}
             {progress !== undefined ? (
               <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-                <span className="text-detail text-muted-foreground tabular-nums">{t`Setting up… ${Math.round(progress * 100)}%`}</span>
-                <Button variant="text" size="inline" onClick={() => void cancel(c.id)}>
-                  {t`Cancel`}
-                </Button>
+                <SetupProgress c={c} />
               </span>
             ) : canSetUp(c) ? (
               <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>

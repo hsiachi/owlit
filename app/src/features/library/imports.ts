@@ -1,4 +1,4 @@
-// Collections brought in at once (Zotero, BibTeX, a folder of PDFs): the recent imports as core reports
+// Libraries brought in at once (Zotero, BibTeX, a folder of PDFs): the recent imports as core reports
 // them, read again whenever an import's task changes, and the dialog that starts one. The progress itself
 // is the import's task (features/tasks/store). Empty without the desktop app.
 
@@ -7,7 +7,7 @@ import { create } from "zustand"
 import { bridge, isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 
-export const isImportTask = (task: Pick<Task, "kind">) => /^import\.(zotero|bibtex|folder)$/.test(task.kind)
+const isImportTask = (task: Pick<Task, "kind">) => /^import\.(zotero|bibtex|folder)$/.test(task.kind)
 
 // An import stopped to ask whether MinerU may read the new papers' PDFs (paid for by the person's account)
 export const importAsks = (task: Task) => task.state === "waiting_for_you" && task.waiting?.reason === "confirm_spend"

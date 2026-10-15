@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IconButton } from "@/components/icon-button"
+import { WaitingDot } from "@/components/marks"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
 import { type Layout, usePrefsStore } from "../prefs-store"
@@ -56,7 +57,7 @@ const sorts = (): { value: SortKey; label: string }[] => [
   { value: "year", label: t`Year` },
   { value: "title", label: t`Title` },
   { value: "authors", label: t`Authors` },
-  { value: "collection", label: t({ message: "Collection", comment: "sort: group the Library's papers by the collection they came from" }) },
+  { value: "thread", label: t({ message: "Thread", comment: "sort: group the Library's papers by the thread they came from" }) },
 ]
 
 export function SortMenu() {
@@ -118,6 +119,8 @@ const filters = (): { id: StatusFilter; label: string }[] => [
   { id: "read", label: t({ message: "Read", comment: "reading status of a paper: finished reading (past participle)" }) },
   // Only while a publisher wants the user for some paper (or the chip is picked)
   { id: "needs", label: t({ message: "Needs you", comment: "filter chip: papers whose publisher wants the user to check or sign in" }) },
+  // Every paper owlit has no PDF of, a fact rather than something to do: grey, no dot, and only while there is one
+  { id: "no-pdf", label: t({ message: "No PDF", comment: "filter chip: papers owlit has no PDF of" }) },
 ]
 
 const chip = "flex h-7 items-center gap-1.5 rounded-full px-3 text-detail text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
@@ -135,7 +138,7 @@ export function FilterBar() {
 
   return (
     <div className="mt-3.5 flex flex-wrap items-center gap-0.5">
-      {filters().filter((f) => f.id !== "needs" || counts.needs > 0 || filter === "needs").map((f) => (
+      {filters().filter((f) => !(f.id === "needs" || f.id === "no-pdf") || counts[f.id] > 0 || filter === f.id).map((f) => (
         <button
           key={f.id}
           type="button"
@@ -144,7 +147,7 @@ export function FilterBar() {
           className={cn(chip, filter === f.id && "bg-accent text-foreground hover:bg-accent")}
         >
           {/* Needs you carries the rail's dot, so the trail from the rail goes on to the papers that wait */}
-          {f.id === "needs" && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning" />}
+          {f.id === "needs" && <WaitingDot className="size-1.5" />}
           {f.label}
           <span className="text-xs tabular-nums">{counts[f.id]}</span>
         </button>

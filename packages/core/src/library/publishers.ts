@@ -13,6 +13,9 @@ import { REDIRECTORS } from "./publisher-table.ts"
 //   papers is visited unattended until the hold runs out or a run the user waited on gets through there.
 // - A site that turns plain downloads away (Cloudflare answering core's fetch with a check) is only
 //   reached through the browser for a while.
+// - How each of a site's last few unattended visits ended is kept. A site that keeps showing owlit's
+//   browser a check and never gives a PDF is left to the user's browser, with one visit a week to see
+//   whether that changed (2026-10-15: 104 visits in two days, none with a PDF, most of them checks).
 //
 // Kept in <data>/publishers.json, by site (registrable domain: sciencedirect.com, acm.org). What
 // happened on each visit goes to <data>/publisher-log.jsonl, to tell whether this works.
@@ -20,9 +23,18 @@ import { REDIRECTORS } from "./publisher-table.ts"
 export const VISIT_GAP_MS = 90_000
 export const HOLD_MS = 24 * 60 * 60 * 1000
 const PLAIN_REFUSED_MS = 7 * 24 * 60 * 60 * 1000
+// How many visits a site's record keeps, how many checks among them (and no PDF) leave the site to the
+// user's browser, and how long until owlit looks again
+const VISITS_KEPT = 5
+const CHECKS_TO_STOP = 3
+const LOOK_AGAIN_MS = 7 * 24 * 60 * 60 * 1000
 const LOG_MAX_BYTES = 2 * 1024 * 1024
 
 export type HoldReason = "challenge" | "refused"
+
+// How an unattended visit ended: a PDF, a check, the page's offer to buy or sign in (no access), a page
+// with no PDF on it, a page that wasn't there, or anything else
+export type VisitEnd = "pdf" | "check" | "no-access" | "no-link" | "missing" | "error"
 
 interface SiteRecord {
   // No unattended visit before this
@@ -30,6 +42,8 @@ interface SiteRecord {
   heldFor?: HoldReason
   // Plain downloads are turned away until this
   plainRefusedUntil?: number
+  // The last few unattended visits, newest last
+  visits?: { at: number; ended: VisitEnd }[]
 }
 
 interface PublishersFile {
@@ -85,6 +99,21 @@ export class Publishers {
 
   refusePlain(site: string) {
     return this.change(site, { plainRefusedUntil: Date.now() + PLAIN_REFUSED_MS })
+  }
+
+  async visitEnded(site: string, ended: VisitEnd) {
+    if (REDIRECTORS.has(site) || !site) return
+    const visits = [...((await this.load())[site]?.visits ?? []), { at: Date.now(), ended }].slice(-VISITS_KEPT)
+    await this.change(site, { visits })
+  }
+
+  // Whether owlit's browser should stay away from the site: most of its last visits met a check and none
+  // gave a PDF. Once a week a visit is let through (the next one after the newest is a week old).
+  async onlyChecks(site: string) {
+    if (REDIRECTORS.has(site)) return false
+    const visits = (await this.load())[site]?.visits ?? []
+    if (visits.some((v) => v.ended === "pdf") || visits.filter((v) => v.ended === "check").length < CHECKS_TO_STOP) return false
+    return Date.now() - visits.at(-1)!.at < LOOK_AGAIN_MS
   }
 
   // How long an unattended visit to the site should wait for its turn (0: go now). OWLIT_VISIT_GAP_MS
