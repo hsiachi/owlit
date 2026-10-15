@@ -6,7 +6,10 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { serveWorkspaceFile } from "../files/serve.ts"
 import { Http } from "../net/http.ts"
-import { downloadPdf, routesFor } from "./pdf.ts"
+import { isThisPaper } from "./downloads.ts"
+import { lookAgain } from "./library.ts"
+import { downloadPdf, pdfInHtml, routesFor } from "./pdf.ts"
+import { makePdf } from "./text/make-pdf.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n")
 
@@ -183,5 +186,111 @@ describe("owlit-file", () => {
     expect((await get("owlit-file:///etc/passwd")).status).toBe(404)
     expect((await get("owlit-file://workspace/etc/passwd")).status).toBe(404)
     expect((await serveWorkspaceFile(undefined, new Request("owlit-file://workspace/library/papers/p/paper.pdf"))).status).toBe(404)
+  })
+})
+
+describe("a repository's page instead of its PDF", () => {
+  const title = "Lifelogging for memory support in everyday life"
+  const page = (pdf: string) => () => new Response(`<html><head><meta name="citation_pdf_url" content="${pdf}"></head></html>`, { headers: { "content-type": "text/html" } })
+  const unpaywall = () => Response.json({ oa_locations: [{ url_for_pdf: "https://repo.example.org/item/1", host_type: "repository" }] })
+  const paper = { id: "doi-10.9999-repo", title, authors: [], ids: { doi: "10.9999/repo" } }
+
+  it("takes the PDF the page names, once its first pages are the paper", async () => {
+    const { root, call } = await setup(
+      serving({
+        "api.unpaywall.org": unpaywall,
+        "repo.example.org/item/1/paper.pdf": () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text: title }]])),
+        "repo.example.org/item/1": page("https://repo.example.org/item/1/paper.pdf"),
+      }),
+      { contactEmail: "me@example.org" },
+    )
+    await call("library.add", { paper })
+    expect((await call("library.fetchPdf", { id: paper.id })).pdf).toBeDefined()
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))
+    expect(acquisition).toMatchObject({ result: "ok", route: "unpaywall/repository:page" })
+  })
+
+  it("turns away a PDF the page names that is another paper", async () => {
+    const { root, call } = await setup(
+      serving({
+        "api.unpaywall.org": unpaywall,
+        "repo.example.org/item/1/other.pdf": () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text: "A different paper about something else entirely" }]])),
+        "repo.example.org/item/1": page("/item/1/other.pdf"),
+      }),
+      { contactEmail: "me@example.org" },
+    )
+    await call("library.add", { paper })
+    await call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))
+    expect(acquisition.result).toBe("no_pdf")
+    expect(acquisition.tried).toContainEqual(expect.objectContaining({ route: "unpaywall/repository:page", url: "https://repo.example.org/item/1/other.pdf", error: "repo.example.org gave the PDF of another paper." }))
+    expect(existsSync(path.join(root, "library/papers", paper.id, "paper.pdf"))).toBe(false)
+  })
+
+  it("reads the PDF's address from the page's tags", () => {
+    expect(pdfInHtml(`<meta content="https://tud.qucosa.de/api/x/attachment/ATT-0/" name="citation_pdf_url">`, "https://tud.qucosa.de/landing")).toBe("https://tud.qucosa.de/api/x/attachment/ATT-0/")
+    expect(pdfInHtml(`<meta name="citation_pdf_url" content=""><link rel="alternate" type="application/pdf" href="/files/a.pdf?x=1&amp;y=2">`, "https://r.org/p/1")).toBe("https://r.org/files/a.pdf?x=1&y=2")
+    expect(pdfInHtml(`<a href="a.pdf">PDF</a>`, "https://r.org/p/1")).toBeUndefined()
+  })
+})
+
+describe("looking again for a paper without a PDF", () => {
+  const day = 24 * 60 * 60 * 1000
+  it("waits longer each time nothing came: 1, 3, 7, then 30 days", () => {
+    const now = 100 * day
+    expect(lookAgain({ at: now - day, looks: 1 }, now)).toBe(true)
+    expect(lookAgain({ at: now - day, looks: 2 }, now)).toBe(false)
+    expect(lookAgain({ at: now - 3 * day, looks: 2 }, now)).toBe(true)
+    expect(lookAgain({ at: now - 6 * day, looks: 3 }, now)).toBe(false)
+    expect(lookAgain({ at: now - 29 * day, looks: 9 }, now)).toBe(false)
+    expect(lookAgain({ at: now - 30 * day, looks: 9 }, now)).toBe(true)
+    // Written before looks were counted: as after the first
+    expect(lookAgain({ at: now - day }, now)).toBe(true)
+  })
+})
+
+describe("is this the paper", () => {
+  it("knows it by its DOI or whole title, and says when it can't tell", () => {
+    const paper = { doi: "10.1/x", title: "Living “in the zone”: hyperfocus in adult ADHD" }
+    expect(isThisPaper({ doi: "10.1/X", text: "" }, paper)).toBe("unknown")
+    expect(isThisPaper({ doi: "10.1/X", text: "anything" }, paper)).toBe("yes")
+    // Hyphens and quotes don't count
+    expect(isThisPaper({ text: "Original Article Living \"in the zone\": hyper-focus in adult ADHD by" }, paper)).toBe("yes")
+    expect(isThisPaper({ text: "Living in the zone: flow in adult ADHD" }, paper)).toBe("no")
+    expect(isThisPaper({ text: "Living in the zone: hyperfocus in adult ADHD. Abstract" }, paper)).toBe("yes")
+    expect(isThisPaper({ text: "Something else" }, paper)).toBe("no")
+    expect(isThisPaper({ text: "Something else" }, { title: "Flow" })).toBe("unknown")
+  })
+})
+
+describe("a paper without a DOI", () => {
+  const title = "Flow states in sustained attention during everyday computer work"
+  const entry = (name: string, author: string) =>
+    `<feed><entry><id>http://arxiv.org/abs/2401.00001v1</id><title>${name}</title><published>2024-01-01T00:00:00Z</published><author><name>${author}</name></author></entry></feed>`
+
+  it("looks for an open copy with its very title, and keeps it once its pages say so", async () => {
+    const { root, call } = await setup(
+      serving({
+        "export.arxiv.org": () => new Response(entry(title.toUpperCase(), "Mihaly Csikszentmihalyi")),
+        "arxiv.org/pdf/2401.00001": () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text: title }]])),
+      }),
+    )
+    const paper = { id: "openalex-w1", title, authors: ["M. Csikszentmihalyi"], ids: { openalex: "W1" } }
+    await call("library.add", { paper })
+    expect((await call("library.fetchPdf", { id: paper.id })).pdf).toBeDefined()
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))).toMatchObject({ route: "title:arxiv" })
+  })
+
+  it("leaves a paper by someone else with that title alone", async () => {
+    const { root, call } = await setup(
+      serving({
+        "export.arxiv.org": () => new Response(entry(title, "Somebody Else")),
+        "arxiv.org/pdf/2401.00001": () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text: title }]])),
+      }),
+    )
+    const paper = { id: "openalex-w1", title, authors: ["M. Csikszentmihalyi"], ids: { openalex: "W1" } }
+    await call("library.add", { paper })
+    await call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8")).result).toBe("no_pdf")
   })
 })

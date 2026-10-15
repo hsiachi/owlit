@@ -11,7 +11,7 @@ import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { useEffect, useRef, useState } from "react"
 import type { SecretName, SettingsCheck } from "@owlit/protocol"
-import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { GroupLabel } from "@/components/group-label"
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Tip } from "@/components/tip"
 import { useFoldWhile, useCheck } from "./form-state"
 import { setSecret, useSettings } from "./store"
+import { Spinner } from "@/components/ui/spinner"
 
 // A group's rows: a hairline between them, none around them
 export function List({ children }: { children: React.ReactNode }) {
@@ -172,7 +173,7 @@ export function CheckMark({ checking, result, service, accepted = t`${service} a
   let mark: React.ReactNode = null
   let label = ""
   if (checking) {
-    mark = <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
+    mark = <Spinner className="size-3.5 text-muted-foreground" />
     label = t`Checking with ${service}…`
   } else if (result?.result === "works") {
     mark = <CheckIcon className="size-3.5 text-owlit animate-in fade-in zoom-in-75" />

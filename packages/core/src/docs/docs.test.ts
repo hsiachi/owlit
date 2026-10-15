@@ -40,7 +40,7 @@ async function setup(files: Record<string, string> = {}) {
 }
 
 describe("docs.list", () => {
-  it("lists docs and folders, hiding library/ and dot-folders but not an old knowledge/ folder", async () => {
+  it("lists docs and folders, hiding library/ and dot-folders but not other folders", async () => {
     const { call } = await setup({
       "a.md": "# A",
       "notes/b.md": "b",
@@ -48,11 +48,11 @@ describe("docs.list", () => {
       "library/papers/p/paper.json": "{}",
       ".obsidian/app.json": "{}",
       "notes/.hidden.md": "h",
-      "knowledge/topic.md": "t",
+      "topics/topic.md": "t",
     })
     const { files, folders } = await call("docs.list")
-    expect(files.map((f: any) => f.path).sort()).toEqual(["a.md", "knowledge/topic.md", "notes/b.md", "notes/pic.png"])
-    expect(folders.sort()).toEqual(["knowledge", "notes"])
+    expect(files.map((f: any) => f.path).sort()).toEqual(["a.md", "notes/b.md", "notes/pic.png", "topics/topic.md"])
+    expect(folders.sort()).toEqual(["notes", "topics"])
     const a = files.find((f: any) => f.path === "a.md")
     expect(a.content).toBe("# A")
     expect(a.nameLocked).toBe(true)

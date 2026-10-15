@@ -19,7 +19,7 @@ export const nav: NavItem[] = [
   { to: "/", label: msg`Home`, icon: HouseIcon },
   { to: "/chat", label: msg`Chat`, icon: KIND_ICON.chat, panel: ChatListPanel },
   { to: "/docs", label: msg`Docs`, icon: KIND_ICON.doc, panel: DocsListPanel },
-  { to: "/collections", label: msg`Collections`, icon: KIND_ICON.collection },
+  { to: "/threads", label: msg`Threads`, icon: KIND_ICON.thread },
   { to: "/library", label: msg`Library`, icon: KIND_ICON.paper },
 ]
 

@@ -12,7 +12,7 @@ const ICON: Record<DemoPlace, LucideIcon> = {
   home: HouseIcon,
   chat: KIND_ICON.chat,
   docs: KIND_ICON.doc,
-  collections: KIND_ICON.collection,
+  threads: KIND_ICON.thread,
   library: KIND_ICON.paper,
 }
 const top = (i: number) => 8 + i * 30

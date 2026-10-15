@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyPlace } from "@/components/empty-place"
 
 // A list page: scrolls whole, header included, so switching tabs or layouts never moves the header. The
-// Library, which has a table, takes the wide column; a page of rows alone (Collections) takes Home's
+// Library, which has a table, takes the wide column; a page of rows alone (Threads) takes Home's
 // reading column, so one line doesn't run the width of the window.
 // The rest of the props are the scroller's own listeners (a list's keys and clicks).
 export function PageShell({

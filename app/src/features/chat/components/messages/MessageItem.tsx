@@ -183,6 +183,8 @@ export function AssistantMessage({
   const quietLast = !!last && (last.type === "plan" || last.type === "permission" || last.type === "question" || last.type === "agent" || (last.type === "tool_call" && !!last.agentId))
   const blank = streaming && !waiting && !workingBlock && (!showing || quietLast)
   const blockId = (key: string) => `${message.id}-${key}`
+  // Words come on at an even pace while the answer is written; a stopped or broken one shows all it has
+  const pace = streaming ? "live" : message.status === "done" ? "ending" : "off"
   return (
     <Message className="text-body">
       <MessageContent className="gap-3">
@@ -193,7 +195,7 @@ export function AssistantMessage({
           const { part } = seg
           switch (part.type) {
             case "text":
-              return <TextPart key={seg.key} part={part} />
+              return <TextPart key={seg.key} part={part} pace={pace} />
             case "plan":
               return <PlanPart key={seg.key} part={part} />
             case "permission":

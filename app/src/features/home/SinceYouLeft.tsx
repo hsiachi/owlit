@@ -6,8 +6,8 @@ import { KindIcon } from "@/components/kind-icon"
 import { ListRow } from "@/components/list-row"
 import { NoteDot } from "@/components/marks"
 import { useLibraryStore } from "@/features/library/store"
-import { shown } from "@/features/collections/lib"
-import { useCollectionsStore } from "@/features/collections/store"
+import { shown } from "@/features/threads/lib"
+import { useThreadsStore } from "@/features/threads/store"
 import { ago, DAY, shortDate } from "@/lib/time"
 import { KIND_ICON } from "@/lib/kinds"
 import { useChatStore } from "@/features/chat/store"
@@ -15,9 +15,9 @@ import { useSeenStore } from "@/features/chat/status"
 import { plural, t } from "@lingui/core/macro"
 
 // After three days or more away: one row per chat whose work finished meanwhile and that the user hasn't
-// opened since (the jobs they handed off before leaving), one row per collection Owlit started or added
+// opened since (the jobs they handed off before leaving), one row per thread Owlit started or added
 // to meanwhile, and one line for papers Owlit added to the Library. It belongs to this launch only; what
-// the user doesn't open keeps its dot in Collections.
+// the user doesn't open keeps its dot in Threads.
 
 export const AWAY_FOR = 3 * DAY
 
@@ -37,12 +37,12 @@ interface Finished {
 
 export function SinceYouLeft({ since }: { since: number }) {
   const navigate = useNavigate()
-  const collections = useCollectionsStore((s) => s.collections)
+  const threads = useThreadsStore((s) => s.threads)
   const papers = useLibraryStore((s) => s.papers)
 
   const changed = useMemo<Changed[]>(
     () =>
-      Object.values(collections)
+      Object.values(threads)
         .filter((c) => c.updatedAt > since && (c.createdAt > since || Object.values(c.changedAt).some((at) => at > since)))
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .map((c) => {
@@ -50,13 +50,13 @@ export function SinceYouLeft({ since }: { since: number }) {
           const added = view.rows.filter((r) => r.addedAt > since).length
           const what =
             c.createdAt > since
-              ? plural(view.rows.length, { one: "New collection · # paper", other: "New collection · # papers" })
+              ? plural(view.rows.length, { one: "New thread · # paper", other: "New thread · # papers" })
               : added
                 ? plural(added, { one: "# new paper", other: "# new papers" })
-                : t({ message: "Changed", comment: "a collection Owlit changed without adding papers" })
+                : t({ message: "Changed", comment: "a thread Owlit changed without adding papers" })
           return { id: c.id, title: view.title, what, unseen: c.seenAt === 0 || Object.values(c.changedAt).some((at) => at > c.seenAt) }
         }),
-    [collections, since],
+    [threads, since],
   )
   const added = useMemo(() => Object.values(papers).filter((p) => p.addedBy === "agent" && p.addedAt > since).length, [papers, since])
   // The chat list's own mark, "Finished since you last looked", limited to replies that ended while away;
@@ -88,7 +88,7 @@ export function SinceYouLeft({ since }: { since: number }) {
           return <ListRow key={f.id} to={`/chat/${f.id}`} icon={KIND_ICON.chat} title={f.title} end={t`Finished ${when}`} />
         })}
         {changed.map((c) => (
-          <ListRow key={c.id} to={`/collections/${c.id}`} mark={<NoteDot gone={!c.unseen} />} title={c.title} detail={c.what} />
+          <ListRow key={c.id} to={`/threads/${c.id}`} mark={<NoteDot gone={!c.unseen} />} title={c.title} detail={c.what} />
         ))}
         {added > 0 && (
           <ListRow

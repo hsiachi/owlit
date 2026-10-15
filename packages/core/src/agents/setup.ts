@@ -43,6 +43,8 @@ export interface SetupOptions {
   fetchJson: (url: string) => Promise<unknown>
   // Where `claude` and `codex` are looked for
   searchPath: () => Promise<string>
+  // The system proxy as environment variables, which npm reads (proxy.ts)
+  proxyEnv?: () => Promise<Record<string, string>>
   // Something changed for this agent (progress, done, failed)
   changed: (id: string) => void
 }
@@ -165,11 +167,12 @@ export class AgentSetups {
     )
   }
 
-  private npm(args: string[], signal: AbortSignal): Promise<void> {
+  private async npm(args: string[], signal: AbortSignal): Promise<void> {
     const { node } = this.options
+    const proxy = (await this.options.proxyEnv?.()) ?? {}
     return new Promise((resolve, reject) => {
       const child = spawn(node.command, [...node.args, this.options.npm, ...args], {
-        env: { ...process.env, ...node.env, PATH: process.env.PATH ?? "", npm_config_update_notifier: "false" },
+        env: { ...process.env, ...node.env, ...proxy, PATH: process.env.PATH ?? "", npm_config_update_notifier: "false" },
         stdio: ["ignore", "ignore", "pipe"],
         signal,
       })

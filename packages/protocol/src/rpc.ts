@@ -2,13 +2,14 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
-import type { AgentNote, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
+import type { CommentAnchor, DocComment, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
-import type { Collection, CollectionBatch, CollectionEdit, CollectionPaper, CollectionSize, CollectionSummary, CollectionWrite } from "./collections.ts"
+import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
+import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 
@@ -139,17 +140,20 @@ export interface Methods {
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }
 
-  // ---- Notes agents left on docs, kept beside the files (.owlit/docs/notes/); they follow renames,
-  // moves and deletes made through docs.* or outside owlit
-  // Every doc's notes, by path
-  "notes.all": { params: void; result: Record<string, AgentNote[]> }
-  // Adds a note, or puts a dismissed one back
-  // agent: the note is an agent's (owlit-mcp), kept as a version so the window can offer Undo
-  "notes.add": { params: { path: string; note: AgentNote; agent?: { chatId?: string } }; result: null }
-  // The note removed, or null if it wasn't there
-  "notes.remove": { params: { path: string; id: string }; result: AgentNote | null }
-  // Passages edited while the doc was open, saved as they read now: note id → its new anchor
-  "notes.reanchor": { params: { path: string; moved: Record<string, NoteAnchor> }; result: null }
+  // ---- Comments on docs, kept beside the files (.owlit/docs/comments/); they follow renames, moves and
+  // deletes made through docs.* or outside owlit
+  // Every doc's comments, by path, resolved ones included
+  "comments.all": { params: void; result: Record<string, DocComment[]> }
+  // Starts a comment, or puts back one deleted
+  // agent: the comment is an agent's (owlit-mcp), kept as a version so the window can offer Undo
+  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string } }; result: null }
+  // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
+  // comment as it was, or null if it wasn't there
+  "comments.put": { params: { path: string; comment: DocComment }; result: DocComment | null }
+  // The comment removed, or null if it wasn't there
+  "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
+  // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
+  "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
 
   // ---- Sharing a doc by link: the share server holds what readers see; their comments come back here.
   // Shares are by doc path and follow renames. server is where links point; null when none is set up.
@@ -165,37 +169,37 @@ export interface Methods {
   "share.reply": { params: { path: string; parent: string; text: string }; result: ShareComment }
   "share.resolve": { params: { path: string; id: string; resolved: boolean }; result: null }
 
-  // ---- Collections: papers Owlit gathered for a question and what it makes of them, in .owlit/collections/
-  "collections.list": { params: void; result: CollectionSummary[] }
-  // As stored: Owlit's text with the user's changes beside it (shownCollection gives what the user sees)
-  "collections.get": { params: { id: string }; result: Collection }
+  // ---- Threads: papers Owlit gathered for a question and what it makes of them, in .owlit/threads/
+  "threads.list": { params: void; result: ThreadSummary[] }
+  // As stored: Owlit's text with the user's changes beside it (shownThread gives what the user sees)
+  "threads.get": { params: { id: string }; result: Thread }
   // An agent's write, merged so the user's changes stay; left names rows not written because the user
   // removed them
-  "collections.write": { params: CollectionWrite; result: { id: string; title: string; added: number; updated: number; left: string[] } }
-  "collections.edit": { params: { id: string; edit: CollectionEdit }; result: Collection }
-  // Keep it separate: the rows an agent added to this collection become a collection of their own, for
+  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number; left: string[] } }
+  "threads.edit": { params: { id: string; edit: ThreadEdit }; result: Thread }
+  // Keep it separate: the rows an agent added to this thread become a thread of their own, for
   // the question they were found for
-  "collections.split": { params: { id: string; rows: string[]; asked: string }; result: Collection }
-  // Undo of a split: the rows go back where they came from, as they were there, and this collection to
-  // the trash; the collection they went back to
-  "collections.unsplit": { params: { id: string }; result: Collection }
-  // Owlit's work on the collection in batches, oldest first, for About
-  "collections.about": { params: { id: string }; result: CollectionBatch[] }
-  // Owlit gathers papers for a question, in the background: the collection is there at once (empty,
+  "threads.split": { params: { id: string; rows: string[]; asked: string }; result: Thread }
+  // Undo of a split: the rows go back where they came from, as they were there, and this thread to
+  // the trash; the thread they went back to
+  "threads.unsplit": { params: { id: string }; result: Thread }
+  // Owlit's work on the thread in batches, oldest first, for About
+  "threads.about": { params: { id: string }; result: ThreadBatch[] }
+  // Owlit gathers papers for a question, in the background: the thread is there at once (empty,
   // titled by the question until Owlit names it) and fills as the task runs
-  "collections.gather": { params: { question: string; project?: string; size: CollectionSize }; result: Collection }
-  // More of Owlit's work on a collection: find more papers, read the abstract-only ones in full, check
+  "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: Thread }
+  // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full, check
   // for new papers now
-  "collections.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
+  "threads.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
   // A new column: a question Owlit answers for every paper
-  "collections.ask": { params: { id: string; question: string }; result: Collection }
+  "threads.ask": { params: { id: string; question: string }; result: Thread }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
-  "collections.fill": { params: { id: string; column: string }; result: Task }
+  "threads.fill": { params: { id: string; column: string }; result: Task }
   // A column that sets every paper against sentences the user picked from a doc of theirs
-  "collections.compare": { params: { id: string; doc: string; sentences: string[] }; result: Collection }
-  // Moves the collection to .owlit/trash/
-  "collections.delete": { params: { id: string }; result: null }
-  "collections.undelete": { params: { id: string }; result: Collection }
+  "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: Thread }
+  // Moves the thread to .owlit/trash/
+  "threads.delete": { params: { id: string }; result: null }
+  "threads.undelete": { params: { id: string }; result: Thread }
 
   // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
   // Most recently updated first, without messages
@@ -305,13 +309,28 @@ export interface Methods {
   // The versions kept, newest first; of one doc or topic, or of everything since a time
   "versions.list": { params: { path?: string; since?: number }; result: VersionInfo[] }
 
+  // ---- Memory: what Owlit keeps in mind about the user (.owlit/memory.md)
+  // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
+  "memory.list": { params: void; result: { lines: MemoryLine[]; claudeNotes: ClaudeNote[] } }
+  // An agent's change (owlit-mcp's memory_write); versionId undoes it. Errors are said to the agent.
+  "memory.write": {
+    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string }
+    result: { line: MemoryLine | null; before: MemoryLine | null; versionId?: string }
+  }
+  // The user's change from Settings: a new line (no id), an edit, or a removed line put back (its id)
+  "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }; result: MemoryLine[] }
+  "memory.remove": { params: { id: string }; result: MemoryLine[] }
+  // Copies the chosen Claude Code notes in (as the user edited them) and drops the rest, so none is
+  // offered again
+  "memory.decideClaudeNotes": { params: { keep: { file: string; kind: MemoryKind; text: string }[]; drop: string[] }; result: MemoryLine[] }
+
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
   // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
   "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
   // A paper a search showed lately, as it showed it (the whole abstract), or the Library's record of it;
   // null when owlit knows nothing of it
-  "library.found": { params: { id: string }; result: CollectionPaper | null }
+  "library.found": { params: { id: string }; result: ThreadPaper | null }
   // For each input, the id of the paper in the library it names, or null; asks no one
   "library.known": { params: { inputs: string[] }; result: (string | null)[] }
   // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
@@ -374,14 +393,14 @@ export interface Methods {
   // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
   // here are skipped. Waits until it is done; progress shows as an import.pitta task.
   "library.importPitta": { params: { root: string }; result: { added: number; skipped: number; failed: string[] } }
-  // Brings in a collection: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
+  // Brings in a library at once: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
   // export), a BibTeX file, or a folder of PDFs. Returns once it has started; the import.<source> task
   // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the
   // library has are skipped; nothing gets a digest. parse answers ahead whether MinerU reads every new PDF.
   "library.import": { params: { source: ImportSource; path: string; collectionsAsTags?: boolean; parse?: boolean }; result: ImportSummary }
   // The Zotero library in its usual place (~/Zotero), or null when there is none
   "library.findZotero": { params: void; result: string | null }
-  // What importing that collection would do, without adding anything
+  // What importing that library would do, without adding anything
   "library.previewImport": { params: { source: ImportSource; path: string }; result: ImportPreview }
   // A cancelled or stopped import goes on, skipping what it did
   "library.continueImport": { params: { id: string }; result: ImportSummary }
@@ -470,19 +489,24 @@ export interface Notifications {
   "ui.request": UiRequest
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it
   // (its own) ignores it
-  "notes.added": { path: string; note: AgentNote }
+  "comments.changed": { path: string; comment: DocComment }
   // An undo took a note away
-  "notes.removed": { path: string; id: string }
+  "comments.removed": { path: string; id: string }
+  // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
+  "memory.changed": { lines: MemoryLine[] }
   // An agent wrote a file no window had open; versionId undoes it
   "agent.wrote": { path: string; versionId: string; chatId?: string }
-  // An agent in a chat left a note, added a paper or wrote to a collection; versionId undoes it.
-  // label names what changed (the doc, the paper's title, the collection's title).
+  // An agent in a chat left a note, added a paper or wrote to a thread; versionId undoes it.
+  // label names what changed (the doc, the paper's title, the thread's title).
   // op "removed": an agent took back a paper it added (absent: an addition or a write)
-  // kind "collection": path is the collection's id; created when the write started it, rows the papers it
+  // kind "thread": path is the thread's id; created when the write started it, rows the papers it
   // added and updated how many it changed, asked the question it was for
+  // kind "memory": path is the line's id and label its text (the old text when removed); op "updated"
+  // when it replaced a line, memory which kind of line
   "agent.changed": {
-    kind: "note" | "paper" | "collection"
-    op?: "removed"
+    kind: "note" | "paper" | "thread" | "memory"
+    op?: "removed" | "updated"
+    memory?: MemoryKind
     versionId: string
     path: string
     label: string
@@ -498,9 +522,9 @@ export interface Notifications {
   "library.changed": LibraryChange
   // A paper's note changed outside the window (an agent's edit, another program); null when it was emptied
   "library.noteChanged": { paperId: string; note: PaperNote | null }
-  // A collection changed (an agent wrote to it, the user changed it in another window, an undo); null:
+  // A thread changed (an agent wrote to it, the user changed it in another window, an undo); null:
   // it was deleted
-  "collections.changed": { id: string; collection: Collection | null }
+  "threads.changed": { id: string; thread: Thread | null }
   // A shared doc's state changed (pushed, couldn't push, renamed); share null: no longer shared
   "share.changed": { path: string; share: DocShare | null }
   // New or changed comments on a shared doc: all of them, as they are now
@@ -513,8 +537,6 @@ export type MethodName = keyof Methods
 export type NotificationName = keyof Notifications
 export type ParamsOf<M extends MethodName> = Methods[M]["params"]
 export type ResultOf<M extends MethodName> = Methods[M]["result"]
-
-export type NoteAnchor = Pick<AgentNote, "quote" | "prefix" | "suffix">
 
 export interface CoreVersion {
   version: string

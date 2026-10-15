@@ -18,7 +18,7 @@ import {
 } from "@owlit/protocol"
 import { z } from "zod"
 import type { BrowserHost } from "./host.ts"
-import { ELSEVIER_API_HOST, WILEY_API_HOST } from "./library/pdf.ts"
+import { PUBLISHERS, type PublisherApi } from "./library/publisher-table.ts"
 import { OPENALEX_HOST } from "./library/sources/openalex.ts"
 import { S2_HOST } from "./library/sources/semanticscholar.ts"
 import { tryServer, tryToken } from "./library/parse/mineru.ts"
@@ -222,34 +222,29 @@ async function check(http: Http, s: AppSettings, target: SettingsCheckTarget): P
 // question, which Elsevier answers outright and Wiley by handing over a paywalled paper or not
 async function checkPublisherKey(http: Http, s: AppSettings, target: "elsevierApiKey" | "wileyTdmToken"): Promise<SettingsCheck> {
   const elsevier = target === "elsevierApiKey"
-  const key = elsevier ? s.library.elsevierApiKey : s.library.wileyTdmToken
+  const api = PUBLISHERS.find((p) => p.api?.key === target)!.api!
+  const key = s.library[target]
   if (!key) return { result: "unknown" }
   const service = elsevier ? "Elsevier" : "Wiley"
   try {
     if (elsevier) {
-      // Computers in Human Behavior, a subscription journal
       const answer = await http.json<{ "entitlement-response"?: { "document-entitlement"?: { entitled?: boolean } } }>(
-        `https://${ELSEVIER_API_HOST}/content/article/entitlement/doi/10.1016/j.chb.2019.07.016`,
-        { headers: { "x-els-apikey": key }, retries: 0, timeoutMs: 15_000 },
+        `https://${api.host}/content/article/entitlement/doi/${api.checkDoi}`,
+        { headers: { [api.header]: key }, retries: 0, timeoutMs: 15_000 },
       )
       if (answer["entitlement-response"]?.["document-entitlement"]?.entitled === false) {
         return { result: "works", message: t`The key works, but Elsevier sees no subscription from this network. On the university's network it will.` }
       }
       return { result: "works" }
     }
-    // Journal of Management Studies, a subscription journal
-    const response = await http.get(`https://${WILEY_API_HOST}/onlinelibrary/tdm/v1/articles/${encodeURIComponent("10.1111/joms.13065")}`, {
-      headers: { "wiley-tdm-client-token": key },
-      retries: 0,
-      timeoutMs: 30_000,
-    })
+    const response = await http.get(api.url(api.checkDoi), { headers: { [api.header]: key }, retries: 0, timeoutMs: 30_000 })
     await response.body?.cancel().catch(() => {})
     return { result: "works" }
   } catch (error) {
     if (error instanceof HttpError && error.status === 401) return { result: "rejected", message: t`${service} says this key isn't valid. Check it was copied whole.` }
     if (error instanceof HttpError && error.status === 403) {
       return elsevier
-        ? checkElsevierOffNetwork(http, key)
+        ? checkElsevierOffNetwork(http, api, key)
         : { result: "unknown", message: t`Wiley refused: either the token isn't valid or it sees no subscription from this network.` }
     }
     if (error instanceof HttpError && error.status === 429) return { result: "unknown", message: t`${service} is busy; the key will be tried on the next paper.` }
@@ -261,10 +256,10 @@ async function checkPublisherKey(http: Http, s: AppSettings, target: "elsevierAp
 // network with 403 ("Requestor configuration settings insufficient"), even for the entitlement question
 // (2026-10-15, off campus with a split-tunnel campus VPN that doesn't carry api.elsevier.com). Its
 // abstract API needs no subscription, so it tells a sound key on the wrong network from a refused one.
-async function checkElsevierOffNetwork(http: Http, key: string): Promise<SettingsCheck> {
+async function checkElsevierOffNetwork(http: Http, api: PublisherApi, key: string): Promise<SettingsCheck> {
   try {
-    const response = await http.get(`https://${ELSEVIER_API_HOST}/content/abstract/doi/10.1016/j.chb.2019.07.016`, {
-      headers: { "x-els-apikey": key, accept: "application/json" },
+    const response = await http.get(`https://${api.host}/content/abstract/doi/${api.checkDoi}`, {
+      headers: { [api.header]: key, accept: "application/json" },
       retries: 0,
       timeoutMs: 15_000,
     })

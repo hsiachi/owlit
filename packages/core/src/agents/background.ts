@@ -1,21 +1,22 @@
 import type * as acp from "@agentclientprotocol/sdk"
+import type { MemoryLine } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import { flatValues } from "./process.ts"
 import { backgroundMeta, bareToolTitle, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
-import { preamble } from "./rules.ts"
+import { memoryNote, preamble } from "./rules.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
-// whose answer is the result (a digest), or whose work goes through owlit's tools (a collection). Nobody is there to answer
+// whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is there to answer
 // questions, so the only tools it may use are owlit's own read-only ones; anything else is refused, and
 // it can't write files: core writes what the answer says.
 
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[background] ${line}`)
 
 // owlit-mcp tools a background session may use without asking
-const READ_ONLY = /^(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|collection_(list|read)|activity_read|owlit_help)$/
+const READ_ONLY = /^(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|thread_(list|read)|activity_read|owlit_help)$/
 
 
 export interface BackgroundRun {
@@ -29,10 +30,12 @@ export interface BackgroundRun {
   signal: AbortSignal
   // An agent to use; the first one that is set up when not given
   connectorId?: string
-  // Further tools this run may use (a collection run writes the collection)
+  // Further tools this run may use (a thread run writes the thread)
   allow?: RegExp
   // The model each agent uses here, when not its default (Settings › Owlit › Background work)
   models?: Record<string, string>
+  // Owlit's memory of the user, said after the rules
+  memory?: MemoryLine[]
 }
 
 export interface BackgroundResult {
@@ -110,7 +113,9 @@ export class Background {
       const model = chosen && (await setModel(proc, session, chosen)) ? chosen : undefined
       const init = await proc.initialized()
       // An agent that takes owlit's rules in its system prompt has them already
-      const rules = takesRules(init) ? [] : [{ type: "text" as const, text: preamble(run.root) }]
+      const rules: acp.ContentBlock[] = takesRules(init) ? [] : [{ type: "text", text: preamble(run.root) }]
+      // Background work follows owlit's memory too (a digest in the language the user asked for)
+      if (run.memory?.length) rules.push({ type: "text", text: memoryNote(run.memory, false) })
       const pictures: acp.ContentBlock[] =
         run.pictures?.length && sendsPictures(connectorId, init, model)
           ? run.pictures.flatMap((p) => [

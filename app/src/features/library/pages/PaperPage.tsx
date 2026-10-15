@@ -78,7 +78,7 @@ export function PaperPage() {
   // A page the digest points at (0-based)
   const showPage = (page: number) => void showInPaper(paperId, { page: page + 1 }).catch(() => undefined)
 
-  // Opened at a quote (a collection's answer that rests on it): go to those words on that page
+  // Opened at a quote (a thread's answer that rests on it): go to those words on that page
   useTakeParam(
     "quote",
     (quote, params) => void showInPaper(paperId, { quote, page: Number(params.get("page")) || undefined }).catch(() => undefined),
