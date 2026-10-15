@@ -93,9 +93,15 @@ export type CommentTops = Record<string, { top: number; lost: boolean }>
 
 function measureTops(view: EditorView): CommentTops {
   const { spots, draft } = view.state.field(field)
-  // The editor's own top: the column beside it starts at the same height
-  const base = view.documentTop - view.dom.getBoundingClientRect().top
-  const top = (pos: number) => base + view.lineBlockAt(pos).top
+  // From the editor's own top: the column beside it starts at the same height. A paragraph is one line
+  // block however many lines it wraps to, so the words' own screen line is read where it is drawn; outside
+  // the drawn part of the doc, its paragraph's top stands in until it scrolls into view.
+  const editorTop = view.dom.getBoundingClientRect().top
+  const base = view.documentTop - editorTop
+  const top = (pos: number) => {
+    const drawn = pos >= view.viewport.from && pos <= view.viewport.to ? view.coordsAtPos(pos, 1) : null
+    return drawn ? drawn.top - editorTop : base + view.lineBlockAt(pos).top
+  }
   const tops: CommentTops = {}
   for (const s of spots) tops[s.item.key] = { top: top(s.from), lost: s.lost }
   if (draft) tops[NEW_KEY] = { top: top(draft.from), lost: false }

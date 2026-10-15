@@ -59,7 +59,8 @@ export function CommentColumn({ fileId, pins }: { fileId: string; pins: boolean 
     const resized = new ResizeObserver(pack)
     for (const c of el.querySelectorAll(":scope > [data-card]")) resized.observe(c)
     return () => resized.disconnect()
-  }, [placed, tops, open, drafting])
+    // pins: the column is a new element when it unfolds from pins
+  }, [placed, tops, open, drafting, pins])
 
   const ui = useDocsUiStore.getState
   const hover = (key: string, on: boolean) => openEditor(fileId)?.dispatch({ effects: setHotComment.of(on ? key : null) })
