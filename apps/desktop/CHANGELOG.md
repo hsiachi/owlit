@@ -4,14 +4,14 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## 0.2.0
 
-Collections take the place of Knowledge. A workspace's old `knowledge/` folder stays where it is, as ordinary Markdown in Docs.
+Threads replace Knowledge: a thread is the papers on a question and how they connect. An old `knowledge/` folder shows in Docs as ordinary Markdown.
 
-Collections
+Threads
 - Type a question and Owlit collects papers on it in the background, with what each paper says.
-- Find more papers, Ask each paper… (a column Owlit answers for every paper), Read all in full, Draft a review…, and a daily check on a watched collection.
-- Papers Owlit finds in a chat go into a collection, with Undo and Keep it separate.
-- The Library groups and sorts by collection, a paper says which collections it is in, and @ reaches collections in a doc, a note or a chat.
-- Home's Since you left lists the collections Owlit started or added to while you were away.
+- Find more papers, Ask each paper… (a column Owlit answers for every paper), Read all in full, Draft a review…, and a daily check on a watched thread.
+- Papers Owlit finds in a chat go into a thread, with Undo and Keep it separate.
+- The Library groups and sorts by thread, a paper says which threads it is in, and @ reaches threads in a doc, a note or a chat.
+- Home's Since you left lists the threads Owlit started or added to while you were away.
 
 Getting PDFs
 - A paper Owlit can't get alone (a publisher's check, a library sign-in, the ACM) waits for your own browser: Get it in your browser on the paper, Get them on Home and under Needs you. The PDF is taken from Downloads, after a restart too.

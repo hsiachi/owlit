@@ -11,7 +11,7 @@ import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
-import { Collections, type CollectionsServices } from "../collections/collections.ts"
+import { Threads, type ThreadsServices } from "../threads/threads.ts"
 import { findQuote } from "../library/quotes.ts"
 import { isPaperId, paperDir } from "../library/paths.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
@@ -32,7 +32,7 @@ export function workspaceDataDir(userDataDir: string, workspacePath: string) {
 export interface WorkspaceOptions {
   host?: Host
   library?: LibraryServices
-  collections?: CollectionsServices
+  threads?: ThreadsServices
   tasks?: WorkspaceTasks
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
@@ -57,7 +57,7 @@ export class Workspace {
   readonly library: Library
   readonly tasks: Scheduler
   readonly search: SearchIndex
-  readonly collections: Collections
+  readonly threads: Threads
   readonly shares: Shares
   private release: () => Promise<void>
 
@@ -72,7 +72,7 @@ export class Workspace {
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
     this.search = new SearchIndex(root, dataDir, this.library)
-    this.collections = new Collections(path.join(root, OWLIT_DIR), { versions: this.versions }, {
+    this.threads = new Threads(path.join(root, OWLIT_DIR), { versions: this.versions }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
       findPassage: async (id, quote) => {
@@ -81,7 +81,7 @@ export class Workspace {
         return text === null ? undefined : findQuote(text, quote)
       },
       searches: (by, since) => this.library.searchesBy(by, since),
-      ...options.collections,
+      ...options.threads,
     })
     this.tasks = new Scheduler({
       store: new TaskStore(path.join(dataDir, "tasks")),
@@ -90,7 +90,7 @@ export class Workspace {
       limits: tasks.limits,
     })
     this.library.attach(this.tasks)
-    this.collections.attach(this.tasks)
+    this.threads.attach(this.tasks)
     this.shares = new Shares({
       server: () => null,
       author: async () => undefined,

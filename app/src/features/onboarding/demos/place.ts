@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react"
 
 // The places in the small window's rail, in the app's order
-export type DemoPlace = "home" | "chat" | "docs" | "collections" | "library"
+export type DemoPlace = "home" | "chat" | "docs" | "threads" | "library"
 
-export const DEMO_PLACES: DemoPlace[] = ["home", "chat", "docs", "collections", "library"]
+export const DEMO_PLACES: DemoPlace[] = ["home", "chat", "docs", "threads", "library"]
 
 export interface PlaceClaim {
   place: DemoPlace | null

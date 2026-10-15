@@ -1,25 +1,25 @@
 import { t } from "@lingui/core/macro"
 import {
-  applyCollectionEdit,
-  collectionOfSubject,
+  applyThreadEdit,
+  threadOfSubject,
   itemId,
   QUESTION_COLUMN,
   RpcErrorCode,
   sameWords,
-  shownCollection,
+  shownThread,
   summarize,
-  type Collection,
-  type CollectionBatch,
-  type CollectionCell,
-  type CollectionEdit,
-  type CollectionSearch,
-  type CollectionPaper,
-  type CollectionRun,
-  type CollectionSize,
+  type Thread,
+  type ThreadBatch,
+  type ThreadCell,
+  type ThreadEdit,
+  type ThreadSearch,
+  type ThreadPaper,
+  type ThreadRun,
+  type ThreadSize,
   type TaskPriority,
-  type CollectionRow,
-  type CollectionSummary,
-  type CollectionWrite,
+  type ThreadRow,
+  type ThreadSummary,
+  type ThreadWrite,
 } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import { mkdir, readdir, rename } from "node:fs/promises"
@@ -31,9 +31,9 @@ import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "..
 import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from "./prompts.ts"
 import { Serial } from "../util.ts"
 
-// Collections: papers Owlit gathered for a question, in .owlit/collections/<id>/:
+// Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
 //
-//   collection.json   the collection, with what the user did to it in `yours`
+//   thread.json   the thread, with what the user did to it in `yours`
 //   history.jsonl     one line per write: who (a chat, a run, the user, an undo), which items, why
 //
 // Owlit writes its own record without asking, but never over the user: a rewrite of theirs stays word for
@@ -41,20 +41,20 @@ import { Serial } from "../util.ts"
 // version, so the window can offer Undo like for any agent change; an undo takes back what Owlit did and
 // keeps what the user did since.
 
-export interface CollectionsServices {
+export interface ThreadsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
   // is a line on what it did. Null while the workspace is still opening and its tools can't be reached.
   agent?: (prompt: string, signal: AbortSignal, allow: RegExp, run: string) => Promise<{ text: string } | null>
   // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
   searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
-  paper?: (id: string) => Promise<CollectionPaper | undefined>
+  paper?: (id: string) => Promise<ThreadPaper | undefined>
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
   // undefined when owlit has no text of the paper
   findPassage?: (paperId: string, quote: string) => Promise<number | null | undefined>
-  // A collection changed under the windows (null: deleted)
-  changed?: (id: string, collection: Collection | null) => void
-  // An agent in a chat wrote to a collection; versionId takes the write back
+  // A thread changed under the windows (null: deleted)
+  changed?: (id: string, thread: Thread | null) => void
+  // An agent in a chat wrote to a thread; versionId takes the write back
   wrote?: (change: { versionId: string; id: string; label: string; chatId?: string; created: boolean; rows: string[]; updated: number; asked?: string }) => void
 }
 
@@ -78,44 +78,44 @@ const SEARCHES_SINCE_MS = 6 * 3_600_000
 // Writes of one chat this close together are one batch
 const BATCH_GAP_MS = 30 * 60_000
 
-const FILE = "collection.json"
+const FILE = "thread.json"
 const DAY = 24 * 3_600_000
 
 // What each kind of run may use besides owlit's read-only tools
-const GATHER_TOOLS = /^(library_(search|related|journal)|collection_write)$/
-const FILL_TOOLS = /^collection_write$/
+const GATHER_TOOLS = /^(library_(search|related|journal)|thread_write)$/
+const FILL_TOOLS = /^thread_write$/
 // Reading in full means the paper is used: it joins the library
-const READ_TOOLS = /^(library_add|collection_write)$/
+const READ_TOOLS = /^(library_add|thread_write)$/
 
-export class Collections {
+export class Threads {
   private readonly dir: string
   private readonly trashDir: string
   private readonly versions: Versions
-  private readonly services: CollectionsServices
+  private readonly services: ThreadsServices
   private readonly serial = new Serial()
   private scheduler: Scheduler | null = null
   // When each chat's or run's searches were last given to a write
   private attributed = new Map<string, number>()
 
-  constructor(owlitDir: string, parts: { versions: Versions }, services: CollectionsServices = {}) {
-    this.dir = path.join(owlitDir, "collections")
+  constructor(owlitDir: string, parts: { versions: Versions }, services: ThreadsServices = {}) {
+    this.dir = path.join(owlitDir, "threads")
     this.trashDir = path.join(owlitDir, "trash")
     this.versions = parts.versions
     this.services = services
   }
 
   // Newest change first
-  async list(): Promise<CollectionSummary[]> {
+  async list(): Promise<ThreadSummary[]> {
     const ids = await readdir(this.dir).catch(() => [] as string[])
     const all = await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)))
     return all
-      .filter((c): c is Collection => !!c)
+      .filter((c): c is Thread => !!c)
       .map(summarize)
       .sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
-  // A paper as a collection keeps it, from any collection that has it
-  async paperOf(paperId: string): Promise<CollectionPaper | undefined> {
+  // A paper as a thread keeps it, from any thread that has it
+  async paperOf(paperId: string): Promise<ThreadPaper | undefined> {
     const ids = await readdir(this.dir).catch(() => [] as string[])
     for (const id of ids) {
       const row = (await this.load(id).catch(() => undefined))?.rows.find((r) => r.id === paperId)
@@ -124,9 +124,9 @@ export class Collections {
     return undefined
   }
 
-  async get(id: string): Promise<Collection> {
+  async get(id: string): Promise<Thread> {
     const c = await this.load(id)
-    if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That collection isn't here any more.`, { id })
+    if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread isn't here any more.`, { id })
     return c
   }
 
@@ -140,54 +140,54 @@ export class Collections {
   tasks(): TaskDefinition[] {
     const agent = this.services.agent
     if (!agent) return []
-    const run = (kind: CollectionRun, allow: RegExp, prompt: (c: Collection, subject: string) => string, after?: (c: Collection) => Promise<void>) =>
+    const run = (kind: ThreadRun, allow: RegExp, prompt: (c: Thread, subject: string) => string, after?: (c: Thread) => Promise<void>) =>
       defineTask(kind, {
         lane: "agent",
         retries: 1,
         run: async (ctx) => {
-          const c = await this.load(collectionOfSubject(ctx.task.subject))
-          if (!c) throw new TaskFailure("The collection is gone.")
+          const c = await this.load(threadOfSubject(ctx.task.subject))
+          if (!c) throw new TaskFailure("The thread is gone.")
           ctx.progress(0, undefined, kind)
-          // What it did is in the collection, with Owlit's dots; its answer is only a line for the log
+          // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
           const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow, `${kind}:${ctx.task.id}`)
           // Queued tasks start with the workspace, a moment before its socket opens: try again then
           if (!done) return ctx.later(1000)
-          if (process.env.OWLIT_LOG_AGENTS) console.log(`[collections] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
+          if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },
       })
     return [
-      run("collections.gather", GATHER_TOOLS, (c) => gatherPrompt(c, c.size ?? "few")),
-      run("collections.more", GATHER_TOOLS, (c) => morePrompt(c)),
-      run("collections.fill", FILL_TOOLS, (c, subject) => {
+      run("threads.gather", GATHER_TOOLS, (c) => gatherPrompt(c, c.size ?? "few")),
+      run("threads.more", GATHER_TOOLS, (c) => morePrompt(c)),
+      run("threads.fill", FILL_TOOLS, (c, subject) => {
         const column = c.columns.find((col) => col.id === subject.split(":")[1])
         if (!column) throw new TaskFailure("The column is gone.")
         return fillPrompt(c, column)
       }),
-      run("collections.read", READ_TOOLS, (c) => readPrompt(c)),
-      run("collections.check", GATHER_TOOLS, (c) => checkPrompt(c, c.checkedAt ?? c.createdAt), (c) => this.checked(c.id)),
+      run("threads.read", READ_TOOLS, (c) => readPrompt(c)),
+      run("threads.check", GATHER_TOOLS, (c) => checkPrompt(c, c.checkedAt ?? c.createdAt), (c) => this.checked(c.id)),
     ]
   }
 
-  // Owlit gathers papers for a question: the collection is there at once, titled by the question until
+  // Owlit gathers papers for a question: the thread is there at once, titled by the question until
   // Owlit names it, and the task fills it
-  gather(input: { question: string; project?: string; size: CollectionSize }) {
+  gather(input: { question: string; project?: string; size: ThreadSize }) {
     return this.serial.run(async () => {
       const now = Date.now()
       const question = input.question.trim()
       if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
-      const c: Collection = { ...(await this.blank({ asked: question, title: question, project: input.project ?? "" }, now)), size: input.size }
+      const c: Thread = { ...(await this.blank({ asked: question, title: question, project: input.project ?? "" }, now)), size: input.size }
       await this.save(c)
       await this.record(c.id, { at: now, by: "you", items: ["asked"] })
       this.services.changed?.(c.id, c)
-      this.queue("collections.gather", c.id, "asked")
+      this.queue("threads.gather", c.id, "asked")
       return c
     })
   }
 
   async start(id: string, run: "more" | "read" | "check") {
     await this.get(id)
-    return this.queue(`collections.${run}`, id, "asked")
+    return this.queue(`threads.${run}`, id, "asked")
   }
 
   // A new column: one question for every paper, answered in the background
@@ -209,7 +209,7 @@ export class Collections {
         await this.save(c)
         this.services.changed?.(c.id, c)
       }
-      this.queue("collections.fill", `${c.id}:${column.id}`, "asked")
+      this.queue("threads.fill", `${c.id}:${column.id}`, "asked")
       return c
     })
   }
@@ -217,7 +217,7 @@ export class Collections {
   async fill(id: string, columnId: string) {
     const c = await this.get(id)
     if (!c.columns.some((col) => col.id === columnId)) throw new RpcFailure(RpcErrorCode.NotFound, t`That column isn't there any more.`)
-    return this.queue("collections.fill", `${id}:${columnId}`, "asked")
+    return this.queue("threads.fill", `${id}:${columnId}`, "asked")
   }
 
   // A column that sets every paper against sentences the user picked from a doc of theirs. The column is
@@ -233,17 +233,17 @@ export class Collections {
       await this.save(c)
       await this.record(c.id, { at: c.updatedAt, by: "you", items: [`column:${column.id}`] })
       this.services.changed?.(c.id, c)
-      this.queue("collections.fill", `${c.id}:${column.id}`, "asked")
+      this.queue("threads.fill", `${c.id}:${column.id}`, "asked")
       return c
     })
   }
 
-  // Collections the user asked Owlit to watch get a check once a day, the first time the workspace opens
+  // Threads the user asked Owlit to watch get a check once a day, the first time the workspace opens
   async checkWatched(now = Date.now()) {
     for (const s of await this.list()) {
       if (!s.watch) continue
       const c = await this.load(s.id)
-      if (c && now - (c.checkedAt ?? c.createdAt) >= DAY) this.queue("collections.check", c.id, "background")
+      if (c && now - (c.checkedAt ?? c.createdAt) >= DAY) this.queue("threads.check", c.id, "background")
     }
   }
 
@@ -263,20 +263,20 @@ export class Collections {
 
   // ---- Owlit's writes ----
 
-  write(input: CollectionWrite) {
+  write(input: ThreadWrite) {
     return this.serial.run(async () => {
       const now = Date.now()
       const existing = input.id ? await this.load(input.id) : undefined
-      if (input.id && !existing) throw new RpcFailure(RpcErrorCode.NotFound, `There is no collection ${input.id}; leave id out to start one.`)
+      if (input.id && !existing) throw new RpcFailure(RpcErrorCode.NotFound, `There is no thread ${input.id}; leave id out to start one.`)
       const problems: string[] = []
-      if (!existing && !input.asked?.trim()) problems.push("A new collection needs asked: the question as the user put it.")
-      if (!existing && !input.title?.trim()) problems.push("A new collection needs a title: a short, neutral name for what it gathers.")
+      if (!existing && !input.asked?.trim()) problems.push("A new thread needs asked: the question as the user put it.")
+      if (!existing && !input.title?.trim()) problems.push("A new thread needs a title: a short, neutral name for what it gathers.")
       if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
 
       const before = existing ? JSON.stringify(existing) : null
-      const c: Collection = existing ? structuredClone(existing) : await this.blank(input, now)
+      const c: Thread = existing ? structuredClone(existing) : await this.blank(input, now)
       const fresh = !existing
-      // Until the user has looked at the collection once, all of it is new: nothing in it gets a dot of its
+      // Until the user has looked at the thread once, all of it is new: nothing in it gets a dot of its
       // own (the list says it is new)
       const looked = c.seenAt > 0
       const changed = new Set<string>()
@@ -357,7 +357,7 @@ export class Collections {
             passage = { quote: passage.quote, page }
           }
           const was = row.cells[col]
-          const next: CollectionCell = { ...cell, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
+          const next: ThreadCell = { ...cell, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
           if (cell.depth !== "full") delete next.passage
           if (was && sameCell(was, next)) continue
           row.cells[col] = next
@@ -401,7 +401,7 @@ export class Collections {
         const removedTexts = Object.entries(c.yours.removed)
           .filter(([k]) => k.startsWith("memo:"))
           .map(([, v]) => v.text)
-        const next: Collection["memo"] = []
+        const next: Thread["memo"] = []
         const taken = c.memo.map((s) => s.id)
         for (const s of input.memo) {
           const text = s.text.trim()
@@ -420,10 +420,10 @@ export class Collections {
       }
 
       if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
-      if (!fresh && !changed.size) return { id: c.id, title: shownCollection(c).title, added: 0, updated: 0, left }
+      if (!fresh && !changed.size) return { id: c.id, title: shownThread(c).title, added: 0, updated: 0, left }
 
       c.updatedAt = now
-      const version = await this.versions.saveCollection(c.id, before, { ...(input.chatId ? { chatId: input.chatId } : {}) })
+      const version = await this.versions.saveThread(c.id, before, { ...(input.chatId ? { chatId: input.chatId } : {}) })
       await this.save(c)
       const searches = await this.searchesFor(c.id, input, now)
       await this.record(c.id, {
@@ -438,7 +438,7 @@ export class Collections {
         ...(searches.length ? { searches } : {}),
       })
       this.services.changed?.(c.id, c)
-      const title = shownCollection(c).title
+      const title = shownThread(c).title
       if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, created: fresh, rows: added, updated, ...(asked ? { asked } : {}) })
       return { id: c.id, title, added: added.length, updated, left }
     })
@@ -446,16 +446,16 @@ export class Collections {
 
   // ---- The user's changes ----
 
-  edit(id: string, edit: CollectionEdit) {
+  edit(id: string, edit: ThreadEdit) {
     return this.serial.run(async () => {
       const c = await this.get(id)
       const now = Date.now()
-      const done = applyCollectionEdit(c, edit, now)
+      const done = applyThreadEdit(c, edit, now)
       if ("problem" in done) {
         if (done.problem === "empty") throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something, or remove it instead.`)
-        if (done.problem === "row") throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the collection any more.`)
+        if (done.problem === "row") throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the thread any more.`)
         if (done.problem === "group") throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
-        throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the collection any more.`)
+        throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the thread any more.`)
       }
       const items = done.items
       // Looking changes nothing worth a line in the history, nor the order of the list
@@ -469,22 +469,22 @@ export class Collections {
     })
   }
 
-  // Keep it separate: rows an agent added to a collection, for a question close to its own, become a
-  // collection of their own for that question. The user's words make its title until they rename it;
-  // there is no memo yet, since Owlit's reading was of the other collection.
+  // Keep it separate: rows an agent added to a thread, for a question close to its own, become a
+  // thread of their own for that question. The user's words make its title until they rename it;
+  // there is no memo yet, since Owlit's reading was of the other thread.
   split(id: string, rowIds: string[], asked: string) {
     return this.serial.run(async () => {
       const from = await this.get(id)
       const now = Date.now()
       const rows = from.rows.filter((r) => rowIds.includes(r.id))
-      if (!rows.length) throw new RpcFailure(RpcErrorCode.NotFound, t`Those papers aren't in the collection any more.`)
+      if (!rows.length) throw new RpcFailure(RpcErrorCode.NotFound, t`Those papers aren't in the thread any more.`)
       const question = asked.trim() || from.asked.text
-      const c: Collection = {
+      const c: Thread = {
         ...(await this.blank({ asked: question, title: question }, now)),
         project: from.project,
         sources: from.sources,
-        // Only the question's own answers: the other collection's columns and groups don't come along
-        rows: rows.map(({ group: _group, ...r }): CollectionRow => {
+        // Only the question's own answers: the other thread's columns and groups don't come along
+        rows: rows.map(({ group: _group, ...r }): ThreadRow => {
           const answer = r.cells[QUESTION_COLUMN]
           return { ...r, cells: answer ? { [QUESTION_COLUMN]: answer } : {} }
         }),
@@ -504,14 +504,14 @@ export class Collections {
     })
   }
 
-  // Undo of split(): the rows go back as they were in the collection they came from, with what the user
+  // Undo of split(): the rows go back as they were in the thread they came from, with what the user
   // wrote in their answers since; one they removed here stays out, and so does one already back there
   unsplit(id: string) {
     return this.serial.run(async () => {
       const c = await this.get(id)
-      if (!c.splitFrom) throw new RpcFailure(RpcErrorCode.NotFound, t`This collection wasn't kept separate from another.`)
+      if (!c.splitFrom) throw new RpcFailure(RpcErrorCode.NotFound, t`This thread wasn't kept separate from another.`)
       const from = await this.load(c.splitFrom.id)
-      if (!from) throw new RpcFailure(RpcErrorCode.NotFound, t`The collection these papers came from is gone.`)
+      if (!from) throw new RpcFailure(RpcErrorCode.NotFound, t`The thread these papers came from is gone.`)
       const now = Date.now()
       const back = c.splitFrom.rows.filter((r) => !c.yours.removed[itemId.row(r.id)] && !from.rows.some((have) => have.id === r.id))
       for (const r of back) {
@@ -534,7 +534,7 @@ export class Collections {
     })
   }
 
-  // To .owlit/trash/<stamp>-collection-<id>/, whole, so undelete() can put it back
+  // To .owlit/trash/<stamp>-thread-<id>/, whole, so undelete() can put it back
   delete(id: string) {
     return this.serial.run(async () => {
       await this.get(id)
@@ -546,10 +546,10 @@ export class Collections {
 
   undelete(id: string) {
     return this.serial.run(async () => {
-      if (await this.load(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That collection is already here.`, { id })
-      const suffix = `-collection-${id}`
+      if (await this.load(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That thread is already here.`, { id })
+      const suffix = `-thread-${id}`
       const entry = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix)).sort().reverse()[0]
-      if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, t`That collection is no longer in the trash.`, { id })
+      if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread is no longer in the trash.`, { id })
       await mkdir(this.dir, { recursive: true })
       await rename(path.join(this.trashDir, entry), path.join(this.dir, id))
       const c = await this.get(id)
@@ -558,20 +558,20 @@ export class Collections {
     })
   }
 
-  // Undo of an agent's write: the collection as it was before, with what the user did since kept (their
-  // rewrites and removals are theirs, not the agent's). A write that started the collection is undone by
-  // putting the collection in the trash. What it replaces is kept as a version too, so the undo can be
+  // Undo of an agent's write: the thread as it was before, with what the user did since kept (their
+  // rewrites and removals are theirs, not the agent's). A write that started the thread is undone by
+  // putting the thread in the trash. What it replaces is kept as a version too, so the undo can be
   // undone.
   restoreVersion(id: string, content: string, existed: boolean, meta: { chatId?: string }) {
     return this.serial.run(async () => {
       const now = await this.load(id)
-      const redo = await this.versions.saveCollection(id, now ? JSON.stringify(now) : null, { ...meta, by: "undo" })
+      const redo = await this.versions.saveThread(id, now ? JSON.stringify(now) : null, { ...meta, by: "undo" })
       if (!existed) {
         if (now) await this.toTrash(id)
         this.services.changed?.(id, null)
       } else {
-        const back = JSON.parse(content) as Collection
-        const c: Collection = { ...back, yours: now?.yours ?? back.yours, seenAt: now?.seenAt ?? back.seenAt, watch: now?.watch ?? back.watch, updatedAt: Date.now() }
+        const back = JSON.parse(content) as Thread
+        const c: Thread = { ...back, yours: now?.yours ?? back.yours, seenAt: now?.seenAt ?? back.seenAt, watch: now?.watch ?? back.watch, updatedAt: Date.now() }
         await this.save(c)
         await this.record(id, { at: c.updatedAt, by: "undo", items: [] })
         this.services.changed?.(id, c)
@@ -583,8 +583,8 @@ export class Collections {
   // ---- About: Owlit's work in batches ----
 
   // The searches a write rests on: those its chat or run made since it last wrote (here or to another
-  // collection), or in the last hours when it hasn't
-  private async searchesFor(id: string, input: CollectionWrite, now: number) {
+  // thread), or in the last hours when it hasn't
+  private async searchesFor(id: string, input: ThreadWrite, now: number) {
     const by = input.chatId ? `chat:${input.chatId}` : input.run ? `run:${input.run}` : undefined
     if (!by || !this.services.searches) return []
     let since = this.attributed.get(by)
@@ -599,19 +599,19 @@ export class Collections {
   }
 
   // Owlit's writes in batches: a background run's writes are one, a chat's writes close together are one.
-  // Collections from before runs were recorded group Owlit's writes the same way by time.
-  async about(id: string): Promise<CollectionBatch[]> {
+  // Threads from before runs were recorded group Owlit's writes the same way by time.
+  async about(id: string): Promise<ThreadBatch[]> {
     const c = await this.get(id)
     const columns = new Map(c.columns.map((col) => [col.id, col]))
     const titles = new Map(c.rows.map((r) => [r.id, r.paper.title]))
-    const batches: (CollectionBatch & { key: string; last: number; rows: Set<string>; lines: HistoryLine[] })[] = []
+    const batches: (ThreadBatch & { key: string; last: number; rows: Set<string>; lines: HistoryLine[] })[] = []
     for (const line of await this.history(id)) {
       if (line.by === "you" || line.by === "undo") continue
       const key = line.run ?? line.by
       let batch = batches.at(-1)
       if (!batch || batch.key !== key || (!line.run && line.at - batch.last > BATCH_GAP_MS)) {
-        const kind = line.run?.split(":")[0]?.replace(/^collections\./, "")
-        const trigger: CollectionBatch["trigger"] = kind && ["gather", "more", "check", "read", "fill"].includes(kind) ? (kind as CollectionBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
+        const kind = line.run?.split(":")[0]?.replace(/^threads\./, "")
+        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "check", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
         batch = { key, last: line.at, rows: new Set(), lines: [], at: line.at, trigger, added: 0, answered: 0, columns: [], searches: [], notes: [] }
         if (trigger === "chat") batch.chatId = line.by.slice("chat:".length)
         batches.push(batch)
@@ -635,7 +635,7 @@ export class Collections {
             const col = columns.get(m[2]!)
             if (col && col.id !== QUESTION_COLUMN) asked.add(col.kind === "compare" ? (col.doc ?? col.question) : col.question)
           }
-        const searches: CollectionSearch[] = lines.flatMap((l) => l.searches ?? []).map((s) => searchOf(s, rows, titles))
+        const searches: ThreadSearch[] = lines.flatMap((l) => l.searches ?? []).map((s) => searchOf(s, rows, titles))
         return { ...batch, added: rows.size, answered: answered.size, columns: [...asked], searches }
       })
       .filter((b) => b.added || b.answered || b.searches.length || b.notes.length)
@@ -643,7 +643,7 @@ export class Collections {
 
   // ---- Inside ----
 
-  private async blank(input: CollectionWrite, now: number): Promise<Collection> {
+  private async blank(input: ThreadWrite, now: number): Promise<Thread> {
     const title = input.title!.trim()
     const taken = await readdir(this.dir).catch(() => [] as string[])
     return {
@@ -666,18 +666,18 @@ export class Collections {
     }
   }
 
-  private async load(id: string): Promise<Collection | undefined> {
+  private async load(id: string): Promise<Thread | undefined> {
     if (!/^[\w-]+$/.test(id)) return undefined
-    return readJson<Collection>(path.join(this.dir, id, FILE))
+    return readJson<Thread>(path.join(this.dir, id, FILE))
   }
 
-  // Into .owlit/trash as <when>-collection-<id>, where undelete finds the latest
+  // Into .owlit/trash as <when>-thread-<id>, where undelete finds the latest
   private async toTrash(id: string, at = Date.now()) {
     await mkdir(this.trashDir, { recursive: true })
-    await rename(path.join(this.dir, id), path.join(this.trashDir, `${at}-collection-${id}`))
+    await rename(path.join(this.dir, id), path.join(this.trashDir, `${at}-thread-${id}`))
   }
 
-  private async save(c: Collection) {
+  private async save(c: Thread) {
     await writeJsonAtomic(path.join(this.dir, c.id, FILE), c)
   }
 
@@ -691,7 +691,7 @@ export class Collections {
 
 }
 
-function sameCell(a: CollectionCell, b: CollectionCell) {
+function sameCell(a: ThreadCell, b: ThreadCell) {
   return sameWords(a.text, b.text) && a.depth === b.depth && a.rel === b.rel && a.sentence === b.sentence && a.passage?.quote === b.passage?.quote
 }
 
@@ -702,7 +702,7 @@ function freshId(prefix: string, taken: string[]) {
 }
 
 // From the title's Latin words where it has some ("UIST 2026 papers" → uist-2026-papers), otherwise a
-// short random id; unique among the collections there are
+// short random id; unique among the threads there are
 export function uniqueId(title: string, taken: string[]) {
   const words = title
     .normalize("NFKD")
@@ -717,14 +717,14 @@ export function uniqueId(title: string, taken: string[]) {
   // A mostly Chinese title would be named after its one English word ("adhd"): random instead
   const letters = title.match(/\p{L}/gu)?.length ?? 0
   const latin = title.normalize("NFKD").match(/[a-z]/gi)?.length ?? 0
-  const base = words.length >= 3 && latin * 2 >= letters ? words.slice(0, 48).replace(/-+$/, "") : `c-${randomBytes(3).toString("hex")}`
+  const base = words.length >= 3 && latin * 2 >= letters ? words.slice(0, 48).replace(/-+$/, "") : `t-${randomBytes(3).toString("hex")}`
   let id = base
   for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`
   return id
 }
 
 // A logged search as About says it: a paper followed by its references or citations is named by its title
-function searchOf(s: { query: string; source: string; results: string[] }, kept: Set<string>, titles: Map<string, string>): CollectionSearch {
+function searchOf(s: { query: string; source: string; results: string[] }, kept: Set<string>, titles: Map<string, string>): ThreadSearch {
   const follow = /^(references|cited_by|similar) of (.+)$/.exec(s.query)
   const base = { source: s.source, found: s.results.length, kept: s.results.filter((id) => kept.has(id)).length }
   if (follow) return { ...base, kind: follow[1] as "references" | "cited_by" | "similar", query: follow[2]!, of: titles.get(follow[2]!) ?? follow[2]! }

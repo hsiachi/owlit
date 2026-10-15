@@ -315,7 +315,7 @@ export class MockAgentClient implements AgentClient {
         ? `library/papers/${slug(m.title)}/digest.md`
         : m.kind === "doc"
           ? `docs/${m.subtitle ? `${m.subtitle}/` : ""}${m.title}`
-          : `.owlit/collections/${m.id}/collection.json`
+          : `.owlit/threads/${m.id}/thread.json`
     emit({ type: "tool_call", toolCallId: id, title: `${verb} ${m.title}`, kind: "read", status: "in_progress", locations: [{ path }], tool: { name: "Read", path } })
     await sleep(700, signal)
     emit({ type: "tool_call_update", toolCallId: id, status: "completed", content: `Read ${path} (${Math.floor(Math.random() * 60 + 20)} lines)` })

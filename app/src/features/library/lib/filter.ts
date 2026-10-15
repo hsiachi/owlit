@@ -60,7 +60,7 @@ export function compare(a: Paper, b: Paper, sort: Sort): number {
   let r = 0
   switch (sort.key) {
     case "addedAt":
-    case "collection":
+    case "thread":
       r = a.addedAt - b.addedAt
       break
     case "title":
@@ -147,7 +147,7 @@ export function groupPapers(
   sort: Sort,
   searching: boolean,
   now = Date.now(),
-  collections?: Map<string, { id: string; title: string }[]>,
+  threads?: Map<string, { id: string; title: string }[]>,
   byReason = false,
 ): PaperGroup[] {
   if (searching) return [{ label: plural(papers.length, { one: "# paper", other: "# papers" }), papers }]
@@ -155,13 +155,13 @@ export function groupPapers(
     const labels = reasonLabels()
     return NO_PDF_REASONS.map((reason) => ({ label: labels[reason], papers: papers.filter((p) => noPdfReason(p) === reason) })).filter((g) => g.papers.length > 0)
   }
-  // By the collection that holds a paper (the most recently changed one, when several do); papers that
+  // By the thread that holds a paper (the most recently changed one, when several do); papers that
   // came some other way last
-  if (sort.key === "collection") {
+  if (sort.key === "thread") {
     const groups = new Map<string, PaperGroup>()
     const outside: Paper[] = []
     for (const p of papers) {
-      const c = collections?.get(p.id)?.[0]
+      const c = threads?.get(p.id)?.[0]
       if (!c) {
         outside.push(p)
         continue
@@ -169,7 +169,7 @@ export function groupPapers(
       if (!groups.has(c.id)) groups.set(c.id, { label: c.title, papers: [] })
       groups.get(c.id)!.papers.push(p)
     }
-    return [...groups.values(), ...(outside.length ? [{ label: t({ message: "Not from a collection", comment: "Library papers no collection holds" }), papers: outside }] : [])]
+    return [...groups.values(), ...(outside.length ? [{ label: t({ message: "Not from a thread", comment: "Library papers no thread holds" }), papers: outside }] : [])]
   }
   if (sort.key === "addedAt") {
     const bands = ageBands()

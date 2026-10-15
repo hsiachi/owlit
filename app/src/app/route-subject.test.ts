@@ -6,7 +6,7 @@ describe("routeSubject", () => {
     expect(routeSubject("/library/arxiv-2401.01234")).toEqual({ kind: "paper", id: "arxiv-2401.01234" })
     expect(routeSubject("/docs/d1")).toEqual({ kind: "doc", id: "d1" })
     expect(routeSubject("/chat/c1")).toEqual({ kind: "chat", id: "c1" })
-    expect(routeSubject("/collections/c-replay")).toEqual({ kind: "collection", id: "c-replay" })
+    expect(routeSubject("/threads/t-replay")).toEqual({ kind: "thread", id: "t-replay" })
   })
 
   it("decodes the id", () => {
@@ -14,6 +14,6 @@ describe("routeSubject", () => {
   })
 
   it("takes a place's own pages and lists for no subject", () => {
-    for (const p of ["/", "/library", "/library/", "/library/up-next", "/docs", "/chat", "/collections", "/knowledge/x", "/library/p1/more"]) expect(routeSubject(p)).toBeNull()
+    for (const p of ["/", "/library", "/library/", "/library/up-next", "/docs", "/chat", "/threads", "/library/p1/more"]) expect(routeSubject(p)).toBeNull()
   })
 })

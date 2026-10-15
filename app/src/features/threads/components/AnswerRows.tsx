@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { collectionUri, itemId, QUESTION_COLUMN, type Collection, type CollectionRow } from "@owlit/protocol"
+import { threadUri, itemId, QUESTION_COLUMN, type Thread, type ThreadRow } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
 import { MentionToken } from "@/components/mention/mention-token"
@@ -11,23 +11,23 @@ import type { Paper } from "@/features/library/types"
 import { stripLatex } from "@/features/library/lib/latex"
 import { cn } from "@/lib/utils"
 import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
-import { editCollection, removeRow, useCollectionsStore } from "../store"
+import { editThread, removeRow, useThreadsStore } from "../store"
 import { ChoiceMenu } from "@/components/choice-menu"
-import { useCollectionsUi } from "../ui-store"
+import { useThreadsUi } from "../ui-store"
 
-// The papers of a collection without columns, one line each: what the paper says about the question
+// The papers of a thread without columns, one line each: what the paper says about the question
 // first, the paper after it, named as the memo names it ("CiteSee · 2023"). Every answer is in ink: one from
 // the full text ends in the page it rests on, so an answer without a page is from the abstract, and grey
 // keeps meaning only "secondary" or "unread". The slot before it is Owlit's dot while the answer is new
 // since the user looked; their own reading is a half ring after the paper's name, on the thing it is about.
-export function AnswerRows({ collection, shown, seenBefore }: { collection: Collection; shown: Collection; seenBefore: number }) {
-  const peek = useCollectionsUi((s) => s.peek)
+export function AnswerRows({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
+  const peek = useThreadsUi((s) => s.peek)
   if (!shown.rows.length) return null
   return (
     <div className="-mx-1.5 mt-8 flex flex-col">
       {shown.rows.map((row) => {
-        const fresh = Math.max(collection.changedAt[itemId.row(row.id)] ?? 0, collection.changedAt[itemId.cell(row.id, QUESTION_COLUMN)] ?? 0) > seenBefore
-        return <AnswerRow key={row.id} collection={collection} row={row} fresh={fresh} open={peek === row.id} />
+        const fresh = Math.max(thread.changedAt[itemId.row(row.id)] ?? 0, thread.changedAt[itemId.cell(row.id, QUESTION_COLUMN)] ?? 0) > seenBefore
+        return <AnswerRow key={row.id} thread={thread} row={row} fresh={fresh} open={peek === row.id} />
       })}
     </div>
   )
@@ -38,8 +38,8 @@ export function ReadingMark({ paper, className }: { paper: Paper | undefined; cl
   return <ReadingRing label={t`You've read some of it`} className={className} />
 }
 
-function AnswerRow({ collection, row, fresh, open }: { collection: Collection; row: CollectionRow; fresh: boolean; open: boolean }) {
-  const set = useCollectionsUi((s) => s.set)
+function AnswerRow({ thread, row, fresh, open }: { thread: Thread; row: ThreadRow; fresh: boolean; open: boolean }) {
+  const set = useThreadsUi((s) => s.set)
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
   const answer = row.cells[QUESTION_COLUMN]
@@ -77,7 +77,7 @@ function AnswerRow({ collection, row, fresh, open }: { collection: Collection; r
         {!open && answer?.depth === "full" && answer.passage && <PageLink passage={answer.passage} library={library} />}
       </div>
       <Unfold open={open}>
-        <RowPeek collection={collection} row={row} library={library} />
+        <RowPeek thread={thread} row={row} library={library} />
       </Unfold>
     </div>
   )
@@ -96,13 +96,13 @@ function PageLink({ passage, library }: { passage: { quote: string; page: number
 
 // A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
 // the Library: opening it, or adding it, brings it in, since it is then being used.
-export function RowPeek({ collection, row, library, className }: { collection: Collection; row: CollectionRow; library: Paper | undefined; className?: string }) {
+export function RowPeek({ thread, row, library, className }: { thread: Thread; row: ThreadRow; library: Paper | undefined; className?: string }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
-  const answer = shown(collection).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
-  const all = useCollectionsStore((s) => s.collections)
-  const others = Object.values(all).filter((c) => c.id !== collection.id && c.rows.some((r) => r.id === row.id && !c.yours.removed[itemId.row(r.id)]))
+  const answer = shown(thread).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
+  const all = useThreadsStore((s) => s.threads)
+  const others = Object.values(all).filter((c) => c.id !== thread.id && c.rows.some((r) => r.id === row.id && !c.yours.removed[itemId.row(r.id)]))
   const published = [facts.venue, facts.year].filter(Boolean).join(" · ")
   const bring = () => library ?? addPaper({ id: row.id, title: facts.title, authors: facts.authors, ids: facts.ids, year: facts.year, venue: facts.venue, abstract: facts.abstract, kind: facts.kind }, "user")
   const page = answer?.passage?.page
@@ -130,29 +130,29 @@ export function RowPeek({ collection, row, library, className }: { collection: C
         {facts.abstract && <p className="mt-2.5 line-clamp-3 text-detail leading-relaxed text-muted-foreground">{stripLatex(facts.abstract)}</p>}
         {others.length > 0 && (
           <p className="mt-2.5 text-detail text-muted-foreground">
-            {t({ message: "Also in", comment: "followed by the other collections that hold this paper" })}{" "}
+            {t({ message: "Also in", comment: "followed by the other threads that hold this paper" })}{" "}
             {others.map((c, i) => (
               <span key={c.id}>
                 {i > 0 && ", "}
-                <MentionToken label={shown(c).title} title={collectionUri(c.id)} onClick={() => navigate(`/collections/${c.id}`)} />
+                <MentionToken label={shown(c).title} title={threadUri(c.id)} onClick={() => navigate(`/threads/${c.id}`)} />
               </span>
             ))}
           </p>
         )}
       </div>
       <div className="mt-3.5 flex items-center gap-1">
-        <Button variant="ghost" size="sm" className="-ml-2.5 font-normal text-muted-foreground" onClick={() => void removeRow(collection.id, row.id)}>
-          {t({ message: "Remove", comment: "take a paper off this collection" })}
+        <Button variant="ghost" size="sm" className="-ml-2.5 font-normal text-muted-foreground" onClick={() => void removeRow(thread.id, row.id)}>
+          {t({ message: "Remove", comment: "take a paper off this thread" })}
         </Button>
-        {collection.groups.length > 0 && (
+        {thread.groups.length > 0 && (
           <ChoiceMenu
             value={row.group ?? ""}
-            onChange={(group) => void editCollection(collection.id, { op: "move", row: row.id, group: group || null })}
+            onChange={(group) => void editThread(thread.id, { op: "move", row: row.id, group: group || null })}
             label={t`Move to group`}
             trigger={t`Move to group…`}
             align="start"
             icon={null}
-            options={[...shown(collection).groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its collection" }) }]}
+            options={[...shown(thread).groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its thread" }) }]}
           />
         )}
         <span className="flex-1" />

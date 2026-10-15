@@ -1,11 +1,11 @@
-// owlit:// addresses: how a paper, doc, collection or chat is linked in Markdown, by agents and the
-// window alike. Doc paths are percent-encoded; paper, collection and chat ids are plain.
+// owlit:// addresses: how a paper, doc, thread or chat is linked in Markdown, by agents and the
+// window alike. Doc paths are percent-encoded; paper, thread and chat ids are plain.
 
 export const paperUri = (id: string, passage?: string) => `owlit://library/${id}${passage ? `#passage=${passage}` : ""}`
 export const docUri = (path: string) => `owlit://docs/${path.split("/").map(encodeURIComponent).join("/")}`
 export const chatUri = (id: string) => `owlit://chat/${id}`
-// A collection, or one of its groups: owlit://collections/c-replay#group=eval
-export const collectionUri = (id: string, group?: string) => `owlit://collections/${id}${group ? `#group=${encodeURIComponent(group)}` : ""}`
+// A thread, or one of its groups: owlit://threads/t-replay#group=eval
+export const threadUri = (id: string, group?: string) => `owlit://threads/${id}${group ? `#group=${encodeURIComponent(group)}` : ""}`
 
 // A mention's Markdown, [label](uri), the label's brackets and backslashes escaped so any title survives
 // as link text; unescapeLabel takes a label back
@@ -17,7 +17,7 @@ export type OwlitUri =
   | { kind: "paper"; id: string; passage?: string; abstract?: boolean; page?: number }
   | { kind: "doc"; path: string }
   | { kind: "chat"; id: string }
-  | { kind: "collection"; id: string; group?: string }
+  | { kind: "thread"; id: string; group?: string }
   // owlit://settings/<section> and owlit://shortcuts open over the page
   | { kind: "settings"; section?: string }
   | { kind: "shortcuts" }
@@ -46,15 +46,15 @@ export function parseOwlitUri(uri: string): OwlitUri | null {
   }
   if (kind === "docs" && rest) return { kind: "doc", path: docPath(frag ? `${rest}#${frag}` : rest) }
   if (kind === "chat" && rest) return { kind: "chat", id: rest }
-  if (kind === "collections" && rest) {
+  if (kind === "threads" && rest) {
     const group = /^group=(.+)$/.exec(frag)?.[1]
-    return group ? { kind: "collection", id: rest, group: decode(group) } : { kind: "collection", id: rest }
+    return group ? { kind: "thread", id: rest, group: decode(group) } : { kind: "thread", id: rest }
   }
   if (kind === "settings" && /^[a-z]*\/?$/.test(rest) && !frag) return { kind: "settings", section: rest.replace(/\/$/, "") || undefined }
   if (kind === "shortcuts" && !rest && !frag) return { kind: "shortcuts" }
   return null
 }
 
-// A mention as Markdown writes it: [label](owlit://library|docs|collections/…), the label's brackets
+// A mention as Markdown writes it: [label](owlit://library|docs|threads/…), the label's brackets
 // escaped. Other owlit:// links, such as a quote's page link back to its highlight, are ordinary links.
-export const MENTION_LINK = /\[((?:\\.|[^\]\\])+)\]\((owlit:\/\/(?:library|docs|collections)\/[^)\s]+)\)/
+export const MENTION_LINK = /\[((?:\\.|[^\]\\])+)\]\((owlit:\/\/(?:library|docs|threads)\/[^)\s]+)\)/

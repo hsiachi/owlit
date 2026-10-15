@@ -198,9 +198,9 @@ export class AgentFs {
       return { path: version.path, kind: "paper", redoId: redo.id }
     }
 
-    if (version.kind === "collection") {
-      const { redoId } = await ws.collections.restoreVersion(version.path, version.content, version.existed !== false, version.chatId ? { chatId: version.chatId } : {})
-      return { path: version.path, kind: "collection", redoId }
+    if (version.kind === "thread") {
+      const { redoId } = await ws.threads.restoreVersion(version.path, version.content, version.existed !== false, version.chatId ? { chatId: version.chatId } : {})
+      return { path: version.path, kind: "thread", redoId }
     }
 
     const notePaper = ws.library.noteOf(version.path)

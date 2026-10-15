@@ -1,6 +1,6 @@
 import type { Mentionable } from "../types"
 
-// Placeholder items for the seeded chats; the composer's @ list reads the real Library, Docs and Collections
+// Placeholder items for the seeded chats; the composer's @ list reads the real Library, Docs and Threads
 export const papers: Mentionable[] = [
   { id: "p1", kind: "paper", title: "Attention Is All You Need", subtitle: "Vaswani et al. · 2017", uri: "owlit://library/p1" },
   { id: "p2", kind: "paper", title: "Language Models are Few-Shot Learners", subtitle: "Brown et al. · 2020", uri: "owlit://library/p2" },

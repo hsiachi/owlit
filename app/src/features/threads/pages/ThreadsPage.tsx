@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import type { CollectionSize, CollectionSummary } from "@owlit/protocol"
+import type { ThreadSize, ThreadSummary } from "@owlit/protocol"
 import { useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FindField } from "@/components/find-field"
@@ -13,28 +13,28 @@ import { RenameInput } from "@/components/rename-input"
 import { NoteDot, StoppedDot } from "@/components/marks"
 import { useTakeParam } from "@/hooks/use-take-param"
 import { shortDate } from "@/lib/time"
-import { useCollectionMenu, useProjects } from "../components/CollectionMenu"
-import { gather, runWords, useCollectionWork } from "../runs"
+import { useThreadMenu, useProjects } from "../components/ThreadMenu"
+import { gather, runWords, useThreadWork } from "../runs"
 import { byProject } from "../lib"
-import { editCollection, useCollection, useCollectionsStore, useSummaries } from "../store"
-import { useCollectionsUi } from "../ui-store"
+import { editThread, useThread, useThreadsStore, useSummaries } from "../store"
+import { useThreadsUi } from "../ui-store"
 
-// Collections: what Owlit gathered for the questions the user gave it, by project. A row is the title, how
+// Threads: what Owlit gathered for the questions the user gave it, by project. A row is the title, how
 // many papers (and columns, once it is a table), and when it last changed; the slot says whether Owlit
 // changed it since the user looked. No counts beyond that and nothing to clear.
-export function CollectionsPage() {
+export function ThreadsPage() {
   const all = useSummaries()
-  const loaded = useCollectionsStore((s) => s.loaded)
+  const loaded = useThreadsStore((s) => s.loaded)
   const projects = useProjects()
   const [query, setQuery] = useState("")
   const navigate = useNavigate()
-  const [size, setSize] = useState<CollectionSize>("few")
-  // A new collection goes where the user last worked (the most recently changed collection's project)
+  const [size, setSize] = useState<ThreadSize>("few")
+  // A new thread goes where the user last worked (the most recently changed thread's project)
   // until they pick another
   const [picked, setPicked] = useState<string | null>(null)
   const recent = all[0]?.project ?? ""
   const project = picked ?? (projects.includes(recent) ? recent : "")
-  // What is typed finds collections by title. Enter opens the first one found, the way a find field does;
+  // What is typed finds threads by title. Enter opens the first one found, the way a find field does;
   // collecting papers is its own row under the list, since it starts Owlit on a search in the background.
   const words = queryWords(query)
   const summaries = words.length ? all.filter((c) => hasAllWords(c.title, words)) : all
@@ -45,8 +45,8 @@ export function CollectionsPage() {
     if (await gather(question, size, project)) setQuery("")
   }
   const enter = () => {
-    const first = words.length ? groups[0]?.collections[0] : undefined
-    if (first) navigate(`/collections/${first.id}`)
+    const first = words.length ? groups[0]?.threads[0] : undefined
+    if (first) navigate(`/threads/${first.id}`)
     else void collect()
   }
   // The breadcrumb's project opens the list at that project's group
@@ -54,15 +54,15 @@ export function CollectionsPage() {
   return (
     <PageShell width="narrow">
       <header className="px-0.5">
-        <PageTitle>{t`Collections`}</PageTitle>
+        <PageTitle>{t`Threads`}</PageTitle>
       </header>
-      <FindField value={query} onChange={setQuery} onEnter={enter} placeholder={t`Find a collection, or collect papers on…`} label={t`Find a collection, or collect papers on a question`}>
+      <FindField value={query} onChange={setQuery} onEnter={enter} placeholder={t`Find a thread, or collect papers on…`} label={t`Find a thread, or collect papers on a question`}>
         {projects.length > 0 && (
           <ChoiceMenu
             value={project}
             onChange={setPicked}
             label={t`Project`}
-            options={[{ value: "", label: t({ message: "No project", comment: "a collection that belongs to no project folder" }) }, ...projects.map((p) => ({ value: p, label: p }))]}
+            options={[{ value: "", label: t({ message: "No project", comment: "a thread that belongs to no project folder" }) }, ...projects.map((p) => ({ value: p, label: p }))]}
             icon={null}
           />
         )}
@@ -80,7 +80,7 @@ export function CollectionsPage() {
       {loaded && !all.length && !question ? (
         <EmptyPlace
           className="mt-24"
-          title={t`No collections yet`}
+          title={t`No threads yet`}
           detail={t`Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question.`}
         />
       ) : (
@@ -89,8 +89,8 @@ export function CollectionsPage() {
             <section key={g.key} id={`project-${g.key}`} className="scroll-mt-6">
               {g.label && <GroupLabel>{g.label}</GroupLabel>}
               <div className="flex flex-col gap-0.5">
-                {g.collections.map((c) => (
-                  <CollectionRow key={c.id} summary={c} projects={projects} />
+                {g.threads.map((c) => (
+                  <ThreadRow key={c.id} summary={c} projects={projects} />
                 ))}
               </div>
             </section>
@@ -123,29 +123,29 @@ function CollectRow({ question, found, onCollect }: { question: string; found: b
   )
 }
 
-function CollectionRow({ summary, projects }: { summary: CollectionSummary; projects: string[] }) {
+function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: string[] }) {
   const navigate = useNavigate()
-  const collection = useCollection(summary.id)
-  const groups = useCollectionMenu(collection, projects)
-  const renaming = useCollectionsUi((s) => s.renaming === summary.id)
-  const set = useCollectionsUi((s) => s.set)
-  const open = () => navigate(`/collections/${summary.id}`)
-  const work = useCollectionWork(summary.id)
+  const thread = useThread(summary.id)
+  const groups = useThreadMenu(thread, projects)
+  const renaming = useThreadsUi((s) => s.renaming === summary.id)
+  const set = useThreadsUi((s) => s.set)
+  const open = () => navigate(`/threads/${summary.id}`)
+  const work = useThreadWork(summary.id)
   const running = work.running[0]
   const papers = plural(summary.papers, { one: "# paper", other: "# papers" })
   const size = summary.papers
     ? summary.columns
       ? `${papers} · ${plural(summary.columns, { one: "# column", other: "# columns" })}`
       : papers
-    : t({ message: "Found nothing", comment: "a collection whose search found no papers" })
+    : t({ message: "Found nothing", comment: "a thread whose search found no papers" })
 
   if (renaming) {
     return (
       <RenameInput
         initial={summary.title}
-        label={t`Collection name`}
+        label={t`Thread name`}
         onDone={(name) => {
-          if (name !== null) void editCollection(summary.id, { op: "rename", title: name })
+          if (name !== null) void editThread(summary.id, { op: "rename", title: name })
           set({ renaming: null })
         }}
         className="h-9 pr-2 pl-[37px]"
@@ -176,12 +176,12 @@ function CollectionRow({ summary, projects }: { summary: CollectionSummary; proj
         </span>
         <span className="shrink-0 truncate">{summary.title}</span>
         <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">
-          {running ? <span className="shimmer">{runWords(running, collection)}</span> : size}
+          {running ? <span className="shimmer">{runWords(running, thread)}</span> : size}
         </span>
         <span className="shrink-0 pr-1.5 text-detail text-muted-foreground tabular-nums group-hover/row:hidden group-focus-key/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(summary.updatedAt)}
         </span>
-        <RowMenuButton groups={groups} label={t`Collection actions`} menuClassName="w-56" />
+        <RowMenuButton groups={groups} label={t`Thread actions`} menuClassName="w-56" />
       </div>
     </ActionsOnRightClick>
   )

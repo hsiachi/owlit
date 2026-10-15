@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { chatUri, type Collection, type CollectionBatch, type CollectionSearch } from "@owlit/protocol"
+import { chatUri, type Thread, type ThreadBatch, type ThreadSearch } from "@owlit/protocol"
 import { useEffect, useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { GroupLabel } from "@/components/group-label"
@@ -11,21 +11,21 @@ import { mentionRoute } from "@/features/docs/lib/mentions"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { shortDate } from "@/lib/time"
 import { shown } from "../lib"
-import { useCollectionsStore } from "../store"
+import { useThreadsStore } from "../store"
 
-// Where the collection came from and how Owlit worked on it, at the page's end so the page opens on the
+// Where the thread came from and how Owlit worked on it, at the page's end so the page opens on the
 // reading itself. A record, a step under the memo: the question, then Owlit's work in batches as rows of a
 // log (when, what set it going, what it added), each with its searches folded under it and what Owlit
-// said the search couldn't reach. Core works the batches out from the collection's history.
-export function About({ collection: c }: { collection: Collection }) {
+// said the search couldn't reach. Core works the batches out from the thread's history.
+export function About({ thread: c }: { thread: Thread }) {
   const batches = useBatches(c)
   const rows = shown(c).rows
   const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
   const papers = rows.length
   return (
     <section className="mt-12 max-w-[68ch]">
-      <GroupLabel className="px-0">{t`About this collection`}</GroupLabel>
-      <Question collection={c} />
+      <GroupLabel className="px-0">{t`About this thread`}</GroupLabel>
+      <Question thread={c} />
       {batches === null &&
         // Without core (the browser preview) there is no history: the later questions as they are kept
         (c.alsoAsked ?? []).map((a, i) => {
@@ -33,7 +33,7 @@ export function About({ collection: c }: { collection: Collection }) {
           const on = shortDate(a.at)
           return (
             <p key={i} className="text-detail text-muted-foreground">
-              <Trans comment="a later question Owlit answered by adding to this collection">
+              <Trans comment="a later question Owlit answered by adding to this thread">
                 Then <span className="text-foreground">“{later}”</span>, {on}.
               </Trans>
             </p>
@@ -54,13 +54,13 @@ export function About({ collection: c }: { collection: Collection }) {
   )
 }
 
-// Owlit's batches, again whenever the collection changes; null without core
-function useBatches(c: Collection) {
-  const [batches, setBatches] = useState<CollectionBatch[] | null>(null)
+// Owlit's batches, again whenever the thread changes; null without core
+function useBatches(c: Thread) {
+  const [batches, setBatches] = useState<ThreadBatch[] | null>(null)
   useEffect(() => {
     if (!isDesktop) return
     let live = true
-    void rpc.collections
+    void rpc.threads
       .about({ id: c.id })
       .then((b) => live && setBatches(b))
       .catch(() => live && setBatches([]))
@@ -71,23 +71,23 @@ function useBatches(c: Collection) {
   return batches
 }
 
-// The question as the user asked it, in ink: where and when, or the collection it was made from
-function Question({ collection: c }: { collection: Collection }) {
-  // A collection made from another keeps the question it was really asked; a group made a collection of its
+// The question as the user asked it, in ink: where and when, or the thread it was made from
+function Question({ thread: c }: { thread: Thread }) {
+  // A thread made from another keeps the question it was really asked; a group made a thread of its
   // own was asked nothing, so it says where it came from instead of quoting the group's name back
   const question = c.splitFrom?.asked ?? c.asked
   const fromGroup = !!c.splitFrom && !c.splitFrom.asked
-  const origin = useCollectionsStore((s) => (c.splitFrom ? s.collections[c.splitFrom.id] : undefined))
+  const origin = useThreadsStore((s) => (c.splitFrom ? s.threads[c.splitFrom.id] : undefined))
   const chat = useChatStore((s) => (question.chatId ? s.chats[question.chatId] : undefined))
   const asked = question.text
   const when = shortDate(question.at)
   const from = question.chatId && (chat || !isDesktop) ? chatUri(question.chatId) : undefined
   const chatTitle = chat?.title || t`a chat`
-  const originLink = origin ? <MentionLink label={shown(origin).title} to={`/collections/${origin.id}`} /> : t`another collection`
+  const originLink = origin ? <MentionLink label={shown(origin).title} to={`/threads/${origin.id}`} /> : t`another thread`
   if (fromGroup)
     return (
       <p className="text-detail text-muted-foreground">
-        <Trans comment="a collection the user made from one of another collection's groups">
+        <Trans comment="a thread the user made from one of another thread's groups">
           Made from the group <span className="text-sm text-foreground">“{asked}”</span> in {originLink}, {when}.
         </Trans>
       </p>
@@ -106,7 +106,7 @@ function Question({ collection: c }: { collection: Collection }) {
       {c.splitFrom && (
         <>
           {" "}
-          <Trans comment="after the question: its papers were first added to another collection, then kept apart">Kept separate from {originLink}.</Trans>
+          <Trans comment="after the question: its papers were first added to another thread, then kept apart">Kept separate from {originLink}.</Trans>
         </>
       )}
     </p>
@@ -115,7 +115,7 @@ function Question({ collection: c }: { collection: Collection }) {
 
 // One batch as a row of the log: the day in a muted column, what happened in ink, then in muted text how
 // Owlit searched, what it said it couldn't reach, and its searches folded
-function Batch({ batch: b, first, askedIn }: { batch: CollectionBatch; first: boolean; askedIn?: string }) {
+function Batch({ batch: b, first, askedIn }: { batch: ThreadBatch; first: boolean; askedIn?: string }) {
   const [open, setOpen] = useState(false)
   const followed = new Set(b.searches.filter((s) => s.kind === "references" || s.kind === "cited_by" || s.kind === "similar").map((s) => s.query)).size
   const searched = b.searches.length - b.searches.filter((s) => s.kind === "references" || s.kind === "cited_by" || s.kind === "similar").length
@@ -139,7 +139,7 @@ function Batch({ batch: b, first, askedIn }: { batch: CollectionBatch; first: bo
         {b.searches.length > 0 && (
           <div className="mt-0.5">
             <FoldButton open={open} onClick={() => setOpen((o) => !o)}>
-              {t({ message: "Searches", comment: "fold: the searches Owlit made for one batch of a collection" })}
+              {t({ message: "Searches", comment: "fold: the searches Owlit made for one batch of a thread" })}
             </FoldButton>
             <Unfold open={open}>
               <ul className="mt-1 flex flex-col gap-1 pl-5 text-detail text-muted-foreground">
@@ -156,7 +156,7 @@ function Batch({ batch: b, first, askedIn }: { batch: CollectionBatch; first: bo
 }
 
 // What set the batch going and what it did: "Gathered · 10 papers", "Found more papers · +4 papers"
-function BatchTitle({ batch: b, first, askedIn }: { batch: CollectionBatch; first: boolean; askedIn?: string }) {
+function BatchTitle({ batch: b, first, askedIn }: { batch: ThreadBatch; first: boolean; askedIn?: string }) {
   const chat = useChatStore((s) => (b.chatId ? s.chats[b.chatId] : undefined))
   const added = b.added
   const answered = b.answered
@@ -167,7 +167,7 @@ function BatchTitle({ batch: b, first, askedIn }: { batch: CollectionBatch; firs
         : plural(added, { one: "+# paper", other: "+# papers" })
       : answered > 0
         ? plural(answered, { one: "# answer", other: "# answers" })
-        : t({ message: "nothing new", comment: "a batch of Owlit's work on a collection that added nothing" })
+        : t({ message: "nothing new", comment: "a batch of Owlit's work on a thread that added nothing" })
   const column = b.columns[0]
   // The chat the question was asked in is named with the question; its first batch is the gathering
   if (b.trigger === "chat" && !(first && b.chatId === askedIn && !b.asked)) {
@@ -175,27 +175,27 @@ function BatchTitle({ batch: b, first, askedIn }: { batch: CollectionBatch; firs
     const link = b.chatId ? <MentionLink label={label} to={mentionRoute(chatUri(b.chatId))} /> : label
     const asked = b.asked
     return asked ? (
-      <Trans comment="a batch of a collection: Owlit added papers in a chat, for a later question">
+      <Trans comment="a batch of a thread: Owlit added papers in a chat, for a later question">
         In {link}, for “{asked}” · {what}
       </Trans>
     ) : (
-      <Trans comment="a batch of a collection: Owlit added papers in a chat">
+      <Trans comment="a batch of a thread: Owlit added papers in a chat">
         In {link} · {what}
       </Trans>
     )
   }
   const name =
     b.trigger === "more"
-      ? t({ message: "Found more papers", comment: "a batch of a collection: the user asked Owlit to find more" })
+      ? t({ message: "Found more papers", comment: "a batch of a thread: the user asked Owlit to find more" })
       : b.trigger === "check"
-        ? t({ message: "Checked for new papers", comment: "a batch of a collection: Owlit's watch looked for new papers" })
+        ? t({ message: "Checked for new papers", comment: "a batch of a thread: Owlit's watch looked for new papers" })
         : b.trigger === "read"
-          ? t({ message: "Read in full", comment: "a batch of a collection: Owlit read the papers' full texts" })
+          ? t({ message: "Read in full", comment: "a batch of a thread: Owlit read the papers' full texts" })
           : b.trigger === "fill" && column
-            ? t({ message: `Answered “${column}”`, comment: "a batch of a collection: Owlit answered a column's question for every paper" })
+            ? t({ message: `Answered “${column}”`, comment: "a batch of a thread: Owlit answered a column's question for every paper" })
             : first || b.trigger === "gather"
-              ? t({ message: "Gathered", comment: "a batch of a collection: Owlit's first search for papers" })
-              : t({ message: "Owlit", comment: "a batch of a collection Owlit made without saying why" })
+              ? t({ message: "Gathered", comment: "a batch of a thread: Owlit's first search for papers" })
+              : t({ message: "Owlit", comment: "a batch of a thread Owlit made without saying why" })
   return (
     <>
       {name} · {what}
@@ -207,7 +207,7 @@ const SOURCES: Record<string, string> = { openalex: "OpenAlex", s2: "Semantic Sc
 
 // One search: its words in quotes, or the paper it followed; at the right, the source and how many it kept
 // of what it found
-function SearchLine({ search: s }: { search: CollectionSearch }) {
+function SearchLine({ search: s }: { search: ThreadSearch }) {
   const source = SOURCES[s.source] ?? s.source
   const kept = s.kept
   const found = s.found

@@ -51,7 +51,7 @@ export function NameRow({ className }: { className?: string }) {
   )
 }
 
-// Work nobody is waiting on: digests, and gathering papers into collections
+// Work nobody is waiting on: digests, and gathering papers into threads
 function BackgroundWork() {
   const connectors = useChatStore((s) => s.connectors)
   const view = useSettings((s) => s.view)
@@ -79,7 +79,7 @@ function BackgroundWork() {
     <List>
       <Row
         name={t`Agent`}
-        help={t`Writes digests and gathers papers into collections.`}
+        help={t`Writes digests and gathers papers into threads.`}
         control={<Picker label={t`Agent for background work`} value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (

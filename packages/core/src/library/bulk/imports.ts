@@ -1,4 +1,4 @@
-// Bringing a collection in at once: a Zotero library, a BibTeX file, a folder of PDFs. One task per
+// Bringing a library in at once: a Zotero library, a BibTeX file, a folder of PDFs. One task per
 // import adds its papers one at a time and keeps what it did in <dataDir>/imports/<id>.json, so an
 // interrupted import carries on where it stopped. Cancelling stops before the next paper, never in the
 // middle of one. Only the adding happens here: metadata, PDFs and text follow as each paper's own
@@ -34,7 +34,7 @@ interface ImportRecord {
   path: string
   collectionsAsTags: boolean
   createdAt: number
-  // The collection as read the first time, so a restart doesn't read it again
+  // The source as read the first time, so a restart doesn't read it again
   entries?: ImportEntry[]
   // Entry key → what happened to it
   done: Record<string, Outcome>
@@ -51,7 +51,7 @@ type Extra = { tags?: string[]; imported: { parse: boolean } }
 export interface ImportHost {
   // The paper the library has under any of these ids
   find(ids: PaperIds): Promise<string | undefined>
-  // Adds a paper as the collection describes it; with pdf, that file is its PDF and nothing is downloaded
+  // Adds a paper as the source describes it; with pdf, that file is its PDF and nothing is downloaded
   // imported is told back (note) before the paper's text is read
   add(paper: ResolvedPaper, extra: Extra & { pdf?: string }): Promise<{ paper: Paper; existed: boolean }>
   // A PDF with nothing else to go on: recognised from its pages, or kept as local-<hash>
@@ -129,7 +129,7 @@ export class Imports {
     )
   }
 
-  // Reads the collection and counts, adding nothing
+  // Reads the source and counts, adding nothing
   async preview(source: ImportSource, from: string): Promise<ImportPreview> {
     let entries: ImportEntry[]
     try {
@@ -144,7 +144,7 @@ export class Imports {
       total: entries.length,
       withPdf: entries.filter((e) => e.pdf).length,
       known: entries.length - fresh,
-      collections: new Set(entries.flatMap((e) => e.tags ?? [])).size,
+      zoteroCollections: new Set(entries.flatMap((e) => e.tags ?? [])).size,
       asksParse: fresh > ASK_BEFORE_PARSING && (await this.host.parsingOn()),
     }
   }
@@ -238,7 +238,7 @@ export class Imports {
     await this.write(record)
   }
 
-  // One entry: skipped when the library has it, else added from what the collection says
+  // One entry: skipped when the library has it, else added from what the source says
   private async addOne(entry: ImportEntry, record: ImportRecord, interrupted: boolean): Promise<Outcome> {
     const extra: Extra = { ...(record.collectionsAsTags && entry.tags?.length ? { tags: entry.tags } : {}), imported: { parse: record.parse !== false } }
     // Found in the library: there before, unless this import added it just before owlit stopped

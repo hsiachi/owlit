@@ -55,7 +55,7 @@
         25%, 75% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--pdf-flash) 10%, transparent); }
         100% { box-shadow: 0 0 0 3px transparent; }
     }
-    /* A passage reached from elsewhere (a collection's answer, a highlight): its outline rings twice, then goes */
+    /* A passage reached from elsewhere (a thread's answer, a highlight): its outline rings twice, then goes */
     --animate-passage-ring: passage-ring 1.6s ease-out forwards;
     @keyframes passage-ring {
         0%, 50% { opacity: 1; }

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { itemId, parseOwlitUri, type Collection } from "@owlit/protocol"
+import { itemId, parseOwlitUri, type Thread } from "@owlit/protocol"
 import { useState } from "react"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { NoteDot } from "@/components/marks"
@@ -9,10 +9,10 @@ import { SentenceEditor } from "@/components/sentence-editor"
 import { mentionRoute, mentionTitle, usePaperUnread } from "@/features/docs/lib/mentions"
 import { cn } from "@/lib/utils"
 import { memoParts, plainMemo, relinkMemo } from "../lib"
-import { editCollection, removeItem } from "../store"
+import { editThread, removeItem } from "../store"
 
 // A sentence of Owlit's (or the user's rewrite of one), with the papers and groups it names as mentions.
-// A paper that is a row of the collection opens that row in place (onRow); others go where they live.
+// A paper that is a row of the thread opens that row in place (onRow); others go where they live.
 export function MemoText({ text, onRow }: { text: string; onRow?: (paperId: string) => boolean }) {
   return (
     <>
@@ -34,21 +34,21 @@ function MemoMention({ label, uri, onRow }: { label: string; uri: string; onRow?
 // Owlit's reading of the papers, a few sentences as a list. A sentence Owlit changed since the user last
 // looked has the dot for its bullet; one the user rewrote says so, with Owlit's words a hover away. Each can
 // be rewritten or removed from its ⋯; nothing asks to be accepted.
-export function Memo({ collection, shown, seenBefore, onRow }: { collection: Collection; shown: Collection; seenBefore: number; onRow?: (paperId: string) => boolean }) {
+export function Memo({ thread, shown, seenBefore, onRow }: { thread: Thread; shown: Thread; seenBefore: number; onRow?: (paperId: string) => boolean }) {
   const [editing, setEditing] = useState<string | null>(null)
   if (!shown.memo.length) return null
   return (
     <ul className="mt-4 flex max-w-[68ch] flex-col gap-1 text-body leading-relaxed">
       {shown.memo.map((s) => {
         const item = itemId.memo(s.id)
-        const edit = collection.yours.edits[item]
-        const fresh = (collection.changedAt[item] ?? 0) > seenBefore && !edit
+        const edit = thread.yours.edits[item]
+        const fresh = (thread.changedAt[item] ?? 0) > seenBefore && !edit
         const groups: MenuGroups = [
           [
             { label: t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" }), onSelect: () => setEditing(s.id), afterClose: true },
-            ...(edit ? [{ label: t`Use Owlit's words`, onSelect: () => void editCollection(collection.id, { op: "revert", item }) }] : []),
+            ...(edit ? [{ label: t`Use Owlit's words`, onSelect: () => void editThread(thread.id, { op: "revert", item }) }] : []),
           ],
-          [{ label: t`Remove`, destructive: true, onSelect: () => void removeItem(collection.id, item, t`Sentence removed`) }],
+          [{ label: t`Remove`, destructive: true, onSelect: () => void removeItem(thread.id, item, t`Sentence removed`) }],
         ]
         return (
           <li key={s.id} className="group/row relative -mx-2 flex gap-2.5 rounded-md px-2 hover:bg-muted/60 has-data-[state=open]:bg-muted/60">
@@ -62,7 +62,7 @@ export function Memo({ collection, shown, seenBefore, onRow }: { collection: Col
                   onCancel={() => setEditing(null)}
                   onSave={(text) => {
                     setEditing(null)
-                    void editCollection(collection.id, { op: "rewrite", item, text: relinkMemo(text, plainMemo(s.text).links) })
+                    void editThread(thread.id, { op: "rewrite", item, text: relinkMemo(text, plainMemo(s.text).links) })
                   }}
                 />
               </div>

@@ -4,7 +4,7 @@ import type { Extension } from "@codemirror/state"
 import { EditorView, WidgetType } from "@codemirror/view"
 import { ago } from "@/lib/time"
 import { shorten } from "@/lib/words"
-import type { Thread } from "../share/store"
+import type { CommentThread } from "../share/store"
 import { anchoredCards, cardButton, sideCardFold, sideCardTheme, washOpen, type Spot } from "./side-card"
 
 // Readers' comments on a shared doc. They come from the share link's readers (core's share.*), who saw the
@@ -15,15 +15,15 @@ import { anchoredCards, cardButton, sideCardFold, sideCardTheme, washOpen, type 
 
 interface Actions {
   onOpen: (id: string | null) => void
-  onReply: (thread: Thread, text: string) => Promise<void>
-  onResolve: (thread: Thread) => void
+  onReply: (thread: CommentThread, text: string) => Promise<void>
+  onResolve: (thread: CommentThread) => void
 }
 
 // The open thread, under its paragraph: the reader's comment, the replies, a field to answer, Resolve
 class ThreadWidget extends WidgetType {
-  readonly spot: Spot<Thread>
+  readonly spot: Spot<CommentThread>
   readonly actions: Actions
-  constructor(spot: Spot<Thread>, actions: Actions) {
+  constructor(spot: Spot<CommentThread>, actions: Actions) {
     super()
     this.spot = spot
     this.actions = actions
@@ -44,7 +44,7 @@ class ThreadWidget extends WidgetType {
     }
 
     const box = el("div", "cm-person")
-    const said = (c: Thread["root"] | Thread["replies"][number]) => {
+    const said = (c: CommentThread["root"] | CommentThread["replies"][number]) => {
       const part = el("div", "cm-person-said")
       const who = c.by === "author" ? t`${c.name} (you)` : c.name
       part.append(el("div", "cm-person-head", `${who} · ${ago(c.at, { inSentence: false })}`), el("p", "cm-person-text", c.text))
@@ -111,7 +111,7 @@ class ThreadWidget extends WidgetType {
   }
 }
 
-const comments = anchoredCards<Thread, Actions>({
+const comments = anchoredCards<CommentThread, Actions>({
   attr: "thread",
   mark: "cm-person-mark",
   id: (thread) => thread.root.id,

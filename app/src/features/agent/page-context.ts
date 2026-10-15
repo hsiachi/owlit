@@ -3,9 +3,9 @@ import { useMemo } from "react"
 import { useLocation } from "react-router-dom"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
 import { routeSubject } from "@/app/route-subject"
-import { collectionMentionable, docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
+import { threadMentionable, docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
 import { useDocsStore } from "@/features/docs/store"
-import { useCollectionsStore } from "@/features/collections/store"
+import { useThreadsStore } from "@/features/threads/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentWindow } from "./store"
 
@@ -18,20 +18,20 @@ export function selectionLabel(s: QuotedSelection) {
   return t({ message: "Selection", comment: "chip: a passage the user selected" })
 }
 
-export type PageKind = "paper" | "doc" | "collection"
+export type PageKind = "paper" | "doc" | "thread"
 
 // The ask bar's empty field, naming what is on the page
 export function askAboutHint(kind: PageKind) {
   if (kind === "paper") return t`Ask about this paper…`
   if (kind === "doc") return t`Ask about this doc…`
-  return t`Ask about this collection…`
+  return t`Ask about this thread…`
 }
 
 // The empty panel, above the composer
 export function askAboutOrAnything(kind: PageKind) {
   if (kind === "paper") return t`Ask about this paper, or anything else.`
   if (kind === "doc") return t`Ask about this doc, or anything else.`
-  return t`Ask about this collection, or anything else.`
+  return t`Ask about this thread, or anything else.`
 }
 
 // The empty panel's starters for what is on the page: a label, and the question it puts in the composer
@@ -48,27 +48,27 @@ export function pageStarters(kind: PageKind): { label: string; prompt: string }[
       { label: t`Find papers to cite`, prompt: t`Find papers that support or challenge the claims in this doc.` },
     ]
   return [
-    { label: t`Where do they disagree?`, prompt: t`Where do the papers in this collection disagree, and why?` },
-    { label: t`What’s left open?`, prompt: t`Which questions do the papers in this collection leave open?` },
+    { label: t`Where do they disagree?`, prompt: t`Where do the papers in this thread disagree, and why?` },
+    { label: t`What’s left open?`, prompt: t`Which questions do the papers in this thread leave open?` },
   ]
 }
 
-// The doc, paper or collection on screen, which the agent is shown along with the question
+// The doc, paper or thread on screen, which the agent is shown along with the question
 function usePageContext(): Mentionable | null {
   const subject = routeSubject(useLocation().pathname)
   const id = subject?.id
   const doc = useDocsStore((s) => (subject?.kind === "doc" ? s.files[subject.id] : undefined))
   const paper = useLibraryStore((s) => (subject?.kind === "paper" ? s.papers[subject.id] : undefined))
-  const collection = useCollectionsStore((s) => (subject?.kind === "collection" ? s.collections[subject.id] : undefined))
+  const thread = useThreadsStore((s) => (subject?.kind === "thread" ? s.threads[subject.id] : undefined))
   const docPath = doc?.path
   return useMemo(() => {
     if (doc && docPath) return docMentionable(doc)
     if (paper) return paperMentionable(paper)
-    if (collection) return collectionMentionable(collection)
+    if (thread) return threadMentionable(thread)
     return null
-    // The chip only needs to change when the doc's name, the paper or the collection does
+    // The chip only needs to change when the doc's name, the paper or the thread does
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, docPath, paper, collection])
+  }, [id, docPath, paper, thread])
 }
 
 // The page's chip, unless the user took it off

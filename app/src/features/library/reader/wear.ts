@@ -6,12 +6,12 @@ import type { Rect } from "../types"
 import { quoteTarget, type PassageTarget } from "./passages"
 
 // Read wear (Hill et al. 1992): what has been read of the open paper, shown on it. The sentences Owlit's
-// answers rested on, in chats and in collections, get a thin mark in the margin; the pages the person stayed on darken a strip at the
+// answers rested on, in chats and in threads, get a thin mark in the margin; the pages the person stayed on darken a strip at the
 // reader's edge. Both are for looking, not doing: no counts, no list. Core gathers them when the paper
 // opens (library.wear); a sentence that isn't found in the PDF draws nothing.
 
-// What rests on a sentence: an answer in a chat, or a collection's answer for this paper
-export type WearSource = ({ kind: "chat" } & CitedPassage) | ({ kind: "collection" } & CollectedPassage)
+// What rests on a sentence: an answer in a chat, or a thread's answer for this paper
+export type WearSource = ({ kind: "chat" } & CitedPassage) | ({ kind: "thread" } & CollectedPassage)
 
 // One sentence Owlit cited, found on the page; several answers citing the same sentence share it, oldest first
 export interface CitedMark {
@@ -47,7 +47,7 @@ export function useReadWear(paperId: string, locate: Locate | null) {
         const byPlace = new Map<string, CitedMark>()
         // A sentence cited by several answers is looked for once; one after another still, as before
         const found = new Map<string, Awaited<ReturnType<Locate>>>()
-        const sources: WearSource[] = [...cited.map((c) => ({ kind: "chat" as const, ...c })), ...(collected ?? []).map((c) => ({ kind: "collection" as const, ...c }))].sort((a, b) => a.at - b.at)
+        const sources: WearSource[] = [...cited.map((c) => ({ kind: "chat" as const, ...c })), ...(collected ?? []).map((c) => ({ kind: "thread" as const, ...c }))].sort((a, b) => a.at - b.at)
         for (const c of sources) {
           const target = quoteTarget(c.quote, c.page)
           const asked = JSON.stringify([c.quote, c.page])
