@@ -2,7 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import type { ImportPreview, ImportSource } from "@owlit/protocol"
-import { ChevronRightIcon, FileTextIcon, FolderIcon, LibraryIcon, LoaderCircleIcon } from "lucide-react"
+import { ChevronRightIcon, FileTextIcon, FolderIcon, LibraryIcon } from "lucide-react"
 import { toast } from "sonner"
 import { RowIcon, RowList, rowClass, rowHover } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
@@ -14,6 +14,7 @@ import { RpcError } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
 import { tilde } from "@/lib/workspace"
 import { closeImportDialog, openImportDialog, pickImport, previewImport, reviewImport, startImport, useImportDialog } from "../imports"
+import { Spinner } from "@/components/ui/spinner"
 
 
 // File › Import Papers…: where the papers come from, then what importing them will do, before anything
@@ -123,7 +124,7 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
         <p className="text-sm text-destructive">{problem}</p>
       ) : !preview ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoaderCircleIcon className="size-4 animate-spin" />
+          <Spinner />
           {t`Reading…`}
         </p>
       ) : (

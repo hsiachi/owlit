@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import type { ImportSummary, Task } from "@owlit/protocol"
-import { CheckIcon, CircleXIcon, LoaderCircleIcon, XIcon } from "lucide-react"
+import { CheckIcon, CircleXIcon, XIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
 import { InlineLink } from "@/components/inline-link"
 import { WaitingDot } from "@/components/marks"
@@ -13,6 +13,7 @@ import { cancelTask, useTasksStore } from "@/features/tasks/store"
 import { answerImport, continueImport, dismissImport, importAsks, useImports } from "../imports"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
+import { Spinner } from "@/components/ui/spinner"
 
 // "from Zotero", "from refs.bib", "from the Papers folder"
 export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
@@ -106,7 +107,7 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
       </>
     )
   } else {
-    mark = <LoaderCircleIcon className="size-3.5 animate-spin" />
+    mark = <Spinner className="size-3.5" />
     words = total === undefined ? t`Reading ${origin}…` : t`Importing ${origin} · ${done} of ${total}`
     actions = (
       <Button variant="text" size="inline" onClick={() => task && void cancelTask(task.id)}>

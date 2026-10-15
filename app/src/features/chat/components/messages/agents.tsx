@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, scrollMotion } from "@/lib/utils"
 import { FadeClip, ShowAllButton } from "@/components/fade-clip"
 import { GroupLabel } from "@/components/group-label"
 import { WaitingLabel } from "@/components/marks"
@@ -141,7 +141,7 @@ export function AgentsWaitLine({ blockId, working, waiting }: { blockId: string;
   const show = () => {
     const el = document.getElementById(blockId)
     el?.dispatchEvent(new Event("owlit:show"))
-    el?.scrollIntoView({ behavior: "smooth", block: "start" })
+    el?.scrollIntoView({ behavior: scrollMotion(), block: "start" })
   }
   return (
     <div className="flex items-center gap-1.5 text-sm text-foreground/80">

@@ -68,6 +68,18 @@
         0%, 100% { opacity: 0.45; }
         50% { opacity: 1; }
     }
+    /* A spinner waits 300ms before it shows, so a load that turns out fast never flashes one; its place
+       is kept meanwhile, so nothing moves when it arrives */
+    --animate-spinner: spinner-turn 1s linear infinite, spinner-wait var(--t-mark) var(--ease) 300ms backwards;
+    @keyframes spinner-turn {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes spinner-wait {
+        from { opacity: 0; }
+    }
+    /* Hovers and colour changes take the same easing as every other move (DESIGN.md › Motion) */
+    --default-transition-duration: var(--t-mark);
+    --default-transition-timing-function: var(--ease);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -555,7 +567,15 @@
   .unfold, .strike::after { transition: none; }
   .unfold > .unfold-inner { transition: opacity var(--t-layout) var(--ease); transform: none; }
   .status-slot > * { transition: opacity var(--t-mark) var(--ease); }
+  /* Menus, popovers and dialogs keep their fade and lose the scale and the nudge */
+  * {
+    --tw-enter-scale: 1 !important; --tw-exit-scale: 1 !important;
+    --tw-enter-translate-x: 0 !important; --tw-enter-translate-y: 0 !important;
+    --tw-exit-translate-x: 0 !important; --tw-exit-translate-y: 0 !important;
+  }
 }
+/* A theme or tone switch (appearance.ts) changes every colour in one frame */
+.no-transitions, .no-transitions *, .no-transitions *::before, .no-transitions *::after { transition: none !important; }
 /* ---- Owlit in a doc or a note ---- */
 /* A selected passage's menu, "Ask Owlit": one compact row in a thin frame of the floating material,
    covering as little text as it can; 8px corners concentric with the 6px item inside */
