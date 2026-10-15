@@ -22,6 +22,7 @@ import { useFileDrop } from "@/hooks/use-file-drop"
 import { fromDrop, openAttached, readerOf, useAttachments } from "../../lib/attachments"
 import type { Mentionable, PromptInput, SourceKind } from "../../types"
 import { useResolvedSelection } from "../../use-selection"
+import { useComposerDrafts, useDraftKey } from "../../composer-drafts"
 import { AgentPicker } from "./AgentPicker"
 import { isUnavailable, problemSentence } from "../../lib/connector-status"
 import { AttachmentList } from "./AttachmentList"
@@ -98,13 +99,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header },
   ref,
 ) {
+  // What is typed waits with its chat (composer-drafts); a new chat's draft is the same in every place
+  const key = useDraftKey(chatId)
+  const keyRef = useRef(key)
   // A new chat's id, named before it exists so attached files can be copied into its folder
-  const [draftId, setDraftId] = useState(() => crypto.randomUUID())
-  const target = chatId ?? draftId
-  // Mentions that attaching made, for extract() to find again
-  const attachedMentions = useRef<DocMention[]>([])
-  const insertRef = useRef<(m: DocMention) => void>(() => {})
-  const attachments = useAttachments(target, (m) => insertRef.current(m))
+  const newId = useComposerDrafts((s) => s.newId)
+  const target = chatId ?? newId
+  const insertRef = useRef<(m: DocMention, key: string) => void>(() => {})
+  const attachments = useAttachments(key, target, (m, k) => insertRef.current(m, k))
   const files = attachments.files
   const { dragging, dropProps } = useFileDrop((data) => {
     const { files: dropped, folders } = fromDrop(data)
@@ -156,14 +158,29 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   })
 
   const [isEmpty, setIsEmpty] = useState(true)
+  // Kept as it is typed, so nothing is lost however the composer goes (another chat, another page)
+  const save = useCallback(() => {
+    if (!editor || editor.isDestroyed) return
+    setIsEmpty(editor.isEmpty)
+    useComposerDrafts.getState().put(keyRef.current, editor.isEmpty ? { doc: undefined, mentions: [] } : { doc: editor.getJSON() })
+  }, [editor])
   useEffect(() => {
     if (!editor) return
-    const update = () => setIsEmpty(editor.isEmpty)
-    editor.on("update", update)
+    editor.on("update", save)
     return () => {
-      editor.off("update", update)
+      editor.off("update", save)
     }
-  }, [editor])
+  }, [editor, save])
+
+  // Another chat in the same composer (the Chat page and the panel keep theirs from chat to chat): its own
+  // draft comes in, the last one having been kept as it was typed
+  useEffect(() => {
+    keyRef.current = key
+    if (!editor || editor.isDestroyed) return
+    editor.commands.setContent(useComposerDrafts.getState().drafts[key]?.doc ?? "", { emitUpdate: false })
+    setIsEmpty(editor.isEmpty)
+    if (editor.isFocused) editor.commands.focus("end")
+  }, [editor, key])
 
   // The placeholder is drawn by a decoration, redrawn on the next transaction
   useEffect(() => {
@@ -171,10 +188,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr)
   }, [editor, hint])
 
-  // A file attached is a mention at the cursor when owlit already has it (a doc, a Library paper)
-  insertRef.current = (m) => {
-    attachedMentions.current.push(m)
-    editor?.chain().focus().insertContent([{ type: "mention", attrs: { id: m.id, label: m.label, kind: m.kind } }, { type: "text", text: " " }]).run()
+  // A file attached is a mention at the cursor when owlit already has it (a doc, a Library paper); at the end
+  // of its draft when the person has moved to another chat or page while it was being copied
+  insertRef.current = (m, k) => {
+    const drafts = useComposerDrafts.getState()
+    drafts.put(k, { mentions: [...(drafts.drafts[k]?.mentions ?? []), m] })
+    const nodes = [{ type: "mention", attrs: { id: m.id, label: m.label, kind: m.kind } }, { type: "text", text: " " }]
+    if (editor && !editor.isDestroyed && k === keyRef.current) editor.chain().focus().insertContent(nodes).run()
+    else drafts.append(k, nodes)
   }
   const addRef = useRef(attachments.add)
   addRef.current = attachments.add
@@ -186,14 +207,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   const submit = useCallback(() => {
     if (!editor || !canSend) return
-    const { text, mentions } = extract(editor, attachedMentions.current)
+    const { text, mentions } = extract(editor, useComposerDrafts.getState().drafts[key]?.mentions)
     if (!text && !ready) return
     onSubmit({ text, mentions, attachments: attachments.take() }, target)
     editor.commands.clearContent(true)
-    attachedMentions.current = []
-    setIsEmpty(true)
-    if (!chatId) setDraftId(crypto.randomUUID())
-  }, [editor, canSend, ready, onSubmit, attachments, target, chatId])
+    save()
+    if (!chatId) useComposerDrafts.getState().renew()
+  }, [editor, canSend, ready, onSubmit, attachments, target, chatId, key, save])
   useEffect(() => {
     submitRef.current = submit
   }, [submit])
@@ -211,10 +231,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     focus: () => editor?.commands.focus("end"),
     setText: (text) => {
       editor?.commands.setContent(text ? `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>` : "")
-      setIsEmpty(!text)
       editor?.commands.focus("end")
       // HTML drops a trailing space, and a prompt stem ("Find recent papers on ") needs it to type on
       if (/ $/.test(text)) editor?.commands.insertContent(" ")
+      save()
     },
     openMention,
   }))

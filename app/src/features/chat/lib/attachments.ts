@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Connector, type FileKind } from "@owlit/protocol"
 import { bridge, isDesktop, rpc, RpcError } from "@/lib/rpc"
@@ -10,6 +10,7 @@ import { citationLabel } from "@/features/library/lib/format"
 import { displayName, docUri, parentPath } from "@/features/docs/types"
 import { importPdf } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
+import { NO_FILES, useComposerDrafts } from "../composer-drafts"
 
 // A file as a chip shows it: sent with a message, or on its way into one, being copied or refused (a
 // folder, a file that can't be read). Refused ones stay as chips that say why, and are never sent.
@@ -50,37 +51,42 @@ export function openAttached(file: { path?: string }) {
 }
 
 // The files a composer is attaching to a message of `chatId` (a chat that may not exist yet: a new chat's
-// composer names the id it will start it with). Each is copied into the workspace as soon as it is
-// attached (PRODUCT.md §4, Files in chat); one owlit already has turns into a mention instead, through
-// `onMention`. Files over LARGE_FILE_BYTES wait in `large` for a yes (LargeFilesDialog) before anything
-// is copied.
-export function useAttachments(chatId: string, onMention: (mention: DocMention) => void) {
-  const [files, setFiles] = useState<DraftFile[]>([])
+// composer names the id it will start it with), kept with the draft `key` so they wait with it. Each is
+// copied into the workspace as soon as it is attached (PRODUCT.md §4, Files in chat); one owlit already
+// has turns into a mention instead, through `onMention`, told which draft it belongs to, since the copy
+// may finish after the person has moved to another chat. Files over LARGE_FILE_BYTES wait in `large` for a
+// yes (LargeFilesDialog) before anything is copied.
+export function useAttachments(key: string, chatId: string, onMention: (mention: DocMention, key: string) => void) {
+  const files = useComposerDrafts((s) => s.drafts[key]?.files ?? NO_FILES)
   const [large, setLarge] = useState<File[] | null>(null)
   const mentionRef = useRef(onMention)
   mentionRef.current = onMention
+  const keyRef = useRef(key)
+  keyRef.current = key
   const chatRef = useRef(chatId)
+  chatRef.current = chatId
   const filesRef = useRef(files)
   filesRef.current = files
 
-  const patch = (id: string, next: Partial<DraftFile> | null) =>
-    setFiles((list) => (next === null ? list.filter((f) => f.id !== id) : list.map((f) => (f.id === id ? { ...f, ...next } : f))))
+  const patch = (key: string, id: string, next: Partial<DraftFile> | null) =>
+    useComposerDrafts.getState().patchFiles(key, (list) => (next === null ? list.filter((f) => f.id !== id) : list.map((f) => (f.id === id ? { ...f, ...next } : f))))
 
-  const copy = useCallback(async (file: File, draft: DraftFile) => {
-    if (!isDesktop) return patch(draft.id, { state: "ready" })
+  // Into the chat and draft it was attached for, whichever is on screen when it is done
+  const copy = useCallback(async (file: File, draft: DraftFile, key: string, chatId: string) => {
+    if (!isDesktop) return patch(key, draft.id, { state: "ready" })
     try {
       const path = bridge?.pathForFile(file)
       const result = path
-        ? await rpc.chats.attach({ chatId: chatRef.current, path, mimeType: file.type })
-        : await rpc.chats.attach({ chatId: chatRef.current, name: file.name, mimeType: file.type, data: await base64(file) })
-      if (result.kind === "file") return patch(draft.id, { ...result.file, id: draft.id, previewUrl: draft.previewUrl, state: "ready" })
-      patch(draft.id, null)
-      mentionRef.current(result.kind === "doc" ? docMention(result.path) : await paperMention(result.paperId, file.name))
+        ? await rpc.chats.attach({ chatId, path, mimeType: file.type })
+        : await rpc.chats.attach({ chatId, name: file.name, mimeType: file.type, data: await base64(file) })
+      if (result.kind === "file") return patch(key, draft.id, { ...result.file, id: draft.id, previewUrl: draft.previewUrl, state: "ready" })
+      patch(key, draft.id, null)
+      mentionRef.current(result.kind === "doc" ? docMention(result.path) : await paperMention(result.paperId, file.name), key)
     } catch (error) {
       const message = error instanceof Error ? error.message : t`owlit couldn't read that file.`
       // Core says a folder was refused in its data, the words being in the interface's language
       const folder = error instanceof RpcError && (error.data as { folder?: boolean } | undefined)?.folder === true
-      patch(draft.id, { state: "error", error: message, folder: folder || draft.folder })
+      patch(key, draft.id, { state: "error", error: message, folder: folder || draft.folder })
     }
   }, [])
 
@@ -88,8 +94,9 @@ export function useAttachments(chatId: string, onMention: (mention: DocMention) 
     (list: File[], folders: File[] = []) => {
       const drafts = list.map((file) => ({ file, draft: draftOf(file) }))
       const refused = folders.map((file) => ({ ...draftOf(file), state: "error" as const, error: t`Folders can't be attached yet.`, folder: true }))
-      setFiles((f) => [...f, ...drafts.map((d) => d.draft), ...refused])
-      for (const { file, draft } of drafts) void copy(file, draft)
+      const key = keyRef.current
+      useComposerDrafts.getState().patchFiles(key, (f) => [...f, ...drafts.map((d) => d.draft), ...refused])
+      for (const { file, draft } of drafts) void copy(file, draft, key, chatRef.current)
     },
     [copy],
   )
@@ -124,7 +131,7 @@ export function useAttachments(chatId: string, onMention: (mention: DocMention) 
   const remove = useCallback((id: string) => {
     const gone = filesRef.current.find((f) => f.id === id)
     if (gone?.path && isDesktop) void rpc.chats.detach({ chatId: chatRef.current, path: gone.path }).catch(() => undefined)
-    setFiles((list) => list.filter((f) => f.id !== id))
+    patch(keyRef.current, id, null)
   }, [])
 
   // A PDF added to the Library from its chip is that paper from then on: a mention, not a file
@@ -132,10 +139,11 @@ export function useAttachments(chatId: string, onMention: (mention: DocMention) 
     async (id: string) => {
       const draft = filesRef.current.find((f) => f.id === id)
       if (!draft?.path) return
+      const key = keyRef.current
       const paper = await importCopy(draft)
       if (!paper) return
       remove(id)
-      mentionRef.current(await paperMention(paper.id, draft.name))
+      mentionRef.current(await paperMention(paper.id, draft.name), key)
     },
     [remove],
   )
@@ -143,17 +151,9 @@ export function useAttachments(chatId: string, onMention: (mention: DocMention) 
   // What goes with the message: the files that are ready. The list empties for the next one.
   const take = useCallback((): AttachmentFile[] => {
     const ready = filesRef.current.filter((f) => f.state === "ready").map(({ state: _s, error: _e, folder: _f, ...file }) => file)
-    setFiles([])
+    useComposerDrafts.getState().patchFiles(keyRef.current, () => [])
     return ready
   }, [])
-
-  // Another chat's composer now (the panel moved to a new chat): copies made for the last one go
-  useEffect(() => {
-    if (chatRef.current === chatId) return
-    for (const f of filesRef.current) if (f.path && isDesktop) void rpc.chats.detach({ chatId: chatRef.current, path: f.path }).catch(() => undefined)
-    setFiles([])
-    chatRef.current = chatId
-  }, [chatId])
 
   return { files, add, remove, take, addToLibrary, adding: files.some((f) => f.state === "adding"), large, answerLarge }
 }
