@@ -455,7 +455,7 @@ The mark is a feather: one hand-drawn, round-ended line that curls back on itsel
 
 The wordmark is lowercase "owlit" in Dosis 500 slanted 12° (Dosis has no italic, so the slant is a skew). The lockup (`OwlitLockup`) puts the feather before the word, as outlined paths so no font is needed; it appears only on the first launch and the welcome page. The i's dot is Owlit's green (`owlit-mark`), Owlit's mark on its own name, as on its work. In the interface the name is plain text.
 
-The app icon is the one place the brand wears Owlit's green, because it lives outside the app; inside, green keeps its single meaning. It is a warm-white feather on a deep forest-green tile, with two lighter green bars under its lower curls like a highlighted passage; one icon serves light and dark Docks. Small sizes are drawn, not scaled down: a heavier line, and below 64pt the feather alone, since the bars blur. `apps/desktop/scripts/icon.mjs` builds every file from one description.
+The app icon is the one place the brand wears Owlit's green, because it lives outside the app; inside, green keeps its single meaning. It is a warm-white feather on a mid forest-green tile, with two lighter green bars under its lower curls like a highlighted passage; one icon serves light and dark Docks. Small sizes are drawn, not scaled down: a heavier line, and below 64pt the feather alone, since the bars blur. `apps/desktop/scripts/icon.mjs` builds every file from one description.
 
 ## Colors
 
