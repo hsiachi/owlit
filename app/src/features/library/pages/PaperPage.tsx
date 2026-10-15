@@ -89,7 +89,7 @@ export function PaperPage() {
     showView("pdf")
     void whenReaderReady(paperId).then((api) => api.showPage(page), () => undefined)
   }
-  // A jump into the PDF from elsewhere (a highlight in the list, a collection's answer) shows the PDF
+  // A jump into the PDF from elsewhere (a highlight in the list, a thread's answer) shows the PDF
   useEffect(
     () =>
       useReaderStore.subscribe((s, prev) => {
@@ -100,7 +100,7 @@ export function PaperPage() {
     [paperId],
   )
 
-  // Opened at a quote (a collection's answer that rests on it): go to those words on that page
+  // Opened at a quote (a thread's answer that rests on it): go to those words on that page
   useTakeParam(
     "quote",
     (quote, params) => {

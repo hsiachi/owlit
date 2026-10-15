@@ -136,19 +136,19 @@ export interface PaperFigure {
 // pages the person stayed on (seconds at the top of the screen, by 1-based page)
 export interface PaperWear {
   cited: CitedPassage[]
-  // The sentences a collection's answers rest on, from the papers Owlit read in full
+  // The sentences a thread's answers rest on, from the papers Owlit read in full
   collected: CollectedPassage[]
   pages: Record<number, number>
 }
 
-// A sentence of the paper an answer in a collection rests on, checked word for word against the full text
-// when Owlit wrote it; column is the question asked of every paper, when it isn't the collection's own
+// A sentence of the paper an answer in a thread rests on, checked word for word against the full text
+// when Owlit wrote it; column is the question asked of every paper, when it isn't the thread's own
 export interface CollectedPassage {
   quote: string
   page?: number
-  collectionId: string
-  collectionTitle: string
-  // The paper's row in the collection, by the id the collection knows it by
+  threadId: string
+  threadTitle: string
+  // The paper's row in the thread, by the id the thread knows it by
   row: string
   column?: string
   at: number
@@ -186,7 +186,7 @@ export interface PaperNote {
   updatedAt: number
 }
 
-// A collection brought in at once: a Zotero library, a BibTeX file, a folder of PDFs
+// A library brought in at once: a Zotero library, a BibTeX file, a folder of PDFs
 export type ImportSource = "zotero" | "bibtex" | "folder"
 
 // What an import has done so far. Its task (import.<source>) carries the progress and the state.
@@ -197,7 +197,7 @@ export interface ImportSummary {
   // The file or folder it reads
   path: string
   createdAt: number
-  // How many papers the collection holds, once it has been read
+  // How many papers it holds, once it has been read
   total?: number
   // The papers it added, by id; their PDFs may still be on the way
   added: string[]
@@ -218,7 +218,7 @@ export interface ImportPreview {
   // How many the library has already
   known: number
   // Zotero's collections that hold any of the papers
-  collections: number
+  zoteroCollections: number
   // MinerU would read every new PDF unless told not to, and there are enough to ask
   asksParse: boolean
 }

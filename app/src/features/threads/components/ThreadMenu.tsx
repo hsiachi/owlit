@@ -1,16 +1,16 @@
 import { t } from "@lingui/core/macro"
-import type { Collection } from "@owlit/protocol"
+import type { Thread } from "@owlit/protocol"
 import { useMemo } from "react"
 import { useDocsStore } from "@/features/docs/store"
 import type { MenuGroups } from "@/components/action-menu"
 import { shown } from "../lib"
-import { deleteCollection, editCollection } from "../store"
-import { useCollectionsUi } from "../ui-store"
+import { deleteThread, editThread } from "../store"
+import { useThreadsUi } from "../ui-store"
 import { useNavigate } from "react-router-dom"
 import { downloadCsv, exportAsDoc } from "../export"
 
 // The workspace's top-level folders, which are its projects. A page works them out once and hands them to
-// each collection's menu, rather than every row walking the docs.
+// each thread's menu, rather than every row walking the docs.
 export function useProjects(): string[] {
   const files = useDocsStore((s) => s.files)
   const folders = useDocsStore((s) => s.folders)
@@ -22,25 +22,25 @@ export function useProjects(): string[] {
   }, [files, folders])
 }
 
-// One collection's actions, the same from its row's ⋯, a right-click and the page's ⋯
-export function useCollectionMenu(c: Collection | undefined, projects: string[], opts: { afterDelete?: () => void } = {}): MenuGroups {
+// One thread's actions, the same from its row's ⋯, a right-click and the page's ⋯
+export function useThreadMenu(c: Thread | undefined, projects: string[], opts: { afterDelete?: () => void } = {}): MenuGroups {
   const navigate = useNavigate()
   if (!c) return []
-  const rename = useCollectionsUi.getState().set
+  const rename = useThreadsUi.getState().set
   return [
     [
       { label: t`Rename`, onSelect: () => rename({ renaming: c.id }), afterClose: true },
       {
-        label: t({ message: "Watch for new papers", comment: "menu switch: Owlit looks for new papers on this collection's question now and then" }),
+        label: t({ message: "Watch for new papers", comment: "menu switch: Owlit looks for new papers on this thread's question now and then" }),
         checked: c.watch,
-        onSelect: () => void editCollection(c.id, { op: "watch", on: !c.watch }),
+        onSelect: () => void editThread(c.id, { op: "watch", on: !c.watch }),
       },
       {
         label: t`Move to project`,
         childrenClassName: "w-52",
         children: [
-          ...projects.map((p) => ({ label: p, checked: c.project === p, onSelect: () => void editCollection(c.id, { op: "project", project: p }) })),
-          { label: t({ message: "No project", comment: "a collection that belongs to no project folder" }), checked: !c.project, onSelect: () => void editCollection(c.id, { op: "project", project: "" }) },
+          ...projects.map((p) => ({ label: p, checked: c.project === p, onSelect: () => void editThread(c.id, { op: "project", project: p }) })),
+          { label: t({ message: "No project", comment: "a thread that belongs to no project folder" }), checked: !c.project, onSelect: () => void editThread(c.id, { op: "project", project: "" }) },
         ],
       },
     ],
@@ -53,7 +53,7 @@ export function useCollectionMenu(c: Collection | undefined, projects: string[],
         label: t`Delete`,
         destructive: true,
         onSelect: () => {
-          void deleteCollection(c.id)
+          void deleteThread(c.id)
           opts.afterDelete?.()
         },
       },

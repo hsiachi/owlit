@@ -15,7 +15,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "workspace",
     title: "The workspace",
-    text: `The workspace is one folder on the user's Mac. Their docs are the Markdown files in it, papers live in library/, and owlit's own state in .owlit/ (the collections among it). File › Open Workspace… (⌘O) opens another folder and File › Open Recent lists earlier ones. Other programs (Finder, Obsidian, git) can change the folder too; owlit follows along.`,
+    text: `The workspace is one folder on the user's Mac. Their docs are the Markdown files in it, papers live in library/, and owlit's own state in .owlit/ (the threads among it). File › Open Workspace… (⌘O) opens another folder and File › Open Recent lists earlier ones. Other programs (Finder, Obsidian, git) can change the folder too; owlit follows along.`,
   },
   {
     id: "papers",
@@ -30,7 +30,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "reading",
     title: "Reading and highlighting",
-    text: `Open a paper from the Library to read it. Selecting text brings up a small bar: four highlight colours (keys 1–4), Copy (⌘C), Comment, and Ask Owlit, which sends the passage to Owlit. ⌘F finds in the PDF. The panel beside the PDF has Notes (one Markdown note per paper), Highlights and About; About lists the collections that hold the paper. Status (Unread, Reading, Read), the star and tags are set from the paper's menu or the paper page.`,
+    text: `Open a paper from the Library to read it. Selecting text brings up a small bar: four highlight colours (keys 1–4), Copy (⌘C), Comment, and Ask Owlit, which sends the passage to Owlit. ⌘F finds in the PDF. The panel beside the PDF has Notes (one Markdown note per paper), Highlights and About; About lists the threads that hold the paper. Status (Unread, Reading, Read), the star and tags are set from the paper's menu or the paper page.`,
   },
   {
     id: "citing",
@@ -53,9 +53,9 @@ const TOPICS: GuideTopic[] = [
     text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as digests.`,
   },
   {
-    id: "collections",
-    title: "Collections",
-    text: `A collection is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Collections page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the collection; opening one or Add to Library brings it into the Library. On a collection: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Watch for new papers, Move to project, Export as CSV and Delete.`,
+    id: "threads",
+    title: "Threads",
+    text: `A thread is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Threads page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the thread; opening one or Add to Library brings it into the Library. On a thread: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Watch for new papers, Move to project, Export as CSV and Delete.`,
   },
   {
     id: "undo",

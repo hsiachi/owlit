@@ -2,11 +2,11 @@ import type { PaperIds, PaperKind } from "./library.ts"
 // Two texts with the same words, whatever the spacing
 export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim()
 
-// A collection: papers Owlit gathered for a question, what each says about it (one cell per column), the
+// A thread: papers Owlit gathered for a question, what each says about it (one cell per column), the
 // groups Owlit put them in, and a short memo of its reading. Owlit's own record, in
-// .owlit/collections/<id>/collection.json. Owlit writes it without asking; what the user did to it
+// .owlit/threads/<id>/thread.json. Owlit writes it without asking; what the user did to it
 // (renamed it, rewrote a sentence or a cell, removed a row) is kept in `yours` and wins over every later
-// write. A collection with only the question's own column reads as a short list; adding a column makes it
+// write. A thread with only the question's own column reads as a short list; adding a column makes it
 // a table.
 
 // How far Owlit read for an answer: the abstract only, or the full text (then it has a passage)
@@ -17,7 +17,7 @@ export type Relation = "supports" | "challenges" | "related"
 
 // The paper as it was found. A paper in the Library is shown as the Library has it (the user's corrections
 // win); one that is not keeps this snapshot.
-export interface CollectionPaper {
+export interface ThreadPaper {
   title: string
   authors: string[]
   ids: PaperIds
@@ -31,7 +31,7 @@ export interface CollectionPaper {
   openPdf?: boolean
 }
 
-export interface CollectionCell {
+export interface ThreadCell {
   text: string
   depth: AnswerDepth
   // The words the answer rests on, when Owlit read the full text; page is 1-based
@@ -42,22 +42,22 @@ export interface CollectionCell {
   at: number
 }
 
-export interface CollectionRow {
+export interface ThreadRow {
   // The paper's id, the one it has or would have in the Library
   id: string
-  paper: CollectionPaper
+  paper: ThreadPaper
   // By column id
-  cells: Record<string, CollectionCell>
+  cells: Record<string, ThreadCell>
   group?: string
   // How it was found ("search: replay rating validity", "cited by doi-…")
   foundBy?: string
   addedAt: number
 }
 
-// The column every collection has: the question itself
+// The column every thread has: the question itself
 export const QUESTION_COLUMN = "q"
 
-export interface CollectionColumn {
+export interface ThreadColumn {
   id: string
   // What is asked of every paper ("Method and sample"); for the question column, the question
   question: string
@@ -68,7 +68,7 @@ export interface CollectionColumn {
   hidden?: boolean
 }
 
-export interface CollectionGroup {
+export interface ThreadGroup {
   id: string
   name: string
   // One line on what the group holds
@@ -83,7 +83,7 @@ export interface MemoSentence {
   text: string
 }
 
-export interface CollectionAsked {
+export interface ThreadAsked {
   // The question as the user typed it
   text: string
   chatId?: string
@@ -93,53 +93,53 @@ export interface CollectionAsked {
 
 // What the user did. Items are named by itemId(): "title", "memo:<id>", "cell:<paper>:<column>",
 // "row:<paper>", "group:<id>".
-export interface CollectionYours {
+export interface ThreadYours {
   // Rewritten by the user: shown instead of Owlit's text, kept through every later write
   edits: Record<string, { text: string; at: number; was: string }>
   // Removed by the user: never shown, and never brought back by a later write
   removed: Record<string, { text: string; at: number }>
 }
 
-export interface Collection {
+export interface Thread {
   version: 1
   id: string
   title: string
-  asked: CollectionAsked
-  // Later questions Owlit answered by adding to this collection rather than starting another
-  alsoAsked?: CollectionAsked[]
+  asked: ThreadAsked
+  // Later questions Owlit answered by adding to this thread rather than starting another
+  alsoAsked?: ThreadAsked[]
   // The workspace's top-level folder the work belongs to; "" for none
   project: string
   // Where Owlit looked ("Semantic Scholar", "OpenAlex", "ACM DL proceedings")
   sources: string[]
   memo: MemoSentence[]
-  columns: CollectionColumn[]
-  rows: CollectionRow[]
-  groups: CollectionGroup[]
+  columns: ThreadColumn[]
+  rows: ThreadRow[]
+  groups: ThreadGroup[]
   // Look for new papers now and then (off unless the user turns it on), and when Owlit last did
   watch: boolean
   checkedAt?: number
-  // How many papers the user asked for when they started it from the Collections page: about ten, or
+  // How many papers the user asked for when they started it from the Threads page: about ten, or
   // as many as the question takes (a venue's proceedings)
-  size?: CollectionSize
+  size?: ThreadSize
   createdAt: number
   updatedAt: number
   // When Owlit last changed each item, and when the user last looked: an item changed after seenAt
   // carries Owlit's dot
   changedAt: Record<string, number>
   seenAt: number
-  yours: CollectionYours
-  // Kept separate from another collection: the rows as they were there (groups, every column) and the
+  yours: ThreadYours
+  // Kept separate from another thread: the rows as they were there (groups, every column) and the
   // question taken with them, so Undo can put them back
-  splitFrom?: { id: string; rows: CollectionRow[]; asked?: CollectionAsked }
+  splitFrom?: { id: string; rows: ThreadRow[]; asked?: ThreadAsked }
 }
 
-export type CollectionSize = "few" | "many"
+export type ThreadSize = "few" | "many"
 
-// Work Owlit does on a collection in the background, as task kinds; the task's subject is the
-// collection's id, or "<id>:<column>" for filling a column
-export const COLLECTION_RUNS = ["collections.gather", "collections.more", "collections.fill", "collections.read", "collections.check"] as const
-export type CollectionRun = (typeof COLLECTION_RUNS)[number]
-export const collectionOfSubject = (subject: string) => subject.split(":")[0]!
+// Work Owlit does on a thread in the background, as task kinds; the task's subject is the
+// thread's id, or "<id>:<column>" for filling a column
+export const THREAD_RUNS = ["threads.gather", "threads.more", "threads.fill", "threads.read", "threads.check"] as const
+export type ThreadRun = (typeof THREAD_RUNS)[number]
+export const threadOfSubject = (subject: string) => subject.split(":")[0]!
 
 export const itemId = {
   title: () => "title",
@@ -149,8 +149,8 @@ export const itemId = {
   group: (id: string) => `group:${id}`,
 }
 
-// The collection as the user sees it: their rewrites in place of Owlit's text, what they removed gone
-export function shownCollection(c: Collection): Collection {
+// The thread as the user sees it: their rewrites in place of Owlit's text, what they removed gone
+export function shownThread(c: Thread): Thread {
   const { edits, removed } = c.yours
   const text = (id: string, owlit: string) => edits[id]?.text ?? owlit
   return {
@@ -167,8 +167,8 @@ export function shownCollection(c: Collection): Collection {
   }
 }
 
-// What the list of collections shows of one
-export interface CollectionSummary {
+// What the list of threads shows of one
+export interface ThreadSummary {
   id: string
   title: string
   project: string
@@ -183,8 +183,8 @@ export interface CollectionSummary {
   watch: boolean
 }
 
-export function summarize(c: Collection): CollectionSummary {
-  const shown = shownCollection(c)
+export function summarize(c: Thread): ThreadSummary {
+  const shown = shownThread(c)
   return {
     id: c.id,
     title: shown.title,
@@ -198,12 +198,12 @@ export function summarize(c: Collection): CollectionSummary {
   }
 }
 
-// An agent's write: a new collection (no id), or more for an existing one. Rows are named by paper id;
+// An agent's write: a new thread (no id), or more for an existing one. Rows are named by paper id;
 // core fills in what each paper is from the search that found it or from the Library.
-export interface CollectionWrite {
+export interface ThreadWrite {
   id?: string
-  // The question as the user asked it (kept with the collection, also when adding to one), and for a new
-  // collection Owlit's neutral title for it
+  // The question as the user asked it (kept with the thread, also when adding to one), and for a new
+  // thread Owlit's neutral title for it
   asked?: string
   title?: string
   project?: string
@@ -213,9 +213,9 @@ export interface CollectionWrite {
   // New columns to ask of every paper
   columns?: { id?: string; question: string }[]
   // Rows to add or update: only the cells given change
-  rows?: CollectionRowWrite[]
+  rows?: ThreadRowWrite[]
   // The whole grouping as Owlit means it now
-  groups?: CollectionGroup[]
+  groups?: ThreadGroup[]
   // Rows Owlit takes out (the user's own removals are separate and stay)
   removeRows?: string[]
   why?: string
@@ -228,26 +228,26 @@ export interface CollectionWrite {
   docPath?: string
 }
 
-// One batch of Owlit's work on a collection, for About: what set it going, what it added or answered,
-// the searches it made and what it said it couldn't reach. Worked out from the collection's history.
-export interface CollectionBatch {
+// One batch of Owlit's work on a thread, for About: what set it going, what it added or answered,
+// the searches it made and what it said it couldn't reach. Worked out from the thread's history.
+export interface ThreadBatch {
   at: number
   // Its first gathering, Find more papers, a watch check, reading in full, a column, a chat, or Owlit
-  // without saying (collections from before batches were recorded)
+  // without saying (threads from before batches were recorded)
   trigger: "gather" | "more" | "check" | "read" | "fill" | "chat" | "agent"
   chatId?: string
   // A later question in a chat that Owlit answered by adding here
   asked?: string
   added: number
   // Answers written for papers that were there already, and the questions they answer (not the
-  // collection's own)
+  // thread's own)
   answered: number
   columns: string[]
-  searches: CollectionSearch[]
+  searches: ThreadSearch[]
   notes: string[]
 }
 
-export interface CollectionSearch {
+export interface ThreadSearch {
   // search: words in a source; references / cited_by / similar: following a paper (of, its title);
   // listing: a venue's or a journal's papers
   kind: "search" | "references" | "cited_by" | "similar" | "listing"
@@ -259,17 +259,17 @@ export interface CollectionSearch {
   kept: number
 }
 
-export interface CollectionRowWrite {
+export interface ThreadRowWrite {
   id: string
-  cells?: Record<string, Omit<CollectionCell, "at">>
+  cells?: Record<string, Omit<ThreadCell, "at">>
   group?: string
   foundBy?: string
   // Core's own callers may give the paper; agents name it by id and core looks it up
-  paper?: CollectionPaper
+  paper?: ThreadPaper
 }
 
 // The user's own changes, from a window
-export type CollectionEdit =
+export type ThreadEdit =
   | { op: "rename"; title: string }
   | { op: "rewrite"; item: string; text: string }
   // Drops the user's rewrite of an item: Owlit's text shows again
@@ -286,7 +286,7 @@ export type CollectionEdit =
   | { op: "seen" }
 
 // Owlit's own text for an item, before the user's rewrite
-export function owlitText(c: Collection, item: string): string | undefined {
+export function owlitText(c: Thread, item: string): string | undefined {
   if (item === itemId.title()) return c.title
   const [kind, a, b] = item.split(":")
   if (kind === "memo") return c.memo.find((s) => s.id === a)?.text
@@ -296,15 +296,15 @@ export function owlitText(c: Collection, item: string): string | undefined {
 }
 
 // What a removed item was, for the record (and so the same words can be kept out)
-function removedText(c: Collection, item: string): string | undefined {
+function removedText(c: Thread, item: string): string | undefined {
   const [kind, a] = item.split(":")
   if (kind === "row") return c.rows.find((r) => r.id === a)?.paper.title
   return owlitText(c, item)
 }
 
-// Applies one of the user's changes to a collection in place, the same in core and in a window that has
+// Applies one of the user's changes to a thread in place, the same in core and in a window that has
 // no core (the browser preview): the items it touched, or what stood in the way
-export function applyCollectionEdit(c: Collection, edit: CollectionEdit, now: number): { items: string[] } | { problem: "gone" | "empty" | "row" | "group" } {
+export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { items: string[] } | { problem: "gone" | "empty" | "row" | "group" } {
   switch (edit.op) {
     case "rename":
     case "rewrite": {

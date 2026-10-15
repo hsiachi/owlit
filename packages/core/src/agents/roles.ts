@@ -20,7 +20,7 @@ export function answerFor(role: Role, kind: ToolKind): "reject" | "ask" {
   return "ask"
 }
 
-// Whether owlit's own tools may go ahead (agents.consent). Owlit's own space (digests, Knowledge,
+// Whether owlit's own tools may go ahead (agents.consent). Owlit's own space (digests, threads,
 // margin notes) needs no consent; these do.
 export function consentFor(role: Role, action: ConsentAction): "allow" | "ask" | { refuse: string } {
   if (role === "reviewer") {

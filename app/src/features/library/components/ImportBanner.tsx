@@ -24,7 +24,7 @@ export function importOrigin(i: Pick<ImportSummary, "source" | "path">) {
 // other work (DESIGN.md): while it runs, one quiet grey line; asking, the same line led by the amber dot
 // with its two answers; broken, a red "Stopped" with why in owlit's words and the error behind Details. One
 // the person stopped is not an error and stays muted. Once it is done it becomes the one card on the page,
-// since a whole collection arriving is news worth seeing, with Show the 104 as its button. It stays until
+// since a whole thread arriving is news worth seeing, with Show the 104 as its button. It stays until
 // dismissed.
 export function ImportBanner() {
   const list = useImports((s) => s.list)
@@ -107,7 +107,7 @@ function Line({ summary, task }: { summary: ImportSummary; task: Task | undefine
     )
   } else {
     mark = <LoaderCircleIcon className="size-3.5 animate-spin" />
-    words = total === undefined ? t`Reading the collection ${origin}…` : t`Importing ${origin} · ${done} of ${total}`
+    words = total === undefined ? t`Reading ${origin}…` : t`Importing ${origin} · ${done} of ${total}`
     actions = (
       <Button variant="text" size="inline" onClick={() => task && void cancelTask(task.id)}>
         {t`Cancel`}

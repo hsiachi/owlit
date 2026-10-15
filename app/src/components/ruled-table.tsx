@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils"
 import { Unfold } from "@/components/unfold"
 
-// The parts of a ruled table (the Library's, a collection's): a tinted header row, a hairline under each
+// The parts of a ruled table (the Library's, a thread's): a tinted header row, a hairline under each
 // row, no grid, and a card that unfolds under a row in a full-width row of its own.
 
 // A header cell. The tint sits on a layer inside the cell's padding, so the sticky header stays opaque over

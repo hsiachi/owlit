@@ -33,7 +33,7 @@ import { toastError, toastUndo } from "@/lib/toast"
 import { routeSubject } from "@/app/route-subject"
 import { anchorAt } from "@owlit/protocol"
 import { readerComments, setOpenThread, setThreads, threadSpots } from "./reader-comments"
-import { shares, threadsOf, useShareStore, type Thread } from "../share/store"
+import { shares, commentThreadsOf, useShareStore, type CommentThread } from "../share/store"
 
 // A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
 // carry no user event at all; neither is the user's edit.
@@ -68,7 +68,7 @@ function dismissNote(fileId: string, note: AgentNote, next: string | null) {
 
 // A reader's comment, answered or put away; the doc's path is looked up then, as it may have been renamed
 const pathOf = (fileId: string) => useDocsStore.getState().files[fileId]?.path
-async function replyTo(fileId: string, thread: Thread, text: string) {
+async function replyTo(fileId: string, thread: CommentThread, text: string) {
   const path = pathOf(fileId)
   if (!path) return
   await shares.reply(path, thread.root.id, text).catch((error: unknown) => {
@@ -76,7 +76,7 @@ async function replyTo(fileId: string, thread: Thread, text: string) {
     throw error
   })
 }
-function resolveThread(fileId: string, thread: Thread) {
+function resolveThread(fileId: string, thread: CommentThread) {
   const path = pathOf(fileId)
   if (!path) return
   useDocsUiStore.getState().setOpenComment(fileId, null)
@@ -227,12 +227,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     // Readers' comments on the doc's share link follow the share store, by the doc's path now
     const commentsNow = () => useShareStore.getState().comments[useDocsStore.getState().files[id]?.path ?? ""]
     let comments = commentsNow()
-    view.dispatch({ effects: setThreads.of(threadsOf(comments)) })
+    view.dispatch({ effects: setThreads.of(commentThreadsOf(comments)) })
     const unsubscribeComments = useShareStore.subscribe(() => {
       const next = commentsNow()
       if (next === comments) return
       comments = next
-      view.dispatch({ effects: setThreads.of(threadsOf(comments)) })
+      view.dispatch({ effects: setThreads.of(commentThreadsOf(comments)) })
     })
     const openCommentFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openComment?.docId === id ? s.openComment.threadId : null)
     let openComment = openCommentFor(useDocsUiStore.getState())

@@ -322,7 +322,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               {t`Attach files`}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {(["paper", "doc", "collection"] as SourceKind[]).map((kind) => {
+            {(["paper", "doc", "thread"] as SourceKind[]).map((kind) => {
               const place = KIND_PLACE[kind]
               return (
                 <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>

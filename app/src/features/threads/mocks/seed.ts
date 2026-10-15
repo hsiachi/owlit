@@ -1,19 +1,19 @@
-import { QUESTION_COLUMN, type Collection, type CollectionPaper, type CollectionRow } from "@owlit/protocol"
+import { QUESTION_COLUMN, type Thread, type ThreadPaper, type ThreadRow } from "@owlit/protocol"
 import { DAY, HOUR } from "@/lib/time"
 
-// Collections for the browser preview. Most rows are papers of the Library's mock seed (p1…), as a paper
+// Threads for the browser preview. Most rows are papers of the Library's mock seed (p1…), as a paper
 // Owlit found and the user went on to read would be; a few are papers Owlit only found, which live on the
-// collection alone.
+// thread alone.
 
 const now = Date.now()
 
-const lib = (title: string, authors: string[], year: number, venue?: string): CollectionPaper => ({ title, authors, ids: {}, year, ...(venue ? { venue } : {}) })
+const lib = (title: string, authors: string[], year: number, venue?: string): ThreadPaper => ({ title, authors, ids: {}, year, ...(venue ? { venue } : {}) })
 
-function row(id: string, paper: CollectionPaper, answer: string, depth: "abstract" | "full", at: number, passage?: { quote: string; page: number }): CollectionRow {
+function row(id: string, paper: ThreadPaper, answer: string, depth: "abstract" | "full", at: number, passage?: { quote: string; page: number }): ThreadRow {
   return { id, paper, cells: { [QUESTION_COLUMN]: { text: answer, depth, at, ...(passage ? { passage } : {}) } }, addedAt: at, foundBy: "search" }
 }
 
-function readingTools(): Collection {
+function readingTools(): Thread {
   const at = now - 2 * HOUR
   const asked = "What tools help people read papers faster? Anything I should look at for the study?"
   return {
@@ -61,7 +61,7 @@ function readingTools(): Collection {
   }
 }
 
-function toolUse(): Collection {
+function toolUse(): Thread {
   const at = now - 3 * DAY
   const asked = "find papers on language models that call tools or act in an environment"
   return {
@@ -92,7 +92,7 @@ function toolUse(): Collection {
   }
 }
 
-function nothingFound(): Collection {
+function nothingFound(): Thread {
   const at = now - 9 * DAY
   const asked = "has anyone compared replay ratings with live ratings of reminders?"
   return {
@@ -115,12 +115,12 @@ function nothingFound(): Collection {
   }
 }
 
-// A bigger collection with columns and groups, as Owlit gathers for a venue. Sample rows for the preview,
+// A bigger thread with columns and groups, as Owlit gathers for a venue. Sample rows for the preview,
 // not a real proceedings list.
-function venue(): Collection {
+function venue(): Thread {
   const at = now - 26 * HOUR
   const asked = "UIST 2026 papers: which ones touch my reading-tools study?"
-  const p = (id: string, title: string, authors: string[], answer: string, method: string, rel?: { rel: "supports" | "challenges" | "related"; sentence: string; text: string }, group?: string, full?: { quote: string; page: number }): CollectionRow => ({
+  const p = (id: string, title: string, authors: string[], answer: string, method: string, rel?: { rel: "supports" | "challenges" | "related"; sentence: string; text: string }, group?: string, full?: { quote: string; page: number }): ThreadRow => ({
     id,
     paper: { title, authors, ids: { doi: `10.1145/${id}` }, year: 2026, venue: "UIST" },
     cells: {
@@ -171,4 +171,4 @@ function venue(): Collection {
   }
 }
 
-export const seedCollections = (): Record<string, Collection> => Object.fromEntries([readingTools(), toolUse(), nothingFound(), venue()].map((c) => [c.id, c]))
+export const seedThreads = (): Record<string, Thread> => Object.fromEntries([readingTools(), toolUse(), nothingFound(), venue()].map((c) => [c.id, c]))

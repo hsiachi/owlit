@@ -7,13 +7,13 @@ import type { DatabaseSync } from "node:sqlite"
 import { parseRef, stripArxivVersion } from "../refs.ts"
 import { clean } from "../../util.ts"
 
-// The papers an existing collection holds, read as a flat list for a bulk import: a Zotero library
+// The papers an existing library holds, read as a flat list for a bulk import: a Zotero library
 // (its zotero.sqlite, or a Better BibTeX JSON export), a .bib file, or a folder of PDFs. Every source
 // is only read.
 
 export type ImportSource = "zotero" | "bibtex" | "folder"
 
-// One paper from a collection, as the collection describes it
+// One paper from an import, as its source describes it
 export interface ImportEntry {
   // Stable within the source across re-reads (Zotero item key, BibTeX citation key, a PDF's path relative to the folder), so an interrupted import can skip what it did
   key: string

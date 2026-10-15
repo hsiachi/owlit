@@ -87,7 +87,7 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
     let live = true
     previewImport(source, path).then(
       (p) => live && setPreview(p),
-      (e) => live && setProblem(e instanceof RpcError ? e.message : t`That collection couldn't be read.`),
+      (e) => live && setProblem(e instanceof RpcError ? e.message : t`That library couldn't be read.`),
     )
     return () => {
       live = false
@@ -116,7 +116,7 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
           {tilde(path)}
         </span>
         <Button variant="text" size="inline" onClick={openImportDialog}>
-          {t({ message: "Change…", comment: "pick another collection to import" })}
+          {t({ message: "Change…", comment: "pick another library, file or folder to import" })}
         </Button>
       </div>
       {problem ? (
@@ -131,10 +131,10 @@ function Review({ source, path }: { source: ImportSource; path: string }) {
           <p className="text-sm">{summary(source, preview)}</p>
           {/* The choices as Settings rows, one switch each */}
           <div className="divide-y">
-            {source === "zotero" && preview.collections > 0 && (
+            {source === "zotero" && preview.zoteroCollections > 0 && (
               <FormRow
                 name={t`Collections become tags`}
-                help={plural(preview.collections, { one: "# collection", other: "# collections" })}
+                help={plural(preview.zoteroCollections, { one: "# collection", other: "# collections" })}
                 control={<Switch checked={tags} onCheckedChange={setTags} />}
               />
             )}

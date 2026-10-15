@@ -53,16 +53,12 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`List your chats`, done: t`Listed your chats` }
     case "chats_read":
       return { now: t`Read a chat`, done: t({ message: "Read a chat", context: "a step that ran" }) }
-    case "collection_list":
-      return { now: t`List your collections`, done: t`Listed your collections` }
-    case "collection_read":
-      return { now: t`Read a collection`, done: t({ message: "Read a collection", context: "a step that ran" }) }
-    case "collection_write":
-      return { now: t`Gather papers into a collection`, done: t`Gathered papers into a collection` }
-    case "knowledge_read":
-      return { now: t`Read Knowledge`, done: t({ message: "Read Knowledge", context: "a step that ran" }) }
-    case "knowledge_write":
-      return { now: t`Update Knowledge`, done: t`Updated Knowledge` }
+    case "thread_list":
+      return { now: t`List your threads`, done: t`Listed your threads` }
+    case "thread_read":
+      return { now: t`Read a thread`, done: t({ message: "Read a thread", context: "a step that ran" }) }
+    case "thread_write":
+      return { now: t`Gather papers into a thread`, done: t`Gathered papers into a thread` }
     case "ui_open":
       return { now: t`Open something in owlit`, done: t`Opened something in owlit` }
     case "ui_jump":

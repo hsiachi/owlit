@@ -36,7 +36,7 @@ function sentencesOf(markdown: string): string[] {
 
 // Compare with a doc…: the user picks a doc of theirs, then the sentences to set every paper against.
 // The column is theirs; Owlit fills it in the background.
-export function CompareDialog({ collectionId, open, onOpenChange }: { collectionId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function CompareDialog({ threadId, open, onOpenChange }: { threadId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const files = useDocsStore((s) => s.files)
   const docs = useMemo(
     () =>
@@ -61,7 +61,7 @@ export function CompareDialog({ collectionId, open, onOpenChange }: { collection
       return close()
     }
     try {
-      put(await rpc.collections.compare({ id: collectionId, doc, sentences: picked }))
+      put(await rpc.threads.compare({ id: threadId, doc, sentences: picked }))
       close()
     } catch (error) {
       toastError(error)

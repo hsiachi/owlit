@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
-import { useCollectionsStore } from "@/features/collections/store"
-import { collectionHolding, shown } from "@/features/collections/lib"
-import { collectionUri, paperUri, parseOwlitUri, type Collection } from "@owlit/protocol"
+import { useThreadsStore } from "@/features/threads/store"
+import { threadHolding, shown } from "@/features/threads/lib"
+import { threadUri, paperUri, parseOwlitUri, type Thread } from "@owlit/protocol"
 import type { Mentionable } from "@/features/chat/types"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
@@ -20,7 +20,7 @@ export interface DocMention extends Mentionable {
   label: string
 }
 
-// A doc, paper or collection as something the agent can be pointed at
+// A doc, paper or thread as something the agent can be pointed at
 export const docMentionable = (file: WorkspaceFile): Mentionable => ({
   id: file.id,
   kind: "doc",
@@ -37,19 +37,19 @@ export const paperMentionable = (paper: Paper): Mentionable => ({
   uri: paperUri(paper.id),
 })
 
-export const collectionMentionable = (c: Collection): Mentionable => {
+export const threadMentionable = (c: Thread): Mentionable => {
   const { title, rows } = shown(c)
-  return { id: c.id, kind: "collection", title, subtitle: plural(rows.length, { one: "# paper", other: "# papers" }), uri: collectionUri(c.id) }
+  return { id: c.id, kind: "thread", title, subtitle: plural(rows.length, { one: "# paper", other: "# papers" }), uri: threadUri(c.id) }
 }
 
-// Everything @ can point to, built again only when the papers, docs, collections or language changed, as
+// Everything @ can point to, built again only when the papers, docs, threads or language changed, as
 // @ asks for it on every key typed. Shared between callers, so not to be changed.
 let everything: { from: unknown[]; items: DocMention[] } | undefined
 function everyMention(): DocMention[] {
   const { papers } = useLibraryStore.getState()
   const { files } = useDocsStore.getState()
-  const { collections } = useCollectionsStore.getState()
-  const from = [papers, files, collections, i18n.locale]
+  const { threads } = useThreadsStore.getState()
+  const from = [papers, files, threads, i18n.locale]
   if (everything?.from.every((x, i) => x === from[i])) return everything.items
   const paperItems: DocMention[] = Object.values(papers)
     .sort((x, y) => (y.lastOpenedAt ?? y.addedAt) - (x.lastOpenedAt ?? x.addedAt))
@@ -58,14 +58,14 @@ function everyMention(): DocMention[] {
     .filter((f) => isMarkdown(f.path) && !isHidden(f.path))
     .sort((x, y) => y.modifiedAt - x.modifiedAt)
     .map((f) => ({ ...docMentionable(f), label: displayName(f.path) }))
-  // The collections, most recently changed first
-  const collectionItems: DocMention[] = Object.values(collections)
+  // The threads, most recently changed first
+  const threadItems: DocMention[] = Object.values(threads)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((c) => {
-      const m = collectionMentionable(c)
+      const m = threadMentionable(c)
       return { ...m, label: m.title }
     })
-  everything = { from, items: [...paperItems, ...docItems, ...collectionItems] }
+  everything = { from, items: [...paperItems, ...docItems, ...threadItems] }
   return everything.items
 }
 
@@ -106,15 +106,15 @@ export function mentionRoute(uri: string): string | null {
   const u = parseOwlitUri(uri)
   if (u?.kind === "paper") {
     const paper = paperOf(u.id)
-    // A paper Owlit found and the user hasn't taken in lives on its collection: the link opens it there
+    // A paper Owlit found and the user hasn't taken in lives on its thread: the link opens it there
     if (!paper) {
-      const holder = collectionHolding(useCollectionsStore.getState().collections, u.id)
-      if (holder) return `/collections/${holder.id}?paper=${encodeURIComponent(u.id)}`
+      const holder = threadHolding(useThreadsStore.getState().threads, u.id)
+      if (holder) return `/threads/${holder.id}?paper=${encodeURIComponent(u.id)}`
     }
     return `/library/${paper?.id ?? u.id}`
   }
   if (u?.kind === "chat") return `/chat/${u.id}`
-  if (u?.kind === "collection") return `/collections/${u.id}`
+  if (u?.kind === "thread") return `/threads/${u.id}`
   if (u?.kind !== "doc") return null
   const file = fileAt(u.path)
   return file ? `/docs/${file.id}` : null
@@ -159,7 +159,7 @@ export function docUriOfLink(href: string): string | null {
 // The name a mention shows when its text is empty
 export function mentionTitle(uri: string): string | undefined {
   const u = parseOwlitUri(uri)
-  if (u?.kind === "collection") return collectionTitle(u.id)
+  if (u?.kind === "thread") return threadTitle(u.id)
   return u?.kind === "paper" ? paperOf(u.id)?.title : undefined
 }
 
@@ -207,11 +207,11 @@ export function mentionLabel(uri: string): string | undefined {
     return page ? t({ message: `${cite}, p. ${page}`, comment: "a paper cited at a page: Chan et al. 2026, p. 13" }) : cite
   }
   if (u?.kind === "doc") return displayName(u.path)
-  if (u?.kind === "collection") return collectionTitle(u.id)
+  if (u?.kind === "thread") return threadTitle(u.id)
   return undefined
 }
 
-const collectionTitle = (id: string) => {
-  const c = useCollectionsStore.getState().collections[id]
+const threadTitle = (id: string) => {
+  const c = useThreadsStore.getState().threads[id]
   return c ? shown(c).title : undefined
 }

@@ -14,7 +14,7 @@ export { chatOnScreen } from "./status"
 // What a reply changed outside its chat: papers added, notes left on a doc, a file written. Core reports
 // each change with its version (so it can be undone) and the chat it came from; the change is pinned to
 // the reply that was running then, and shows under that answer as a result row.
-export type ResultKind = "paper" | "note" | "file" | "collection"
+export type ResultKind = "paper" | "note" | "file" | "thread"
 
 export interface AgentResult {
   kind: ResultKind
@@ -28,8 +28,8 @@ export interface AgentResult {
   undone?: boolean
   // After an Undo from the card: what puts the change back (core keeps the undo as a version too)
   redoId?: string
-  // A collection: whether the write started it, the papers it added, the question it was for, and the
-  // collection those papers went to when the user kept them separate
+  // A thread: whether the write started it, the papers it added, the question it was for, and the
+  // thread those papers went to when the user kept them separate
   created?: boolean
   rows?: string[]
   // Rows already there whose answers the write changed
@@ -45,7 +45,7 @@ interface ResultsState {
   // Each undone change with what puts it back, when there is a way
   markUndone: (messageId: string, redoIds: Record<string, string | undefined>) => void
   markRedone: (messageId: string, versionIds: string[]) => void
-  // null: the split was undone, the papers are back in the collection the reply wrote to
+  // null: the split was undone, the papers are back in the thread the reply wrote to
   markSeparate: (messageId: string, versionIds: string[], to: { id: string; title: string } | null) => void
 }
 
@@ -148,7 +148,7 @@ if (isDesktop) {
       label,
       at: Date.now(),
       ...(op === "removed" ? { removed: true } : {}),
-      ...(kind === "collection" ? { created: !!created, rows: rows ?? [], updated: updated ?? 0, ...(asked ? { asked } : {}) } : {}),
+      ...(kind === "thread" ? { created: !!created, rows: rows ?? [], updated: updated ?? 0, ...(asked ? { asked } : {}) } : {}),
     })
   })
   onNotify("agent.wrote", ({ path, versionId, chatId }) => {

@@ -24,7 +24,7 @@ type ChatFile = Chat & { version: 1 }
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That chat is not in the workspace.`, { id })
 
 // The workspace's chats in .owlit/chats/: <id>.json holds a chat whole (its fields and messages), so one
-// file can be read on its own (Knowledge reads them); index.json lists them without messages, so the
+// file can be read on its own; index.json lists them without messages, so the
 // list opens without reading every chat, and is rebuilt from the chat files when missing. Chats being
 // streamed are written at most every WRITE_EVERY_MS and once more when the turn ends. <id>/files/ holds
 // the copies of the files attached to the chat's messages.

@@ -7,7 +7,7 @@ import { isDesktop } from "@/lib/rpc"
 import { commentCount } from "../editor/reader-comments"
 import { useDocsUiStore } from "../ui-store"
 import { ShareDialog } from "./ShareDialog"
-import { threadsOf, useShareStore } from "./store"
+import { commentThreadsOf, useShareStore } from "./store"
 
 // The doc header's part in sharing: readers' open comments ("2 comments", stepping through them in
 // reading order, as the note count does), then Share, or Shared once the doc has a link
@@ -15,7 +15,7 @@ export function DocShareControls({ file }: { file: WorkspaceFile }) {
   const [open, setOpen] = useState(false)
   const shared = useShareStore((s) => !!s.byPath[file.path])
   const problem = useShareStore((s) => !!s.byPath[file.path]?.problem)
-  const threads = threadsOf(useShareStore((s) => s.comments[file.path]))
+  const threads = commentThreadsOf(useShareStore((s) => s.comments[file.path]))
   const current = useDocsUiStore((s) => (s.openComment?.docId === file.id ? s.openComment.threadId : null))
   if (!isDesktop) return null
 

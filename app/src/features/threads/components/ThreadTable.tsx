@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { isTaskFinished, itemId, QUESTION_COLUMN, type Collection, type CollectionCell, type CollectionColumn, type CollectionGroup, type CollectionRow, type Relation } from "@owlit/protocol"
+import { isTaskFinished, itemId, QUESTION_COLUMN, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { Fragment, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -20,12 +20,12 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { citeOf, columnLabel, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
-import { editCollection, put } from "../store"
+import { editThread, put } from "../store"
 import { ReadingMark, RowPeek } from "./AnswerRows"
-import { useCollectionsUi } from "../ui-store"
+import { useThreadsUi } from "../ui-store"
 import { AskEach } from "./Work"
 
-// A collection with columns, as a ruled table like the Library's: a row per paper, a column per question
+// A thread with columns, as a ruled table like the Library's: a row per paper, a column per question
 // asked of every paper, the user's comparison with a doc as a column of plain words. Groups are Owlit's and
 // fold; a row opens its card under it; a cell opens to show the words it rests on, and can be rewritten.
 
@@ -36,18 +36,18 @@ type GroupBy = "topic" | "none" | `column:${string}`
 
 interface Section {
   key: string
-  group?: CollectionGroup
+  group?: ThreadGroup
   // A sentence of the user's, when grouped by a comparison
   sentence?: { id: string; text: string }
   label: string
   one?: string
-  rows: CollectionRow[]
+  rows: ThreadRow[]
   // Its rows and its subgroups' rows, which its counts cover
-  total: CollectionRow[]
+  total: ThreadRow[]
   depth: number
 }
 
-function relCounts(rows: CollectionRow[], column: CollectionColumn | undefined) {
+function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
   if (!column) return ""
   const n = { supports: 0, challenges: 0, related: 0 }
   for (const r of rows) {
@@ -61,7 +61,7 @@ function relCounts(rows: CollectionRow[], column: CollectionColumn | undefined) 
     .join(" · ")
 }
 
-export function CollectionTable({ collection, shown, seenBefore }: { collection: Collection; shown: Collection; seenBefore: number }) {
+export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
   const columns = shown.columns.filter((c) => !c.hidden)
   const compare = columns.find((c) => c.kind === "compare")
   const [groupBy, setGroupBy] = useState<GroupBy>(shown.groups.length ? "topic" : "none")
@@ -70,17 +70,17 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
   const [all, setAll] = useState<Set<string>>(new Set())
   const [peek, setPeek] = useState<string | null>(null)
   // A row asked for from elsewhere (a link to one of its papers) opens where it first appears
-  const asked = useCollectionsUi((s) => s.peek)
+  const asked = useThreadsUi((s) => s.peek)
   const isOpen = (key: string, rowId: string) => peek === key || (peek === null && asked === rowId)
 
-  const sortRows = (rows: CollectionRow[]) => {
+  const sortRows = (rows: ThreadRow[]) => {
     if (sort === "title") return [...rows].sort((a, b) => a.paper.title.localeCompare(b.paper.title))
     if (sort === "year") return [...rows].sort((a, b) => (b.paper.year ?? 0) - (a.paper.year ?? 0))
     if (sort.startsWith("column:")) {
       const col = sort.slice(7)
       // What cuts against the user's sentences first: the papers most worth a look
       const order: Record<Relation, number> = { challenges: 0, supports: 1, related: 2 }
-      const rank = (r: CollectionRow) => {
+      const rank = (r: ThreadRow) => {
         const rel = r.cells[col]?.rel
         return rel ? order[rel] : 3
       }
@@ -91,7 +91,7 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
 
   const sections: Section[] = []
   if (groupBy === "topic" && shown.groups.length) {
-    const add = (g: CollectionGroup, depth: number) => {
+    const add = (g: ThreadGroup, depth: number) => {
       const own = shown.rows.filter((r) => r.group === g.id)
       const children = shown.groups.filter((c) => c.parent === g.id)
       const total = [...own, ...children.flatMap((c) => shown.rows.filter((r) => r.group === c.id))]
@@ -102,7 +102,7 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
     }
     for (const g of shown.groups.filter((g) => !g.parent)) add(g, 0)
     const loose = shown.rows.filter((r) => !r.group || !shown.groups.some((g) => g.id === r.group))
-    if (loose.length) sections.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a collection in none of its groups" }), rows: loose, total: loose, depth: 0 })
+    if (loose.length) sections.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a thread in none of its groups" }), rows: loose, total: loose, depth: 0 })
   } else if (groupBy.startsWith("column:")) {
     const col = columns.find((c) => c.id === groupBy.slice(7))
     for (const s of col?.sentences ?? []) {
@@ -117,7 +117,7 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
 
   const span = columns.length + 2
   const groupOptions = [
-    ...(shown.groups.length ? [{ value: "topic" as GroupBy, label: t({ message: "Topic", comment: "group a collection's papers by Owlit's groups" }) }] : []),
+    ...(shown.groups.length ? [{ value: "topic" as GroupBy, label: t({ message: "Topic", comment: "group a thread's papers by Owlit's groups" }) }] : []),
     ...columns.filter((c) => c.kind === "compare").map((c) => ({ value: `column:${c.id}` as GroupBy, label: t`Sentences of ${displayName(c.doc ?? c.question)}` })),
     { value: "none" as GroupBy, label: t({ message: "None", comment: "no grouping" }) },
   ]
@@ -152,11 +152,11 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
             <HeadCell first>{t`Paper`}</HeadCell>
             {columns.map((c) => (
               <HeadCell key={c.id}>
-                <ColumnHeader collection={collection} column={c} />
+                <ColumnHeader thread={thread} column={c} />
               </HeadCell>
             ))}
             <HeadCell last>
-              <AskEach collection={collection} trigger="plus" />
+              <AskEach thread={thread} trigger="plus" />
             </HeadCell>
           </tr>
         </thead>
@@ -169,7 +169,7 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
               <Fragment key={`${s.key}:${s.depth}`}>
                 {s.label && (
                   <GroupRow
-                    collection={collection}
+                    thread={thread}
                     section={s}
                     open={open}
                     span={span}
@@ -182,7 +182,7 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
                   (many ? rows.slice(0, SHOWN) : rows).map((r) => (
                     <Fragment key={r.id}>
                       <TableRow
-                        collection={collection}
+                        thread={thread}
                         row={r}
                         columns={columns}
                         // Grouped by a comparison's sentences, the group says which sentence; one sentence
@@ -192,11 +192,11 @@ export function CollectionTable({ collection, shown, seenBefore }: { collection:
                         seenBefore={seenBefore}
                         open={isOpen(`${s.key}:${r.id}`, r.id)}
                         onOpen={() => {
-                          useCollectionsUi.getState().set({ peek: null })
+                          useThreadsUi.getState().set({ peek: null })
                           setPeek(isOpen(`${s.key}:${r.id}`, r.id) ? "" : `${s.key}:${r.id}`)
                         }}
                       />
-                      <PeekRow collection={collection} row={r} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
+                      <PeekRow thread={thread} row={r} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
                     </Fragment>
                   ))}
                 {open && many && (
@@ -228,10 +228,10 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
 }
 
 // A column's name, with what can be done to it; while Owlit fills it, how far it got
-function ColumnHeader({ collection, column }: { collection: Collection; column: CollectionColumn }) {
-  const filling = useTasksStore((s) => tasksFor(s.byId, `${collection.id}:${column.id}`).some((task) => task.kind === "collections.fill" && !isTaskFinished(task)))
-  const done = collection.rows.filter((r) => r.cells[column.id] && !collection.yours.removed[itemId.row(r.id)]).length
-  const of = collection.rows.filter((r) => !collection.yours.removed[itemId.row(r.id)]).length
+function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn }) {
+  const filling = useTasksStore((s) => tasksFor(s.byId, `${thread.id}:${column.id}`).some((task) => task.kind === "threads.fill" && !isTaskFinished(task)))
+  const done = thread.rows.filter((r) => r.cells[column.id] && !thread.yours.removed[itemId.row(r.id)]).length
+  const of = thread.rows.filter((r) => !thread.yours.removed[itemId.row(r.id)]).length
   const label = columnLabel(column)
   const progress = filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>
   if (column.id === QUESTION_COLUMN)
@@ -251,8 +251,8 @@ function ColumnHeader({ collection, column }: { collection: Collection; column: 
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => void askAgain(collection.id, column.id)}>{t`Ask again`}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => void editCollection(collection.id, { op: "hide", column: column.id, hidden: true })}>{t`Hide column`}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void askAgain(thread.id, column.id)}>{t`Ask again`}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void editThread(thread.id, { op: "hide", column: column.id, hidden: true })}>{t`Hide column`}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -261,10 +261,10 @@ function ColumnHeader({ collection, column }: { collection: Collection; column: 
 // Fills what the column still lacks; the answers there stay, and the user's own stay whatever happens
 async function askAgain(id: string, column: string) {
   if (!isDesktop) return
-  await rpc.collections.fill({ id, column }).catch(toastError)
+  await rpc.threads.fill({ id, column }).catch(toastError)
 }
 
-function GroupRow({ collection, section, open, span, count, rels, onToggle }: { collection: Collection; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
+function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thread: Thread; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
   const [renaming, setRenaming] = useState(false)
   const navigate = useNavigate()
   const g = section.group
@@ -275,25 +275,25 @@ function GroupRow({ collection, section, open, span, count, rels, onToggle }: { 
           {
             label: t`Merge into`,
             childrenClassName: "w-56",
-            children: collection.groups.filter((o) => o.id !== g.id).map((o) => ({ label: o.name, onSelect: () => void editCollection(collection.id, { op: "merge", group: g.id, into: o.id }) })),
+            children: thread.groups.filter((o) => o.id !== g.id).map((o) => ({ label: o.name, onSelect: () => void editThread(thread.id, { op: "merge", group: g.id, into: o.id }) })),
           },
-          { label: t`Ungroup`, onSelect: () => void editCollection(collection.id, { op: "ungroup", group: g.id }) },
+          { label: t`Ungroup`, onSelect: () => void editThread(thread.id, { op: "ungroup", group: g.id }) },
         ],
         [
           {
-            label: t`Make it a collection of its own`,
+            label: t`Make it a thread of its own`,
             onSelect: async () => {
               if (!isDesktop) return
-              const rows = collection.rows.filter((r) => r.group === g.id || collection.groups.some((c) => c.parent === g.id && c.id === r.group)).map((r) => r.id)
+              const rows = thread.rows.filter((r) => r.group === g.id || thread.groups.some((c) => c.parent === g.id && c.id === r.group)).map((r) => r.id)
               try {
-                const c = await rpc.collections.split({ id: collection.id, rows, asked: section.label })
+                const c = await rpc.threads.split({ id: thread.id, rows, asked: section.label })
                 put(c)
-                navigate(`/collections/${c.id}`)
-                toastUndo(t`Made a collection of its own`, async () => {
-                  const from = await rpc.collections.unsplit({ id: c.id }).catch(toastError)
+                navigate(`/threads/${c.id}`)
+                toastUndo(t`Made a thread of its own`, async () => {
+                  const from = await rpc.threads.unsplit({ id: c.id }).catch(toastError)
                   if (!from) return
                   put(from)
-                  navigate(`/collections/${from.id}`)
+                  navigate(`/threads/${from.id}`)
                 })
               } catch (error) {
                 toastError(error)
@@ -312,7 +312,7 @@ function GroupRow({ collection, section, open, span, count, rels, onToggle }: { 
               initial={section.label}
               label={t`Group name`}
               onDone={(name) => {
-                if (name !== null) void editCollection(collection.id, { op: "rewrite", item: itemId.group(g.id), text: name })
+                if (name !== null) void editThread(thread.id, { op: "rewrite", item: itemId.group(g.id), text: name })
                 setRenaming(false)
               }}
               className="h-7 max-w-sm px-2"
@@ -332,10 +332,10 @@ function GroupRow({ collection, section, open, span, count, rels, onToggle }: { 
   )
 }
 
-function TableRow({ collection, row, columns, sentenceShown, indent, seenBefore, open, onOpen }: { collection: Collection; row: CollectionRow; columns: CollectionColumn[]; sentenceShown: (column: CollectionColumn) => boolean; indent: number; seenBefore: number; open: boolean; onOpen: () => void }) {
+function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, open, onOpen }: { thread: Thread; row: ThreadRow; columns: ThreadColumn[]; sentenceShown: (column: ThreadColumn) => boolean; indent: number; seenBefore: number; open: boolean; onOpen: () => void }) {
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
-  const fresh = (collection.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
+  const fresh = (thread.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
     <tr id={`row-${row.id}`} className="group/row">
@@ -352,7 +352,7 @@ function TableRow({ collection, row, columns, sentenceShown, indent, seenBefore,
       </td>
       {columns.map((c) => (
         <td key={c.id} className={cn(td, "group-hover/row:bg-muted")}>
-          <Cell collection={collection} row={row} column={c} cell={row.cells[c.id]} fresh={(collection.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
+          <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={(thread.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
         </td>
       ))}
       <td className={cn(td, "group-hover/row:bg-muted")} />
@@ -360,11 +360,11 @@ function TableRow({ collection, row, columns, sentenceShown, indent, seenBefore,
   )
 }
 
-function PeekRow({ collection, row, open, span }: { collection: Collection; row: CollectionRow; open: boolean; span: number }) {
+function PeekRow({ thread, row, open, span }: { thread: Thread; row: ThreadRow; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
     <TablePeekRow open={open} span={span}>
-      <RowPeek collection={collection} row={row} library={library} className={tablePeekCard} />
+      <RowPeek thread={thread} row={row} library={library} className={tablePeekCard} />
     </TablePeekRow>
   )
 }
@@ -373,13 +373,13 @@ function PeekRow({ collection, row, open, span }: { collection: Collection; row:
 // A comparison says how the paper stands and why, Owlit's reason being what the user doesn't know yet; their
 // own sentence is one muted line under it only where nothing else says which one. It opens to the words it
 // rests on, and to rewriting it; the user's words stay through every later answer.
-function Cell({ collection, row, column, cell, fresh, showSentence, libraryId }: { collection: Collection; row: CollectionRow; column: CollectionColumn; cell: CollectionCell | undefined; fresh: boolean; showSentence: boolean; libraryId?: string }) {
+function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { thread: Thread; row: ThreadRow; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; showSentence: boolean; libraryId?: string }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
   if (!cell) return <span className="text-muted-foreground/60">…</span>
   const item = itemId.cell(row.id, column.id)
-  const edit = collection.yours.edits[item]
+  const edit = thread.yours.edits[item]
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
   const text = edit?.text ?? cell.text
   const page = cell.depth === "full" && cell.passage && !edit ? cell.passage.page : undefined
@@ -419,7 +419,7 @@ function Cell({ collection, row, column, cell, fresh, showSentence, libraryId }:
               onCancel={() => setEditing(false)}
               onSave={(text) => {
                 setEditing(false)
-                void editCollection(collection.id, { op: "rewrite", item, text })
+                void editThread(thread.id, { op: "rewrite", item, text })
               }}
             />
           </div>
@@ -444,7 +444,7 @@ function Cell({ collection, row, column, cell, fresh, showSentence, libraryId }:
             </Button>
           )}
           {edit && (
-            <Button variant="text" size="inline" title={t`Was: ${edit.was}`} onClick={() => void editCollection(collection.id, { op: "revert", item })}>
+            <Button variant="text" size="inline" title={t`Was: ${edit.was}`} onClick={() => void editThread(thread.id, { op: "revert", item })}>
               {t`Use Owlit's words`}
             </Button>
           )}

@@ -231,15 +231,15 @@ function lesson(step: StepId): Lesson | null {
       }
     case "collect":
       return {
-        icon: KIND_ICON.collection,
-        kicker: t`Collections`,
+        icon: KIND_ICON.thread,
+        kicker: t`Threads`,
         title: t`Owlit gathers papers.`,
         body: (
           <Trans>
             Give Owlit a question and it gathers papers on it, with <b>what each one says</b> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer.
           </Trans>
         ),
-        place: "collections",
+        place: "threads",
       }
     case "you":
       return { icon: UserIcon, kicker: t`About you`, title: t`A little about you.`, body: t`So Owlit knows what to call you and how to reach your papers. All of it can wait.`, place: "chat" }

@@ -57,7 +57,7 @@ const sorts = (): { value: SortKey; label: string }[] => [
   { value: "year", label: t`Year` },
   { value: "title", label: t`Title` },
   { value: "authors", label: t`Authors` },
-  { value: "collection", label: t({ message: "Collection", comment: "sort: group the Library's papers by the collection they came from" }) },
+  { value: "thread", label: t({ message: "Thread", comment: "sort: group the Library's papers by the thread they came from" }) },
 ]
 
 export function SortMenu() {
