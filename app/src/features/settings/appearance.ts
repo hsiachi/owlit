@@ -22,9 +22,16 @@ export function storedAppearance(): AppearanceSettings {
 function paint() {
   const root = document.documentElement
   const dark = current.theme === "dark" || (current.theme === "system" && darkQuery.matches)
+  // Every surface takes the new colours in the same frame: left alone, whatever has a colour transition
+  // (buttons, rows) would trail the rest by a beat and the switch would look smeared. Reading the layout
+  // commits the change before the transitions come back.
+  root.classList.add("no-transitions")
   root.classList.toggle("dark", dark)
   if (current.tone === "warm") delete root.dataset.tone
   else root.dataset.tone = current.tone
+  void document.body.offsetHeight
+  // A timer, not a frame callback: a hidden window runs no frames, and a system switch can land there
+  setTimeout(() => root.classList.remove("no-transitions"))
 }
 
 export function applyAppearance(next: AppearanceSettings) {

@@ -135,7 +135,7 @@ function IntroReplay() {
   const close = useIntro((s) => s.close)
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 animate-in fade-in duration-(--t-menu) ease-(--ease)">
       <OnboardingFlow mode="replay" onClose={close} />
     </div>
   )
