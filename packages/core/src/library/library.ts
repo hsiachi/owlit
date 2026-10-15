@@ -30,12 +30,12 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { NeedsUser, type BrowserControl, type BrowserHost } from "../host.ts"
+import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
 import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
-import { DownloadWatch, WATCH_MS, whoseDownload } from "./downloads.ts"
-import { whereItEnded, type Ended } from "./where-it-ended.ts"
-import { Publishers } from "./publishers.ts"
+import { DownloadWatch, isThisPaper, sameTitle, WATCH_MS, whoseDownload } from "./downloads.ts"
+import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
+import { Publishers, type VisitEnd } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
@@ -43,7 +43,7 @@ import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { citationsDue, countCitations } from "./citations.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
-import { type Acquisition, type Attempt, describeFailure, downloadPdf, ELSEVIER_API_HOST, hasPdfFile, isPdfBytes, landingOf, pdfFile, readAcquisition, registeredUrl, routesFor, unpaywallRoutes, WILEY_API_HOST, writeAcquisition } from "./pdf.ts"
+import { type Acquisition, type Attempt, describeFailure, downloadPdf, ELSEVIER_API_HOST, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, readAcquisition, registeredUrl, type Route, routesFor, unpaywallRoutes, WILEY_API_HOST, writeAcquisition } from "./pdf.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { Imports } from "./bulk/imports.ts"
@@ -112,6 +112,15 @@ const limitWait = () => Number(process.env.OWLIT_BROWSER_LIMIT_MS ?? LIMIT_WAIT_
 // How long after the user's browser was sent for a paper a PDF in Downloads is still taken as its, at
 // the next start
 const RESUME_MS = 24 * 60 * 60 * 1000
+// The daily look for a paper without a PDF, spaced out the longer nothing comes: a day after the first
+// look, then 3, 7 and 30 days (2026-10-15: 27 papers looked at every day, owlit's browser visiting their
+// publishers 58 times in one day and getting nothing). New open copies do turn up, so it never stops.
+const LOOK_AGAIN_DAYS = [1, 3, 7, 30]
+export function lookAgain(acquisition: Pick<Acquisition, "at" | "looks">, now: number) {
+  const days = LOOK_AGAIN_DAYS[Math.min(Math.max(acquisition.looks ?? 1, 1), LOOK_AGAIN_DAYS.length) - 1]
+  // A little early is fine: a look that ran at 9:05 yesterday is due at 9:00 today
+  return now - acquisition.at >= days * 24 * 60 * 60 * 1000 - 60 * 60 * 1000
+}
 const pageLook = () => Number(process.env.OWLIT_BROWSER_LOOK_MS ?? PAGE_LOOK_MS)
 const checkWait = () => Number(process.env.OWLIT_BROWSER_CHECK_MS ?? CHECK_WAIT_MS)
 // A paper's turn in a run in the user's browser (Paper.noPdf.fromBrowser, without the browser's name)
@@ -323,13 +332,18 @@ export class Library {
           from = undefined
         }
         if (from) paper.noPdf.fromBrowser = { ...from, ...(this.browserLabel ? { browser: this.browserLabel } : {}) }
-        const said = acquisition.yourBrowser
+        // What the user's browser was told, or else what owlit's own look through the library found,
+        // whichever is newer
+        const theirs = acquisition.yourBrowser
+        const ours = acquisition.looked
+        const said = ours && (!theirs || ours.at > theirs.at) ? { ...ours, by: "owlit" as const } : theirs
         // A run that sent the browser and got nothing, before this start: still tried, so Get them
         // doesn't open the same page again
         if (said?.outcome === "missed" && !from) paper.noPdf.fromBrowser = { state: "missed", ...(this.browserLabel ? { browser: this.browserLabel } : {}) }
-        else if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", ...(said.outcome === "missing" ? { missing: true } : {}), at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}) }
+        else if (said && !from) paper.noPdf.noAccess = { refused: said.outcome === "refused", ...(said.outcome === "missing" ? { missing: true } : {}), at: said.at, ...(said.host ? { host: said.host } : {}), ...(said.title ? { title: said.title } : {}), ...("by" in said ? { by: said.by } : {}) }
         const offered = this.offered.get(id)
         if (offered) paper.noPdf.offered = path.basename(offered)
+        if (acquisition.sentToBrowser) paper.noPdf.sentAt = acquisition.sentToBrowser.at
       }
     }
     return paper
@@ -814,12 +828,31 @@ export class Library {
             if (noted) await this.announce([id])
             return
           }
+          // A site whose last visits were checks and never a PDF: the user's browser without a visit, as
+          // for the ACM, until its weekly look (publishers.ts)
+          const checking = (await Promise.all(sites.map(async (site) => ((await this.publishers.onlyChecks(site)) ? site : undefined)))).find(Boolean)
+          if (checking) {
+            if (previous?.result === "no_pdf" && previous.needs) return
+            tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${checking} keeps showing owlit's browser a check.`, at: Date.now() })
+            needs = { reason: "browser", route: routes[0].name, at: Date.now(), host: checking }
+            const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
+            if (noted) await this.announce([id])
+            return
+          }
           const wait = Math.max(0, ...sites.map((site) => this.publishers.waitFor(site)))
           if (wait > 0) ctx.later(wait)
         }
         for (const site of sites) this.publishers.visited(site)
         // Sites that just turned an unattended visit away: the proxy leading back to one is stopped
         const avoid: string[] = []
+        // What the pages that gave no PDF were: through the library's proxy, an offer to buy is the library
+        // saying no; directly, it may only be that owlit's browser isn't signed in where the user's is
+        let looked: Acquisition["looked"]
+        // How a direct visit ended, kept against the site it ended on (or the route's own)
+        const ended = (host: string | undefined, how: VisitEnd) => {
+          const site = host ? siteOf(host) : sites[0]
+          return site ? this.publishers.visitEnded(site, how) : undefined
+        }
         for (const route of routes) {
           ctx.progress(0, undefined, route.name)
           const proxied = route.name.endsWith(":proxied")
@@ -837,6 +870,7 @@ export class Library {
             if (!isPdfBytes(bytes)) throw new Error(`${route.name} gave something that isn't a PDF.`)
             tried.push({ route: route.name, url: route.landing, status: 200, at: Date.now() })
             if (proxied) this.services.proxySignedIn?.(true)
+            for (const site of sites) await this.publishers.visitEnded(site, "pdf")
             // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
             await this.serial.run(async () => {
               // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
@@ -868,12 +902,35 @@ export class Library {
               if (error.reason === "challenge" && error.host) {
                 await this.publishers.hold(siteOf(error.host), "challenge")
                 avoid.push(siteOf(error.host))
+                if (!proxied) await ended(error.host, "check")
               }
-            }
+            } else if (error instanceof NoPdfOnPage) {
+              const verdict = pageVerdict(error.seen)
+              const host = hostOf(error.seen.url) || undefined
+              if (!proxied) await ended(host, verdict)
+              if (verdict === "missing" || (verdict === "no-access" && proxied)) {
+                looked = { outcome: verdict, at: Date.now(), ...(host ? { host } : {}), ...(error.seen.title ? { title: error.seen.title } : {}) }
+              } else {
+                // No PDF on the page, or an offer only owlit's browser was shown: the user's browser, with
+                // their sign-ins, may still get it there
+                needs ??= { reason: "browser", route: route.name, at: Date.now(), ...(host ? { host } : {}) }
+              }
+            } else if (!proxied) await ended(undefined, "error")
           }
         }
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
-        const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, ...(needs ? { needs } : {}) }))
+        // A page that wasn't there isn't the user's browser's to look at either
+        if (looked?.outcome === "missing") needs = undefined
+        const noted = await this.noPdf(id, (before) => ({
+          version: 1,
+          result: "no_pdf",
+          tried,
+          at: Date.now(),
+          dropHere: dest,
+          ...(before?.looks ? { looks: before.looks } : {}),
+          ...(needs ? { needs } : {}),
+          looked,
+        }))
         if (noted) await this.announce([id])
       },
     })
@@ -1495,6 +1552,37 @@ export class Library {
     })
   }
 
+  // Open copies of a paper known only by its title (no DOI), from arXiv, Semantic Scholar and OpenAlex:
+  // only a record with the very same title, and the same first author's surname when both name one.
+  // What comes is checked against the title on its pages before it is kept (Route.checkTitle).
+  private async copiesByTitle(record: PaperRecord, http: Http, signal: AbortSignal): Promise<Route[]> {
+    if (!sameTitle(record.title, record.title)) return []
+    const settings = await this.services.settings()
+    const surname = (name?: string) => name?.trim().split(/\s+/).at(-1)?.toLowerCase()
+    const routes: Route[] = []
+    const seen = new Set<string>()
+    for (const source of ["arxiv", "s2", "openalex"] as const) {
+      const found = await searchSource(http, record.title, 3, source, {}, settings, { retries: 1, signal }).catch((error) => {
+        if (signal.aborted) throw error
+        return { records: [] }
+      })
+      for (const hit of found.records) {
+        if (!hit.title || !sameTitle(hit.title, record.title)) continue
+        const theirs = surname(hit.authors?.[0])
+        const ours = surname(record.authors[0])
+        if (theirs && ours && theirs !== ours) continue
+        const urls = [...(hit.ids.arxiv ? [`https://arxiv.org/pdf/${hit.ids.arxiv}`] : []), ...(hit.pdfUrls ?? [])]
+        for (const url of urls) {
+          if (seen.has(url)) continue
+          seen.add(url)
+          routes.push({ kind: "upstream", name: `title:${source}`, url, checkTitle: true })
+        }
+      }
+      if (routes.length) break
+    }
+    return routes
+  }
+
   // When the user's browser was sent for the paper, so a PDF saved after a restart is still found
   private async noteSent(id: string, page: boolean) {
     await this.serial.run(async () => {
@@ -1748,8 +1836,11 @@ export class Library {
     const kept = (await readJson<{ missingRetriedOn?: string }>(file).catch(() => undefined)) ?? {}
     if (kept.missingRetriedOn === today) return
     await writeJsonAtomic(file, { ...kept, missingRetriedOn: today })
+    const now = Date.now()
     for (const id of await this.ids()) {
-      if ((await readAcquisition(this.root, id))?.result === "no_pdf" && !(await hasPdfFile(this.root, id))) this.queue("paper.pdf", id, "background")
+      const acquisition = await readAcquisition(this.root, id)
+      if (acquisition?.result !== "no_pdf" || !lookAgain(acquisition, now) || (await hasPdfFile(this.root, id))) continue
+      this.queue("paper.pdf", id, "background")
     }
   }
 
@@ -2013,7 +2104,20 @@ export class Library {
             keys: { elsevierApiKey: settings.elsevierApiKey, wileyTdmToken: settings.wileyTdmToken },
           })
           const dest = pdfFile(this.root, id)
-          for await (const route of routes) {
+          // A repository's page that came instead of its PDF may name the PDF: tried next, once
+          const pages: Route[] = []
+          const iterator = routes[Symbol.asyncIterator]()
+          // A paper without a DOI has only the links it came with: once they fail, open copies of a paper
+          // with its very title are looked for (copiesByTitle)
+          let byTitle = !record.ids.doi
+          const next = async (): Promise<Route | undefined> => {
+            const route = pages.shift() ?? ((await iterator.next()).value as Route | undefined)
+            if (route || !byTitle) return route
+            byTitle = false
+            pages.push(...(await this.copiesByTitle(record!, http, ctx.signal)))
+            return pages.shift()
+          }
+          for (let route = await next(); route; route = await next()) {
             ctx.progress(tried.length, undefined, route.name)
             // A site that answers plain downloads with a check is left to the browser for a while:
             // asking again only counts against this network
@@ -2025,8 +2129,18 @@ export class Library {
             try {
               await downloadPdf(http, route.url, dest, ctx.signal, route.headers)
               if (route.name === "api:elsevier") await wholeArticle(dest, this.services.pdfiumWasm)
+              // A PDF owlit didn't pick by its address must be the paper: a repository's page can name
+              // another paper's file, or its logo
+              if (route.checkTitle && isThisPaper(await this.lookAtPdf(dest), { doi: record.ids.doi, title: record.title }) === "no") {
+                await rm(dest, { force: true })
+                throw new NotAPdf(`${hostOf(route.url)} gave the PDF of another paper.`)
+              }
             } catch (error) {
               if (ctx.signal.aborted) throw error
+              if (error instanceof NotAPdf && error.page && (route.kind === "upstream" || route.kind === "unpaywall") && !route.checkTitle) {
+                const named = await pdfNamedOnPage(http, error.page, ctx.signal)
+                if (named && named !== route.url) pages.push({ kind: route.kind, name: `${route.name}:page`, url: named, checkTitle: true })
+              }
               // Held against the site that put up the check, not where the route starts: a doi.org
               // link that lands on dl.acm.org says nothing about doi.org
               if (error instanceof HttpError && error.challenged) {
@@ -2054,18 +2168,26 @@ export class Library {
           // No server answered at all (doi.org, Unpaywall, the routes): the machine is offline, which
           // passes. One dead host among ones that answered is just a route that failed.
           if (heard.asked && !heard.answered) throw new HttpError(0, tried[0]?.url ?? "", t`Couldn't reach any source of PDFs.`)
-          const noted = await this.noPdf(id, (previous) => ({
-            version: 1,
-            result: "no_pdf",
-            tried,
-            at: Date.now(),
-            dropHere: dest,
-            // A check the publisher wants stays noted until the browser looks again (queued below)
-            ...(previous?.needs ? { needs: previous.needs } : {}),
-          }))
+          let before: Acquisition | undefined
+          const noted = await this.noPdf(id, (previous) => {
+            before = previous
+            return {
+              version: 1,
+              result: "no_pdf",
+              tried,
+              at: Date.now(),
+              dropHere: dest,
+              looks: (previous?.result === "no_pdf" ? (previous.looks ?? 1) : 0) + 1,
+              // A check the publisher wants stays noted until the browser looks again (queued below)
+              ...(previous?.needs ? { needs: previous.needs } : {}),
+            }
+          })
           if (!noted) return
-          // The publisher may still give it to a browser: cookies, a challenge, the library's proxy
-          if (record.ids.doi) this.queue("paper.pdf.browser", id, ctx.task.priority)
+          // The publisher may still give it to a browser: cookies, a challenge, the library's proxy. Not on
+          // owlit's own account once the publisher said no (to the user's browser, or to owlit's through
+          // the library): only the user asking looks again there.
+          const saidNo = !!before?.looked || (!!before?.yourBrowser && before.yourBrowser.outcome !== "missed")
+          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) this.queue("paper.pdf.browser", id, ctx.task.priority)
           await this.announce([id])
         },
       }),
@@ -2193,6 +2315,8 @@ export class Library {
       // What the user's browser was told stands through owlit's own looks
       if (previous?.yourBrowser && !next.yourBrowser) next.yourBrowser = previous.yourBrowser
       if (previous?.sentToBrowser && !next.sentToBrowser) next.sentToBrowser = previous.sentToBrowser
+      // What owlit's own browser found stands until it looks again (which says, even if only undefined)
+      if (previous?.looked && !("looked" in next)) next.looked = previous.looked
       await writeAcquisition(this.root, id, next)
       return true
     })

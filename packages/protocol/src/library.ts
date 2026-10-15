@@ -71,9 +71,13 @@ export interface Paper {
     // The user's browser reached the publisher and it said no (refused: the library proxy said it
     // hasn't got it; missing: the publisher has no PDF at that address), with the page it showed. Kept
     // until a PDF comes or the paper is tried again.
-    noAccess?: { refused: boolean; missing?: boolean; host?: string; title?: string; at: number }
+    // by "owlit": owlit's own browser found it, through the library's proxy, before the user's was sent.
+    noAccess?: { refused: boolean; missing?: boolean; host?: string; title?: string; at: number; by?: "owlit" }
     // A PDF that arrived in Downloads (file name) owlit isn't sure is this paper's, for them to confirm
     offered?: string
+    // When the user's browser was last sent for it, whatever came of that: a paper tried there once
+    // isn't offered among the ones that might come through it
+    sentAt?: number
   }
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers

@@ -11,7 +11,7 @@ import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
-import { needsYou, type PaperGroup } from "../lib/filter"
+import { noPdfReason, type PaperGroup } from "../lib/filter"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
@@ -95,14 +95,21 @@ function DigestMark({ state }: { state: DigestState }) {
   return null
 }
 
-// A paper without its PDF says why in its row: Needs you while a publisher waits on the user; once their
-// browser was turned away or nothing came of it, what happened, a plain detail, since nothing waits on
-// them any more
+// A paper without its PDF says why in its row: Needs you while a publisher waits on the user; otherwise
+// what happened (turned away, nothing came, nothing found), a plain detail, since nothing waits on them
 function noPdfWord(p: Paper) {
-  if (needsYou(p)) return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
-  const said = p.noPdf?.noAccess
-  if (said) return said.missing ? t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" }) : t({ message: "No access", comment: "the user's library doesn't give them this paper" })
-  if (p.noPdf?.fromBrowser?.state === "missed") return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
+  switch (noPdfReason(p)) {
+    case "needs":
+      return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
+    case "no-access":
+      return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+    case "missing":
+      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
+    case "missed":
+      return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
+    case "not-found":
+      return t({ message: "No PDF", comment: "owlit looked for the paper's PDF and found none" })
+  }
   return undefined
 }
 

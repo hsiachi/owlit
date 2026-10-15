@@ -91,10 +91,17 @@ const card = (state: CardState, paper?: Paper): { title: string; detail: string 
               title: host ? t`${host} has no PDF of this paper` : t`The publisher has no PDF of this paper`,
               detail: title ? t`It answered “${title}”. The paper may be kept somewhere else: drop its PDF here if you find it.` : t`The paper may be kept somewhere else: drop its PDF here if you find it.`,
             }
-          : {
-              title: t`No access through your library`,
-              detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
-            }
+          : said?.by === "owlit"
+            ? {
+                title: t`No access through your library`,
+                detail: host
+                  ? t`Through your library, ${host} offered access instead of the PDF. Your library may not subscribe to this journal.`
+                  : t`Through your library, the publisher offered access instead of the PDF. Your library may not subscribe to this journal.`,
+              }
+            : {
+                title: t`No access through your library`,
+                detail: host ? t`Your browser reached ${host}, which showed its page instead of the PDF. Your library may not subscribe to this journal.` : t`The publisher showed its page instead of the PDF. Your library may not subscribe to this journal.`,
+              }
     }
     case "browser-missed":
       return {
@@ -176,7 +183,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
   // What was tried and what to do, as one message so a language can join the two sentences its own way
   const detail =
     state === "not-found"
-      ? t`${tried} Drop a PDF here if you have it.`
+      ? paper.ids.doi
+        ? t`${tried} Drop a PDF here if you have it.`
+        : t`${tried} It has no DOI, so owlit could only look by its title. Drop a PDF here if you have it.`
       : state === "offered"
         ? t`${file} just arrived in your Downloads, and owlit can't tell whose it is.`
         : plain
@@ -297,7 +306,7 @@ const notifyNeeds = (paper: Paper) => notifyWhenAway({ title: card("browser", pa
 // "Tried arXiv, Unpaywall and the publisher." from acquisition route names
 function triedSentence(routes: string[]) {
   const nameOf = (r: string) =>
-    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? t`the publisher` : r.endsWith(":proxied") ? t`the library proxy` : r.startsWith("unpaywall") ? "Unpaywall" : r === "open-access" ? t`open-access links` : ""
+    r === "arxiv" ? "arXiv" : r.startsWith("publisher") || r.startsWith("browser:") && !r.endsWith(":proxied") ? t`the publisher` : r.endsWith(":proxied") ? t`the library proxy` : r.startsWith("unpaywall") ? "Unpaywall" : r.startsWith("open-access") ? t`open-access links` : r.startsWith("title:") ? t`a search by its title` : ""
   const names = [...new Set(routes.map(nameOf))].filter(Boolean)
   if (!names.length) return t`owlit knows of no open copy of this paper.`
   const list = joinAnd(names)

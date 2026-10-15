@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
-import { FromBrowserLine } from "../components/FromBrowserLine"
+import { FromBrowserLine, NoPdfLine } from "../components/FromBrowserLine"
 import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
@@ -68,9 +68,10 @@ export function LibraryPage() {
   const table = layout === "table"
   const byCollection = useMemo(() => (table || sort.key === "collection" ? collectionsByPaper(collections, papers, aliases) : undefined), [table, sort.key, collections, papers, aliases])
   const searching = words.length > 0
-  const groups = useMemo(() => groupPapers(visible, sort, searching, Date.now(), byCollection), [visible, sort, searching, byCollection])
-  // Grouped by collection, papers show in their groups' order, which the keys follow
-  const byGroups = sort.key === "collection" && !searching
+  const byReason = filter === "no-pdf"
+  const groups = useMemo(() => groupPapers(visible, sort, searching, Date.now(), byCollection, byReason), [visible, sort, searching, byCollection, byReason])
+  // Grouped by collection or by why there is no PDF, papers show in their groups' order, which the keys follow
+  const byGroups = (sort.key === "collection" || byReason) && !searching
   const order = useMemo(() => (byGroups ? groups.flatMap((g) => g.papers.map((p) => p.id)) : visible.map((p) => p.id)), [byGroups, groups, visible])
   const { scroller, listProps } = usePaperListKeys(order)
   const empty = Object.keys(papers).length === 0
@@ -104,6 +105,7 @@ export function LibraryPage() {
         />
         <ImportBanner />
         <FromBrowserLine />
+        {filter === "no-pdf" && <NoPdfLine />}
         <LibraryFindField onSubmit={submit} onPickFiles={addPdfFiles} />
         {refInput ? (
           <AddCandidate lookup={lookup} onAdd={add} input={refInput} />

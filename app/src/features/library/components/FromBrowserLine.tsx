@@ -1,12 +1,15 @@
 import { plural, t } from "@lingui/core/macro"
 import { LoaderCircleIcon, XIcon } from "lucide-react"
+import { useMemo } from "react"
 import { IconButton } from "@/components/icon-button"
 import { InlineLink } from "@/components/inline-link"
 import { WaitingDot } from "@/components/marks"
 import { JoinDots, StatusLine } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
-import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useLastRun, usePagesToSave, useStoppedOn, useWaitingForBrowser, type RunTally } from "../from-browser"
+import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useLastRun, useMightComeThroughBrowser, usePagesToSave, useStoppedOn, useWaitingForBrowser, type RunTally } from "../from-browser"
+import { noPdfReason } from "../lib/filter"
+import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
 
 // Getting PDFs from the user's own browser, in the import's place at the top of the Library and on the
@@ -90,6 +93,35 @@ export function FromBrowserLine() {
     <StatusLine mark={mark} actions={actions}>
       <span className="truncate">{words}</span>
     </StatusLine>
+  )
+}
+
+// Under the No PDF filter, the papers that might still come through the user's browser, though owlit
+// doesn't expect them to (it found nothing for them): a quiet grey line, no dot, under the amber one
+// when that shows. Once tried there, each says what its tab ended on and leaves this count.
+export function NoPdfLine() {
+  const papers = useLibraryStore((s) => s.papers)
+  const total = useMemo(() => Object.values(papers).filter((p) => !!noPdfReason(p)).length, [papers])
+  const maybe = useMightComeThroughBrowser()
+  const showOnly = useLibraryUi((s) => s.showOnly)
+  if (!maybe.length) return null
+  const all = plural(total, { one: "# paper without a PDF", other: "# papers without a PDF" })
+  const might = plural(maybe.length, { one: "# might come through your browser", other: "# might come through your browser" })
+  return (
+    <div className="mt-3 -mb-1 flex min-h-7 items-center gap-3 text-detail text-muted-foreground" role="status">
+      <span className="flex min-w-0 flex-1 items-center gap-2 tabular-nums">
+        <span className="truncate">
+          {all}
+          {" · "}
+          <InlineLink onClick={() => showOnly(maybe.map((p) => p.id), t`Might come through your browser`)}>{might}</InlineLink>
+        </span>
+      </span>
+      <span className="-mr-1.5 flex shrink-0 items-center gap-0.5">
+        <Button variant="text" size="inline" onClick={() => void getInBrowser(maybe.map((p) => p.id))}>
+          {plural(maybe.length, { one: "Try it in your browser", other: "Try them in your browser" })}
+        </Button>
+      </span>
+    </div>
   )
 }
 

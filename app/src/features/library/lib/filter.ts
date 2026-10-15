@@ -18,7 +18,28 @@ export function matchesQuery(p: Paper, q: string): boolean {
 // nothing came, there is nothing for them to do now, so it leaves the amber rung and its card's Try
 // again is all that is left. So Needs you is what Get them would open, the article pages open for the
 // user to save from, and a run's papers while it goes on.
-export const needsYou = (p: Paper) => !!p.noPdf?.needs && !p.noPdf.noAccess && p.noPdf.fromBrowser?.state !== "missed"
+// A paper owlit found nothing for counts too while the user's browser is on it (tried from the No PDF
+// view): its page waits to be saved like any other.
+const ON_IT = new Set(["queued", "opened", "page", "waiting"])
+export const needsYou = (p: Paper) =>
+  !p.pdf && ((!!p.noPdf?.needs && !p.noPdf.noAccess && p.noPdf.fromBrowser?.state !== "missed") || ON_IT.has(p.noPdf?.fromBrowser?.state ?? ""))
+
+// Why a paper owlit looked for has no PDF, in the order the No PDF view groups them: what the user can do
+// now first, then what was found to be missing. A paper still being looked for has no reason yet.
+export type NoPdfReason = "needs" | "not-found" | "no-access" | "missing" | "missed"
+export const NO_PDF_REASONS: NoPdfReason[] = ["needs", "not-found", "no-access", "missing", "missed"]
+
+export function noPdfReason(p: Paper): NoPdfReason | undefined {
+  if (p.pdf || !p.noPdf) return undefined
+  if (needsYou(p)) return "needs"
+  if (p.noPdf.noAccess) return p.noPdf.noAccess.missing ? "missing" : "no-access"
+  if (p.noPdf.fromBrowser?.state === "missed") return "missed"
+  return "not-found"
+}
+
+// Papers owlit found nothing for whose publisher the user's own browser hasn't been sent to: their
+// access and sign-ins may still get the PDF, though owlit doesn't expect it (unlike Needs you)
+export const mightComeThroughBrowser = (p: Paper) => noPdfReason(p) === "not-found" && !!p.ids.doi && !p.noPdf?.fromBrowser && !p.noPdf?.sentAt
 
 function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {
@@ -28,6 +49,8 @@ function matchesFilter(p: Paper, f: StatusFilter): boolean {
       return p.starred
     case "needs":
       return needsYou(p)
+    case "no-pdf":
+      return !!noPdfReason(p)
     default:
       return p.status === f
   }
@@ -85,11 +108,12 @@ export function visiblePapers(papers: Record<string, Paper>, params: ListParams,
 }
 
 export function countByFilter(papers: Record<string, Paper>): Record<StatusFilter, number> {
-  const c: Record<StatusFilter, number> = { all: 0, starred: 0, unread: 0, reading: 0, read: 0, needs: 0 }
+  const c: Record<StatusFilter, number> = { all: 0, starred: 0, unread: 0, reading: 0, read: 0, needs: 0, "no-pdf": 0 }
   for (const p of Object.values(papers)) {
     c.all++
     if (p.starred) c.starred++
     if (needsYou(p)) c.needs++
+    if (noPdfReason(p)) c["no-pdf"]++
     c[p.status]++
   }
   return c
@@ -107,10 +131,30 @@ const ageBands = (): [string, number][] => [
   [t`Earlier`, Infinity],
 ]
 
+const reasonLabels = (): Record<NoPdfReason, string> => ({
+  needs: t({ message: "Needs you", comment: "group of papers without a PDF whose publisher wants the user" }),
+  "not-found": t({ message: "No PDF found", comment: "group of papers owlit looked for and found no PDF of" }),
+  "no-access": t({ message: "No access", comment: "group of papers the user's library doesn't give them" }),
+  missing: t({ message: "No PDF there", comment: "group of papers whose publisher has no PDF of them" }),
+  missed: t({ message: "Didn't come", comment: "group of papers the user's browser was sent for and no PDF arrived" }),
+})
+
 // The list layout's groups, in the spirit of the chat history: by age when sorted by date added,
-// by year when sorted by year, one count while searching, and none for the alphabetical sorts
-export function groupPapers(papers: Paper[], sort: Sort, searching: boolean, now = Date.now(), collections?: Map<string, { id: string; title: string }[]>): PaperGroup[] {
+// by year when sorted by year, one count while searching, and none for the alphabetical sorts. Papers
+// without a PDF (the No PDF filter) by why, whatever the sort, which orders each group.
+export function groupPapers(
+  papers: Paper[],
+  sort: Sort,
+  searching: boolean,
+  now = Date.now(),
+  collections?: Map<string, { id: string; title: string }[]>,
+  byReason = false,
+): PaperGroup[] {
   if (searching) return [{ label: plural(papers.length, { one: "# paper", other: "# papers" }), papers }]
+  if (byReason) {
+    const labels = reasonLabels()
+    return NO_PDF_REASONS.map((reason) => ({ label: labels[reason], papers: papers.filter((p) => noPdfReason(p) === reason) })).filter((g) => g.papers.length > 0)
+  }
   // By the collection that holds a paper (the most recently changed one, when several do); papers that
   // came some other way last
   if (sort.key === "collection") {

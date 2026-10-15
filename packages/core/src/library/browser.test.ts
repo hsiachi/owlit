@@ -5,10 +5,11 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, onTestFinished } from "vitest"
 import { Core } from "../core.ts"
-import { NeedsUser, type BrowserControl, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
+import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
 import { makePdf } from "./text/make-pdf.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, pdfLinkOn, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
+import { browserRoutes, pdfFromLanded, pdfLinkOn, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
+import { ACCESS_OFFER, pageVerdict } from "./where-it-ended.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
 
@@ -867,5 +868,102 @@ describe("your own browser", () => {
     expect(urls).toHaveLength(2)
     expect(urls[0]).toBe("https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/pdf/10.1177/0146167212445599?download=true")
     expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
+  })
+})
+
+describe("what owlit's browser found", () => {
+  const apa = { id: "doi-10.1037-a0017908", title: "Who knows what about a person?", authors: [], ids: { doi: "10.1037/a0017908" } }
+  const tlink = { proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" } }
+  const offer = (url: string) => new NoPdfOnPage("The publisher's page doesn't link a PDF.", { url, title: "Who knows what about a person?", status: 200, offersAccess: true })
+
+  it("says no access when the library's proxy reaches an offer to buy, and doesn't send the user's browser", async () => {
+    const { browser } = fakeBrowser(async (request) => {
+      throw offer(request.landing.includes("tlink") ? "https://psycnet.apa.org/doiLanding?doi=10.1037%2Fa0017908" : "https://psycnet.apa.org/doiLanding?doi=10.1037%2Fa0017908")
+    })
+    const { root, call } = await setup(browser, tlink)
+    await call("library.add", { paper: apa })
+    const paper = await call("library.fetchPdf", { id: apa.id })
+    expect(paper.noPdf.noAccess).toMatchObject({ by: "owlit", host: "psycnet.apa.org", title: "Who knows what about a person?" })
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", apa.id, "acquisition.json"), "utf8"))
+    expect(acquisition.looked).toMatchObject({ outcome: "no-access", host: "psycnet.apa.org" })
+  })
+
+  it("sends a page with no PDF on it, or an offer seen only directly, to the user's browser", async () => {
+    const { browser } = fakeBrowser(async () => {
+      throw offer("https://psycnet.apa.org/doiLanding?doi=10.1037%2Fa0017908")
+    })
+    const { call } = await setup(browser)
+    await call("library.add", { paper: apa })
+    const paper = await call("library.fetchPdf", { id: apa.id })
+    expect(paper.noPdf).toMatchObject({ needs: "browser" })
+    expect(paper.noPdf.noAccess).toBeUndefined()
+  })
+
+  it("notes a page that wasn't there, and leaves the user's browser out of it", async () => {
+    const { browser } = fakeBrowser(async () => {
+      throw new NoPdfOnPage("The publisher's page doesn't link a PDF.", { url: "https://doi.org/10.1037/a0017908", title: "DOI Not Found", status: 404, offersAccess: false })
+    })
+    const { call } = await setup(browser)
+    await call("library.add", { paper: apa })
+    const paper = await call("library.fetchPdf", { id: apa.id })
+    expect(paper.noPdf.needs).toBeUndefined()
+    expect(paper.noPdf.noAccess).toMatchObject({ missing: true, by: "owlit" })
+  })
+
+  it("stops visiting a site whose last visits were checks, until a week has passed", async () => {
+    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
+    const { base, root, call, workspace } = await setup(browser)
+    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
+    const visits = (at: number) => [1, 2, 3].map((i) => ({ at: at + i, ended: "check" }))
+    writeFileSync(path.join(dataDir, "publishers.json"), JSON.stringify({ version: 1, sites: { "sagepub.com": { visits: visits(Date.now() - 60_000) } } }))
+    await call("library.add", { paper: sage })
+    await until(async () => !workspace.tasks.list().some((t) => t.subject === sage.id && t.kind.startsWith("paper.pdf") && !["done", "failed", "cancelled"].includes(t.state)))
+    expect(asked).toHaveLength(0)
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
+    expect(acquisition.tried.at(-1)).toMatchObject({ error: "Not tried: sagepub.com keeps showing owlit's browser a check." })
+    expect(acquisition.needs).toMatchObject({ reason: "browser" })
+  })
+
+  it("keeps how each visit ended, and a PDF ends the run of checks", async () => {
+    let check = true
+    const { browser } = fakeBrowser(async () => {
+      if (check) throw new NeedsUser("challenge", "journals.sagepub.com")
+      return new Uint8Array(PDF)
+    })
+    const { base, call } = await setup(browser)
+    await call("library.add", { paper: sage })
+    await call("library.fetchPdf", { id: sage.id })
+    check = false
+    // Tried again by the user, past the site's hold
+    expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
+    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
+    const site = JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites["sagepub.com"]
+    expect(site.visits.map((v: { ended: string }) => v.ended)).toEqual(["check", "pdf"])
+  })
+})
+
+describe("reading the page owlit's browser landed on", () => {
+  it("works out IEEE's and OSF's PDF from the page's address", () => {
+    expect(pdfFromLanded("https://ieeexplore.ieee.org/document/11234567/")).toBe("https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=11234567")
+    expect(pdfFromLanded("https://osf.io/preprints/psyarxiv/hcn5a_v2")).toBeUndefined()
+    expect(pdfFromLanded("https://osf.io/preprints/psyarxiv/hcn5a")).toBe("https://osf.io/hcn5a/download")
+    expect(pdfFromLanded("https://osf.io/hcn5a/")).toBe("https://osf.io/hcn5a/download")
+    // A proxy's rewrite is left to the page's own links
+    expect(pdfFromLanded("https://ieeexplore-ieee-org.proxy.example.edu/document/1")).toBeUndefined()
+    expect(pdfFromLanded("https://www.sciencedirect.com/science/article/pii/S0003687021001538")).toBeUndefined()
+  })
+
+  it("tells a page that isn't there and an offer to buy from a page with no PDF on it", () => {
+    expect(pageVerdict({ url: "https://doi.org/10.1/x", title: "DOI Not Found", offersAccess: false })).toBe("missing")
+    expect(pageVerdict({ url: "https://a.org/x", title: "Article", status: 404, offersAccess: false })).toBe("missing")
+    expect(pageVerdict({ url: "https://psycnet.apa.org/doiLanding", title: "Who knows what about a person?", offersAccess: true })).toBe("no-access")
+    expect(pageVerdict({ url: "https://osf.io/x", title: "OSF", offersAccess: false })).toBe("no-link")
+    for (const words of ["Get Access", "Buy article PDF", "Purchase PDF", "Access through your institution", "Get full access"]) expect(ACCESS_OFFER.test(words)).toBe(true)
+    for (const words of ["Get PDF", "Download PDF", "Purchased items", "Rental history"]) expect(ACCESS_OFFER.test(words), words).toBe(false)
+  })
+
+  it("sends ACM's own 10.5555 DOIs to its Digital Library, not doi.org", () => {
+    expect(browserRoutes("10.5555/2034396.2034432", undefined)).toMatchObject([{ name: "browser:acm", browserOnly: true }])
+    expect(yourBrowser("10.5555/2034396.2034432")).toMatchObject({ url: "https://dl.acm.org/doi/pdf/10.5555/2034396.2034432?download=true", opens: "pdf" })
   })
 })
