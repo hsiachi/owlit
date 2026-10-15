@@ -2312,6 +2312,13 @@ msgstr "所评论的文字已改动"
 msgid "{replies, plural, one {# reply} other {# replies}}"
 msgstr "{replies, plural, other {# 条回复}}"
 
+#. after a comment's reply count: who wrote the latest reply, and when
+#. placeholder {0}: last.name
+#. placeholder {1}: ago(last.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} replied {1}"
+msgstr "{0} {1}回复"
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
 msgstr "就这条评论问 Owlit"
@@ -2325,6 +2332,10 @@ msgstr "解决"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "The passage this comment was on has changed: “{0}”"
 msgstr "这条评论所在的文字已改动：“{0}”"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{cut, plural, one {# more reply} other {# more replies}}"
+msgstr "{cut, plural, other {还有 # 条回复}}"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "More"

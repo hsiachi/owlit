@@ -1,10 +1,12 @@
 import { plural, t } from "@lingui/core/macro"
-import { CheckIcon, EllipsisIcon, LinkIcon, PencilIcon, SparklesIcon, Trash2Icon } from "lucide-react"
+import { CheckIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { FoldButton } from "@/components/fold"
 import { IconButton } from "@/components/icon-button"
+import { OwlitMark } from "@/components/owlit-mark"
 import { Tip } from "@/components/tip"
 import { ago } from "@/lib/time"
 import { shorten } from "@/lib/words"
@@ -17,7 +19,7 @@ import type { CommentView, EntryView } from "./model"
 // start of what they said, how many replies. Open, it is a raised card, laid out the way Google Docs and
 // Feishu lay theirs out: the first row is the first entry's author and the actions on the whole comment
 // (Ask Owlit, Resolve); each entry of yours has its own ⋯ (Edit, Delete); replies are flat, and the field to
-// add one is always at the bottom.
+// add one is always at the bottom. A long thread opens with its middle folded, as in Google Docs.
 
 // A bare owlit:// address an agent left in its words reads under its short name, never as the raw text
 const BARE_URI = /(?<!\]\()owlit:\/\/[^\s)）\]]+/g
@@ -37,7 +39,8 @@ const plainText = (text: string) =>
 function Signed({ entry, className }: { entry: EntryView; className?: string }) {
   return (
     <span className={cn("min-w-0 truncate text-xs text-muted-foreground", className)}>
-      <span className={cn("font-medium", entry.who === "owlit" ? "text-owlit" : "text-foreground")}>{entry.name}</span>
+      {/* In ink whoever wrote it: green is Owlit's hand on your words, and a comment changes none */}
+      <span className="font-medium text-foreground">{entry.name}</span>
       {" · "}
       {ago(entry.at)}
       {entry.editedAt ? ` · ${t({ message: "edited", comment: "after a comment's time: it was changed after it was written" })}` : ""}
@@ -47,6 +50,7 @@ function Signed({ entry, className }: { entry: EntryView; className?: string }) 
 
 export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView; lost: boolean; onOpen: () => void; onHover: (on: boolean) => void }) {
   const first = view.entries[0]
+  const last = view.entries[view.entries.length - 1]
   const replies = view.entries.length - 1
   return (
     <div
@@ -69,7 +73,14 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
       </div>
       {lost && <p className="text-xs text-muted-foreground">{t`Its passage has changed`}</p>}
       <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-foreground/80">{plainText(first.text)}</p>
-      {replies > 0 && <p className="mt-1 text-xs text-muted-foreground">{plural(replies, { one: "# reply", other: "# replies" })}</p>}
+      {/* Who answered last, so a reply that came while you were away shows without opening the card */}
+      {replies > 0 && (
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {plural(replies, { one: "# reply", other: "# replies" })}
+          {" · "}
+          {t({ message: `${last.name} replied ${ago(last.at, { inSentence: true })}`, comment: "after a comment's reply count: who wrote the latest reply, and when" })}
+        </p>
+      )}
     </div>
   )
 }
@@ -86,13 +97,17 @@ interface OpenActions {
 export function OpenCard({ view, lost, actions }: { view: CommentView; lost: boolean; actions: OpenActions }) {
   const [first, ...replies] = view.entries
   const [editing, setEditing] = useState<string | null>(null)
+  // More than three replies open folded down to the latest. Which one that is is fixed when the card
+  // opens, so your own reply lands under it rather than pushing it into the fold.
+  const [shownFrom, setShownFrom] = useState(() => (replies.length > 3 ? replies[replies.length - 1].id : null))
+  const cut = shownFrom === null ? 0 : Math.max(0, replies.findIndex((e) => e.id === shownFrom))
   return (
     <div className="rounded-xl border bg-card py-2 pr-1.5 pl-3 shadow-md" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && actions.onClose()}>
       {/* The first row: who started it, then what acts on the whole comment */}
       <div className="flex h-6 items-center gap-0.5">
         <Signed entry={first} className="flex-1" />
         <IconButton label={t`Ask Owlit about this comment`} size="icon-xs" onClick={actions.onAsk}>
-          <SparklesIcon className="text-owlit" />
+          <OwlitMark />
         </IconButton>
         <IconButton label={t({ message: "Resolve", comment: "put a comment away" })} size="icon-xs" onClick={actions.onResolve}>
           <CheckIcon />
@@ -105,7 +120,12 @@ export function OpenCard({ view, lost, actions }: { view: CommentView; lost: boo
             actions.onEdit(first.id, text)
             setEditing(null)
           }} onCancel={() => setEditing(null)} />
-        {replies.map((entry) => (
+        {cut > 0 && (
+          <FoldButton open={false} onClick={() => setShownFrom(null)} className="mt-2">
+            {plural(cut, { one: "# more reply", other: "# more replies" })}
+          </FoldButton>
+        )}
+        {replies.slice(cut).map((entry) => (
           <div key={entry.id} className="group/entry mt-3">
             <div className="-mr-1.5 flex h-6 items-center gap-0.5">
               <Signed entry={entry} className="flex-1" />
@@ -167,7 +187,8 @@ function EntryMenu({ first, hasReplies, onEdit, onDelete }: { entry: EntryView; 
           </Button>
         </DropdownMenuTrigger>
       </Tip>
-      <DropdownMenuContent align="end">
+      {/* As wide as its words: the default is the 24px ⋯ it opens from */}
+      <DropdownMenuContent align="end" className="w-auto">
         <DropdownMenuItem onSelect={onEdit}>
           <PencilIcon />
           {t({ message: "Edit", comment: "edit your comment or reply" })}
@@ -217,7 +238,7 @@ function ReplyField({ view, onReply }: { view: CommentView; onReply: (text: stri
   const hint = view.thread
     ? { icon: <LinkIcon />, text: t`${startedBy.name} sees replies on the shared page.` }
     : startedBy.who === "owlit"
-      ? { icon: <SparklesIcon className="text-owlit" />, text: t`Owlit doesn’t answer replies. To ask it, use Ask Owlit above.` }
+      ? { icon: null, text: t`Owlit doesn’t answer replies. To ask it, use Ask Owlit above.` }
       : null
   return (
     <div className="mt-3 mb-0.5">

@@ -2312,6 +2312,13 @@ msgstr ""
 msgid "{replies, plural, one {# reply} other {# replies}}"
 msgstr ""
 
+#. after a comment's reply count: who wrote the latest reply, and when
+#. placeholder {0}: last.name
+#. placeholder {1}: ago(last.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} replied {1}"
+msgstr ""
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
 msgstr ""
@@ -2324,6 +2331,10 @@ msgstr ""
 #. placeholder {0}: shorten(view.quote, 90)
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "The passage this comment was on has changed: “{0}”"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{cut, plural, one {# more reply} other {# more replies}}"
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx

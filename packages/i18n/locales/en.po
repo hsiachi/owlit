@@ -2312,6 +2312,13 @@ msgstr "Its passage has changed"
 msgid "{replies, plural, one {# reply} other {# replies}}"
 msgstr "{replies, plural, one {# reply} other {# replies}}"
 
+#. after a comment's reply count: who wrote the latest reply, and when
+#. placeholder {0}: last.name
+#. placeholder {1}: ago(last.at, { inSentence: true })
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{0} replied {1}"
+msgstr "{0} replied {1}"
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
 msgstr "Ask Owlit about this comment"
@@ -2325,6 +2332,10 @@ msgstr "Resolve"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "The passage this comment was on has changed: “{0}”"
 msgstr "The passage this comment was on has changed: “{0}”"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "{cut, plural, one {# more reply} other {# more replies}}"
+msgstr "{cut, plural, one {# more reply} other {# more replies}}"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "More"
