@@ -38,6 +38,8 @@ export interface ProcessOptions {
   file: string
   args: string[]
   env: NodeJS.ProcessEnv
+  // Variables read afresh before each start, over env (the system proxy, which may change while owlit runs)
+  freshEnv?(): Promise<Record<string, string>>
   cwd: string
   // Ends the process after this long without a request or a running turn
   idleMs: number
@@ -112,6 +114,8 @@ export class AcpProcess {
   // Each child has its own
   private life: Life = { stopping: false, ended: new Promise(() => {}) }
   private stderr: string[] = []
+  // What freshEnv said before the current (or next) process started
+  private fresh: Record<string, string> = {}
   // The latest sign-in the agent reported, and who waits for the first report
   private auth: AuthStatus | undefined
   private authWaiters: ((status: AuthStatus | undefined) => void)[] = []
@@ -244,6 +248,7 @@ export class AcpProcess {
     this.busy++
     clearTimeout(this.idleTimer)
     try {
+      if (!this.started && this.options.freshEnv) this.fresh = await this.options.freshEnv()
       await this.start()
       const connection = this.connection!
       const life = this.life
@@ -264,7 +269,8 @@ export class AcpProcess {
 
   private start() {
     if (this.started) return this.started
-    const { file, args, env, cwd } = this.options
+    const { file, args, cwd } = this.options
+    const env = { ...this.options.env, ...this.fresh }
     let ended!: (ending: Ending) => void
     const life: Life = { stopping: false, ended: new Promise((resolve) => (ended = resolve)) }
     this.life = life

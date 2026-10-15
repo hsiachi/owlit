@@ -24,7 +24,7 @@ afterEach(() => {
   delete process.env.FAKE_ACP_AUTH
 })
 
-async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH ?? "") {
+async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH ?? "", proxyEnv?: () => Promise<Record<string, string>>) {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-agents-")))
   const heard: Connector[] = []
   const agents = new Agents({
@@ -34,6 +34,7 @@ async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH 
     notify: (c) => heard.push(c),
     idleMs,
     searchPath,
+    proxyEnv,
   })
   made.push(agents)
   const added = await agents.add("Fake", `"${process.execPath}" "${fake}"`)
@@ -123,6 +124,17 @@ describe("agents", () => {
     const again = (await agents.process(id)).pid!
     expect(again).not.toBe(pid)
     expect(alive(again)).toBe(true)
+  })
+
+  it("tells each start of an agent the proxy as it is then", async () => {
+    let proxy = "http://127.0.0.1:7890"
+    const { agents, id } = await setup(undefined, undefined, async () => ({ HTTPS_PROXY: proxy }))
+    const proc = await agents.process(id)
+    expect((await proc.initialized())._meta?.proxy).toBe("http://127.0.0.1:7890")
+    proxy = "http://127.0.0.1:7897"
+    expect((await proc.initialized())._meta?.proxy).toBe("http://127.0.0.1:7890")
+    proc.stop()
+    expect((await proc.initialized())._meta?.proxy).toBe("http://127.0.0.1:7897")
   })
 
   it("survives a crash: one error, then the next call starts it again", async () => {

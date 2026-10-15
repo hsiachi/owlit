@@ -435,19 +435,6 @@ async function updateMenu(core: Core) {
 
 // ---- Start ----
 
-// The system proxy as HTTPS_PROXY in owlit's own environment, so every process it starts inherits it:
-// an app started from Finder has no proxy there, and agents only use one from there. Without it Claude
-// Code on a PATH of the user's own (not owlit's copy) went direct and, where the service needs the
-// proxy, got "403 Request not allowed" while signed in. Read once at launch.
-async function useSystemProxy() {
-  if (process.env.HTTPS_PROXY || process.env.https_proxy) return
-  const rule = (await session.defaultSession.resolveProxy("https://api.anthropic.com")).split(";")[0].trim()
-  const proxy = /^(PROXY|HTTPS) (\S+)$/.exec(rule)
-  if (!proxy) return
-  process.env.HTTPS_PROXY = process.env.HTTP_PROXY = `${proxy[1] === "HTTPS" ? "https" : "http"}://${proxy[2]}`
-  process.env.NO_PROXY ??= "localhost,127.0.0.1,::1"
-}
-
 // One owlit at a time: a second launch hands over to the first, which comes to the front
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -475,7 +462,6 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
     if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
     const browser = createBrowserHost()
-    await useSystemProxy()
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
@@ -498,6 +484,8 @@ if (!app.requestSingleInstanceLock()) {
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: hostFetch,
+        // The same, for the processes core starts (agents, npm), which only read a proxy from their environment
+        resolveProxy: (url) => session.defaultSession.resolveProxy(url),
         // A browser for publishers that want one (cookies, checks, the library proxy): hidden, or inside
         // the window when the user asks to see the page
         browser,
