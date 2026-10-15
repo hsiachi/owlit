@@ -5,6 +5,7 @@ import { useLocation, useNavigate, type NavigateFunction } from "react-router-do
 import { Button } from "@/components/ui/button"
 import { useDocsStore } from "@/features/docs/store"
 import { isMarkdown } from "@/features/docs/types"
+import { showInPaper, usePaperView } from "@/features/library/paper-view"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { cn } from "@/lib/utils"
 import { useTour } from "./store"
@@ -31,7 +32,8 @@ interface Stop {
   waiting?: () => string
 }
 
-const radio = (n: number) => document.querySelector<HTMLElement>(`[data-tour="digest-switch"] [role="radio"]:nth-of-type(${n})`)
+// The paper a /library/<id> page shows, or the example's
+const paperAt = (pathname: string) => /^\/library\/([^/?#]+)/.exec(pathname)?.[1] ?? PAPER
 
 const STOPS: Stop[] = [
   {
@@ -49,7 +51,10 @@ const STOPS: Stop[] = [
     body: () => t`A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself.`,
     target: ['[data-tour="digest-switch"] [role="radiogroup"]'],
     enter: (navigate, pathname) => !pathname.startsWith("/library/") && navigate(`/library/${PAPER}`),
-    done: () => radio(2)?.getAttribute("aria-checked") === "true",
+    done: (pathname) => {
+      const { paperId, view } = usePaperView.getState()
+      return pathname.startsWith("/library/") && paperId === paperAt(pathname) && view === "pdf"
+    },
     waiting: () => t`Try switching to the PDF…`,
   },
   {
@@ -60,7 +65,7 @@ const STOPS: Stop[] = [
     enter: (navigate, pathname) => {
       if (!pathname.startsWith("/library/")) navigate(`/library/${PAPER}`)
       // The PDF, not the digest over it
-      setTimeout(() => radio(2)?.getAttribute("aria-checked") === "false" && radio(2)?.click(), 300)
+      void showInPaper(paperAt(pathname))
     },
   },
   {

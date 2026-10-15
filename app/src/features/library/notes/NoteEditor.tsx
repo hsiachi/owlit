@@ -11,7 +11,7 @@ import { drawnEdits } from "@/features/chat/in-place"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { useSelectionMenu } from "@/components/selection-menu"
 import { askAboutPassage } from "../actions"
-import { useReaderStore } from "../reader/reader-store"
+import { showInPaper } from "../paper-view"
 import { useLibraryStore } from "../store"
 import { NoteMention } from "./note-mention"
 import { consumeFocusEnd, notePathOf } from "./note-actions"
@@ -60,7 +60,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
           const href = a?.getAttribute("href") ?? ""
           if (!href.startsWith(HIGHLIGHT_LINK)) return false
           const h = useLibraryStore.getState().highlights[href.slice(HIGHLIGHT_LINK.length)]
-          if (h) useReaderStore.getState().api?.jumpToHighlight(h)
+          if (h) showInPaper(h.paperId, { highlight: h }).catch(() => undefined)
           else toast(t`That highlight was deleted`)
           return true
         },
