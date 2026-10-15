@@ -70,7 +70,24 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 15/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 16/)
+  })
+
+  it("tells a session owlit's memory when it is new to it, and again only when it changed", async () => {
+    const { send, updates, call } = await setup()
+    const said = () => updates.filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text)
+    // Nothing kept yet: nothing said
+    await send("memory?")
+    await call("memory.write", { op: "add", kind: "work", text: "Cite as (Author, Year).", chatId: "c1" })
+    await send("memory?")
+    await send("memory?")
+    await call("memory.put", { id: "m1", kind: "work", text: "Cite in APA 7." })
+    await send("memory?")
+    const [none, first, again, changed] = said()
+    expect(none).toBe("no memory")
+    expect(first).toMatch(/changed; this is the whole list now\.\nHow they want you to work:\n- \[m1\] Cite as \(Author, Year\)\.\nAbout their work:\n\(nothing yet\)/)
+    expect(again).toBe("no memory")
+    expect(changed).toContain("- [m1] Cite in APA 7.")
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {

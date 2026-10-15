@@ -18,6 +18,7 @@ import {
   type FoundPaper,
   type FoundPapers,
   type HighlightColor,
+  type MemoryKind,
   type Paper,
   type ToolSpec,
 } from "@owlit/protocol"
@@ -289,6 +290,18 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
       const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
       return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${threadUri(done.id)}).`
+    }
+    case "memory_write": {
+      const op = str("op") as "add" | "replace" | "remove"
+      const { line, before, versionId } = await owlit.rpc.memory.write({
+        op,
+        ...pickArgs(args, { id: "id", text: "text" }),
+        ...(optStr("kind") ? { kind: optStr("kind") as MemoryKind } : {}),
+        ...asker,
+      })
+      if (!versionId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
+      if (!line) return `Removed ${before?.id} ("${before?.text}") from the memory. Tell the user in a few words.`
+      return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
     }
     case "activity_read": {
       const query = activityQueryOf(args)

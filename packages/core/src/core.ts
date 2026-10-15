@@ -14,6 +14,7 @@ import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
@@ -166,6 +167,7 @@ export class Core {
       lateQuietMs: options.lateQuietMs,
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
+      memory: async () => (await this.workspace?.memory.list()) ?? [],
     })
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its digest comes first
@@ -853,7 +855,7 @@ export class Core {
                 // once a run finds the sign-in page, and signed in again once a PDF comes through
                 proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
                 agent: async (prompt, signal, pictures) =>
-                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
+                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
                   const settings = await this.settings.get()
                   const chosen = settings.library.digestLanguage
@@ -868,7 +870,7 @@ export class Core {
                   const mcpServers = this.mcpServers(root, undefined, run)
                   if (!mcpServers.length && this.workspace?.root !== root) return null
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
+                  return this.background.run({ prompt, root, mcpServers, signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
                 },
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })

@@ -1,11 +1,12 @@
 import type * as acp from "@agentclientprotocol/sdk"
+import type { MemoryLine } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import { flatValues } from "./process.ts"
 import { backgroundMeta, bareToolTitle, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
-import { preamble } from "./rules.ts"
+import { memoryNote, preamble } from "./rules.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
 // whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is there to answer
@@ -33,6 +34,8 @@ export interface BackgroundRun {
   allow?: RegExp
   // The model each agent uses here, when not its default (Settings › Owlit › Background work)
   models?: Record<string, string>
+  // Owlit's memory of the user, said after the rules
+  memory?: MemoryLine[]
 }
 
 export interface BackgroundResult {
@@ -110,7 +113,9 @@ export class Background {
       const model = chosen && (await setModel(proc, session, chosen)) ? chosen : undefined
       const init = await proc.initialized()
       // An agent that takes owlit's rules in its system prompt has them already
-      const rules = takesRules(init) ? [] : [{ type: "text" as const, text: preamble(run.root) }]
+      const rules: acp.ContentBlock[] = takesRules(init) ? [] : [{ type: "text", text: preamble(run.root) }]
+      // Background work follows owlit's memory too (a digest in the language the user asked for)
+      if (run.memory?.length) rules.push({ type: "text", text: memoryNote(run.memory, false) })
       const pictures: acp.ContentBlock[] =
         run.pictures?.length && sendsPictures(connectorId, init, model)
           ? run.pictures.flatMap((p) => [

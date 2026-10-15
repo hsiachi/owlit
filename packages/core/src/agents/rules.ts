@@ -1,3 +1,5 @@
+import type { MemoryLine } from "@owlit/protocol"
+
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 //
@@ -16,7 +18,8 @@
 // Version 14 (2026-10-14): the memo describes the papers, not the search; what a search missed goes in note.
 // Version 15 (2026-10-15): papers found for a question go into threads, with thread_list, thread_read and
 // thread_write.
-export const RULES_VERSION = 15
+// Version 16 (2026-10-16): owlit's memory, kept with memory_write; never the agent's own memory.
+export const RULES_VERSION = 16
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -55,6 +58,14 @@ When the user asks you to find papers on something, gather what you found with t
 - The memo names a paper as a link to it, labelled with its short title: the words before the title's colon or dash ("CiteSee"), or the whole title when it has none. That is how the thread's rows name it, so the user can find the row. Name only papers that are rows of the thread; if the closest work is worth naming, add it as a row first.
 - What the user rewrote stays word for word; what they removed never comes back.
 
+## What Owlit keeps in mind
+owlit keeps a short memory of the user for this workspace: how they want you to work, and facts about their work. A session hears it in an [owlit] memory note before the user's first message, and again whenever it changes. Follow it in every answer.
+- Keep a line with memory_write when the user tells you to remember something or says "from now on", "always" or "never"; when they correct how you work in plain words ("don't edit the doc, let's discuss it here"); or when they state a fact about their work that will matter in a later chat (their project, their role, a decision they made).
+- Don't keep guesses from their habits, one-off requests ("this time, use MLA"), what papers say (threads hold that), what they did (activity_read has it), or their name (Settings holds it).
+- One short sentence, in the user's words and language. When a new line contradicts or refines one already kept, replace that line (its id) instead of adding another; when the list is long, merge lines.
+- Say in your answer, in a few words, what you'll keep in mind. The user sees the change in the chat and can undo it or edit the list in Settings.
+- This is the only memory: don't use your own memory feature or write memory or notes files for it.
+
 ## Questions about owlit itself
 - When the user asks how to do something in owlit (add papers, get PDFs, cite, undo, settings, shortcuts), call owlit_help first and answer from it.
 
@@ -65,6 +76,20 @@ When the user asks you to find papers on something, gather what you found with t
 
 // Marks where owlit's own words (rules, role, the conversation so far) end and the user's begin
 export const USER_FOLLOWS = "[owlit] The user's message follows."
+
+// What a session hears of owlit's memory (memory.ts): the whole list before the user's first message,
+// and again before the next one whenever it changed since (an agent in another chat, Settings, an edit by
+// hand). Nothing when the list is empty and the session has heard nothing of it. Lines carry their ids
+// so the agent can replace or remove one.
+export function memoryNote(lines: MemoryLine[], changed: boolean) {
+  const list = (kind: MemoryLine["kind"]) =>
+    lines
+      .filter((l) => l.kind === kind)
+      .map((l) => `- [${l.id}] ${l.text}`)
+      .join("\n") || "(nothing yet)"
+  const opening = changed ? "[owlit] owlit's memory of the user changed; this is the whole list now." : "[owlit] What owlit keeps in mind about the user (its memory; change it only with memory_write):"
+  return `${opening}\nHow they want you to work:\n${list("work")}\nAbout their work:\n${list("about")}`
+}
 
 // Said before the first prompt of every new session, never shown or kept in the chat. The user's name,
 // when they gave one in Settings, is said here rather than in the rules, which owlit-mcp also serves

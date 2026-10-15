@@ -113,7 +113,9 @@ class FakeAgent implements acp.Agent {
     // The conversation so far, when owlit starts a session over, is context, not the request
     const history = params.prompt.some((b) => b.type === "text" && b.text.startsWith("The conversation so far"))
     // owlit's rules, before a new session's first prompt
-    const rules = params.prompt.some((b) => b.type === "text" && b.text.startsWith("[owlit]"))
+    const rules = params.prompt.some((b) => b.type === "text" && b.text.startsWith("[owlit] This session runs inside owlit"))
+    // owlit's memory, when it is new to the session or changed
+    const memory = params.prompt.find((b): b is acp.TextContent & { type: "text" } => b.type === "text" && /^\[owlit\] (What owlit keeps in mind|owlit's memory)/.test(b.text))
     const text = params.prompt
       .filter((b) => !(b.type === "text" && (b.text.startsWith("The conversation so far") || b.text.startsWith("[owlit]"))))
       .map((b) => (b.type === "text" ? b.text : b.type === "resource_link" ? `[${b.uri}]` : `[${b.type}]`))
@@ -136,6 +138,10 @@ class FakeAgent implements acp.Agent {
             (figure ? `![Figure](${figure})\n\n` : "") +
             "## Details\n\n### What it measured\nHow it goes about it, in a sentence long enough to count.\n\n### The boundary of the conclusion\nWhat it leaves open.\n```",
         )
+        return { stopReason: "end_turn" }
+      }
+      if (text.includes("memory?")) {
+        await say(memory ? memory.text : "no memory")
         return { stopReason: "end_turn" }
       }
       if (text.includes("rules?")) {
