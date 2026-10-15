@@ -145,8 +145,8 @@ msgstr "什么也没找到。"
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
 #: app/src/features/library/digests.ts
-#: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/welcome/WelcomePage.tsx
+#: app/src/lib/workspace.ts
 #: apps/desktop/src/main.ts
 msgid "Open"
 msgstr "打开"
@@ -263,11 +263,10 @@ msgid "in the Library and Collections"
 msgstr "在文献库和合集中"
 
 #: app/src/app/shortcuts.ts
+#: app/src/components/selection-menu.tsx
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/docs/editor/selection-menu.ts
-#: app/src/features/library/notes/NoteEditor.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 #: apps/desktop/src/text-menu.ts
@@ -492,7 +491,6 @@ msgstr "你上次查看后新增"
 #: app/src/features/library/components/EditDetailsDialog.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -1496,9 +1494,7 @@ msgid "Not checked"
 msgstr "未检查"
 
 #. an agent's status: checking whether it is installed
-#. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
-#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Checking…"
 msgstr "正在检查…"
 
@@ -2487,17 +2483,6 @@ msgstr "导出为文档"
 msgid "Export as CSV"
 msgstr "导出为 CSV"
 
-#. column: what a paper says about the collection's question
-#: app/src/features/collections/components/CollectionTable.tsx
-#: app/src/features/docs/save-as-doc.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Answer"
-msgstr "回答"
-
-#: app/src/features/collections/components/CollectionTable.tsx
-msgid "Compared with {doc}"
-msgstr "对照 {doc}"
-
 #. papers of a collection in none of its groups
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Not in a group"
@@ -2562,7 +2547,7 @@ msgstr "论文"
 
 #. placeholder {0}: p.total
 #. placeholder {0}: papers.length
-#. placeholder {0}: s.total.length
+#. placeholder {0}: rows.length
 #: app/src/features/collections/components/CollectionTable.tsx
 #: app/src/features/collections/pages/CollectionsPage.tsx
 #: app/src/features/docs/lib/mentions.ts
@@ -2649,11 +2634,6 @@ msgstr "改回 Owlit 的原话"
 #: app/src/features/collections/components/CollectionTable.tsx
 msgid "Open at p. {0}"
 msgstr "打开到第 {0} 页"
-
-#: app/src/features/collections/components/CompareDialog.tsx
-#: app/src/features/collections/runs.ts
-msgid "Owlit works on collections in the desktop app."
-msgstr "Owlit 在桌面版里处理合集。"
 
 #. placeholder {0}: displayName(file.path)
 #: app/src/features/collections/components/CompareDialog.tsx
@@ -2807,6 +2787,17 @@ msgstr "已导出为文档"
 msgid "Not in a project"
 msgstr "不属于任何项目"
 
+#. column: what a paper says about the collection's question
+#: app/src/features/collections/lib.ts
+#: app/src/features/docs/save-as-doc.ts
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "Answer"
+msgstr "回答"
+
+#: app/src/features/collections/lib.ts
+msgid "Compared with {doc}"
+msgstr "对照 {doc}"
+
 #. a paper's findings back one of the user's sentences
 #: app/src/features/collections/lib.ts
 msgid "Supports"
@@ -2915,6 +2906,10 @@ msgstr "正在读全文…"
 #: app/src/features/collections/runs.ts
 msgid "Looking for new papers…"
 msgstr "正在找新论文…"
+
+#: app/src/features/collections/runs.ts
+msgid "Owlit works on collections in the desktop app."
+msgstr "Owlit 在桌面版里处理合集。"
 
 #: app/src/features/collections/runs.ts
 msgid "Owlit gathers papers in the desktop app."
@@ -3127,7 +3122,7 @@ msgstr "没有这个名字的文档"
 msgid "{0} (you)"
 msgstr "{0}（你）"
 
-#. placeholder {0}: q.length > 90 ? `${q.slice(0, 90)}…` : q
+#. placeholder {0}: shorten(q, 90)
 #: app/src/features/docs/editor/reader-comments.ts
 msgid "The words this comment was on have changed: “{0}”"
 msgstr "这条评论所指的文字已经改动：“{0}”"
@@ -3409,7 +3404,7 @@ msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
 
-#. placeholder {0}: shown.rows.length
+#. placeholder {0}: view.rows.length
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{0, plural, one {New collection · # paper} other {New collection · # papers}}"
 msgstr "{0, plural, other {新合集 · # 篇论文}}"
@@ -3820,8 +3815,7 @@ msgstr "{n, plural, other {# 篇没能加入}}"
 
 #. button of the folder picker
 #: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
+#: app/src/lib/workspace.ts
 msgid "Choose"
 msgstr "选取"
 
@@ -4158,14 +4152,12 @@ msgid "Tag"
 msgstr "加标签"
 
 #: app/src/features/library/digest-rows.tsx
-#: app/src/features/library/digests.ts
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Couldn't ask for the digest again."
-msgstr "无法重新请求导读。"
-
-#: app/src/features/library/digest-rows.tsx
 msgid "Writing the digest…"
 msgstr "正在写导读…"
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't ask for the digest again."
+msgstr "无法重新请求导读。"
 
 #: app/src/features/library/digests.ts
 msgid "Couldn't write the digest"
@@ -4852,11 +4844,6 @@ msgstr "未找到 PDF。如果你有，拖到这里即可。"
 msgid "Agent for Owlit"
 msgstr "Owlit 用的智能体"
 
-#. placeholder {0}: Math.round(progress * 100)
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "Setting up… {0}%"
-msgstr "正在设置… {0}%"
-
 #: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Copy the install command"
@@ -4984,27 +4971,6 @@ msgstr "按你的喜好来。"
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Pick a theme and a paper tone. You can change both in Settings."
 msgstr "选一个主题和纸张色调，之后都能在设置里改。"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Your name"
-msgstr "你的名字"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Where the Workspace Goes"
-msgstr "工作区存放位置"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Open a Folder"
-msgstr "打开文件夹"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Where to begin?"
@@ -5161,16 +5127,16 @@ msgid "{engineName} can be signed in to several providers at once. Each chat pic
 msgstr "{engineName} 可以同时登录多个服务商。每个对话都可以在输入框中从中任选模型。"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
-msgid "Setting up… {percent}%"
-msgstr "正在设置… {percent}%"
-
-#: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Not set up · about {size} MB"
 msgstr "未设置 · 约 {size} MB"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Update to {latest}"
 msgstr "更新到 {latest}"
+
+#: app/src/features/settings/sections/AgentsSection.tsx
+msgid "Setting up… {percent}%"
+msgstr "正在设置… {percent}%"
 
 #. verb: check whether the agent is installed and works
 #: app/src/features/settings/sections/AgentsSection.tsx
@@ -5309,6 +5275,11 @@ msgstr "隐私"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr "owlit 记住的内容只保存在这个工作区，绝不会发送到任何地方。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Your name"
+msgstr "你的名字"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
@@ -5816,6 +5787,18 @@ msgstr "，"
 msgctxt "the last action in a sentence"
 msgid "{rest} and {last}"
 msgstr "{rest}，{last}"
+
+#: app/src/lib/workspace.ts
+msgid "Where the Workspace Goes"
+msgstr "工作区存放位置"
+
+#: app/src/lib/workspace.ts
+msgid "Open a Folder"
+msgstr "打开文件夹"
+
+#: app/src/lib/workspace.ts
+msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
+msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
 
 #. title of the window that shows a publisher's or library's sign-in page
 #: apps/desktop/src/browser.ts

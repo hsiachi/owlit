@@ -168,7 +168,8 @@ export function AssistantMessage({
   const message = withoutAgentError(saved)
   const streaming = message.status === "streaming"
   const last = message.parts[message.parts.length - 1]
-  const text = messageText(message)
+  // Only the footer, drawn once the reply is done, uses the text
+  const text = streaming ? "" : messageText(message)
   const { segments, asks, byAgent } = segment(message.parts, streaming)
   const waiting = streaming && message.parts.some((p) => (p.type === "permission" || p.type === "question") && !p.outcome)
   // The last block of agents still at work, for the reply's last line

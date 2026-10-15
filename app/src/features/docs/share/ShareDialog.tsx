@@ -2,7 +2,6 @@ import { plural, t } from "@lingui/core/macro"
 import { citedPaperIds, type WorkspaceFile } from "@owlit/protocol"
 import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FormRow } from "@/components/form-row"
 import { GroupLabel } from "@/components/group-label"
@@ -11,7 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { useCopyFlash } from "@/hooks/use-copy-flash"
 import { copyText } from "@/lib/clipboard"
+import { toastError } from "@/lib/toast"
 import { ago } from "@/lib/time"
 import { displayName } from "../types"
 import { shares, useShareStore } from "./store"
@@ -23,7 +24,7 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
   const server = useShareStore((s) => s.server)
   const [notes, setNotes] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, flash] = useCopyFlash()
   const name = displayName(file.path)
   const cited = share?.papers ?? citedPaperIds(file.content ?? "").length
 
@@ -32,15 +33,14 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
     try {
       await work()
     } catch (error) {
-      toast.error((error as Error).message)
+      toastError(error)
     } finally {
       setBusy(false)
     }
   }
   const copy = async () => {
     if (!share || !(await copyText(share.url))) return
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1200)
+    flash()
   }
 
   // What goes along with the doc, as Settings rows: the papers (always), the notes (a switch)

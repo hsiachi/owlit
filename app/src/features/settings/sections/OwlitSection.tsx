@@ -4,6 +4,7 @@ import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
+import { toastError } from "@/lib/toast"
 import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
 
@@ -14,7 +15,9 @@ export function OwlitSection() {
   return (
     <>
       <Group id="profile">
-        <NameRow />
+        <List>
+          <NameRow />
+        </List>
       </Group>
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
@@ -26,25 +29,25 @@ export function OwlitSection() {
   )
 }
 
-function NameRow() {
+// What Owlit calls the user; the first launch's About you step shows this row too, narrower
+export function NameRow({ className }: { className?: string }) {
   const name = useSettings((s) => s.view?.profile.name ?? "")
   return (
-    <List>
-      <Row
-        name={t`Your name`}
-        control={
-          <CommitInput
-            value={name}
-            onCommit={(next) => void updateSettings({ profile: { name: next || null } })}
-            placeholder={t`What Owlit calls you`}
-            spellCheck={false}
-            autoComplete="off"
-            maxLength={60}
-            aria-label={t`Your name`}
-          />
-        }
-      />
-    </List>
+    <Row
+      name={t`Your name`}
+      control={
+        <CommitInput
+          value={name}
+          onCommit={(next) => void updateSettings({ profile: { name: next || null } }).catch(toastError)}
+          placeholder={t`What Owlit calls you`}
+          spellCheck={false}
+          autoComplete="off"
+          maxLength={60}
+          aria-label={t`Your name`}
+          className={className}
+        />
+      }
+    />
   )
 }
 

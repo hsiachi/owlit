@@ -8,7 +8,7 @@ import { useLibraryStore } from "../store"
 // (a scroll or a page change), or a highlight, a comment or a note of their own. A glance changes nothing
 // but the remembered position. In a blind test a paper opened for 10 seconds turned Reading and jumped
 // to the top of Up next, ahead of the paper the person was actually half-way through.
-export const READ_AFTER_MS = 45_000
+const READ_AFTER_MS = 45_000
 
 // The paper open now, and whether this visit has counted yet: it counts once
 let visit: { paperId: string; counted: boolean } | null = null

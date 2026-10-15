@@ -1,7 +1,8 @@
 import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
-import { toast } from "sonner"
+import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { useLibraryStore } from "./store"
@@ -26,7 +27,7 @@ const resting = new Map<string, ReturnType<typeof setTimeout>>()
 
 const queue = createWorkspaceQueue({
   onError: (error) => {
-    toast.error(error instanceof Error ? error.message : t`Couldn't save the library.`)
+    toastError(error, t`Couldn't save the library.`)
     // Read again once what is queued has gone through: a read sent at once could come back after a
     // restore queued behind the failure, and take the restored paper out of the store again
     enqueue(reload)
@@ -63,6 +64,7 @@ async function load() {
       notes: Object.fromEntries(notes.map((n) => [n.paperId, n])),
     }),
   )
+  trashChanged()
 }
 
 async function reload() {
@@ -74,7 +76,7 @@ async function reload() {
 }
 
 // A paper core made or changed at the window's request (an imported PDF), taken without being sent back
-export function takePaper(paper: Paper) {
+function takePaper(paper: Paper) {
   takeFromCore(() => useLibraryStore.setState((s) => ({ papers: { ...s.papers, [paper.id]: paper } })))
 }
 
@@ -86,6 +88,11 @@ export async function importPdf(path: string) {
 }
 
 // ---- The trash
+
+// Counts the times the trash may have changed: a paper removed or put back, the library read again. A
+// paper added leaves the trash as it was, so an import doesn't have the removed list asked again per paper.
+export const useTrashChanges = create<{ count: number }>(() => ({ count: 0 }))
+const trashChanged = () => useTrashChanges.setState((s) => ({ count: s.count + 1 }))
 
 // Papers removed in the last 30 days, for the Library's removed list; none outside the desktop app. Asked
 // once the changes already queued have reached core, so a removal just made is in it.
@@ -115,6 +122,7 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
   if (gone.length) {
     for (const id of gone) removedHere.add(id)
     enqueue(() => rpc.library.remove({ ids: gone }))
+    trashChanged()
   }
   const back = added.filter((p) => removedHere.has(p.id))
   if (back.length) {
@@ -130,6 +138,7 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
         }),
       )
     })
+    trashChanged()
   }
   for (const paper of added) {
     if (back.includes(paper)) continue
@@ -221,6 +230,7 @@ if (onDisk) {
         return { papers: next }
       }),
     )
+    if (removed.length) trashChanged()
   })
 
   // A note an agent edited (or another program changed): taken as it is, and the open note editor takes

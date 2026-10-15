@@ -52,6 +52,9 @@ export interface ComposerProps {
   header?: React.ReactNode
 }
 
+// How long typing rests before the draft is written
+const SAVE_AFTER_MS = 300
+
 // Enter submits, Shift+Enter inserts a line break. Runs before the core keymap
 // (which would split the paragraph) and yields to the mention popup while open.
 const SubmitKeymap = Extension.create<{ onSubmit: () => void }>({
@@ -75,12 +78,13 @@ const SubmitKeymap = Extension.create<{ onSubmit: () => void }>({
 function extract(editor: Editor, known: Mentionable[] = []): { text: string; mentions: Mentionable[] } {
   const mentions: Mentionable[] = []
   const lines: string[] = []
+  const offered = docMentionItems("")
   editor.state.doc.forEach((block) => {
     let line = ""
     block.descendants((node) => {
       if (node.type.name === "mention") {
         const same = (x: Mentionable) => x.id === node.attrs.id && (!node.attrs.kind || x.kind === node.attrs.kind)
-        const m = docMentionItems("").find(same) ?? known.find(same)
+        const m = offered.find(same) ?? known.find(same)
         if (m && !mentions.some((x) => x.id === m.id)) mentions.push(m)
         line += `@[${node.attrs.label}]`
       } else if (node.isText) {
@@ -158,29 +162,49 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   })
 
   const [isEmpty, setIsEmpty] = useState(true)
-  // Kept as it is typed, so nothing is lost however the composer goes (another chat, another page)
+  // Kept as it is typed, so nothing is lost however the composer goes (another chat, another page). The
+  // draft is written a moment after typing stops, not per key (the document as JSON, then localStorage),
+  // and at once whenever the composer goes: another chat, unmounting, sending, the window closing.
+  const pending = useRef<number | undefined>(undefined)
+  const write = useCallback(() => {
+    window.clearTimeout(pending.current)
+    pending.current = undefined
+    if (!editor || editor.isDestroyed) return
+    useComposerDrafts.getState().put(keyRef.current, editor.isEmpty ? { doc: undefined, mentions: [] } : { doc: editor.getJSON() })
+  }, [editor])
+  // Only what was typed since the last write: with nothing waiting the stored draft is the newer one
+  const flush = useCallback(() => {
+    if (pending.current !== undefined) write()
+  }, [write])
   const save = useCallback(() => {
     if (!editor || editor.isDestroyed) return
     setIsEmpty(editor.isEmpty)
-    useComposerDrafts.getState().put(keyRef.current, editor.isEmpty ? { doc: undefined, mentions: [] } : { doc: editor.getJSON() })
-  }, [editor])
+    window.clearTimeout(pending.current)
+    pending.current = window.setTimeout(write, SAVE_AFTER_MS)
+  }, [editor, write])
   useEffect(() => {
     if (!editor) return
     editor.on("update", save)
+    window.addEventListener("pagehide", flush)
+    window.addEventListener("beforeunload", flush)
     return () => {
       editor.off("update", save)
+      window.removeEventListener("pagehide", flush)
+      window.removeEventListener("beforeunload", flush)
+      flush()
     }
-  }, [editor, save])
+  }, [editor, save, flush])
 
-  // Another chat in the same composer (the Chat page and the panel keep theirs from chat to chat): its own
-  // draft comes in, the last one having been kept as it was typed
+  // Another chat in the same composer (the Chat page and the panel keep theirs from chat to chat): the last
+  // one's draft is written, then its own comes in
   useEffect(() => {
+    flush()
     keyRef.current = key
     if (!editor || editor.isDestroyed) return
     editor.commands.setContent(useComposerDrafts.getState().drafts[key]?.doc ?? "", { emitUpdate: false })
     setIsEmpty(editor.isEmpty)
     if (editor.isFocused) editor.commands.focus("end")
-  }, [editor, key])
+  }, [editor, key, flush])
 
   // The placeholder is drawn by a decoration, redrawn on the next transaction
   useEffect(() => {
@@ -211,9 +235,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     if (!text && !ready) return
     onSubmit({ text, mentions, attachments: attachments.take() }, target)
     editor.commands.clearContent(true)
-    save()
+    write()
     if (!chatId) useComposerDrafts.getState().renew()
-  }, [editor, canSend, ready, onSubmit, attachments, target, chatId, key, save])
+  }, [editor, canSend, ready, onSubmit, attachments, target, chatId, key, write])
   useEffect(() => {
     submitRef.current = submit
   }, [submit])

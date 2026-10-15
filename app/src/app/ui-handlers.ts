@@ -16,7 +16,7 @@ import { fileAt } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import type { PassageTarget } from "@/features/library/reader/passages"
 import { whenReaderReady } from "@/features/library/reader/reader-store"
-import { useLibraryStore } from "@/features/library/store"
+import { paperById, useLibraryStore } from "@/features/library/store"
 import { registerUiHandler, waitFor } from "@/lib/ui-actions"
 
 const EDITOR_WITHIN_MS = 5_000
@@ -27,9 +27,9 @@ function target(uri: string): Target {
   const u = parseOwlitUri(uri)
   if (u?.kind === "paper") {
     const { papers, aliases } = useLibraryStore.getState()
-    const id = papers[u.id] ? u.id : aliases[u.id]
-    if (!id || !papers[id]) throw new Error("That paper isn't in the library.")
-    return { kind: "paper", id, title: papers[id].title }
+    const paper = paperById(papers, aliases, u.id)
+    if (!paper) throw new Error("That paper isn't in the library.")
+    return { kind: "paper", id: paper.id, title: paper.title }
   }
   if (u?.kind === "doc") {
     const file = fileAt(u.path)

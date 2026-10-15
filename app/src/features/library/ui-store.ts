@@ -88,7 +88,7 @@ export const useLibraryUi = create<UiState>()((set, get) => ({
   setQuery: (query) => set({ query, peekId: null }),
   setFilter: (filter) => set({ filter, peekId: null }),
   toggleTag: (tag) =>
-    set((s) => ({ tags: s.tags.includes(tag) ? s.tags.filter((t) => t !== tag) : [...s.tags, tag], peekId: null })),
+    set((s) => ({ tags: toggle(s.tags, tag), peekId: null })),
   // Clicking a tag chip shows everything carrying that tag
   showTag: (tag) => set({ tags: [tag], filter: "all", query: "", peekId: null, selectedIds: [] }),
   showOnly: (ids, label) => set({ only: { ids, label }, tags: [], filter: "all", query: "", peekId: null, selectedIds: [] }),

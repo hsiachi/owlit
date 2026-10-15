@@ -1,15 +1,18 @@
 import { useMemo } from "react"
+import { useShallow } from "zustand/react/shallow"
 import { useNavigate } from "react-router-dom"
 import { plural, t } from "@lingui/core/macro"
 import { ChevronRightIcon, LibraryIcon, XIcon, type LucideIcon } from "lucide-react"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
+import { revealOnHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
 import { KIND_ICON } from "@/lib/kinds"
+import { cn } from "@/lib/utils"
 import { connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
-import { brokenReply, pendingAsk, useSeenStore } from "@/features/chat/status"
-import { askSentence, type ToolCall } from "@/features/chat/lib/step-words"
+import { brokenReply, callOf, pendingAsk, useSeenStore } from "@/features/chat/status"
+import { askSentence } from "@/features/chat/lib/step-words"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { useLibraryStore } from "@/features/library/store"
 import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useStoppedOn, useWaitingForBrowser } from "@/features/library/from-browser"
@@ -46,11 +49,19 @@ interface Waiting {
 
 function useWaiting(): Waiting[] {
   const navigate = useNavigate()
-  const chats = useChatStore((s) => s.chats)
   const streaming = useChatStore((s) => s.streaming)
+  const dismissed = useSeenStore((s) => s.dismissed)
+  // Only the chats that wait on the user, newest first: a streamed reply changes its own chat, which
+  // isn't one of them, so it redraws nothing here
+  const stuck = useChatStore(
+    useShallow((s) =>
+      Object.values(s.chats)
+        .filter((c) => (s.streaming[c.id] ? pendingAsk(c) : brokenReply(c, dismissed[c.id])))
+        .sort((a, b) => b.updatedAt - a.updatedAt),
+    ),
+  )
   const connectors = useChatStore((s) => s.connectors)
   const selected = useChatStore((s) => s.selection.connectorId)
-  const dismissed = useSeenStore((s) => s.dismissed)
   const papers = useLibraryStore((s) => s.papers)
   const background = useSettings((s) => s.view?.backgroundAgent)
   const imports = useImports((s) => s.list)
@@ -61,14 +72,14 @@ function useWaiting(): Waiting[] {
 
   return useMemo(() => {
     const out: Waiting[] = []
-    for (const chat of Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt)) {
+    for (const chat of stuck) {
       const ask = streaming[chat.id] ? pendingAsk(chat) : undefined
       const broken = streaming[chat.id] ? undefined : brokenReply(chat, dismissed[chat.id])
       const title = chat.title
       const open = { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate(`/chat/${chat.id}`) }
       if (ask) {
         // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
-        const call = chat.messages.at(-1)?.parts.find((p): p is ToolCall => p.type === "tool_call" && p.toolCallId === ask.toolCallId)
+        const call = callOf(chat, ask.toolCallId)
         const what = ask.type === "permission" ? askSentence(ask.title, call) : t`Owlit has a question`
         out.push({ key: `ask:${chat.id}`, icon: KIND_ICON.chat, what, where: t`in “${title}”`, open })
       } else if (broken) {
@@ -178,7 +189,7 @@ function useWaiting(): Waiting[] {
       })
     }
     return out
-  }, [chats, streaming, connectors, selected, background, dismissed, papers, imports, tasks, fromBrowser, stoppedOn, waiting, navigate])
+  }, [stuck, streaming, connectors, selected, background, dismissed, papers, imports, tasks, fromBrowser, stoppedOn, waiting, navigate])
 }
 
 // "for McDaniel & Einstein 2000, Nahum-Shani et al. 2016": one or two papers by name. More are only
@@ -205,7 +216,7 @@ export function WaitingOnYou() {
       <GroupLabel id="waiting-label">{t`Waiting on you`}</GroupLabel>
       <ul className="flex flex-col gap-0.5">
         {waiting.map((w) => (
-          <li key={w.key} className="group/waiting relative flex min-h-9 items-center gap-2.5 rounded-md py-1 pr-2.5 pl-2.5 hover:bg-muted has-focus-key:bg-muted">
+          <li key={w.key} className="group/row relative flex min-h-9 items-center gap-2.5 rounded-md py-1 pr-2.5 pl-2.5 hover:bg-muted has-focus-key:bg-muted">
             {/* The row's own button lies under its words, so the Retry and Dismiss buttons inside stay
                 buttons of their own rather than buttons in a button */}
             <button type="button" onClick={w.open.run} title={w.detail} aria-label={rowLabel(w)} className="absolute inset-0 rounded-md outline-none" />
@@ -216,7 +227,7 @@ export function WaitingOnYou() {
             </p>
             {w.dismiss && (
               // Leaving a broken reply as it is: a quiet way out, shown where the pointer or focus is
-              <IconButton label={t`Dismiss`}onClick={w.dismiss} className="relative opacity-0 group-hover/waiting:opacity-100 focus-key:opacity-100">
+              <IconButton label={t`Dismiss`} onClick={w.dismiss} className={cn("relative", revealOnHover)}>
                 <XIcon />
               </IconButton>
             )}
@@ -225,7 +236,7 @@ export function WaitingOnYou() {
                 {w.action.label}
               </Button>
             ) : (
-              <span className="pointer-events-none flex shrink-0 items-center gap-0.5 text-detail text-muted-foreground group-hover/waiting:text-foreground">
+              <span className="pointer-events-none flex shrink-0 items-center gap-0.5 text-detail text-muted-foreground group-hover/row:text-foreground">
                 {w.open.label}
                 <ChevronRightIcon className="size-3.5" />
               </span>

@@ -17,6 +17,7 @@ import { ChoiceMenu } from "@/components/choice-menu"
 import { GroupLabel } from "@/components/group-label"
 import { IconButton } from "@/components/icon-button"
 import { Info } from "@/components/info"
+import { revealOnHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tip } from "@/components/tip"
@@ -100,9 +101,6 @@ export function IconAction({ label, onClick, disabled, className, children }: { 
     </IconButton>
   )
 }
-
-// For controls shown only on hover or focus; they go before the ones that always show
-export const onHover = "opacity-0 group-hover/row:opacity-100 focus-key:opacity-100"
 
 // A row's choice: the shared text menu with the value in body tone and up-down chevrons, pulled out by its
 // padding when it comes last
@@ -297,7 +295,7 @@ export function KeyInput({ onSave, onCancel }: { onSave: (value: string) => void
 export function MaskedKey({ last4, onChange, onRemove, children }: { last4?: string; onChange: () => void; onRemove: () => void; children?: React.ReactNode }) {
   return (
     <>
-      <IconAction label={t`Remove key`} className={onHover} onClick={onRemove}>
+      <IconAction label={t`Remove key`} className={revealOnHover} onClick={onRemove}>
         <Trash2Icon />
       </IconAction>
       {children}

@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react"
 import { t } from "@lingui/core/macro"
+import { useChatStore } from "../store"
 import type { Connector, ConnectorStatus } from "../types"
 
 // Where an agent stands, in the words and rules every place that shows one uses
@@ -19,6 +21,9 @@ export function statusLabel(status: ConnectorStatus) {
       return t({ message: "Error", comment: "an agent's status" })
   }
 }
+
+// Not known yet: being checked, or not checked at all
+export const isChecking = (c: Connector) => c.status === "checking" || c.status === "unknown"
 
 // Checked and there: owlit can start it, though it may still want a sign-in
 export const isFound = (c: Connector) => c.status === "available" || c.status === "connected"
@@ -59,4 +64,29 @@ export function problemSentence(c: Connector) {
   if (problem === "signed_out") return t`${agent} isn’t signed in`
   if (problem === "error") return t`${agent} can’t run`
   return undefined
+}
+
+// For a page that helps the user get an agent running (the welcome page, the first launch's agent step):
+// every agent listed is checked afresh once the page has them, and the ones that can't run again whenever
+// the window comes back to the front, since people leave to run the install or sign-in command in
+// Terminal. untilOneRuns: none are checked again once any agent can run.
+export function useConnectorRecheck(connectors: Connector[], { untilOneRuns = false } = {}) {
+  const check = useChatStore((s) => s.checkConnector)
+  const checked = useRef(false)
+
+  useEffect(() => {
+    if (checked.current || !connectors.length) return
+    checked.current = true
+    for (const c of connectors) if (!isChecking(c)) void check(c.id)
+  }, [connectors, check])
+
+  useEffect(() => {
+    const onFocus = () => {
+      const all = useChatStore.getState().connectors
+      if (untilOneRuns && all.some(canRun)) return
+      for (const c of all) if (!canRun(c) && !isChecking(c)) void check(c.id)
+    }
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [check, untilOneRuns])
 }

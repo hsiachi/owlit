@@ -18,7 +18,7 @@ export const PANEL_WIDTH = 400
 const PANEL_MIN = 320
 // The page beside the panel keeps at least this much of the window
 export const PAGE_MIN = 560
-export const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
+const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
 
 // ⇧⌘J and the feather open the panel on the current chat, unless the person left it this long ago: by then
 // they are usually on another paper or doc, and the old conversation would go along with every question

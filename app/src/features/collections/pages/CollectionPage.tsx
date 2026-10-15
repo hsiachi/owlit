@@ -1,19 +1,19 @@
 import { t } from "@lingui/core/macro"
-import { QUESTION_COLUMN, shownCollection } from "@owlit/protocol"
+import { QUESTION_COLUMN } from "@owlit/protocol"
 import { CollectionTable } from "../components/CollectionTable"
-import { EllipsisVerticalIcon } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { ActionsDropdownContent } from "@/components/action-menu"
+import { useEffect, useLayoutEffect, useState } from "react"
+import { useNavigate, useParams } from "react-router-dom"
+import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { NotFound, PageHeader, PageTitle } from "@/components/page"
 import { RenameInput } from "@/components/rename-input"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu } from "@/components/ui/dropdown-menu"
+import { useTakeParam } from "@/hooks/use-take-param"
 import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
 import { CollectionActions, WorkLine } from "../components/Work"
-import { useCollectionMenu } from "../components/CollectionMenu"
+import { useCollectionMenu, useProjects } from "../components/CollectionMenu"
 import { Memo } from "../components/Memo"
+import { shown as shownOf } from "../lib"
 import { editCollection, useCollection, useCollectionsStore } from "../store"
 import { useCollectionsUi } from "../ui-store"
 
@@ -31,36 +31,39 @@ function CollectionVisit({ collectionId }: { collectionId: string | undefined })
   const navigate = useNavigate()
   const collection = useCollection(collectionId)
   const loaded = useCollectionsStore((s) => s.loaded)
-  const groups = useCollectionMenu(collection, { afterDelete: () => navigate("/collections") })
+  const groups = useCollectionMenu(collection, useProjects(), { afterDelete: () => navigate("/collections") })
   const renaming = useCollectionsUi((s) => s.renaming === collectionId)
   const set = useCollectionsUi((s) => s.set)
   // When the user last looked before this visit: what changed since carries the dot until they leave
   const [seenBefore, setSeenBefore] = useState<number | null>(null)
   const id = collection?.id
+  // A row left open from before closes. A layout effect, so it comes before the link's paper is taken below
+  // (layout effects run in order, and before plain ones).
+  useLayoutEffect(() => {
+    if (id) set({ peek: null })
+  }, [id, set])
   // Opened for one of its papers (a link to a paper the Library hasn't got, "In" on a paper's page): that
-  // paper's row opens, where it is in the list
-  const [params, setParams] = useSearchParams()
-  const want = params.get("paper")
+  // paper's row opens, where it is in the list. After the reset above, so it stays open.
+  useTakeParam(
+    "paper",
+    (want) => {
+      set({ peek: want })
+      requestAnimationFrame(() => document.getElementById(`row-${want}`)?.scrollIntoView({ block: "center" }))
+    },
+    { enabled: !!id },
+  )
   useEffect(() => {
     if (!id) return
     setSeenBefore(useCollectionsStore.getState().collections[id]?.seenAt ?? 0)
-    set({ peek: null })
     const timer = setTimeout(() => void editCollection(id, { op: "seen" }), SEEN_AFTER_MS)
     return () => clearTimeout(timer)
-  }, [id, set])
-  // After the reset above, so a page opened for a paper keeps it open
-  useEffect(() => {
-    if (!id || !want) return
-    set({ peek: want })
-    setParams((p) => (p.delete("paper"), p), { replace: true })
-    requestAnimationFrame(() => document.getElementById(`row-${want}`)?.scrollIntoView({ block: "center" }))
-  }, [id, want, set, setParams])
+  }, [id])
 
   if (!collection) {
     if (!loaded) return null
     return <NotFound title={t`This collection is gone`} detail={t`It may have been deleted.`} back={{ label: t`Back to Collections`, to: "/collections" }} />
   }
-  const shown = shownCollection(collection)
+  const shown = shownOf(collection)
   const since = seenBefore ?? collection.seenAt
   // A question asked of every paper, or Owlit's groups, make it a table
   const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && !c.hidden) || shown.groups.length > 0
@@ -75,11 +78,7 @@ function CollectionVisit({ collectionId }: { collectionId: string | undefined })
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader trail={[{ label: t`Collections`, to: "/collections" }, ...(collection.project ? [{ label: collection.project, to: `/collections?project=${encodeURIComponent(collection.project)}` }] : [])]} current={shown.title}>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label={t`Collection actions`} className="text-muted-foreground data-[state=open]:bg-muted">
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
+          <MenuButton label={t`Collection actions`} />
           <ActionsDropdownContent groups={groups} align="end" className="w-56" />
         </DropdownMenu>
       </PageHeader>

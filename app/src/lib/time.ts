@@ -34,12 +34,6 @@ export function timeStamp(t: number, now = Date.now()) {
   return t >= startOfDay(now) ? clock(t) : dateTime(t)
 }
 
-// A file date ("2026-10-03") the way the page shows dates
-export function dayLabel(iso: string) {
-  const t = Date.parse(`${iso}T12:00:00`)
-  return Number.isNaN(t) ? iso : shortDate(t)
-}
-
 // "Just now", "12 min ago", "3 h ago", "Yesterday", then the date. Inside a sentence ("read yesterday",
 // "Owlit last read your workspace just now") the two words lower their capital, as their own messages so
 // a language without capitals, or with other rules for them, writes each form its own way.

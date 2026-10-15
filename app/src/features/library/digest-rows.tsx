@@ -1,15 +1,13 @@
 import { t } from "@lingui/core/macro"
-import { isTaskFinished } from "@owlit/protocol"
-import { toast } from "sonner"
 import { useShallow } from "zustand/react/shallow"
 import { Button } from "@/components/ui/button"
 import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import type { ResultRow } from "@/features/chat/components/messages/ResultRows"
-import { owlitToolOf } from "@/features/chat/lib/step-words"
+import { owlitToolOf } from "@/features/chat/lib/tool-title"
 import type { MessagePart } from "@/features/chat/types"
 import { useTasksStore } from "@/features/tasks/store"
-import { retryDigest } from "./digests"
+import { digestFailed, digestUnderWay, retryDigest } from "./digests"
 import { useLibraryStore } from "./store"
 
 // The papers an answer asked Owlit to write a digest of, by the tool's own reply ("Owlit is writing a
@@ -33,21 +31,13 @@ export function useDigestRows(parts: MessagePart[]): ResultRow[] {
   const navigate = useOpenFromChat()
   const ids = askedFor(parts)
   // One string, so the card redraws when a digest moves on rather than on every task or paper change
-  const stands = useTasksStore((s) =>
-    ids
-      .map((id) => {
-        const runs = Object.values(s.byId).filter((task) => task.kind === "paper.digest" && task.subject === id)
-        if (runs.some((task) => !isTaskFinished(task))) return "writing"
-        return runs.sort((a, b) => b.createdAt - a.createdAt)[0]?.state === "failed" ? "failed" : ""
-      })
-      .join(","),
-  ).split(",")
+  const stands = useTasksStore((s) => ids.map((id) => (digestUnderWay(s.byId, id) ? "writing" : digestFailed(s.byId, id) ? "failed" : "")).join(",")).split(",")
   const papers = useLibraryStore(useShallow((s) => ids.map((id) => s.papers[id])))
   return ids.flatMap((id, i) => {
     const paper = papers[i]
     if (!paper) return []
     const stand: Stand = stands[i] === "writing" ? "writing" : stands[i] === "failed" ? "failed" : paper.hasDigest ? "ready" : "asked"
-    const retry = () => void retryDigest(paper).catch(() => toast.error(t`Couldn't ask for the digest again.`))
+    const retry = () => void retryDigest(paper)
     return [
       {
         key: `digest:${id}`,

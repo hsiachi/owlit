@@ -1,8 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
 import type { VersionInfo } from "@owlit/protocol"
-import { toast } from "sonner"
-import { RowList, rowClass } from "@/components/row-list"
+import { RowList, revealOnHover, rowClass } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -11,7 +10,7 @@ import { dateTime } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
 import { undoChange } from "@/lib/versions"
 import { displayName, type WorkspaceFile } from "../types"
-import { toastUndo } from "@/lib/toast"
+import { toastError, toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
 // The doc as it was before each change an agent made to it (and before each undo), newest first. Restore
@@ -41,7 +40,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
         onOpenChange(false)
         toastUndo(t`Version restored`, () => undoChange(redoId, name), { description: name })
       })
-      .catch((error: Error) => toast.error(error.message))
+      .catch(toastError)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,14 +58,14 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
               const when = dateTime(v.at)
               const title = chat?.title
               return (
-                <li key={v.id} className={cn("group/version flex h-11 items-center gap-3 pr-1 hover:bg-accent", rowClass)}>
+                <li key={v.id} className={cn("group/row flex h-11 items-center gap-3 pr-1 hover:bg-accent", rowClass)}>
                   <p className="flex min-w-0 flex-1 items-baseline gap-2">
                     <span className="shrink-0 text-sm">{v.by === "undo" ? t`Before an undo` : t`Before Owlit's edit`}</span>
                     <span className="truncate text-xs text-muted-foreground">
                       {title ? t`${when} · from “${title}”` : v.chatId ? t`${when} · from a chat` : when}
                     </span>
                   </p>
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover/version:opacity-100 focus-visible:opacity-100" onClick={() => restore(v)}>
+                  <Button variant="ghost" size="sm" className={revealOnHover} onClick={() => restore(v)}>
                     {t({ message: "Restore", comment: "verb: put this version of the doc back" })}
                   </Button>
                 </li>

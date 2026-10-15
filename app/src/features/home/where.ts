@@ -1,13 +1,15 @@
 import { useMemo } from "react"
+import { useShallow } from "zustand/react/shallow"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
-import { displayName, isMarkdown, parentPath } from "@/features/docs/types"
+import { baseName, displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
 import { authorsYear } from "@/features/library/lib/format"
 import { useTrail, workspaceKey } from "./trail"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { messageText } from "@/features/chat/lib/message-text"
+import type { Chat, ChatMessage } from "@/features/chat/types"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
@@ -54,9 +56,23 @@ function owlitDid(createdAt: number, modifiedAt: number, owlitAt: number, userAt
 
 const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
 
+// A chat's place: the same object while its title and the user's last message stay the same, so a
+// streamed reply (which leaves both alone) neither requotes the chat nor redraws Home
+const chatPlaceCache = new Map<string, { mine: ChatMessage; place: Place }>()
+function chatPlace(c: Chat): Place[] {
+  const mine = c.messages.findLast((m) => m.role === "user")
+  if (!mine) return []
+  const was = chatPlaceCache.get(c.id)
+  if (was && was.mine === mine && was.place.title === c.title) return [was.place]
+  const words = markdownPlain(messageText(mine, " ")) || undefined
+  const place: Place = { kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words, did: null }
+  chatPlaceCache.set(c.id, { mine, place })
+  return [place]
+}
+
 export function usePlaces(): Place[] {
   const files = useDocsStore((s) => s.files)
-  const chats = useChatStore((s) => s.chats)
+  const chatPlaces = useChatStore(useShallow((s) => Object.values(s.chats).flatMap(chatPlace)))
   const papers = useLibraryStore((s) => s.papers)
   const highlights = useLibraryStore((s) => s.highlights)
   const notes = useLibraryStore((s) => s.notes)
@@ -76,7 +92,7 @@ export function usePlaces(): Place[] {
         kind: "doc",
         key: `doc:${f.id}`,
         title: displayName(f.path),
-        detail: parentPath(f.path).split("/").at(-1) ?? "",
+        detail: baseName(parentPath(f.path)),
         at: Math.max(mark?.at ?? 0, f.modifiedAt),
         to: `/docs/${f.id}`,
         // Without a cursor to go by, the end of the doc: drafts grow at the bottom
@@ -86,17 +102,6 @@ export function usePlaces(): Place[] {
     }
     return out
   }, [files, marks, owlitMarks])
-
-  const chatPlaces = useMemo(() => {
-    const out: Place[] = []
-    for (const c of Object.values(chats)) {
-      const mine = c.messages.findLast((m) => m.role === "user")
-      if (!mine) continue
-      const text = messageText(mine, " ")
-      out.push({ kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words: markdownPlain(text) || undefined, did: null })
-    }
-    return out
-  }, [chats])
 
   const paperPlaces = useMemo(() => {
     const out: Place[] = []

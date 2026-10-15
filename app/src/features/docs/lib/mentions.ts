@@ -1,18 +1,18 @@
 import { plural, t } from "@lingui/core/macro"
 import { useCollectionsStore } from "@/features/collections/store"
-import { collectionHolding } from "@/features/collections/lib"
-import { collectionUri, shownCollection } from "@owlit/protocol"
+import { collectionHolding, shown } from "@/features/collections/lib"
+import { collectionUri, paperUri, parseOwlitUri, type Collection } from "@owlit/protocol"
 import type { Mentionable } from "@/features/chat/types"
-import { useLibraryStore } from "@/features/library/store"
+import { paperById, useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
-import { paperUri, parseOwlitUri } from "@owlit/protocol"
 import { whenReaderReady } from "@/features/library/reader/reader-store"
 import { quoteTarget } from "@/features/library/reader/passages"
 import { fileAt, useDocsStore } from "../store"
 import { isHidden } from "./tree"
 import { useWorkspace } from "@/lib/workspace"
+import { i18n } from "@/lib/i18n"
 import { displayName, docUri, isMarkdown, parentPath, type WorkspaceFile } from "../types"
 
 // What a mention says in prose. A paper is cited the way a writer would: "Vaswani et al. 2017".
@@ -20,7 +20,7 @@ export interface DocMention extends Mentionable {
   label: string
 }
 
-// A doc or paper as something the agent can be pointed at
+// A doc, paper or collection as something the agent can be pointed at
 export const docMentionable = (file: WorkspaceFile): Mentionable => ({
   id: file.id,
   kind: "doc",
@@ -37,16 +37,42 @@ export const paperMentionable = (paper: Paper): Mentionable => ({
   uri: paperUri(paper.id),
 })
 
-// Everything @ can point to from a doc, minus the doc itself
-export function allDocMentions(selfId?: string): DocMention[] {
-  const papers: DocMention[] = Object.values(useLibraryStore.getState().papers)
+export const collectionMentionable = (c: Collection): Mentionable => {
+  const { title, rows } = shown(c)
+  return { id: c.id, kind: "collection", title, subtitle: plural(rows.length, { one: "# paper", other: "# papers" }), uri: collectionUri(c.id) }
+}
+
+// Everything @ can point to, built again only when the papers, docs, collections or language changed, as
+// @ asks for it on every key typed. Shared between callers, so not to be changed.
+let everything: { from: unknown[]; items: DocMention[] } | undefined
+function everyMention(): DocMention[] {
+  const { papers } = useLibraryStore.getState()
+  const { files } = useDocsStore.getState()
+  const { collections } = useCollectionsStore.getState()
+  const from = [papers, files, collections, i18n.locale]
+  if (everything?.from.every((x, i) => x === from[i])) return everything.items
+  const paperItems: DocMention[] = Object.values(papers)
     .sort((x, y) => (y.lastOpenedAt ?? y.addedAt) - (x.lastOpenedAt ?? x.addedAt))
     .map((p) => ({ ...paperMentionable(p), label: citationLabel(p) }))
-  const docs: DocMention[] = Object.values(useDocsStore.getState().files)
-    .filter((f) => f.id !== selfId && isMarkdown(f.path) && !isHidden(f.path))
+  const docItems: DocMention[] = Object.values(files)
+    .filter((f) => isMarkdown(f.path) && !isHidden(f.path))
     .sort((x, y) => y.modifiedAt - x.modifiedAt)
     .map((f) => ({ ...docMentionable(f), label: displayName(f.path) }))
-  return [...papers, ...docs, ...collectionMentionables().map((c) => ({ ...c, label: c.title }))]
+  // The collections, most recently changed first
+  const collectionItems: DocMention[] = Object.values(collections)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map((c) => {
+      const m = collectionMentionable(c)
+      return { ...m, label: m.title }
+    })
+  everything = { from, items: [...paperItems, ...docItems, ...collectionItems] }
+  return everything.items
+}
+
+// Everything @ can point to from a doc, minus the doc itself
+export function allDocMentions(selfId?: string): DocMention[] {
+  const all = everyMention()
+  return selfId ? all.filter((m) => !(m.kind === "doc" && m.id === selfId)) : all
 }
 
 // The items whose name or where they live holds every word of the query
@@ -60,9 +86,8 @@ export const docMentionItems = (query: string, selfId?: string) => filterMention
 
 // The paper a link names, by its id or one of its earlier ids (a paper merged into another keeps answering
 // to the id the agent was given); undefined when it isn't in the library
-function paperOf(id: string) {
-  const { papers, aliases } = useLibraryStore.getState()
-  return papers[id] ?? (aliases[id] ? papers[aliases[id]] : undefined)
+function paperOf(id: string, papers = useLibraryStore.getState().papers, aliases = useLibraryStore.getState().aliases) {
+  return paperById(papers, aliases, id)
 }
 
 // A paper mention whose paper is still Unread in the Library: nobody has read in it but Owlit, so it is
@@ -70,8 +95,7 @@ function paperOf(id: string) {
 // no state here and is drawn as usual.
 export function paperUnread(uri: string, papers = useLibraryStore.getState().papers, aliases = useLibraryStore.getState().aliases): boolean {
   const u = parseOwlitUri(uri)
-  if (u?.kind !== "paper") return false
-  return (papers[u.id] ?? (aliases[u.id] ? papers[aliases[u.id]] : undefined))?.status === "unread"
+  return u?.kind === "paper" && paperOf(u.id, papers, aliases)?.status === "unread"
 }
 
 // The same, kept current as the paper is read
@@ -87,10 +111,10 @@ export function mentionRoute(uri: string): string | null {
       const holder = collectionHolding(useCollectionsStore.getState().collections, u.id)
       if (holder) return `/collections/${holder.id}?paper=${encodeURIComponent(u.id)}`
     }
-    return `/library/${paper?.id ?? u.id}${u.passage ? `?passage=${encodeURIComponent(u.passage)}` : ""}`
+    return `/library/${paper?.id ?? u.id}`
   }
   if (u?.kind === "chat") return `/chat/${u.id}`
-  if (u?.kind === "collection") return `/collections/${u.id}${u.group ? `?group=${encodeURIComponent(u.group)}` : ""}`
+  if (u?.kind === "collection") return `/collections/${u.id}`
   if (u?.kind !== "doc") return null
   const file = fileAt(u.path)
   return file ? `/docs/${file.id}` : null
@@ -182,22 +206,12 @@ export function mentionLabel(uri: string): string | undefined {
     const page = u.page
     return page ? t({ message: `${cite}, p. ${page}`, comment: "a paper cited at a page: Chan et al. 2026, p. 13" }) : cite
   }
-  if (u?.kind === "doc") return u.path.split("/").pop()?.replace(/\.md$/, "")
+  if (u?.kind === "doc") return displayName(u.path)
   if (u?.kind === "collection") return collectionTitle(u.id)
   return undefined
 }
 
-// The collections @ reaches, most recently changed first
-function collectionMentionables(): Mentionable[] {
-  return Object.values(useCollectionsStore.getState().collections)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .map((c) => {
-      const shown = shownCollection(c)
-      return { id: c.id, kind: "collection", title: shown.title, subtitle: plural(shown.rows.length, { one: "# paper", other: "# papers" }), uri: collectionUri(c.id) }
-    })
-}
-
 const collectionTitle = (id: string) => {
   const c = useCollectionsStore.getState().collections[id]
-  return c ? shownCollection(c).title : undefined
+  return c ? shown(c).title : undefined
 }

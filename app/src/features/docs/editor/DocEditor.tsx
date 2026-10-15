@@ -19,7 +19,7 @@ import { type AgentNote, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
-import { agentNotes, noteAnchor, noteSpots, setNotes, setOpenNote } from "./agent-notes"
+import { agentNotes, noteSpots, setNotes, setOpenNote } from "./agent-notes"
 import { selectionMenu } from "./selection-menu"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { agentSuggestions, setPendingEdits } from "./suggestions"
@@ -29,8 +29,9 @@ import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
 import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
-import { toastUndo } from "@/lib/toast"
-import { toast } from "sonner"
+import { toastError, toastUndo } from "@/lib/toast"
+import { routeSubject } from "@/app/route-subject"
+import { anchorAt } from "@owlit/protocol"
 import { readerComments, setOpenThread, setThreads, threadSpots } from "./reader-comments"
 import { shares, threadsOf, useShareStore, type Thread } from "../share/store"
 
@@ -70,8 +71,8 @@ const pathOf = (fileId: string) => useDocsStore.getState().files[fileId]?.path
 async function replyTo(fileId: string, thread: Thread, text: string) {
   const path = pathOf(fileId)
   if (!path) return
-  await shares.reply(path, thread.root.id, text).catch((error: Error) => {
-    toast.error(error.message)
+  await shares.reply(path, thread.root.id, text).catch((error: unknown) => {
+    toastError(error)
     throw error
   })
 }
@@ -82,7 +83,7 @@ function resolveThread(fileId: string, thread: Thread) {
   void shares
     .resolve(path, thread.root.id, true)
     .then(() => toastUndo(t`Comment resolved`, () => shares.resolve(path, thread.root.id, false)))
-    .catch((error: Error) => toast.error(error.message))
+    .catch(toastError)
 }
 
 const SAVE_DELAY = 300
@@ -105,16 +106,24 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   useEffect(() => {
     const id = file.id
     let timer: ReturnType<typeof setTimeout> | undefined
-    let pending: string | null = null
+    // What the next write owes: the text changed, and whether by the user's own hand. The text is read
+    // and the user's place on Home's trail kept only then, not on every keystroke.
+    let dirty = false
+    let userEdited = false
     const content = file.content ?? ""
     const crlf = usesCrlf(content)
     const flush = () => {
       clearTimeout(timer)
-      if (pending !== null) {
-        useDocsStore.getState().writeDoc(id, pending)
+      if (userEdited) {
+        const path = useDocsStore.getState().files[id]?.path
+        if (path) markDocEdit(path, view.state.selection.main.head)
+      }
+      if (dirty) {
+        const text = view.state.doc.toString()
+        useDocsStore.getState().writeDoc(id, crlf ? text.replace(/\n/g, "\r\n") : text)
         saveNotePlaces()
       }
-      pending = null
+      dirty = userEdited = false
     }
     // Passages edited while the doc was open are saved as they read now, so their notes find them next time
     let saveNotePlaces = () => {}
@@ -162,7 +171,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             onOpen: (noteId) => useDocsUiStore.getState().setOpenNote(id, noteId),
             onChat: (note) => {
               useDocsUiStore.getState().setOpenNote(id, null)
-              chatAbout(id, note.quote, noteSpots(view.state).find((s) => s.note.id === note.id && !s.lost)?.from)
+              chatAbout(id, note.quote, noteSpots(view.state).find((s) => s.item.id === note.id && !s.lost)?.from)
             },
             onDismiss: (note, next) => dismissNote(id, note, next),
             mentionLabel,
@@ -178,10 +187,9 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             if (!u.docChanged) return
             if (u.transactions.some(isUserEdit)) {
               reportDocEdited(id)
-              const path = useDocsStore.getState().files[id]?.path
-              if (path) markDocEdit(path, u.state.selection.main.head)
+              userEdited = true
             }
-            pending = crlf ? u.state.doc.toString().replace(/\n/g, "\r\n") : u.state.doc.toString()
+            dirty = true
             clearTimeout(timer)
             timer = setTimeout(flush, SAVE_DELAY)
           }),
@@ -234,16 +242,17 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       if (next === openComment) return
       openComment = next
       view.dispatch({ effects: setOpenThread.of(next) })
-      const spot = threadSpots(view.state).find((n) => n.thread.root.id === next)
+      const spot = threadSpots(view.state).find((n) => n.item.root.id === next)
       if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 200 }) })
     })
 
     saveNotePlaces = () => {
       const doc = view.state.doc
+      let text: string | undefined
       const moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">> = {}
       for (const s of noteSpots(view.state)) {
-        if (s.lost || doc.sliceString(s.from, s.to) === s.note.quote) continue
-        moved[s.note.id] = noteAnchor(doc.toString(), s.from, s.to)
+        if (s.lost || doc.sliceString(s.from, s.to) === s.item.quote) continue
+        moved[s.item.id] = anchorAt((text ??= doc.toString()), s.from, s.to)
       }
       if (Object.keys(moved).length) useDocsStore.getState().reanchorNotes(id, moved)
     }
@@ -258,7 +267,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       if (next === open) return
       open = next
       view.dispatch({ effects: setOpenNote.of(next) })
-      const spot = noteSpots(view.state).find((n) => n.note.id === next)
+      const spot = noteSpots(view.state).find((n) => n.item.id === next)
       // Room below the passage's last line for the card
       if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 160 }) })
     })
@@ -288,7 +297,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it
       setTimeout(() => {
         const left = useDocsStore.getState().files[id]
-        if (window.location.pathname.endsWith(`/docs/${id}`)) return
+        const here = routeSubject(window.location.pathname)
+        if (here?.kind === "doc" && here.id === id) return
         if (left && !left.content && freshDocIds.has(id)) {
           useDocsStore.getState().deleteFile(id)
           freshDocIds.delete(id)

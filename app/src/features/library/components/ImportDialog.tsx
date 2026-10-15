@@ -12,9 +12,9 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { RpcError } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
+import { tilde } from "@/lib/workspace"
 import { closeImportDialog, openImportDialog, pickImport, previewImport, reviewImport, startImport, useImportDialog } from "../imports"
 
-const tilde = (p: string) => p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~")
 
 // File › Import Papers…: where the papers come from, then what importing them will do, before anything
 // is added. Global, so the menu opens it from any page; starting an import goes to the Library, where
