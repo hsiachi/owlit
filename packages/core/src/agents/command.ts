@@ -27,22 +27,44 @@ export function splitCommand(line: string): string[] {
   return words
 }
 
-// An app opened from the Finder gets a bare PATH (/usr/bin:/bin:…), without what the user's shell adds
-// (~/.local/bin, Homebrew, nvm, …). The login shell is asked once for its PATH; if that fails, common
-// places are added to what the process has.
-let shellPath: Promise<string> | undefined
+const SHELL_WAIT_MS = 10_000
+// After a miss, the shell isn't asked again for this long, so a shell that keeps hanging costs one wait
+// now and then rather than one per agent started
+const RETRY_AFTER_MS = 30_000
 
-export function userPath(): Promise<string> {
-  shellPath ??= new Promise((resolve) => {
-    const fallback = [process.env.PATH, path.join(homedir(), ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).join(":")
+// An app opened from the Finder gets a bare PATH (/usr/bin:/bin:…), without what the user's shell adds
+// (~/.local/bin, Homebrew, nvm, …). The login shell is asked for its PATH; if that fails, common places
+// are added to what the process has. Only the shell's answer is kept: a fallback is used for that call
+// alone, since the shell can miss once (it timed out when macOS reopened Owlit at login, and the fallback,
+// without nvm, then hid Claude Code's adapter until Owlit was quit) and answer fine a moment later.
+export const userPath = pathFinder(askShell)
+
+export function pathFinder(ask: () => Promise<string | null>, retryAfterMs = RETRY_AFTER_MS, now = Date.now): () => Promise<string> {
+  const fallback = () => [process.env.PATH, path.join(homedir(), ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).join(":")
+  // Callers while the shell is being asked share its answer
+  let found: Promise<string> | undefined
+  let missedAt = -Infinity
+  return () => {
+    if (found) return found
+    if (now() - missedAt < retryAfterMs) return Promise.resolve(fallback())
+    found = ask().then((shell) => {
+      if (shell) return [shell, fallback()].join(":")
+      missedAt = now()
+      found = undefined
+      return fallback()
+    })
+    return found
+  }
+}
+
+function askShell(): Promise<string | null> {
+  return new Promise((resolve) => {
     const shell = process.env.SHELL || "/bin/zsh"
     const marker = "__OWLIT_PATH__"
-    execFile(shell, ["-ilc", `printf '${marker}%s${marker}' "$PATH"`], { timeout: 5000, env: { ...process.env } }, (error, stdout) => {
-      const found = !error && new RegExp(`${marker}(.*)${marker}`).exec(stdout)?.[1]
-      resolve(found ? [found, fallback].join(":") : fallback)
+    execFile(shell, ["-ilc", `printf '${marker}%s${marker}' "$PATH"`], { timeout: SHELL_WAIT_MS, env: { ...process.env } }, (error, stdout) => {
+      resolve((!error && new RegExp(`${marker}(.*)${marker}`).exec(stdout)?.[1]) || null)
     })
   })
-  return shellPath
 }
 
 // The executable a command's first word names: itself when it is a path, else the first match on PATH
