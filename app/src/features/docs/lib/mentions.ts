@@ -7,8 +7,7 @@ import { paperById, useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
-import { whenReaderReady } from "@/features/library/reader/reader-store"
-import { quoteTarget } from "@/features/library/reader/passages"
+import { showInPaper } from "@/features/library/paper-view"
 import { fileAt, useDocsStore } from "../store"
 import { isHidden } from "./tree"
 import { useWorkspace } from "@/lib/workspace"
@@ -183,16 +182,9 @@ export function openMention(uri: string, go: (route: string) => void, pathname =
   if (u?.kind !== "paper" || (!u.page && !quote)) return
   const paper = paperOf(u.id)
   if (!paper) return
-  const page = u.page
-  // A paper without a PDF never gets ready; the link has still opened it. A citation that gave the sentence
+  // A paper without a PDF has no page to go to; the link has still opened it. A citation that gave the sentence
   // it rests on (its link's title) rings that sentence; one that isn't found still lands on its page.
-  whenReaderReady(paper.id).then(
-    async (api) => {
-      if (quote && (await api.showPassage(quoteTarget(quote, page), "jump"))) return
-      if (page) api.showPage(page - 1)
-    },
-    () => undefined,
-  )
+  showInPaper(paper.id, { page: u.page, quote }).catch(() => undefined)
 }
 
 // A short name for a bare owlit:// address in prose an agent wrote (a note's text): how a writer cites

@@ -9,6 +9,7 @@ import { HIGHLIGHT_COLORS, HIGHLIGHT_MARK, highlightLabel, highlightsMarkdown } 
 import { usePaperHighlights } from "../lib/use-highlights"
 import { deleteHighlight } from "../actions"
 import { copyText } from "@/lib/clipboard"
+import { showInPaper } from "../paper-view"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
 import type { Highlight } from "../types"
@@ -74,7 +75,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
     if (focused) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
   }, [focused])
 
-  const jump = () => useReaderStore.getState().api?.jumpToHighlight(h)
+  const jump = () => showInPaper(h.paperId, { highlight: h }).catch(() => false)
 
   // The same menu from the ⋯ and from a right-click on the highlight
   const menu: MenuGroups = [
@@ -91,10 +92,8 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
       },
       {
         label: h.comment ? t`Edit comment` : t`Add comment`,
-        onSelect: () => {
-          jump()
-          useReaderStore.getState().open(h.id, { commenting: true })
-        },
+        // After the jump, which closes whatever popover was open
+        onSelect: () => void jump().then(() => useReaderStore.getState().open(h.id, { commenting: true })),
       },
       { label: t({ message: "Copy", comment: "verb: copy the text" }), onSelect: () => copy(h.text, t`Highlight copied`) },
       { label: t`Add to note`, onSelect: onAddToNote },
