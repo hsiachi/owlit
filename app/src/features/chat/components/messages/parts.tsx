@@ -14,6 +14,7 @@ import { hasResult, stepMeta } from "../../lib/step-output"
 import { StepResult } from "./step-results"
 import { FoldingBlock, FoldingList, StepChevron, StepRow } from "./folding"
 import { useOpenWhile } from "./use-open-while"
+import { usePacedText, type Pace } from "./use-paced-text"
 import { capital } from "@/lib/words"
 
 // The outcome of a permission request, keyed by the tool call it was asked for
@@ -367,7 +368,8 @@ export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Par
   )
 }
 
-// Memoized: a streamed chunk makes a new last text part and keeps the earlier ones as they were
-export const TextPart = memo(function TextPart({ part }: { part: Part<"text"> }) {
-  return <Markdown text={part.text} />
+// Memoized: a streamed chunk makes a new last text part and keeps the earlier ones as they were. While its
+// answer is written the words come on at an even pace (use-paced-text.ts)
+export const TextPart = memo(function TextPart({ part, pace = "off" }: { part: Part<"text">; pace?: Pace }) {
+  return <Markdown text={usePacedText(part.text, pace)} />
 })
