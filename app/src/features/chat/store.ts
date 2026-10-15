@@ -9,6 +9,7 @@ import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
 import { optionFor, pendingAsk, useSeenStore } from "./status"
 import { useAskDraft } from "./ask-draft"
+import { useComposerDrafts } from "./composer-drafts"
 import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
 import { resolveSelection, selectionOf, type Selection } from "./lib/selection"
 import { titleFrom } from "./lib/title"
@@ -102,6 +103,7 @@ export const useChatStore = create<ChatState>()(
       deleteChat(id) {
         get().cancel(id)
         useSeenStore.getState().forget(id)
+        useComposerDrafts.getState().drop(id)
         const removed = get().chats[id]
         if (removed) deleted.set(id, removed)
         set((s) => {

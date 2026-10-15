@@ -38,7 +38,7 @@ export function AgentAskBar() {
   // The bar takes files like the composer: copied into the folder of the chat it will start
   const [draftId, setDraftId] = useState(() => crypto.randomUUID())
   const [mentions, setMentions] = useState<Mentionable[]>([])
-  const attachments = useAttachments(draftId, (m) => setMentions((list) => (list.some((x) => x.uri === m.uri) ? list : [...list, m])))
+  const attachments = useAttachments(`bar:${draftId}`, draftId, (m) => setMentions((list) => (list.some((x) => x.uri === m.uri) ? list : [...list, m])))
   const { connector } = useResolvedSelection(undefined)
   const { dragging, dropProps } = useFileDrop((data) => {
     const { files, folders } = fromDrop(data)
