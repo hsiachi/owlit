@@ -305,7 +305,8 @@ async function updateMenu(core: Core) {
     win?.webContents.send("menu", command)
   }
   const settingsItem: MenuItemConstructorOptions = { label: t`Settings…`, accelerator: "CmdOrCtrl+,", click: () => send("settings") }
-  const name = app.name
+  // A dev run is Owlit Dev (scripts/dev.mjs), though app.name stays Owlit for the keychain's sake
+  const name = process.env.OWLIT_DEV_NAME || app.name
   // Electron names its role items in English only, so each one carries its label in the interface's
   // language; the items and their order are Electron's own defaults
   const template: MenuItemConstructorOptions[] = [
@@ -466,8 +467,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (!devUrl) serveRenderer()
-    // A packaged app gets its icon from the bundle; a dev run is Electron's own binary, so set it here
-    if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon.png"))
+    // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
+    if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
     const browser = createBrowserHost()
     const proxy = await systemProxy()
     const core = new Core({

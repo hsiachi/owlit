@@ -1,6 +1,8 @@
 // node scripts/icon.mjs: Owlit's app icon, written into resources/. icon.svg is the vector source; icon.png is
 // the 1024px icon the dev Dock shows; icon.icns is what the packaged app carries, rendered per size with
 // iconutil. There is one icon for both appearances: a deep green tile holds up in a light Dock and a dark one.
+// icon-dev.png and icon-dev.icns are the same drawing on a graphite tile, for Owlit Dev (pnpm dev, pnpm try),
+// so a preview never passes for the Owlit you use.
 // Icons change rarely, so sharp is not a dependency: point SHARP_PATH at any installed copy.
 import fs from "node:fs"
 import os from "node:os"
@@ -13,7 +15,9 @@ const out = path.join(path.dirname(new URL(import.meta.url).pathname), "../resou
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "owlit-icon-"))
 const FEATHER = "M 53 225 C 55 167 85 93 136 58 C 164 39 199 32 211 45 C 228 64 191 96 155 111 C 128 122 107 137 91 154 C 108 140 126 128 146 124 C 171 117 176 128 159 145 C 146 158 124 164 111 169 C 134 163 143 177 125 190 C 114 198 101 201 91 201"
 // Forest tile, warm-white feather, two green bars under the lower curls (a highlighted passage).
-const T = { top: "#1d4a35", bottom: "#123325", feather: "#f6f5f0", bars: "#589a70", shadow: 0.4, edgeOp: 0.1, lineOp: 0.06 }
+const OWLIT = { top: "#1d4a35", bottom: "#123325", feather: "#f6f5f0", bars: "#589a70", shadow: 0.4, edgeOp: 0.1, lineOp: 0.06 }
+const DEV = { ...OWLIT, top: "#43464b", bottom: "#2a2c30", bars: "#7d8188" }
+let T = OWLIT
 const BARS = [[106, 127, 96, 30], [106, 171, 74, 28]]
 // Line weight in feather units by the point size it is drawn for: 14.5 at full size, heavier when small so
 // the line keeps about a pixel.
@@ -69,11 +73,14 @@ async function render(pt, px) {
   return sharp(shadow, raw).composite([{ input: tile, ...raw }, { input: over, ...raw }]).png().toBuffer()
 }
 fs.writeFileSync(path.join(out, "icon.svg"), svg())
-fs.writeFileSync(path.join(out, "icon.png"), await render(1024, 1024))
-const set = path.join(scratch, "Owlit.iconset")
-fs.mkdirSync(set)
-// A @2x file is the retina rendering of the smaller point size, so it takes that size's line weight.
-for (const [pt, px] of [[16, 16], [16, 32], [32, 32], [32, 64], [128, 128], [128, 256], [256, 256], [256, 512], [512, 512], [512, 1024]])
-  fs.writeFileSync(path.join(set, `icon_${pt}x${pt}${px === pt ? "" : "@2x"}.png`), await render(pt, px))
-execFileSync("iconutil", ["-c", "icns", set, "-o", path.join(out, "icon.icns")])
+for (const [name, theme] of [["icon", OWLIT], ["icon-dev", DEV]]) {
+  T = theme
+  fs.writeFileSync(path.join(out, `${name}.png`), await render(1024, 1024))
+  const set = path.join(scratch, `${name}.iconset`)
+  fs.mkdirSync(set)
+  // A @2x file is the retina rendering of the smaller point size, so it takes that size's line weight.
+  for (const [pt, px] of [[16, 16], [16, 32], [32, 32], [32, 64], [128, 128], [128, 256], [256, 256], [256, 512], [512, 512], [512, 1024]])
+    fs.writeFileSync(path.join(set, `icon_${pt}x${pt}${px === pt ? "" : "@2x"}.png`), await render(pt, px))
+  execFileSync("iconutil", ["-c", "icns", set, "-o", path.join(out, `${name}.icns`)])
+}
 fs.rmSync(scratch, { recursive: true, force: true })
