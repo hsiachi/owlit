@@ -9,7 +9,7 @@
 // in front of ScienceDirect and the ACM put up a new check every time the old one was passed).
 
 import { t } from "@lingui/core/macro"
-import { isCheckTitle, isPdfBytes, NeedsUser, PDF_MAX_BYTES, pdfLinkOn, siteOf, type BrowserHost, type BrowserRequest } from "@owlit/core"
+import { ACCESS_OFFER, isCheckTitle, isPdfBytes, NeedsUser, NoPdfOnPage, PDF_MAX_BYTES, pdfFromLanded, pdfLinkOn, siteOf, type BrowserHost, type BrowserRequest, type PageSeen } from "@owlit/core"
 import { app, BrowserWindow, session as electronSession, type DownloadItem, type WebContents } from "electron"
 import { readFile, rm } from "node:fs/promises"
 import os from "node:os"
@@ -167,7 +167,10 @@ export function createBrowserHost(): BrowserHost {
     const steps: BrowserRequest = { ...request, signal }
     const abort = () => contents.stop()
     signal.addEventListener("abort", abort, { once: true })
-    const opened = (_event: Electron.Event, url: string, status: number) => request.report?.({ kind: "opened", host: hostOf(url), status })
+    const opened = (_event: Electron.Event, url: string, status: number) => {
+      run.status = status
+      request.report?.({ kind: "opened", host: hostOf(url), status })
+    }
     contents.on("did-navigate", opened)
     const caught = catchPdf(contents)
     const steered = (async () => {
@@ -181,7 +184,7 @@ export function createBrowserHost(): BrowserHost {
       trace("clear")
       if (caught.busy()) return caught.pdf
       const pdfUrl = await pdfAddress(contents, steps)
-      if (!pdfUrl) throw new Error("The publisher's page doesn't link a PDF.")
+      if (!pdfUrl) throw new NoPdfOnPage("The publisher's page doesn't link a PDF.", await seenOn(contents, run))
       trace(`opening ${pdfUrl}`)
       return openPdf(contents, pdfUrl, steps, run, caught)
     })()
@@ -217,7 +220,7 @@ export function createBrowserHost(): BrowserHost {
       // A check back again ends the run here (NeedsUser)
       if (!bytes) await waitUntilClear(contents, request, run)
     }
-    if (!bytes) throw new Error(`${hostOf(url)} didn't give a PDF to this reader.`)
+    if (!bytes) throw new NoPdfOnPage(`${hostOf(url)} didn't give a PDF to this reader.`, await seenOn(contents, run))
     return bytes
   }
 
@@ -360,13 +363,37 @@ async function pdfAddress(contents: WebContents, request: BrowserRequest) {
     if (contents.isDestroyed() || request.signal.aborted) return undefined
     const found = await contents.executeJavaScript(`document.querySelector('meta[name="citation_pdf_url"]')?.content ?? null`, true).catch(() => null)
     if (typeof found === "string" && found) return new URL(found, contents.getURL()).toString()
+    // Worked out from where the page is (IEEE's arnumber, OSF's id), for pages without the tag
+    const landed = pdfFromLanded(contents.getURL())
+    if (landed) return landed
     const links = await contents
       .executeJavaScript(`[...document.querySelectorAll('a[href]')].map((a) => ({ text: a.textContent ?? "", href: a.href }))`, true)
       .catch(() => [])
-    const link = pdfLinkOn(contents.getURL(), Array.isArray(links) ? links : [])
+    const link = pdfLinkOn(contents.getURL(), Array.isArray(links) ? links : []) ?? (await viewerPdf(contents))
     if (link || Date.now() >= until) return link
     await new Promise((r) => setTimeout(r, 1000))
   }
+}
+
+// A PDF the page shows in a viewer of its own (an <iframe>, <embed> or <object> whose address is a
+// .pdf, or PDF.js's ?file=) on the page's own site: the page has the PDF but links nothing labelled so
+async function viewerPdf(contents: WebContents) {
+  const sources = await contents
+    .executeJavaScript(`[...document.querySelectorAll("iframe[src], embed[src], object[data]")].map((e) => e.src || e.data)`, true)
+    .catch(() => [])
+  const site = siteOf(hostOf(contents.getURL()))
+  for (const source of Array.isArray(sources) ? sources : []) {
+    let url: URL
+    try {
+      url = new URL(String(source), contents.getURL())
+    } catch {
+      continue
+    }
+    const file = url.searchParams.get("file")
+    const pdf = file ? new URL(file, url).toString() : url.toString()
+    if (/\.pdf($|\?)/i.test(new URL(pdf).pathname + "?") && siteOf(hostOf(pdf)) === site) return pdf
+  }
+  return undefined
 }
 
 // The PDF the page is downloading, once it is in; undefined when the page settled without starting one
@@ -392,9 +419,29 @@ async function pdfWithin(contents: WebContents, request: BrowserRequest, caught:
   return caught.busy() ? caught.pdf : undefined
 }
 
-// What one run has seen: checks that passed by themselves
+// What one run has seen: checks that passed by themselves, and the status of the page last opened
 interface Run {
   cleared: Set<string>
+  status?: number
+}
+
+// The page a run ended on without a PDF, for core to tell no access (a "Get Access" or "Purchase"
+// button on screen, as APA PsycNet shows a reader its library doesn't give the paper) from a page with
+// no PDF on it (where-it-ended.ts, pageVerdict). Short visible controls only: a sentence that mentions
+// buying isn't an offer.
+const ACCESS_PROBE = `(() => {
+  const visible = ${VISIBLE}
+  const offer = new RegExp(${JSON.stringify(ACCESS_OFFER.source)}, "i")
+  return [...document.querySelectorAll("a, button, [role=button]")].some((e) => {
+    const text = (e.textContent ?? "").replace(/\\s+/g, " ").trim()
+    return text.length <= 60 && offer.test(text) && visible(e)
+  })
+})()`
+
+async function seenOn(contents: WebContents, run: Run): Promise<PageSeen> {
+  if (contents.isDestroyed()) return { url: "", title: "", offersAccess: false }
+  const offersAccess = await contents.executeJavaScript(ACCESS_PROBE, true).then((v) => v === true, () => false)
+  return { url: contents.getURL(), title: contents.getTitle(), ...(run.status ? { status: run.status } : {}), offersAccess }
 }
 
 function hostOf(url: string) {

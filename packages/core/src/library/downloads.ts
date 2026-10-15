@@ -136,6 +136,18 @@ export async function whoseDownload(
   return undefined
 }
 
+// Whether a PDF is this paper, from what its first pages say: yes (its DOI, or its whole title), no (a
+// title long enough to tell, or another DOI, and neither matches), or unknown (no text to read, a
+// title too short to be sure of). For a PDF owlit didn't choose by address: one a repository's page
+// named, or one found by title.
+export function isThisPaper(said: PdfLook | undefined, paper: { doi?: string; title: string }): "yes" | "no" | "unknown" {
+  if (!said?.text.trim()) return "unknown"
+  if (paper.doi && said.doi && paper.doi.toLowerCase() === said.doi.toLowerCase()) return "yes"
+  const title = normalize(paper.title)
+  if (title.length >= 20 && normalize(said.text).includes(title)) return "yes"
+  return title.length >= 20 || said.doi ? "no" : "unknown"
+}
+
 // The addresses a browser recorded the file was saved from (macOS keeps them with the file, as Finder's
 // "Where from"), or undefined where there are none
 export async function savedFrom(file: string): Promise<string[] | undefined> {

@@ -106,3 +106,23 @@ export class NeedsUser extends Error {
     this.host = host
   }
 }
+
+// What the page showed when it gave no PDF, for telling no access from a page with no link on it
+// (library/where-it-ended.ts, pageVerdict): where it ended, its title, the main page's status, and
+// whether it shows an offer to buy or to get access (a "Get Access" or "Purchase" button on screen)
+export interface PageSeen {
+  url: string
+  title: string
+  status?: number
+  offersAccess: boolean
+}
+
+// The publisher's page gave no PDF; seen is the page it ended on
+export class NoPdfOnPage extends Error {
+  readonly seen: PageSeen
+  constructor(message: string, seen: PageSeen) {
+    super(message)
+    this.name = "NoPdfOnPage"
+    this.seen = seen
+  }
+}
