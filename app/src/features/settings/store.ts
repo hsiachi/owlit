@@ -23,7 +23,7 @@ export type SettingsSection = (typeof SECTIONS)[number]["id"]
 
 // Groups inside a section that a link can open at. Before 2026-10-12 most of these were sections of their
 // own, so owlit://settings/proxy in an older chat still lands in the right place.
-export const GROUPS = {
+const GROUPS = {
   profile: { section: "owlit", label: null },
   background: { section: "owlit", label: msg`Background work` },
   privacy: { section: "owlit", label: msg`Privacy` },

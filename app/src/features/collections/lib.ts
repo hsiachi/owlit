@@ -1,7 +1,8 @@
 import { t } from "@lingui/core/macro"
-import { MENTION_LINK, QUESTION_COLUMN, shownCollection, summarize, type Collection, type CollectionPaper, type CollectionRow, type CollectionSummary, type Relation } from "@owlit/protocol"
+import { MENTION_LINK, mentionLink, QUESTION_COLUMN, shownCollection, summarize, type Collection, type CollectionColumn, type CollectionPaper, type CollectionRow, type CollectionSummary, type Relation } from "@owlit/protocol"
+import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
-import { useLibraryStore } from "@/features/library/store"
+import { paperById, useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 
 // Worked out once per collection object, which is safe because the store replaces a collection on every
@@ -19,22 +20,41 @@ function perCollection<T>(build: (c: Collection) => T) {
 export const shown = perCollection(shownCollection)
 export const summaryOf = perCollection(summarize)
 
+// The Library's papers by lowercased DOI and by arXiv id, each with its place in the list, built once per
+// papers object (the store replaces it on every change). A row looks its paper up on every change to the
+// Library, so this saves walking every paper per row.
+type ByIds = { doi: Map<string, [number, Paper]>; arxiv: Map<string, [number, Paper]> }
+const idIndexes = new WeakMap<Record<string, Paper>, ByIds>()
+function byIds(papers: Record<string, Paper>): ByIds {
+  let index = idIndexes.get(papers)
+  if (index) return index
+  index = { doi: new Map(), arxiv: new Map() }
+  Object.values(papers).forEach((p, at) => {
+    const doi = p.ids.doi?.toLowerCase()
+    if (doi && !index.doi.has(doi)) index.doi.set(doi, [at, p])
+    if (p.ids.arxiv && !index.arxiv.has(p.ids.arxiv)) index.arxiv.set(p.ids.arxiv, [at, p])
+  })
+  idIndexes.set(papers, index)
+  return index
+}
+
 // The Library's own record of a row's paper, when the paper is there: by the row's id, an id it had
 // before, or a shared DOI or arXiv id (a paper added by hand gets the same id, but one dropped in as a PDF
-// may not)
-export function libraryPaperOf(row: Pick<CollectionRow, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
-  const direct = papers[row.id] ?? (aliases[row.id] ? papers[aliases[row.id]] : undefined)
+// may not). Of two papers sharing them, the first in the Library.
+function libraryPaperOf(row: Pick<CollectionRow, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
+  const direct = paperById(papers, aliases, row.id)
   if (direct) return direct
   const { doi, arxiv } = row.paper.ids
   if (!doi && !arxiv) return undefined
-  return Object.values(papers).find((p) => (doi && p.ids.doi?.toLowerCase() === doi.toLowerCase()) || (arxiv && p.ids.arxiv === arxiv))
+  const index = byIds(papers)
+  const byDoi = doi ? index.doi.get(doi.toLowerCase()) : undefined
+  const byArxiv = arxiv ? index.arxiv.get(arxiv) : undefined
+  if (byDoi && byArxiv) return byDoi[0] <= byArxiv[0] ? byDoi[1] : byArxiv[1]
+  return (byDoi ?? byArxiv)?.[1]
 }
 
-export function useLibraryPaper(row: Pick<CollectionRow, "id" | "paper">) {
-  const papers = useLibraryStore((s) => s.papers)
-  const aliases = useLibraryStore((s) => s.aliases)
-  return libraryPaperOf(row, papers, aliases)
-}
+// Only the row's own paper: a row draws again when that paper changes, not on every change to the Library
+export const useLibraryPaper = (row: Pick<CollectionRow, "id" | "paper">) => useLibraryStore((s) => libraryPaperOf(row, s.papers, s.aliases))
 
 // What a paper is, as the user sees it: the Library's record wins (their corrections are in it)
 export function paperFacts(row: CollectionRow, library: Paper | undefined): CollectionPaper {
@@ -102,7 +122,7 @@ export function relinkMemo(plain: string, links: { label: string; uri: string }[
   for (const l of links) {
     const at = out.indexOf(l.label, from)
     if (at < 0) continue
-    const md = `[${l.label.replace(/([\[\]\\])/g, "\\$1")}](${l.uri})`
+    const md = mentionLink(l.label, l.uri)
     out = out.slice(0, at) + md + out.slice(at + l.label.length)
     from = at + md.length
   }
@@ -112,7 +132,7 @@ export function relinkMemo(plain: string, links: { label: string; uri: string }[
 // What a collection says about one of its papers, a line per column with an answer: the answer to its
 // question first and unlabelled, then each question asked of every paper, then how the paper stands on the
 // user's sentences. The user's rewrites are in it.
-export function paperLines(shown: Collection, row: CollectionRow): { label?: string; text: string }[] {
+function paperLines(shown: Collection, row: CollectionRow): { label?: string; text: string }[] {
   const out: { label?: string; text: string }[] = []
   for (const col of shown.columns) {
     const cell = row.cells[col.id]
@@ -128,6 +148,16 @@ export function paperLines(shown: Collection, row: CollectionRow): { label?: str
   return out
 }
 
+// A column's name in its header and in an export
+export function columnLabel(col: CollectionColumn) {
+  if (col.id === QUESTION_COLUMN) return t({ message: "Answer", comment: "column: what a paper says about the collection's question" })
+  if (col.kind === "compare") {
+    const doc = displayName(col.doc ?? col.question)
+    return t`Compared with ${doc}`
+  }
+  return col.question
+}
+
 export const relWord = (rel: Relation) =>
   ({
     supports: t({ message: "Supports", comment: "a paper's findings back one of the user's sentences" }),
@@ -141,12 +171,12 @@ export function collectionsByPaper(collections: Record<string, Collection>, pape
   const out = new Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]>()
   const ordered = Object.values(collections).sort((a, b) => b.updatedAt - a.updatedAt)
   for (const c of ordered) {
-    const shown = shownCollection(c)
-    for (const row of shown.rows) {
+    const view = shown(c)
+    for (const row of view.rows) {
       const paper = libraryPaperOf(row, papers, aliases)
       if (!paper) continue
       const list = out.get(paper.id) ?? []
-      if (!list.some((x) => x.id === c.id)) list.push({ id: c.id, title: shown.title, lines: paperLines(shown, row) })
+      if (!list.some((x) => x.id === c.id)) list.push({ id: c.id, title: view.title, lines: paperLines(view, row) })
       out.set(paper.id, list)
     }
   }

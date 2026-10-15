@@ -1,6 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { filePath, isDesktop } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { importPdf } from "../disk"
 import { libraryClient, useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
@@ -39,7 +40,7 @@ async function importInCore(pdfs: File[]) {
       else added++
     } catch (error) {
       unread.push(file.name)
-      if (pdfs.length === 1) toast.error(error instanceof Error ? error.message : t`Couldn't add that file.`)
+      if (pdfs.length === 1) toastError(error, t`Couldn't add that file.`)
     }
   }
   toast.dismiss(progress)

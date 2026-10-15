@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { Placeholder } from "@tiptap/extensions"
@@ -9,7 +9,7 @@ import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { respondToEdit } from "@/features/chat/lib/respond-edit"
 import { drawnEdits } from "@/features/chat/in-place"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
-import { cn } from "@/lib/utils"
+import { useSelectionMenu } from "@/components/selection-menu"
 import { askAboutPassage } from "../actions"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
@@ -18,10 +18,6 @@ import { consumeFocusEnd, notePathOf } from "./note-actions"
 import { NoteSuggestions, noteSuggestionsKey } from "./note-suggestions"
 
 const HIGHLIGHT_LINK = "owlit://highlight/"
-// Clear of the selected line, as the Docs selection menu sits
-const MENU_GAP = 8
-// The menu's one 24px row in its 2px frame and hairline border
-const MENU_HEIGHT = 30
 
 // Moving to another paper recreates the editor (useEditor's deps), and useEditor destroys the old one in its
 // own effect. Effects that depend on paperId then run once more in that same commit with the old editor, whose
@@ -35,7 +31,9 @@ const live = (editor: Editor | null): editor is Editor => !!editor && !editor.is
 export function NoteEditor({ paperId }: { paperId: string }) {
   const setNote = useLibraryStore((s) => s.setNote)
   const box = useRef<HTMLDivElement>(null)
-  const [menu, setMenu] = useState<{ left: number; top: number; below: boolean } | null>(null)
+  const { menu, control: selectionMenu } = useSelectionMenu(() => chat())
+  // The Markdown this editor last saved, so hearing its own change back costs no second getMarkdown()
+  const written = useRef<string | undefined>(undefined)
 
   const editor = useEditor(
     {
@@ -51,7 +49,10 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       ],
       content: useLibraryStore.getState().notes[paperId]?.content ?? "",
       contentType: "markdown",
-      onUpdate: ({ editor }) => setNote(paperId, editor.isEmpty ? "" : editor.getMarkdown()),
+      onUpdate: ({ editor }) => {
+        written.current = editor.isEmpty ? "" : editor.getMarkdown()
+        setNote(paperId, written.current)
+      },
       editorProps: {
         attributes: { class: "note-editor markdown text-body leading-relaxed outline-none" },
         handleClick: (_view, _pos, event) => {
@@ -78,10 +79,13 @@ export function NoteEditor({ paperId }: { paperId: string }) {
   // taken in as one change, so ⌘Z takes it back
   useEffect(() => {
     if (!live(editor)) return
+    written.current = undefined
     return useLibraryStore.subscribe((state, prev) => {
       const next = state.notes[paperId]?.content ?? ""
-      if (next === (prev.notes[paperId]?.content ?? "")) return
+      if (next === (prev.notes[paperId]?.content ?? "") || next === written.current) return
       const shown = editor.isEmpty ? "" : editor.getMarkdown()
+      // From here on the editor shows `next`, or the same words
+      written.current = next
       if (next.trim() === shown.trim()) return
       editor.commands.setContent(next, { contentType: "markdown", emitUpdate: false })
     })
@@ -110,49 +114,30 @@ export function NoteEditor({ paperId }: { paperId: string }) {
   // A selected passage offers one action above it, "Ask Owlit"; not while the mouse is still choosing
   useEffect(() => {
     if (!editor) return
-    let choosing = false
     const place = () => {
       const { from, to, empty } = editor.state.selection
       const text = empty ? "" : editor.state.doc.textBetween(from, to, "\n").trim()
-      if (choosing || !editor.isFocused || !isPassage(text) || !box.current) return setMenu(null)
-      const start = editor.view.coordsAtPos(from)
+      if (mouse.choosing() || !editor.isFocused || !isPassage(text) || !box.current) return selectionMenu.hide()
       const outer = box.current.getBoundingClientRect()
-      const above = start.top - outer.top - MENU_GAP
       // On the note's first lines there is no room above without covering the tabs: it goes under the selection
-      if (above - MENU_HEIGHT >= 0) return setMenu({ left: start.left - outer.left, top: above, below: false })
-      const end = editor.view.coordsAtPos(to)
-      setMenu({ left: start.left - outer.left, top: end.bottom - outer.top + MENU_GAP, below: true })
+      selectionMenu.show(outer, editor.view.coordsAtPos(from), () => editor.view.coordsAtPos(to).bottom, outer.top)
     }
-    const down = () => {
-      choosing = true
-      setMenu(null)
-      document.addEventListener(
-        "mouseup",
-        () => {
-          choosing = false
-          // After the release has settled the selection
-          setTimeout(place)
-        },
-        { once: true },
-      )
-    }
-    const dom = editor.view.dom
-    dom.addEventListener("mousedown", down)
+    const mouse = selectionMenu.watch(editor.view.dom, place)
     editor.on("selectionUpdate", place)
     editor.on("blur", place)
     return () => {
-      dom.removeEventListener("mousedown", down)
+      mouse.stop()
       editor.off("selectionUpdate", place)
       editor.off("blur", place)
     }
-  }, [editor])
+  }, [editor, selectionMenu])
 
   const chat = () => {
     if (!editor) return
     const { from, to } = editor.state.selection
     const text = editor.state.doc.textBetween(from, to, "\n").trim()
     if (!text) return
-    setMenu(null)
+    selectionMenu.hide()
     askAboutPassage(paperId, { text, notePath: notePathOf(paperId) })
   }
 
@@ -179,19 +164,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       }}
     >
       <EditorContent editor={editor} />
-      {menu && (
-        // The Docs selection menu
-        <div className={cn("selection-menu absolute z-20", !menu.below && "-translate-y-full")} style={{ left: menu.left, top: menu.top }}>
-          <button
-            type="button"
-            // Keep the selection and focus in the note while clicking
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={chat}
-          >
-            {t`Ask Owlit`}
-          </button>
-        </div>
-      )}
+      {menu}
     </div>
   )
 }

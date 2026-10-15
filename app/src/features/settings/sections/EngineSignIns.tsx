@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState } from "react"
 import { LogOutIcon } from "lucide-react"
-import { toast } from "sonner"
+import { toastError } from "@/lib/toast"
 import { Input } from "@/components/ui/input"
 import { revealOnHover } from "@/components/row-list"
 import { Spinner } from "@/components/ui/spinner"
@@ -59,7 +59,7 @@ function SignInRow({ connector: c, signIn: s }: { connector: Connector; signIn: 
   const fold = () => setEditing(false)
   useFoldWhile(editing, fold)
   const apiKey = !!c.signInMethods?.find((m) => m.id === s.methodId)?.apiKey
-  const remove = () => void signOut(c.id, s.methodId).catch((e: Error) => toast.error(e.message))
+  const remove = () => void signOut(c.id, s.methodId).catch(toastError)
 
   const save = async (value: string) => {
     fold()

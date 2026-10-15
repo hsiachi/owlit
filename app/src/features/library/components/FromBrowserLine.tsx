@@ -2,6 +2,8 @@ import { plural, t } from "@lingui/core/macro"
 import { LoaderCircleIcon, XIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
 import { InlineLink } from "@/components/inline-link"
+import { WaitingDot } from "@/components/marks"
+import { JoinDots, StatusLine } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
 import { continueLabel, dismissRun, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun, useLastRun, usePagesToSave, useStoppedOn, useWaitingForBrowser, type RunTally } from "../from-browser"
@@ -38,7 +40,7 @@ export function FromBrowserLine() {
       </Button>
     )
     if (run.state === "waiting_for_you") {
-      mark = <span className="size-2 rounded-full bg-warning" />
+      mark = <WaitingDot />
       words = run.waiting?.detail ?? stoppedLine(stoppedOn)
       actions = (
         <>
@@ -64,18 +66,19 @@ export function FromBrowserLine() {
       </IconButton>
     )
   } else {
-    mark = <span className="size-2 rounded-full bg-warning" />
+    mark = <WaitingDot />
     const sentence = plural(waiting.length, { one: "# paper waits for your browser", other: "# papers wait for your browser" })
     const toSave = plural(pages.length, { one: "# to save from its page", other: "# to save from their pages" })
     const pagesLink = (
       <InlineLink onClick={() => showOnly(pages.map((p) => p.id), t`To save from their pages`)}>{toSave}</InlineLink>
     )
     words = (
-      <>
-        {waiting.length > 0 && (filter === "needs" ? sentence : <InlineLink onClick={() => setFilter("needs")}>{sentence}</InlineLink>)}
-        {waiting.length > 0 && pages.length > 0 && " · "}
-        {pages.length > 0 && pagesLink}
-      </>
+      <JoinDots
+        items={[
+          ...(waiting.length > 0 ? [filter === "needs" ? sentence : <InlineLink key="waiting" onClick={() => setFilter("needs")}>{sentence}</InlineLink>] : []),
+          ...(pages.length > 0 ? [pagesLink] : []),
+        ]}
+      />
     )
     actions = waiting.length > 0 && (
       <Button variant="text" size="inline" onClick={() => void getInBrowser(waiting.map((p) => p.id))}>
@@ -84,13 +87,9 @@ export function FromBrowserLine() {
     )
   }
   return (
-    <div className="mt-3 -mb-1 flex min-h-7 items-center gap-3 text-detail text-muted-foreground" role="status">
-      <span className="flex min-w-0 flex-1 items-center gap-2 tabular-nums">
-        {mark && <span className="grid size-3.5 shrink-0 place-items-center">{mark}</span>}
-        <span className="truncate">{words}</span>
-      </span>
-      <span className="-mr-1.5 flex shrink-0 items-center gap-0.5">{actions}</span>
-    </div>
+    <StatusLine mark={mark} actions={actions}>
+      <span className="truncate">{words}</span>
+    </StatusLine>
   )
 }
 
@@ -116,12 +115,7 @@ function Tally({ tally }: { tally: RunTally }) {
   return (
     <>
       {!got && <span>{browser ? t`${browser}:` : t`Your browser:`} </span>}
-      {parts.map((p, i) => (
-        <span key={i}>
-          {i > 0 && " · "}
-          {p}
-        </span>
-      ))}
+      <JoinDots items={parts} />
     </>
   )
 }

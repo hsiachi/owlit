@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom"
 import { toast } from "sonner"
 import { MenuItems, type MenuGroups } from "@/components/action-menu"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { usePaperActions } from "../actions"
 import { useDigestMarks, waitForDigest } from "../digests"
 import { STATUS_ORDER, statusLabel } from "../lib/status"
@@ -38,7 +39,7 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
   if (isDesktop && single && (single.ids.doi || single.ids.arxiv || single.ids.s2 || single.ids.openalex)) {
     copy.push({
       label: t`Refresh details`,
-      onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: Error) => toast.error(error.message || t`Couldn't refresh the details.`)),
+      onSelect: () => void rpc.library.refresh({ id: single.id }).catch((error: unknown) => toastError(error, t`Couldn't refresh the details.`)),
     })
   }
   // A paper with something to read; one with a digest can have it written again (a better model, after a

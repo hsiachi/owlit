@@ -2,9 +2,9 @@ import { t } from "@lingui/core/macro"
 import { useMemo } from "react"
 import { useLocation } from "react-router-dom"
 import type { Mentionable, QuotedSelection } from "@/features/chat/types"
-import { docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
+import { routeSubject } from "@/app/route-subject"
+import { collectionMentionable, docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
 import { useDocsStore } from "@/features/docs/store"
-import { collectionUri, shownCollection } from "@owlit/protocol"
 import { useCollectionsStore } from "@/features/collections/store"
 import { useLibraryStore } from "@/features/library/store"
 import { useAgentWindow } from "./store"
@@ -53,25 +53,22 @@ export function pageStarters(kind: PageKind): { label: string; prompt: string }[
   ]
 }
 
-// The doc or paper on screen, which the agent is shown along with the question
+// The doc, paper or collection on screen, which the agent is shown along with the question
 function usePageContext(): Mentionable | null {
-  const { pathname } = useLocation()
-  const docId = /^\/docs\/([^/]+)$/.exec(pathname)?.[1]
-  const paperId = /^\/library\/([^/]+)$/.exec(pathname)?.[1]
-  const collectionId = /^\/collections\/([^/]+)$/.exec(pathname)?.[1]
-  const doc = useDocsStore((s) => (docId ? s.files[docId] : undefined))
-  const paper = useLibraryStore((s) => (paperId ? s.papers[paperId] : undefined))
-  const collection = useCollectionsStore((s) => (collectionId ? s.collections[collectionId] : undefined))
-  const title = collection ? shownCollection(collection).title : undefined
+  const subject = routeSubject(useLocation().pathname)
+  const id = subject?.id
+  const doc = useDocsStore((s) => (subject?.kind === "doc" ? s.files[subject.id] : undefined))
+  const paper = useLibraryStore((s) => (subject?.kind === "paper" ? s.papers[subject.id] : undefined))
+  const collection = useCollectionsStore((s) => (subject?.kind === "collection" ? s.collections[subject.id] : undefined))
   const docPath = doc?.path
   return useMemo(() => {
     if (doc && docPath) return docMentionable(doc)
     if (paper) return paperMentionable(paper)
-    if (collection && title) return { id: collection.id, kind: "collection", title, subtitle: "Collection", uri: collectionUri(collection.id) } satisfies Mentionable
+    if (collection) return collectionMentionable(collection)
     return null
-    // The chip only needs to change when the doc's name, the paper or the collection's title does
+    // The chip only needs to change when the doc's name, the paper or the collection does
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc?.id, docPath, paper, collection?.id, title])
+  }, [id, docPath, paper, collection])
 }
 
 // The page's chip, unless the user took it off

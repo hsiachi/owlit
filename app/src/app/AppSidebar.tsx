@@ -24,7 +24,7 @@ import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
 import { useLibraryStore } from "@/features/library/store"
 import { needsYou } from "@/features/library/lib/filter"
-import { useWaitingForBrowser } from "@/features/library/from-browser"
+import { useWaitingForBrowserCount } from "@/features/library/from-browser"
 import { importAsks, useImports } from "@/features/library/imports"
 import { useTasksStore } from "@/features/tasks/store"
 import { useChatStore } from "@/features/chat/store"
@@ -37,7 +37,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // A publisher wants the user for some paper (a check, a sign-in): the Library's one mark, said as the
   // Library's own line says it when the papers are ones their browser hasn't been sent to yet
   const libraryNeedsYou = useLibraryStore((s) => Object.values(s.papers).some(needsYou))
-  const forBrowser = useWaitingForBrowser().length
+  const forBrowser = useWaitingForBrowserCount()
   // An import stopped to ask about MinerU: its answers are on the Library's import line
   const imports = useImports((s) => s.list)
   const importNeedsYou = useTasksStore((s) => imports.some((i) => !!s.byId[i.taskId] && importAsks(s.byId[i.taskId])))

@@ -1,17 +1,16 @@
 import { t } from "@lingui/core/macro"
-import { cleanName, collectionUri, paperUri, QUESTION_COLUMN, uniquePath, type Collection, type CollectionRow } from "@owlit/protocol"
+import { cleanName, collectionUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Collection, type CollectionRow } from "@owlit/protocol"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
-import { columnLabel, REL_WORDS } from "./components/CollectionTable"
-import { citeOf } from "./lib"
+import { citeOf, columnLabel, relWord } from "./lib"
 
 const cell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
 
 // The collection as a table to open in a spreadsheet: one row per paper, one column per question, with
 // how far Owlit read for each answer
-export function collectionCsv(c: Collection) {
+function collectionCsv(c: Collection) {
   const columns = c.columns.filter((col) => !col.hidden)
   const groups = new Map(c.groups.map((g) => [g.id, g.name]))
   const head = ["Paper", "Authors", "Year", "Venue", "DOI", "arXiv", "Group", ...columns.flatMap((col) => [col.id === QUESTION_COLUMN ? "Answer" : col.question, "From"])]
@@ -52,16 +51,15 @@ const mdCell = (s: string) => s.replace(/\s*\n+\s*/g, " ").replace(/\|/g, "\\|")
 // changes to the collection.
 export function collectionMarkdown(c: Collection, now = new Date()) {
   const columns = c.columns.filter((col) => !col.hidden)
-  const rels = REL_WORDS()
   const head = `| ${[t({ message: "Paper", comment: "table header in an exported collection" }), ...columns.map(columnLabel)].map(mdCell).join(" | ")} |`
   const rule = `|${" --- |".repeat(columns.length + 1)}`
   const line = (r: CollectionRow) => {
-    const paper = `[${r.paper.title.replace(/([[\]\\])/g, "\\$1")}](${paperUri(r.id)}) (${citeOf(r.paper)})`
+    const paper = `${mentionLink(r.paper.title, paperUri(r.id))} (${citeOf(r.paper)})`
     const answers = columns.map((col) => {
       const cell = r.cells[col.id]
       if (!cell?.text) return ""
       const sentence = col.kind === "compare" ? col.sentences?.find((s) => s.id === cell.sentence) : undefined
-      const text = `${cell.rel ? `${rels[cell.rel]}${sentence ? ` “${sentence.text}”` : ""}: ` : ""}${cell.text}`
+      const text = `${cell.rel ? `${relWord(cell.rel)}${sentence ? ` “${sentence.text}”` : ""}: ` : ""}${cell.text}`
       return cell.depth === "full" && cell.passage ? `${text} (p. ${cell.passage.page})` : text
     })
     return `| ${[paper, ...answers].map(mdCell).join(" | ")} |`
@@ -89,7 +87,7 @@ export function collectionMarkdown(c: Collection, now = new Date()) {
     if (placed.size) out.push(`## ${t({ message: "Other papers", comment: "heading in an exported collection: papers in no group" })}`)
     out.push(table(rest))
   }
-  const from = `[${c.title.replace(/([[\]\\])/g, "\\$1")}](${collectionUri(c.id)})`
+  const from = mentionLink(c.title, collectionUri(c.id))
   const date = now.toLocaleDateString()
   out.push(`*${t({ message: `From the collection ${from}, ${date}.`, comment: "last line of a doc exported from a collection" })}*`)
   return out.join("\n\n") + "\n"

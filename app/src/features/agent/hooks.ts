@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom"
+import { routeSubject } from "@/app/route-subject"
 import { useShortcut } from "@/app/shortcuts"
 import { useAgentWindow } from "./store"
 
@@ -16,9 +17,9 @@ export function useAgentShortcut() {
 // as it does when Owlit opens a page itself (ui-actions): the reason to follow the link is usually to
 // read it against the conversation. Another chat is just a switch, so it leaves the panel alone.
 export function openFromChat(navigate: (to: string) => unknown, pathname: string, to: string) {
-  const chatId = /^\/chat\/([^/]+)$/.exec(pathname)?.[1]
+  const here = routeSubject(pathname)
   void navigate(to)
-  if (chatId && !to.startsWith("/chat")) useAgentWindow.getState().showChat(decodeURIComponent(chatId))
+  if (here?.kind === "chat" && !to.startsWith("/chat")) useAgentWindow.getState().showChat(here.id)
 }
 
 export function useOpenFromChat() {

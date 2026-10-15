@@ -45,11 +45,17 @@ export function useReadWear(paperId: string, locate: Locate | null) {
         if (!live) return
         useWearStore.setState({ pages })
         const byPlace = new Map<string, CitedMark>()
+        // A sentence cited by several answers is looked for once; one after another still, as before
+        const found = new Map<string, Awaited<ReturnType<Locate>>>()
         const sources: WearSource[] = [...cited.map((c) => ({ kind: "chat" as const, ...c })), ...(collected ?? []).map((c) => ({ kind: "collection" as const, ...c }))].sort((a, b) => a.at - b.at)
         for (const c of sources) {
           const target = quoteTarget(c.quote, c.page)
-          const at = await locate(target)
-          if (!live) return
+          const asked = JSON.stringify([c.quote, c.page])
+          if (!found.has(asked)) {
+            found.set(asked, await locate(target))
+            if (!live) return
+          }
+          const at = found.get(asked)
           if (!at?.rects.length) continue
           const key = `${at.page}:${at.from}`
           const mark = byPlace.get(key)

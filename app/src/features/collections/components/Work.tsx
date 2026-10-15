@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { shownCollection, type Collection } from "@owlit/protocol"
+import type { Collection } from "@owlit/protocol"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { PlusIcon } from "lucide-react"
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
+import { shown as shownOf } from "../lib"
 import { askEach, runWords, startRun, useCollectionWork } from "../runs"
 
 // What Owlit is doing on the collection, one muted line under the title while it works (its words
@@ -15,7 +16,7 @@ export function WorkLine({ collection }: { collection: Collection }) {
   const { running, broken } = useCollectionWork(collection.id)
   const task = running[0]
   if (task) {
-    const papers = shownCollection(collection).rows.length
+    const papers = shownOf(collection).rows.length
     return (
       <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
         <span className="shimmer">{runWords(task, collection)}</span>
@@ -50,7 +51,7 @@ export function CollectionActions({ collection }: { collection: Collection }) {
   const navigate = useNavigate()
   const { running } = useCollectionWork(collection.id)
   const busy = (kind: string) => running.some((task) => task.kind === kind)
-  const shown = shownCollection(collection)
+  const shown = shownOf(collection)
   const abstractOnly = shown.rows.some((r) => Object.values(r.cells).every((cell) => cell.depth === "abstract"))
   const title = shown.title
   const asked = collection.asked.text

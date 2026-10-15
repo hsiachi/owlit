@@ -8,5 +8,5 @@ export const toastUndo = (message: string, undo: () => unknown, opts?: { descrip
 // Says what went wrong: an Error's own message, else the fallback, else whatever was thrown. Returns
 // nothing, so `.catch(toastError)` leaves the promise's value undefined on failure.
 export function toastError(error: unknown, fallback?: string): void {
-  toast.error(error instanceof Error ? error.message : (fallback ?? String(error)))
+  toast.error((error instanceof Error && error.message) || fallback || String(error))
 }

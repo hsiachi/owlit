@@ -2,9 +2,10 @@
 // backed by core) subscribe with onWorkspaceOpened and reload; until then they keep their mock data.
 // Without the desktop app there is no workspace and current stays null.
 
+import { t } from "@lingui/core/macro"
 import type { WorkspaceInfo, WorkspaceState } from "@owlit/protocol"
 import { create } from "zustand"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { bridge, isDesktop, onNotify, rpc } from "@/lib/rpc"
 
 interface WorkspaceStore {
   current: WorkspaceInfo | null
@@ -48,4 +49,25 @@ export function startWorkspace() {
   onNotify("workspace.state", state)
   // Core may have opened it before this window was listening
   void rpc.workspace.state().then(state)
+}
+
+// ---- Choosing a workspace: the welcome page and the first launch's last step ----
+
+// "~/Documents" rather than the whole home path
+export const tilde = (p: string) => p.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~")
+
+// The folder a new workspace goes in; undefined when the picker is cancelled
+export async function pickParent(current: string) {
+  const folder = await bridge?.chooseFolder({ title: t`Where the Workspace Goes`, buttonLabel: t({ message: "Choose", comment: "button of the folder picker" }), defaultPath: current })
+  return folder || undefined
+}
+
+// A folder the user has, to open as the workspace; undefined when the picker is cancelled
+export async function pickWorkspaceFolder() {
+  const folder = await bridge?.chooseFolder({
+    title: t`Open a Folder`,
+    message: t`Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit.`,
+    buttonLabel: t({ message: "Open", comment: "button of the folder picker" }),
+  })
+  return folder || undefined
 }

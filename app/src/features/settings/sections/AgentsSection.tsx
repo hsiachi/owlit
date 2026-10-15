@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ConnectorStatusChip } from "@/features/chat/components/ConnectorStatusChip"
 import { Button } from "@/components/ui/button"
-import { canSetUp, isBroken, isFound as isReady, settingUp } from "@/features/chat/lib/connector-status"
+import { canSetUp, isBroken, isChecking, isFound as isReady, settingUp } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
@@ -54,19 +54,7 @@ function Status({ c }: { c: Connector }) {
 // a newer one beside the version
 function SetupControl({ c }: { c: Connector }) {
   const setUp = useChatStore((s) => s.setUpConnector)
-  const cancel = useChatStore((s) => s.cancelSetUp)
-  const progress = settingUp(c)
-  if (progress !== undefined) {
-    const percent = Math.round(progress * 100)
-    return (
-      <>
-        <span className="text-detail text-muted-foreground tabular-nums">{t`Setting up… ${percent}%`}</span>
-        <Button variant="text" size="inline" className="last:-mr-1.5" onClick={() => void cancel(c.id)}>
-          {t`Cancel`}
-        </Button>
-      </>
-    )
-  }
+  if (settingUp(c) !== undefined) return <SetupProgress c={c} className="last:-mr-1.5" />
   if (canSetUp(c) && !c.setup?.error) {
     const size = c.setup?.sizeMb ?? 300
     return (
@@ -89,6 +77,21 @@ function SetupControl({ c }: { c: Connector }) {
   return null
 }
 
+// "Setting up… 40%" with Cancel, while owlit sets up its copy of the agent's adapter; here and in the first
+// launch's agent choice. className is Cancel's.
+export function SetupProgress({ c, className }: { c: Connector; className?: string }) {
+  const cancel = useChatStore((s) => s.cancelSetUp)
+  const percent = Math.round((settingUp(c) ?? 0) * 100)
+  return (
+    <>
+      <span className="text-detail text-muted-foreground tabular-nums">{t`Setting up… ${percent}%`}</span>
+      <Button variant="text" size="inline" className={className} onClick={() => void cancel(c.id)}>
+        {t`Cancel`}
+      </Button>
+    </>
+  )
+}
+
 function ConnectorRow({ connector: c }: { connector: Connector }) {
   const check = useChatStore((s) => s.checkConnector)
   const remove = useChatStore((s) => s.removeConnector)
@@ -107,7 +110,7 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
 
   return (
     <Row
-      name={<span className={cn(!isReady(c) && c.status !== "checking" && c.status !== "unknown" && "text-muted-foreground")}>{c.name}</span>}
+      name={<span className={cn(!isReady(c) && !isChecking(c) && "text-muted-foreground")}>{c.name}</span>}
       control={
         <>
           {!c.builtIn && (

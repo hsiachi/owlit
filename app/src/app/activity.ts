@@ -9,11 +9,13 @@ import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
 import { isChatsFromDisk } from "@/features/chat/disk"
 import { useChatStore } from "@/features/chat/store"
+import type { ChatMessage } from "@/features/chat/types"
 import { useDocsStore } from "@/features/docs/store"
 import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { ReadingClock } from "@/app/reading-clock"
+import { routeSubject } from "@/app/route-subject"
 
 type Event = ActivityEvent extends infer E ? (E extends ActivityEvent ? Omit<E, "at"> : never) : never
 
@@ -121,16 +123,15 @@ let open: Open = { chats: new Set() }
 const wroteIn = new Set<string>()
 
 function openFromRoute(pathname: string): Open {
-  const paper = /^\/library\/([^/]+)$/.exec(pathname)?.[1]
-  const docId = /^\/docs\/([^/]+)$/.exec(pathname)?.[1]
-  const routeChat = /^\/chat\/([^/]+)$/.exec(pathname)?.[1]
+  const subject = routeSubject(pathname)
+  const docId = subject?.kind === "doc" ? subject.id : undefined
   const docPath = docId ? useDocsStore.getState().files[docId]?.path : undefined
   const agent = useAgentWindow.getState()
   const chats = new Set<string>()
-  if (routeChat) chats.add(decodeURIComponent(routeChat))
+  if (subject?.kind === "chat") chats.add(subject.id)
   if (agent.stage === "open" && agent.chatId) chats.add(agent.chatId)
   return {
-    paperId: paper && paper !== "up-next" ? decodeURIComponent(paper) : undefined,
+    paperId: subject?.kind === "paper" ? subject.id : undefined,
     doc: docId && docPath ? { id: docId, path: docPath } : undefined,
     chats,
   }
@@ -221,19 +222,21 @@ export function startActivity(router: typeof appRouter) {
     }
   })
 
-  // A message the user sent
-  const userMessages = (chats: ReturnType<typeof useChatStore.getState>["chats"], id: string) =>
-    chats[id]?.messages.filter((m) => m.role === "user").length ?? 0
+  // A message the user sent. A streamed reply changes one chat's object on every chunk, so only changed
+  // chats are counted, and each message list once (the previous state's count is remembered from before).
   useChatStore.subscribe((state, prev) => {
     // Chats read from the workspace aren't messages being sent
     if (state.chats === prev.chats || isChatsFromDisk()) return
-    for (const id of Object.keys(state.chats)) {
-      if (userMessages(state.chats, id) <= userMessages(prev.chats, id)) continue
+    let sent = false
+    for (const [id, chat] of Object.entries(state.chats)) {
+      const before = prev.chats[id]
+      if (chat === before || userMessages(chat.messages) <= (before ? userMessages(before.messages) : 0)) continue
       wroteIn.add(id)
       emit({ kind: "chat.sent", chatId: id })
+      sent = true
     }
-    // A chat sent from the agent window may open only now
-    refresh()
+    // A chat sent from the agent window may open only now; nothing else here changes what is open
+    if (sent) refresh()
   })
 
   // The window in the background long enough counts as idle, once per stay
@@ -262,6 +265,14 @@ export function startActivity(router: typeof appRouter) {
     for (const entry of [...pending.values()]) entry.fire()
     update({ chats: new Set() })
   })
+}
+
+// How many of a chat's messages are the user's, once per message list
+const userCounts = new WeakMap<readonly ChatMessage[], number>()
+function userMessages(messages: readonly ChatMessage[]) {
+  let n = userCounts.get(messages)
+  if (n === undefined) userCounts.set(messages, (n = messages.filter((m) => m.role === "user").length))
+  return n
 }
 
 type Marked = Pick<ReturnType<typeof useLibraryStore.getState>["papers"][string], "starred" | "status" | "tags" | "lastOpenedAt">

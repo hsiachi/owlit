@@ -4,6 +4,7 @@ import { StateEffect, type EditorState, type Extension, type Range } from "@code
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view"
 import type { SyntaxNode } from "@lezer/common"
 import katex from "katex"
+import { unescapeLabel } from "@owlit/protocol"
 import { frontmatterEnd } from "../lib/naming"
 
 // Live preview: the text stays the document, and decorations only change how it is drawn. Markdown marks
@@ -271,9 +272,10 @@ function build(view: EditorView, { describe, unread, wikilink }: Resolvers): Bui
             const href = doc.sliceString(url.from, url.to)
             const labelFrom = marks[0].to
             const labelTo = marks[1].from
-            // A mention is one token, drawn like every other mention and deleted as a unit
+            // A mention is one token, drawn like every other mention and deleted as a unit. Its label's
+            // brackets are written escaped (protocol's mentionLink) and drawn plain.
             if (href.startsWith("owlit://")) {
-              const widget = new MentionWidget(doc.sliceString(labelFrom, labelTo), href, describe(href), unread(href))
+              const widget = new MentionWidget(unescapeLabel(doc.sliceString(labelFrom, labelTo)), href, describe(href), unread(href))
               mentions.push(Decoration.replace({ widget }).range(ref.from, ref.to))
               return false
             }

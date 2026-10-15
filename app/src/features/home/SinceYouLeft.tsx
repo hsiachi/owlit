@@ -1,11 +1,12 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { shownCollection } from "@owlit/protocol"
+import { useShallow } from "zustand/react/shallow"
 import { GroupLabel } from "@/components/group-label"
 import { KindIcon } from "@/components/kind-icon"
 import { ListRow } from "@/components/list-row"
 import { NoteDot } from "@/components/marks"
 import { useLibraryStore } from "@/features/library/store"
+import { shown } from "@/features/collections/lib"
 import { useCollectionsStore } from "@/features/collections/store"
 import { ago, DAY, shortDate } from "@/lib/time"
 import { KIND_ICON } from "@/lib/kinds"
@@ -45,34 +46,34 @@ export function SinceYouLeft({ since }: { since: number }) {
         .filter((c) => c.updatedAt > since && (c.createdAt > since || Object.values(c.changedAt).some((at) => at > since)))
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .map((c) => {
-          const shown = shownCollection(c)
-          const added = shown.rows.filter((r) => r.addedAt > since).length
+          const view = shown(c)
+          const added = view.rows.filter((r) => r.addedAt > since).length
           const what =
             c.createdAt > since
-              ? plural(shown.rows.length, { one: "New collection · # paper", other: "New collection · # papers" })
+              ? plural(view.rows.length, { one: "New collection · # paper", other: "New collection · # papers" })
               : added
                 ? plural(added, { one: "# new paper", other: "# new papers" })
                 : t({ message: "Changed", comment: "a collection Owlit changed without adding papers" })
-          return { id: c.id, title: shown.title, what, unseen: c.seenAt === 0 || Object.values(c.changedAt).some((at) => at > c.seenAt) }
+          return { id: c.id, title: view.title, what, unseen: c.seenAt === 0 || Object.values(c.changedAt).some((at) => at > c.seenAt) }
         }),
     [collections, since],
   )
   const added = useMemo(() => Object.values(papers).filter((p) => p.addedBy === "agent" && p.addedAt > since).length, [papers, since])
   // The chat list's own mark, "Finished since you last looked", limited to replies that ended while away;
-  // opening the chat takes it off, here as in the list
-  const chats = useChatStore((s) => s.chats)
+  // opening the chat takes it off, here as in the list. Only those chats are selected, and a finished
+  // chat isn't streaming, so a streamed reply elsewhere redraws nothing here.
   const unseenChats = useSeenStore((s) => s.unseen)
+  const finishedChats = useChatStore(useShallow((s) => Object.values(s.chats).filter((c) => unseenChats[c.id] === "finished")))
   const finished = useMemo<Finished[]>(
     () =>
-      Object.values(chats)
+      finishedChats
         .flatMap((c) => {
-          if (unseenChats[c.id] !== "finished") return []
           const last = c.messages.at(-1)
           const at = last?.role === "assistant" ? last.finishedAt : undefined
           return at && at > since ? [{ id: c.id, title: c.title, at }] : []
         })
         .sort((a, b) => b.at - a.at),
-    [chats, unseenChats, since],
+    [finishedChats, since],
   )
 
   if (!changed.length && !added && !finished.length) return null

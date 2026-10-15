@@ -1,15 +1,15 @@
 import { plural, t } from "@lingui/core/macro"
-import { useState } from "react"
+import { memo, useState } from "react"
 import { CheckIcon, CircleAlertIcon, CircleDotIcon, CircleIcon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fileName } from "@/lib/names"
 import { WaitingLabel } from "@/components/marks"
 import { Spinner } from "@/components/ui/spinner"
 import { Unfold } from "@/components/unfold"
-import type { Part } from "../../types"
+import type { Part, ToolCall } from "../../types"
 import { Markdown } from "./Markdown"
 import { toolTitle } from "../../lib/tool-title"
-import { blockSentence, foldable, groupPhrase, liveSentence, pathOf, stepWords, type StepWords, type ToolCall, type WordedStep } from "../../lib/step-words"
+import { blockSentence, foldable, groupPhrase, liveSentence, pathOf, stepWords, type StepWords, type WordedStep } from "../../lib/step-words"
 import { hasResult, stepMeta } from "../../lib/step-output"
 import { StepResult } from "./step-results"
 import { FoldingBlock, FoldingList, StepChevron, StepRow } from "./folding"
@@ -367,6 +367,7 @@ export function LooseAskPart({ part, waiting }: { part: Part<"permission"> | Par
   )
 }
 
-export function TextPart({ part }: { part: Part<"text"> }) {
+// Memoized: a streamed chunk makes a new last text part and keeps the earlier ones as they were
+export const TextPart = memo(function TextPart({ part }: { part: Part<"text"> }) {
   return <Markdown text={part.text} />
-}
+})

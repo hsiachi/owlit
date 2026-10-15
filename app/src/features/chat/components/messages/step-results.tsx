@@ -3,12 +3,13 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { hostOf } from "@/lib/names"
+import { toastError } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
-import type { QuestionPart } from "../../types"
+import type { QuestionPart, ToolCall } from "../../types"
 import { diffLines } from "../../lib/diff-lines"
 import { hitsOf, isPaperUrl, outputOf } from "../../lib/step-output"
-import { fetchUrlOf, runsCommand, stepGroup, type ToolCall } from "../../lib/step-words"
+import { fetchUrlOf, runsCommand, stepGroup } from "../../lib/step-words"
 
 // What a step got, shown when its row is opened: a command's output, the hits of a search, the pages
 // opened (a paper among them can go straight into the Library), a file's text, the change an edit made,
@@ -29,7 +30,7 @@ function AddToLibrary({ url }: { url: string }) {
       }
       setState("added")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t`Couldn't add that paper.`)
+      toastError(error, t`Couldn't add that paper.`)
       setState("idle")
     }
   }

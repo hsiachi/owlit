@@ -1,6 +1,8 @@
 import { plural, t, type ChoiceOptions } from "@lingui/core/macro"
+import { i18n } from "@owlit/i18n"
 import type { MessagePart, ToolCall } from "../types"
 import { owlitStepWords, owlitToolOf, quote, toolTitle } from "./tool-title"
+import { useLibraryStore } from "@/features/library/store"
 import { capital, joinActions, joinAnd } from "@/lib/words"
 import { fileName } from "@/lib/names"
 
@@ -12,9 +14,6 @@ import { fileName } from "@/lib/names"
 // Every sentence owlit puts together is a whole message per form (running, done, n times), so each
 // language says it its own way; only what an agent wrote itself (a command's description, a tool's title)
 // stays in the agent's words, and gets an English past tense only when it is English.
-
-export type { ToolCall }
-export { owlitToolOf }
 
 export interface StepWords {
   // While it runs or waits, in the agent's words ("Read the lit check")
@@ -56,7 +55,7 @@ const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
 
 // An English sentence with its first verb in the past tense; unchanged when the first word isn't a verb
 // owlit knows (a sentence in another language among them)
-export function pastTense(sentence: string) {
+function pastTense(sentence: string) {
   const m = /^(\S+)(.*)$/s.exec(sentence.trim())
   if (!m) return sentence
   const word = m[1].toLowerCase()
@@ -89,7 +88,7 @@ export function shortUrl(url: string) {
 }
 
 // The title a fetched page gave, when the agent's summary of it says ("**Title:** …", or a first heading)
-export function pageTitle(content?: string) {
+function pageTitle(content?: string) {
   if (!content) return undefined
   const m = /\*\*Title:\*\*\s*(.+)/.exec(content) ?? /^#\s+(.+)/m.exec(content)
   return m?.[1].trim().replace(/\*+/g, "") || undefined
@@ -141,8 +140,23 @@ function fetchPage(where: string | undefined, content: string | undefined): Step
   return where ? { now: t`Open ${where}`, done: t`Opened ${where}`, group: "fetch" } : { now: t`Open a page`, done: t`Opened a page`, group: "fetch" }
 }
 
-// `questions`: how many questions the step asked the user, when it asked some
+// A step's words, worked out once per tool call: a streamed update replaces only the call it is about, so
+// the other steps of a block keep theirs. Kept beside them is what else the words read, so a change in
+// any says them again: how many questions, the interface's language, and the Library (a paper's label).
+const wordsCache = new WeakMap<ToolCall, { questions: number; locale: string; papers: unknown; words: StepWords }>()
+
+// `questions`: how many questions the step asked the user, when it asked some. Shared: don't change it.
 export function stepWords(call: ToolCall, questions = 1): StepWords {
+  const locale = i18n.locale
+  const papers = useLibraryStore.getState().papers
+  const kept = wordsCache.get(call)
+  if (kept && kept.questions === questions && kept.locale === locale && kept.papers === papers) return kept.words
+  const words = wordsFor(call, questions)
+  wordsCache.set(call, { questions, locale, papers, words })
+  return words
+}
+
+function wordsFor(call: ToolCall, questions: number): StepWords {
   const tool = call.tool
   const name = tool?.name
   const path = pathOf(call)
@@ -348,19 +362,19 @@ export interface WordedStep {
 // The sentence a finished block folds into: its one step, or up to three kinds of work in the order they
 // came ("Listed your Library, searched the web twice and opened 3 pages"), or "Took 12 steps"
 export function blockSentence(steps: WordedStep[]) {
-  const shown = steps.map(({ call, words }) => ({ c: call, w: words })).filter((x) => !x.w.hidden)
+  const shown = steps.filter((s) => !s.words.hidden)
   if (shown.length === 0) return t({ message: "Thought", comment: "a block of an answer's steps in which the agent only thought" })
   // A step that didn't run to the end is said as it was asked ("Edit notes.md"); its row says what happened
-  const said = (x: (typeof shown)[number]) => (x.c.status === "completed" ? x.w.done : x.w.now)
+  const said = ({ call, words }: WordedStep) => (call.status === "completed" ? words.done : words.now)
   if (shown.length === 1) return said(shown[0])
   // An edit that didn't happen isn't counted as one; the count after the sentence says so
-  const counted = shown.filter((x) => x.c.status === "completed" || !["edit", "write"].includes(x.w.group))
+  const counted = shown.filter((s) => s.call.status === "completed" || !["edit", "write"].includes(s.words.group))
   if (counted.length === 0) return said(shown[0])
   if (counted.length === 1) return said(counted[0])
   // Steps on files count the files, not the steps: two edits of draft.md are "Read and edited draft.md",
   // not "Read draft.md and edited 2 files". A step that names no file ("a file") counts as its own.
   const groups = new Map<string, { n: number; one: string; file?: string; seen: Set<string> }>()
-  for (const { w } of counted) {
+  for (const { words: w } of counted) {
     const g = groups.get(w.group)
     if (!g) groups.set(w.group, { n: 1, one: w.done, file: w.file, seen: new Set([w.done]) })
     else if (!FILE_GROUPS.has(w.group) || !g.seen.has(w.done) || !w.file) {

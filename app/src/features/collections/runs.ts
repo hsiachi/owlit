@@ -2,14 +2,13 @@ import { t } from "@lingui/core/macro"
 import { collectionOfSubject, COLLECTION_RUNS, isTaskFinished, type Collection, type CollectionRun, type CollectionSize, type Task } from "@owlit/protocol"
 import { toast } from "sonner"
 import { useShallow } from "zustand/react/shallow"
-import { useTasksStore } from "@/features/tasks/store"
+import { tasksOfKind, useTasksStore } from "@/features/tasks/store"
 import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { put } from "./store"
 
 // Owlit's work on a collection in the background, read from the tasks core reports: what runs now, and
 // a run that broke since, so the collection can say so where the user looks
-
-const isRun = (task: Task): task is Task & { kind: CollectionRun } => (COLLECTION_RUNS as readonly string[]).includes(task.kind)
 
 export interface CollectionWork {
   running: (Task & { kind: CollectionRun })[]
@@ -18,7 +17,14 @@ export interface CollectionWork {
 }
 
 export function useCollectionWork(id: string): CollectionWork {
-  const tasks = useTasksStore(useShallow((s) => Object.values(s.byId).filter((task) => isRun(task) && collectionOfSubject(task.subject) === id))) as (Task & { kind: CollectionRun })[]
+  // Oldest first, so the run a line shows stays first while others start
+  const tasks = useTasksStore(
+    useShallow((s) =>
+      COLLECTION_RUNS.flatMap((kind) => tasksOfKind(s.byId, kind))
+        .filter((task) => collectionOfSubject(task.subject) === id)
+        .sort((a, b) => a.createdAt - b.createdAt),
+    ),
+  ) as (Task & { kind: CollectionRun })[]
   const running = tasks.filter((task) => !isTaskFinished(task))
   const last = [...tasks].sort((a, b) => (b.endedAt ?? b.createdAt) - (a.endedAt ?? a.createdAt))[0]
   return { running, ...(last?.state === "failed" && !running.length ? { broken: last } : {}) }
@@ -42,7 +48,8 @@ export function runWords(task: Task & { kind: CollectionRun }, c: Collection | u
   }
 }
 
-const failed = (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
+// What the browser preview says when asked for work only core does
+export const desktopOnly = () => void toast(t`Owlit works on collections in the desktop app.`)
 
 export async function gather(question: string, size: CollectionSize, project: string): Promise<Collection | undefined> {
   if (!isDesktop) {
@@ -54,21 +61,21 @@ export async function gather(question: string, size: CollectionSize, project: st
     put(c)
     return c
   } catch (error) {
-    failed(error)
+    toastError(error)
     return undefined
   }
 }
 
 export async function startRun(id: string, run: "more" | "read" | "check") {
-  if (!isDesktop) return void toast(t`Owlit works on collections in the desktop app.`)
-  await rpc.collections.run({ id, run }).catch(failed)
+  if (!isDesktop) return desktopOnly()
+  await rpc.collections.run({ id, run }).catch(toastError)
 }
 
 export async function askEach(id: string, question: string) {
-  if (!isDesktop) return void toast(t`Owlit works on collections in the desktop app.`)
+  if (!isDesktop) return desktopOnly()
   try {
     put(await rpc.collections.ask({ id, question }))
   } catch (error) {
-    failed(error)
+    toastError(error)
   }
 }

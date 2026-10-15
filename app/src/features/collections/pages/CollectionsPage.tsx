@@ -1,16 +1,17 @@
 import { plural, t } from "@lingui/core/macro"
 import type { CollectionSize, CollectionSummary } from "@owlit/protocol"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FindField } from "@/components/find-field"
 import { hasAllWords, queryWords } from "@/lib/words"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { EmptyPlace } from "@/components/empty-place"
 import { GroupLabel } from "@/components/group-label"
 import { PageShell, PageTitle } from "@/components/page"
 import { RenameInput } from "@/components/rename-input"
-import { NoteDot } from "@/components/marks"
+import { NoteDot, StoppedDot } from "@/components/marks"
+import { useTakeParam } from "@/hooks/use-take-param"
 import { shortDate } from "@/lib/time"
 import { useCollectionMenu, useProjects } from "../components/CollectionMenu"
 import { gather, runWords, useCollectionWork } from "../runs"
@@ -49,13 +50,7 @@ export function CollectionsPage() {
     else void collect()
   }
   // The breadcrumb's project opens the list at that project's group
-  const [params, setParams] = useSearchParams()
-  const at = params.get("project")
-  useEffect(() => {
-    if (at === null || !loaded) return
-    document.getElementById(`project-${at}`)?.scrollIntoView({ block: "start" })
-    setParams((p) => (p.delete("project"), p), { replace: true })
-  }, [at, loaded, setParams])
+  useTakeParam("project", (at) => document.getElementById(`project-${at}`)?.scrollIntoView({ block: "start" }), { enabled: loaded })
   return (
     <PageShell width="narrow">
       <header className="px-0.5">
@@ -95,7 +90,7 @@ export function CollectionsPage() {
               {g.label && <GroupLabel>{g.label}</GroupLabel>}
               <div className="flex flex-col gap-0.5">
                 {g.collections.map((c) => (
-                  <CollectionRow key={c.id} summary={c} />
+                  <CollectionRow key={c.id} summary={c} projects={projects} />
                 ))}
               </div>
             </section>
@@ -128,10 +123,10 @@ function CollectRow({ question, found, onCollect }: { question: string; found: b
   )
 }
 
-function CollectionRow({ summary }: { summary: CollectionSummary }) {
+function CollectionRow({ summary, projects }: { summary: CollectionSummary; projects: string[] }) {
   const navigate = useNavigate()
   const collection = useCollection(summary.id)
-  const groups = useCollectionMenu(collection)
+  const groups = useCollectionMenu(collection, projects)
   const renaming = useCollectionsUi((s) => s.renaming === summary.id)
   const set = useCollectionsUi((s) => s.set)
   const open = () => navigate(`/collections/${summary.id}`)
@@ -172,7 +167,7 @@ function CollectionRow({ summary }: { summary: CollectionSummary }) {
           {running ? (
             <span className="size-2 animate-ring-breathe rounded-full bg-muted-foreground motion-reduce:animate-none" />
           ) : work.broken ? (
-            <span className="size-2 rounded-full bg-destructive" title={t`Owlit stopped.`} />
+            <StoppedDot label={t`Owlit stopped.`} />
           ) : summary.fresh ? (
             <NoteDot />
           ) : (

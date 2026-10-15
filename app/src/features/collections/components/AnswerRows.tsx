@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { collectionUri, itemId, QUESTION_COLUMN, shownCollection, type Collection, type CollectionRow } from "@owlit/protocol"
+import { collectionUri, itemId, QUESTION_COLUMN, type Collection, type CollectionRow } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
-import { NoteDot } from "@/components/marks"
+import { NoteDot, ReadingRing } from "@/components/marks"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { useLibraryStore } from "@/features/library/store"
 import type { Paper } from "@/features/library/types"
 import { stripLatex } from "@/features/library/lib/latex"
 import { cn } from "@/lib/utils"
-import { citeOf, nameOf, paperFacts, passageRoute, useLibraryPaper } from "../lib"
+import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
 import { editCollection, removeRow, useCollectionsStore } from "../store"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { useCollectionsUi } from "../ui-store"
@@ -35,8 +35,7 @@ export function AnswerRows({ collection, shown, seenBefore }: { collection: Coll
 
 export function ReadingMark({ paper, className }: { paper: Paper | undefined; className?: string }) {
   if (!paper || paper.status === "unread") return null
-  const label = t`You've read some of it`
-  return <span role="img" aria-label={label} title={label} className={cn("inline-block size-2 shrink-0 rounded-full border-[1.5px] border-muted-foreground bg-[linear-gradient(90deg,var(--muted-foreground)_50%,transparent_50%)]", className)} />
+  return <ReadingRing label={t`You've read some of it`} className={className} />
 }
 
 function AnswerRow({ collection, row, fresh, open }: { collection: Collection; row: CollectionRow; fresh: boolean; open: boolean }) {
@@ -101,7 +100,7 @@ export function RowPeek({ collection, row, library, className }: { collection: C
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
-  const answer = shownCollection(collection).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
+  const answer = shown(collection).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
   const all = useCollectionsStore((s) => s.collections)
   const others = Object.values(all).filter((c) => c.id !== collection.id && c.rows.some((r) => r.id === row.id && !c.yours.removed[itemId.row(r.id)]))
   const published = [facts.venue, facts.year].filter(Boolean).join(" · ")
@@ -135,7 +134,7 @@ export function RowPeek({ collection, row, library, className }: { collection: C
             {others.map((c, i) => (
               <span key={c.id}>
                 {i > 0 && ", "}
-                <MentionToken label={shownCollection(c).title} title={collectionUri(c.id)} onClick={() => navigate(`/collections/${c.id}`)} />
+                <MentionToken label={shown(c).title} title={collectionUri(c.id)} onClick={() => navigate(`/collections/${c.id}`)} />
               </span>
             ))}
           </p>
@@ -153,7 +152,7 @@ export function RowPeek({ collection, row, library, className }: { collection: C
             trigger={t`Move to group…`}
             align="start"
             icon={null}
-            options={[...shownCollection(collection).groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its collection" }) }]}
+            options={[...shown(collection).groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its collection" }) }]}
           />
         )}
         <span className="flex-1" />

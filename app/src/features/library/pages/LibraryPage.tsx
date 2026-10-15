@@ -58,23 +58,23 @@ export function LibraryPage() {
     [papers, searchText, filter, tags, sort, only, textHits],
   )
   // A paper found by its text, not its details, shows where the words were
-  const snippets = useMemo(() => {
-    const q = searchText.trim()
-    return new Map(visible.flatMap((p) => (!matchesQuery(p, q) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : [])))
-  }, [visible, textHits, searchText])
+  const snippets = useMemo(
+    () => new Map(visible.flatMap((p) => (!matchesQuery(p, words) && textHits.has(p.id) ? [[p.id, textHits.get(p.id)!] as const] : []))),
+    [visible, textHits, words],
+  )
   const collections = useCollectionsStore((s) => s.collections)
   const aliases = useLibraryStore((s) => s.aliases)
   // The table's Collection column wants it whatever the order; the list only when grouped by collection
   const table = layout === "table"
   const byCollection = useMemo(() => (table || sort.key === "collection" ? collectionsByPaper(collections, papers, aliases) : undefined), [table, sort.key, collections, papers, aliases])
-  const searching = searchText.trim().length > 0
+  const searching = words.length > 0
   const groups = useMemo(() => groupPapers(visible, sort, searching, Date.now(), byCollection), [visible, sort, searching, byCollection])
   // Grouped by collection, papers show in their groups' order, which the keys follow
   const byGroups = sort.key === "collection" && !searching
   const order = useMemo(() => (byGroups ? groups.flatMap((g) => g.papers.map((p) => p.id)) : visible.map((p) => p.id)), [byGroups, groups, visible])
   const { scroller, listProps } = usePaperListKeys(order)
   const empty = Object.keys(papers).length === 0
-  const noMatch = words.length > 0 && visible.length === 0
+  const noMatch = searching && visible.length === 0
   const unfiltered = !refInput && !words && filter === "all" && tags.length === 0 && !only
 
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the

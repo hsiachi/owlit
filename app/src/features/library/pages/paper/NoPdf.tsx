@@ -1,15 +1,18 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { useRef, useState } from "react"
+import { isTaskFinished } from "@owlit/protocol"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
 import { PdfFileInput } from "@/components/file-drop"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useFileDrop } from "@/hooks/use-file-drop"
+import { notifyWhenAway } from "@/lib/notify"
+import { toastError } from "@/lib/toast"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { openTasksFor, resumeTask, useTasksStore } from "@/features/tasks/store"
+import { resumeTask, tasksFor, useTasksStore } from "@/features/tasks/store"
 import { PublisherNeedsUser } from "../../client"
 import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun } from "../../from-browser"
 import { libraryClient, useLibraryStore } from "../../store"
@@ -108,7 +111,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const [fetching, setFetching] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   // A paper.pdf task core is running for this paper (on add, or a daily retry)
-  const looking = useTasksStore((s) => openTasksFor(s, paper.id).some((task) => task.kind === "paper.pdf" || task.kind === "paper.pdf.browser")) || fetching
+  const looking = useTasksStore((s) => tasksFor(s.byId, paper.id).some((task) => !isTaskFinished(task) && (task.kind === "paper.pdf" || task.kind === "paper.pdf.browser"))) || fetching
   const needs = paper.noPdf?.needs
   const fromBrowser = paper.noPdf?.fromBrowser
   const offered = paper.noPdf?.offered
@@ -120,7 +123,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
       updatePaper(paper.id, { pdf: found.pdf, noPdf: found.noPdf })
       if (found.pdf) toast(t`PDF attached`, { description: offered })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t`Couldn't take that file.`)
+      toastError(e, t`Couldn't take that file.`)
     }
   }
 
@@ -132,7 +135,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
       updatePaper(paper.id, { pdf, noPdf: undefined })
       toast(t`PDF attached`, { description: file.name })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t`Couldn't attach that file.`)
+      toastError(e, t`Couldn't attach that file.`)
     }
   }
 
@@ -147,7 +150,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
         // The card now offers the user's browser; a system notification only if the user went elsewhere
         updatePaper(paper.id, { noPdf: { ...(paper.noPdf ?? { tried: [], at: Date.now() }), needs: e.needs } })
         if (document.hidden) notifyNeeds(paper)
-      } else toast.error(e instanceof Error ? e.message : t`Could not find a PDF.`)
+      } else toastError(e, t`Could not find a PDF.`)
     } finally {
       setFetching(false)
     }
@@ -289,11 +292,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
 }
 
 // The user went elsewhere while owlit looked: a system notification, which brings owlit back
-function notifyNeeds(paper: Paper) {
-  if (typeof Notification === "undefined") return
-  const notification = new Notification(card("browser", paper).title, { body: paper.title })
-  notification.onclick = () => window.focus()
-}
+const notifyNeeds = (paper: Paper) => notifyWhenAway({ title: card("browser", paper).title, body: paper.title })
 
 // "Tried arXiv, Unpaywall and the publisher." from acquisition route names
 function triedSentence(routes: string[]) {

@@ -1,15 +1,14 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { EllipsisVerticalIcon } from "lucide-react"
-import { ActionsDropdownContent } from "@/components/action-menu"
+import { findAnchor } from "@owlit/protocol"
+import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { NotFound, PageHeader } from "@/components/page"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { useDocActions } from "../actions"
 import { saveAgain } from "../disk"
 import { DocEditor } from "../editor/DocEditor"
-import { anchor } from "../editor/agent-notes"
 import { isHidden } from "../lib/tree"
 import { useDocsStore } from "../store"
 import { displayName, isMarkdown, parentPath } from "../types"
@@ -62,11 +61,7 @@ export function DocPage() {
         <NoteCount docId={file.id} />
         <DocShareControls file={file} />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label={t`Doc actions`} className="text-muted-foreground">
-              <EllipsisVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
+          <MenuButton label={t`Doc actions`} />
           {/* The same actions as the doc's row in the list */}
           <ActionsDropdownContent groups={fileGroups(file)} align="end" />
         </DropdownMenu>
@@ -104,7 +99,7 @@ function NoteCount({ docId }: { docId: string }) {
   const next = () => {
     const text = useDocsStore.getState().files[docId]?.content ?? ""
     // Notes whose passage is gone sort first, as they sit beside the title
-    const ordered = [...notes].sort((a, b) => (anchor(text, a) ?? -1) - (anchor(text, b) ?? -1))
+    const ordered = [...notes].sort((a, b) => (findAnchor(text, a) ?? -1) - (findAnchor(text, b) ?? -1))
     const i = ordered.findIndex((n) => n.id === open)
     useDocsUiStore.getState().setOpenNote(docId, ordered[(i + 1) % ordered.length].id)
   }
