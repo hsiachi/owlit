@@ -31,6 +31,7 @@ const GROUPS = {
   updates: { section: "owlit", label: msg`Updates` },
   sources: { section: "papers", label: msg`Finding papers` },
   proxy: { section: "papers", label: msg`Library proxy` },
+  extension: { section: "papers", label: msg`Browser extension` },
   "publisher-apis": { section: "papers", label: msg`Publishers' APIs` },
   reading: { section: "papers", label: msg`Reading PDFs` },
 } as const satisfies Record<string, { section: SettingsSection; label: MessageDescriptor | null }>

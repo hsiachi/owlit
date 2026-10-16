@@ -119,10 +119,11 @@ ipcMain.on("appearance", (event) => {
   event.returnValue = appearance
 })
 
-// A chat that waits on the user or broke, said by the system while no owlit window is in front (the app
-// often runs in another Space). Clicking it brings the window back and opens the chat.
+// A chat that waits on the user or broke, or a browser extension asking to connect, said by the system
+// while no owlit window is in front (the app often runs in another Space). Clicking it brings the window
+// back and opens the chat, if it is about one.
 const shown = new Set<Notification>()
-ipcMain.on("notify", (event, n: { title: string; body: string; chatId: string }) => {
+ipcMain.on("notify", (event, n: { title: string; body: string; chatId?: string }) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   if (!win || BrowserWindow.getFocusedWindow() || !Notification.isSupported()) return
   const notification = new Notification({ title: n.title, body: n.body })
@@ -134,7 +135,7 @@ ipcMain.on("notify", (event, n: { title: string; body: string; chatId: string })
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
-    win.webContents.send("notification-click", n.chatId)
+    if (n.chatId) win.webContents.send("notification-click", n.chatId)
   })
   notification.on("close", () => shown.delete(notification))
   notification.show()
@@ -562,6 +563,8 @@ if (!app.requestSingleInstanceLock()) {
       debug: !app.isPackaged,
       // owlit-mcp and the CLI reach the open workspace here
       socket: true,
+      // owlit's browser extension reaches it on 127.0.0.1
+      extension: true,
       // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way

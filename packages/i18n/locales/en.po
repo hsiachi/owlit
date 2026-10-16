@@ -919,6 +919,7 @@ msgid "Error"
 msgstr "Error"
 
 #: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/extension/PairDialog.tsx
 msgid "Allow"
 msgstr "Allow"
 
@@ -927,6 +928,7 @@ msgid "Always allow"
 msgstr "Always allow"
 
 #: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/extension/PairDialog.tsx
 msgid "Don't allow"
 msgstr "Don't allow"
 
@@ -2959,6 +2961,21 @@ msgstr "The link no longer opens."
 #: app/src/features/docs/store.ts
 msgid "{stem} copy"
 msgstr "{stem} copy"
+
+#. placeholder {0}: asking.browser
+#: app/src/features/extension/PairDialog.tsx
+#: app/src/features/extension/store.ts
+msgid "An extension in {0} wants to connect to owlit."
+msgstr "An extension in {0} wants to connect to owlit."
+
+#. placeholder {0}: asking.browser
+#: app/src/features/extension/PairDialog.tsx
+msgid "It can add the papers you open in {0} to your Library and give owlit their PDFs."
+msgstr "It can add the papers you open in {0} to your Library and give owlit their PDFs."
+
+#: app/src/features/extension/store.ts
+msgid "Open owlit to allow it or not."
+msgstr "Open owlit to allow it or not."
 
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
@@ -5008,6 +5025,46 @@ msgstr "Finish signing in in your browser."
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
 msgstr "Opens your browser to sign in. Model requests use your ChatGPT plan."
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Browser extension"
+msgstr "Browser extension"
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "The extension adds the paper of the page you're on to owlit and saves its PDF with your browser's access. A PDF you open for a paper in your Library without one comes to owlit by itself."
+msgstr "The extension adds the paper of the page you're on to owlit and saves its PDF with your browser's access. A PDF you open for a paper in your Library without one comes to owlit by itself."
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Another Owlit is connected to the extension. This one takes over once that one quits."
+msgstr "Another Owlit is connected to the extension. This one takes over once that one quits."
+
+#. placeholder {0}: ago(p.lastSeenAt, { inSentence: true })
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Last seen {0}"
+msgstr "Last seen {0}"
+
+#. placeholder {0}: shortDate(p.pairedAt)
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Allowed {0}"
+msgstr "Allowed {0}"
+
+#. take back a browser's permission to connect to owlit
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Forget"
+msgstr "Forget"
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Not connected"
+msgstr "Not connected"
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Install the owlit extension in your browser, then press Connect in it."
+msgstr "Install the owlit extension in your browser, then press Connect in it."
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Install…"
+msgstr "Install…"
 
 #. placeholder {0}: lines.length
 #: app/src/features/settings/sections/Memory.tsx
@@ -7271,6 +7328,10 @@ msgid "That isn't a file of this chat."
 msgstr "That isn't a file of this chat."
 
 #: packages/core/src/core.ts
+msgid "The browser extension needs the owlit desktop app."
+msgstr "The browser extension needs the owlit desktop app."
+
+#: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."
 msgstr "This copy of owlit has no example workspace."
 
@@ -7339,6 +7400,81 @@ msgstr "{name} is no longer on disk."
 msgid "{name} changed on disk."
 msgstr "{name} changed on disk."
 
+#: packages/core/src/extension/http.ts
+#: packages/core/src/rpc/errors.ts
+msgid "Something went wrong inside owlit."
+msgstr "Something went wrong inside owlit."
+
+#: packages/core/src/extension/http.ts
+msgid "That is too much to send to owlit."
+msgstr "That is too much to send to owlit."
+
+#: packages/core/src/extension/http.ts
+#: packages/core/src/extension/server.ts
+msgid "owlit couldn't read what the extension sent."
+msgstr "owlit couldn't read what the extension sent."
+
+#: packages/core/src/extension/http.ts
+msgid "That PDF is larger than owlit takes."
+msgstr "That PDF is larger than owlit takes."
+
+#: packages/core/src/extension/pairings.ts
+msgid "owlit has no such question."
+msgstr "owlit has no such question."
+
+#: packages/core/src/extension/pairings.ts
+msgid "You didn't allow this browser to connect to owlit."
+msgstr "You didn't allow this browser to connect to owlit."
+
+#: packages/core/src/extension/pairings.ts
+msgid "Nobody answered in owlit. Press Connect again."
+msgstr "Nobody answered in owlit. Press Connect again."
+
+#: packages/core/src/extension/papers.ts
+msgid "This page doesn't say which paper it is."
+msgstr "This page doesn't say which paper it is."
+
+#: packages/core/src/extension/server.ts
+msgid "Only owlit's browser extension can connect here."
+msgstr "Only owlit's browser extension can connect here."
+
+#: packages/core/src/extension/server.ts
+msgid "owlit doesn't know that request."
+msgstr "owlit doesn't know that request."
+
+#: packages/core/src/extension/server.ts
+msgid "This browser isn't connected to owlit. Press Connect."
+msgstr "This browser isn't connected to owlit. Press Connect."
+
+#: packages/core/src/extension/server.ts
+msgid "Open a workspace in owlit."
+msgstr "Open a workspace in owlit."
+
+#: packages/core/src/extension/server.ts
+msgid "Open the owlit window, then press Connect again."
+msgstr "Open the owlit window, then press Connect again."
+
+#: packages/core/src/extension/server.ts
+#: packages/core/src/library/library.ts
+msgid "That paper is not in the library."
+msgstr "That paper is not in the library."
+
+#: packages/core/src/extension/server.ts
+msgid "This paper has its PDF already."
+msgstr "This paper has its PDF already."
+
+#: packages/core/src/extension/server.ts
+msgid "This isn't the paper's PDF."
+msgstr "This isn't the paper's PDF."
+
+#: packages/core/src/extension/server.ts
+msgid "This PDF isn't one your Library is missing."
+msgstr "This PDF isn't one your Library is missing."
+
+#: packages/core/src/extension/server.ts
+msgid "That isn't a PDF."
+msgstr "That isn't a PDF."
+
 #: packages/core/src/library/bulk/imports.ts
 #: packages/core/src/library/library.ts
 msgid "owlit can't import here."
@@ -7388,10 +7524,6 @@ msgstr "{file} isn't a Better BibTeX JSON export."
 #: packages/core/src/library/bulk/sources.ts
 msgid "There is no folder at {dir}."
 msgstr "There is no folder at {dir}."
-
-#: packages/core/src/library/library.ts
-msgid "That paper is not in the library."
-msgstr "That paper is not in the library."
 
 #: packages/core/src/library/library.ts
 msgid "No paper with this title was found."
@@ -7536,10 +7668,6 @@ msgstr "{host} is having trouble right now."
 #: packages/core/src/net/http.ts
 msgid "{host} answered {status}."
 msgstr "{host} answered {status}."
-
-#: packages/core/src/rpc/errors.ts
-msgid "Something went wrong inside owlit."
-msgstr "Something went wrong inside owlit."
 
 #: packages/core/src/settings-rpc.ts
 msgid "That link doesn't show which proxy it went through."
