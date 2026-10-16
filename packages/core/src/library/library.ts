@@ -34,7 +34,8 @@ import path from "node:path"
 import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
 import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
-import { DownloadWatch, isThisPaper, sameTitle, WATCH_MS, whoseDownload } from "./downloads.ts"
+import { DownloadWatch, WATCH_MS, whoseDownload } from "./downloads.ts"
+import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { Publishers, type VisitEnd } from "./publishers.ts"
@@ -120,8 +121,10 @@ const checkWait = () => Number(process.env.OWLIT_BROWSER_CHECK_MS ?? CHECK_WAIT_
 // A paper's turn in a run in the user's browser (PdfState.run, without the browser's name or a file to
 // confirm)
 type FromBrowser = Omit<NonNullable<PdfState["run"]>, "browser" | "offered">
-// How a PDF owlit didn't fetch itself came, as acquisition.json records its route
-type PlacedBy = "dropped" | "your-browser"
+// How a PDF owlit didn't fetch itself came, as acquisition.json records its route: dropped or chosen by
+// the user, taken from Downloads after owlit sent the user's browser for it, or handed over by owlit's
+// browser extension
+type PlacedBy = "dropped" | "your-browser" | "extension"
 // How the user's browser was told no, or nothing came, as where-it-ended.ts reads its tab
 type SaidNo = "no-access" | "refused" | "missing" | "missed"
 const SAID_NO: Record<SaidNo, PdfTry["ended"]> = { "no-access": "no-access", refused: "not-offered", missing: "not-there", missed: "nothing-came" }
@@ -1134,8 +1137,7 @@ export class Library {
   }
 
   // A PDF the user found, placed as the paper's file; the steps that need it follow. The route says how
-  // it came: "dropped" (or chosen) by the user, "your-browser" when taken from Downloads after owlit sent
-  // the user's browser for it.
+  // it came (PlacedBy); one from the extension is its try, the others the user's.
   attachPdf(id: string, file: string, route: PlacedBy = "dropped"): Promise<Paper> {
     return this.serial.run(async () => {
       if (!(await readRecord(this.root, id))) throw notFound(id)
@@ -1143,6 +1145,28 @@ export class Library {
       await this.placePdf(id, file, await sha256Of(file), "asked", route)
       return (await this.get(id))!
     })
+  }
+
+  // Whether a PDF the user's browser handed over for this paper is it, by its first pages
+  async isPdfOf(id: string, file: string): Promise<"yes" | "no" | "unknown"> {
+    const record = await readRecord(this.root, id)
+    if (!record) throw notFound(id)
+    return isThisPaper(await this.lookAtPdf(file), { doi: record.ids.doi, title: record.title })
+  }
+
+  // A PDF handed over without naming a paper: the paper without a PDF whose DOI or whole title is on its
+  // first pages gets it. undefined when it is surely none of them; nothing is offered on a guess.
+  async attachUnnamedPdf(file: string, route: PlacedBy): Promise<Paper | undefined> {
+    const said = await this.lookAtPdf(file)
+    if (!said) return undefined
+    const lacking: { id: string; doi?: string; title: string }[] = []
+    for (const id of await this.ids()) {
+      if (await hasPdfFile(this.root, id)) continue
+      const record = await readRecord(this.root, id)
+      if (record) lacking.push({ id, doi: record.ids.doi, title: record.title })
+    }
+    const match = surelyOf(said, lacking)
+    return match ? this.attachPdf(match.id, file, route) : undefined
   }
 
   private watchDownloads() {
@@ -1635,14 +1659,8 @@ export class Library {
     return paper
   }
 
-  private async lookAtPdf(file: string) {
-    const bytes = await readFile(file)
-    if (!isPdfBytes(bytes)) return undefined
-    const { text, meta } = await readPdf(bytes, { wasmPath: this.services.pdfiumWasm, maxPages: 2 }).catch(() => ({ text: undefined, meta: {} }))
-    if (!text) return undefined
-    const found = identify(text, meta)
-    const words = text.pages.flatMap((p) => p.blocks.flatMap((b) => b.lines.map((l) => l.text))).join(" ")
-    return { doi: found.ref?.kind === "doi" ? found.ref.value : undefined, text: words }
+  private lookAtPdf(file: string) {
+    return lookAtPdf(file, this.services.pdfiumWasm)
   }
 
   private async downloadFound(id: string, file: string, sure: boolean) {
@@ -1740,7 +1758,7 @@ export class Library {
     const dir = paperDir(this.root, id)
     await Promise.all(["text.json", "text.md", "text.pdfium.json", "parse.json"].map((name) => rm(path.join(dir, name), { force: true })))
     await removeFigures(this.root, id)
-    await this.acquisitions.notePlaced(id, { by: "you", route, sha256: sha }, { held: true })
+    await this.acquisitions.notePlaced(id, { by: route === "extension" ? "extension" : "you", route, sha256: sha }, { held: true })
     this.pdfHashes?.set(sha, id)
     this.queueText(id, priority)
     this.arrivals.get(id)?.()

@@ -1,0 +1,283 @@
+import { t } from "@lingui/core/macro"
+import { EXTENSION_PORT, type ExtensionStatus, type ExtensionView, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing } from "@owlit/protocol"
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
+import { z } from "zod"
+import type { Library } from "../library/library.ts"
+import { PDF_MAX_BYTES } from "../library/pdf.ts"
+import type { SettingsStore } from "../settings.ts"
+import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send } from "./http.ts"
+import { HOLD_MS, Pairings } from "./pairings.ts"
+import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
+
+// owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
+// way Zotero's connector reaches Zotero). A browser asks only for what an extension may: every request
+// must come from an extension's origin, and every route but /pair needs the token the user allowed it
+// to have. The server never serves a file, and takes nothing larger than a PDF owlit would download.
+//
+// One per Core, not per workspace: the extension stays paired while workspaces switch, and the paper
+// routes answer for whichever workspace is open.
+
+// Origins a browser gives an extension's own requests: Chromium's, Firefox's, Safari's
+const EXTENSION_ORIGIN = /^(chrome-extension|moz-extension|safari-web-extension):\/\/[\w.-]+$/
+// While another program holds the port (another owlit open beside this one), owlit tries again this often,
+// so it takes over once the other quits
+export const RETRY_MS = 30_000
+
+export interface ExtensionHost {
+  version: string
+  settings: SettingsStore
+  // The open workspace's name and library
+  workspace: () => { name: string; library: Library } | null
+  // An owlit window is open to ask the user in
+  hasWindow: () => boolean
+  changed: (view: ExtensionView) => void
+}
+
+export interface ExtensionServerOptions {
+  // 0 lets the system pick (tests)
+  port?: number
+  retryMs?: number
+  questionMs?: number
+  holdMs?: number
+}
+
+interface Request {
+  method: string
+  // The path's segments, decoded: /papers/x/pdf → ["papers", "x", "pdf"]
+  parts: string[]
+  query: URLSearchParams
+  raw: IncomingMessage
+  // Aborted when the extension stops waiting
+  closed: AbortSignal
+  pairing: StoredPairing | null
+}
+
+interface Route {
+  method: string
+  path: (parts: string[]) => boolean
+  // Answers before any pairing (POST /pair, GET /pair/:pairing)
+  open?: boolean
+  handle: (request: Request) => Promise<{ status?: number; body: unknown }>
+}
+
+export class ExtensionServer {
+  readonly pairings: Pairings
+  private readonly host: ExtensionHost
+  private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs">> & { port: number }
+  private server: Server | null = null
+  private portTaken = false
+  private retry: ReturnType<typeof setTimeout> | undefined
+  private stopped = false
+  private readonly routes: Route[]
+
+  constructor(host: ExtensionHost, options: ExtensionServerOptions = {}) {
+    this.host = host
+    this.options = { port: options.port ?? EXTENSION_PORT, retryMs: options.retryMs ?? RETRY_MS, holdMs: options.holdMs ?? HOLD_MS }
+    this.pairings = new Pairings(host.settings, () => void this.announce(), { questionMs: options.questionMs })
+    this.routes = this.makeRoutes()
+  }
+
+  // The port it serves on, once it does
+  get port(): number | undefined {
+    const address = this.server?.address()
+    return address && typeof address === "object" ? address.port : undefined
+  }
+
+  view(): Promise<ExtensionView> {
+    return this.pairings.view(!!this.server, this.portTaken)
+  }
+
+  async start() {
+    this.stopped = false
+    await this.listen()
+  }
+
+  async close() {
+    this.stopped = true
+    clearTimeout(this.retry)
+    this.pairings.dispose()
+    const server = this.server
+    this.server = null
+    if (!server) return
+    server.closeAllConnections()
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
+
+  private async listen() {
+    if (this.stopped || this.server) return
+    const server = createServer((request, response) => void this.receive(request, response))
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject)
+        server.listen(this.options.port, "127.0.0.1", () => {
+          server.off("error", reject)
+          resolve()
+        })
+      })
+    } catch (error) {
+      const taken = (error as NodeJS.ErrnoException).code === "EADDRINUSE"
+      if (!taken) console.error("[core] couldn't open the port for the browser extension", error)
+      if (this.portTaken !== taken) {
+        this.portTaken = taken
+        void this.announce()
+      }
+      this.retry = setTimeout(() => void this.listen(), this.options.retryMs)
+      this.retry.unref?.()
+      return
+    }
+    if (this.stopped) return void server.close()
+    this.server = server
+    this.portTaken = false
+    void this.announce()
+  }
+
+  private async announce() {
+    this.host.changed(await this.view())
+  }
+
+  private async receive(raw: IncomingMessage, response: ServerResponse) {
+    const origin = raw.headers.origin ?? ""
+    // A page can't send an extension's origin; anything else (a web page, a program that didn't say) is
+    // turned away before its request is read
+    if (!EXTENSION_ORIGIN.test(origin) || !this.ownHost(raw.headers.host)) {
+      send(response, 403, { reason: "not-an-extension", message: t`Only owlit's browser extension can connect here.` })
+      raw.resume()
+      return
+    }
+    const cors = { "access-control-allow-origin": origin, vary: "Origin" }
+    if (raw.method === "OPTIONS") {
+      response.writeHead(204, {
+        ...cors,
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-headers": "authorization, content-type",
+        "access-control-max-age": "600",
+      })
+      response.end()
+      return
+    }
+    const closed = new AbortController()
+    response.on("close", () => closed.abort())
+    try {
+      const url = new URL(raw.url ?? "/", "http://127.0.0.1")
+      const parts = url.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part))
+      const route = this.routes.find((r) => r.method === raw.method && r.path(parts))
+      if (!route) throw new HttpFailure(404, "not-found", t`owlit doesn't know that request.`)
+      let pairing: StoredPairing | null = null
+      if (!route.open) {
+        const token = /^Bearer\s+(\S+)$/i.exec(raw.headers.authorization ?? "")?.[1]
+        pairing = (token && (await this.pairings.byToken(token))) || null
+        if (!pairing) throw new HttpFailure(401, "not-paired", t`This browser isn't connected to owlit. Press Connect.`)
+        void this.pairings.seen(pairing).catch((error) => console.error("[core] couldn't note the extension's visit", error))
+      }
+      const answer = await route.handle({ method: raw.method ?? "GET", parts, query: url.searchParams, raw, closed: closed.signal, pairing })
+      send(response, answer.status ?? 200, answer.body, cors)
+    } catch (error) {
+      const failure = asHttpFailure(error)
+      raw.resume()
+      if (!response.headersSent) send(response, failure.status, { reason: failure.reason, message: failure.message, ...failure.extra }, cors)
+    }
+  }
+
+  // 127.0.0.1 or localhost at this port: a page that points its own name at 127.0.0.1 (DNS rebinding) is
+  // still a page's request
+  private ownHost(host: string | undefined) {
+    const port = this.port
+    return !!host && port !== undefined && (host === `127.0.0.1:${port}` || host === `localhost:${port}`)
+  }
+
+  private library() {
+    const workspace = this.host.workspace()
+    if (!workspace) throw new HttpFailure(503, "no-workspace", t`Open a workspace in owlit.`)
+    return workspace.library
+  }
+
+  // Named by what they do; GET /work (the papers owlit wants the extension to fetch) joins them later
+  private makeRoutes(): Route[] {
+    const is = (...want: (string | null)[]) => (parts: string[]) => parts.length === want.length && want.every((w, i) => w === null || w === parts[i])
+    const pair = z.object({ browser: z.string().trim().min(1).max(60), extensionVersion: z.string().max(40).optional() })
+    return [
+      {
+        method: "POST",
+        path: is("pair"),
+        open: true,
+        handle: async ({ raw }) => {
+          const body = pair.safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          if (!this.host.hasWindow()) throw new HttpFailure(503, "no-window", t`Open the owlit window, then press Connect again.`)
+          return { status: 202, body: this.pairings.ask(body.data.browser) satisfies PairStarted }
+        },
+      },
+      {
+        method: "GET",
+        path: is("pair", null),
+        open: true,
+        handle: async ({ parts, closed }) => ({ body: (await this.pairings.wait(parts[1], this.options.holdMs, closed)) satisfies PairAnswer }),
+      },
+      {
+        method: "GET",
+        path: is("status"),
+        handle: async ({ pairing }) => {
+          const workspace = this.host.workspace()
+          return { body: { version: this.host.version, workspace: workspace ? { name: workspace.name } : null, connectedAt: pairing!.pairedAt } satisfies ExtensionStatus }
+        },
+      },
+      {
+        method: "GET",
+        path: is("papers"),
+        handle: async ({ query }) => {
+          const page = { doi: query.get("doi") ?? undefined, arxiv: query.get("arxiv") ?? undefined, url: query.get("url") ?? undefined }
+          const paper = await findPaper(this.library(), page)
+          return { body: { paper: paper ? shown(paper) : null } }
+        },
+      },
+      {
+        method: "POST",
+        path: is("papers"),
+        handle: async ({ raw }) => {
+          const body = addBody.safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          const { paper, existed } = await addPaper(this.library(), body.data)
+          return { status: existed ? 200 : 201, body: { paper: shown(paper) } satisfies PaperAnswer }
+        },
+      },
+      {
+        method: "PUT",
+        path: is("papers", null, "pdf"),
+        handle: async ({ raw, parts }) => {
+          const library = this.library()
+          const before = await library.get(parts[1])
+          if (!before) throw new HttpFailure(404, "not-found", t`That paper is not in the library.`)
+          if (before.pdf) throw new HttpFailure(409, "has-pdf", t`This paper has its PDF already.`, { paper: shown(before) })
+          return this.withPdf(raw, async (file) => {
+            if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
+            return { body: { paper: shown(await library.attachPdf(before.id, file, "extension")) } satisfies PaperAnswer }
+          })
+        },
+      },
+      {
+        method: "PUT",
+        path: is("pdfs"),
+        handle: async ({ raw }) => {
+          const library = this.library()
+          return this.withPdf(raw, async (file) => {
+            const paper = await library.attachUnnamedPdf(file, "extension")
+            // Not a paper the Library is waiting on: the file goes, and nothing is offered on a guess
+            if (!paper) throw new HttpFailure(404, "not-a-library-paper", t`This PDF isn't one your Library is missing.`)
+            return { body: { paper: shown(paper) } satisfies PaperAnswer }
+          })
+        },
+      },
+    ]
+  }
+
+  // The request's PDF in a temp file for as long as work needs it
+  private async withPdf<T>(raw: IncomingMessage, work: (file: string) => Promise<T>): Promise<T> {
+    const file = await readToFile(raw, PDF_MAX_BYTES)
+    try {
+      if (!(await startsAsPdf(file))) throw new HttpFailure(415, "not-a-pdf", t`That isn't a PDF.`)
+      return await work(file)
+    } finally {
+      await removeQuietly(file)
+    }
+  }
+}

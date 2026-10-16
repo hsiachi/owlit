@@ -17,6 +17,7 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
+import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
@@ -81,6 +82,8 @@ export interface CoreOptions {
   pdfiumWasm?: string
   // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
   socket?: boolean | { dir: string }
+  // Serve owlit's browser extension on 127.0.0.1 (EXTENSION_PORT; tests give port 0 for any free one)
+  extension?: boolean | ExtensionServerOptions
   // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
   // How to start the Owlit engine (packages/owlit-agent); without it the engine isn't offered
@@ -138,6 +141,8 @@ export class Core {
   // Owlit updating itself
   readonly updates: Updates
   private socket: SocketServer | null = null
+  // The browser extension's port, for as long as core runs, whichever workspace is open
+  private readonly extension: ExtensionServer | null
   // The system's preferred languages (BCP 47, most preferred first), read once: the interface and digests
   // follow them until Settings says otherwise
   private readonly systemLanguages: readonly string[]
@@ -170,6 +175,18 @@ export class Core {
       },
     })
     this.ui = new UiBridge((request) => this.notifier.notify("ui.request", request))
+    this.extension = options.extension
+      ? new ExtensionServer(
+          {
+            version: this.version().version,
+            settings: this.settings,
+            workspace: () => (this.workspace ? { name: this.workspace.info.name, library: this.workspace.library } : null),
+            hasWindow: () => this.ui.hasWindow(),
+            changed: (view) => this.notifier.notify("extension.changed", view),
+          },
+          options.extension === true ? {} : options.extension,
+        )
+      : null
     this.fs = new AgentFs({
       workspace: () => this.workspace,
       ui: this.ui,
@@ -278,6 +295,16 @@ export class Core {
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
     this.router.register("core.diagnostics", noParams, () => this.diagnostics())
+    this.router.register("extension.get", noParams, async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [] })
+    this.router.register("extension.answer", z.object({ id: z.string().min(1), allow: z.boolean() }), async ({ id, allow }) => {
+      await this.extension?.pairings.answer(id, allow)
+      return null
+    })
+    this.router.register("extension.forget", z.object({ id: z.string().min(1) }), async ({ id }) => {
+      if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
+      await this.extension.pairings.forget(id)
+      return this.extension.view()
+    })
     this.router.register("updates.get", noParams, () => this.updates.view())
     this.router.register("updates.check", noParams, () => this.updates.check())
     this.router.register("updates.setAuto", z.object({ auto: z.boolean() }), ({ auto }) => this.updates.setAuto(auto))
@@ -1003,6 +1030,7 @@ export class Core {
     this.started = true
     this.notifier.notify("core.hello", this.version())
     void this.updates.start()
+    void this.extension?.start().catch((error) => console.error("[core] couldn't start serving the browser extension", error))
   }
 
   // The workspace to reopen at launch, if it is still there
@@ -1222,6 +1250,7 @@ export class Core {
     await this.journal.dispose()
     await this.socket?.close().catch(() => undefined)
     this.socket = null
+    await this.extension?.close().catch(() => undefined)
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()

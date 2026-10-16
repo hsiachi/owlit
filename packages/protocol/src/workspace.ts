@@ -1,3 +1,4 @@
+import type { StoredPairing } from "./extension.ts"
 import type { InitiativeSettings } from "./initiative.ts"
 import type { HighlightColor } from "./library.ts"
 import type { InterfaceLanguage } from "./languages.ts"
@@ -58,6 +59,8 @@ export interface AppSettings {
   activity: { enabled: boolean }
   appearance: AppearanceSettings
   profile: ProfileSettings
+  // The browser extensions the user allowed to connect
+  extension?: { paired: StoredPairing[] }
 }
 
 // Who the user is, as far as owlit needs to know

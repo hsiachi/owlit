@@ -14,6 +14,7 @@ import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
+import type { ExtensionView } from "./extension.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -69,6 +70,12 @@ export interface Methods {
   "core.diagnostics": { params: void; result: string }
   // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
   // itself, and the window having shown "Updated to"
+  // The browser extension: whether the port is open, which browsers are allowed, which are asking
+  "extension.get": { params: void; result: ExtensionView }
+  // The user's answer to an extension asking to connect (ExtensionView.asking)
+  "extension.answer": { params: { id: string; allow: boolean }; result: null }
+  // Takes back a browser's permission; its extension asks to connect again
+  "extension.forget": { params: { id: string }; result: ExtensionView }
   "updates.get": { params: void; result: UpdatesView }
   "updates.check": { params: void; result: UpdateCheck }
   "updates.setAuto": { params: { auto: boolean }; result: UpdatesView }
@@ -511,6 +518,8 @@ export interface Notifications {
   "activity.status": { enabled: boolean }
   // Any setting changed, from any window or the app menu
   "settings.changed": SettingsView
+  // An extension asked to connect, was answered, connected or was forgotten; the port opened or was taken
+  "extension.changed": ExtensionView
   // Where an update stands changed: a check, a download, the switch
   "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
@@ -619,8 +628,8 @@ export interface OwlitBridge {
   // "Ask Owlit" was chosen in that menu
   onTextMenuAsk(listener: () => void): () => void
   // A system notification, shown only while no owlit window is in front; clicking it brings the window
-  // forward and calls onNotificationClick with its chatId
-  notify(notification: { title: string; body: string; chatId: string }): void
+  // forward and, for one about a chat, calls onNotificationClick with its chatId
+  notify(notification: { title: string; body: string; chatId?: string }): void
   // Quits and installs the downloaded update; asks first, in the system's dialog, while a chat is answering
   restartToUpdate(): Promise<void>
   onNotificationClick(listener: (chatId: string) => void): () => void

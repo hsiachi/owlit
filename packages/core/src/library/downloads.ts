@@ -3,6 +3,7 @@ import { readdirSync, watch, type FSWatcher } from "node:fs"
 import { stat } from "node:fs/promises"
 import path from "node:path"
 import { promisify } from "node:util"
+import { surelyOf, type PdfLook } from "./pdf-identity.ts"
 
 // A paper the user opened in their own browser (its publisher isn't letting owlit's in): the PDF they
 // save from there is taken from their Downloads folder, so they never have to find it and drop it. For a
@@ -24,12 +25,6 @@ export interface WatchedPaper {
   doi?: string
   title: string
   until: number
-}
-
-// What a PDF says about itself: a DOI on its first pages, and their text
-export interface PdfLook {
-  doi?: string
-  text: string
 }
 
 export class DownloadWatch {
@@ -127,29 +122,11 @@ export async function whoseDownload(
   if (sent) return { id: sent.id, sure: true }
   const said = await look(file)
   if (!said) return undefined
-  const text = normalize(said.text)
-  const match =
-    waiting.find((p) => p.doi && said.doi && p.doi.toLowerCase() === said.doi.toLowerCase()) ??
-    waiting.find((p) => normalize(p.title).length >= 20 && text.includes(normalize(p.title)))
+  const match = surelyOf(said, waiting)
   if (match) return { id: match.id, sure: true }
   if (waiting.length === 1 && !said.doi) return { id: waiting[0].id, sure: false }
   return undefined
 }
-
-// Whether a PDF is this paper, from what its first pages say: yes (its DOI, or its whole title), no (a
-// title long enough to tell, or another DOI, and neither matches), or unknown (no text to read, a
-// title too short to be sure of). For a PDF owlit didn't choose by address: one a repository's page
-// named, or one found by title.
-export function isThisPaper(said: PdfLook | undefined, paper: { doi?: string; title: string }): "yes" | "no" | "unknown" {
-  if (!said?.text.trim()) return "unknown"
-  if (paper.doi && said.doi && paper.doi.toLowerCase() === said.doi.toLowerCase()) return "yes"
-  const title = normalize(paper.title)
-  if (title.length >= 20 && normalize(said.text).includes(title)) return "yes"
-  return title.length >= 20 || said.doi ? "no" : "unknown"
-}
-
-// The same title, whatever its case, punctuation and spacing; only titles long enough to tell
-export const sameTitle = (a: string, b: string) => normalize(a).length >= 20 && normalize(a) === normalize(b)
 
 // The addresses a browser recorded the file was saved from (macOS keeps them with the file, as Finder's
 // "Where from"), or undefined where there are none
@@ -206,9 +183,3 @@ export function hasDoi(address: string, doi: string) {
   const escaped = doi.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   return new RegExp(`(?<![\\w.])${escaped}(?=$|[?/&#]|\\.pdf)`).test(text.toLowerCase())
 }
-
-const normalize = (text: string) =>
-  text
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
