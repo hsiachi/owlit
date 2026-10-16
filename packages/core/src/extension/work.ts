@@ -24,6 +24,10 @@ export const IN_FLIGHT_MS = 3 * 60_000
 // The extension counts as connected while it asked for work this recently; it asks again as soon as a
 // hold of GET /work ends
 export const CONNECTED_MS = 60_000
+// After a fetch at a site reached nothing (the network dropped, the proxy's minute-limit page), the site
+// waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
+// was learnt about it, and a limit that counts every request isn't asked again within the minute
+export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 
 export interface WorkOptions {
   gapMs?: number
@@ -51,6 +55,8 @@ interface Site {
   // When its last fetch ended, for the gap before the next
   endedAt?: number
   paused?: Paused
+  // Its fetches reached nothing this many times in a row; none goes out before until
+  offline?: { times: number; until: number }
 }
 
 const PAUSES: Partial<Record<WorkEnding, ExtensionWait["kind"]>> = { check: "check", "sign-in": "sign-in", "no-permission": "permission" }
@@ -182,7 +188,14 @@ export class ExtensionWork implements ExtensionFetcher {
     site.inFlight = undefined
     site.endedAt = Date.now()
     const pause = ended && PAUSES[ended]
-    if (pause) {
+    if (ended === "offline") {
+      const times = (site.offline?.times ?? 0) + 1
+      site.offline = { times, until: site.endedAt + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1] }
+      site.queue.unshift(item)
+      sortQueue(site)
+      this.host.papers(this.library, [item.paper.paperId])
+    } else if (pause) {
+      site.offline = undefined
       site.queue.unshift(item)
       sortQueue(site)
       const url = (pause === "sign-in" && item.paper.signIn) || page.url || item.paper.url
@@ -190,6 +203,7 @@ export class ExtensionWork implements ExtensionFetcher {
       this.host.papers(this.library, ids(site))
       this.host.waits()
     } else {
+      site.offline = undefined
       if (!site.queue.length && !site.paused) {
         this.sites.delete(site.key)
         this.lastEnded.set(site.key, site.endedAt)
@@ -248,6 +262,11 @@ export class ExtensionWork implements ExtensionFetcher {
     return site.proxied ? this.options.proxyGapMs : this.options.gapMs
   }
 
+  // When the site's next fetch may go out: after the gap, and after an offline back-off
+  private dueAt(site: Site) {
+    return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0)
+  }
+
   private due(): WorkItem[] {
     const now = Date.now()
     const out: WorkItem[] = []
@@ -259,7 +278,7 @@ export class ExtensionWork implements ExtensionFetcher {
         site.endedAt = now
       }
       if (site.paused || site.inFlight || !site.queue.length) continue
-      if (site.endedAt !== undefined && now < site.endedAt + this.gap(site)) continue
+      if (now < this.dueAt(site)) continue
       const item = site.queue.shift()!
       const id = randomUUID()
       site.inFlight = { id, item, at: now }
@@ -276,7 +295,7 @@ export class ExtensionWork implements ExtensionFetcher {
     let next = Number.POSITIVE_INFINITY
     for (const site of this.sites.values()) {
       if (site.inFlight) next = Math.min(next, site.inFlight.at + this.options.inFlightMs - now)
-      else if (!site.paused && site.queue.length) next = Math.min(next, site.endedAt === undefined ? 0 : site.endedAt + this.gap(site) - now)
+      else if (!site.paused && site.queue.length) next = Math.min(next, this.dueAt(site) - now)
     }
     return Math.max(0, next)
   }

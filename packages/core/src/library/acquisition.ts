@@ -69,14 +69,15 @@ export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === 
 // Whether a paper goes to the extension's queue when the extension connects, and the try that says why
 // (whose time orders the queue, oldest first). The queue lives in memory, so after a restart, or before
 // the extension ever asked for work, it holds nothing; this is what fills it again. Taken: a paper still
-// finding while the extension waits for the user at its site, and one with no PDF for owlit's own reason
+// finding while the extension waits for the user at its site or reached nothing there (its fetch was
+// put back in its queue, which a restart emptied), and one with no PDF for owlit's own reason
 // (no copy, or an older record's check or sign-in) that the extension hasn't tried since its last PDF.
 // Not one the extension already judged (no access, not there, its own no copy): owlit's back-off look
 // hands that one over again when it is due.
 export function forExtension(acquisition: Pick<Acquisition, "state" | "tried">): PdfTry | undefined {
   const { reason } = standing(acquisition.tried)
   if (!reason) return undefined
-  if (acquisition.state === "finding") return waitsForUser(reason) ? reason : undefined
+  if (acquisition.state === "finding") return waitsForUser(reason) || (reason.by === "extension" && reason.ended === "offline") ? reason : undefined
   if (acquisition.state !== "no-pdf" || reason.by !== "owlit" || !OWLIT_ONLY.has(reason.ended)) return undefined
   const sincePdf = acquisition.tried.slice(acquisition.tried.findLastIndex((t) => t.ended === "pdf") + 1)
   return sincePdf.some((t) => t.by === "extension") ? undefined : reason

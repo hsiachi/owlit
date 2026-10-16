@@ -82,6 +82,8 @@ describe("a paper the extension tried", () => {
     expect(forExtension({ state: "no-pdf", tried: [extension("no-access", 1), extension("pdf", 2), owlit("no-copy", 3)] })).toMatchObject({ at: 3 })
     expect(forExtension({ state: "have-it", tried: [owlit("pdf", 1)] })).toBeUndefined()
     expect(forExtension({ state: "finding", tried: [owlit("offline", 1)] })).toBeUndefined()
+    // The extension reached nothing (the network dropped, the proxy's minute limit): asked for again
+    expect(forExtension({ state: "finding", tried: [owlit("no-copy", 1), extension("offline", 2)] })).toMatchObject({ by: "extension", ended: "offline", at: 2 })
     expect(forExtension({ state: "finding", tried: [] })).toBeUndefined()
   })
 })

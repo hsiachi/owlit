@@ -98,6 +98,46 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["w2"])
   })
 
+  it("backs off at a site that reached nothing, keeping its papers, and goes on once it answers", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), false)
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    const [first] = await take()
+    work.settle(first.id, "offline")
+    // Still queued, first in line
+    expect(work.holding(library, "a1")).toEqual({ host: "sagepub.com" })
+    vi.advanceTimersByTime(2 * 60_000 - 1)
+    expect(await take()).toEqual([])
+    vi.advanceTimersByTime(1)
+    const [second] = await take()
+    expect(second.paperId).toBe("a1")
+    // Offline again: a longer wait
+    work.settle(second.id, "offline")
+    vi.advanceTimersByTime(5 * 60_000 - 1)
+    expect(await take()).toEqual([])
+    vi.advanceTimersByTime(1)
+    const [third] = await take()
+    expect(third.paperId).toBe("a1")
+    // An answer: the next goes after the plain gap, and a later offline starts the back-off over
+    work.settle(third.id, "no-copy")
+    vi.advanceTimersByTime(GAP_MS)
+    const [fourth] = await take()
+    expect(fourth.paperId).toBe("a2")
+    work.settle(fourth.id, "offline")
+    vi.advanceTimersByTime(2 * 60_000)
+    expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+  })
+
+  it("holds a long poll through an offline back-off and hands the paper out when it ends", async () => {
+    const { work, take, never } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), false)
+    const [first] = await take()
+    work.settle(first.id, "offline")
+    const held = work.take(library, 3 * 60_000, never)
+    await vi.advanceTimersByTimeAsync(2 * 60_000)
+    expect((await held).map((w) => w.paperId)).toEqual(["a1"])
+  })
+
   it("goes on at a site once the user got through there, the paper they asked for first", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("s1", "sagepub.com"), false)
