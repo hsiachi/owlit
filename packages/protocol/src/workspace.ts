@@ -1,3 +1,4 @@
+import type { InitiativeSettings } from "./initiative.ts"
 import type { HighlightColor } from "./library.ts"
 import type { InterfaceLanguage } from "./languages.ts"
 
@@ -34,6 +35,8 @@ export interface WelcomeInfo {
 export interface WorkspaceSettings {
   version: 1
   layout: Record<string, unknown>
+  // How far Owlit goes here without being asked (Settings › Owlit › On its own); absent: the defaults
+  initiative?: Partial<InitiativeSettings>
 }
 
 // settings.json in the app data directory: this machine's settings

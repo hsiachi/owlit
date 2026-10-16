@@ -1,8 +1,9 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
+import type { InitiativeSettings } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
-import type { CommentAnchor, DocComment, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
+import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -85,7 +86,12 @@ export interface Methods {
   "workspace.clearRecent": { params: void; result: null }
   // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
   // window's chat, …)
-  "workspace.layout": { params: void; result: Record<string, unknown> }
+  // How far Owlit goes in this workspace without being asked; set records feedback.dialChanged
+  "initiative.get": { params: void; result: InitiativeSettings }
+  "initiative.set": { params: { patch: Partial<InitiativeSettings> }; result: InitiativeSettings }
+  // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
+  "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
+  "workspace.layout":{ params: void; result: Record<string, unknown> }
   // Merges into the layout; a key set to null is removed
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
   // One thing the user did; dropped when activity is turned off or no workspace is open
@@ -136,6 +142,9 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
+  // Owlit and a doc: kept out or let in, and its last look
+  "docs.owlit": { params: { path: string }; result: DocOwlit }
+  "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }
@@ -146,12 +155,15 @@ export interface Methods {
   "comments.all": { params: void; result: Record<string, DocComment[]> }
   // Starts a comment, or puts back one deleted
   // agent: the comment is an agent's (owlit-mcp), kept as a version so the window can offer Undo
-  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string } }; result: null }
+  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "docs.review:<task id>")
+  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string; run?: string } }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
   "comments.put": { params: { path: string; comment: DocComment }; result: DocComment | null }
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
+  // One of Owlit's comments the user doesn't want; journaled as feedback.dismiss
+  "comments.dismiss": { params: { path: string; id: string }; result: DocComment }
   // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
   "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
 
@@ -203,6 +215,7 @@ export interface Methods {
 
   // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
   // Most recently updated first, without messages
+  // Your chats; Owlit's own runs aren't among them
   "chats.list": { params: void; result: ChatSummary[] }
   "chats.get": { params: { id: string }; result: Chat }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
@@ -478,6 +491,10 @@ export interface Notifications {
   "settings.changed": SettingsView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
+  // The dial moved, in any window
+  "initiative.changed": InitiativeSettings
+  // Owlit was kept out of a doc or let in, or looked at it
+  "docs.owlit": { path: string; state: DocOwlit }
   // An agent's state changed (it started, ended, crashed, was checked)
   "agents.changed": Connector
   // One streamed update of a chat's running turn, for that turn's reply (messageId)
@@ -485,6 +502,9 @@ export interface Notifications {
   // A reply that had ended was opened again because the agent went on after its turn, or that reply ended
   // again: the reply as core has it (status "streaming" while it runs). What it adds streams as chat.update.
   "chat.lateReply": { chatId: string; message: ChatMessage }
+  // A run Owlit started on its own began or ended: its session whole, as core has it (the first
+  // message says why it started; the reply is "streaming" while it runs). Its steps stream as chat.update.
+  "chats.run": { chat: Chat }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it

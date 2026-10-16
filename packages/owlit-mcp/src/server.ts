@@ -245,7 +245,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         entries: [{ id: randomUUID(), by: "owlit", text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) }],
         createdAt: at,
       }
-      await owlit.rpc.comments.add({ path: str("path"), comment, agent: asker })
+      await owlit.rpc.comments.add({ path: str("path"), comment, agent: { ...asker, ...(options.run ? { run: options.run } : {}) } })
       return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":

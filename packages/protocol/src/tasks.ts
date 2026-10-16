@@ -53,6 +53,10 @@ export interface Task {
   // Queued behind another task that produces what this one needs
   blockedOn?: string
   external?: ExternalJob
+  // An agent run's session (a hidden chat: its steps, result and Stop) and what it is doing, in one
+  // sentence in Owlit's voice ("Writing a reading note for …"), shown wherever the run reports
+  chatId?: string
+  doing?: string
 }
 
 export const TASK_PRIORITIES: readonly TaskPriority[] = ["waiting", "asked", "background"]

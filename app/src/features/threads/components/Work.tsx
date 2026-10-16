@@ -8,6 +8,7 @@ import { Tip } from "@/components/tip"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
+import { openRun } from "@/features/runs/hooks"
 import { shown as shownOf } from "../lib"
 import { askEach, runWords, startRun, useThreadWork } from "../runs"
 
@@ -20,7 +21,14 @@ export function WorkLine({ thread }: { thread: Thread }) {
     const papers = shownOf(thread).rows.length
     return (
       <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
-        <span className="shimmer">{runWords(task, thread)}</span>
+        {/* The line opens the run itself: its steps so far, in the Owlit panel */}
+        {task.chatId ? (
+          <button type="button" className="shimmer hover:underline" onClick={() => void openRun(task.chatId!)}>
+            {runWords(task, thread)}
+          </button>
+        ) : (
+          <span className="shimmer">{runWords(task, thread)}</span>
+        )}
         {task.kind === "threads.gather" && papers > 0 && <span>{t`${papers} so far`}</span>}
         <Button variant="text" size="inline" onClick={() => void cancelTask(task.id)}>
           {t({ message: "Stop", comment: "stop Owlit's work on a thread" })}

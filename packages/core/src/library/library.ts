@@ -38,7 +38,7 @@ import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { Publishers, type VisitEnd } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
-import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
+import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
@@ -54,7 +54,8 @@ import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, cloudResult, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { figurePictures, noFigures, readFigures, removeFigures, toPaperFigures, writeFiguresFromLayout, writeFiguresFromText } from "./figures/figures.ts"
 import { renderCrops } from "./figures/render.ts"
-import { DIGEST_FORMAT, digestPrompt, drifted, type DigestRecord } from "./digest/prompt.ts"
+import { DIGEST_FORMAT, drifted, type DigestRecord } from "./digest/prompt.ts"
+import { digestSkill } from "../initiative/skills.ts"
 import { identify, type Identified } from "./text/identify.ts"
 import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import { findJournal, listJournal, parseYears, relatedOf, searchSource, type RelatedKind } from "./discover.ts"
@@ -165,7 +166,10 @@ export interface LibraryServices {
   http: Http
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
   // (digests). model is the one chosen for background work, when one is.
-  agent?: (prompt: string, signal: AbortSignal, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
+  // The user starred a paper (not an agent, not an import)
+  starred?: (id: string) => void
+  // A background agent run for a task: its session shows beside the paper (ctx.describe)
+  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
   // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
@@ -460,8 +464,8 @@ export class Library {
       const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt)
       if (id.startsWith("local-") && patch.ids && paperIdOf(cleanIds(patch.ids))) return this.relink(id, record, state, patch)
       await writeState(this.root, id, applyPatch(state, record, patch))
-      // Starring a paper says it is worth reading: a note gets written in the background
-      if (patch.starred && !state.starred) void this.wantDigest(id, "background")
+      // Starring a paper says it is worth reading: Owlit's rules hear it (a digest in the background)
+      if (patch.starred && !state.starred) this.services.starred?.(id)
       return (await this.get(id))!
     })
   }
@@ -737,8 +741,8 @@ export class Library {
           .filter((p) => p.data.length <= PICTURE_MAX_BYTES)
           .slice(0, MAX_PICTURES)
           .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
-        const prompt = digestPrompt({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
-        const { text: answer, connectorId, model } = await agent(prompt, ctx.signal, pictures)
+        const prompt = digestSkill.instructions({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
+        const { text: answer, connectorId, model } = await agent(prompt, ctx, pictures)
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial.run(async () => {
@@ -939,11 +943,8 @@ export class Library {
   // when the paper has, or will have, text to read and has no note yet. A note already there, pitta's
   // included, is written again only when the user asks (rewrite), never on owlit's own account.
   async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
-    if (!this.services.agent || !isPaperId(id) || !(await readRecord(this.root, id))) return
+    if (await this.digestHeldBack(id, options.rewrite)) return
     const dir = paperDir(this.root, id)
-    if (!options.rewrite && (await exists(path.join(dir, "digest.md")))) return
-    const hasText = await exists(path.join(dir, "text.md"))
-    if (!hasText && !(await hasPdfFile(this.root, id))) return
     // Asked for on disk, beside the note: the task may run after a restart, and must still know
     if (options.rewrite && (await exists(path.join(dir, "digest.md")))) {
       await this.serial.run(async () => {
@@ -957,6 +958,16 @@ export class Library {
       })
     }
     this.queue("paper.digest", id, priority)
+  }
+
+  // Why no digest would be written for a paper now (Owlit's rules log it), or null when one would
+  async digestHeldBack(id: string, rewrite = false): Promise<string | null> {
+    if (!this.services.agent) return "no agent to write it"
+    if (!isPaperId(id) || !(await readRecord(this.root, id))) return "not in the library"
+    const dir = paperDir(this.root, id)
+    if (!rewrite && (await exists(path.join(dir, "digest.md")))) return "has a digest"
+    if (!(await exists(path.join(dir, "text.md"))) && !(await hasPdfFile(this.root, id))) return "nothing to read"
+    return null
   }
 
   private async rewriteAsked(id: string) {

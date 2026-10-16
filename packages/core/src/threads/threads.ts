@@ -14,7 +14,6 @@ import {
   type ThreadEdit,
   type ThreadSearch,
   type ThreadPaper,
-  type ThreadRun,
   type ThreadSize,
   type TaskPriority,
   type ThreadRow,
@@ -27,8 +26,8 @@ import path from "node:path"
 import type { Versions } from "../docs/versions.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
-import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
-import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from "./prompts.ts"
+import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
+import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, type Skill } from "../initiative/skills.ts"
 import { Serial } from "../util.ts"
 
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
@@ -44,7 +43,9 @@ import { Serial } from "../util.ts"
 export interface ThreadsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
   // is a line on what it did
-  agent?: (prompt: string, signal: AbortSignal, allow: RegExp, run: string) => Promise<{ text: string }>
+  // A background agent run for a task (ctx: its signal, and its session shown beside the thread);
+  // run signs its searches and writes
+  agent?: (prompt: string, ctx: TaskContext, allow: RegExp, run: string) => Promise<{ text: string }>
   // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
   searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
@@ -81,11 +82,8 @@ const BATCH_GAP_MS = 30 * 60_000
 const FILE = "thread.json"
 const DAY = 24 * 3_600_000
 
-// What each kind of run may use besides owlit's read-only tools
-const GATHER_TOOLS = /^(library_(search|related|journal)|thread_write)$/
-const FILL_TOOLS = /^thread_write$/
-// Reading in full means the paper is used: it joins the library
-const READ_TOOLS = /^(library_add|thread_write)$/
+// A skill that may use only owlit's read-only tools
+const NO_TOOLS = /^$/
 
 export class Threads {
   private readonly dir: string
@@ -140,30 +138,31 @@ export class Threads {
   tasks(): TaskDefinition[] {
     const agent = this.services.agent
     if (!agent) return []
-    const run = (kind: ThreadRun, allow: RegExp, prompt: (c: Thread, subject: string) => string, after?: (c: Thread) => Promise<void>) =>
-      defineTask(kind, {
-        lane: "agent",
+    // A task per skill (initiative/skills.ts): the skill says what the session is told and which tools it gets
+    const run = <I>(skill: Skill<I>, input: (c: Thread, subject: string) => I, after?: (c: Thread) => Promise<void>) =>
+      defineTask(skill.id, {
+        lane: skill.lane,
         retries: 1,
         run: async (ctx) => {
           const c = await this.load(threadOfSubject(ctx.task.subject))
           if (!c) throw new TaskFailure("The thread is gone.")
-          ctx.progress(0, undefined, kind)
+          ctx.progress(0, undefined, skill.id)
           // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
-          const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow, `${kind}:${ctx.task.id}`)
-          if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
+          const done = await agent(skill.instructions(input(c, ctx.task.subject)), ctx, skill.tools ?? NO_TOOLS, `${skill.id}:${ctx.task.id}`)
+          if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${skill.id} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },
       })
     return [
-      run("threads.gather", GATHER_TOOLS, (c) => gatherPrompt(c, c.size ?? "few")),
-      run("threads.more", GATHER_TOOLS, (c) => morePrompt(c)),
-      run("threads.fill", FILL_TOOLS, (c, subject) => {
-        const column = c.columns.find((col) => col.id === subject.split(":")[1])
+      run(gatherSkill, (thread) => ({ thread, size: thread.size ?? "few" })),
+      run(moreSkill, (thread) => ({ thread })),
+      run(fillSkill, (thread, subject) => {
+        const column = thread.columns.find((col) => col.id === subject.split(":")[1])
         if (!column) throw new TaskFailure("The column is gone.")
-        return fillPrompt(c, column)
+        return { thread, column }
       }),
-      run("threads.read", READ_TOOLS, (c) => readPrompt(c)),
-      run("threads.check", GATHER_TOOLS, (c) => checkPrompt(c, c.checkedAt ?? c.createdAt), (c) => this.checked(c.id)),
+      run(readSkill, (thread) => ({ thread })),
+      run(checkSkill, (thread) => ({ thread, since: thread.checkedAt ?? thread.createdAt }), (c) => this.checked(c.id)),
     ]
   }
 
@@ -236,13 +235,16 @@ export class Threads {
     })
   }
 
-  // Threads the user asked Owlit to watch get a check once a day, the first time the workspace opens
-  async checkWatched(now = Date.now()) {
+  // The threads the user asked Owlit to watch, each with whether a day has passed since its last check
+  // (Owlit's rules queue the check)
+  async watched(now = Date.now()): Promise<{ id: string; due: boolean }[]> {
+    const out: { id: string; due: boolean }[] = []
     for (const s of await this.list()) {
       if (!s.watch) continue
       const c = await this.load(s.id)
-      if (c && now - (c.checkedAt ?? c.createdAt) >= DAY) this.queue("threads.check", c.id, "background")
+      if (c) out.push({ id: c.id, due: now - (c.checkedAt ?? c.createdAt) >= DAY })
     }
+    return out
   }
 
   private async checked(id: string) {

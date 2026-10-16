@@ -1,6 +1,8 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
-import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
+import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES, type InitiativeMode } from "@owlit/protocol"
+import { isDesktop } from "@/lib/rpc"
+import { setInitiative, useInitiativeSettings } from "../initiative"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
@@ -22,6 +24,11 @@ export function OwlitSection() {
           <KeptInMindRow />
         </List>
       </Group>
+      {isDesktop && (
+        <Group id="on-its-own" label={t`On its own`} note={t`Owlit comments on its own, never edits. Your docs change only when you ask.`}>
+          <OnItsOwn />
+        </Group>
+      )}
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
       </Group>
@@ -51,6 +58,27 @@ export function NameRow({ className }: { className?: string }) {
         />
       }
     />
+  )
+}
+
+// How far Owlit goes in this workspace without being asked. Off, it only keeps up what it already keeps
+// (digests, watched threads), which it did before the dial existed.
+function OnItsOwn() {
+  const { mode } = useInitiativeSettings()
+  const options: { value: InitiativeMode; label: string }[] = [
+    { value: "off", label: t({ message: "Off", comment: "Owlit does nothing on its own beyond its upkeep" }) },
+    { value: "onOpen", label: t`When I open things` },
+    { value: "away", label: t`Also while I'm away` },
+  ]
+  const help: Record<InitiativeMode, string> = {
+    off: t`Owlit works only when you ask, apart from digests and the threads you asked it to watch.`,
+    onOpen: t`When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say.`,
+    away: t`Also looks while you're away, and leaves what it found for when you're back.`,
+  }
+  return (
+    <List>
+      <Row name={t`Owlit on its own`} help={help[mode]} control={<Picker label={t`Owlit on its own`} value={mode} options={options} onChange={(next) => setInitiative({ mode: next })} />} />
+    </List>
   )
 }
 

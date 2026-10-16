@@ -141,6 +141,16 @@ class FakeAgent implements acp.Agent {
         const language = text.match(/Language of the note:\n([^.]+)\./)?.[1] ?? "?"
         const pictures = params.prompt.filter((b) => b.type === "image").length
         const figure = text.match(/^- (figure-\d+) \(p\. \d+\)/m)?.[1]
+        // Slow, with a step, for watching a run in the app (FAKE_ACP_SLOW_MS)
+        const slow = Number(process.env.FAKE_ACP_SLOW_MS) || 0
+        if (slow) {
+          await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", toolCallId: "read1", title: "Read the paper's text", kind: "read", status: "in_progress" } })
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(resolve, slow)
+            signal.addEventListener("abort", () => (clearTimeout(timer), reject(new Error("cancelled"))), { once: true })
+          })
+          await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "read1", status: "completed" } })
+        }
         await say(
           "```markdown\n# " +
             title +

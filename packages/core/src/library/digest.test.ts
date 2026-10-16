@@ -65,6 +65,20 @@ describe("digests", () => {
     expect(await call("chats.list")).toEqual([])
   })
 
+  it("keeps its run as a session the paper's row opens: why, steps, result; not in the chat list", async () => {
+    const { call, addPaper, digestDone } = await setup()
+    await addPaper("doi-10.1-r")
+    await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-r" } })
+    const task = await digestDone("doi-10.1-r")
+    expect(task).toMatchObject({ state: "done", chatId: expect.any(String), doing: "Writing the digest of “Paper doi-10.1-r”" })
+    const run = await call("chats.get", { id: task.chatId })
+    expect(run).toMatchObject({ startedBy: "owlit", run: { taskId: task.id, kind: "paper.digest", subject: "doi-10.1-r" }, title: "Digest of “Paper doi-10.1-r”" })
+    expect(run.messages[0]).toMatchObject({ role: "user", parts: [{ type: "text", text: "You opened “Paper doi-10.1-r”, which has no digest yet." }] })
+    // The note itself is the paper's; the session says it was written
+    expect(run.messages[1]).toMatchObject({ role: "assistant", status: "done", parts: [{ type: "text", text: "The digest is written: [Paper doi-10.1-r](owlit://library/doi-10.1-r)" }] })
+    expect(await call("chats.list")).toEqual([])
+  })
+
   it("writes in the language Settings asks for, and says when a note is in another", async () => {
     const { root, call, addPaper, digestDone } = await setup()
     // A word typed before the setting was a list means the listed language

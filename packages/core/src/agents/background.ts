@@ -1,5 +1,5 @@
 import type * as acp from "@agentclientprotocol/sdk"
-import type { MemoryLine } from "@owlit/protocol"
+import type { MemoryLine, SessionUpdate } from "@owlit/protocol"
 import { RpcErrorCode } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
@@ -7,6 +7,7 @@ import { flatValues } from "./process.ts"
 import { backgroundMeta, bareToolTitle, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
 import { memoryNote, preamble } from "./rules.ts"
+import { toUpdate } from "./turns.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
 // whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is there to answer
@@ -36,6 +37,8 @@ export interface BackgroundRun {
   models?: Record<string, string>
   // Owlit's memory of the user, said after the rules
   memory?: MemoryLine[]
+  // Each step and word of the answer as it comes, for the run's session (the hidden chat that shows it)
+  onUpdate?: (update: SessionUpdate) => void
 }
 
 export interface BackgroundResult {
@@ -68,6 +71,8 @@ export class Background {
       { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {
         update: (n) => {
+          const update = run.onUpdate && toUpdate(n.update, run.root)
+          if (update) run.onUpdate!(update)
           if (n.update.sessionUpdate === "agent_message_chunk" && n.update.content.type === "text") {
             if (apart && answer) answer += "\n\n"
             apart = false

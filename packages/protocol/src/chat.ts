@@ -218,7 +218,20 @@ export interface Chat {
   // The ACP session this chat has on each agent (connector id → session id), so it continues where it
   // left off after a restart; kept by core
   sessions?: Record<string, string>
+  // Work Owlit started on its own (a reading note, a watched thread's check): a run, not one of your
+  // chats. It isn't in the chat list; it opens from what it works on, and its first message, though
+  // stored as a question, is the reason it started, in Owlit's words.
+  startedBy?: "owlit"
+  run?: OwlitRun
   messages: ChatMessage[]
+}
+
+// The background task an Owlit run is the session of
+export interface OwlitRun {
+  taskId: string
+  // The task's kind and subject (paper.digest on a paper id, threads.check on a thread id)
+  kind: string
+  subject: string
 }
 
 // A chat without its messages, as the chat list shows it

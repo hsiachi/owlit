@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { findAnchor, locateInMarkdown, type CommentAnchor, type DocComment } from "@owlit/protocol"
 import { newId } from "@/lib/id"
+import { rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
@@ -89,13 +90,14 @@ function fromThread(th: CommentThread): CommentView {
 
 // The open comments on a doc, Owlit's, yours and readers', in the order they were started
 export function commentViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
-  const own = (docComments ?? []).filter((c) => !c.resolvedAt && c.entries.length).map(fromDoc)
+  const own = (docComments ?? []).filter((c) => !c.resolvedAt && !c.dismissedAt && c.entries.length).map(fromDoc)
   return [...own, ...commentThreadsOf(readerComments).map(fromThread)].sort((a, b) => a.createdAt - b.createdAt)
 }
 
 // The ones put away, newest first, for the Resolved comments list
 export function resolvedViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
-  const own = (docComments ?? []).filter((c) => c.resolvedAt && c.entries.length).map(fromDoc)
+  // Dismissed ones are Owlit's memory of what not to say, not something to open again
+  const own = (docComments ?? []).filter((c) => c.resolvedAt && !c.dismissedAt && c.entries.length).map(fromDoc)
   const at = (v: CommentView) => v.doc?.resolvedAt ?? v.createdAt
   return [...own, ...commentThreadsOf(readerComments, { resolved: true }).map(fromThread)].sort((a, b) => at(b) - at(a))
 }
@@ -165,6 +167,16 @@ export function resolve(fileId: string, view: CommentView) {
     .resolve(path, id, true)
     .then(() => toastUndo(t`Comment resolved`, () => shares.resolve(path, id, false)))
     .catch(toastError)
+}
+
+// One of Owlit's comments the user doesn't want: gone for good, and Owlit is told not to say it again.
+// Unlike Resolve there is no Undo: it is a judgement on what Owlit said, not a place to come back to.
+export function dismiss(fileId: string, view: CommentView) {
+  const path = pathOf(fileId)
+  if (!view.doc || !path) return
+  const ui = useDocsUiStore.getState()
+  if (ui.openComment?.key === view.key) ui.setOpenComment(fileId, null)
+  void rpc.comments.dismiss({ path, id: view.doc.id }).catch(toastError)
 }
 
 // Opens a resolved comment again

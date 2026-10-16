@@ -1,5 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
-import type { ThreadSize, ThreadSummary } from "@owlit/protocol"
+import { THREAD_RUNS, type ThreadSize, type ThreadSummary } from "@owlit/protocol"
+import { RunMark } from "@/features/runs/components"
 import { useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FindField } from "@/components/find-field"
@@ -165,7 +166,7 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
         {/* The slot keeps titles in line; Owlit's dot fills it while something changed since the user looked */}
         <span className="-ml-0.5 grid size-5 shrink-0 place-items-center">
           {running ? (
-            <span className="size-2 animate-ring-breathe rounded-full bg-muted-foreground motion-reduce:animate-none" />
+            <RunMark subject={summary.id} kinds={THREAD_RUNS} />
           ) : work.broken ? (
             <StoppedDot label={t`Owlit stopped.`} />
           ) : summary.fresh ? (

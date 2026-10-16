@@ -58,6 +58,8 @@ export interface DocComment {
   createdAt: number
   // Put away; kept, so Owlit can read what was said and dismissed
   resolvedAt?: number
+  // One of Owlit's comments the user dismissed: not shown, and kept so Owlit doesn't say it again
+  dismissedAt?: number
 }
 
 export interface CommentEntry {
@@ -91,7 +93,7 @@ export function asComment(value: DocComment | LegacyNote): DocComment {
 }
 
 // Still open: not resolved, and with something said
-export const isOpenComment = (c: DocComment) => !c.resolvedAt && c.entries.length > 0
+export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && c.entries.length > 0
 
 // A version kept so an agent's change can be taken back (.owlit/versions/): a doc's text
 // before a write, a note an agent left, a paper an agent added, a thread before an agent wrote to it.
@@ -111,4 +113,23 @@ export interface VersionInfo {
   deleted?: true
   // note and paper
   op?: "added" | "removed"
+}
+
+// What owlit keeps about Owlit and one of your docs (.owlit/docs/owlit.json, moving with the doc):
+// whether you keep Owlit out of it, and when Owlit last looked at it on its own
+export interface DocOwlit {
+  // When you chose Keep Owlit out; absent while Owlit is let in (the default)
+  out?: number
+  looked?: DocLook
+}
+
+// Owlit's last look at a doc: when, the doc's modification time it read, and what came of it
+export interface DocLook {
+  at: number
+  mtime: number
+  outcome: "comments" | "nothing"
+  // How many comments it left
+  count: number
+  // The paragraphs it read, as short hashes: the next look reads only the ones not among them
+  seen?: string[]
 }

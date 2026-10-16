@@ -1213,9 +1213,12 @@ msgstr "从{place}添加"
 
 #. stop Owlit's work on a thread
 #. stop getting PDFs from the browser
+#. stop one of Owlit's background runs
+#. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
 #: app/src/features/library/from-browser.ts
+#: app/src/features/runs/components.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr "停止"
@@ -1246,9 +1249,11 @@ msgstr "跳过大文件"
 msgid "Details"
 msgstr "详细信息"
 
+#. tell Owlit its comment isn't wanted; it won't say it again
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -2380,6 +2385,23 @@ msgstr "在“{title}”中"
 msgid "In “{title}”: {error}"
 msgstr "在“{title}”中：{error}"
 
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Owlit works here only when you ask"
+msgstr "只有你开口，Owlit 才在这里动手"
+
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Owlit hasn’t looked at this doc yet"
+msgstr "Owlit 还没看过这篇文稿"
+
+#. placeholder {0}: looked.count
+#: app/src/features/docs/OwlitChip.tsx
+msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
+msgstr "{0, plural, other {{when}看过 · 留了 # 条评论}}"
+
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Looked {when} · nothing to add"
+msgstr "{when}看过 · 没什么要说的"
+
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "链接已复制"
@@ -2411,6 +2433,14 @@ msgstr "版本…"
 #: app/src/features/docs/actions.ts
 msgid "Resolved comments…"
 msgstr "已解决的评论…"
+
+#: app/src/features/docs/actions.ts
+msgid "Let Owlit in"
+msgstr "让 Owlit 进来"
+
+#: app/src/features/docs/actions.ts
+msgid "Keep Owlit out"
+msgstr "不让 Owlit 进来"
 
 #: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
@@ -2451,6 +2481,11 @@ msgstr "{replies, plural, other {# 条回复}}"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} replied {1}"
 msgstr "{0} {1}回复"
+
+#. Owlit is writing its answer to the user's reply on a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Replying…"
+msgstr "正在回复…"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
@@ -2516,8 +2551,8 @@ msgid "{0} sees replies on the shared page."
 msgstr "{0} 会在分享页面上看到回复。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t answer in comments yet. To ask it, use the feather above."
-msgstr "Owlit 暂时不会在评论里回复。要问它，请点上方的羽毛。"
+msgid "Owlit answers here. To have it change the doc, use the feather above."
+msgstr "Owlit 会在这里回复。要它改文稿，请用上方的羽毛。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 #: apps/share-web/src/App.tsx
@@ -2731,6 +2766,14 @@ msgstr "{0, plural, other {# 篇论文}}"
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}，第 {page} 页"
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't keep Owlit out of this doc."
+msgstr "没能把 Owlit 挡在这篇文稿外。"
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't let Owlit back into this doc."
+msgstr "没能让 Owlit 回到这篇文稿。"
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "This doc is not in the workspace"
@@ -3631,10 +3674,6 @@ msgstr "作者未知"
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
 msgstr "更多操作"
-
-#: app/src/features/library/components/PaperList.tsx
-msgid "Writing the digest"
-msgstr "正在写导读"
 
 #: app/src/features/library/components/PaperList.tsx
 msgid "New digest"
@@ -4685,6 +4724,42 @@ msgstr "你好！"
 msgid "Answered through {agentName}"
 msgstr "通过 {agentName} 回答"
 
+#: app/src/features/runs/components.tsx
+msgid "and {more} more waiting their turn"
+msgstr "还有 {more} 项在排队"
+
+#. stop every background run Owlit has going
+#: app/src/features/runs/components.tsx
+msgid "Stop all"
+msgstr "全部停止"
+
+#: app/src/features/runs/components.tsx
+msgid "Owlit is doing this on its own."
+msgstr "这是 Owlit 自己在做的事。"
+
+#: app/src/features/runs/components.tsx
+msgid "Owlit did this on its own."
+msgstr "这是 Owlit 自己做的事。"
+
+#: app/src/features/runs/hooks.ts
+#: packages/core/src/agents/runs.ts
+msgid "Writing the digest of “{title}”"
+msgstr "正在为“{title}”写导读"
+
+#: app/src/features/runs/hooks.ts
+#: packages/core/src/agents/runs.ts
+msgid "Checking “{title}” for new papers"
+msgstr "正在为「{title}」找新论文"
+
+#: app/src/features/runs/hooks.ts
+msgid "Working on “{title}”"
+msgstr "正在处理「{title}」"
+
+#: app/src/features/runs/hooks.ts
+#: packages/core/src/agents/runs.ts
+msgid "Working in the background"
+msgstr "正在后台工作"
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
 msgstr "Owlit 怎么称呼你、没人等着时它做的工作，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
@@ -4977,7 +5052,16 @@ msgid "Keep"
 msgstr "保留"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "On its own"
+msgstr "自己动手"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
+msgstr "Owlit 自己动手时只写评论，从不改动。你的文稿只在你开口时才会改。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
+#: packages/core/src/agents/runs.ts
 msgid "Background work"
 msgstr "后台任务"
 
@@ -4998,6 +5082,35 @@ msgstr "你的名字"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
 msgstr "Owlit 怎么称呼你"
+
+#. Owlit does nothing on its own beyond its upkeep
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Off"
+msgstr "关"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When I open things"
+msgstr "我打开时"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also while I'm away"
+msgstr "我不在时也看"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
+msgstr "除了导读和你请它留意的脉络，Owlit 只在你开口时才动手。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
+msgstr "你打开一篇自 Owlit 上次看过后改过的文稿时，它会读一遍，有话要说的地方留下评论。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also looks while you're away, and leaves what it found for when you're back."
+msgstr "你不在时也会看，发现的东西等你回来再看。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit on its own"
+msgstr "Owlit 自己动手"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
@@ -6587,6 +6700,119 @@ msgstr "{name} 已退出，代码 {code}。发送下一条消息时会重新启�
 msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
+#: packages/core/src/agents/runs.ts
+msgid "You opened “{title}”, which has no digest yet."
+msgstr "你打开了“{title}”，它还没有导读。"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked for a digest of “{title}”."
+msgstr "你请 Owlit 为“{title}”写导读。"
+
+#: packages/core/src/agents/runs.ts
+msgid "“{title}” has no digest yet."
+msgstr "“{title}”还没有导读。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Digest of “{title}”"
+msgstr "“{title}”的导读"
+
+#: packages/core/src/agents/runs.ts
+msgid "The digest is written:"
+msgstr "导读写好了："
+
+#: packages/core/src/agents/runs.ts
+msgid "Reading “{name}” since your last changes"
+msgstr "正在读“{name}”里你新改的地方"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked at “{name}”"
+msgstr "看过了“{name}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "You opened “{name}”, which changed since Owlit last looked."
+msgstr "你打开了“{name}”，它在 Owlit 上次看过之后改过。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering your reply in “{name}”"
+msgstr "正在回复你在“{name}”里的回复"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered your reply in “{name}”"
+msgstr "回复了你在“{name}”里的回复"
+
+#: packages/core/src/agents/runs.ts
+msgid "You replied to Owlit's comment in “{name}”."
+msgstr "你回复了 Owlit 在“{name}”里的评论。"
+
+#: packages/core/src/agents/runs.ts
+msgid "a thread"
+msgstr "一条脉络"
+
+#: packages/core/src/agents/runs.ts
+msgid "Gathering papers for “{title}”"
+msgstr "正在为「{title}」收集论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "Gathered papers for “{title}”"
+msgstr "为「{title}」收集了论文"
+
+#. placeholder {0}: thread?.asked.text ?? title
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to gather papers: “{0}”."
+msgstr "你请 Owlit 收集论文：“{0}”。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looking for more papers for “{title}”"
+msgstr "正在为「{title}」找更多论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked for more papers for “{title}”"
+msgstr "为「{title}」找了更多论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked for more papers in “{title}”."
+msgstr "你请 Owlit 为「{title}」再找些论文。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering “{question}” for the papers in “{title}”"
+msgstr "正在逐篇回答「{title}」里的“{question}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered “{question}” in “{title}”"
+msgstr "回答了「{title}」里的“{question}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked “{question}” of each paper in “{title}”."
+msgstr "你请 Owlit 逐篇回答「{title}」里的“{question}”。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Reading the papers in “{title}”"
+msgstr "正在通读「{title}」里的论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "Read the papers in “{title}”"
+msgstr "通读了「{title}」里的论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to read the papers in “{title}”."
+msgstr "你请 Owlit 通读「{title}」里的论文。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Checked “{title}” for new papers"
+msgstr "为「{title}」找了新论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to check “{title}” for new papers."
+msgstr "你请 Owlit 为「{title}」找新论文。"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to watch “{title}”, and a day has passed since it last looked."
+msgstr "你请 Owlit 留意「{title}」，距它上次查看已过了一天。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Owlit started this on its own."
+msgstr "这是 Owlit 自己开始的。"
+
 #: packages/core/src/agents/setup.ts
 msgid "npm finished, but the adapter isn't there."
 msgstr "npm 跑完了，但适配器不在。"
@@ -6684,6 +6910,10 @@ msgstr "owlit 在这里无法用其他应用打开文件。"
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
 msgstr "owlit 已不再有那个文件。"
+
+#: packages/core/src/core.ts
+msgid "That comment isn't there any more."
+msgstr "那条评论已经不在了。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

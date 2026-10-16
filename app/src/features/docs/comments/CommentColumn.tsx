@@ -11,7 +11,9 @@ import { useDocsUiStore } from "../ui-store"
 import { ClosedCard, NewCard, OpenCard } from "./CommentCard"
 import { useCommentSlot, useCommentTops } from "./layout"
 import { useCommentViews } from "./hooks"
-import { askAbout, deleteEntry, editEntry, reply, resolve, startComment, type CommentView } from "./model"
+import { askAbout, deleteEntry, dismiss, editEntry, reply, resolve, startComment, type CommentView } from "./model"
+import { useDocsStore } from "../store"
+import { isDesktop } from "@/lib/rpc"
 
 const GAP = 8
 
@@ -25,6 +27,7 @@ const GAP = 8
 // so it never covers words (editor/comment-marks.ts draws the slot it goes in).
 export function CommentColumn({ fileId, pins, width }: { fileId: string; pins: boolean; width: number }) {
   const views = useCommentViews(fileId)
+  const path = useDocsStore((s) => s.files[fileId]?.path)
   const tops = useCommentTops((s) => s[fileId])
   const open = useDocsUiStore((s) => (s.openComment?.docId === fileId ? s.openComment.key : null))
   const drafting = useDocsUiStore((s) => s.newComment?.docId === fileId)
@@ -93,14 +96,17 @@ export function CommentColumn({ fileId, pins, width }: { fileId: string; pins: b
     setOpen(`c:${comment.id}`)
   }
 
+  const owlits = (view: CommentView) => !!view.doc && view.entries[0]?.who === "owlit" && isDesktop
   const openCard = (view: CommentView) => (
     <OpenCard
       view={view}
       lost={!!tops?.[view.key]?.lost}
       focusReply={started === view.key}
+      replyRun={owlits(view) && path ? `${path}#${view.doc!.id}` : undefined}
       actions={{
         onAsk: () => askAbout(fileId, view, fromOf(view.key)),
         onResolve: () => resolve(fileId, view),
+        ...(owlits(view) ? { onDismiss: () => dismiss(fileId, view) } : {}),
         onReply: (text) => reply(fileId, view, text),
         onEdit: (entryId, text) => view.doc && editEntry(fileId, view.doc.id, entryId, text),
         onDelete: (entryId) => view.doc && deleteEntry(fileId, view.doc.id, entryId),

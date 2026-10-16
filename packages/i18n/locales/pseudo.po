@@ -1213,9 +1213,12 @@ msgstr ""
 
 #. stop Owlit's work on a thread
 #. stop getting PDFs from the browser
+#. stop one of Owlit's background runs
+#. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
 #: app/src/features/library/from-browser.ts
+#: app/src/features/runs/components.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr ""
@@ -1246,9 +1249,11 @@ msgstr ""
 msgid "Details"
 msgstr ""
 
+#. tell Owlit its comment isn't wanted; it won't say it again
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -2380,6 +2385,23 @@ msgstr ""
 msgid "In “{title}”: {error}"
 msgstr ""
 
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Owlit works here only when you ask"
+msgstr ""
+
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Owlit hasn’t looked at this doc yet"
+msgstr ""
+
+#. placeholder {0}: looked.count
+#: app/src/features/docs/OwlitChip.tsx
+msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
+msgstr ""
+
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Looked {when} · nothing to add"
+msgstr ""
+
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr ""
@@ -2410,6 +2432,14 @@ msgstr ""
 
 #: app/src/features/docs/actions.ts
 msgid "Resolved comments…"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Let Owlit in"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Keep Owlit out"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
@@ -2450,6 +2480,11 @@ msgstr ""
 #. placeholder {1}: ago(last.at, { inSentence: true })
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} replied {1}"
+msgstr ""
+
+#. Owlit is writing its answer to the user's reply on a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Replying…"
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -2516,7 +2551,7 @@ msgid "{0} sees replies on the shared page."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t answer in comments yet. To ask it, use the feather above."
+msgid "Owlit answers here. To have it change the doc, use the feather above."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -2730,6 +2765,14 @@ msgstr ""
 #. a paper cited at a page: Chan et al. 2026, p. 13
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
+msgstr ""
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't keep Owlit out of this doc."
+msgstr ""
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't let Owlit back into this doc."
 msgstr ""
 
 #: app/src/features/docs/pages/DocPage.tsx
@@ -3630,10 +3673,6 @@ msgstr ""
 #: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
-msgstr ""
-
-#: app/src/features/library/components/PaperList.tsx
-msgid "Writing the digest"
 msgstr ""
 
 #: app/src/features/library/components/PaperList.tsx
@@ -4685,6 +4724,42 @@ msgstr ""
 msgid "Answered through {agentName}"
 msgstr ""
 
+#: app/src/features/runs/components.tsx
+msgid "and {more} more waiting their turn"
+msgstr ""
+
+#. stop every background run Owlit has going
+#: app/src/features/runs/components.tsx
+msgid "Stop all"
+msgstr ""
+
+#: app/src/features/runs/components.tsx
+msgid "Owlit is doing this on its own."
+msgstr ""
+
+#: app/src/features/runs/components.tsx
+msgid "Owlit did this on its own."
+msgstr ""
+
+#: app/src/features/runs/hooks.ts
+#: packages/core/src/agents/runs.ts
+msgid "Writing the digest of “{title}”"
+msgstr ""
+
+#: app/src/features/runs/hooks.ts
+#: packages/core/src/agents/runs.ts
+msgid "Checking “{title}” for new papers"
+msgstr ""
+
+#: app/src/features/runs/hooks.ts
+msgid "Working on “{title}”"
+msgstr ""
+
+#: app/src/features/runs/hooks.ts
+#: packages/core/src/agents/runs.ts
+msgid "Working in the background"
+msgstr ""
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
 msgstr ""
@@ -4977,7 +5052,16 @@ msgid "Keep"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "On its own"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
+#: packages/core/src/agents/runs.ts
 msgid "Background work"
 msgstr ""
 
@@ -4997,6 +5081,35 @@ msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
+msgstr ""
+
+#. Owlit does nothing on its own beyond its upkeep
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Off"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When I open things"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also while I'm away"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also looks while you're away, and leaves what it found for when you're back."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit on its own"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -6587,6 +6700,119 @@ msgstr ""
 msgid "{name} exited with code {code}"
 msgstr ""
 
+#: packages/core/src/agents/runs.ts
+msgid "You opened “{title}”, which has no digest yet."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked for a digest of “{title}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "“{title}” has no digest yet."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Digest of “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "The digest is written:"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Reading “{name}” since your last changes"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked at “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You opened “{name}”, which changed since Owlit last looked."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering your reply in “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered your reply in “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You replied to Owlit's comment in “{name}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "a thread"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Gathering papers for “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Gathered papers for “{title}”"
+msgstr ""
+
+#. placeholder {0}: thread?.asked.text ?? title
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to gather papers: “{0}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looking for more papers for “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked for more papers for “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked for more papers in “{title}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering “{question}” for the papers in “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered “{question}” in “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked “{question}” of each paper in “{title}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Reading the papers in “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Read the papers in “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to read the papers in “{title}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Checked “{title}” for new papers"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to check “{title}” for new papers."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to watch “{title}”, and a day has passed since it last looked."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Owlit started this on its own."
+msgstr ""
+
 #: packages/core/src/agents/setup.ts
 msgid "npm finished, but the adapter isn't there."
 msgstr ""
@@ -6683,6 +6909,10 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "That comment isn't there any more."
 msgstr ""
 
 #: packages/core/src/docs/docs.ts

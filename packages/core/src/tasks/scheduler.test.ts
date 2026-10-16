@@ -349,6 +349,43 @@ describe("Scheduler", () => {
     const { scheduler: again } = await newScheduler([], dir)
     expect(again.get(task.id)).toMatchObject({ state: "failed", error: "owlit no longer knows how to do fake.old." })
   })
+
+  it("stops a background run for an asked one in the same lane, and runs it again after, not as a try", async () => {
+    const order: string[] = []
+    let firstRun = true
+    const work = defineTask("fake.agent", {
+      lane: "agent",
+      async run(ctx) {
+        order.push(`start ${ctx.task.subject}`)
+        if (ctx.task.subject === "review" && firstRun) {
+          firstRun = false
+          await untilAborted(ctx.signal)
+        }
+        await tick(5)
+        order.push(`end ${ctx.task.subject}`)
+      },
+    })
+    const { scheduler } = await newScheduler([work])
+    const review = scheduler.enqueue("fake.agent", "review", "background")
+    await tick(5)
+    expect(scheduler.get(review.id)).toMatchObject({ state: "running", attempts: 1 })
+    const asked = scheduler.enqueue("fake.agent", "digest", "asked")
+    expect(await scheduler.wait(asked.id)).toMatchObject({ state: "done" })
+    expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
+    expect(order).toEqual(["start review", "start digest", "end digest", "start review", "end review"])
+  })
+
+  it("lets background runs of a kind step aside for a while (a chat being answered)", async () => {
+    let runs = 0
+    const work = defineTask("fake.review", { lane: "agent", run: (ctx) => (++runs === 1 ? untilAborted(ctx.signal) : undefined) })
+    const { scheduler } = await newScheduler([work])
+    const review = scheduler.enqueue("fake.review", "a.md", "background")
+    await tick(5)
+    scheduler.yieldTo("agent", (task) => task.kind === "fake.review", 30)
+    await tick(5)
+    expect(scheduler.get(review.id)).toMatchObject({ state: "queued", attempts: 0, notBefore: expect.any(Number) })
+    expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
+  })
 })
 
 describe("TaskThrottle", () => {

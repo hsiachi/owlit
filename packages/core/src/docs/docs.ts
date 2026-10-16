@@ -11,6 +11,7 @@ import {
   RpcErrorCode,
   uniquePath,
   type DocConflict,
+  type DocLook,
   type DocsChange,
   type DocsListing,
   type CommentAnchor,
@@ -25,6 +26,7 @@ import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { invalidParams, RpcFailure } from "../rpc/index.ts"
 import { Comments } from "./comments.ts"
+import { DocsOwlit } from "./owlit.ts"
 import type { Host } from "../host.ts"
 import { Serial } from "../util.ts"
 
@@ -63,6 +65,8 @@ export class Docs {
   private readonly owlitDir: string
   private readonly host: Host
   private readonly comments: Comments
+  // Owlit and each doc: kept out or not, its last look
+  private readonly owlit: DocsOwlit
   // path → id, for as long as core runs, so a client's handle on a file survives renames core makes
   private ids = new Map<string, string>()
   private names: NamesFile | undefined
@@ -88,6 +92,23 @@ export class Docs {
     this.owlitDir = owlitDir
     this.host = host
     this.comments = new Comments(owlitDir)
+    this.owlit = new DocsOwlit(owlitDir)
+  }
+
+  // Whether you keep Owlit out of a doc, and its last look
+  owlitOf(rel: string) {
+    return this.owlit.get(this.check(rel))
+  }
+
+  setOwlitOut(rel: string, out: boolean) {
+    return this.serial.run(async () => {
+      await this.entry(rel)
+      return this.owlit.setOut(rel, out)
+    })
+  }
+
+  setLooked(rel: string, looked: DocLook) {
+    return this.serial.run(() => this.owlit.setLooked(this.check(rel), looked))
   }
 
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
@@ -253,6 +274,7 @@ export class Docs {
       if (this.host.trash) await this.host.trash(file)
       else await this.moveToOwlitTrash(rel)
       await this.comments.trash(rel)
+      await this.owlit.drop(rel)
       await this.updateNames((f) => dropUnder(f, rel))
       // Before the ids go, so a told delete names the docs by them
       await this.settle([rel], told)
@@ -493,7 +515,10 @@ export class Docs {
       const from = e.dir ? undefined : byIno.get(e.ino)
       if (from === undefined) continue
       renamedFrom.add(from)
-      if (external) await this.comments.move(from, p)
+      if (external) {
+        await this.comments.move(from, p)
+        await this.owlit.move(from, p)
+      }
       const id = this.ids.get(from)
       if (id) {
         this.ids.delete(from)
@@ -634,6 +659,7 @@ export class Docs {
     await mkdir(path.dirname(this.abs(to)), { recursive: true })
     await rename(this.abs(from), this.abs(to))
     await this.comments.move(from, to)
+    await this.owlit.move(from, to)
     const swap = (p: string) => (isWithin(p, from) ? to + p.slice(from.length) : p)
     this.ids = new Map([...this.ids].map(([p, id]) => [swap(p), id]))
     await this.updateNames((f) => Object.fromEntries(Object.entries(f).map(([p, t]) => [swap(p), t])))

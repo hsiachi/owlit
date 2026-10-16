@@ -44,8 +44,18 @@ export class Chats {
     this.trashDir = path.join(owlitDir, "trash")
   }
 
-  // Most recently updated first
+  // Your chats, most recently updated first. Owlit's own runs (startedBy) are sessions too, kept here,
+  // but no chat list shows them: they open from what they work on.
   async list(): Promise<ChatSummary[]> {
+    return (await this.all()).filter((c) => !c.startedBy)
+  }
+
+  // Owlit's runs, most recent first
+  async runs(): Promise<ChatSummary[]> {
+    return (await this.all()).filter((c) => !!c.startedBy)
+  }
+
+  private async all() {
     return [...(await this.loadIndex()).values()].sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
@@ -304,8 +314,8 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions } = chat
-  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, ...(role ? { role } : {}), effortId, ...(sessions ? { sessions } : {}) }
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, run } = chat
+  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, ...(role ? { role } : {}), effortId, ...(sessions ? { sessions } : {}), ...(startedBy ? { startedBy, run } : {}) }
 }
 
 // A turn that never finished: cancelled, and any question it was waiting on closed with it
