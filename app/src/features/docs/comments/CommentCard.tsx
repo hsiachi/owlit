@@ -109,7 +109,7 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
       </div>
       <SourceLine view={view} />
       {lost && <p className="text-xs text-muted-foreground">{t`Its passage has changed`}</p>}
-      <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-foreground/80">{plainText(first.text)}</p>
+      <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-muted-foreground">{plainText(first.text)}</p>
       {/* Who answered last, so a reply that came while you were away shows without opening the card */}
       {replies > 0 && (
         <p className="mt-1 truncate text-xs text-muted-foreground">
