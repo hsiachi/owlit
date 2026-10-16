@@ -2,16 +2,18 @@ import { randomBytes } from "node:crypto"
 import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
-// Write through a temp file and rename, so a crash never leaves half a file behind
-export async function writeFileAtomic(file: string, data: string | Uint8Array) {
-  await mkdir(path.dirname(file), { recursive: true })
+// Write through a temp file and rename, so a crash never leaves half a file behind. parents: false
+// for a folder that may be moved or deleted meanwhile (a paper's): the write fails instead of
+// bringing the folder back
+export async function writeFileAtomic(file: string, data: string | Uint8Array, { parents = true } = {}) {
+  if (parents) await mkdir(path.dirname(file), { recursive: true })
   const tmp = `${file}.${randomBytes(4).toString("hex")}.tmp`
   await writeFile(tmp, data)
   await rename(tmp, file)
 }
 
-export const writeJsonAtomic = (file: string, value: unknown) =>
-  writeFileAtomic(file, JSON.stringify(value, null, 2) + "\n")
+export const writeJsonAtomic = (file: string, value: unknown, options?: { parents?: boolean }) =>
+  writeFileAtomic(file, JSON.stringify(value, null, 2) + "\n", options)
 
 // undefined when the file is missing; a file that isn't valid JSON throws
 export async function readJson<T>(file: string): Promise<T | undefined> {

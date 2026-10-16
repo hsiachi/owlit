@@ -33,6 +33,10 @@ export interface FiguresFile {
   error?: string
 }
 
+function ignoreExisting(error: NodeJS.ErrnoException) {
+  if (error.code !== "EEXIST") throw error
+}
+
 const FIGURES_JSON = "figures.json"
 const FIGURES_DIR = "figures"
 
@@ -55,13 +59,13 @@ export function toPaperFigures(paperId: string, file: FiguresFile | undefined): 
 }
 
 // From MinerU's layout and the pictures that came with it (images/<hash>.jpg → bytes)
-export async function writeFiguresFromLayout(root: string, id: string, pages: LayoutPage[], images: Map<string, Uint8Array>, pdf: Uint8Array, wasmPath?: string) {
-  return place(root, id, "layout", groupLayout(pages), images, pdf, wasmPath)
+export async function writeFiguresFromLayout(root: string, id: string, pages: LayoutPage[], images: Map<string, Uint8Array>, pdf: Uint8Array, wasmPath?: string, signal?: AbortSignal) {
+  return place(root, id, "layout", groupLayout(pages), images, pdf, wasmPath, signal)
 }
 
 // Without MinerU's layout (a reading from before it was kept, its job gone): each figure or table
 // block of text.json whose caption starts with its number, drawn from the PDF
-export async function writeFiguresFromText(root: string, id: string, text: PaperText, pdf: Uint8Array, wasmPath?: string) {
+export async function writeFiguresFromText(root: string, id: string, text: PaperText, pdf: Uint8Array, wasmPath?: string, signal?: AbortSignal) {
   const planned: PlannedFigure[] = []
   const seen = new Set<string>()
   for (const page of text.pages) {
@@ -75,10 +79,13 @@ export async function writeFiguresFromText(root: string, id: string, text: Paper
       planned.push({ kind: block.kind, label, caption: block.kind === "figure" ? block.lines.map((l) => l.text).join(" ") : caption, page: page.index, box: { x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h }, images: [] })
     }
   }
-  return place(root, id, "text", planned, new Map(), pdf, wasmPath)
+  return place(root, id, "text", planned, new Map(), pdf, wasmPath, signal)
 }
 
-async function place(root: string, id: string, source: FiguresFile["source"], planned: PlannedFigure[], images: Map<string, Uint8Array>, pdf: Uint8Array, wasmPath?: string) {
+// The paper can move (given a DOI) or go to the trash while the crops are drawn: its tasks are
+// cancelled then, and nothing here creates its folder again, so a write already on its way fails
+// instead of leaving the old id's folder behind
+async function place(root: string, id: string, source: FiguresFile["source"], planned: PlannedFigure[], images: Map<string, Uint8Array>, pdf: Uint8Array, wasmPath?: string, signal?: AbortSignal) {
   const dir = path.join(paperDir(root, id), FIGURES_DIR)
   // A figure kept whole uses MinerU's picture (named by file name, with or without its folder); the
   // rest are drawn from the PDF in one pass
@@ -86,10 +93,11 @@ async function place(root: string, id: string, source: FiguresFile["source"], pl
   const drawn = planned.filter((f) => !whole(f))
   const crops = drawn.length ? await renderCrops(pdf, drawn.map((f) => ({ page: f.page, box: f.box })), wasmPath) : []
   const pictures = new Map(drawn.map((f, i) => [f, crops[i]]))
+  signal?.throwIfAborted()
 
   // The folder is rebuilt: a figure gone from a new reading leaves no picture behind
   await rm(dir, { recursive: true, force: true })
-  await mkdir(dir, { recursive: true })
+  await mkdir(dir).catch(ignoreExisting)
   const figures: FigureRecord[] = []
   for (const f of planned) {
     const figureId = idOfLabel(f.label)
@@ -97,7 +105,8 @@ async function place(root: string, id: string, source: FiguresFile["source"], pl
     const file = `${figureId}.${kept ? extOf(f.images[0]) : "png"}`
     const bytes = kept ?? pictures.get(f)
     if (!bytes) continue
-    await writeFileAtomic(path.join(dir, file), bytes)
+    signal?.throwIfAborted()
+    await writeFileAtomic(path.join(dir, file), bytes, { parents: false })
     figures.push({
       id: figureId,
       kind: f.kind,
@@ -109,14 +118,15 @@ async function place(root: string, id: string, source: FiguresFile["source"], pl
     })
   }
   const record: FiguresFile = { version: 1, source, at: Date.now(), figures }
-  await writeJsonAtomic(path.join(paperDir(root, id), FIGURES_JSON), record)
+  signal?.throwIfAborted()
+  await writeJsonAtomic(path.join(paperDir(root, id), FIGURES_JSON), record, { parents: false })
   return record
 }
 
 // No figures, and why: the digest goes ahead without them
 export async function noFigures(root: string, id: string, error: string) {
   const record: FiguresFile = { version: 1, source: "text", at: Date.now(), figures: [], error }
-  await writeJsonAtomic(path.join(paperDir(root, id), FIGURES_JSON), record)
+  await writeJsonAtomic(path.join(paperDir(root, id), FIGURES_JSON), record, { parents: false })
 }
 
 // Removes a paper's figures (its PDF changed, so they are of the old file)

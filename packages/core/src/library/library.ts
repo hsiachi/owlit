@@ -780,12 +780,12 @@ export class Library {
           if (parse?.status === "done" && parse.job && settings.service === "cloud" && settings.token) {
             const result = await cloudResult(this.services.http, settings, parse.job, ctx.signal)
             if (result?.layout) {
-              await writeFiguresFromLayout(this.root, id, result.layout, result.images, pdf, this.services.pdfiumWasm)
+              await writeFiguresFromLayout(this.root, id, result.layout, result.images, pdf, this.services.pdfiumWasm, ctx.signal)
               return
             }
           }
           const text = await readText(this.root, id)
-          await writeFiguresFromText(this.root, id, text?.source === "mineru" ? text : { version: 1, source: "pdfium", pages: [] }, pdf, this.services.pdfiumWasm)
+          await writeFiguresFromText(this.root, id, text?.source === "mineru" ? text : { version: 1, source: "pdfium", pages: [] }, pdf, this.services.pdfiumWasm, ctx.signal)
         } catch (error) {
           if (ctx.signal.aborted) throw error
           await noFigures(this.root, id, messageOf(error))
@@ -1996,8 +1996,8 @@ export class Library {
             await writeJsonAtomic(path.join(dir, "parse.json"), { version: 1, status: "done", service: settings.service, at: Date.now(), ...(job ? { job } : {}) })
             // The figures come with the reading; they are a bonus, so failing them fails nothing
             try {
-              if (result.layout) await writeFiguresFromLayout(this.root, id, result.layout, result.images, bytes, this.services.pdfiumWasm)
-              else await writeFiguresFromText(this.root, id, text, bytes, this.services.pdfiumWasm)
+              if (result.layout) await writeFiguresFromLayout(this.root, id, result.layout, result.images, bytes, this.services.pdfiumWasm, ctx.signal)
+              else await writeFiguresFromText(this.root, id, text, bytes, this.services.pdfiumWasm, ctx.signal)
             } catch (error) {
               await noFigures(this.root, id, messageOf(error))
             }
