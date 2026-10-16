@@ -2297,11 +2297,11 @@ export class Library {
     })
   }
 
-  // Whether the user has done anything with a paper beyond having it
+  // Whether the user has done anything with a paper beyond having it; an agent's own highlights don't count
   private async touched(id: string) {
     const state = await readState(this.root, id)
     if (state && (state.starred || state.tags.length || state.status !== "unread" || Object.keys(state.overrides ?? {}).length)) return true
-    if ((await readHighlights(this.root, id)).length) return true
+    if ((await readHighlights(this.root, id)).some((h) => h.addedBy !== "agent")) return true
     return !!(await readNote(this.root, id))?.content.trim()
   }
 

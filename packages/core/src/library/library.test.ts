@@ -188,6 +188,8 @@ describe("keeping the library clean", () => {
     await call("library.add", { paper: paper("doi-10.9999-b"), addedBy: "agent", chatId: "c1" })
     await call("library.add", { paper: paper("doi-10.9999-c"), addedBy: "user" })
     await call("library.update", { id: "doi-10.9999-b", patch: { tags: ["keep"] } })
+    // A passage the agent marked itself doesn't make the paper the user's
+    await call("library.putHighlight", { highlight: { id: "h", paperId: "doi-10.9999-a", page: 0, rects: [], text: "t", color: "yellow", addedBy: "agent", createdAt: 1 } })
     expect(await call("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
     const done = await call("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
     expect(done.removed).toEqual(["doi-10.9999-a"])
