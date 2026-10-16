@@ -19,7 +19,7 @@ import { useDocsStore } from "./store"
 import { useDocsUiStore } from "./ui-store"
 
 // The runs that work on a doc
-const DOC_RUNS = ["docs.review", "docs.reviewSettled"] as const
+const DOC_RUNS = ["docs.review", "docs.reviewSettled", "meetings.goThrough"] as const
 
 // New comments count as seen once they have been on screen this long
 const SEEN_AFTER_MS = 3000

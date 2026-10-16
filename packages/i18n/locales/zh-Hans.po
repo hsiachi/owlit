@@ -2435,6 +2435,10 @@ msgid "Resolved comments…"
 msgstr "已解决的评论…"
 
 #: app/src/features/docs/actions.ts
+msgid "Go through against your docs"
+msgstr "对照你的文稿过一遍"
+
+#: app/src/features/docs/actions.ts
 msgid "Let Owlit in"
 msgstr "让 Owlit 进来"
 
@@ -2465,6 +2469,16 @@ msgstr "{count, plural, other {删除 # 项}}"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "edited"
 msgstr "已编辑"
+
+#. before the name of the record a comment's point was carried over from: From P5 周会 · placed by Owlit
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "From"
+msgstr "来自"
+
+#. after the record's name on a comment Owlit carried over from it
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "placed by Owlit"
+msgstr "Owlit 搬过来的"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Its passage has changed"
@@ -2770,6 +2784,10 @@ msgstr "{0, plural, other {# 篇论文}}"
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}，第 {page} 页"
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't start going through it."
+msgstr "没能开始过这一遍。"
 
 #: app/src/features/docs/owlit.ts
 msgid "Couldn't keep Owlit out of this doc."
@@ -6825,6 +6843,22 @@ msgid "“{title}” came into your library."
 msgstr "“{title}”进了你的文献库。"
 
 #: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to go through “{name}”."
+msgstr "你请 Owlit 把“{name}”过一遍。"
+
+#: packages/core/src/agents/runs.ts
+msgid "“{name}” appeared in {folder}, and you're away."
+msgstr "“{name}”出现在 {folder} 里，你不在。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Going through “{name}” against your docs"
+msgstr "正在对照你的文稿过“{name}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "Went through “{name}”"
+msgstr "过了一遍“{name}”"
+
+#: packages/core/src/agents/runs.ts
 msgid "Answering your reply in “{name}”"
 msgstr "正在回复你在“{name}”里的回复"
 
@@ -7005,6 +7039,10 @@ msgstr "那不是这个对话的文件。"
 #: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."
 msgstr "这个 owlit 没有附带示例工作区。"
+
+#: packages/core/src/core.ts
+msgid "Owlit goes through text: a Markdown or plain-text file."
+msgstr "Owlit 只过文字：Markdown 或纯文本文件。"
 
 #: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts

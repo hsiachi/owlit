@@ -2435,6 +2435,10 @@ msgid "Resolved comments…"
 msgstr "Resolved comments…"
 
 #: app/src/features/docs/actions.ts
+msgid "Go through against your docs"
+msgstr "Go through against your docs"
+
+#: app/src/features/docs/actions.ts
 msgid "Let Owlit in"
 msgstr "Let Owlit in"
 
@@ -2465,6 +2469,16 @@ msgstr "{count, plural, one {Delete # item} other {Delete # items}}"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "edited"
 msgstr "edited"
+
+#. before the name of the record a comment's point was carried over from: From P5 周会 · placed by Owlit
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "From"
+msgstr "From"
+
+#. after the record's name on a comment Owlit carried over from it
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "placed by Owlit"
+msgstr "placed by Owlit"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Its passage has changed"
@@ -2770,6 +2784,10 @@ msgstr "{0, plural, one {# paper} other {# papers}}"
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}, p. {page}"
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't start going through it."
+msgstr "Couldn't start going through it."
 
 #: app/src/features/docs/owlit.ts
 msgid "Couldn't keep Owlit out of this doc."
@@ -6825,6 +6843,22 @@ msgid "“{title}” came into your library."
 msgstr "“{title}” came into your library."
 
 #: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to go through “{name}”."
+msgstr "You asked Owlit to go through “{name}”."
+
+#: packages/core/src/agents/runs.ts
+msgid "“{name}” appeared in {folder}, and you're away."
+msgstr "“{name}” appeared in {folder}, and you're away."
+
+#: packages/core/src/agents/runs.ts
+msgid "Going through “{name}” against your docs"
+msgstr "Going through “{name}” against your docs"
+
+#: packages/core/src/agents/runs.ts
+msgid "Went through “{name}”"
+msgstr "Went through “{name}”"
+
+#: packages/core/src/agents/runs.ts
 msgid "Answering your reply in “{name}”"
 msgstr "Answering your reply in “{name}”"
 
@@ -7005,6 +7039,10 @@ msgstr "That isn't a file of this chat."
 #: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."
 msgstr "This copy of owlit has no example workspace."
+
+#: packages/core/src/core.ts
+msgid "Owlit goes through text: a Markdown or plain-text file."
+msgstr "Owlit goes through text: a Markdown or plain-text file."
 
 #: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts

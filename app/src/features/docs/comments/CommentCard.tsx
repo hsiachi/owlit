@@ -1,6 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
@@ -17,6 +18,7 @@ import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { openRun, useOpenRuns } from "@/features/runs/hooks"
+import { fileAt } from "../store"
 import { useDocsUiStore } from "../ui-store"
 import { mentionLabel } from "../lib/mentions"
 import { askedChat, type CommentView, type EntryView } from "./model"
@@ -54,6 +56,34 @@ function Signed({ entry, className }: { entry: EntryView; className?: string }) 
   )
 }
 
+// A point carried over from a record of what people said (Go through): its first entry is signed with
+// where it came from, the record's name opening it, and that Owlit placed it, never a speaker's name
+function SignedFirst({ view, entry, className }: { view: CommentView; entry: EntryView; className?: string }) {
+  const navigate = useNavigate()
+  const source = view.doc?.source
+  if (!source) return <Signed entry={entry} className={className} />
+  return (
+    <span className={cn("min-w-0 truncate text-xs text-muted-foreground", className)}>
+      {t({ message: "From", comment: "before the name of the record a comment's point was carried over from: From P5 周会 · placed by Owlit" })}{" "}
+      <button
+        type="button"
+        className="font-medium text-foreground hover:underline"
+        onClick={(e) => {
+          e.stopPropagation()
+          const file = fileAt(source.path)
+          if (file) navigate(`/docs/${file.id}`)
+        }}
+      >
+        {source.label}
+      </button>
+      {" · "}
+      {t({ message: "placed by Owlit", comment: "after the record's name on a comment Owlit carried over from it" })}
+      {" · "}
+      {ago(entry.at)}
+    </span>
+  )
+}
+
 export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView; lost: boolean; onOpen: () => void; onHover: (on: boolean) => void }) {
   const first = view.entries[0]
   const last = view.entries[view.entries.length - 1]
@@ -75,7 +105,7 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
       {/* The comment colour, as on its words */}
       <span aria-hidden className="absolute top-2.5 bottom-2.5 left-1.5 w-0.5 rounded-full bg-comment-mark" />
       <div className="flex">
-        <Signed entry={first} />
+        <SignedFirst view={view} entry={first} />
       </div>
       {lost && <p className="text-xs text-muted-foreground">{t`Its passage has changed`}</p>}
       <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-foreground/80">{plainText(first.text)}</p>
@@ -129,7 +159,7 @@ export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: 
     <div className="rounded-xl border bg-card py-2 pr-1.5 pl-3 shadow-md" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && actions.onClose()}>
       {/* The first row: who started it, then what acts on the whole comment */}
       <div className="flex h-6 items-center gap-1">
-        <Signed entry={first} className="flex-1" />
+        <SignedFirst view={view} entry={first} className="flex-1" />
         <IconButton label={t`Ask Owlit about this comment`} size="icon-xs" onClick={actions.onAsk}>
           <OwlitMark />
         </IconButton>

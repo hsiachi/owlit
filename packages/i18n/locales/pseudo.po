@@ -2435,6 +2435,10 @@ msgid "Resolved comments…"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
+msgid "Go through against your docs"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
 msgid "Let Owlit in"
 msgstr ""
 
@@ -2464,6 +2468,16 @@ msgstr ""
 #. after a comment's time: it was changed after it was written
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "edited"
+msgstr ""
+
+#. before the name of the record a comment's point was carried over from: From P5 周会 · placed by Owlit
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "From"
+msgstr ""
+
+#. after the record's name on a comment Owlit carried over from it
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "placed by Owlit"
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -2769,6 +2783,10 @@ msgstr ""
 #. a paper cited at a page: Chan et al. 2026, p. 13
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
+msgstr ""
+
+#: app/src/features/docs/owlit.ts
+msgid "Couldn't start going through it."
 msgstr ""
 
 #: app/src/features/docs/owlit.ts
@@ -6825,6 +6843,22 @@ msgid "“{title}” came into your library."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to go through “{name}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "“{name}” appeared in {folder}, and you're away."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Going through “{name}” against your docs"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Went through “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
 msgid "Answering your reply in “{name}”"
 msgstr ""
 
@@ -7004,6 +7038,10 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Owlit goes through text: a Markdown or plain-text file."
 msgstr ""
 
 #: packages/core/src/core.ts
