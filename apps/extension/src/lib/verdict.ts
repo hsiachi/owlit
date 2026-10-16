@@ -61,7 +61,7 @@ const words = (html: string) => decode(html.replace(/<[^>]*>/g, " ")).replace(/\
 export const titleOf = (html: string) => words(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
 
 // A host's registrable domain, without the public suffix list: the last two labels, or three under a
-// country's second level (ac.uk, edu.cn). core's browser-routes.ts siteOf, copied: change them together.
+// country's second level (ac.uk, edu.cn). core's extension/route.ts siteOf, copied: change them together.
 export function siteOf(host: string) {
   const labels = host.toLowerCase().split(".").filter(Boolean)
   const country = labels.length >= 3 && labels.at(-1)!.length === 2 && /^(ac|co|com|edu|gov|net|org)$/.test(labels.at(-2)!)

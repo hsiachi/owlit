@@ -7,7 +7,7 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: zh-Hans\n"
 
-#. a place in the rail, then what waits there: Library · A paper needs you
+#. a place in the rail, then what waits there: Library · Sign in to your library
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
 msgstr "{place} · {needsYou}"
@@ -113,7 +113,6 @@ msgstr "什么也没找到。"
 #. verb: open the chat that waits
 #. verb: open the chat that waits
 #. verb: open the exported doc
-#. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/waiting-on-you.ts
@@ -460,47 +459,8 @@ msgid "Answer"
 msgstr "回答"
 
 #: app/src/app/waiting-on-you.ts
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Show browser"
-msgstr "查看浏览器"
-
-#: app/src/app/waiting-on-you.ts
-msgid "· getting PDFs, {done} of {total}"
-msgstr "· 正在获取 PDF，{done}/{total}"
-
-#: app/src/app/waiting-on-you.ts
-msgid "· {done} of {total}"
-msgstr "· {done}/{total}"
-
-#: app/src/app/waiting-on-you.ts
-msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
-msgstr "{n, plural, one {在 {browser} 打开的页面上保存 PDF} other {在 {browser} 打开的 # 个页面上保存 PDF}}"
-
-#: app/src/app/waiting-on-you.ts
-msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
-msgstr "{n, plural, one {在浏览器打开的页面上保存 PDF} other {在浏览器打开的 # 个页面上保存 PDF}}"
-
-#: app/src/app/waiting-on-you.ts
-msgid "Downloaded PDFs to confirm"
-msgstr "待确认的已下载 PDF"
-
-#. placeholder {0}: offered.length
-#: app/src/app/waiting-on-you.ts
-msgid "{0, plural, one {A downloaded PDF to confirm} other {# downloaded PDFs to confirm}}"
-msgstr "{0, plural, one {一个已下载的 PDF 待确认} other {# 个已下载的 PDF 待确认}}"
-
-#: app/src/app/waiting-on-you.ts
-msgid "Show them"
-msgstr "查看"
-
-#: app/src/app/waiting-on-you.ts
 msgid "Owlit finished since you last looked"
 msgstr "你上次查看后，Owlit 已完成"
-
-#: app/src/app/waiting-on-you.ts
-msgid "for {names}"
-msgstr "· {names}"
 
 #. a menu's name, then what is chosen in it
 #: app/src/components/choice-menu.tsx
@@ -1204,12 +1164,10 @@ msgid "Add from {place}"
 msgstr "从{place}添加"
 
 #. stop Owlit's work on a thread
-#. stop getting PDFs from the browser
 #. stop one of Owlit's background runs
 #. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/library/from-browser.ts
 #: app/src/features/runs/components.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
@@ -1247,7 +1205,6 @@ msgstr "详细信息"
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
 msgstr "忽略"
@@ -3289,84 +3246,6 @@ msgstr "发表处"
 msgid "Abstract"
 msgstr "摘要"
 
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Getting PDFs in your browser · {done} of {total}"
-msgstr "正在用浏览器获取 PDF · {done}/{total}"
-
-#. placeholder {0}: waiting.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# paper for your browser} other {# papers for your browser}}"
-msgstr "{0, plural, other {# 篇可用浏览器获取}}"
-
-#. placeholder {0}: pages.length
-#. placeholder {0}: tally.pages.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
-msgstr "{0, plural, other {# 篇需在页面上保存}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "To save from their pages"
-msgstr "需在页面上保存"
-
-#. placeholder {0}: waiting.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {Get it} other {Get them}}"
-msgstr "{0, plural, one {获取} other {全部获取}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{total, plural, one {# paper without a PDF} other {# papers without a PDF}}"
-msgstr "{total, plural, other {# 篇论文没有 PDF}}"
-
-#. placeholder {0}: maybe.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# might come through your browser} other {# might come through your browser}}"
-msgstr "{0, plural, other {# 篇或许能用浏览器获取}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Might come through your browser"
-msgstr "或许能用浏览器获取"
-
-#. placeholder {0}: maybe.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {Try it in your browser} other {Try them in your browser}}"
-msgstr "{0, plural, other {用浏览器试试}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Got {got} of {total} from {browser}"
-msgstr "从 {browser} 拿到 {got}/{total} 篇"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Got {got} of {total} from your browser"
-msgstr "从浏览器拿到 {got}/{total} 篇"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Got from your browser"
-msgstr "从浏览器拿到的"
-
-#. the user's library doesn't give them this paper
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/lib/pdf-wait.ts
-msgid "No access"
-msgstr "无权限"
-
-#. placeholder {0}: tally.noAccess.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# no access} other {# no access}}"
-msgstr "{0, plural, other {# 篇无权限}}"
-
-#. placeholder {0}: tally.missed.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {nothing came for #} other {nothing came for #}}"
-msgstr "{0, plural, other {# 篇没有下载下来}}"
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{browser}:"
-msgstr "{browser}："
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Your browser:"
-msgstr "浏览器："
-
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
 msgstr "全部复制为 Markdown"
@@ -3855,56 +3734,6 @@ msgstr "无法写出导读"
 msgid "Couldn't save the library."
 msgstr "无法保存文献库。"
 
-#: app/src/features/library/from-browser.ts
-msgid "Getting PDFs in your browser"
-msgstr "正在用浏览器获取 PDF"
-
-#: app/src/features/library/from-browser.ts
-msgid "Sign in to your library in {browser}"
-msgstr "在 {browser} 中登录图书馆"
-
-#: app/src/features/library/from-browser.ts
-msgid "Sign in to your library in your browser"
-msgstr "在浏览器中登录图书馆"
-
-#: app/src/features/library/from-browser.ts
-msgid "{browser} is showing a check"
-msgstr "{browser} 正在显示验证"
-
-#: app/src/features/library/from-browser.ts
-msgid "Your browser is showing a check"
-msgstr "浏览器正在显示验证"
-
-#: app/src/features/library/from-browser.ts
-msgid "{browser} is on “{title}”"
-msgstr "{browser} 停在“{title}”"
-
-#: app/src/features/library/from-browser.ts
-msgid "Your browser is on “{title}”"
-msgstr "浏览器停在“{title}”"
-
-#: app/src/features/library/from-browser.ts
-msgid "{browser} may be asking you something"
-msgstr "{browser} 可能在等你回应"
-
-#: app/src/features/library/from-browser.ts
-msgid "Your browser may be asking you something"
-msgstr "浏览器可能在等你回应"
-
-#: app/src/features/library/from-browser.ts
-msgid "I've signed in"
-msgstr "我已登录"
-
-#: app/src/features/library/from-browser.ts
-msgctxt "carry on getting PDFs from the browser"
-msgid "Continue"
-msgstr "继续"
-
-#: app/src/features/library/from-browser.ts
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Couldn't open your browser."
-msgstr "无法打开你的浏览器。"
-
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr "这种方式只能添加 PDF 文件。"
@@ -4001,6 +3830,11 @@ msgstr "查找中"
 msgid "Not found"
 msgstr "未找到"
 
+#. the user's library doesn't give them this paper
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No access"
+msgstr "无权限"
+
 #. the publisher has no PDF of the paper
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
@@ -4015,17 +3849,6 @@ msgstr "可用浏览器获取"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Nothing came"
 msgstr "没有下载下来"
-
-#. a paper being got from the user's browser now
-#: app/src/features/library/lib/pdf-wait.ts
-msgid "In your browser…"
-msgstr "正在用浏览器获取…"
-
-#. a paper being got from the user's browser that waits on them
-#: app/src/features/library/lib/pdf-wait.ts
-#: app/src/features/settings/SettingsDialog.tsx
-msgid "Needs you"
-msgstr "需要你处理"
 
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
@@ -4401,76 +4224,12 @@ msgid "Nothing came from your browser"
 msgstr "浏览器那边没有下载下来"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The page in {browser} may say you have no access to this paper, or {browser} may be asking you something: a check, a sign-in, or whether the site may download files."
-msgstr "{browser} 里的页面可能显示你没有这篇论文的访问权限，或者 {browser} 在等你回应：验证、登录，或是否允许该网站下载文件。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The page may say you have no access to this paper, or your browser may be asking you something: a check, a sign-in, or whether the site may download files."
-msgstr "页面可能显示你没有这篇论文的访问权限，或者浏览器在等你回应：验证、登录，或是否允许该网站下载文件。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waiting its turn"
-msgstr "排队中"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit opens papers in your browser one at a time, a few seconds apart."
-msgstr "owlit 在你的浏览器里逐篇打开论文，每篇之间隔几秒。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting it from your browser…"
-msgstr "正在用浏览器获取…"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{browser} saves it to Downloads, and owlit takes it from there."
-msgstr "{browser} 会把它存到“下载”文件夹，owlit 再从那里取用。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser saves it to Downloads, and owlit takes it from there."
-msgstr "浏览器会把它存到“下载”文件夹，owlit 再从那里取用。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Save the PDF from the page in {browser}"
-msgstr "在 {browser} 的页面上保存 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper's page is open in {browser}. Save its PDF there, and owlit takes it from Downloads."
-msgstr "论文页面已在 {browser} 中打开。在那里保存 PDF，owlit 再从“下载”文件夹取用。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Save the PDF from the page in your browser"
-msgstr "在浏览器的页面上保存 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper's page is open in your browser. Save its PDF there, and owlit takes it from Downloads."
-msgstr "论文页面已在浏览器中打开。在那里保存 PDF，owlit 再从“下载”文件夹取用。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting PDFs waits for you to sign in there. Once you have, owlit tries this paper again."
-msgstr "获取 PDF 正在等你在那里登录。登录后，owlit 会重新获取这篇。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting PDFs waits for you to pass the check there. Then owlit goes on."
-msgstr "获取 PDF 正在等你在那里通过验证，之后 owlit 会继续。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting PDFs waits for you to look at the page there. Then owlit goes on."
-msgstr "获取 PDF 正在等你看一下那个页面，之后 owlit 会继续。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Is this the paper's PDF?"
-msgstr "这是这篇论文的 PDF 吗？"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
-msgstr "{file} 刚出现在“下载”文件夹中，owlit 无法判断它属于哪篇论文。"
+msgid "Your browser was sent for it, and no PDF came · {date}"
+msgstr "曾让你的浏览器去取，但没有 PDF 下载下来 · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
 msgstr "已附加 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Couldn't take that file."
-msgstr "无法使用这个文件。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Couldn't attach that file."
@@ -4494,34 +4253,12 @@ msgid "Look again"
 msgstr "再找一次"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Open in your browser again"
-msgstr "再用浏览器打开"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Get it in your browser"
-msgstr "用浏览器获取"
-
-#. button: take the downloaded file as the paper's PDF
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Use it"
-msgstr "使用它"
-
-#. button: the downloaded file is not the paper's PDF
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Not this"
-msgstr "不是这个"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit looks again on {nextDate}"
 msgstr "owlit 会在 {nextDate} 再找"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit won't look again"
 msgstr "owlit 不会再找"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Or <0>get it in your browser</0>"
-msgstr "或<0>用浏览器获取</0>"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Your library may have it. <0>Set up library proxy</0>"
@@ -4930,6 +4667,10 @@ msgstr "owlit 在这台电脑上的外观。星标、笔记、标签和 PDF 高�
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "This computer's settings for owlit."
 msgstr "owlit 在这台电脑上的设置。"
+
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Needs you"
+msgstr "需要你处理"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "About {sectionLabel}"
@@ -5507,6 +5248,10 @@ msgstr "这个链接里看不出代理。请从你图书馆的网站打开一篇
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Open a paper from your library's website and copy the address from the browser."
 msgstr "请从你图书馆的网站打开一篇论文，再从浏览器复制地址。"
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Couldn't open your browser."
+msgstr "无法打开你的浏览器。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign-in"
@@ -7763,50 +7508,6 @@ msgstr "owlit 无法查找 PDF。"
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."
 msgstr "无法读取 pitta 文献库。"
-
-#: packages/core/src/library/library.ts
-msgid "Opening your browser needs the owlit desktop app."
-msgstr "需要 owlit 桌面应用才能打开你的浏览器。"
-
-#: packages/core/src/library/library.ts
-msgid "Sign in to your library in {name}, then continue."
-msgstr "在 {name} 中登录图书馆，然后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "{name} is showing a check. Pass it there, then continue."
-msgstr "{name} 正在显示验证。在那里通过后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "{name} is on “{title}” and saved nothing. Answer it there, then continue."
-msgstr "{name} 停在“{title}”，没有保存任何文件。在那里处理后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "{name} is on “{title}” ({host}). Look there, then continue."
-msgstr "{name} 停在“{title}”（{host}）。看一下那里，然后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "Sign in to your library in your browser, then continue."
-msgstr "在浏览器中登录图书馆，然后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "Your browser is showing a check. Pass it there, then continue."
-msgstr "浏览器正在显示验证。在那里通过后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "Your browser is on “{title}” and saved nothing. Answer it there, then continue."
-msgstr "浏览器停在“{title}”，没有保存任何文件。在那里处理后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "Your browser is on “{title}” ({host}). Look there, then continue."
-msgstr "浏览器停在“{title}”（{host}）。看一下那里，然后继续。"
-
-#: packages/core/src/library/library.ts
-msgid "{name} may be asking you something: a check, a sign-in, or whether {site} may download files."
-msgstr "{name} 可能在等你回应：验证、登录，或是否允许 {site} 下载文件。"
-
-#: packages/core/src/library/library.ts
-msgid "Your browser may be asking you something: a check, a sign-in, or whether {site} may download files."
-msgstr "浏览器可能在等你回应：验证、登录，或是否允许 {site} 下载文件。"
 
 #: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."

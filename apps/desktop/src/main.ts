@@ -10,7 +10,6 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notificati
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { hostFetch } from "./net-fetch.ts"
 import { attachTextMenu } from "./text-menu.ts"
@@ -602,23 +601,10 @@ if (!app.requestSingleInstanceLock()) {
         },
         revealPath: (file) => shell.showItemInFolder(file),
         // OWLIT_NO_EXTERNAL (tests): say where it would go instead of opening the user's browser
-        openExternal: async (url, options) => {
-          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", options?.background ? "(background)" : "", url)
-          else await shell.openExternal(url, { activate: !options?.background })
+        openExternal: async (url) => {
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", url)
+          else await shell.openExternal(url)
         },
-        // The app that opens web pages: its name, and the app itself brought to the front as it is
-        // (its last tab, where a page may be asking something), not a new page
-        browserName: async () => (await app.getApplicationInfoForProtocol("https://")).name.replace(/\.app$/, "") || undefined,
-        // OWLIT_NO_EXTERNAL (tests): no browser to drive
-        browserControl: async () => (process.env.OWLIT_NO_EXTERNAL ? undefined : browserControl()),
-        showBrowser: async () => {
-          const browser = await app.getApplicationInfoForProtocol("https://")
-          if (process.env.OWLIT_NO_EXTERNAL) return console.log("[show-browser]", browser.path)
-          const failure = await shell.openPath(browser.path)
-          if (failure) throw new Error(failure)
-        },
-        // OWLIT_DOWNLOADS (tests): another folder in place of the user's Downloads
-        downloadsDir: () => process.env.OWLIT_DOWNLOADS ?? app.getPath("downloads"),
         // Only a release has a feed to update from; core says why the others don't
         updater: build.channel === "release" ? createUpdater() : undefined,
       },

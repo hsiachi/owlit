@@ -1,8 +1,8 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionWait, Paper, PdfEnded, PdfState, PdfTry } from "@owlit/protocol"
+import type { ExtensionWait, Paper, PdfEnded, PdfTry } from "@owlit/protocol"
 
 // Where a paper without its PDF stands, read off what core keeps (paper.pdfState) and never worked out
-// again: its state, the ending of the try that says why, and a run in the user's browser that has it.
+// again: its state, the ending of the try that says why, and where the extension has it.
 // Every place goes by this one reading, so the row, the No PDF groups, the card, Home and the rail agree.
 // - finding, offline: owlit is looking, or waits for the network
 // - for-sign-in, for-check, for-permission: still finding; the extension in the user's browser waits at
@@ -10,9 +10,6 @@ import type { ExtensionWait, Paper, PdfEnded, PdfState, PdfTry } from "@owlit/pr
 //   ExtensionView.waits, covers every such paper)
 // - not-found, no-access, not-offered, not-there, nothing-came: no PDF, for that reason
 // - for-browser: a page stopped owlit with a check or a sign-in; the user's browser may get past it
-// - queued, opened: a run in the user's browser has it, waiting its turn or opened there
-// - page, run-stopped, offered: that run waits on the user (an article page to save from, a sign-in or
-//   a check in their browser, a downloaded file to confirm)
 export type PdfWait =
   | "finding"
   | "offline"
@@ -25,11 +22,6 @@ export type PdfWait =
   | "not-there"
   | "for-browser"
   | "nothing-came"
-  | "queued"
-  | "opened"
-  | "page"
-  | "run-stopped"
-  | "offered"
 
 const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-copy": "not-found",
@@ -51,12 +43,9 @@ const WAITED: Partial<Record<PdfEnded, ExtensionWait["kind"]>> = { "sign-in": "s
 // What the extension's try waited for, when it stopped where only the user gets through
 export const waitedFor = (t: PdfTry | undefined) => (t?.by === "extension" ? WAITED[t.ended] : undefined)
 
-const BY_RUN: Record<NonNullable<PdfState["run"]>["state"], PdfWait> = { queued: "queued", opened: "opened", page: "page", waiting: "run-stopped" }
-
 export function pdfWait(p: Pick<Paper, "pdf" | "pdfState">): PdfWait | undefined {
   if (p.pdf) return undefined
   const s = p.pdfState
-  if (s?.run) return s.run.offered ? "offered" : BY_RUN[s.run.state]
   if (!s || s.state === "finding") {
     // The extension's queue says where it is now (fetching again once the user got through); its last
     // try says so after a restart, before the queue has it again
@@ -67,14 +56,11 @@ export function pdfWait(p: Pick<Paper, "pdf" | "pdfState">): PdfWait | undefined
   return BY_ENDED[s.reason?.ended ?? "no-copy"]
 }
 
-// Something only the user can do now, in what they started: Home's rows, the rail's dot, the row's
-// amber word. A page that stopped owlit is the user's browser's chance, not their move, so it isn't. A
-// site the extension waits at is grey too, on Home and atop the Library, until the user asked for one of
-// its papers (Find PDF, Look again): then it waits on them.
-export function waitsOnYou(w: PdfWait | ExtensionWait | undefined): boolean {
-  if (typeof w === "object") return w.askedFor
-  return w === "page" || w === "run-stopped" || w === "offered"
-}
+// Whether a site the extension waits at is something only the user can do now, in what they started:
+// Home's Waiting on you, the rail's dot, the amber line atop the Library. It is grey until the user asked
+// for one of its papers (Find PDF, Look again). No paper waits on the user by itself: its row says
+// Finding, and the site's line covers it.
+export const waitsOnYou = (wait: ExtensionWait) => wait.askedFor
 
 // The one name of each state, said the same in the row, the No PDF group and the card's title
 export function pdfWord(w: PdfWait | undefined): string | undefined {
@@ -98,12 +84,5 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
       return t({ message: "For your browser", comment: "a paper whose publisher stopped owlit with a check or a sign-in; the user's own browser may get it" })
     case "nothing-came":
       return t({ message: "Nothing came", comment: "the user's browser was sent for the PDF and none arrived" })
-    case "queued":
-    case "opened":
-      return t({ message: "In your browser…", comment: "a paper being got from the user's browser now" })
-    case "page":
-    case "run-stopped":
-    case "offered":
-      return t({ message: "Needs you", comment: "a paper being got from the user's browser that waits on them" })
   }
 }

@@ -15,10 +15,6 @@ export class RpcLibraryClient implements LibraryClient {
     return { pdf, pdfState }
   }
 
-  takeDownload(paper: Paper, take: boolean): Promise<Paper> {
-    return rpc.library.takeDownload({ id: paper.id, take })
-  }
-
   async attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]> {
     const attached = await rpc.library.attachPdf({ id: paper.id, path: filePath(file) })
     return attached.pdf

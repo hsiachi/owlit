@@ -14,23 +14,16 @@ export function matchesQuery(p: Paper, q: string): boolean {
   return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
 
-// The No PDF view's groups, each one name (pdfWord) for the states in it, in this order: what waits on
-// the user first, then what their browser may get, a run at work, what the tries found, and papers still
-// being looked for last
+// The No PDF view's groups, each one name (pdfWord) for the states in it, in this order: what their
+// browser may get, what the tries found, and papers still being looked for last
 const NO_PDF_GROUPS: PdfWait[][] = [
-  ["page", "run-stopped", "offered"],
   ["for-browser"],
-  ["queued", "opened"],
   ["nothing-came"],
   ["not-found"],
   ["no-access", "not-offered"],
   ["not-there"],
   ["finding", "offline", "for-sign-in", "for-check", "for-permission"],
 ]
-
-// Papers owlit found no copy of whose publisher the user's own browser hasn't been sent to: their
-// access and sign-ins may still get the PDF, though owlit doesn't expect it (unlike For your browser)
-export const mightComeThroughBrowser = (p: Paper) => pdfWait(p) === "not-found" && !!p.ids.doi && !p.pdfState?.tried.some((t) => t.by === "you")
 
 function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {

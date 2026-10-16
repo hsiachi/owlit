@@ -1,4 +1,4 @@
-import { siteOf } from "./browser-routes.ts"
+import { siteOf } from "../extension/route.ts"
 
 // Where a tab owlit opened in the user's browser ended up, when the PDF it was sent for didn't come.
 // Read from the tab's address and title only, and by what kind of site it is rather than which: the

@@ -17,19 +17,6 @@ describe("pdfWait", () => {
     expect(pdfWait(noPdf("nothing-came"))).toBe("nothing-came")
   })
 
-  it("puts a run in the user's browser before what the tries say, and a file to confirm first", () => {
-    expect(pdfWait(noPdf("check", { run: { state: "waiting", why: "sign-in" } }))).toBe("run-stopped")
-    expect(pdfWait(noPdf("check", { run: { state: "page", offered: "x.pdf" } }))).toBe("offered")
-  })
-
-  it("waits on the user only in a run they started", () => {
-    expect(waitsOnYou(pdfWait(noPdf("no-copy", { run: { state: "page" } })))).toBe(true)
-    expect(waitsOnYou(pdfWait(noPdf("check", { run: { state: "queued" } })))).toBe(false)
-    // A page that stopped owlit is their browser's chance, not their move
-    expect(waitsOnYou(pdfWait(noPdf("check")))).toBe(false)
-    expect(waitsOnYou(pdfWait(noPdf("sign-in")))).toBe(false)
-  })
-
   it("reads a paper the extension waits with as still finding, under its site's wait", () => {
     const signIn = tryOf("sign-in", "extension")
     // In the queue at a site that waits for the user
@@ -49,13 +36,11 @@ describe("pdfWait", () => {
     const wait = { kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go" }
     expect(waitsOnYou({ ...wait, askedFor: false })).toBe(false)
     expect(waitsOnYou({ ...wait, askedFor: true })).toBe(true)
-    expect(waitsOnYou("for-sign-in")).toBe(false)
   })
 
   it("gives the states that read alike one name", () => {
     expect(pdfWord("no-access")).toBe(pdfWord("not-offered"))
     expect(pdfWord("finding")).toBe(pdfWord("offline"))
-    expect(pdfWord("queued")).toBe("In your browser…")
     expect(pdfWord("for-browser")).toBe("For your browser")
   })
 })

@@ -16,6 +16,4 @@ export interface LibraryClient {
   fetchPdf(paper: Paper): Promise<Pick<Paper, "pdf" | "pdfState">>
   // A PDF the user has, as the paper's file
   attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]>
-  // The user's answer about a downloaded PDF owlit offered (pdfState.run.offered)
-  takeDownload?(paper: Paper, take: boolean): Promise<Paper>
 }

@@ -82,7 +82,6 @@ describe("an acquisition.json from before tries", () => {
       looked: { outcome: "missing", at: 30, host: "dl.acm.org", title: "Page not found" },
       yourBrowser: { outcome: "refused", at: 40, host: "libproxy.example.edu", title: "Unauthorized" },
       looks: 3,
-      sentToBrowser: { at: 39, page: false },
     }
     expect(migrate(old)).toEqual({
       version: 2,
@@ -96,7 +95,6 @@ describe("an acquisition.json from before tries", () => {
       ],
       dropHere: "/ws/library/papers/doi-10.1145-1/paper.pdf",
       looks: 3,
-      sentToBrowser: { at: 39, page: false },
     })
   })
 

@@ -12,8 +12,7 @@ import { shortDate } from "@/lib/time"
 import { toastError } from "@/lib/toast"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
-import { resumeTask, tasksFor, useTasksStore } from "@/features/tasks/store"
-import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun } from "../../from-browser"
+import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
 import { pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
 import { useExtensionWaits } from "@/features/extension/store"
@@ -21,9 +20,6 @@ import { actOnWait, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
 type CardState = PdfWait | "looking"
-
-// A run in the user's browser, or a file for them to confirm, comes before owlit's own looking
-const BEFORE_LOOKING: ReadonlySet<CardState> = new Set(["offered", "run-stopped", "page", "queued", "opened"])
 
 // The steps that look for a PDF, and the route the one running is on ("arxiv", "publisher:acm")
 const LOOKING = new Set(["paper.pdf"])
@@ -38,7 +34,6 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
   const reason = s?.reason
   const host = hostName(reason)
   const date = reason ? shortDate(reason.at) : ""
-  const browser = s?.run?.browser
   const tried = triedSentence(s?.tried ?? [])
   switch (state) {
     case "looking":
@@ -92,39 +87,7 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
               : t`The publisher stopped owlit with a check · ${date}`,
       }
     case "nothing-came":
-      return {
-        title: t`Nothing came from your browser`,
-        detail: browser
-          ? t`The page in ${browser} may say you have no access to this paper, or ${browser} may be asking you something: a check, a sign-in, or whether the site may download files.`
-          : t`The page may say you have no access to this paper, or your browser may be asking you something: a check, a sign-in, or whether the site may download files.`,
-      }
-    case "queued":
-      return { title: t`Waiting its turn`, detail: t`owlit opens papers in your browser one at a time, a few seconds apart.` }
-    case "opened":
-      return {
-        title: t`Getting it from your browser…`,
-        detail: browser ? t`${browser} saves it to Downloads, and owlit takes it from there.` : t`Your browser saves it to Downloads, and owlit takes it from there.`,
-      }
-    case "page":
-      return browser
-        ? { title: t`Save the PDF from the page in ${browser}`, detail: t`The paper's page is open in ${browser}. Save its PDF there, and owlit takes it from Downloads.` }
-        : { title: t`Save the PDF from the page in your browser`, detail: t`The paper's page is open in your browser. Save its PDF there, and owlit takes it from Downloads.` }
-    case "run-stopped": {
-      const why = s?.run?.why
-      return {
-        title: stoppedLine(paper),
-        detail:
-          why === "sign-in"
-            ? t`Getting PDFs waits for you to sign in there. Once you have, owlit tries this paper again.`
-            : why === "check"
-              ? t`Getting PDFs waits for you to pass the check there. Then owlit goes on.`
-              : t`Getting PDFs waits for you to look at the page there. Then owlit goes on.`,
-      }
-    }
-    case "offered": {
-      const file = s?.run?.offered ?? ""
-      return { title: t`Is this the paper's PDF?`, detail: t`${file} just arrived in your Downloads, and owlit can't tell whose it is.` }
-    }
+      return { title: t`Nothing came from your browser`, detail: t`Your browser was sent for it, and no PDF came · ${date}` }
   }
 }
 
@@ -138,18 +101,6 @@ export function NoPdf({ paper }: { paper: Paper }) {
   // A step core is running for this paper's PDF (on add, or a daily look), and the route it is on
   const task = useTasksStore((s) => tasksFor(s.byId, paper.id).find((task) => !isTaskFinished(task) && LOOKING.has(task.kind)))
   const looking = !!task || fetching
-  const run = useFromBrowserRun()
-
-  const takeDownload = async (take: boolean) => {
-    const offered = paper.pdfState?.run?.offered
-    try {
-      const found = await libraryClient.takeDownload!(paper, take)
-      updatePaper(paper.id, { pdf: found.pdf, pdfState: found.pdfState })
-      if (found.pdf) toast(t`PDF attached`, { description: offered })
-    } catch (e) {
-      toastError(e, t`Couldn't take that file.`)
-    }
-  }
 
   const attach = async (files: ArrayLike<File>) => {
     const file = files[0]
@@ -185,9 +136,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
   const wait = pdfWait(paper) ?? "finding"
-  const state: CardState = looking && !BEFORE_LOOKING.has(wait) ? "looking" : wait
+  const state: CardState = looking ? "looking" : wait
   const { title, detail } = card(state, paper, task?.progress?.note && routeName(task.progress.note))
-  const working = state === "looking" || state === "finding" || state === "queued" || state === "opened"
+  const working = state === "looking" || state === "finding"
   const nextLook = paper.pdfState?.nextLook
   const nextDate = nextLook ? shortDate(nextLook) : ""
   const chooseFile = (
@@ -200,13 +151,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
       {t({ message: "Look again", comment: "button: owlit looks for the paper's PDF again, by its own routes" })}
     </Button>
   )
-  const inYourBrowser = (again: boolean, primary: boolean) => (
-    <Button size="sm" variant={primary ? "default" : "outline"} onClick={() => void getInBrowser([paper.id])}>
-      {again ? t`Open in your browser again` : t`Get it in your browser`}
-    </Button>
-  )
   const linkClass = "text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
-  const byYou = paper.pdfState?.reason?.by === "you"
 
   return (
     <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
@@ -220,16 +165,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
         }
         detail={detail}
         actions={
-          state === "offered" ? (
-            <>
-              <Button size="sm" onClick={() => void takeDownload(true)}>
-                {t({ message: "Use it", comment: "button: take the downloaded file as the paper's PDF" })}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => void takeDownload(false)}>
-                {t({ message: "Not this", comment: "button: the downloaded file is not the paper's PDF" })}
-              </Button>
-            </>
-          ) : state === "for-sign-in" || state === "for-check" || state === "for-permission" ? (
+          state === "for-sign-in" || state === "for-check" || state === "for-permission" ? (
             <>
               {siteWait ? (
                 <Button size="sm" onClick={() => actOnWait(siteWait)}>
@@ -241,37 +177,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
               )}
               {chooseFile}
             </>
-          ) : state === "for-browser" ? (
-            <>
-              {inYourBrowser(false, true)}
-              {chooseFile}
-            </>
-          ) : state === "queued" || state === "looking" || state === "finding" ? (
+          ) : state === "looking" || state === "finding" ? (
             chooseFile
-          ) : state === "opened" || state === "page" ? (
-            <>
-              <Button size="sm" variant={state === "page" ? "default" : "outline"} onClick={() => void showBrowser(paper.id)}>
-                {t`Show browser`}
-              </Button>
-              {chooseFile}
-            </>
-          ) : state === "run-stopped" ? (
-            <>
-              <Button size="sm" onClick={() => void showBrowser(paper.id)}>
-                {t`Show browser`}
-              </Button>
-              <Button variant="outline" size="sm" disabled={!run} onClick={() => run && void resumeTask(run.id)}>
-                {continueLabel(paper)}
-              </Button>
-            </>
-          ) : state === "no-access" || state === "not-offered" || state === "nothing-came" ? (
-            <>
-              {/* The user's browser again: through their library, which owlit's own look can't use */}
-              {inYourBrowser(byYou, false)}
-              {chooseFile}
-            </>
           ) : (
-            // Not found, not there, offline: owlit's own look, which may find another copy
+            // owlit's own look, which may find another copy
             <>
               {lookAgainButton(true)}
               {chooseFile}
@@ -281,18 +190,6 @@ export function NoPdf({ paper }: { paper: Paper }) {
       >
         {NO_PDF.has(state) && (
           <p className="max-w-72 text-sm text-muted-foreground">{nextLook ? t`owlit looks again on ${nextDate}` : t`owlit won't look again`}</p>
-        )}
-        {/* No copy owlit can get, and the publisher's page gave its browser nothing: the user's own
-            browser (their access, their sign-ins) may still get it */}
-        {state === "not-found" && paper.ids.doi && (
-          <p className="max-w-72 text-sm text-muted-foreground">
-            <Trans>
-              Or{" "}
-              <button type="button" className={linkClass} onClick={() => void getInBrowser([paper.id])}>
-                get it in your browser
-              </button>
-            </Trans>
-          </p>
         )}
         {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
         {state === "not-found" && paper.ids.doi && proxyMissing && (

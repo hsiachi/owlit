@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
-import { FromBrowserLine, NoPdfLine } from "../components/FromBrowserLine"
 import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
 import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
@@ -106,8 +105,6 @@ export function LibraryPage() {
         />
         <ImportBanner />
         <ExtensionWaitLines />
-        <FromBrowserLine />
-        {filter === "no-pdf" && <NoPdfLine />}
         <LibraryFindField onSubmit={submit} onPickFiles={addPdfFiles} />
         {refInput ? (
           <AddCandidate lookup={lookup} onAdd={add} input={refInput} />

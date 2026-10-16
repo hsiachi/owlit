@@ -334,12 +334,10 @@ const pdfStates: [string, string, PdfState][] = [
   ["Stopped by a check", "10.1177/0956797619877311", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "journals.sagepub.com", route: "browser:sage" })],
   ["Wants a sign-in", "10.1016/j.cell.2020.01.001", noPdf({ by: "owlit", ended: "sign-in", at: daysAgo(1), host: "www.sciencedirect.com", route: "browser:elsevier:proxied" })],
   ["Nothing came", "10.1145/3706598.3713300", noPdf({ by: "you", ended: "nothing-came", at: daysAgo(1) })],
-  ["Waiting its turn in the browser", "10.1145/3706598.3713332", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "dl.acm.org", route: "browser:acm" }, { run: { state: "queued", browser: "Dia" } })],
   ["Through your browser", "10.1177/0956797621991137", withExtension("sagepub.com")],
   ["Waiting for the library sign-in", "10.1177/0956797620927648", withExtension("tlink.lib.tsinghua.edu.cn", { by: "extension", ended: "sign-in", at: daysAgo(0.2), host: "tlink.lib.tsinghua.edu.cn", title: "清华大学图书馆" }, "sign-in")],
   ["Behind it in line", "10.1177/0956797620959014", withExtension("tlink.lib.tsinghua.edu.cn", undefined, "sign-in")],
   ["Waiting for a check", "10.1080/09658211.2020.1846562", withExtension("tandfonline.com", { by: "extension", ended: "check", at: daysAgo(0.1), host: "www.tandfonline.com", title: "Just a moment..." }, "check")],
-  ["A page open to save from", "10.1145/3706598.3713400", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "dl.acm.org", route: "browser:acm" }, { run: { state: "page", browser: "Dia" } })],
 ]
 seedPapers.push(
   ...pdfStates.map(([title, doi, pdfState], i): Paper => ({

@@ -39,7 +39,7 @@ export interface PaperPdf {
 // user allows it there (an optional host permission, asked for from the extension's own button).
 export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "nothing-came" | "no-permission"
 
-// One try, by owlit's own looks, the user (their browser, a file they dropped) or the browser extension.
+// One try, by owlit's own looks, the user (a file they dropped or chose) or the browser extension.
 // route is owlit's name for the way ("arxiv", "unpaywall/repository", "publisher:acm", "browser:acm");
 // host and title are the page it ended on.
 export interface PdfTry {
@@ -65,19 +65,6 @@ export interface PdfState {
   // the site waits for the user (waits: a sign-in, a check, the extension being allowed there). Kept in
   // memory only, with the extension's queue.
   extension?: { host: string; waits?: "sign-in" | "check" | "permission" }
-  // A run in the user's browser (library.getInBrowser) that has the paper: waiting its turn, opened there
-  // with the file to come, its article page open for the user to save the PDF from, or the paper the run
-  // stopped on for the user. browser is that browser's name; why, what its tab showed when the run
-  // stopped, with that page's title and host; offered, a PDF that arrived in Downloads (its file name)
-  // owlit isn't sure is this paper's. Kept in memory only; it goes with the run in the user's browser
-  // (papers.fromBrowser).
-  run?: {
-    state: "queued" | "opened" | "page" | "waiting"
-    browser?: string
-    why?: "sign-in" | "check" | "on-pdf" | "unknown"
-    page?: { title: string; host: string }
-    offered?: string
-  }
 }
 
 export interface Paper {

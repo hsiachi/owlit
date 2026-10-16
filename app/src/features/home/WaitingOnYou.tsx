@@ -12,12 +12,13 @@ import { siteWaitItem } from "@/features/extension/waits"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
 
 // Everything stuck on the user, in one list (app/waiting-on-you.ts works it out): a permission a chat
-// waits for, papers only their browser can get, handed-off work that broke, an agent that can't run.
-// Each line is the thing and its fix; it leaves once answered. The whole row is the way to the fix, as
-// every row on Home is a link, and its right end says what clicking does ("Open ›"); a real button is
-// kept only for a fix that does something other than going there (Retry, Get them). Shown only while
-// something waits, in the rows' own look (Home's Recent), not a card. The places these come from keep
-// their own marks (a chat's status ring, the rail's dots); Owlit's finished-unseen dot is the rail's alone.
+// waits for, a site where the extension waits for the user's sign-in, handed-off work that broke, an
+// agent that can't run. Each line is the thing and its fix; it leaves once answered. The whole row is the
+// way to the fix, as every row on Home is a link, and its right end says what clicking does ("Open ›"); a
+// real button is kept only for a fix that does something other than going there (Retry, Sign in). Shown
+// only while something waits, in the rows' own look (Home's Recent), not a card. The places these come
+// from keep their own marks (a chat's status ring, the rail's dots); Owlit's finished-unseen dot is the
+// rail's alone.
 
 // The row as a screen reader hears it: "Owlit stopped in “Draft”: Open"
 function rowLabel(w: WaitingItem) {

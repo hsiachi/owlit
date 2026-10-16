@@ -132,8 +132,7 @@ function pdfIn(html: string, metas: Map<string, string[]>, page: string) {
 
 // The page's own link to its PDF, for a page without citation_pdf_url: one labelled just "PDF" (or
 // "Download PDF"), to a .pdf on the page's own site. APA PsycNet's full-text pages link
-// /fulltext/<id>.pdf this way and carry no citation tags. core's browser-routes.ts pdfLinkOn, copied:
-// change them together.
+// /fulltext/<id>.pdf this way and carry no citation tags.
 export function pdfLinkIn(html: string, page: string): string | undefined {
   let base: URL
   try {

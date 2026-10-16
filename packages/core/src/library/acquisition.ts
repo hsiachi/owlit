@@ -26,9 +26,6 @@ export interface Acquisition {
   sha256?: string
   // How many of owlit's looks in a row found no PDF, for spacing out the daily look (lookDue)
   looks?: number
-  // When the user's browser was last sent for it, and whether to an article page for them to save the
-  // PDF from: their Downloads is looked at from then, across restarts. It goes with the Downloads watch.
-  sentToBrowser?: { at: number; page: boolean }
 }
 
 // Enough for every route of several looks; the daily look adds a few each time, so older ones go
@@ -118,7 +115,6 @@ export interface AcquisitionV1 {
   yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
   looked?: { outcome: "no-access" | "missing"; at: number; host?: string; title?: string }
   looks?: number
-  sentToBrowser?: { at: number; page: boolean }
 }
 
 // Routes a PDF the user placed came by in version 1
@@ -166,7 +162,6 @@ export function migrate(old: AcquisitionV1 | Acquisition): Acquisition {
     route: placedRoute,
     sha256: old.result === "ok" ? old.sha256 : undefined,
     looks: old.looks,
-    sentToBrowser: old.sentToBrowser,
   })
 }
 
@@ -183,8 +178,8 @@ export const readAcquisition = (root: string, id: string) =>
 
 const write = (root: string, id: string, acquisition: Acquisition) => writeJsonAtomic(acquisitionFile(root, id), acquisition, { parents: false })
 
-// A PDF in place: how it came. by "you" for a file the user dropped or chose, or one taken from their
-// Downloads; route names the way ("dropped", "your-browser", "arxiv", "browser:acm")
+// A PDF in place: how it came. by "you" for a file the user dropped or chose; route names the way
+// ("dropped", "arxiv", "extension:journals.sagepub.com")
 export interface Placed {
   by: PdfTry["by"]
   route: string
@@ -213,8 +208,8 @@ export class Acquisitions {
     return readAcquisition(this.root, id)
   }
 
-  // What the window is shown for a paper without its PDF; the run in the user's browser is added by the
-  // library, which keeps it in memory
+  // What the window is shown for a paper without its PDF; where the extension has it is added by the
+  // library, whose queue keeps it in memory
   async shown(id: string): Promise<PdfState> {
     const acquisition = await this.read(id)
     if (!acquisition) return { state: "finding", tried: [] }
@@ -250,15 +245,6 @@ export class Acquisitions {
     })
   }
 
-  // When the user's browser was sent for the paper, so a PDF saved after a restart is still found
-  noteSent(id: string, page: boolean): Promise<void> {
-    return this.locked({}, async () => {
-      const previous = await this.read(id)
-      if (!previous || previous.state === "have-it") return
-      await write(this.root, id, this.next(id, previous, previous.tried, { sentToBrowser: { at: Date.now(), page } }))
-    })
-  }
-
   // The SHA-256 of the PDF in place, worked out once for a record that hasn't got it
   noteHash(id: string, sha256: string, options: Locking = {}): Promise<void> {
     return this.locked(options, async () => {
@@ -281,7 +267,7 @@ export class Acquisitions {
 
   // The one place a record is put together: the tries decide the state; what carries over from the
   // record before is listed here and nowhere else
-  private next(id: string, previous: Acquisition | undefined, tried: PdfTry[], change: Partial<Pick<Acquisition, "looks" | "route" | "sha256" | "sentToBrowser">>): Acquisition {
+  private next(id: string, previous: Acquisition | undefined, tried: PdfTry[], change: Partial<Pick<Acquisition, "looks" | "route" | "sha256">>): Acquisition {
     const { state } = standing(tried)
     const placed = state === "have-it"
     return clean({
@@ -294,7 +280,6 @@ export class Acquisitions {
       sha256: placed ? (change.sha256 ?? previous?.sha256) : undefined,
       // Of the looks since the last PDF only
       looks: placed ? undefined : "looks" in change ? change.looks : previous?.looks,
-      sentToBrowser: placed ? undefined : (change.sentToBrowser ?? previous?.sentToBrowser),
     })
   }
 

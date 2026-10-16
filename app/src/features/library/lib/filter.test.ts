@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Paper } from "@owlit/protocol"
 import type { PdfState, PdfTry } from "@owlit/protocol"
-import { countByFilter, groupPapers, mightComeThroughBrowser, visiblePapers } from "./filter"
+import { countByFilter, groupPapers, visiblePapers } from "./filter"
 import { pdfWait } from "./pdf-wait"
 
 const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({
@@ -34,11 +34,9 @@ describe("papers without a PDF", () => {
     notOffered: paper("notOffered", noPdf([found, tryOf("not-offered", "you")])),
     notThere: paper("notThere", noPdf([found, tryOf("not-there")])),
     nothingCame: paper("nothingCame", noPdf([found, tryOf("nothing-came", "you")])),
-    queued: paper("queued", noPdf([found, tryOf("check")], { run: { state: "queued" } })),
-    onPage: paper("onPage", noPdf([found], { run: { state: "page" } })),
   }
 
-  it("reads where each stands off its state, the ending of its reason and the run", () => {
+  it("reads where each stands off its state and the ending of its reason", () => {
     expect(Object.fromEntries(Object.values(library).map((p) => [p.id, pdfWait(p) ?? null]))).toEqual({
       read: null,
       looking: "finding",
@@ -51,24 +49,16 @@ describe("papers without a PDF", () => {
       notOffered: "not-offered",
       notThere: "not-there",
       nothingCame: "nothing-came",
-      queued: "queued",
-      onPage: "page",
     })
   })
 
-  it("offers the browser only for papers found nowhere, with a DOI, it hasn't been sent for", () => {
-    expect(Object.values(library).filter(mightComeThroughBrowser).map((p) => p.id)).toEqual(["found"])
-  })
-
   it("lists them all under No PDF, grouped by one name per state", () => {
-    expect(countByFilter(library)["no-pdf"]).toBe(12)
+    expect(countByFilter(library)["no-pdf"]).toBe(10)
     const sort = { key: "addedAt" as const, desc: true }
     const visible = visiblePapers(library, { query: "", filter: "no-pdf", tags: [], sort })
     const groups = groupPapers(visible, sort, false, Date.now(), undefined, true)
     expect(groups.map((g) => [g.label, g.papers.map((p) => p.id).sort()])).toEqual([
-      ["Needs you", ["onPage"]],
       ["For your browser", ["check", "signIn"]],
-      ["In your browser…", ["queued"]],
       ["Nothing came", ["nothingCame"]],
       ["Not found", ["found", "noDoi"]],
       ["No access", ["noAccess", "notOffered"]],

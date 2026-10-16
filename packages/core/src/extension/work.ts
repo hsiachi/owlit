@@ -1,7 +1,7 @@
 import type { ExtensionWait, PdfState, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
-import { siteOf } from "../library/browser-routes.ts"
+import { siteOf } from "./route.ts"
 
 // The papers owlit hands to its browser extension once its own routes found no copy, and the pace it
 // asks for them at. owlit decides what and when: per site (the publisher's registrable domain, or the

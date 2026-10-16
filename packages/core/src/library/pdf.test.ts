@@ -212,6 +212,100 @@ describe("paper.pdf", () => {
   })
 })
 
+// A core whose network answers with serve, and with a publisher's sign-in page for anything else
+async function setupServing(library: object, more: { serve: (url: string, init?: RequestInit) => Response | undefined }) {
+  const fetch = (async (url: string, init?: RequestInit) => more.serve(url, init) ?? new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
+  return setup(fetch, library)
+}
+
+const sage = { id: "doi-10.1177-0956797620904990", title: "Paywalled", authors: [], ids: { doi: "10.1177/0956797620904990" } }
+const sibling = { id: "doi-10.1177-0956797619877311", title: "Same publisher", authors: [], ids: { doi: "10.1177/0956797619877311" } }
+
+describe("visiting publishers' sites", () => {
+  it("leaves a site that answers plain downloads with a check to the browser", async () => {
+    const { base, root, call } = await setupServing({}, {
+      serve: (url) => (url.includes("journals.sagepub.com") ? new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } }) : undefined),
+    })
+    await call("library.add", { paper: sage })
+    await call("library.fetchPdf", { id: sage.id })
+    await call("library.add", { paper: sibling })
+    await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
+    // Not tried, so not a try
+    const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
+    expect(tried.find((t: { route: string }) => t.route === "publisher:sage")).toBeUndefined()
+    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
+    const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
+    expect(log).toContainEqual(expect.objectContaining({ paper: sage.id, kind: "plain-refused", host: "journals.sagepub.com", status: 403 }))
+  })
+
+  it("holds the site a doi.org link lands on, not doi.org", async () => {
+    // Unpaywall's copy is a doi.org link, which doi.org sends on to journals.sagepub.com, where Cloudflare
+    // answers with a check
+    const challenge = (url: string) => {
+      const response = new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } })
+      return Object.defineProperty(response, "url", { value: url })
+    }
+    const { base, root, call } = await setupServing({ contactEmail: "me@example.org" }, {
+      serve: (url) => {
+        const unpaywall = url.match(/^https:\/\/api\.unpaywall\.org\/v2\/([^?]+)/)
+        if (unpaywall) return Response.json({ oa_locations: [{ url_for_pdf: `https://doi.org/${unpaywall[1]}`, host_type: "publisher" }] })
+        if (url.startsWith("https://doi.org/10.")) return challenge(`https://journals.sagepub.com/doi/${url.slice("https://doi.org/".length)}`)
+        return url.includes("journals.sagepub.com") ? challenge(url) : undefined
+      },
+    })
+    await call("library.add", { paper: sage })
+    await call("library.fetchPdf", { id: sage.id })
+    await call("library.add", { paper: sibling })
+    await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
+    const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
+    const route = (name: string) => tried.find((t: { route: string }) => t.route === name)
+    expect(route("unpaywall/publisher")).toMatchObject({ by: "owlit", ended: "no-copy" })
+    expect(route("publisher:sage")).toBeUndefined()
+    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
+    const sites = JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites
+    expect(sites["sagepub.com"].plainRefusedUntil).toBeGreaterThan(Date.now())
+    expect(sites["doi.org"]).toBeUndefined()
+    const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
+    expect(log).toContainEqual(expect.objectContaining({ paper: sage.id, route: "unpaywall/publisher", kind: "plain-refused", host: "journals.sagepub.com" }))
+    expect(log.filter((entry) => entry.host === "doi.org")).toEqual([])
+  })
+})
+
+describe("publishers' APIs", () => {
+  const elsevier = { id: "doi-10.1016-j.chb.2019.07.016", title: "On Elsevier", authors: [], ids: { doi: "10.1016/j.chb.2019.07.016" } }
+  const page = (text: string) => [{ x: 72, y: 72, size: 12, text }]
+
+  it("gets an Elsevier paper from its API with the key, before the site", async () => {
+    const keys: (string | null)[] = []
+    const { root, call } = await setupServing({ elsevierApiKey: "secret-key" }, {
+      serve: (url, init) => {
+        if (!url.startsWith("https://api.elsevier.com/content/article/doi/10.1016/j.chb.2019.07.016")) return undefined
+        keys.push(new Headers(init?.headers).get("x-els-apikey"))
+        return new Response(makePdf([page("One"), page("Two"), page("Three")]), { headers: { "content-type": "application/pdf" } })
+      },
+    })
+    await call("library.add", { paper: elsevier })
+    expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeDefined()
+    expect(keys).toEqual(["secret-key"])
+    const text = readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8")
+    expect(JSON.parse(text)).toMatchObject({ state: "have-it", route: "api:elsevier" })
+    expect(text).not.toContain("secret-key")
+  })
+
+  it("turns away the first page alone, which is what Elsevier sends a network without the subscription", async () => {
+    const { root, call } = await setupServing({ elsevierApiKey: "secret-key" }, {
+      serve: (url) => (url.startsWith("https://api.elsevier.com/") ? new Response(makePdf([page("Only the first page")]), { headers: { "content-type": "application/pdf" } }) : undefined),
+    })
+    await call("library.add", { paper: elsevier })
+    expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeUndefined()
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8"))
+    expect(acquisition.tried.find((t: { route: string }) => t.route === "api:elsevier")).toMatchObject({ ended: "no-copy" })
+    expect(readdirSync(path.join(root, "library/papers", elsevier.id)).filter((name) => name.includes(".download"))).toEqual([])
+    expect(existsSync(path.join(root, "library/papers", elsevier.id, "paper.pdf"))).toBe(false)
+  })
+})
+
+
 describe("owlit-file", () => {
   it("serves workspace files with byte ranges and nothing outside the workspace", async () => {
     const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-serve-")))
