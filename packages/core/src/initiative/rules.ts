@@ -1,4 +1,4 @@
-import { isMarkdown, type ActivityEvent, type InitiativeMode, type TaskPriority } from "@owlit/protocol"
+import { isMarkdown, type ActivityEvent, type CoreEvent, type InitiativeMode, type TaskPriority } from "@owlit/protocol"
 import { stat } from "node:fs/promises"
 import path from "node:path"
 import type { Workspace } from "../workspace/workspace.ts"
@@ -14,14 +14,7 @@ import type { Presence } from "./presence.ts"
 // a result) without depending on it: see docs/decisions/0008.
 
 // What the rules hear: the user's activity, and what core sees on its own
-export type InitiativeEvent =
-  | ActivityEvent
-  // The user starred a paper (core sees it whether or not activity is recorded)
-  | { kind: "paper.starred"; at: number; paperId: string }
-  // The workspace has opened and its tasks run
-  | { kind: "workspace.opened"; at: number }
-  // Once an hour while the workspace is open
-  | { kind: "clock.hour"; at: number }
+export type InitiativeEvent = ActivityEvent | CoreEvent
 
 export type InitiativeKind = InitiativeEvent["kind"]
 type EventOf<K extends InitiativeKind> = Extract<InitiativeEvent, { kind: K }>
@@ -35,8 +28,36 @@ export interface Job {
 // One decision about one subject
 export type Outcome = { subject: string } & ({ job: Job } | { none: string } | { defer: string })
 
+// All a rule may look at in the workspace. Each look is journaled with its answer (initiative.ts), so a
+// replay answers the same questions the same way after the workspace has moved on; a rule that needs
+// something else adds it here.
+export interface World {
+  // Why no digest would be written for a paper now, or null when one would
+  digestHeldBack(paperId: string): Promise<string | null>
+  // The threads Owlit watches, and whether a day has passed since each was checked
+  watched(): Promise<{ id: string; due: boolean }[]>
+  // A doc's Owlit state: kept out, and the modification time Owlit last read; null when it isn't one
+  // of the workspace's docs
+  doc(path: string): Promise<{ out: boolean; looked?: number } | null>
+  // When a file was last changed (ms), or null when it isn't on disk
+  mtime(path: string): Promise<number | null>
+}
+
+export const worldOf = (ws: Workspace, now: number): World => ({
+  digestHeldBack: (paperId) => ws.library.digestHeldBack(paperId),
+  watched: () => ws.threads.watched(now),
+  doc: async (rel) => {
+    const owlit = await ws.docs.owlitOf(rel).catch(() => null)
+    return owlit ? { out: !!owlit.out, ...(owlit.looked ? { looked: owlit.looked.mtime } : {}) } : null
+  },
+  mtime: async (rel) => {
+    const info = await stat(path.join(ws.root, rel)).catch(() => null)
+    return info ? Math.round(info.mtimeMs) : null
+  },
+})
+
 export interface RuleContext {
-  ws: Workspace
+  world: World
   now: number
   presence: Presence
 }
@@ -63,8 +84,8 @@ export const digestOnOpen = defineRule({
   id: "digest.onOpen",
   on: ["paper.opened"],
   needs: "off",
-  when: async (event, { ws }) => {
-    const held = await ws.library.digestHeldBack(event.paperId)
+  when: async (event, { world }) => {
+    const held = await world.digestHeldBack(event.paperId)
     return [held ? { subject: event.paperId, none: held } : job(event.paperId, "paper.digest", "waiting")]
   },
 })
@@ -74,8 +95,8 @@ export const digestOnStar = defineRule({
   id: "digest.onStar",
   on: ["paper.starred"],
   needs: "off",
-  when: async (event, { ws }) => {
-    const held = await ws.library.digestHeldBack(event.paperId)
+  when: async (event, { world }) => {
+    const held = await world.digestHeldBack(event.paperId)
     return [held ? { subject: event.paperId, none: held } : job(event.paperId, "paper.digest", "background")]
   },
 })
@@ -87,8 +108,8 @@ export const checkWatched = defineRule({
   on: ["workspace.opened", "clock.hour"],
   needs: "off",
   // The hourly look says only what became due, so the log doesn't fill with the same "not yet"
-  when: async (event, { ws, now }) =>
-    (await ws.threads.watched(now))
+  when: async (event, { world }) =>
+    (await world.watched())
       .filter(({ due }) => due || event.kind === "workspace.opened")
       .map(({ id, due }) => (due ? job(id, "threads.check", "background") : { subject: id, none: "checked within a day" })),
 })
@@ -102,15 +123,15 @@ export const reviewOnOpen = defineRule({
   key: (event) => event.path,
   // Flicking through docs isn't opening one to read
   settleMs: 3000,
-  when: async (event, { ws, now, presence }) => {
+  when: async (event, { world, now, presence }) => {
     const subject = event.path
     if (!isMarkdown(subject)) return [{ subject, none: "not a Markdown doc" }]
-    const owlit = await ws.docs.owlitOf(subject).catch(() => null)
+    const owlit = await world.doc(subject)
     if (!owlit) return [{ subject, none: "not in the workspace" }]
     if (owlit.out) return [{ subject, none: "kept out" }]
-    const info = await stat(path.join(ws.root, subject)).catch(() => null)
-    if (!info) return [{ subject, none: "not on disk" }]
-    if (owlit.looked && Math.round(info.mtimeMs) <= owlit.looked.mtime) return [{ subject, none: "unchanged since Owlit looked" }]
+    const mtime = await world.mtime(subject)
+    if (mtime === null) return [{ subject, none: "not on disk" }]
+    if (owlit.looked !== undefined && mtime <= owlit.looked) return [{ subject, none: "unchanged since Owlit looked" }]
     if (presence.writingIn(subject, now)) return [{ subject, defer: "the user is writing in it" }]
     return [job(subject, "docs.review", "background")]
   },

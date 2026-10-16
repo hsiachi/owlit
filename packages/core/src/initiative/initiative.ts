@@ -1,14 +1,15 @@
-import { dialAllows, type ActivityEvent, type EvaluationRecord } from "@owlit/protocol"
+import { CORE_KINDS, dialAllows, JOURNALED_CORE_KINDS, type ActivityEvent, type EvaluationRecord, type JournaledCoreEvent, type LookedRecord, type RuleRead } from "@owlit/protocol"
 import { Presence, TYPING_MS } from "./presence.ts"
 import { readJournal } from "../activity/reading.ts"
 import { messageOf } from "../util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { RULES, type InitiativeEvent, type Rule } from "./rules.ts"
+import { RULES, worldOf, type InitiativeEvent, type Rule, type World } from "./rules.ts"
 
 // Runs the rules (rules.ts) over what happens in the open workspace: hears an event, lets each rule
 // that listens to it decide, queues the runs they ask for on the workspace's scheduler, and records
 // every decision in the journal. Evaluations run one at a time in the order heard, so the same events
-// give the same decisions (a replay depends on it).
+// give the same decisions: a replay (replay.ts) feeds the journal back through the same rules, with what
+// core saw (trace) and what each rule looked at (trace, rule.looked) as they were.
 
 export interface Clock {
   now(): number
@@ -21,13 +22,31 @@ const systemClock: Clock = { now: () => Date.now(), setTimeout: (fn, ms) => setT
 export interface InitiativeOptions {
   workspace: () => Workspace | null
   record: (entry: EvaluationRecord) => void
+  // What a replay needs besides the decisions: a star core saw, and what each evaluation that decided
+  // something looked at (the activity is journaled already)
+  trace?: (entry: JournaledCoreEvent | LookedRecord) => void
+  // What the rules look at, for one evaluation; a replay answers from the journal
+  world?: (ws: Workspace, take: { rule: Rule; event: InitiativeEvent; now: number }) => World
   rules?: readonly Rule[]
   clock?: Clock
   presence?: Presence
 }
 
 // Events core makes itself, which say nothing about where the user is
-const CORE_KINDS = new Set<string>(["paper.starred", "workspace.opened", "clock.hour"])
+const CORE = new Set<string>(CORE_KINDS)
+const TRACED = new Set<string>(JOURNALED_CORE_KINDS)
+
+// The world as it answered: every look and its answer go into reads
+function recorded(world: World, reads: RuleRead[]): World {
+  const look =
+    <A extends (string | number)[], R>(ask: string, fn: (...args: A) => Promise<R>) =>
+    async (...args: A) => {
+      const answer = await fn(...args)
+      reads.push({ ask, args, answer })
+      return answer
+    }
+  return { digestHeldBack: look("digestHeldBack", world.digestHeldBack), watched: look("watched", world.watched), doc: look("doc", world.doc), mtime: look("mtime", world.mtime) }
+}
 
 const dayOf = (at: number) => new Date(at).toDateString()
 
@@ -35,6 +54,8 @@ export class Initiative {
   private readonly rules: readonly Rule[]
   private readonly workspace: () => Workspace | null
   private readonly record: (entry: EvaluationRecord) => void
+  private readonly trace: (entry: JournaledCoreEvent | LookedRecord) => void
+  private readonly world: NonNullable<InitiativeOptions["world"]>
   private readonly clock: Clock
   // Settling evaluations by rule and key: the last event heard, and its timer
   private settling = new Map<string, { event: InitiativeEvent; timer: unknown }>()
@@ -52,13 +73,16 @@ export class Initiative {
     this.rules = options.rules ?? RULES
     this.workspace = options.workspace
     this.record = options.record
+    this.trace = options.trace ?? (() => {})
+    this.world = options.world ?? ((ws, { now }) => worldOf(ws, now))
     this.clock = options.clock ?? systemClock
     this.presence = options.presence ?? new Presence()
   }
 
   observe(event: InitiativeEvent) {
     if (this.disposed) return
-    if (!CORE_KINDS.has(event.kind)) this.presence.hear(event as ActivityEvent)
+    if (TRACED.has(event.kind)) this.trace(event as JournaledCoreEvent)
+    if (!CORE.has(event.kind)) this.presence.hear(event as ActivityEvent)
     // What waited for the user to stop or leave is looked at again when they do
     if (event.kind === "doc.closed" || event.kind === "idle") this.retryDeferred()
     for (const rule of this.rules) {
@@ -117,9 +141,15 @@ export class Initiative {
     // Off for this rule: it doesn't run at all, so there is nothing to log
     if (!dialAllows(settings.mode, rule.needs)) return
     const now = this.clock.now()
-    const outcomes = await rule.when(event as never, { ws, now, presence: this.presence })
+    const reads: RuleRead[] = []
+    const world = recorded(this.world(ws, { rule, event, now }), reads)
+    const outcomes = await rule.when(event as never, { world, now, presence: this.presence })
+    const cause = { cause: event.kind, causeAt: event.at }
+    // A look that decided nothing isn't kept (the hourly look at watched threads, mostly): a replay of
+    // the same rules decides nothing there either
+    if (reads.length && outcomes.length) this.trace({ kind: "rule.looked", at: now, rule: rule.id, ...cause, reads })
     for (const outcome of outcomes) {
-      const base = { kind: "evaluation" as const, at: now, rule: rule.id, subject: outcome.subject, cause: event.kind }
+      const base = { kind: "evaluation" as const, at: now, rule: rule.id, subject: outcome.subject, ...cause }
       if ("none" in outcome) {
         this.record({ ...base, decision: "none", reason: outcome.none })
         continue

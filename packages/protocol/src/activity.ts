@@ -1,4 +1,4 @@
-import type { EvaluationRecord, FeedbackRecord } from "./initiative.ts"
+import type { EvaluationRecord, FeedbackRecord, JournaledCoreEvent, LookedRecord } from "./initiative.ts"
 import type { ReadStatus } from "./library.ts"
 
 // What the user does in the interface, as the renderer reports it to core. It feeds the workspace
@@ -41,8 +41,9 @@ export type ActivityKind = ActivityEvent["kind"]
 
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
-// What goes into .owlit/journal.jsonl. The rest (page turns, idle, closing a doc, removing a highlight,
-// sending a message) is only for live listeners.
+// What goes into .owlit/journal.jsonl. The rest (page turns, removing a highlight, sending a message) is
+// only for live listeners. Closing a doc and the window going idle are kept because Owlit's rules wait
+// on them (initiative.ts), and a replay has to hear what they heard.
 export const JOURNALED_KINDS = [
   "paper.opened",
   "paper.focus",
@@ -54,6 +55,8 @@ export const JOURNALED_KINDS = [
   "highlight.added",
   "note.edited",
   "paper.closed",
+  "doc.closed",
+  "idle",
 ] as const satisfies readonly ActivityKind[]
 
 // What core records about agents itself; never reported by a window
@@ -66,6 +69,8 @@ export type JournalEntry =
   | (ActivityEvent & { actor: "user" })
   | (AgentRecord & { actor: "agent" })
   | (EvaluationRecord & { actor: "owlit" })
+  | (LookedRecord & { actor: "owlit" })
+  | (JournaledCoreEvent & { actor: "owlit" })
   | (FeedbackRecord & { actor: "user" })
 
 // ---- What an agent may ask about the user's activity (activity.query, owlit-mcp's activity_read) ----

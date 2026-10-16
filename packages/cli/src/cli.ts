@@ -37,6 +37,8 @@ Commands:
                            ahead whether MinerU reads every PDF of a big import
   import-pitta <folder>    Bring in a pitta library
   index rebuild            Read the workspace again for search
+  archive export <folder>  Everything Owlit did on its own here, as one archive in a new folder
+                           outside the workspace (a continuo session archive); --since <date>
 
 Options:
   --workspace <folder>     The workspace (default: the one the current folder is in)
@@ -66,6 +68,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
         note: { type: "boolean" },
         tags: { type: "boolean" },
         parse: { type: "boolean" },
+        since: { type: "string" },
         "no-parse": { type: "boolean" },
         help: { type: "boolean", short: "h" },
         // Where the socket is, when not in the temp folder (tests)
@@ -121,7 +124,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
 }
 
 interface Context {
-  flags: { json?: boolean; pages?: string; section?: string; digest?: boolean; note?: boolean; tags?: boolean; parse?: boolean; "no-parse"?: boolean }
+  flags: { json?: boolean; pages?: string; section?: string; digest?: boolean; note?: boolean; tags?: boolean; parse?: boolean; "no-parse"?: boolean; since?: string }
   print: (human: string, json: unknown) => void
   io: Io
 }
@@ -255,6 +258,16 @@ async function commands(command: string, args: string[], owlit: OwlitClient, { f
         status = await owlit.rpc.search.status()
       }
       print(`The search index is rebuilt: ${count(status.papers, "paper")}, ${count(status.docs, "doc")}, ${count(status.chats, "chat")}.`, status)
+      return 0
+    }
+
+    case "archive": {
+      if (args[0] !== "export" || args.length !== 2) throw new Usage("The archive command is owlit archive export <folder>.")
+      const since = flags.since === undefined ? undefined : Date.parse(flags.since)
+      if (since !== undefined && Number.isNaN(since)) throw new Usage(`--since takes a date, like 2026-10-01; ${flags.since} isn't one.`)
+      const done = await owlit.rpc.archive.export({ to: path.resolve(io.cwd, args[1]), ...(since !== undefined ? { since } : {}) })
+      const range = done.from !== undefined ? ` from ${new Date(done.from).toLocaleString()} to ${new Date(done.until!).toLocaleString()}` : ""
+      print(done.note ? `${done.note} An empty archive is in ${done.to}.` : `${count(done.events, "event")}${range}, in ${done.to}.`, done)
       return 0
     }
 
