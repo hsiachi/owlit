@@ -38,7 +38,7 @@ export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 //
 // Codex takes no session options; what of the user's setup it leaves out is set for its whole process
 // (processEnv below). Two things still come through: the user's MCP servers and their own AGENTS.md
-// (docs/decisions/README.md, Open).
+// (an open question in the maintainer's local/ideas.md).
 
 const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch", "TodoWrite", "AskUserQuestion"]
 

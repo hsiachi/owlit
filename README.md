@@ -8,7 +8,7 @@
 <h3 align="center">Read, write and think through papers with Owlit.</h3>
 
 <p align="center">
-  A research workspace for macOS where you and an assistant develop ideas together,<br>
+  A research workspace where you and an assistant develop ideas together,<br>
   from first reading to written argument. Everything is files in a folder you own.
 </p>
 
@@ -22,7 +22,8 @@
 ![A paper in owlit: Owlit's digest on the left, your own notes on the right](.github/readme/paper.png)
 
 > [!NOTE]
-> owlit is early. It runs on Macs with Apple silicon, it's used by a few people, and things will change.
+> owlit is early. For now it runs on Macs with Apple silicon; Windows and Linux are planned. It's used by a
+> few people, and things will change.
 > If something breaks, Help › Copy Diagnostics and [open an issue](https://github.com/hsiachi/owlit/issues).
 
 ## What it is
@@ -54,6 +55,8 @@ Claude Code, Codex or Gemini CLI, or owlit's own engine.
   views and Owlit's are never blurred. It offers material for thinking before conclusions.
 
 ## Install
+
+owlit is Mac-only for now (Apple silicon); Windows and Linux builds are planned.
 
 1. [Download the latest dmg](https://github.com/hsiachi/owlit/releases/latest), open it and drag Owlit
    into Applications.

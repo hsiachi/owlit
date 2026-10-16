@@ -7,8 +7,8 @@ dist/
 .claude/launch.json
 .claude/worktrees/
 
-# Local agent execution state: plans, tasks, debug scripts
-.agents/tasks/
+# The maintainer's local notes: product vision and decisions, open work, ideas, brand sources, archive
+/local/
 
 # Desktop build output
 apps/desktop/release/

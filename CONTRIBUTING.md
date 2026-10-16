@@ -9,7 +9,8 @@ By contributing you agree that your contribution is licensed under the project's
 
 ## Running from source
 
-Needs macOS (Apple silicon), Node 24 and pnpm 10.
+Needs macOS (Apple silicon), Node 24 and pnpm 10. Windows and Linux are planned but not supported yet: the
+build and the dev scripts are Mac-only for now.
 
 ```bash
 pnpm install
@@ -67,6 +68,22 @@ The build tooling is Vite (renderer) plus esbuild (main and preload, bundled wit
 | `OWLIT_LOG_AGENTS=1` | Print what agent processes say to owlit |
 | `OWLIT_LOG_BROWSER=1` | Print what the embedded publisher view does |
 
+## Commits and branches
+
+- **A commit's subject says what changed for the person using owlit**, as a sentence: "A paper's figures no
+  longer bring back its folder after it moves to a DOI". No `feat:` / `fix(scope):` prefixes: nothing reads
+  them, and the sentence already says it. Keep it under about 72 characters; the body says why, and how it
+  was checked.
+- **One commit, one change you could revert on its own.** A feature is usually a few commits (core, then the
+  window, then a fix found while trying it), not one per file and not one per day.
+- **Branches are short slugs of what they do** (`groupings-ways`, `hover-no-shift`), branched from dev and
+  merged back with a merge commit whose subject repeats the outcome
+  (`Merge branch 'x' into dev: <outcome>`). Rename generated names before merging. Bring a branch up to
+  date by rebasing it on dev where that's easy, so dev's history isn't full of `Merge dev into x`.
+- **Before merging into dev:** `pnpm check` passes, and dev's latest CI run is green (fix a red one first).
+- **If the change is something people would notice,** add a line for it under `## Unreleased` at the top of
+  `apps/desktop/CHANGELOG.md` in the same branch, in the words a user would use.
+
 ## Releases
 
 A release is an arm64 dmg, signed with a self-signed certificate so macOS keeps a user's Keychain and folder
@@ -74,7 +91,7 @@ grants across versions; it isn't notarised. It is built on the maintainer's Mac,
 lives. `main` is the latest release: it only moves when one goes out, and pushing it deploys the share
 server (`.github/workflows/share-worker.yml`).
 
-1. Add a `## <version>` section to `apps/desktop/CHANGELOG.md` on dev and commit it.
+1. In `apps/desktop/CHANGELOG.md` on dev, rename `## Unreleased` to `## <version>`, tidy it, and commit it.
 2. `pnpm release:ship <version>` from the checkout of dev. It bumps the version, runs `pnpm check`, builds
    and signs the dmg with `Owlit <version> - read me first.txt` (install steps plus the changelog section),
    then moves `main` up to dev, tags `v<version>`, pushes, and makes the GitHub release. Nothing leaves the
