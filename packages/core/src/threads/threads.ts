@@ -1,6 +1,8 @@
 import { t } from "@lingui/core/macro"
 import {
   applyThreadEdit,
+  GROUPING_COLUMN,
+  groupingView,
   threadOfSubject,
   itemId,
   QUESTION_COLUMN,
@@ -12,6 +14,7 @@ import {
   type ThreadBatch,
   type ThreadCell,
   type ThreadEdit,
+  type ThreadGroup,
   type ThreadSearch,
   type ThreadPaper,
   type ThreadSize,
@@ -19,6 +22,7 @@ import {
   type ThreadRow,
   type ThreadSummary,
   type ThreadWrite,
+  upgradeThread,
 } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import { mkdir, readdir, rename } from "node:fs/promises"
@@ -333,6 +337,70 @@ export class Threads {
         mark(`column:${id}`, false)
       }
 
+      // Groups: the whole of one grouping as Owlit means it now, under what the user did to it. Groups they
+      // merged or ungrouped stay so (Owlit is told), and a group they put a paper in stays even when Owlit
+      // leaves it out.
+      const userKept: string[] = []
+      const wantsGroups = !!input.groups || (input.rows ?? []).some((r) => r.group !== undefined || r.groups !== undefined)
+      let grouping = wantsGroups ? (input.grouping ? c.columns.find((col) => col.id === input.grouping) : c.columns.find((col) => col.kind === "grouping")) : undefined
+      if (wantsGroups && input.grouping && grouping?.kind !== "grouping") problems.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic).`)
+      else if (wantsGroups && !grouping) {
+        let id = GROUPING_COLUMN
+        for (let n = 2; c.columns.some((col) => col.id === id); n++) id = `${GROUPING_COLUMN}${n}`
+        grouping = { id, question: "Topic", kind: "grouping", hidden: true, groups: [] }
+        c.columns.push(grouping)
+        mark(`column:${id}`, false)
+      }
+      const col = grouping?.kind === "grouping" ? grouping : undefined
+      const named = (id: string) => `${id} (${col?.groups?.find((g) => g.id === id)?.name ?? id})`
+      if (col && input.groups) {
+        const given = new Map(input.groups.map((g) => [g.id, g]))
+        for (const g of input.groups) {
+          if (!g.parent) continue
+          const parent = given.get(g.parent)
+          if (!parent) problems.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
+          else if (parent.parent || g.parent === g.id) problems.push(`Groups go two levels deep at most: ${g.id} sits under ${g.parent}, which is itself under ${parent.parent}.`)
+        }
+        const before = col.groups ?? []
+        const next: ThreadGroup[] = input.groups.map((g) => ({ ...g }))
+        for (const g of next) {
+          const into = c.yours.merged[`${col.id}:${g.id}`]
+          if (into !== undefined) userKept.push(`The user merged group ${named(g.id)} into ${named(into)}: papers you put in ${g.id} go in ${into}. Leave ${g.id} out.`)
+          else if (c.yours.removed[itemId.group(col.id, g.id)]) userKept.push(`The user ungrouped ${named(g.id)}: it stays gone, and papers you put in it aren't in it. Leave it out.`)
+        }
+        // Groups the user put papers in or merged others into, which Owlit's grouping leaves out
+        const held = new Set([
+          ...Object.entries(c.yours.placed)
+            .filter(([key, p]) => p.in && key.startsWith(`${col.id}:`))
+            .map(([key]) => key.slice(key.lastIndexOf(":") + 1)),
+          ...Object.entries(c.yours.merged)
+            .filter(([key]) => key.startsWith(`${col.id}:`))
+            .map(([, into]) => into),
+        ])
+        for (const id of held) {
+          const was = before.find((g) => g.id === id)
+          if (!was || given.has(id)) continue
+          const { parent, ...rest } = was
+          const top = parent ? next.find((g) => g.id === parent && !g.parent) : undefined
+          next.push(top ? { ...rest, parent } : rest)
+        }
+        for (const g of next) {
+          const was = before.find((have) => have.id === g.id)
+          if (!was || was.name !== g.name || was.one !== g.one || was.parent !== g.parent) mark(itemId.group(col.id, g.id))
+        }
+        for (const g of before) if (!next.some((have) => have.id === g.id)) changed.add(itemId.group(col.id, g.id))
+        col.groups = next
+        // Owlit's papers in a group that is gone fall out of it
+        const ids = new Set(next.map((g) => g.id))
+        for (const row of c.rows) {
+          const kept = row.in?.[col.id]?.filter((id) => ids.has(id))
+          if (!row.in?.[col.id] || kept?.length === row.in[col.id]!.length) continue
+          if (kept?.length) row.in[col.id] = kept
+          else delete row.in[col.id]
+        }
+      }
+      const view = col ? groupingView(c, col) : undefined
+
       // Rows: new papers, and answers for the ones there
       const added: string[] = []
       let updated = 0
@@ -389,10 +457,27 @@ export class Threads {
           // A cell the user rewrote keeps their words; Owlit's new answer waits underneath without a dot
           mark(itemId.cell(r.id, col), !c.yours.edits[itemId.cell(r.id, col)])
         }
-        if (r.group !== undefined && r.group !== row.group) {
-          row.group = r.group || undefined
-          touched = true
-          mark(itemId.row(r.id), false)
+        if (col && (r.group !== undefined || r.groups !== undefined)) {
+          const ids = placeIn(col.groups ?? [], r.groups ?? (r.group ? [r.group] : []), (id) => {
+            // A group the user merged or ungrouped: kept as Owlit wrote it while Owlit still has the group,
+            // so the user's change shows over it and their Undo finds it; otherwise where it went
+            const into = c.yours.merged[`${col.id}:${id}`]
+            const ungrouped = !!c.yours.removed[itemId.group(col.id, id)]
+            if (ungrouped) userKept.push(`${r.id} isn't in ${named(id)}: the user ungrouped it.`)
+            if (into !== undefined || ungrouped) return (col.groups ?? []).some((g) => g.id === id) ? id : into !== undefined ? view!.target(into) : null
+            if (!(col.groups ?? []).some((g) => g.id === id)) {
+              problems.push(`Row ${r.id} is put in group ${id}, which isn't one of the groups.`)
+              return null
+            }
+            return id
+          })
+          const was = row.in?.[col.id] ?? []
+          if (ids.join() !== was.join()) {
+            if (ids.length) row.in = { ...row.in, [col.id]: ids }
+            else if (row.in) delete row.in[col.id]
+            touched = true
+            mark(itemId.row(r.id), false)
+          }
         }
         if (touched && !changed.has(itemId.row(r.id))) updated++
       }
@@ -401,22 +486,6 @@ export class Threads {
         if (at < 0) continue
         c.rows.splice(at, 1)
         changed.add(itemId.row(id))
-      }
-
-      // Groups: the whole grouping as Owlit means it now. Rows in a group that is gone fall out of it.
-      if (input.groups) {
-        const ids = new Set(input.groups.map((g) => g.id))
-        for (const g of input.groups) if (g.parent && !ids.has(g.parent)) problems.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
-        for (const g of input.groups) {
-          const was = c.groups.find((have) => have.id === g.id)
-          if (!was || was.name !== g.name || was.one !== g.one || was.parent !== g.parent) mark(itemId.group(g.id))
-        }
-        c.groups = input.groups.map((g) => ({ ...g }))
-        for (const row of c.rows) if (row.group && !ids.has(row.group)) delete row.group
-      }
-      for (const r of input.rows ?? []) {
-        const row = c.rows.find((have) => have.id === r.id)
-        if (row?.group && !c.groups.some((g) => g.id === row.group)) problems.push(`Row ${r.id} is put in group ${row.group}, which isn't one of the groups.`)
       }
 
       // The memo, whole. What the user removed doesn't come back in other words' clothing; a sentence the
@@ -444,7 +513,7 @@ export class Threads {
       }
 
       if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
-      if (!fresh && !changed.size) return { id: c.id, title: shownThread(c).title, added: 0, updated: 0, left }
+      if (!fresh && !changed.size) return { id: c.id, title: shownThread(c).title, added: 0, updated: 0, left, userKept }
 
       c.updatedAt = now
       const version = await this.versions.saveThread(c.id, before, { ...(input.chatId ? { chatId: input.chatId } : {}) })
@@ -464,7 +533,7 @@ export class Threads {
       this.services.changed?.(c.id, c)
       const title = shownThread(c).title
       if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, created: fresh, rows: added, updated, ...(asked ? { asked } : {}) })
-      return { id: c.id, title, added: added.length, updated, left }
+      return { id: c.id, title, added: added.length, updated, left, userKept }
     })
   }
 
@@ -508,7 +577,7 @@ export class Threads {
         project: from.project,
         sources: from.sources,
         // Only the question's own answers: the other thread's columns and groups don't come along
-        rows: rows.map(({ group: _group, ...r }): ThreadRow => {
+        rows: rows.map(({ in: _in, ...r }): ThreadRow => {
           const answer = r.cells[QUESTION_COLUMN]
           return { ...r, cells: answer ? { [QUESTION_COLUMN]: answer } : {} }
         }),
@@ -539,9 +608,14 @@ export class Threads {
       const now = Date.now()
       const back = c.splitFrom.rows.filter((r) => !c.yours.removed[itemId.row(r.id)] && !from.rows.some((have) => have.id === r.id))
       for (const r of back) {
-        const group = r.group && from.groups.some((g) => g.id === r.group) ? r.group : undefined
-        const { group: _group, ...rest } = r
-        from.rows.push(group ? { ...rest, group } : rest)
+        // Into the groups it had there that are there still
+        const { in: was, ...rest } = r
+        const into = Object.fromEntries(
+          Object.entries(was ?? {})
+            .map(([col, ids]) => [col, ids.filter((id) => from.columns.find((x) => x.id === col && x.kind === "grouping")?.groups?.some((g) => g.id === id))] as const)
+            .filter(([, ids]) => ids.length),
+        )
+        from.rows.push(Object.keys(into).length ? { ...rest, in: into } : rest)
         const cell = itemId.cell(r.id, QUESTION_COLUMN)
         const edit = c.yours.edits[cell]
         if (edit) from.yours.edits[cell] = edit
@@ -594,7 +668,7 @@ export class Threads {
         if (now) await this.toTrash(id)
         this.services.changed?.(id, null)
       } else {
-        const back = JSON.parse(content) as Thread
+        const back = upgradeThread(JSON.parse(content))
         const c: Thread = { ...back, yours: now?.yours ?? back.yours, seenAt: now?.seenAt ?? back.seenAt, watch: now?.watch ?? back.watch, updatedAt: Date.now() }
         await this.save(c)
         await this.record(id, { at: c.updatedAt, by: "undo", items: [] })
@@ -671,7 +745,7 @@ export class Threads {
     const title = input.title!.trim()
     const taken = await readdir(this.dir).catch(() => [] as string[])
     return {
-      version: 1,
+      version: 2,
       id: uniqueId(title, taken),
       title,
       asked: { text: input.asked!.trim(), at: now, ...(input.chatId ? { chatId: input.chatId } : {}), ...(input.docPath ? { docPath: input.docPath } : {}) },
@@ -680,19 +754,25 @@ export class Threads {
       memo: [],
       columns: [{ id: QUESTION_COLUMN, question: input.asked!.trim(), kind: "ask" }],
       rows: [],
-      groups: [],
       watch: false,
       createdAt: now,
       updatedAt: now,
       changedAt: {},
       seenAt: 0,
-      yours: { edits: {}, removed: {} },
+      yours: { edits: {}, removed: {}, placed: {}, merged: {} },
     }
   }
 
   private async load(id: string): Promise<Thread | undefined> {
     if (!/^[\w-]+$/.test(id)) return undefined
-    return readJson<Thread>(path.join(this.dir, id, FILE))
+    const raw = await readJson<Parameters<typeof upgradeThread>[0]>(path.join(this.dir, id, FILE))
+    if (!raw || raw.version !== 1) return raw
+    // A thread kept before groupings were columns: upgraded once, on disk too, after whatever is writing now
+    void this.serial.run(async () => {
+      const again = await readJson<Parameters<typeof upgradeThread>[0]>(path.join(this.dir, id, FILE))
+      if (again?.version === 1) await this.save(upgradeThread(again))
+    })
+    return upgradeThread(raw)
   }
 
   // Into .owlit/trash as <when>-thread-<id>, where undelete finds the latest
@@ -713,6 +793,21 @@ export class Threads {
     return readJsonl<HistoryLine>(path.join(this.dir, id, "history.jsonl"))
   }
 
+}
+
+// The groups a row is put in, as Owlit wrote them: each through check (the group it now stands for, or
+// null to leave it out), each once, and not a group whose subgroup is there too
+function placeIn(groups: ThreadGroup[], wanted: string[], check: (id: string) => string | null | undefined) {
+  const ids = new Set<string>()
+  for (const id of wanted.map((w) => w.trim()).filter(Boolean)) {
+    const at = check(id)
+    if (at) ids.add(at)
+  }
+  for (const id of [...ids]) {
+    const parent = groups.find((g) => g.id === id)?.parent
+    if (parent) ids.delete(parent)
+  }
+  return [...ids]
 }
 
 function sameCell(a: ThreadCell, b: ThreadCell) {

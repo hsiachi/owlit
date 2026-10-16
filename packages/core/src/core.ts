@@ -805,7 +805,7 @@ export class Core {
       sentence: z.string().optional(),
     })
     const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
-    const item = z.string().regex(/^(title|memo:[\w-]+|cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+)$/, "an item: title, memo:<id>, cell:<paper>:<column>, row:<paper> or group:<id>")
+    const item = z.string().regex(/^(title|memo:[\w-]+|cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+:[\w-]+)$/, "an item: title, memo:<id>, cell:<paper>:<column>, row:<paper> or group:<column>:<id>")
     this.router.register("threads.list", noParams, () => threads().list())
     this.router.register("threads.get", z.object({ id: z.string().min(1) }), ({ id }) => threads().get(id))
     this.router.register(
@@ -818,8 +818,9 @@ export class Core {
         sources: z.array(z.string()).optional(),
         memo: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), text: z.string() })).optional(),
         columns: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), question: z.string() })).optional(),
-        rows: z.array(z.object({ id: z.string().min(1), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), foundBy: z.string().optional() })).optional(),
+        rows: z.array(z.object({ id: z.string().min(1), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), groups: z.array(z.string()).optional(), foundBy: z.string().optional() })).optional(),
         groups: z.array(group).optional(),
+        grouping: z.string().optional(),
         removeRows: z.array(z.string()).optional(),
         why: z.string().optional(),
         note: z.string().optional(),
@@ -839,9 +840,9 @@ export class Core {
           z.object({ op: z.literal("revert"), item }),
           z.object({ op: z.literal("remove"), item }),
           z.object({ op: z.literal("unremove"), item }),
-          z.object({ op: z.literal("move"), row: z.string().min(1), group: z.string().nullable() }),
-          z.object({ op: z.literal("ungroup"), group: z.string().min(1) }),
-          z.object({ op: z.literal("merge"), group: z.string().min(1), into: z.string().min(1) }),
+          z.object({ op: z.literal("move"), column: z.string().min(1), row: z.string().min(1), group: z.string().nullable() }),
+          z.object({ op: z.literal("ungroup"), column: z.string().min(1), group: z.string().min(1) }),
+          z.object({ op: z.literal("merge"), column: z.string().min(1), group: z.string().min(1), into: z.string().min(1) }),
           z.object({ op: z.literal("watch"), on: z.boolean() }),
           z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
           z.object({ op: z.literal("project"), project: z.string() }),

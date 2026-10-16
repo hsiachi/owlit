@@ -5680,11 +5680,6 @@ msgstr "Not in a group"
 msgid "Bear on none of them"
 msgstr "Bear on none of them"
 
-#. group a thread's papers by Owlit's groups
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Topic"
-msgstr "Topic"
-
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5871,6 +5866,11 @@ msgstr "Exported as a doc"
 #: app/src/features/threads/lib.ts
 msgid "Not in a project"
 msgstr "Not in a project"
+
+#. group a thread's papers by Owlit's groups
+#: app/src/features/threads/lib.ts
+msgid "Topic"
+msgstr "Topic"
 
 #: app/src/features/threads/lib.ts
 msgid "Compared with {doc}"

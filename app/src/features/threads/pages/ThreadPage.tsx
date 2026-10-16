@@ -66,8 +66,9 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   }
   const shown = shownOf(thread)
   const since = seenBefore ?? thread.seenAt
-  // A question asked of every paper, or Owlit's groups, make it a table
-  const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && !c.hidden) || shown.groups.length > 0
+  // A question asked of every paper, or Owlit's groups, make it a table; a hidden grouping without groups
+  // doesn't
+  const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && (!c.hidden || (c.kind === "grouping" && !!c.groups?.length)))
   // A paper the memo names opens as its row, where it is in the list
   const openRow = (paperId: string) => {
     if (!shown.rows.some((r) => r.id === paperId)) return false

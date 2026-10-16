@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { threadUri, itemId, QUESTION_COLUMN, type Thread, type ThreadRow } from "@owlit/protocol"
+import { threadUri, itemId, QUESTION_COLUMN, type Thread, type ThreadColumn, type ThreadRow } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
 import { MentionToken } from "@/components/mention/mention-token"
@@ -96,7 +96,8 @@ function PageLink({ passage, library }: { passage: { quote: string; page: number
 
 // A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
 // the Library: opening it, or adding it, brings it in, since it is then being used.
-export function RowPeek({ thread, row, library, className }: { thread: Thread; row: ThreadRow; library: Paper | undefined; className?: string }) {
+// grouping: the shown grouping whose groups Move to group… offers, when there is one
+export function RowPeek({ thread, row, grouping, library, className }: { thread: Thread; row: ThreadRow; grouping?: ThreadColumn; library: Paper | undefined; className?: string }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
@@ -144,17 +145,17 @@ export function RowPeek({ thread, row, library, className }: { thread: Thread; r
         <Button variant="ghost" size="sm" className="-ml-2.5 font-normal text-muted-foreground" onClick={() => void removeRow(thread.id, row.id)}>
           {t({ message: "Remove", comment: "take a paper off this thread" })}
         </Button>
-        {thread.groups.length > 0 && (
+        {grouping?.groups?.length ? (
           <ChoiceMenu
-            value={row.group ?? ""}
-            onChange={(group) => void editThread(thread.id, { op: "move", row: row.id, group: group || null })}
+            value={row.in?.[grouping.id]?.[0] ?? ""}
+            onChange={(group) => void editThread(thread.id, { op: "move", column: grouping.id, row: row.id, group: group || null })}
             label={t`Move to group`}
             trigger={t`Move to group…`}
             align="start"
             icon={null}
-            options={[...shown(thread).groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its thread" }) }]}
+            options={[...grouping.groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its thread" }) }]}
           />
-        )}
+        ) : null}
         <span className="flex-1" />
         {!library && (
           <Button variant="outline" size="sm" onClick={() => bring()}>

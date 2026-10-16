@@ -1,4 +1,4 @@
-import { threadUri, type Thread, type ThreadColumn } from "@owlit/protocol"
+import { groupingsOf, threadUri, type Thread, type ThreadColumn } from "@owlit/protocol"
 
 // What a background session is told for each kind of thread work. It has owlit's tools only (the
 // owlit MCP server), no one to ask, and its answer is shown nowhere: everything it does goes through
@@ -37,7 +37,7 @@ export function morePrompt(c: Thread) {
 ${ABOUT(c)}
 Search further than before: other sources, other words, older or newer years, the references and citations of the best papers there (library_related). Add 5 to 10 papers that aren't there yet and answer the question well, with thread_write id ${c.id} (rows). Don't add anything to the library. ${NOTE}
 ${ANSWERS}
-${c.groups.length ? "Put each new row in the group it fits, or a new group when none does.\n" : ""}Then update the memo if the new papers change it. ${MEMO}
+${groupingsOf(c).some((col) => col.groups?.length) ? "Put each new row in the group it fits, or a new group when none does.\n" : ""}Then update the memo if the new papers change it. ${MEMO}
 Your answer at the end is one line on what you added.`
 }
 

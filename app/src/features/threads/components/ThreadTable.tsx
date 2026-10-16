@@ -32,11 +32,14 @@ import { AskEach } from "./Work"
 // Rows a group shows before "Show N more"
 const SHOWN = 8
 
-type GroupBy = "topic" | "none" | `column:${string}`
+// A grouping (its column), a comparison's sentences, or none
+type GroupBy = "none" | `grouping:${string}` | `column:${string}`
 
 interface Section {
   key: string
   group?: ThreadGroup
+  // The grouping it is a group of
+  grouping?: ThreadColumn
   // A sentence of the user's, when grouped by a comparison
   sentence?: { id: string; text: string }
   label: string
@@ -64,7 +67,9 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
 export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
   const columns = shown.columns.filter((c) => !c.hidden)
   const compare = columns.find((c) => c.kind === "compare")
-  const [groupBy, setGroupBy] = useState<GroupBy>(shown.groups.length ? "topic" : "none")
+  const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length)
+  const [groupBy, setGroupBy] = useState<GroupBy>(groupings[0] ? `grouping:${groupings[0].id}` : "none")
+  const grouping = groupBy.startsWith("grouping:") ? groupings.find((c) => c.id === groupBy.slice(9)) : undefined
   const [sort, setSort] = useState<string>("order")
   const [folded, setFolded] = useState<Set<string>>(new Set())
   const [all, setAll] = useState<Set<string>>(new Set())
@@ -90,18 +95,22 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
   }
 
   const sections: Section[] = []
-  if (groupBy === "topic" && shown.groups.length) {
+  if (grouping) {
+    // The shown grouping keeps two levels and each paper in live groups only (shownThread)
+    const groups = grouping.groups ?? []
+    const members = (id: string) => shown.rows.filter((r) => r.in?.[grouping.id]?.includes(id))
     const add = (g: ThreadGroup, depth: number) => {
-      const own = shown.rows.filter((r) => r.group === g.id)
-      const children = shown.groups.filter((c) => c.parent === g.id)
-      const total = [...own, ...children.flatMap((c) => shown.rows.filter((r) => r.group === c.id))]
+      const own = members(g.id)
+      const children = groups.filter((c) => c.parent === g.id)
+      // A paper in two of its subgroups counts once
+      const total = [...new Set([...own, ...children.flatMap((c) => members(c.id))])]
       // A group whose papers all went elsewhere says nothing
       if (!total.length) return
-      sections.push({ key: g.id, group: g, label: g.name, one: g.one, rows: own, total, depth })
+      sections.push({ key: g.id, group: g, grouping, label: g.name, one: g.one, rows: own, total, depth })
       for (const c of children) add(c, depth + 1)
     }
-    for (const g of shown.groups.filter((g) => !g.parent)) add(g, 0)
-    const loose = shown.rows.filter((r) => !r.group || !shown.groups.some((g) => g.id === r.group))
+    for (const g of groups.filter((g) => !g.parent)) add(g, 0)
+    const loose = shown.rows.filter((r) => !r.in?.[grouping.id]?.length)
     if (loose.length) sections.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a thread in none of its groups" }), rows: loose, total: loose, depth: 0 })
   } else if (groupBy.startsWith("column:")) {
     const col = columns.find((c) => c.id === groupBy.slice(7))
@@ -136,7 +145,7 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
     </colgroup>
   )
   const groupOptions = [
-    ...(shown.groups.length ? [{ value: "topic" as GroupBy, label: t({ message: "Topic", comment: "group a thread's papers by Owlit's groups" }) }] : []),
+    ...groupings.map((c) => ({ value: `grouping:${c.id}` as GroupBy, label: columnLabel(c) })),
     ...columns.filter((c) => c.kind === "compare").map((c) => ({ value: `column:${c.id}` as GroupBy, label: t`Sentences of ${displayName(c.doc ?? c.question)}` })),
     { value: "none" as GroupBy, label: t({ message: "None", comment: "no grouping" }) },
   ]
@@ -221,7 +230,7 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
                             setPeek(isOpen(`${s.key}:${r.id}`, r.id) ? "" : `${s.key}:${r.id}`)
                           }}
                         />
-                        <PeekRow thread={thread} row={r} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
+                        <PeekRow thread={thread} row={r} grouping={grouping ?? groupings[0]} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
                       </Fragment>
                     ))}
                   {open && many && (
@@ -296,7 +305,7 @@ function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => void askAgain(thread.id, column.id)}>{t`Ask again`}</DropdownMenuItem>
+        {column.kind !== "grouping" && <DropdownMenuItem onSelect={() => void askAgain(thread.id, column.id)}>{t`Ask again`}</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => void editThread(thread.id, { op: "hide", column: column.id, hidden: true })}>{t`Hide column`}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -313,23 +322,25 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
   const [renaming, setRenaming] = useState(false)
   const navigate = useNavigate()
   const g = section.group
-  const groups: MenuGroups = g
-    ? [
+  const column = section.grouping?.id
+  const groups: MenuGroups =
+    g && column
+      ? [
         [
           { label: t`Rename`, onSelect: () => setRenaming(true), afterClose: true },
           {
             label: t`Merge into`,
             childrenClassName: "w-56",
-            children: thread.groups.filter((o) => o.id !== g.id).map((o) => ({ label: o.name, onSelect: () => void editThread(thread.id, { op: "merge", group: g.id, into: o.id }) })),
+            children: (section.grouping?.groups ?? []).filter((o) => o.id !== g.id).map((o) => ({ label: o.name, onSelect: () => void editThread(thread.id, { op: "merge", column, group: g.id, into: o.id }) })),
           },
-          { label: t`Ungroup`, onSelect: () => void editThread(thread.id, { op: "ungroup", group: g.id }) },
+          { label: t`Ungroup`, onSelect: () => void editThread(thread.id, { op: "ungroup", column, group: g.id }) },
         ],
         [
           {
             label: t`Make it a thread of its own`,
             onSelect: async () => {
               if (!isDesktop) return
-              const rows = thread.rows.filter((r) => r.group === g.id || thread.groups.some((c) => c.parent === g.id && c.id === r.group)).map((r) => r.id)
+              const rows = section.total.map((r) => r.id)
               try {
                 const c = await rpc.threads.split({ id: thread.id, rows, asked: section.label })
                 put(c)
@@ -352,12 +363,12 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
     <tr className="group/row">
       <td colSpan={span} className="border-b p-0">
         <div className={cn(inView, "flex items-center gap-2 pt-4 pb-1.5")} style={{ paddingLeft: 6 + section.depth * 20 }}>
-          {renaming && g ? (
+          {renaming && g && column ? (
             <RenameInput
               initial={section.label}
               label={t`Group name`}
               onDone={(name) => {
-                if (name !== null) void editThread(thread.id, { op: "rewrite", item: itemId.group(g.id), text: name })
+                if (name !== null) void editThread(thread.id, { op: "rewrite", item: itemId.group(column, g.id), text: name })
                 setRenaming(false)
               }}
               className="h-7 max-w-sm px-2"
@@ -372,7 +383,7 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
           <span className="ml-auto shrink-0 text-detail text-muted-foreground tabular-nums">{[count, rels].filter(Boolean).join(" · ")}</span>
           {/* The ⋯ holds its place while hidden, and a section without one keeps the same room, so the counts
               stay put on hover and line up from row to row */}
-          {g ? <RowMenuButton groups={groups} label={t`Group actions`} menuClassName="w-56" keepSpace /> : <span className="size-6 shrink-0" />}
+          {g && column ? <RowMenuButton groups={groups} label={t`Group actions`} menuClassName="w-56" keepSpace /> : <span className="size-6 shrink-0" />}
         </div>
       </td>
     </tr>
@@ -399,7 +410,11 @@ function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, ope
       </td>
       {columns.map((c) => (
         <td key={c.id} className={cn(td, "group-hover/row:bg-muted")}>
-          <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={(thread.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
+          {c.kind === "grouping" ? (
+            <GroupsCell column={c} row={row} />
+          ) : (
+            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={(thread.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
+          )}
         </td>
       ))}
       <td className={cn(td, "group-hover/row:bg-muted")} />
@@ -407,13 +422,19 @@ function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, ope
   )
 }
 
-function PeekRow({ thread, row, open, span }: { thread: Thread; row: ThreadRow; open: boolean; span: number }) {
+function PeekRow({ thread, row, grouping, open, span }: { thread: Thread; row: ThreadRow; grouping: ThreadColumn | undefined; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
     <TablePeekRow open={open} span={span} pinned>
-      <RowPeek thread={thread} row={row} library={library} className={tablePeekCard} />
+      <RowPeek thread={thread} row={row} grouping={grouping} library={library} className={tablePeekCard} />
     </TablePeekRow>
   )
+}
+
+// A grouping shown as a column: the groups the paper is in, by name
+function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRow }) {
+  const names = (row.in?.[column.id] ?? []).map((id) => column.groups?.find((g) => g.id === id)?.name).filter(Boolean)
+  return <span className="text-foreground">{names.join(" · ")}</span>
 }
 
 // A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the full text.

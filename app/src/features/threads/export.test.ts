@@ -14,9 +14,10 @@ describe("a thread exported as a doc", () => {
   })
 
   it("has one table row per paper, under its group's heading, every line with the same cells", () => {
-    const c = all.find((c) => c.groups.length)!
+    const c = all.find((c) => c.columns.some((col) => col.groups?.length))!
     const md = threadMarkdown(c)
-    for (const g of c.groups.filter((g) => c.rows.some((r) => r.group === g.id))) expect(md).toMatch(new RegExp(`^#{2,} ${g.name}$`, "m"))
+    const groups = c.columns.find((col) => col.kind === "grouping")!.groups!
+    for (const g of groups.filter((g) => c.rows.some((r) => r.in?.topic?.includes(g.id)))) expect(md).toMatch(new RegExp(`^#{2,} ${g.name}$`, "m"))
     const lines = md.split("\n").filter((l) => l.startsWith("| ["))
     expect(lines).toHaveLength(c.rows.length)
     const cells = (l: string) => l.replace(/\\\|/g, "").split("|").length
