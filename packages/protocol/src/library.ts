@@ -27,6 +27,8 @@ export interface PaperPdf {
   // Where the window reads it: owlit-file://workspace/… in the desktop app, an object URL on mock data
   url: string
   pages?: number
+  // Who brought it, and when, from the paper's tries; absent for a PDF owlit has no record of
+  came?: { by: PdfTry["by"]; at: number }
 }
 
 // How one try at a paper's PDF ended. pdf: it came. no-copy: owlit's routes found no copy. no-access: the

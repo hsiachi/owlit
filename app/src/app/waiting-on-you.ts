@@ -16,6 +16,8 @@ import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@owlit/protocol"
 import { useLibraryUi } from "@/features/library/ui-store"
 import { openSettings, useSettings } from "@/features/settings/store"
+import { useExtensionWaits } from "@/features/extension/store"
+import { siteWaitItems } from "@/features/extension/waits"
 
 // Everything stuck on the user, worked out once: Home lists it, the rail marks the place each thing is
 // in, and Settings marks its section. Each is the thing and its fix, and leaves once answered.
@@ -64,6 +66,7 @@ export function useWaitingOnYou(): WaitingItem[] {
   const imports = useAskingImports()
   const { run, pages, browser } = useFromBrowser()
   const offered = useOfferedPdfs()
+  const siteWaits = useExtensionWaits()
 
   return useMemo(() => {
     const out: WaitingItem[] = []
@@ -178,9 +181,10 @@ export function useWaitingOnYou(): WaitingItem[] {
             },
       })
     }
+    out.push(...siteWaitItems(siteWaits, () => navigate("/library")))
     if (finished) out.push({ key: "chat:finished", place: "/chat", tone: "owlit", icon: KIND_ICON.chat, what: t`Owlit finished since you last looked`, open: { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate("/chat") } })
     return out
-  }, [stuck, streaming, dismissed, finished, connectors, selected, background, imports, run, pages, browser, offered, navigate])
+  }, [stuck, streaming, dismissed, finished, connectors, selected, background, imports, run, pages, browser, offered, siteWaits, navigate])
 }
 
 // "for McDaniel & Einstein 2000, Nahum-Shani et al. 2016": one or two papers by name. More are only

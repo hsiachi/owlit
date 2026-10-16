@@ -16,7 +16,7 @@ import { useNewDoc } from "@/features/docs/use-new-doc"
 import { useNewDigest } from "@/features/library/digests"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
-import { WaitingOnYou } from "./WaitingOnYou"
+import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
 import { AWAY_FOR, SinceYouLeft } from "./SinceYouLeft"
 import { useTrail, workspaceKey } from "./trail"
 import { ago } from "@/lib/time"
@@ -52,6 +52,9 @@ export function HomePage() {
               <LeadCard place={lead} />
               <div className="mt-8 empty:hidden">
                 <WaitingOnYou />
+              </div>
+              <div className="mt-8 empty:hidden">
+                <SiteWaits />
               </div>
               {runsFrom && <SinceYouLeft since={runsFrom} all={!!since} />}
               {rest.length > 0 && (

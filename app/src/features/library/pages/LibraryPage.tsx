@@ -10,6 +10,7 @@ import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
 import { FromBrowserLine, NoPdfLine } from "../components/FromBrowserLine"
+import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
 import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
@@ -104,6 +105,7 @@ export function LibraryPage() {
           }
         />
         <ImportBanner />
+        <ExtensionWaitLines />
         <FromBrowserLine />
         {filter === "no-pdf" && <NoPdfLine />}
         <LibraryFindField onSubmit={submit} onPickFiles={addPdfFiles} />

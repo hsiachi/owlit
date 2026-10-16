@@ -25,7 +25,7 @@ const NO_PDF_GROUPS: PdfWait[][] = [
   ["not-found"],
   ["no-access", "not-offered"],
   ["not-there"],
-  ["finding", "offline"],
+  ["finding", "offline", "for-sign-in", "for-check", "for-permission"],
 ]
 
 // Papers owlit found no copy of whose publisher the user's own browser hasn't been sent to: their

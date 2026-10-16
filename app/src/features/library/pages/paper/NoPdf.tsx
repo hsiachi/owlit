@@ -15,7 +15,9 @@ import { openSettings, useSettings } from "@/features/settings/store"
 import { resumeTask, tasksFor, useTasksStore } from "@/features/tasks/store"
 import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun } from "../../from-browser"
 import { libraryClient, useLibraryStore } from "../../store"
-import { pdfWait, type PdfWait } from "../../lib/pdf-wait"
+import { pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
+import { useExtensionWaits } from "@/features/extension/store"
+import { actOnWait, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
 type CardState = PdfWait | "looking"
@@ -40,8 +42,25 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
   const tried = triedSentence(s?.tried ?? [])
   switch (state) {
     case "looking":
-    case "finding":
+    case "finding": {
+      // The extension has it: owlit's routes are done, and the publisher is tried through the user's browser
+      const site = s?.extension?.host
+      if (!now && site) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.` }
       return { title: t`Finding a PDF…`, detail: now ? (tried ? t`${tried}; now trying ${now}.` : t`Now trying ${now}.`) : tried ? t`${tried}.` : t`If you already have it, drop it here.` }
+    }
+    case "for-sign-in":
+    case "for-check":
+    case "for-permission": {
+      // The site the extension waits at; its own try's host and date when it met the wait itself, else
+      // it is one of the papers in line behind
+      const site = s?.extension?.host ?? host
+      const own = waitedFor(reason) ? reason : undefined
+      const at = own ? hostName(own) : site
+      if (state === "for-sign-in")
+        return { title: t`Waits for your library sign-in`, detail: own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.` }
+      if (state === "for-check") return { title: t`Waits for a check at ${site}`, detail: own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.` }
+      return { title: t`Waits for the extension to be allowed on ${site}`, detail: own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.` }
+    }
     case "offline":
       return { title: t`Waiting for the network`, detail: t`owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens.` }
     case "not-found":
@@ -158,6 +177,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
     }
   }
 
+  // The line for the site the extension waits at, with its one thing to do
+  const waits = useExtensionWaits()
+  const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
+
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
@@ -205,6 +228,18 @@ export function NoPdf({ paper }: { paper: Paper }) {
               <Button variant="outline" size="sm" onClick={() => void takeDownload(false)}>
                 {t({ message: "Not this", comment: "button: the downloaded file is not the paper's PDF" })}
               </Button>
+            </>
+          ) : state === "for-sign-in" || state === "for-check" || state === "for-permission" ? (
+            <>
+              {siteWait ? (
+                <Button size="sm" onClick={() => actOnWait(siteWait)}>
+                  {waitWords(siteWait).action}
+                </Button>
+              ) : (
+                // No line for it (owlit restarted since): looking again hands it to the extension again
+                lookAgainButton(true)
+              )}
+              {chooseFile}
             </>
           ) : state === "for-browser" ? (
             <>
