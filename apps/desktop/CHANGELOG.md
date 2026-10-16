@@ -14,6 +14,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - When your library wants you to sign in again, or a site wants a check, one line on Home and atop the Library says so, with one button: one sign-in covers every paper waiting on it, and Owlit goes on by itself afterwards. It turns amber, with a notification, only for a paper you asked for.
 - Since you left says how many PDFs came through your browser while you were away.
 - owlit no longer opens tabs in your browser, watches Downloads or runs a hidden browser: your browser's extension does that work, and a paper owlit can't get alone says so and offers the extension.
+- The owlit extension also comes as a Firefox add-on.
 
 ## 0.2.0
 
