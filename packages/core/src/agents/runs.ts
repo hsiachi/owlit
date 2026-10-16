@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { applyUpdate, threadOfSubject, type Chat, type ChatMessage, type SessionUpdate, type Task } from "@owlit/protocol"
+import { applyUpdate, mentionLink, paperUri, threadOfSubject, type Chat, type ChatMessage, type SessionUpdate, type Task } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import type { Chats } from "../chats/chats.ts"
 import type { Workspace } from "../workspace/workspace.ts"
@@ -16,7 +16,7 @@ export interface RunWords {
   // Why it started, as the session's first message
   why: string
   // Said in place of the agent's answer once it is done, when the answer itself lives elsewhere (a
-  // reading note is the paper's note, not a message)
+  // digest is the paper's, not a message)
   result?: string
 }
 
@@ -69,11 +69,11 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
     const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
     const why =
       task.priority === "waiting"
-        ? t`You opened “${title}”, which has no reading note yet.`
+        ? t`You opened “${title}”, which has no digest yet.`
         : task.priority === "asked"
-          ? t`You asked for a reading note on “${title}”.`
-          : t`“${title}” has no reading note yet.`
-    return { doing: t`Writing a reading note for “${title}”`, done: t`Reading note for “${title}”`, why, result: t`The reading note is written.` }
+          ? t`You asked for a digest of “${title}”.`
+          : t`“${title}” has no digest yet.`
+    return { doing: t`Writing the digest of “${title}”`, done: t`Digest of “${title}”`, why, result: `${t`The digest is written:`} ${mentionLink(title, paperUri(task.subject))}` }
   }
   if (task.kind.startsWith("threads.")) {
     const thread = await ws.threads.get(threadOfSubject(task.subject)).catch(() => undefined)

@@ -18,6 +18,7 @@ import { regenerate } from "../lib/regenerate"
 import { modelNameOf } from "../lib/selection"
 import type { Chat, ChatMessage } from "../types"
 import { AssistantMessage, UserMessage } from "./messages/MessageItem"
+import { RunReason } from "@/features/runs/components"
 
 // A chat's messages, on the Chat page or in the docked agent panel (`panel`): the same conversation at
 // two sizes. `onEdit` puts a sent question back in the composer; `seek` is a message to bring up, once
@@ -59,7 +60,8 @@ export function ChatMessages({
                   message={m}
                   index={i}
                   modelName={m.role === "assistant" ? modelNameOf(connectors, m.connectorId, m.modelId) : undefined}
-                  canRegenerate={m.role === "assistant" && !streaming}
+                  canRegenerate={m.role === "assistant" && !streaming && !chat.startedBy}
+                  run={!!chat.startedBy}
                   broken={broken?.messageId === m.id}
                   onEdit={onEdit}
                 />
@@ -95,18 +97,21 @@ const MessageRow = memo(function MessageRow({
   canRegenerate,
   broken,
   onEdit,
+  run,
 }: {
   chatId: string
   message: ChatMessage
   index: number
   modelName?: string
   canRegenerate: boolean
+  // One of Owlit's own runs: its question is why it started, in Owlit's words
+  run?: boolean
   // The chat's broken reply, which can be dismissed while it still asks for the user
   broken: boolean
   onEdit?: (text: string) => void
 }) {
   const navigate = useNavigate()
-  if (message.role === "user") return <UserMessage message={message} onEdit={onEdit} />
+  if (message.role === "user") return run ? <RunReason message={message} /> : <UserMessage message={message} onEdit={onEdit} />
   return (
     <AssistantMessage
       message={message}

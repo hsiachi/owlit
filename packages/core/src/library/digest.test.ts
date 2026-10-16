@@ -70,12 +70,12 @@ describe("digests", () => {
     await addPaper("doi-10.1-r")
     await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-r" } })
     const task = await digestDone("doi-10.1-r")
-    expect(task).toMatchObject({ state: "done", chatId: expect.any(String), doing: "Writing a reading note for “Paper doi-10.1-r”" })
+    expect(task).toMatchObject({ state: "done", chatId: expect.any(String), doing: "Writing the digest of “Paper doi-10.1-r”" })
     const run = await call("chats.get", { id: task.chatId })
-    expect(run).toMatchObject({ startedBy: "owlit", run: { taskId: task.id, kind: "paper.digest", subject: "doi-10.1-r" }, title: "Reading note for “Paper doi-10.1-r”" })
-    expect(run.messages[0]).toMatchObject({ role: "user", parts: [{ type: "text", text: "You opened “Paper doi-10.1-r”, which has no reading note yet." }] })
+    expect(run).toMatchObject({ startedBy: "owlit", run: { taskId: task.id, kind: "paper.digest", subject: "doi-10.1-r" }, title: "Digest of “Paper doi-10.1-r”" })
+    expect(run.messages[0]).toMatchObject({ role: "user", parts: [{ type: "text", text: "You opened “Paper doi-10.1-r”, which has no digest yet." }] })
     // The note itself is the paper's; the session says it was written
-    expect(run.messages[1]).toMatchObject({ role: "assistant", status: "done", parts: [{ type: "text", text: "The reading note is written." }] })
+    expect(run.messages[1]).toMatchObject({ role: "assistant", status: "done", parts: [{ type: "text", text: "The digest is written: [Paper doi-10.1-r](owlit://library/doi-10.1-r)" }] })
     expect(await call("chats.list")).toEqual([])
   })
 
