@@ -3,8 +3,9 @@
 // The address it is reached by is not in wrangler.jsonc, so a fork deploys to its own workers.dev address
 // rather than someone else's domain. The maintainer's comes from OWLIT_SHARE_SERVER, the same value a
 // release bakes into the app (.env.release.local at the repo root, or the environment), and is deployed as a
-// custom domain. Without it the worker is deployed to workers.dev only; a custom domain made by an earlier
-// deploy stays, since wrangler only touches the domains it is given.
+// custom domain. That domain replaces every custom domain the worker had, so moving to a new address takes
+// the old one off (links made on it stop opening). Without it the worker is deployed to workers.dev only, and
+// custom domains made by an earlier deploy stay.
 
 import { execFileSync } from "node:child_process"
 import path from "node:path"
