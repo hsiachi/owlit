@@ -347,11 +347,11 @@ describe("Threads, Owlit's work in the background", () => {
     const { threads, scheduler } = withRuns()
     const { id } = await start(threads)
     await threads.edit(id, { op: "watch", on: true })
-    await threads.checkWatched(Date.now())
-    expect((await scheduler.list()).filter((t) => t.kind === "threads.check")).toHaveLength(0)
-    await threads.checkWatched(Date.now() + 25 * 3_600_000)
-    const task = (await scheduler.list()).find((t) => t.kind === "threads.check")!
-    await scheduler.wait(task.id)
+    expect(await threads.watched(Date.now())).toEqual([{ id, due: false }])
+    expect(await threads.watched(Date.now() + 25 * 3_600_000)).toEqual([{ id, due: true }])
+    // Owlit's rules queue it (initiative/rules.ts); the run marks the thread checked
+    await scheduler.wait(scheduler.enqueue("threads.check", id, "background").id)
     expect((await threads.get(id)).checkedAt).toBeGreaterThan(0)
+    expect(await threads.watched(Date.now() + 23 * 3_600_000)).toEqual([{ id, due: false }])
   })
 })

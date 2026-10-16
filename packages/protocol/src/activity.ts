@@ -1,3 +1,4 @@
+import type { EvaluationRecord, FeedbackRecord } from "./initiative.ts"
 import type { ReadStatus } from "./library.ts"
 
 // What the user does in the interface, as the renderer reports it to core. It feeds the workspace
@@ -58,8 +59,14 @@ export const JOURNALED_KINDS = [
 // What core records about agents itself; never reported by a window
 export type AgentRecord = { kind: "agent.wrote"; at: number; path: string; versionId: string; chatId?: string }
 
-// A line of .owlit/journal.jsonl: who did what, when
-export type JournalEntry = (ActivityEvent & { actor: "user" }) | (AgentRecord & { actor: "agent" })
+// A line of .owlit/journal.jsonl: who did what, when. Owlit's own decisions (each rule's evaluation, with
+// or without an action) and what the user did with its work are there too, so its initiative can be
+// looked back on and replayed.
+export type JournalEntry =
+  | (ActivityEvent & { actor: "user" })
+  | (AgentRecord & { actor: "agent" })
+  | (EvaluationRecord & { actor: "owlit" })
+  | (FeedbackRecord & { actor: "user" })
 
 // ---- What an agent may ask about the user's activity (activity.query, owlit-mcp's activity_read) ----
 // Facts, never scores: how long, which pages, how often. Single actions aren't interpreted.

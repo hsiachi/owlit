@@ -1,4 +1,4 @@
-import { JOURNALED_KINDS, type AgentRecord, type JournalEntry } from "@owlit/protocol"
+import { JOURNALED_KINDS, type AgentRecord, type EvaluationRecord, type FeedbackRecord, type JournalEntry } from "@owlit/protocol"
 import type { ActivityBus } from "./bus.ts"
 import { appendJsonl } from "../fs-util.ts"
 
@@ -31,6 +31,18 @@ export class Journal {
   record(entry: AgentRecord) {
     const target = this.file()
     if (target) this.append(target, { ...entry, actor: "agent" })
+  }
+
+  // Each decision Owlit's rules took, with or without an action: the held-back log
+  evaluation(entry: EvaluationRecord) {
+    const target = this.file()
+    if (target) this.append(target, { ...entry, actor: "owlit" })
+  }
+
+  // What the user did with Owlit's work, and the dial
+  feedback(entry: FeedbackRecord) {
+    const target = this.file()
+    if (target) this.append(target, { ...entry, actor: "user" })
   }
 
   // Resolves once everything published so far is on disk

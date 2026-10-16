@@ -1,4 +1,5 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
+import type { InitiativeSettings } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
@@ -85,7 +86,10 @@ export interface Methods {
   "workspace.clearRecent": { params: void; result: null }
   // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
   // window's chat, …)
-  "workspace.layout": { params: void; result: Record<string, unknown> }
+  // How far Owlit goes in this workspace without being asked; set records feedback.dialChanged
+  "initiative.get": { params: void; result: InitiativeSettings }
+  "initiative.set": { params: { patch: Partial<InitiativeSettings> }; result: InitiativeSettings }
+  "workspace.layout":{ params: void; result: Record<string, unknown> }
   // Merges into the layout; a key set to null is removed
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
   // One thing the user did; dropped when activity is turned off or no workspace is open
@@ -482,6 +486,8 @@ export interface Notifications {
   "settings.changed": SettingsView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
+  // The dial moved, in any window
+  "initiative.changed": InitiativeSettings
   // Owlit was kept out of a doc or let in, or looked at it
   "docs.owlit": { path: string; state: DocOwlit }
   // An agent's state changed (it started, ended, crashed, was checked)

@@ -20,6 +20,7 @@ import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
+import { Initiative } from "./initiative/initiative.ts"
 import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
@@ -117,6 +118,9 @@ export class Core {
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
   private readonly background: Background
+  // Owlit's rules, and the hour that wakes them
+  private readonly initiative: Initiative
+  private readonly hourly: ReturnType<typeof setInterval>
   private socket: SocketServer | null = null
   // The system's preferred languages (BCP 47, most preferred first), read once: the interface and digests
   // follow them until Settings says otherwise
@@ -172,8 +176,26 @@ export class Core {
       memory: async () => (await this.workspace?.memory.list()) ?? [],
     })
     this.background = new Background(this.agents)
-    // Opening a paper's page says the user is about to read it: its digest comes first
-    this.activity.subscribe(["paper.opened"], (event) => void this.workspace?.library.wantDigest(event.paperId, "waiting"))
+    // What Owlit does without being asked is decided by its rules (initiative/rules.ts), which hear what
+    // the user does and what core sees, and the clock
+    this.initiative = new Initiative({ workspace: () => this.workspace, record: (entry) => this.journal.evaluation(entry) })
+    this.activity.subscribe((event) => this.initiative.observe(event))
+    this.hourly = setInterval(() => this.workspace && this.initiative.observe({ kind: "clock.hour", at: Date.now() }), 3_600_000)
+    this.hourly.unref?.()
+
+    this.router.register("initiative.get", noParams, () => this.requireWorkspace().initiative())
+    this.router.register(
+      "initiative.set",
+      z.object({ patch: z.object({ mode: z.enum(["off", "onOpen", "away"]).optional(), dailyCap: z.number().int().min(0).max(500).optional() }) }),
+      async ({ patch }) => {
+        const ws = this.requireWorkspace()
+        const before = await ws.initiative()
+        const next = await ws.setInitiative(patch)
+        if (next.mode !== before.mode) this.journal.feedback({ kind: "feedback.dialChanged", at: Date.now(), subject: "workspace", detail: { from: before.mode, to: next.mode } })
+        this.notifier.notify("initiative.changed", next)
+        return next
+      },
+    )
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
@@ -876,6 +898,9 @@ export class Core {
                 // Libraries sign you out after a while (Tsinghua's tlink after two hours): Settings says so
                 // once a run finds the sign-in page, and signed in again once a PDF comes through
                 proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
+                starred: (paperId) => {
+                  if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.starred", at: Date.now(), paperId })
+                },
                 agent: async (prompt, ctx, pictures) =>
                   this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers: this.mcpServers(root), signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
@@ -945,8 +970,6 @@ export class Core {
               change.reload || change.folders.deleted.length ? undefined : { docs: [...change.changed.map((f) => f.path), ...change.deleted.map((f) => f.path)] },
             )
           })
-          // Threads the user watches get their daily look
-          void next.threads.checkWatched().catch((error) => console.error("[core] couldn't check watched threads", error))
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)
@@ -981,6 +1004,8 @@ export class Core {
       this.workspace = next
       // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
       if (opened) await next.tasks.start()
+      // Owlit's rules look at the workspace once it runs (watched threads get their daily look)
+      if (opened) this.initiative.observe({ kind: "workspace.opened", at: Date.now() })
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
       // Only the recent list: the switch has happened either way
@@ -1020,6 +1045,8 @@ export class Core {
 
   async dispose() {
     this.started = false
+    clearInterval(this.hourly)
+    this.initiative.dispose()
     await this.switching
     // Background work stops before the agents it runs on: a run cut off by its agent closing would count
     // as a failed try, where one stopped by closing stays running, to run again next time

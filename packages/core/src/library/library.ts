@@ -165,6 +165,8 @@ export interface LibraryServices {
   http: Http
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
   // (digests). model is the one chosen for background work, when one is.
+  // The user starred a paper (not an agent, not an import)
+  starred?: (id: string) => void
   // A background agent run for a task: its session shows beside the paper (ctx.describe)
   agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
   // The language digests are written in: Settings' choice, else the system's
@@ -461,8 +463,8 @@ export class Library {
       const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt)
       if (id.startsWith("local-") && patch.ids && paperIdOf(cleanIds(patch.ids))) return this.relink(id, record, state, patch)
       await writeState(this.root, id, applyPatch(state, record, patch))
-      // Starring a paper says it is worth reading: a note gets written in the background
-      if (patch.starred && !state.starred) void this.wantDigest(id, "background")
+      // Starring a paper says it is worth reading: Owlit's rules hear it (a digest in the background)
+      if (patch.starred && !state.starred) this.services.starred?.(id)
       return (await this.get(id))!
     })
   }
@@ -940,11 +942,8 @@ export class Library {
   // when the paper has, or will have, text to read and has no note yet. A note already there, pitta's
   // included, is written again only when the user asks (rewrite), never on owlit's own account.
   async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
-    if (!this.services.agent || !isPaperId(id) || !(await readRecord(this.root, id))) return
+    if (await this.digestHeldBack(id, options.rewrite)) return
     const dir = paperDir(this.root, id)
-    if (!options.rewrite && (await exists(path.join(dir, "digest.md")))) return
-    const hasText = await exists(path.join(dir, "text.md"))
-    if (!hasText && !(await hasPdfFile(this.root, id))) return
     // Asked for on disk, beside the note: the task may run after a restart, and must still know
     if (options.rewrite && (await exists(path.join(dir, "digest.md")))) {
       await this.serial.run(async () => {
@@ -958,6 +957,16 @@ export class Library {
       })
     }
     this.queue("paper.digest", id, priority)
+  }
+
+  // Why no digest would be written for a paper now (Owlit's rules log it), or null when one would
+  async digestHeldBack(id: string, rewrite = false): Promise<string | null> {
+    if (!this.services.agent) return "no agent to write it"
+    if (!isPaperId(id) || !(await readRecord(this.root, id))) return "not in the library"
+    const dir = paperDir(this.root, id)
+    if (!rewrite && (await exists(path.join(dir, "digest.md")))) return "has a digest"
+    if (!(await exists(path.join(dir, "text.md"))) && !(await hasPdfFile(this.root, id))) return "nothing to read"
+    return null
   }
 
   private async rewriteAsked(id: string) {

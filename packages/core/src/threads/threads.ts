@@ -238,13 +238,16 @@ export class Threads {
     })
   }
 
-  // Threads the user asked Owlit to watch get a check once a day, the first time the workspace opens
-  async checkWatched(now = Date.now()) {
+  // The threads the user asked Owlit to watch, each with whether a day has passed since its last check
+  // (Owlit's rules queue the check)
+  async watched(now = Date.now()): Promise<{ id: string; due: boolean }[]> {
+    const out: { id: string; due: boolean }[] = []
     for (const s of await this.list()) {
       if (!s.watch) continue
       const c = await this.load(s.id)
-      if (c && now - (c.checkedAt ?? c.createdAt) >= DAY) this.queue("threads.check", c.id, "background")
+      if (c) out.push({ id: c.id, due: now - (c.checkedAt ?? c.createdAt) >= DAY })
     }
+    return out
   }
 
   private async checked(id: string) {
