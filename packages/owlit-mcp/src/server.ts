@@ -479,18 +479,17 @@ function paperLine(p: Paper, extension: boolean) {
 }
 
 // Why a paper has no PDF, in words an agent can pass on, read off where core says it stands (its state
-// and the ending of the try that says why), as the window shows it. A bare "no PDF" had an agent tell the
-// user to set up the library proxy they already had, and say nothing of the papers waiting for the
-// user's browser.
+// and the ending of the try that says why), as the window shows it: with only "no PDF", an agent
+// suggests a library proxy the user already has, and can't say which sign-in a paper waits for.
 const DROP = "the user can drop the PDF on the paper"
-const IN_BROWSER = "the user can press Get it in your browser on the paper, or drop the PDF on it"
 const BY_ENDED: Record<PdfEnded, string> = {
   "no-copy": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
   "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
   "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
   "not-there": `no PDF: the publisher has no PDF at the paper's address; ${DROP}`,
-  check: `no PDF: the publisher stopped owlit with a check, which the user's own browser may get past; ${IN_BROWSER}`,
-  "sign-in": `no PDF: the publisher wants a sign-in, which the user's own browser may have; ${IN_BROWSER}`,
+  // Only owlit's own looks give these as a reason for no PDF (an older record); the extension's are WAITS
+  check: `no PDF: the publisher stopped owlit's own look with a check; ${DROP}`,
+  "sign-in": `no PDF: the publisher wanted a sign-in from owlit's own look; ${DROP}`,
   // Not reasons for having no PDF; core never gives them as one
   pdf: `no PDF; ${DROP}`,
   offline: `no PDF yet (waiting for the network)`,

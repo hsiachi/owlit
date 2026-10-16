@@ -78,8 +78,8 @@ describe("pdfFact", () => {
     expect(fact(noPdf("no-access", "you"))).toMatch(/offered access instead.*drop the PDF/)
     expect(fact(noPdf("not-offered", "you"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
     expect(fact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
-    expect(fact(noPdf("check"))).toMatch(/stopped owlit with a check.*Get it in your browser.*drop the PDF/)
-    expect(fact(noPdf("sign-in"))).toMatch(/wants a sign-in.*Get it in your browser/)
+    expect(fact(noPdf("check"))).toMatch(/stopped owlit's own look with a check.*drop the PDF/)
+    expect(fact(noPdf("sign-in"))).toMatch(/wanted a sign-in.*drop the PDF/)
   })
 
   it("says the extension could try, for a paper with no PDF, while no browser's extension may connect", () => {

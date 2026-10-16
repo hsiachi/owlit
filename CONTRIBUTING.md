@@ -81,7 +81,6 @@ The build tooling is Vite (renderer) plus esbuild (main and preload, bundled wit
 | `OWLIT_LOG_ACTIVITY=1` | Print every activity event the renderer reports |
 | `OWLIT_LOG_DOCS=1` | Print what the workspace watcher reports |
 | `OWLIT_LOG_AGENTS=1` | Print what agent processes say to owlit |
-| `OWLIT_LOG_BROWSER=1` | Print what the embedded publisher view does |
 
 ## Commits and branches
 
