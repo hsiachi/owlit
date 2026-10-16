@@ -1249,9 +1249,11 @@ msgstr "跳过大文件"
 msgid "Details"
 msgstr "详细信息"
 
+#. tell Owlit its comment isn't wanted; it won't say it again
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -2387,6 +2389,19 @@ msgstr "在“{title}”中：{error}"
 msgid "Owlit works here only when you ask"
 msgstr "只有你开口，Owlit 才在这里动手"
 
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Owlit hasn’t looked at this doc yet"
+msgstr "Owlit 还没看过这篇文稿"
+
+#. placeholder {0}: looked.count
+#: app/src/features/docs/OwlitChip.tsx
+msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
+msgstr "{0, plural, other {{when}看过 · 留了 # 条评论}}"
+
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Looked {when} · nothing to add"
+msgstr "{when}看过 · 没什么要说的"
+
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "链接已复制"
@@ -2467,6 +2482,11 @@ msgstr "{replies, plural, other {# 条回复}}"
 msgid "{0} replied {1}"
 msgstr "{0} {1}回复"
 
+#. Owlit is writing its answer to the user's reply on a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Replying…"
+msgstr "正在回复…"
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
 msgstr "就这条评论问 Owlit"
@@ -2531,8 +2551,8 @@ msgid "{0} sees replies on the shared page."
 msgstr "{0} 会在分享页面上看到回复。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t answer in comments yet. To ask it, use the feather above."
-msgstr "Owlit 暂时不会在评论里回复。要问它，请点上方的羽毛。"
+msgid "Owlit answers here. To have it change the doc, use the feather above."
+msgstr "Owlit 会在这里回复。要它改文稿，请用上方的羽毛。"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 #: apps/share-web/src/App.tsx
@@ -6701,6 +6721,30 @@ msgid "The digest is written:"
 msgstr "导读写好了："
 
 #: packages/core/src/agents/runs.ts
+msgid "Reading “{name}” since your last changes"
+msgstr "正在读“{name}”里你新改的地方"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked at “{name}”"
+msgstr "看过了“{name}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "You opened “{name}”, which changed since Owlit last looked."
+msgstr "你打开了“{name}”，它在 Owlit 上次看过之后改过。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering your reply in “{name}”"
+msgstr "正在回复你在“{name}”里的回复"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered your reply in “{name}”"
+msgstr "回复了你在“{name}”里的回复"
+
+#: packages/core/src/agents/runs.ts
+msgid "You replied to Owlit's comment in “{name}”."
+msgstr "你回复了 Owlit 在“{name}”里的评论。"
+
+#: packages/core/src/agents/runs.ts
 msgid "a thread"
 msgstr "一条脉络"
 
@@ -6866,6 +6910,10 @@ msgstr "owlit 在这里无法用其他应用打开文件。"
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
 msgstr "owlit 已不再有那个文件。"
+
+#: packages/core/src/core.ts
+msgid "That comment isn't there any more."
+msgstr "那条评论已经不在了。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

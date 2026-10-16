@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
+import { openRun, useOpenRuns } from "@/features/runs/hooks"
 import { useDocsUiStore } from "../ui-store"
 import { mentionLabel } from "../lib/mentions"
 import { askedChat, type CommentView, type EntryView } from "./model"
@@ -93,13 +94,31 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
 interface OpenActions {
   onAsk: () => void
   onResolve: () => void
+  // Owlit's comments in the user's own docs only
+  onDismiss?: () => void
   onReply: (text: string) => Promise<void> | void
   onEdit: (entryId: string, text: string) => void
   onDelete: (entryId: string) => void
   onClose: () => void
 }
 
-export function OpenCard({ view, lost, actions, focusReply }: { view: CommentView; lost: boolean; actions: OpenActions; focusReply?: boolean }) {
+// Owlit answering the user's reply: its words shimmer where its entry will be, and open the run
+const REPLY_RUN = ["docs.reply"]
+function Replying({ subject }: { subject: string }) {
+  const [run] = useOpenRuns(subject, REPLY_RUN)
+  if (!run) return null
+  return (
+    <div className="mt-3">
+      <div className="flex h-6 items-center text-xs font-medium">Owlit</div>
+      <button type="button" disabled={!run.chatId} onClick={() => run.chatId && void openRun(run.chatId)} className="shimmer text-left text-sm text-muted-foreground">
+        {t({ message: "Replying…", comment: "Owlit is writing its answer to the user's reply on a comment" })}
+      </button>
+    </div>
+  )
+}
+
+// replyRun: the subject of Owlit's run answering a reply here ("<path>#<comment id>"), for Owlit's comments
+export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: CommentView; lost: boolean; actions: OpenActions; focusReply?: boolean; replyRun?: string }) {
   const [first, ...replies] = view.entries
   const [editing, setEditing] = useState<string | null>(null)
   // More than three replies open folded down to the latest. Which one that is is fixed when the card
@@ -117,6 +136,11 @@ export function OpenCard({ view, lost, actions, focusReply }: { view: CommentVie
         <IconButton label={t({ message: "Resolve", comment: "put a comment away" })} size="icon-xs" onClick={actions.onResolve}>
           <CheckIcon />
         </IconButton>
+        {first.who === "owlit" && actions.onDismiss && (
+          <IconButton label={t({ message: "Dismiss", comment: "tell Owlit its comment isn't wanted; it won't say it again" })} size="icon-xs" onClick={actions.onDismiss}>
+            <XIcon />
+          </IconButton>
+        )}
         {first.editable && <EntryMenu entry={first} first hasReplies={replies.length > 0} onEdit={() => setEditing(first.id)} onDelete={() => actions.onDelete(first.id)} />}
       </div>
       <div className="pr-1.5">
@@ -142,6 +166,7 @@ export function OpenCard({ view, lost, actions, focusReply }: { view: CommentVie
               }} onCancel={() => setEditing(null)} />
           </div>
         ))}
+        {replyRun && <Replying subject={replyRun} />}
         <AskedLine commentKey={view.key} />
         {/* Keyed by the comment, so another comment opened in its place starts with an empty field */}
         <ReplyField key={view.key} view={view} autoFocus={focusReply} onReply={actions.onReply} />
@@ -272,9 +297,9 @@ function ReplyField({ view, autoFocus, onReply }: { view: CommentView; autoFocus
   const hint = view.thread
     ? { icon: <LinkIcon />, text: t`${startedBy.name} sees replies on the shared page.` }
     : startedBy.who === "owlit"
-      ? // Owlit doesn't answer in a comment until it can be seen working outside a chat (docs/decisions,
-        // "Owlit's presence"); till then the feather in the card's first row asks it in the docked chat
-        { icon: <OwlitMark />, text: t`Owlit doesn’t answer in comments yet. To ask it, use the feather above.` }
+      ? // Owlit answers under its own comments, as a run with a body (the card's replying line); an edit
+        // to the doc is asked for in a chat, from the feather
+        { icon: <OwlitMark />, text: t`Owlit answers here. To have it change the doc, use the feather above.` }
       : null
   return (
     <div className="mt-3 mb-0.5">

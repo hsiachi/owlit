@@ -2,9 +2,10 @@
 // and Owlit's last look. Read when a doc's header shows, kept current by docs.owlit.
 
 import { t } from "@lingui/core/macro"
-import type { DocOwlit } from "@owlit/protocol"
+import { isOpenComment, type DocComment, type DocOwlit } from "@owlit/protocol"
 import { useEffect } from "react"
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { onWorkspaceOpened } from "@/lib/workspace"
@@ -25,6 +26,17 @@ export function useDocOwlit(path: string): DocOwlit | undefined {
     rpc.docs.owlit({ path }).then((got) => put(path, got), () => undefined)
   }, [path])
   return state
+}
+
+// When the user last saw each doc's comments from Owlit, by path: newer ones carry Owlit's dot on the
+// chip until they have been on screen a moment. Kept per window, as the digests' marks are.
+export const useOwlitSeen = create<{ seen: Record<string, number>; markSeen: (path: string) => void }>()(
+  persist((set) => ({ seen: {}, markSeen: (path) => set((s) => ({ seen: { ...s.seen, [path]: Date.now() } })) }), { name: "owlit-doc-comments-seen" }),
+)
+
+// Owlit's open comments on a doc that came after the user last saw its comments, oldest first
+export function newOwlitComments(comments: DocComment[] | undefined, seenAt: number | undefined) {
+  return (comments ?? []).filter((c) => isOpenComment(c) && c.entries[0]?.by === "owlit" && c.createdAt > (seenAt ?? 0)).sort((a, b) => a.createdAt - b.createdAt)
 }
 
 export function setOwlitOut(path: string, out: boolean) {

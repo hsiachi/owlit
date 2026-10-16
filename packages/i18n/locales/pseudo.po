@@ -1249,9 +1249,11 @@ msgstr ""
 msgid "Details"
 msgstr ""
 
+#. tell Owlit its comment isn't wanted; it won't say it again
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
@@ -2387,6 +2389,19 @@ msgstr ""
 msgid "Owlit works here only when you ask"
 msgstr ""
 
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Owlit hasn’t looked at this doc yet"
+msgstr ""
+
+#. placeholder {0}: looked.count
+#: app/src/features/docs/OwlitChip.tsx
+msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
+msgstr ""
+
+#: app/src/features/docs/OwlitChip.tsx
+msgid "Looked {when} · nothing to add"
+msgstr ""
+
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr ""
@@ -2467,6 +2482,11 @@ msgstr ""
 msgid "{0} replied {1}"
 msgstr ""
 
+#. Owlit is writing its answer to the user's reply on a comment
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Replying…"
+msgstr ""
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
 msgstr ""
@@ -2531,7 +2551,7 @@ msgid "{0} sees replies on the shared page."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Owlit doesn’t answer in comments yet. To ask it, use the feather above."
+msgid "Owlit answers here. To have it change the doc, use the feather above."
 msgstr ""
 
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -6701,6 +6721,30 @@ msgid "The digest is written:"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
+msgid "Reading “{name}” since your last changes"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked at “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You opened “{name}”, which changed since Owlit last looked."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering your reply in “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered your reply in “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You replied to Owlit's comment in “{name}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
 msgid "a thread"
 msgstr ""
 
@@ -6865,6 +6909,10 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "That comment isn't there any more."
 msgstr ""
 
 #: packages/core/src/docs/docs.ts
