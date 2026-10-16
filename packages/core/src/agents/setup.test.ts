@@ -5,7 +5,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { SettingsStore } from "../settings.ts"
 import { Agents } from "./agents.ts"
-import { newer } from "./setup.ts"
+import { failure, newer } from "./setup.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
 
@@ -105,5 +105,22 @@ describe("newer", () => {
     expect(newer("0.90.0", "0.90.0")).toBe(false)
     expect(newer("0.89.9", "0.90.0")).toBe(false)
     expect(newer("next", "0.90.0")).toBe(false)
+  })
+})
+
+describe("failure", () => {
+  it("says npm's own sentence, not where its log is", () => {
+    const stderr = [
+      "npm warn deprecated something@1.0.0",
+      "npm error code EACCES",
+      "npm error syscall mkdir",
+      "npm error path /Users/someone/.npm",
+      "npm error The operation was rejected by your operating system.",
+      "npm error A complete log of this run can be found in: /Users/someone/.npm/_logs/debug-0.log",
+    ].join("\n")
+    expect(failure(new Error(stderr))).toBe("The operation was rejected by your operating system.")
+    expect(failure(new Error("npm error code ECONNRESET\nnpm error A complete log of this run can be found in: x"))).toBe(
+      "Couldn't reach the npm registry. Check the network or proxy, then try again.",
+    )
   })
 })

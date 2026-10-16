@@ -7,6 +7,9 @@ import { isExample, tourWhenExampleOpens, useTour } from "./store"
 // time) and the tour starts there, since the tour points at the example's papers and draft
 export function takeTour() {
   if (isExample(useWorkspace.getState().current?.name)) return useTour.getState().start()
-  tourWhenExampleOpens()
-  rpc.workspace.createExample().catch(toastError)
+  const cancelTour = tourWhenExampleOpens()
+  rpc.workspace.createExample().catch((error: unknown) => {
+    cancelTour()
+    toastError(error)
+  })
 }

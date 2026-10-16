@@ -350,8 +350,11 @@ function Start() {
   }
   const example = () =>
     run(async () => {
-      tourWhenExampleOpens()
-      await rpc.workspace.createExample()
+      const cancelTour = tourWhenExampleOpens()
+      await rpc.workspace.createExample().catch((error: unknown) => {
+        cancelTour()
+        throw error
+      })
     })
   const fresh = () => info && run(() => rpc.workspace.create({ parent, name: info.suggestion.name }))
   const chooseParent = async () => {
