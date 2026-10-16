@@ -54,7 +54,8 @@ import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, cloudResult, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { figurePictures, noFigures, readFigures, removeFigures, toPaperFigures, writeFiguresFromLayout, writeFiguresFromText } from "./figures/figures.ts"
 import { renderCrops } from "./figures/render.ts"
-import { DIGEST_FORMAT, digestPrompt, drifted, type DigestRecord } from "./digest/prompt.ts"
+import { DIGEST_FORMAT, drifted, type DigestRecord } from "./digest/prompt.ts"
+import { digestSkill } from "../initiative/skills.ts"
 import { identify, type Identified } from "./text/identify.ts"
 import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import { findJournal, listJournal, parseYears, relatedOf, searchSource, type RelatedKind } from "./discover.ts"
@@ -740,7 +741,7 @@ export class Library {
           .filter((p) => p.data.length <= PICTURE_MAX_BYTES)
           .slice(0, MAX_PICTURES)
           .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
-        const prompt = digestPrompt({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
+        const prompt = digestSkill.instructions({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
         const { text: answer, connectorId, model } = await agent(prompt, ctx, pictures)
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")

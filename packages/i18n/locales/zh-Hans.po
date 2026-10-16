@@ -5032,6 +5032,14 @@ msgid "Keep"
 msgstr "保留"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "On its own"
+msgstr "自己动手"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
+msgstr "Owlit 自己动手时只写评论，从不改动。你的文稿只在你开口时才会改。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 #: packages/core/src/agents/runs.ts
 msgid "Background work"
@@ -5054,6 +5062,35 @@ msgstr "你的名字"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
 msgstr "Owlit 怎么称呼你"
+
+#. Owlit does nothing on its own beyond its upkeep
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Off"
+msgstr "关"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When I open things"
+msgstr "我打开时"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also while I'm away"
+msgstr "我不在时也看"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
+msgstr "除了导读和你请它留意的脉络，Owlit 只在你开口时才动手。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
+msgstr "你打开一篇自 Owlit 上次看过后改过的文稿时，它会读一遍，有话要说的地方留下评论。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also looks while you're away, and leaves what it found for when you're back."
+msgstr "你不在时也会看，发现的东西等你回来再看。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit on its own"
+msgstr "Owlit 自己动手"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
@@ -6656,12 +6693,12 @@ msgid "“{title}” has no digest yet."
 msgstr "“{title}”还没有导读。"
 
 #: packages/core/src/agents/runs.ts
-msgid "The digest is written:"
-msgstr "导读写好了："
-
-#: packages/core/src/agents/runs.ts
 msgid "Digest of “{title}”"
 msgstr "“{title}”的导读"
+
+#: packages/core/src/agents/runs.ts
+msgid "The digest is written:"
+msgstr "导读写好了："
 
 #: packages/core/src/agents/runs.ts
 msgid "a thread"

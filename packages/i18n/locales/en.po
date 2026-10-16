@@ -5032,6 +5032,14 @@ msgid "Keep"
 msgstr "Keep"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "On its own"
+msgstr "On its own"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
+msgstr "Owlit comments on its own, never edits. Your docs change only when you ask."
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 #: packages/core/src/agents/runs.ts
 msgid "Background work"
@@ -5054,6 +5062,35 @@ msgstr "Your name"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What Owlit calls you"
 msgstr "What Owlit calls you"
+
+#. Owlit does nothing on its own beyond its upkeep
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Off"
+msgstr "Off"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When I open things"
+msgstr "When I open things"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also while I'm away"
+msgstr "Also while I'm away"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
+msgstr "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
+msgstr "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Also looks while you're away, and leaves what it found for when you're back."
+msgstr "Also looks while you're away, and leaves what it found for when you're back."
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit on its own"
+msgstr "Owlit on its own"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
@@ -6656,12 +6693,12 @@ msgid "“{title}” has no digest yet."
 msgstr "“{title}” has no digest yet."
 
 #: packages/core/src/agents/runs.ts
-msgid "The digest is written:"
-msgstr "The digest is written:"
-
-#: packages/core/src/agents/runs.ts
 msgid "Digest of “{title}”"
 msgstr "Digest of “{title}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "The digest is written:"
+msgstr "The digest is written:"
 
 #: packages/core/src/agents/runs.ts
 msgid "a thread"

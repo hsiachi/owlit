@@ -49,7 +49,8 @@ export interface Rule<K extends InitiativeKind = InitiativeKind> {
   when: (event: EventOf<K>, ctx: RuleContext) => Promise<Outcome[]>
 }
 
-export const defineRule = <K extends InitiativeKind>(rule: Rule<K>): Rule<K> => rule
+// Typed by the events it hears while it is written; one list of rules holds them all
+export const defineRule = <K extends InitiativeKind>(rule: Rule<K>): Rule => rule as unknown as Rule
 
 const job = (subject: string, kind: string, priority: TaskPriority): Outcome => ({ subject, job: { kind, subject, priority } })
 
@@ -88,4 +89,4 @@ export const checkWatched = defineRule({
       .map(({ id, due }) => (due ? job(id, "threads.check", "background") : { subject: id, none: "checked within a day" })),
 })
 
-export const RULES: readonly Rule[] = [digestOnOpen, digestOnStar, checkWatched] as readonly Rule[]
+export const RULES: readonly Rule[] = [digestOnOpen, digestOnStar, checkWatched]

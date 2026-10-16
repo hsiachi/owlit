@@ -799,6 +799,12 @@ export class Core {
       "comments.add",
       z.object({ path: rel, comment: commentSchema, agent: z.object({ chatId: z.string().optional() }).optional() }),
       async ({ path, comment, agent }) => {
+        // The owner rule: an agent adds Owlit's own comments, never someone else's words or over an
+        // existing comment (add replaces one with the same id)
+        if (agent) {
+          if (comment.entries.some((e) => e.by !== "owlit")) throw new RpcFailure(RpcErrorCode.InvalidParams, "An agent leaves only Owlit's own comments.")
+          if ((await docs().listComments(path)).some((c) => c.id === comment.id)) throw new RpcFailure(RpcErrorCode.Conflict, "That comment is already there; an agent adds new ones.")
+        }
         await docs().addComment(path, comment)
         this.notifier.notify("comments.changed", { path, comment })
         if (agent) {
