@@ -89,6 +89,8 @@ export interface Methods {
   // How far Owlit goes in this workspace without being asked; set records feedback.dialChanged
   "initiative.get": { params: void; result: InitiativeSettings }
   "initiative.set": { params: { patch: Partial<InitiativeSettings> }; result: InitiativeSettings }
+  // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
+  "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
   "workspace.layout":{ params: void; result: Record<string, unknown> }
   // Merges into the layout; a key set to null is removed
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
@@ -153,12 +155,15 @@ export interface Methods {
   "comments.all": { params: void; result: Record<string, DocComment[]> }
   // Starts a comment, or puts back one deleted
   // agent: the comment is an agent's (owlit-mcp), kept as a version so the window can offer Undo
-  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string } }; result: null }
+  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "docs.review:<task id>")
+  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string; run?: string } }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
   "comments.put": { params: { path: string; comment: DocComment }; result: DocComment | null }
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
+  // One of Owlit's comments the user doesn't want; journaled as feedback.dismiss
+  "comments.dismiss": { params: { path: string; id: string }; result: DocComment }
   // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
   "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
 

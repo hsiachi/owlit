@@ -93,6 +93,8 @@ interface Entry {
   waiters: ((task: Task) => void)[]
   // Prerequisites that already ran for this task: requiring one again means it can't be made
   satisfied: Set<string>
+  // Stopped to make way for something more urgent: queued again, not counted as a try
+  preempted?: { notBefore?: number }
 }
 
 const key = (kind: string, subject: string) => `${kind}\u0000${subject}`
@@ -331,8 +333,31 @@ export class Scheduler {
     ready.sort((a, b) => byUrgency(a.task, b.task))
     for (const entry of ready) {
       if (this.inUse(entry.task.lane) < this.limits[entry.task.lane]) this.startRun(entry)
+      // Someone asked, or is waiting, and the agent is busy with work nobody asked for: that work steps
+      // aside and runs again once there is room (its steps are idempotent). Only agent work: elsewhere a
+      // run is short or costly to start over (parsing, indexing)
+      else if (entry.task.priority !== "background" && entry.task.lane === "agent") this.preemptOne(entry.task.lane)
     }
     if (nextDue < Infinity) this.timer = setTimeout(() => this.pump(), nextDue - now)
+  }
+
+  // Stops the newest background run in a lane, to run again from the start later
+  private preemptOne(lane: TaskLane, notBefore?: number, which: (task: Task) => boolean = () => true) {
+    const running = [...this.entries.values()]
+      .filter((e) => e.holdsSlot && e.task.lane === lane && e.task.priority === "background" && !e.preempted && which(e.task))
+      .sort((a, b) => (b.task.startedAt ?? 0) - (a.task.startedAt ?? 0))[0]
+    if (!running) return false
+    running.preempted = { notBefore }
+    running.controller?.abort(new DOMException("Something more urgent needed the lane.", "AbortError"))
+    return true
+  }
+
+  // Background runs of a kind step aside for work outside the scheduler that needs their agent now (a
+  // chat being answered), and wait ms before running again from the start
+  yieldTo(lane: TaskLane, which: (task: Task) => boolean, ms: number) {
+    while (this.preemptOne(lane, Date.now() + ms, which)) {
+      // each call stops one
+    }
   }
 
   private inUse(lane: TaskLane) {
@@ -414,8 +439,13 @@ export class Scheduler {
     entry.suspended = undefined
     // Closing: what was running stays recorded as running, to run again next time
     if (this.stopped) return
+    const preempted = entry.preempted
+    entry.preempted = undefined
     if (isTaskFinished(entry.task)) {
       // Cancelled while it ran; its lane is free only now
+    } else if (preempted && error !== null) {
+      // Made way for something more urgent: not a try
+      this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, progress: undefined, notBefore: preempted.notBefore })
     } else if (error instanceof Blocked) {
       // Waiting on another task is not a try
       this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, blockedOn: error.on })

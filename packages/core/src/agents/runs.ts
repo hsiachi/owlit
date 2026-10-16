@@ -63,6 +63,9 @@ export async function openRun(
   }
 }
 
+// A doc as the app names it: its file name without .md
+const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i, "")
+
 // The words of a run, from its task: what it is about, by name, and who started it
 export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
   if (task.kind === "paper.digest") {
@@ -74,6 +77,14 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
           ? t`You asked for a digest of “${title}”.`
           : t`“${title}” has no digest yet.`
     return { doing: t`Writing the digest of “${title}”`, done: t`Digest of “${title}”`, why, result: `${t`The digest is written:`} ${mentionLink(title, paperUri(task.subject))}` }
+  }
+  if (task.kind === "docs.review") {
+    const name = docName(task.subject)
+    return { doing: t`Reading “${name}” since your last changes`, done: t`Looked at “${name}”`, why: t`You opened “${name}”, which changed since Owlit last looked.` }
+  }
+  if (task.kind === "docs.reply") {
+    const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))
+    return { doing: t`Answering your reply in “${name}”`, done: t`Answered your reply in “${name}”`, why: t`You replied to Owlit's comment in “${name}”.` }
   }
   if (task.kind.startsWith("threads.")) {
     const thread = await ws.threads.get(threadOfSubject(task.subject)).catch(() => undefined)

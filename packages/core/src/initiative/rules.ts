@@ -1,5 +1,8 @@
-import type { ActivityEvent, InitiativeMode, TaskPriority } from "@owlit/protocol"
+import { isMarkdown, type ActivityEvent, type InitiativeMode, type TaskPriority } from "@owlit/protocol"
+import { stat } from "node:fs/promises"
+import path from "node:path"
 import type { Workspace } from "../workspace/workspace.ts"
+import type { Presence } from "./presence.ts"
 
 // When Owlit does something nobody asked for: every rule is here, and only here. A rule hears events
 // (what the user does, what core sees, the clock), looks at the workspace, and decides one thing per
@@ -35,6 +38,7 @@ export type Outcome = { subject: string } & ({ job: Job } | { none: string } | {
 export interface RuleContext {
   ws: Workspace
   now: number
+  presence: Presence
 }
 
 export interface Rule<K extends InitiativeKind = InitiativeKind> {
@@ -89,4 +93,27 @@ export const checkWatched = defineRule({
       .map(({ id, due }) => (due ? job(id, "threads.check", "background") : { subject: id, none: "checked within a day" })),
 })
 
-export const RULES: readonly Rule[] = [digestOnOpen, digestOnStar, checkWatched]
+// A doc the user opens that changed since Owlit last looked at it: Owlit reads the changed paragraphs in
+// the background and comments where it has something to say. Never while the user is writing in it.
+export const reviewOnOpen = defineRule({
+  id: "docs.reviewOnOpen",
+  on: ["doc.opened"],
+  needs: "onOpen",
+  key: (event) => event.path,
+  // Flicking through docs isn't opening one to read
+  settleMs: 3000,
+  when: async (event, { ws, now, presence }) => {
+    const subject = event.path
+    if (!isMarkdown(subject)) return [{ subject, none: "not a Markdown doc" }]
+    const owlit = await ws.docs.owlitOf(subject).catch(() => null)
+    if (!owlit) return [{ subject, none: "not in the workspace" }]
+    if (owlit.out) return [{ subject, none: "kept out" }]
+    const info = await stat(path.join(ws.root, subject)).catch(() => null)
+    if (!info) return [{ subject, none: "not on disk" }]
+    if (owlit.looked && Math.round(info.mtimeMs) <= owlit.looked.mtime) return [{ subject, none: "unchanged since Owlit looked" }]
+    if (presence.writingIn(subject, now)) return [{ subject, defer: "the user is writing in it" }]
+    return [job(subject, "docs.review", "background")]
+  },
+})
+
+export const RULES: readonly Rule[] = [digestOnOpen, digestOnStar, checkWatched, reviewOnOpen]

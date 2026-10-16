@@ -138,11 +138,32 @@ describe("Initiative", () => {
     expect(queued.map((q) => q.subject)).toEqual(["a.md", "b.md", "c.md"])
   })
 
-  it("keeps today's upkeep rules (digests, watched threads) at Off", () => {
+  it("keeps today's upkeep rules (digests, watched threads) at Off, and review behind When I open things", () => {
     expect(RULES.map((r) => [r.id, r.needs])).toEqual([
       ["digest.onOpen", "off"],
       ["digest.onStar", "off"],
       ["threads.checkWatched", "off"],
+      ["docs.reviewOnOpen", "onOpen"],
     ])
+  })
+
+  it("puts a decision off while the user writes there, and takes it again once they leave", async () => {
+    const { ws, queued } = fakeWorkspace({ mode: "onOpen" })
+    let writing = true
+    const careful = defineRule({
+      id: "test.careful",
+      on: ["doc.opened"],
+      needs: "onOpen",
+      when: async (e) => [writing ? { subject: e.path, defer: "the user is writing in it" } : { subject: e.path, job: { kind: "docs.review", subject: e.path, priority: "background" } }],
+    })
+    const { records, initiative } = engine([careful], ws)
+    initiative.observe(docOpened("a.md"))
+    await initiative.idle()
+    expect(queued).toEqual([])
+    writing = false
+    initiative.observe({ kind: "doc.closed", at: 0, path: "a.md" })
+    await initiative.idle()
+    expect(records.map((r) => r.decision)).toEqual(["defer", "job"])
+    expect(queued.map((q) => q.subject)).toEqual(["a.md"])
   })
 })

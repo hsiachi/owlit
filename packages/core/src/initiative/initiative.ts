@@ -1,4 +1,5 @@
-import { dialAllows, type EvaluationRecord } from "@owlit/protocol"
+import { dialAllows, type ActivityEvent, type EvaluationRecord } from "@owlit/protocol"
+import { Presence, TYPING_MS } from "./presence.ts"
 import { readJournal } from "../activity/reading.ts"
 import { messageOf } from "../util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
@@ -22,7 +23,11 @@ export interface InitiativeOptions {
   record: (entry: EvaluationRecord) => void
   rules?: readonly Rule[]
   clock?: Clock
+  presence?: Presence
 }
+
+// Events core makes itself, which say nothing about where the user is
+const CORE_KINDS = new Set<string>(["paper.starred", "workspace.opened", "clock.hour"])
 
 const dayOf = (at: number) => new Date(at).toDateString()
 
@@ -37,17 +42,25 @@ export class Initiative {
   // Runs started on Owlit's own initiative today (upkeep doesn't count), for the daily cap; read from
   // the journal the first time it is needed in a workspace
   private today: { root: string; day: string; count: number } | null = null
+  // Decisions put off while the user writes in what they are about, by rule and subject
+  private deferred = new Map<string, { rule: Rule; event: InitiativeEvent }>()
+  private deferTimer: unknown
   private disposed = false
+  readonly presence: Presence
 
   constructor(options: InitiativeOptions) {
     this.rules = options.rules ?? RULES
     this.workspace = options.workspace
     this.record = options.record
     this.clock = options.clock ?? systemClock
+    this.presence = options.presence ?? new Presence()
   }
 
   observe(event: InitiativeEvent) {
     if (this.disposed) return
+    if (!CORE_KINDS.has(event.kind)) this.presence.hear(event as ActivityEvent)
+    // What waited for the user to stop or leave is looked at again when they do
+    if (event.kind === "doc.closed" || event.kind === "idle") this.retryDeferred()
     for (const rule of this.rules) {
       if (!(rule.on as readonly string[]).includes(event.kind)) continue
       if (!rule.settleMs) {
@@ -74,6 +87,23 @@ export class Initiative {
     this.disposed = true
     for (const { timer } of this.settling.values()) this.clock.clearTimeout(timer)
     this.settling.clear()
+    this.clock.clearTimeout(this.deferTimer)
+    this.deferred.clear()
+  }
+
+  private retryDeferred() {
+    this.clock.clearTimeout(this.deferTimer)
+    this.deferTimer = undefined
+    const waiting = [...this.deferred.values()]
+    this.deferred.clear()
+    for (const { rule, event } of waiting) this.evaluate(rule, event)
+  }
+
+  // A decision put off is taken again once the user may have stopped: when they leave the doc or the
+  // window, or after a typing pause's length
+  private defer(rule: Rule, event: InitiativeEvent, subject: string) {
+    this.deferred.set(`${rule.id}\u0000${subject}`, { rule, event })
+    if (this.deferTimer === undefined) this.deferTimer = this.clock.setTimeout(() => this.retryDeferred(), TYPING_MS)
   }
 
   private evaluate(rule: Rule, event: InitiativeEvent) {
@@ -87,7 +117,7 @@ export class Initiative {
     // Off for this rule: it doesn't run at all, so there is nothing to log
     if (!dialAllows(settings.mode, rule.needs)) return
     const now = this.clock.now()
-    const outcomes = await rule.when(event as never, { ws, now })
+    const outcomes = await rule.when(event as never, { ws, now, presence: this.presence })
     for (const outcome of outcomes) {
       const base = { kind: "evaluation" as const, at: now, rule: rule.id, subject: outcome.subject, cause: event.kind }
       if ("none" in outcome) {
@@ -96,6 +126,7 @@ export class Initiative {
       }
       if ("defer" in outcome) {
         this.record({ ...base, decision: "defer", reason: outcome.defer })
+        this.defer(rule, event, outcome.subject)
         continue
       }
       const initiative = rule.needs !== "off"
