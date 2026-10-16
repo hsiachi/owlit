@@ -3,9 +3,10 @@ import { StarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { IconButton } from "@/components/icon-button"
 
-// The small amber mark after a starred paper's title
+// The small star after a starred paper's title, filled in ink: a filled star is clear without a colour,
+// and the yellows are kept for waiting, comments and highlights
 export function StarMark({ className }: { className?: string }) {
-  return <StarIcon aria-label={t`Starred`} className={cn("size-3 shrink-0 fill-star text-star", className)} />
+  return <StarIcon aria-label={t`Starred`} className={cn("size-3 shrink-0 fill-foreground text-foreground", className)} />
 }
 
 export function StarButton({
@@ -29,7 +30,7 @@ export function StarButton({
         onToggle()
       }}
       onDoubleClick={(e) => e.stopPropagation()}
-      className={cn(starred && "text-star hover:text-star", className)}
+      className={cn(starred && "text-foreground hover:text-foreground", className)}
     >
       <StarIcon className={cn(starred && "fill-current")} />
     </IconButton>

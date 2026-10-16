@@ -34,7 +34,6 @@
     --color-mention: var(--mention);
     /* A paper mention nobody but Owlit has read yet: the same blue, a step lighter */
     --color-mention-unread: color-mix(in oklch, var(--mention) 62%, transparent);
-    --color-star: var(--star);
     --color-tag-red: var(--tag-red);
     --color-tag-orange: var(--tag-orange);
     --color-tag-amber: var(--tag-amber);
@@ -183,9 +182,8 @@
     --sidebar: oklch(0.942 0.007 95);
     --sidebar-panel: oklch(0.976 0.004 95);
     --mention: oklch(0.48 0.09 255);
-    /* Star and tag colours: low-chroma marks that carry meaning, never fills. The star is a gold kept off
-       amber, so it never passes for waiting; the green tag is an olive, so its dot never passes for Owlit's */
-    --star: oklch(0.66 0.13 88);
+    /* Tag colours: low-chroma marks that carry meaning, never fills. The green tag is an olive, so its dot
+       never passes for Owlit's */
     --tag-red: oklch(0.64 0.11 28);
     --tag-orange: oklch(0.7 0.11 55);
     --tag-amber: oklch(0.76 0.11 85);
@@ -260,7 +258,6 @@
     --sidebar: oklch(0.155 0.004 95);
     --sidebar-panel: oklch(0.19 0.005 95);
     --mention: oklch(0.78 0.07 255);
-    --star: oklch(0.82 0.12 90);
     --tag-red: oklch(0.7 0.1 28);
     --tag-orange: oklch(0.75 0.1 55);
     --tag-amber: oklch(0.8 0.1 85);
@@ -281,7 +278,7 @@
 
 /* Paper tones (Settings › Appearance). Each swaps the neutral family above, surfaces, text, lines and
    state fills, and keeps its steps of lightness, so depth and contrast hold in every tone. Marks that
-   carry meaning (star, Owlit's green, tags, highlights, mention, warning, destructive) are left alone. Warm is
+   carry meaning (Owlit's green, tags, highlights, mention, warning, destructive) are left alone. Warm is
    the :root and .dark blocks themselves. The same blocks apply to an element with data-tone, so the
    tone picker can draw each tone with the real tokens. desktop/src/main.ts keeps each tone's frame
    colour for the window's background. */

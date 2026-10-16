@@ -33,7 +33,6 @@ colors:
   text-highlight: "oklch(0.93 0.11 98)"
   # A comment on a doc's words, whoever wrote it; under 3:1, so only ever the line under words (index.css)
   comment-mark: "oklch(0.74 0.155 80)"
-  star: "oklch(0.66 0.13 88)"
   tag-red: "oklch(0.64 0.11 28)"
   tag-orange: "oklch(0.7 0.11 55)"
   tag-amber: "oklch(0.76 0.11 85)"
@@ -204,7 +203,7 @@ components:
   owlit-dot:
     backgroundColor: "{colors.owlit-mark}"
   star-mark:
-    textColor: "{colors.star}"
+    textColor: "{colors.foreground}"
   menu:
     backgroundColor: "{colors.popover}"
     rounded: "{rounded.xl}"
@@ -475,7 +474,6 @@ Dark mode keeps the tint and the steps, lifted off black, and lightens the marks
 | `owlit` | Owlit's hand at text strength: words it proposes, the strike and rule beside them, a check on a value a service accepted |
 | `owlit-mark` | Owlit's hand at mark strength: its dot, a tick on a page it cited. A step lighter than `owlit` and still 3:1, so it needs no rim |
 | `mention` | A thing in the workspace named in text (paper, doc, thread, chat), and what points at a passage in a PDF |
-| `star` | Yours: the star after a starred title |
 | `text-highlight` | Your `==highlight==` in a doc, the same lemon as a yellow PDF highlight |
 | `comment-mark` | A comment on a doc's words, whoever wrote it |
 | `tag-*` | One low-chroma hue per tag, by its name; only ever a small dot before the name |
