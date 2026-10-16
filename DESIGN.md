@@ -135,7 +135,6 @@ rounded:
   md: 8px
   lg: 10px
   xl: 14px
-  2xl: 18px
   full: 9999px
 spacing:
   frame-gap: 4px
@@ -363,7 +362,7 @@ components:
     typography: "{typography.secondary}"
     rounded: "{rounded.md}"
   empty-box:
-    rounded: "{rounded.2xl}"
+    rounded: "{rounded.xl}"
   tag-dot-red:
     backgroundColor: "{colors.tag-red}"
   tag-dot-orange:
@@ -486,7 +485,7 @@ Dark mode keeps the tint and the steps, lifted off black, and lightens the marks
 
 ## Typography
 
-One face, six sizes, two weights. **Figtree** everywhere, at the sizes in the front matter: `text-title` for page titles and a doc's first line, 18px for a paper's title in its panel and a doc's `#` and `##`, `text-body` wherever people read and write, 14px for the interface, `text-detail` for secondary text, 12px for captions. 16px appears only as a dialog's section title, the palette's input and a doc's `###` and deeper. Weight carries hierarchy before size or colour: regular for text, medium for titles, the active item, button labels and a speaker's name; semibold only for headings in a doc or an answer and for bold, so a doc's first line outweighs the headings under it. Numbers that line up are tabular; long titles are balanced; truncation ends in an ellipsis and the full text shows on hover.
+One face, seven sizes, two weights. **Figtree** everywhere, at the sizes in the front matter: `text-title` (22px) for page titles and a doc's first line; 18px for a paper's title in its panel and a doc's `#` and `##`; `text-base` (16px) for a dialog's section title, the palette's input, a doc's `###` and deeper, and the first launch's sentences; `text-body` (15px) wherever people read and write; 14px for the interface; `text-detail` (13px) for secondary text; 12px for captions. Weight carries hierarchy before size or colour: regular for text, medium for titles, the active item, button labels and a speaker's name; semibold only for headings in a doc or an answer and for bold, so a doc's first line outweighs the headings under it. Numbers that line up are tabular; long titles are balanced; truncation ends in an ellipsis and the full text shows on hover.
 
 Chinese, which Figtree doesn't have, comes from **PingFang SC** (Microsoft YaHei on Windows) at the same sizes and weights, while Latin letters and digits in the line stay Figtree; the page's `lang` follows the interface language. Translated labels get the room their words need rather than the English width.
 
@@ -521,7 +520,7 @@ The first launch is the one place where motion is the content, and even there it
 
 ## Shapes
 
-The front matter's `rounded` scale, by role: `lg` is the base (the sheet, cards, a row's hover fill, default buttons, fields, code blocks); `xl` for what floats or is typed into (the composer, find fields, menus, dialogs, a peek); `md` for what sits inside those (rows, menu items, chips, small buttons); `sm` for the smallest (keys); `2xl` only for the dashed drop card; `full` for pills and dots. Nested corners are concentric (outer radius = inner + padding), and a larger shape inside a smaller one takes the larger radius rather than stacking two alike.
+The front matter's `rounded` scale, by role: `lg` is the base (the sheet, cards, a row's hover fill, default buttons, fields, code blocks); `xl` for what floats, is typed into or is dropped onto (the composer, find fields, menus, dialogs, a peek, the dashed drop card); `md` for what sits inside those (rows, menu items, chips, small buttons); `sm` for the smallest (keys); `full` for pills and dots. Nested corners are concentric (outer radius = inner + padding), and a larger shape inside a smaller one takes the larger radius rather than stacking two alike.
 
 Lines are one hairline in `border`, translucent in dark mode; half-pixel lines divide the panels from the sheet. A resize edge (`PanelResizeHandle`) is invisible until hovered.
 
@@ -596,7 +595,7 @@ Don't:
 - Put icons before every menu item, ticks after finished steps, spinners where a fill will do, or coloured cards around process.
 - Name a step by its command line or a tool's internal name, or put a decision's buttons in the middle of the messages.
 - Use two lines where a title plus an inline muted detail fits, or show reading progress in a list.
-- Use raw Tailwind palette colours, opaque grey fills, opacity on readable text, focus rings on fields, Dosis outside the wordmark's places, or sizes outside 22, 18, 15, 14, 13 and 12px (and the few 16px places under Typography).
+- Use raw Tailwind palette colours, opaque grey fills, opacity on readable text, focus rings on fields, Dosis outside the wordmark's places, or sizes outside 22, 18, 16, 15, 14, 13 and 12px.
 - Box a table, outline a chip beside a bordered surface, override a menu's padding or radius in one place, or squeeze several inputs onto one line.
 - Write a description under a dialog title, a label on a self-explanatory icon, or leave a secondary form open.
 - Slide a panel or animate a list.
