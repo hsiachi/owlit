@@ -2,7 +2,7 @@ import type { MemoryLine } from "@owlit/protocol"
 
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
-// Bump RULES_VERSION whenever the rules change; the commit says what changed.
+// Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
 export const RULES_VERSION = 18
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
