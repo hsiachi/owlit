@@ -4086,6 +4086,14 @@ msgid "owlit will try {site} through your browser."
 msgstr "owlit 将经你的浏览器尝试 {site}。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The PDF is gone"
+msgstr "PDF 不见了"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Its file was deleted or moved outside owlit. If you have it, drop it here."
+msgstr "它的文件在 owlit 之外被删除或移走了。如果你有，拖到这里即可。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {now}."
 msgstr "{tried}；正在试{now}。"
 
@@ -7433,6 +7441,7 @@ msgid "That paper is not in the library."
 msgstr "那篇论文不在文献库中。"
 
 #: packages/core/src/extension/server.ts
+#: packages/core/src/library/library.ts
 msgid "This paper has its PDF already."
 msgstr "这篇论文已经有 PDF 了。"
 

@@ -43,6 +43,7 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
       const site = s?.extension?.host
       if (!now && site && s?.extension?.fetching) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.` }
       if (!now && site) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.` }
+      if (state === "finding" && gone(paper)) return { title: t`The PDF is gone`, detail: t`Its file was deleted or moved outside owlit. If you have it, drop it here.` }
       return { title: t`Finding a PDF…`, detail: now ? (tried ? t`${tried}; now trying ${now}.` : t`Now trying ${now}.`) : tried ? t`${tried}.` : t`If you already have it, drop it here.` }
     }
     case "for-sign-in":
@@ -84,6 +85,9 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
     }
   }
 }
+
+// The paper had its PDF and the file was deleted outside owlit: nothing looks for it until the daily look
+const gone = (paper: Paper) => paper.pdfState?.reason?.ended === "pdf" && !paper.pdfState.extension
 
 // What owlit does next on its own, for a card that waits on nobody
 const NO_PDF: ReadonlySet<CardState> = new Set(["not-found", "no-access", "not-offered", "not-there"])
@@ -135,7 +139,8 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const wait = pdfWait(paper) ?? "finding"
   const state: CardState = looking ? "looking" : wait
   const { title, detail } = card(state, paper, task?.progress?.note && routeName(task.progress.note))
-  const working = state === "looking" || state === "finding"
+  const lost = state === "finding" && gone(paper)
+  const working = (state === "looking" || state === "finding") && !lost
   const nextLook = paper.pdfState?.nextLook
   const nextDate = nextLook ? shortDate(nextLook) : ""
   const chooseFile = (
@@ -177,6 +182,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
                 // No line for it (owlit restarted since): looking again hands it to the extension again
                 lookAgainButton(true)
               )}
+              {chooseFile}
+            </>
+          ) : lost ? (
+            <>
+              {lookAgainButton(true)}
               {chooseFile}
             </>
           ) : state === "looking" || state === "finding" ? (

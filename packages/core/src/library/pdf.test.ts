@@ -156,6 +156,21 @@ describe("paper.pdf", () => {
     expect((await call("library.list")).papers[0].pdfState.tried[0].route).toBeUndefined()
   })
 
+  it("looks again for a PDF that was had and was deleted outside owlit", async () => {
+    const { root, call } = await setup(serving({}))
+    await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
+    await call("library.fetchPdf", { id: "doi-10.9999-x" })
+    // A record whose PDF is in place, and no paper.pdf beside it
+    const file = path.join(root, "library/papers/doi-10.9999-x/acquisition.json")
+    const had = { version: 2, state: "have-it", tried: [{ by: "you", ended: "pdf", at: Date.now() - 60_000, route: "dropped" }], dropHere: "" }
+    writeFileSync(file, JSON.stringify(had))
+    const paper = (await call("library.list")).papers[0]
+    // Shown as gone, with a look due now
+    expect(paper.pdfState).toMatchObject({ state: "finding", reason: { ended: "pdf" } })
+    expect(paper.pdfState.nextLook).toBeLessThanOrEqual(Date.now())
+    expect(lookDue(had as never, Date.now())).toBe(true)
+  })
+
   it("waits for the network when nothing could be reached, and says so", async () => {
     const offline = (async () => {
       throw new TypeError("fetch failed")

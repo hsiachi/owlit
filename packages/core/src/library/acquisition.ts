@@ -89,16 +89,20 @@ const saysLess = (later: PdfTry, earlier: PdfTry) =>
   later.by === "owlit" && ((later.ended === "no-copy" && earlier.ended !== "no-copy") || ((later.ended === "check" || later.ended === "sign-in") && earlier.by !== "owlit"))
 
 // When owlit's back-off look is next due for a paper without its PDF: from its newest look, after
-// LOOK_AGAIN_DAYS by how many found nothing. undefined while it isn't spaced out (finding).
+// LOOK_AGAIN_DAYS by how many found nothing. undefined while it isn't spaced out (finding). A record that
+// had the PDF is asked only when its file is gone (deleted outside owlit): due since then, since nothing
+// else looks for it.
 export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "looks">) {
+  if (acquisition.state === "have-it") return acquisition.tried.at(-1)?.at ?? 0
   if (acquisition.state !== "no-pdf") return undefined
   const last = acquisition.tried.findLast((t) => t.by === "owlit")?.at ?? acquisition.tried.at(-1)?.at ?? 0
   const days = LOOK_AGAIN_DAYS[Math.min(Math.max(acquisition.looks ?? 1, 1), LOOK_AGAIN_DAYS.length) - 1]
   return last + days * DAY_MS
 }
 
-// Whether the daily look takes the paper now: a paper with no PDF once its back-off is over, and one
-// still finding because nothing could be reached, which has no back-off to wait for. One waiting for the
+// Whether the daily look takes the paper now: a paper with no PDF once its back-off is over, one whose
+// PDF was had and is gone (the caller skips papers with their file), and one still finding because
+// nothing could be reached, which has no back-off to wait for. One waiting for the
 // user at the extension's site isn't: owlit's own routes found nothing for it already, and the extension's
 // queue takes it again when the extension connects (forExtension).
 export function lookDue(acquisition: Pick<Acquisition, "state" | "tried" | "looks">, now: number) {
@@ -231,10 +235,11 @@ export class Acquisitions {
     const acquisition = await this.read(id)
     if (!acquisition) return { state: "finding", tried: [] }
     const { reason } = standing(acquisition.tried)
-    // A PDF placed and then taken away outside owlit: nothing is looking, so the next look finds it
+    // A PDF placed and then taken away outside owlit: finding, its reason the PDF it had, which says so,
+    // with the daily look due for it
     const state = acquisition.state === "have-it" ? "finding" : acquisition.state
     const nextLook = nextLookAt(acquisition)
-    return clean({ state, tried: acquisition.tried, reason: state === "finding" && reason?.ended === "pdf" ? undefined : reason, nextLook })
+    return clean({ state, tried: acquisition.tried, reason, nextLook })
   }
 
   // Tries that ended without the PDF, appended; look: they were owlit's look through its routes, which

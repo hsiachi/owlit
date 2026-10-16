@@ -56,7 +56,8 @@ export interface PdfState {
   // Newest last
   tried: PdfTry[]
   // The try that says where the paper stands: the newest, except where owlit's own try says less than an
-  // earlier one (no open copy after a library that said no). Absent before any try.
+  // earlier one (no open copy after a library that said no). Absent before any try. A PDF (ended "pdf")
+  // while finding: the paper had its file, and it was deleted outside owlit.
   reason?: PdfTry
   // When owlit's back-off look runs next; absent when it won't
   nextLook?: number
