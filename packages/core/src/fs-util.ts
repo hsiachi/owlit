@@ -35,6 +35,11 @@ export function ignoreMissing(error: NodeJS.ErrnoException) {
   if (error.code !== "ENOENT") throw error
 }
 
+// For a mkdir() .catch() where a folder already there is fine (and a missing parent isn't)
+export function ignoreExisting(error: NodeJS.ErrnoException) {
+  if (error.code !== "EEXIST") throw error
+}
+
 // One value per line, in order. A missing file is empty, and a line that doesn't parse (a write cut short
 // by a crash, an edit by hand) is skipped so the others still count; onBad hears about it.
 export async function readJsonl<T>(file: string, onBad?: (line: string) => void): Promise<T[]> {

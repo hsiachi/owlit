@@ -14,6 +14,11 @@ export function isPaperId(id: string) {
   return PAPER_ID.test(id) && !id.includes("..")
 }
 
+// Made only where a paper comes in, moves or is put back (add, drop, relink, restore). What is written
+// into it later never makes it: a paper's tasks are cancelled when it moves to a DOI or goes to the
+// trash, but one may be past its last look at the signal, and its write must fail then instead of
+// bringing the old id's folder back. A task's writes into it pass { parents: false } (the user's note
+// is written under the library's lock, once the paper is found there).
 export function paperDir(root: string, id: string) {
   if (!isPaperId(id)) throw new Error(`${id} is not a paper id`)
   return path.join(root, PAPERS_DIR, id)

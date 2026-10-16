@@ -4,10 +4,12 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
+import { Http } from "../net/http.ts"
+import { Workspace } from "../workspace/workspace.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "fixtures", name), "utf8")
 
-const cores: Core[] = []
+const cores: { dispose(): Promise<void> }[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((core) => core.dispose()))
 })
@@ -427,5 +429,56 @@ describe("library on disk", () => {
     }
     const paper = heard.flatMap((c) => c.papers).find((p) => p.id === "arxiv-2408.00447")
     expect(paper).toMatchObject({ title: "Dropped in by the CLI", status: "unread", addedBy: "user" })
+  })
+})
+
+describe("a paper's tasks when it moves or goes", () => {
+  // A paper whose digest agent, the moment it is asked, has the paper moved to a DOI or removed: its
+  // answer comes back as the paper goes (an answer already on its way when the task is cancelled), and
+  // the note's write waits for the library's lock behind the move. Before, that write brought the old
+  // id's folder back with only digest.md in it.
+  async function digestWhile(change: (library: Workspace["library"], id: string) => Promise<unknown>) {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-library-")))
+    const root = path.join(base, "ws")
+    mkdirSync(root)
+    let changing: Promise<unknown> | undefined
+    const library = {
+      http: new Http({ fetch: (async () => new Response("not found", { status: 404 })) as unknown as typeof fetch, userAgent: "owlit" }),
+      settings: async () => ({}),
+      agent: async () => {
+        changing = change(workspace.library, id)
+        return { text: `# The paper\n\n${"A sentence about the paper. ".repeat(10)}`, connectorId: "fake" }
+      },
+    }
+    const workspace: Workspace = await Workspace.open(root, path.join(base, "userData"), {
+      library,
+      tasks: {
+        // Only the digest of the paper's own steps: nothing else writes into its folder meanwhile
+        definitions: (ws) => [...ws.library.tasks().filter((t) => t.kind === "paper.digest"), ...ws.search.tasks()],
+      },
+    })
+    cores.push(workspace)
+    const id = "local-0123456789ab"
+    await workspace.library.addNew({ id, title: "A paper", authors: [], ids: {} })
+    writeFileSync(path.join(root, "library/papers", id, "text.md"), "<!-- page 1 -->\n\nThe paper's text.\n")
+    const queued = workspace.tasks.enqueue("paper.digest", id, "asked")
+    expect(await workspace.tasks.wait(queued.id)).toMatchObject({ state: "cancelled" })
+    await changing
+    // Anything the task still had for the lock has run once a later turn there has
+    await workspace.library.remove([])
+    return { root, id }
+  }
+
+  it("leaves no folder for the old id when a digest's answer comes back as the paper moves to a DOI", async () => {
+    const { root, id } = await digestWhile((library, id) => library.update(id, { ids: { doi: "10.1145/3626772.3657891" } }))
+    expect(existsSync(path.join(root, "library/papers", id))).toBe(false)
+    expect(readdirSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891"))).not.toContain("digest.md")
+  })
+
+  it("leaves no folder behind when a digest's answer comes back as the paper is removed", async () => {
+    const { root, id } = await digestWhile((library, id) => library.remove([id]))
+    expect(existsSync(path.join(root, "library/papers", id))).toBe(false)
+    const [entry] = readdirSync(path.join(root, ".owlit/trash"))
+    expect(readdirSync(path.join(root, ".owlit/trash", entry, "paper"))).toEqual(["paper.json", "text.md"])
   })
 })
