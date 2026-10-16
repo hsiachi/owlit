@@ -13,6 +13,9 @@ import { setProxy, signInToProxy, useSettings } from "../store"
 
 type Choice = "none" | ProxyPreset | "other"
 
+// PROXY_PRESETS names are English, for agents and logs; the picker shows them in the reader's language
+const presetName = (id: ProxyPreset): string => ({ tsinghua: t`Tsinghua University` })[id]
+
 const hostOf = (base: string) => base.replace(/^https?:\/\//, "").replace(/\/.*$/, "")
 const describe = (proxy: ProxySettings) => {
   const host = hostOf(proxy.base)
@@ -30,7 +33,7 @@ export function ProxyGroup() {
 
   const options: { value: Choice; label: string }[] = [
     { value: "none", label: t({ message: "None", comment: "no library proxy" }) },
-    ...Object.entries(PROXY_PRESETS).map(([id, p]) => ({ value: id as ProxyPreset, label: p.name })),
+    ...(Object.keys(PROXY_PRESETS) as ProxyPreset[]).map((id) => ({ value: id, label: presetName(id) })),
     { value: "other", label: t`Another library…` },
   ]
   const pick = (next: Choice) => {
@@ -142,7 +145,7 @@ function SignIn({ signedInAt }: { signedInAt?: number }) {
   return (
     <Row
       name={t`Sign-in`}
-      info={t`owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it.`}
+      info={t`Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it.`}
       control={
         <>
           <span className="mr-1 text-detail text-muted-foreground">{busy ? t`Waiting for the sign-in window…` : signedInAt ? t`Signed in ${when}` : t`Not signed in`}</span>
@@ -152,7 +155,7 @@ function SignIn({ signedInAt }: { signedInAt?: number }) {
         </>
       }
     >
-      {busy && <Note>{t`Sign in in the window that opened, then close it.`}</Note>}
+      {busy && <Note>{t`Sign in in the window that opened. It closes by itself once you're in.`}</Note>}
     </Row>
   )
 }

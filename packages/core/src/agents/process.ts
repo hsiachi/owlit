@@ -358,6 +358,9 @@ export class AcpProcess {
           fs: { readTextFile: true, writeTextFile: true },
           elicitation: { form: {} },
           subagents: {},
+          // Claude Code lists its own sign-in only then; owlit runs it for the person, without a
+          // terminal (Agents.signInOutside)
+          auth: { terminal: true },
           ...(this.options.clientMeta ? { _meta: this.options.clientMeta } : {}),
         },
         clientInfo: { name: "owlit", version: "0.0.0" },

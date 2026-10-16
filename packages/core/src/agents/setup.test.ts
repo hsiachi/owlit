@@ -15,12 +15,12 @@ afterEach(() => {
 })
 
 // An npm that "installs" a package by writing an adapter whose script starts the fake ACP agent;
-// FAKE_NPM=fail makes it fail as npm does without a network
+// FAKE_NPM=fail makes it fail as npm does without a network, no-npmjs only while it asks npm's own registry
 const FAKE_NPM = `
 import { mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
 const args = process.argv.slice(2)
-if (process.env.FAKE_NPM === "fail") { process.stderr.write("npm error code ENOTFOUND\\nnpm error network request to https://registry.npmjs.org failed\\n"); process.exit(1) }
+if (process.env.FAKE_NPM === "fail" || (process.env.FAKE_NPM === "no-npmjs" && !args.includes("https://registry.npmmirror.com"))) { process.stderr.write("npm error code ENOTFOUND\\nnpm error network request to https://registry.npmjs.org failed\\n"); process.exit(1) }
 const prefix = args[args.indexOf("--prefix") + 1]
 const pkg = args.at(-1).replace(/@latest$/, "")
 const root = path.join(prefix, "node_modules", ...pkg.split("/"))
@@ -89,10 +89,22 @@ describe("owlit's own copy of an adapter", () => {
     }
   })
 
+  it("tries the npmmirror registry when npm's own can't be reached", async () => {
+    const { agents, until } = await setup()
+    process.env.FAKE_NPM = "no-npmjs"
+    try {
+      await agents.setUp("claude-code")
+      const ready = await until((c) => c.status === "available" || c.status === "connected")
+      expect(ready.setup).toMatchObject({ installed: "0.90.0" })
+    } finally {
+      process.env.FAKE_NPM = ""
+    }
+  })
+
   it("knows when the agent itself isn't on the Mac", async () => {
     const { agents } = await setup({ claude: false })
     const c = await agents.check("claude-code")
-    expect(c.setup).toMatchObject({ cliFound: false, installCli: "curl -fsSL https://claude.ai/install.sh | bash" })
+    expect(c.setup).toMatchObject({ cliFound: false })
     // Gemini CLI isn't one owlit sets up
     expect((await agents.list()).find((x) => x.id === "gemini-cli")?.setup).toBeUndefined()
   })

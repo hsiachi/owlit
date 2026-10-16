@@ -8,10 +8,57 @@ import { Core } from "../core.ts"
 import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
 import { makePdf } from "./text/make-pdf.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, pdfFromLanded, pdfLinkOn, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
+import { browserRoutes, pdfFromLanded, pdfLinkOn, signInWatch, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
 import { ACCESS_OFFER, pageVerdict } from "./where-it-ended.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
+
+describe("library sign-in window", () => {
+  const pages = (entry: string, seen: [string, boolean?][]) => {
+    const watch = signInWatch(entry)
+    return seen.map(([url, asking]) => watch({ url, asking: !!asking }))
+  }
+
+  it("is over once the university's login sent you back to the proxy", () => {
+    expect(
+      pages("https://tlink.lib.tsinghua.edu.cn", [
+        ["about:blank"],
+        ["https://tlink.lib.tsinghua.edu.cn/"],
+        ["https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/abc", true],
+        ["https://id.tsinghua.edu.cn/do/off/ui/auth/login/check"],
+        ["https://tlink.lib.tsinghua.edu.cn/"],
+        ["https://tlink.lib.tsinghua.edu.cn/"],
+      ]),
+    ).toEqual([false, false, false, false, false, true])
+  })
+
+  it("is over after a password on the proxy's own login page", () => {
+    expect(
+      pages("https://ezproxy.example.edu", [
+        ["https://ezproxy.example.edu/login", true],
+        ["https://ezproxy.example.edu/login"],
+        ["https://ezproxy.example.edu/menu"],
+        ["https://ezproxy.example.edu/menu"],
+      ]),
+    ).toEqual([false, false, false, true])
+  })
+
+  it("waits while a page asks again or the proxy is still on a login path", () => {
+    expect(
+      pages("https://ezproxy.example.edu", [
+        ["https://idp.example.edu/sso", true],
+        ["https://ezproxy.example.edu/menu"],
+        ["https://ezproxy.example.edu/menu", true],
+        ["https://ezproxy.example.edu/menu"],
+        ["https://ezproxy.example.edu/menu"],
+      ]),
+    ).toEqual([false, false, false, false, true])
+  })
+
+  it("leaves an already signed-in proxy for you to close", () => {
+    expect(pages("https://tlink.lib.tsinghua.edu.cn", [["https://tlink.lib.tsinghua.edu.cn/"], ["https://tlink.lib.tsinghua.edu.cn/"], ["https://tlink.lib.tsinghua.edu.cn/"]])).toEqual([false, false, false])
+  })
+})
 
 describe("browser routes", () => {
   it("goes to the publisher's page, then through the proxy", () => {

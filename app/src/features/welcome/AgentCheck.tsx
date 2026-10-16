@@ -8,6 +8,7 @@ import { KindIcon } from "@/components/kind-icon"
 import { Button } from "@/components/ui/button"
 import { canRun, canSetUp, connectorProblem, isChecking, problemSentence, settingUp, useConnectorRecheck } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
+import { BrowserSignIn } from "@/features/settings/sections/BrowserSignIn"
 import { openSettings } from "@/features/settings/store"
 import { copyText } from "@/lib/clipboard"
 import { Spinner } from "@/components/ui/spinner"
@@ -29,11 +30,10 @@ export function AgentCheck() {
   const signedOut = installed.find((c) => connectorProblem(c) === "signed_out")
   const broken = installed.find((c) => connectorProblem(c) === "error")
   const first = connectors.find((c) => c.builtIn && c.installHint)
-  // owlit's own copy of an adapter: being set up, failed, or ready to set up for an agent on this Mac
+  // owlit's own copy of an adapter: being set up, failed, or ready to set up (one on this Mac first)
   const busy = connectors.find((c) => settingUp(c) !== undefined)
   const failed = connectors.find((c) => c.setup?.error && !c.setup.installed)
-  const settable = connectors.find(canSetUp)
-  const ownable = connectors.filter((c) => c.setup)
+  const settable = connectors.find((c) => canSetUp(c) && c.setup?.cliFound) ?? connectors.find(canSetUp)
   const engine = connectors.find((c) => c.signsInHere)
   const setUp = useChatStore((s) => s.setUpConnector)
   const cancelSetUp = useChatStore((s) => s.cancelSetUp)
@@ -78,6 +78,18 @@ export function AgentCheck() {
         </Button>
       </Line>
     )
+  } else if (signedOut?.browserSignIn) {
+    const problem = problemSentence(signedOut) ?? ""
+    body = (
+      <Line>
+        <div className="min-w-0 flex-1">
+          <span className="text-foreground">{t`${problem}.`}</span> {t`Sign in with your account in the browser.`}
+          <div className="mt-1 -ml-1.5 flex items-center gap-0.5">
+            <BrowserSignIn c={signedOut} variant="text" />
+          </div>
+        </div>
+      </Line>
+    )
   } else if (signedOut) {
     const command = signedOut.signIn ?? signedOut.command
     const problem = problemSentence(signedOut)
@@ -114,9 +126,9 @@ export function AgentCheck() {
         </div>
       </Line>
     )
-  } else if (settable) {
+  } else if (settable?.setup?.cliFound) {
     const name = settable.name
-    const size = settable.setup?.sizeMb ?? 300
+    const size = settable.setup.sizeMb
     body = (
       <Line>
         <div className="min-w-0 flex-1">
@@ -127,6 +139,34 @@ export function AgentCheck() {
               {t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
             </Button>
           </div>
+        </div>
+      </Line>
+    )
+  } else if (settable) {
+    // Neither is on this Mac: owlit's copy carries the agent itself, so Set up and a sign-in in the
+    // browser are all it takes, with no Terminal, npm or install of the agent's own
+    const size = settable.setup?.sizeMb ?? 300
+    body = (
+      <Line>
+        <div className="min-w-0 flex-1">
+          <span className="text-foreground">{t`Owlit works through Claude Code or Codex.`}</span> {t`Set one up (about ${size} MB), then sign in with your Claude or ChatGPT account.`}
+          <div className="mt-1 -ml-1.5 flex gap-0.5">
+            {connectors.filter(canSetUp).map((c) => {
+              const name = c.name
+              return (
+                <Button key={c.id} variant="text" size="inline" onClick={() => void setUp(c.id)}>
+                  {t({ message: `Set up ${name}`, comment: "fetch owlit's copy of an agent, e.g. Set up Claude Code" })}
+                </Button>
+              )
+            })}
+          </div>
+          {engine && (
+            <p className="mt-2">
+              <Trans>
+                Or <InlineLink onClick={() => openSettings("agents")}>sign in with ChatGPT</InlineLink> to use the Owlit engine (Beta).
+              </Trans>
+            </p>
+          )}
         </div>
       </Line>
     )
@@ -153,29 +193,15 @@ export function AgentCheck() {
     body = (
       <Line>
         <div className="min-w-0 flex-1">
-          {ownable.length ? (
+          <span className="text-foreground">{t`Owlit needs a coding agent on this Mac.`}</span>
+          {first?.installHint && (
             <>
-              <span className="text-foreground">{t`Owlit works through Claude Code or Codex.`}</span> {t`Install one in Terminal, then sign in:`}
-              {ownable.map((c) => (
-                <div key={c.id} className="mt-1 flex items-start gap-1">
-                  <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{c.setup!.installCli}</code>
-                  <CopyButton text={c.setup!.installCli} label={t`Copy the install command`} className="mt-0.5" />
-                </div>
-              ))}
-            </>
-          ) : (
-            <>
-              <span className="text-foreground">{t`Owlit needs a coding agent on this Mac.`}</span>
-              {first?.installHint && (
-                <>
-                  {" "}
-                  {t`To use ${name}, run this in Terminal:`}
-                  <div className="mt-1 flex items-start gap-1">
-                    <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{first.installHint}</code>
-                    <CopyButton text={first.installHint} label={t`Copy the install command`} className="mt-0.5" />
-                  </div>
-                </>
-              )}
+              {" "}
+              {t`To use ${name}, run this in Terminal:`}
+              <div className="mt-1 flex items-start gap-1">
+                <code className="min-w-0 pt-1 font-mono text-xs break-all text-foreground">{first.installHint}</code>
+                <CopyButton text={first.installHint} label={t`Copy the install command`} className="mt-0.5" />
+              </div>
             </>
           )}
           <div className="mt-1 -ml-1.5 flex gap-0.5">

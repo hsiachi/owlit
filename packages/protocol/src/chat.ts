@@ -289,8 +289,6 @@ export interface SignIn {
 export interface AgentSetup {
   // The agent's own command (claude, codex) is on this Mac
   cliFound: boolean
-  // What installs the agent itself, in Terminal
-  installCli: string
   // About how big the adapter is
   sizeMb: number
   // The version of owlit's copy, once set up
@@ -319,6 +317,9 @@ export interface Connector {
   signIns?: SignIn[]
   // It signs in inside owlit (Settings), not in a terminal (the Owlit engine)
   signsInHere?: boolean
+  // The agent's own sign-in in the browser that owlit runs (Claude Code's Claude subscription, Codex's
+  // ChatGPT): the methodId for agents.signIn
+  browserSignIn?: string
   builtIn: boolean
   status: ConnectorStatus
   version?: string

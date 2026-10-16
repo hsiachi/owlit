@@ -34,16 +34,17 @@ export const canRun = (c: Connector) => isFound(c) && c.authenticated !== false
 // Not installed or broken: picking it leads nowhere until it's fixed
 export const isUnavailable = (c?: Connector) => !!c && (c.status === "not_installed" || c.status === "error")
 
-// An agent that signs in inside owlit (the Owlit engine) and isn't signed in yet: it needs the user, but
-// isn't broken
-export const needsSignIn = (c: Connector) => !!c.signInMethods?.length && c.authenticated === false
+// An agent that signs in inside owlit (the Owlit engine, or Claude Code and Codex in the browser) and isn't
+// signed in yet: it needs the user, but isn't broken
+export const needsSignIn = (c: Connector) => (!!c.signInMethods?.length || !!c.browserSignIn) && c.authenticated === false
 
 // Broken in a way only the user can fix outside owlit
 export const isBroken = (c: Connector) => c.status === "error" && !needsSignIn(c)
 
-// owlit can set the agent up itself (Claude Code, Codex): the agent is on this Mac, owlit's copy of its
-// adapter isn't there yet, and nothing else on the Mac runs it
-export const canSetUp = (c: Connector) => c.status === "not_installed" && !!c.setup?.cliFound && !c.setup.installed
+// owlit can set the agent up itself (Claude Code, Codex): owlit's copy of its adapter isn't there yet, and
+// nothing else on the Mac runs it. The copy carries the agent and signs in in the browser, so the agent's
+// own command needn't be on the Mac.
+export const canSetUp = (c: Connector) => c.status === "not_installed" && !!c.setup && !c.setup.installed
 
 // Being set up now: its progress, 0 to 1
 export const settingUp = (c: Connector) => c.setup?.progress

@@ -9,7 +9,7 @@
 // in front of ScienceDirect and the ACM put up a new check every time the old one was passed).
 
 import { t } from "@lingui/core/macro"
-import { ACCESS_OFFER, isCheckTitle, isPdfBytes, NeedsUser, NoPdfOnPage, PDF_MAX_BYTES, pdfFromLanded, pdfLinkOn, siteOf, type BrowserHost, type BrowserRequest, type PageSeen } from "@owlit/core"
+import { ACCESS_OFFER, isCheckTitle, isPdfBytes, NeedsUser, NoPdfOnPage, PDF_MAX_BYTES, pdfFromLanded, pdfLinkOn, signInWatch, siteOf, type BrowserHost, type BrowserRequest, type PageSeen } from "@owlit/core"
 import { app, BrowserWindow, session as electronSession, type DownloadItem, type WebContents } from "electron"
 import { readFile, rm } from "node:fs/promises"
 import os from "node:os"
@@ -125,10 +125,13 @@ export function createBrowserHost(): BrowserHost {
       show: false,
       width: 1100,
       height: 800,
-      title: t({ message: "Owlit · Publisher", comment: "title of the window that shows a publisher's or library's sign-in page" }),
+      // Says what to do there: people didn't know to close it once signed in (2026-10-16). Kept over the
+      // page's own title, since the window is only ever shown for this
+      title: t({ message: "Sign in to your library · This window closes by itself once you're in", comment: "title of the window that shows the library proxy's sign-in page" }),
       // Never shown, so Chromium would slow its timers to a crawl: a check's script runs at its own pace
       webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true, backgroundThrottling: false },
     })
+    hidden.on("page-title-updated", (event) => event.preventDefault())
     // Closing it (the library proxy's sign-in) hides it: the session lives on
     hidden.on("close", (event) => {
       if (!quitting && !hidden?.isDestroyed()) {
@@ -265,9 +268,19 @@ export function createBrowserHost(): BrowserHost {
       await w.loadURL(url).catch(() => undefined)
       w.show()
       w.focus()
+      // The window closes itself once the sign-in is over (signInWatch); a look a second while it is up
+      const over = signInWatch(url)
+      const poll = setInterval(async () => {
+        const contents = w.webContents
+        if (w.isDestroyed() || !w.isVisible() || contents.isLoadingMainFrame()) return
+        const probe = await contents.executeJavaScript(PAGE_PROBE, true).catch(() => ({ challenge: false, captcha: false, password: false }))
+        const asking = isCheckTitle(contents.getTitle()) || probe.challenge || probe.captcha || probe.password
+        if (over({ url: contents.getURL(), asking }) && w.isVisible()) w.close()
+      }, 1000)
       // Quitting closes it for real, without owlit-closed
       await new Promise<void>((resolve) => {
         const done = () => {
+          clearInterval(poll)
           w.off("owlit-closed" as never, done)
           w.off("closed", done)
           resolve()

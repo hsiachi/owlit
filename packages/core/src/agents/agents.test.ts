@@ -157,6 +157,18 @@ describe("agents", () => {
     expect(checked.error).toMatch(/^Fake isn't signed in\. Run /)
   })
 
+  it("signs in in the browser by running the agent's own terminal sign-in (Claude Code)", async () => {
+    const { agents, id, dir } = await setup()
+    process.env.FAKE_ACP_AUTH = "browser"
+    process.env.FAKE_ACP_SIGNED_IN = path.join(dir, "signed-in")
+    const before = await agents.check(id)
+    expect(before).toMatchObject({ authenticated: false, browserSignIn: "claude-ai-login" })
+    expect(before.error).toBe("Fake isn't signed in. Sign in under Settings › Agents, then try again.")
+    const after = await agents.signIn(id, "claude-ai-login")
+    expect(after).toMatchObject({ authenticated: true })
+    expect(after.status === "available" || after.status === "connected").toBe(true)
+  })
+
   it("ends the process when idle and starts it again when needed", async () => {
     const { agents, id } = await setup(300)
     await agents.check(id)
