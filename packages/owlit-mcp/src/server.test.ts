@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { Core } from "@owlit/core"
-import type { UiRequest } from "@owlit/protocol"
+import type { PdfTry, UiRequest } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -49,14 +49,23 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
 }
 
 describe("pdfFact", () => {
-  it("says why a paper has no PDF and what the user can do", () => {
-    const doi = { doi: "10.1145/1" }
-    expect(pdfFact({ pdf: { url: "owlit-pdf://doi-10.1145-1" }, ids: doi })).toBe("")
-    expect(pdfFact({ ids: doi })).toBe("no PDF yet (still looking)")
-    expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:sage"], at: 1, needs: "browser" } })).toMatch(/Get it in your browser/)
-    expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:acm", "browser:acm:proxied"], at: 1 } })).toMatch(/library proxy didn't get it either/)
-    expect(pdfFact({ ids: doi, noPdf: { tried: ["browser:acm"], at: 1 } })).toMatch(/no library proxy is set up/)
-    expect(pdfFact({ ids: {}, noPdf: { tried: [], at: 1 } })).toMatch(/without a DOI/)
+  const noPdf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit") => ({ pdfState: { state: "no-pdf" as const, tried: [{ by, ended, at: 1 }], reason: { by, ended, at: 1 } } })
+
+  it("says nothing of a paper with its PDF, and that owlit is at it while it is finding", () => {
+    expect(pdfFact({ pdf: { url: "owlit-pdf://doi-10.1145-1" } })).toBe("")
+    expect(pdfFact({})).toBe("no PDF yet (owlit is looking)")
+    expect(pdfFact({ pdfState: { state: "finding", tried: [] } })).toBe("no PDF yet (owlit is looking)")
+    expect(pdfFact({ pdfState: { state: "finding", tried: [{ by: "owlit", ended: "offline", at: 1 }], reason: { by: "owlit", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
+  })
+
+  it("says why for each way a try can end, and what the user can do", () => {
+    expect(pdfFact(noPdf("no-copy"))).toMatch(/found no copy.*drop the PDF on the paper/)
+    expect(pdfFact(noPdf("no-access", "you"))).toMatch(/offered access instead.*drop the PDF/)
+    expect(pdfFact(noPdf("not-offered", "you"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
+    expect(pdfFact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
+    expect(pdfFact(noPdf("check"))).toMatch(/stopped owlit with a check.*Get it in your browser.*drop the PDF/)
+    expect(pdfFact(noPdf("sign-in"))).toMatch(/wants a sign-in.*Get it in your browser/)
+    expect(pdfFact(noPdf("nothing-came", "you"))).toMatch(/no PDF came.*Open in your browser again.*drop the PDF/)
   })
 })
 
@@ -79,7 +88,7 @@ describe("owlit-mcp", () => {
     expect((await tool("library_list")).text).toBe("The library is empty.")
     await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar"], ids: { arxiv: "1706.03762" }, year: 2017 } })
     writeFileSync(path.join(root, "library/papers/arxiv-1706.03762/text.md"), "<!-- page 1 -->\n\n## 1 Introduction\n\nRecurrent models.\n\n<!-- page 2 -->\n\n## 2 Attention\n\nScaled dot-product attention.\n")
-    expect((await tool("library_list")).text).toMatch(/^- arxiv-1706\.03762 · Attention Is All You Need · Vaswani et al\., 2017 · unread, no PDF(: owlit couldn't download it; the user can drop the PDF on the paper| yet \(still looking\))$/)
+    expect((await tool("library_list")).text).toMatch(/^- arxiv-1706\.03762 · Attention Is All You Need · Vaswani et al\., 2017 · unread, no PDF(: owlit found no copy .*; the user can drop the PDF on the paper| yet \((owlit is looking|waiting for the network)\))$/)
     expect((await tool("library_read", { id: "arxiv-1706.03762", pages: "2" })).text).toBe("<!-- page 2 -->\n\n## 2 Attention\n\nScaled dot-product attention.\n\n\n(The paper has 2 pages.)")
     expect((await tool("library_read", { id: "arxiv-1706.03762", section: "introduction" })).text).toMatch(/^## 1 Introduction\n\nRecurrent models\./)
     expect(JSON.parse((await tool("library_get", { id: "arxiv-1706.03762" })).text)).toMatchObject({ cite: "[Vaswani et al. 2017](owlit://library/arxiv-1706.03762)", highlights: 0 })

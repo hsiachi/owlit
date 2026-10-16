@@ -21,6 +21,7 @@ import {
   type HighlightColor,
   type MemoryKind,
   type Paper,
+  type PdfEnded,
   type ToolSpec,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
@@ -475,18 +476,30 @@ function paperLine(p: Paper) {
   return `- ${p.id} · ${p.title} · ${[shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", ")} · ${facts.join(", ")}`
 }
 
-// Why a paper has no PDF, in words an agent can pass on. A bare "no PDF" had an agent tell the user to
-// set up the library proxy they already had, and say nothing of the papers waiting for the
+// Why a paper has no PDF, in words an agent can pass on, read off where core says it stands (its state
+// and the ending of the try that says why), as the window shows it. A bare "no PDF" had an agent tell the
+// user to set up the library proxy they already had, and say nothing of the papers waiting for the
 // user's browser.
-export function pdfFact(p: Pick<Paper, "pdf" | "noPdf" | "ids">) {
+const DROP = "the user can drop the PDF on the paper"
+const IN_BROWSER = "the user can press Get it in your browser on the paper, or drop the PDF on it"
+const BY_ENDED: Record<PdfEnded, string> = {
+  "no-copy": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
+  "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
+  "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
+  "not-there": `no PDF: the publisher has no PDF at the paper's address; ${DROP}`,
+  check: `no PDF: the publisher stopped owlit with a check, which the user's own browser may get past; ${IN_BROWSER}`,
+  "sign-in": `no PDF: the publisher wants a sign-in, which the user's own browser may have; ${IN_BROWSER}`,
+  "nothing-came": `no PDF: the user's browser was sent for it and no PDF came; the user can press Open in your browser again on the paper, or drop the PDF on it`,
+  // Not reasons for having no PDF; core never gives them as one
+  pdf: `no PDF; ${DROP}`,
+  offline: `no PDF yet (waiting for the network)`,
+}
+
+export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">) {
   if (p.pdf) return ""
-  if (!p.noPdf) return "no PDF yet (still looking)"
-  if (p.noPdf.needs === "browser") return "no PDF: the publisher lets only the user's own browser get it (a check, a sign-in, or the ACM, which only browsers get into); the user can press Get it in your browser on the paper, or Get them for all such papers (Home's Waiting on you, the Library's Needs you filter)"
-  const { tried } = p.noPdf
-  if (tried.some((r) => r.endsWith(":proxied"))) return "no PDF: no free copy, and the user's library proxy didn't get it either; the user can drop the PDF on the paper"
-  if (tried.some((r) => r.startsWith("browser:"))) return "no PDF: no free copy, and no library proxy is set up ([Settings › Papers › Library proxy](owlit://settings/proxy))"
-  if (p.ids.doi || p.ids.arxiv) return "no PDF: owlit couldn't download it; the user can drop the PDF on the paper"
-  return "no PDF: no free copy, and without a DOI owlit can't ask the publisher; the user can drop the PDF on the paper"
+  const s = p.pdfState
+  if (!s || s.state === "finding") return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
+  return BY_ENDED[s.reason?.ended ?? "no-copy"]
 }
 
 function shortAuthors(authors: string[]) {
