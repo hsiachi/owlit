@@ -41,12 +41,15 @@ interface Connection {
 }
 
 export class SocketServer {
+  // The workspace it serves
+  readonly root: string
   readonly paths: { socket: string; pointer: string }
   private server: net.Server
   private connections = new Set<Connection>()
   private unsubscribe: () => void
 
-  private constructor(paths: { socket: string; pointer: string }, server: net.Server, unsubscribe: () => void) {
+  private constructor(root: string, paths: { socket: string; pointer: string }, server: net.Server, unsubscribe: () => void) {
+    this.root = root
     this.paths = paths
     this.server = server
     this.unsubscribe = unsubscribe
@@ -123,7 +126,7 @@ export class SocketServer {
     await chmod(paths.socket, 0o600)
     const pointer: SocketPointer = { version: 1, socket: paths.socket, token, pid: process.pid, workspace }
     await writeFile(paths.pointer, JSON.stringify(pointer) + "\n", { mode: 0o600 })
-    const started = new SocketServer(paths, server, unsubscribe)
+    const started = new SocketServer(workspace, paths, server, unsubscribe)
     started.connections = connections
     return started
   }

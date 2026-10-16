@@ -43,26 +43,25 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`List your docs`, done: t`Listed your docs` }
     case "docs_read":
       return { now: t`Read a doc`, done: t({ message: "Read a doc", context: "a step that ran" }) }
+    case "docs_add_comment":
     case "docs_add_note":
-      return { now: t`Leave a note on a doc`, done: t`Left a note on a doc` }
+      return { now: t`Leave a comment on a doc`, done: t`Left a comment on a doc` }
     case "docs_delete":
       return { now: t`Delete docs`, done: t`Deleted docs` }
     case "docs_move":
       return { now: t`Move a doc`, done: t`Moved a doc` }
+    case "memory_write":
+      return { now: t`Keep something in mind`, done: t`Kept something in mind` }
     case "chats_list":
       return { now: t`List your chats`, done: t`Listed your chats` }
     case "chats_read":
       return { now: t`Read a chat`, done: t({ message: "Read a chat", context: "a step that ran" }) }
-    case "collection_list":
-      return { now: t`List your collections`, done: t`Listed your collections` }
-    case "collection_read":
-      return { now: t`Read a collection`, done: t({ message: "Read a collection", context: "a step that ran" }) }
-    case "collection_write":
-      return { now: t`Gather papers into a collection`, done: t`Gathered papers into a collection` }
-    case "knowledge_read":
-      return { now: t`Read Knowledge`, done: t({ message: "Read Knowledge", context: "a step that ran" }) }
-    case "knowledge_write":
-      return { now: t`Update Knowledge`, done: t`Updated Knowledge` }
+    case "thread_list":
+      return { now: t`List your threads`, done: t`Listed your threads` }
+    case "thread_read":
+      return { now: t`Read a thread`, done: t({ message: "Read a thread", context: "a step that ran" }) }
+    case "thread_write":
+      return { now: t`Gather papers into a thread`, done: t`Gathered papers into a thread` }
     case "ui_open":
       return { now: t`Open something in owlit`, done: t`Opened something in owlit` }
     case "ui_jump":

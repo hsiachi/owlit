@@ -6,10 +6,11 @@ import { type PickMode, range, toggle } from "@/lib/multi-select"
 // survives only a trip into its own paper, so Back is one step out, to the card; leaving the list for
 // anywhere else folds it (lib/use-list-keys.ts).
 
-// "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF
-export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs"
-// collection: grouped by the collection a paper came from, newest added first in each
-export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue" | "citations" | "collection"
+// "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF;
+// "no-pdf": every paper owlit looked for and has no PDF of, Needs you ones among them
+export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs" | "no-pdf"
+// thread: grouped by the thread a paper came from, newest added first in each
+export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue" | "citations" | "thread"
 
 export interface Sort {
   key: SortKey
@@ -69,7 +70,7 @@ interface UiState {
 }
 
 // Dates and years read newest first; words read A to Z
-const naturalDesc = (key: SortKey) => key === "addedAt" || key === "year" || key === "citations" || key === "collection"
+const naturalDesc = (key: SortKey) => key === "addedAt" || key === "year" || key === "citations" || key === "thread"
 
 export const useLibraryUi = create<UiState>()((set, get) => ({
   query: "",

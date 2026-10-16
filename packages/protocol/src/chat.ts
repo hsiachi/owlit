@@ -4,14 +4,14 @@
 import type { FileKind } from "./files.ts"
 import type { Role } from "./roles.ts"
 
-export type SourceKind = "paper" | "doc" | "collection"
+export type SourceKind = "paper" | "doc" | "thread"
 
-// Something the user can @-mention: a paper, a doc or a collection
+// Something the user can @-mention: a paper, a doc or a thread
 export interface Mentionable {
   id: string
   kind: SourceKind
   title: string
-  // paper: authors · year; doc: relative path; collection: how many papers
+  // paper: authors · year; doc: relative path; thread: how many papers
   subtitle?: string
   uri: string
 }
@@ -73,6 +73,9 @@ export interface QuotedSelection {
   notePath?: string
   // Selected in Owlit's digest of the paper (digest.md): Owlit's reading of it, not the paper's own words
   inDigest?: boolean
+  // Asked from a comment on the passage (Ask Owlit on its card): what was said there, in order, each
+  // entry with who said it ("Owlit", "You", a reader's name)
+  comment?: { entries: { who: string; text: string }[] }
 }
 
 export interface PlanEntry {

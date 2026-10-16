@@ -74,7 +74,7 @@ describe("library.import", () => {
         "@article{ghost, title = {A Paper Nobody Indexed}, author = {Nobody, A.}, year = 1999}",
       ]),
     )
-    expect(await call("library.previewImport", { source: "bibtex", path: file })).toEqual({ total: 3, withPdf: 0, known: 1, collections: 0, asksParse: false })
+    expect(await call("library.previewImport", { source: "bibtex", path: file })).toEqual({ total: 3, withPdf: 0, known: 1, zoteroCollections: 0, asksParse: false })
     const started: ImportSummary = await call("library.import", { source: "bibtex", path: file })
     expect(started).toMatchObject({ source: "bibtex", path: file, added: [], existed: 0 })
     expect(await until(started.taskId, ["done"])).toMatchObject({ kind: "import.bibtex", progress: { done: 3, total: 3 } })

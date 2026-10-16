@@ -11,6 +11,7 @@ import {
   RpcErrorCode,
   type ChatMessage,
   type ConsentAction,
+  type MemoryLine,
   type Mentionable,
   type ParamsOf,
   type PermissionKind,
@@ -37,7 +38,7 @@ import { guardFor, handbackOf, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICT
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
-import { preamble, USER_FOLLOWS } from "./rules.ts"
+import { memoryNote, preamble, USER_FOLLOWS } from "./rules.ts"
 import { messageOf } from "../util.ts"
 
 export type TurnRequest = ParamsOf<"agents.prompt">
@@ -56,6 +57,8 @@ interface TurnsOptions {
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
   // What the user asked Owlit to call them, read when a session starts
   userName?: () => Promise<string | undefined>
+  // Owlit's memory of the user, read before every prompt (memory.ts)
+  memory?: () => Promise<MemoryLine[]>
 }
 
 // A session of one chat on one agent, as owlit knows it
@@ -68,6 +71,8 @@ interface Live {
   // The session options the chat's role asked for (Guard.meta, as JSON) and the role the agent was told
   meta: string
   told?: Role
+  // The memory as the agent last heard it (memoryNote), so it is told again only when it changed
+  heard?: string
   // Calls the agent announced to owlit's own MCP server: owlit-mcp decides consent for those itself
   owlitCalls: Set<string>
   // While a turn runs
@@ -198,8 +203,13 @@ export class Turns {
       const role = live.told !== turn.role && !fresh.rulesInSystemPrompt ? roleNote(turn.role) : undefined
       const pictures = sendsPictures(req.connectorId, await live.proc.initialized(), req.modelId)
       const attached = await attachmentBlocks(req.input.attachments, ws.root, pictures)
-      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached)
+      // Owlit's memory: in full when the session hasn't heard it, again whenever it changed since
+      const lines = (await this.options.memory?.().catch(() => [])) ?? []
+      const heard = JSON.stringify(lines.map((l) => [l.id, l.kind, l.text]))
+      const memory = live.heard !== heard && (lines.length || live.heard !== undefined) ? memoryNote(lines, live.heard !== undefined) : undefined
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached, memory)
       live.told = turn.role
+      live.heard = heard
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
       await quiet(turn)
@@ -339,7 +349,7 @@ export class Turns {
       try {
         loading.add(key)
         const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
-        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, owlitCalls: new Set(), turn: null }
+        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, heard: known?.sessionId === recorded ? known.heard : undefined, owlitCalls: new Set(), turn: null }
         this.live.set(key, live)
         return { live, history: null, created: false, guard, rulesInSystemPrompt }
       } catch {
@@ -743,11 +753,12 @@ const loading = new Set<string>()
 // ---- From owlit to ACP ----
 
 // What the user sent, as content blocks: the text (mentions as their names), each mentioned or on-screen
-// doc as a link to its file, papers and Knowledge by their owlit:// address, and a selected passage
+// doc as a link to its file, papers and threads by their owlit:// address, and a selected passage
 // quoted. A session started over gets the conversation so far first.
 // What the agent is told for one turn, in this order: owlit's rules (a new session), the role (when it is
-// new to the session), the conversation so far (a session started over), then the user's own words after
-// a line marking where they begin, and last the attached files (attachmentBlocks)
+// new to the session), owlit's memory (when it is new to the session or changed), the conversation so far
+// (a session started over), then the user's own words after a line marking where they begin, and last the
+// attached files (attachmentBlocks)
 export function promptBlocks(
   input: PromptInput,
   root: string,
@@ -756,23 +767,29 @@ export function promptBlocks(
   userName?: string,
   role?: string,
   attached?: acp.ContentBlock[],
+  memory?: string,
 ): acp.ContentBlock[] {
   const blocks: acp.ContentBlock[] = []
   // A new session hears owlit's rules first; a loaded one heard them when it began
   if (fresh) blocks.push({ type: "text", text: preamble(root, userName) })
   if (role) blocks.push({ type: "text", text: role })
+  if (memory) blocks.push({ type: "text", text: memory })
   if (history) blocks.push({ type: "text", text: `The conversation so far, for context:\n\n${history}\n\n---\n` })
   if (blocks.length) blocks.push({ type: "text", text: USER_FOLLOWS })
   blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {
     const quoted = input.selection.text.split("\n").map((l) => `> ${l}`).join("\n")
-    const { source, page, notePath, inDigest } = input.selection
+    const { source, page, notePath, inDigest, comment } = input.selection
     const where = notePath
       ? `in their own note on ${source.title} (the file ${notePath}; it is the user's, so change it only when asked, by editing that file)`
       : inDigest
         ? `in Owlit's digest of ${source.title} (its digest.md, written from the full text; check the paper itself before taking a claim from it as the paper's)`
         : `in ${source.title}${page ? `, on page ${page}` : ""}`
-    blocks.push({ type: "text", text: `The user selected this passage ${where}:\n${quoted}` })
+    if (comment?.entries.length) {
+      // The comment is beside the doc, not in it; the agent reads what was said there here
+      const said = comment.entries.map((e) => `${e.who}: ${e.text.split("\n").join("\n  ")}`).join("\n")
+      blocks.push({ type: "text", text: `The user is asking about a comment on this passage ${where}:\n${quoted}\n\nThe comment, beside the doc (not in its text):\n${said}` })
+    } else blocks.push({ type: "text", text: `The user selected this passage ${where}:\n${quoted}` })
   }
   const seen = new Set<string>()
   for (const m of [...input.mentions, ...(input.context ?? []), ...(input.selection ? [input.selection.source] : [])]) {

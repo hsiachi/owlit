@@ -6,6 +6,7 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
+import type { ProcessOptions } from "./process.ts"
 
 // The agent owlit picks when nothing else says which (background work, a first chat)
 export const FIRST_CHOICE = FIRST_CHOICE_AGENT
@@ -28,10 +29,16 @@ export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 // - tools lists the built-in tools owlit wants. The rest publish or act outside the workspace (Artifact,
 //   scheduled and remote agents, push notifications, worktrees) or mean nothing here, and a Claude Code
 //   update can't add one behind owlit's back. ToolSearch stays because MCP tools may be deferred behind it.
+// - autoMemoryEnabled false: Claude Code's own memory (notes in ~/.claude/projects/<folder>/memory/)
+//   stays on without settingSources, out of the user's sight and outside the workspace, so each write
+//   asked like an edit. Owlit keeps its own memory in the workspace (memory.ts); autoDreamEnabled false
+//   stops the background tidying of the other. Checked 2026-10-16: the system prompt no longer names a
+//   memory folder.
 // Auto mode doesn't depend on any of it (checked: the session still offers it).
 //
-// Codex has no such switch yet: codex-acp passes no session options to Codex, which reads
-// ~/.codex/config.toml (MCP servers, skills) and AGENTS.md itself.
+// Codex takes no session options; what of the user's setup it leaves out is set for its whole process
+// (processEnv below). Two things still come through: the user's MCP servers and their own AGENTS.md
+// (docs/decisions/README.md, Open).
 
 const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch", "TodoWrite", "AskUserQuestion"]
 
@@ -52,9 +59,74 @@ export function sessionMeta(connectorId: string, options: ClaudeOptions = {}): R
         plugins: [],
         tools: CLAUDE_TOOLS,
         ...options,
-        settings: { disableClaudeAiConnectors: true, ...options.settings },
+        settings: { disableClaudeAiConnectors: true, autoMemoryEnabled: false, autoDreamEnabled: false, ...options.settings },
       },
     },
+  }
+}
+
+// What an agent's process is started with beyond the user's own environment. codex-acp sends CODEX_CONFIG
+// (JSON) with every new session as config over the user's ~/.codex/config.toml, so owlit's isolation for
+// Codex goes there, on top of any CODEX_CONFIG the user set. Checked 2026-10-16 with codex-acp 2.2.1
+// (Codex 0.160), by what the session's rollout file recorded and what it said it had:
+// - memories off: Codex keeps memories of every project in ~/.codex/memories, written in the background,
+//   and owlit's sessions read and added to them
+// - skills.include_instructions false: the session isn't told of any skill (the user's, their plugins',
+//   the workspace's .agents/skills or Codex's own), and has no tool to look one up
+// - plugins and apps off: the user's plugins (with their skills and MCP servers) and the connectors of
+//   their ChatGPT account (Gmail, Drive, publishing sites); tool_suggest off stops it offering to install
+//   more. computer_use, browser_use and in_app_browser off, as tools that act outside the workspace
+// - hooks off and notify [], so nothing the user set to run at a turn's events runs for owlit's
+// - project_doc_max_bytes 0: no AGENTS.md from the workspace. ~/.codex/AGENTS.md still comes; none of
+//   instructions, developer_instructions or project_doc_max_bytes stops it.
+// Merging only adds to the user's config, which is why their MCP servers stay: an entry's
+// `mcp_servers.<name>.enabled` false would turn one off, but codex-acp sends owlit's own server as the
+// whole `mcp_servers` key, and Codex applies the keys in no fixed order, so the entry was wiped in some
+// sessions and not others. codex-acp's own title thread doesn't get CODEX_CONFIG either (processSetup).
+export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<string, string> {
+  if (connectorId !== "codex") return {}
+  let config: Record<string, unknown> = {}
+  try {
+    const own: unknown = env.CODEX_CONFIG ? JSON.parse(env.CODEX_CONFIG) : {}
+    if (own && typeof own === "object" && !Array.isArray(own)) config = own as Record<string, unknown>
+  } catch {
+    // Not JSON: codex-acp would fail on it anyway; owlit's own replaces it
+  }
+  const section = (key: string) => (config[key] && typeof config[key] === "object" ? (config[key] as Record<string, unknown>) : {})
+  return {
+    CODEX_CONFIG: JSON.stringify({
+      ...config,
+      features: {
+        ...section("features"),
+        memories: false,
+        plugins: false,
+        apps: false,
+        tool_suggest: false,
+        computer_use: false,
+        browser_use: false,
+        in_app_browser: false,
+        hooks: false,
+      },
+      memories: { ...section("memories"), generate_memories: false, use_memories: false },
+      skills: { ...section("skills"), include_instructions: false },
+      project_doc_max_bytes: 0,
+      notify: [],
+    }),
+  }
+}
+
+// What else an agent's process is set up with. After a session's first turn codex-acp starts a thread of
+// its own, with no config at all, to make up a title, so it started the user's MCP servers and loaded
+// their plugins and ChatGPT connectors for a turn told only to write a title. It skips that for a session
+// with a title given to it, so each of owlit's is named "Owlit" as soon as it opens (owlit names chats
+// itself; the name is what the user's Codex lists it by). Naming takes codex-acp's `_session/rename`, which
+// it offers only to a client that says it keeps a session index (JetBrains AIR's extension); owlit uses no
+// other part of it. Checked 2026-10-16 with codex-acp 2.2.1: no title thread starts.
+export function processSetup(connectorId: string): Pick<ProcessOptions, "clientMeta" | "opened"> {
+  if (connectorId !== "codex") return {}
+  return {
+    clientMeta: { jetbrains: { air: { version: 1, capabilities: ["sessionIndex"] } } },
+    opened: (sessionId) => ({ method: "_session/rename", params: { sessionId, title: "Owlit" } }),
   }
 }
 

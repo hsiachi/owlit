@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronUpIcon, PanelRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,9 +13,9 @@ import { useDigestState, useWritingDigest } from "../digests"
 import { visiblePapers } from "../lib/filter"
 import { useReadingVisit } from "../lib/reading"
 import { notePathOf } from "../notes/note-actions"
+import { showInPaper, usePaperView, usePaperViewOf, type PaperView } from "../paper-view"
 import { usePrefsStore } from "../prefs-store"
 import { PdfReader } from "../reader/PdfReader"
-import { useReaderStore, whenReaderReady } from "../reader/reader-store"
 import { paperById, useLibraryStore } from "../store"
 import type { Paper } from "../types"
 import { useLibraryUi } from "../ui-store"
@@ -66,50 +66,22 @@ export function PaperPage() {
   // Opening a paper isn't reading it: it turns Reading once the person has read in it (lib/reading.ts)
   useReadingVisit(paperId, !!paper?.pdf)
 
-  // The digest or the PDF. A paper with a digest opens on it, since most of the time the digest is
-  // enough; the choice holds until the next paper.
+  // The digest or the PDF (paper-view.ts)
   const writing = useWritingDigest(paperId)
   const digestState = useDigestState(paper ?? NO_PAPER)
-  const [chosen, setChosen] = useState<{ paperId: string; view: PaperView } | null>(null)
   const hasDigest = !!paper?.hasDigest
-  const view: PaperView = chosen?.paperId === paperId ? chosen.view : hasDigest ? "digest" : "pdf"
-  const showView = (next: PaperView) => setChosen({ paperId, view: next })
+  const view = usePaperViewOf(paperId, hasDigest, !!paper)
+  const showView = (next: PaperView) => usePaperView.getState().setView(paperId, next)
   // Which side is being read, for the reading time core keeps (app/activity.ts)
   const hasPdf = !!paper?.pdf
   useEffect(() => reportPaperView(paperId, view === "pdf" && !hasPdf ? null : view), [paperId, view, hasPdf])
-  // Settled when the paper opens: a digest that arrives while the PDF is being read doesn't take its place
-  // (once the library has the paper: after a reload it arrives a moment later)
-  const known = !!paper
-  useEffect(() => {
-    if (known) setChosen((c) => (c?.paperId === paperId ? c : { paperId, view: hasDigest ? "digest" : "pdf" }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paperId, known])
-  // The PDF stays loaded under the digest, so going to a page is the reader's own jump
-  const showPage = (page: number) => {
-    showView("pdf")
-    void whenReaderReady(paperId).then((api) => api.showPage(page), () => undefined)
-  }
-  // A jump into the PDF from elsewhere (a highlight in the list, a collection's answer) shows the PDF
-  useEffect(
-    () =>
-      useReaderStore.subscribe((s, prev) => {
-        if ((s.flashId && s.flashId !== prev.flashId) || (s.ring?.pulse && s.ring !== prev.ring) || (s.activeId && s.activeId !== prev.activeId)) {
-          setChosen({ paperId, view: "pdf" })
-        }
-      }),
-    [paperId],
-  )
+  // A page the digest points at (0-based)
+  const showPage = (page: number) => void showInPaper(paperId, { page: page + 1 }).catch(() => undefined)
 
-  // Opened at a quote (a collection's answer that rests on it): go to those words on that page
+  // Opened at a quote (a thread's answer that rests on it): go to those words on that page
   useTakeParam(
     "quote",
-    (quote, params) => {
-      const page = Number(params.get("page")) || undefined
-      const words = quote.trim().split(/\s+/)
-      const n = Math.min(8, words.length)
-      setChosen({ paperId, view: "pdf" })
-      void whenReaderReady(paperId).then((api) => api.showPassage({ id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), page: page ? page - 1 : undefined }, "jump"), () => undefined)
-    },
+    (quote, params) => void showInPaper(paperId, { quote, page: Number(params.get("page")) || undefined }).catch(() => undefined),
     { also: ["page"] },
   )
 
@@ -174,7 +146,6 @@ export function PaperPage() {
 // Hooks run before a missing paper's Not found
 const NO_PAPER = { id: "", hasDigest: false } as Paper
 
-type PaperView = "digest" | "pdf"
 const paperViews = (): { value: PaperView; label: string }[] => [
   { value: "digest", label: t({ message: "Digest", comment: "a view of the paper page: Owlit's digest of the paper" }) },
   { value: "pdf", label: "PDF" },

@@ -8,11 +8,13 @@ import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
+import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
@@ -125,8 +127,10 @@ export class Core {
     this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
     limitMetadataHosts(this.http)
     this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
+    const resolveProxy = options.host?.resolveProxy
     this.agents = new Agents({
       settings: this.settings,
+      proxyEnv: resolveProxy && !hasProxyEnv(process.env) ? () => systemProxyEnv(resolveProxy) : undefined,
       setup: options.node && options.npm ? { dir: path.join(options.userDataDir, "agents"), node: options.node, npm: options.npm, fetchJson: async (url) => JSON.parse(await this.http.text(url)) } : undefined,
       probeDir: path.join(options.userDataDir, "agents", "probe"),
       cwd: () => this.workspace?.root ?? null,
@@ -149,9 +153,9 @@ export class Core {
       ui: this.ui,
       journal: this.journal,
       wrote: (record) => this.notifier.notify("agent.wrote", record),
-      notesChanged: ({ path, added, removed }) => {
-        if (added) this.notifier.notify("notes.added", { path, note: added })
-        if (removed) this.notifier.notify("notes.removed", { path, id: removed })
+      commentsChanged: ({ path, changed, removed }) => {
+        if (changed) this.notifier.notify("comments.changed", { path, comment: changed })
+        if (removed) this.notifier.notify("comments.removed", { path, id: removed })
       },
     })
     this.turns = new Turns({
@@ -163,6 +167,7 @@ export class Core {
       lateQuietMs: options.lateQuietMs,
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
+      memory: async () => (await this.workspace?.memory.list()) ?? [],
     })
     this.background = new Background(this.agents)
     // Opening a paper's page says the user is about to read it: its digest comes first
@@ -224,7 +229,7 @@ export class Core {
       const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias })
       // A paper's history also says which of its sentences Owlit's answers rested on
       if (query.mode === "of" && query.paper) {
-        const { cited } = await wearOf(query.paper, { chats: ws.chats, collections: ws.collections, journal: ws.owlitPath("journal.jsonl"), aliases })
+        const { cited } = await wearOf(query.paper, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases })
         if (cited.length) return { recording: true, ...answer, cited: cited.map(({ quote, page, chatId, chatTitle, at }) => ({ quote, ...(page ? { page } : {}), chatId, chatTitle, at })) }
       }
       return { recording: true, ...answer }
@@ -291,12 +296,21 @@ export class Core {
     this.router.register("docs.reveal", z.object({ path: rel }), ({ path }) => docs().reveal(path))
 
     const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
-    const note = anchor.extend({
+    const commentSchema = anchor.extend({
       id: z.string().min(1),
-      text: z.string(),
-      by: z.string(),
-      chatId: z.string().optional(),
+      entries: z.array(
+        z.object({
+          id: z.string().min(1),
+          by: z.enum(["you", "owlit"]),
+          agent: z.string().optional(),
+          text: z.string(),
+          at: z.number(),
+          editedAt: z.number().optional(),
+          chatId: z.string().optional(),
+        }),
+      ),
       createdAt: z.number(),
+      resolvedAt: z.number().optional(),
     })
     const chats = () => this.requireWorkspace().chats
     const chatId = z.string().regex(/^[\w-]+$/)
@@ -404,6 +418,49 @@ export class Core {
       z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }),
       (params) => this.ui.act("mark", params),
     )
+    this.router.register("memory.list", noParams, async () => {
+      const memory = this.requireWorkspace().memory
+      return { lines: await memory.list(), claudeNotes: await memory.claudeNotes() }
+    })
+    const memoryKind = z.enum(["work", "about"])
+    this.router.register(
+      "memory.write",
+      z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
+      async ({ op, id, kind, text, chatId }) => {
+        // Said to the agent, so plain English
+        const need = (what: string) => {
+          throw new RpcFailure(RpcErrorCode.InvalidParams, `memory_write with op "${op}" needs ${what}.`)
+        }
+        const change = await this.requireWorkspace().memory.agentWrite(
+          op === "add" ? { op, kind: kind ?? need("kind"), text: text ?? need("text") } : op === "replace" ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}) } : { op, id: id ?? need("id") },
+          chatId ? { chatId } : {},
+        )
+        const shown = change.line ?? change.before
+        if (change.versionId && shown) {
+          this.notifier.notify("agent.changed", {
+            kind: "memory",
+            versionId: change.versionId,
+            path: shown.id,
+            label: shown.text,
+            memory: shown.kind,
+            ...(change.line === null ? { op: "removed" as const } : change.before ? { op: "updated" as const } : {}),
+            ...(chatId ? { chatId } : {}),
+          })
+        }
+        return change
+      },
+    )
+    this.router.register(
+      "memory.put",
+      z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }),
+      (input) => this.requireWorkspace().memory.put(input),
+    )
+    this.router.register("memory.remove", z.object({ id: z.string().min(1) }), ({ id }) => this.requireWorkspace().memory.remove(id))
+    this.router.register(
+      "memory.decideClaudeNotes",
+      z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }),
+      ({ keep, drop }) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop),
+    )
     this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
     this.router.register("versions.stats", z.object({ from: z.string().min(1), to: z.string().min(1) }), ({ from, to }) => this.fs.stats(from, to))
     this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
@@ -418,9 +475,9 @@ export class Core {
 
     const library = () => this.requireWorkspace().library
     this.router.register("library.resolve", z.object({ input: z.string().min(1) }), ({ input }) => library().resolve(input))
-    // A search's results are kept for hours, a collection's papers for good: an agent filling a column a day
+    // A search's results are kept for hours, a thread's papers for good: an agent filling a column a day
     // later still gets the whole abstract
-    this.router.register("library.found", z.object({ id: z.string().min(1) }), async ({ id }) => (await library().snapshot(id)) ?? (await this.requireWorkspace().collections.paperOf(id)) ?? null)
+    this.router.register("library.found", z.object({ id: z.string().min(1) }), async ({ id }) => (await library().snapshot(id)) ?? (await this.requireWorkspace().threads.paperOf(id)) ?? null)
     this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), ({ inputs }) => library().known(inputs))
     this.router.register("library.list", noParams, () => library().list())
     const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
@@ -588,7 +645,7 @@ export class Core {
     // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
     this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
       const ws = this.requireWorkspace()
-      return wearOf(id, { chats: ws.chats, collections: ws.collections, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
+      return wearOf(id, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
     })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.getInBrowser", z.object({ ids: z.array(paperId).min(1) }), ({ ids }) => library().getInBrowser(ids))
@@ -635,7 +692,7 @@ export class Core {
       )
     }
 
-    const collections = () => this.requireWorkspace().collections
+    const threads = () => this.requireWorkspace().threads
     const cellWrite = z.object({
       text: z.string(),
       depth: z.enum(["abstract", "full"]),
@@ -645,10 +702,10 @@ export class Core {
     })
     const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
     const item = z.string().regex(/^(title|memo:[\w-]+|cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+)$/, "an item: title, memo:<id>, cell:<paper>:<column>, row:<paper> or group:<id>")
-    this.router.register("collections.list", noParams, () => collections().list())
-    this.router.register("collections.get", z.object({ id: z.string().min(1) }), ({ id }) => collections().get(id))
+    this.router.register("threads.list", noParams, () => threads().list())
+    this.router.register("threads.get", z.object({ id: z.string().min(1) }), ({ id }) => threads().get(id))
     this.router.register(
-      "collections.write",
+      "threads.write",
       z.object({
         id: z.string().optional(),
         asked: z.string().optional(),
@@ -666,10 +723,10 @@ export class Core {
         run: z.string().optional(),
         docPath: z.string().optional(),
       }),
-      (params) => collections().write(params),
+      (params) => threads().write(params),
     )
     this.router.register(
-      "collections.edit",
+      "threads.edit",
       z.object({
         id: z.string().min(1),
         edit: z.discriminatedUnion("op", [
@@ -687,39 +744,44 @@ export class Core {
           z.object({ op: z.literal("seen") }),
         ]),
       }),
-      ({ id, edit }) => collections().edit(id, edit),
+      ({ id, edit }) => threads().edit(id, edit),
     )
-    this.router.register("collections.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => collections().split(id, rows, asked))
-    this.router.register("collections.unsplit", z.object({ id: z.string().min(1) }), ({ id }) => collections().unsplit(id))
-    this.router.register("collections.about", z.object({ id: z.string().min(1) }), ({ id }) => collections().about(id))
+    this.router.register("threads.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => threads().split(id, rows, asked))
+    this.router.register("threads.unsplit", z.object({ id: z.string().min(1) }), ({ id }) => threads().unsplit(id))
+    this.router.register("threads.about", z.object({ id: z.string().min(1) }), ({ id }) => threads().about(id))
     this.router.register(
-      "collections.gather",
+      "threads.gather",
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),
-      (params) => collections().gather(params),
+      (params) => threads().gather(params),
     )
-    this.router.register("collections.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read", "check"]) }), ({ id, run }) => collections().start(id, run))
+    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read", "check"]) }), ({ id, run }) => threads().start(id, run))
     this.router.register(
-      "collections.compare",
+      "threads.compare",
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }),
-      ({ id, doc, sentences }) => collections().compare(id, doc, sentences),
+      ({ id, doc, sentences }) => threads().compare(id, doc, sentences),
     )
-    this.router.register("collections.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), ({ id, column }) => collections().fill(id, column))
-    this.router.register("collections.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => collections().ask(id, question))
-    this.router.register("collections.delete", z.object({ id: z.string().min(1) }), ({ id }) => collections().delete(id))
-    this.router.register("collections.undelete", z.object({ id: z.string().min(1) }), ({ id }) => collections().undelete(id))
-    this.router.register("notes.all", noParams, () => docs().notesAll())
-    this.router.register("notes.add", z.object({ path: rel, note, agent: z.object({ chatId: z.string().optional() }).optional() }), async ({ path, note, agent }) => {
-      await docs().addNote(path, note)
-      this.notifier.notify("notes.added", { path, note })
-      if (agent) {
-        const version = await this.requireWorkspace().versions.saveNote(path, note, "added", agent)
-        this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
-      }
-      return null
-    })
-    this.router.register("notes.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeNote(path, id))
-    this.router.register("notes.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
-      docs().reanchorNotes(path, moved),
+    this.router.register("threads.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), ({ id, column }) => threads().fill(id, column))
+    this.router.register("threads.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => threads().ask(id, question))
+    this.router.register("threads.delete", z.object({ id: z.string().min(1) }), ({ id }) => threads().delete(id))
+    this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), ({ id }) => threads().undelete(id))
+    this.router.register("comments.all", noParams, () => docs().commentsAll())
+    this.router.register(
+      "comments.add",
+      z.object({ path: rel, comment: commentSchema, agent: z.object({ chatId: z.string().optional() }).optional() }),
+      async ({ path, comment, agent }) => {
+        await docs().addComment(path, comment)
+        this.notifier.notify("comments.changed", { path, comment })
+        if (agent) {
+          const version = await this.requireWorkspace().versions.saveComment(path, comment, "added", agent)
+          this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
+        }
+        return null
+      },
+    )
+    this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), ({ path, comment }) => docs().putComment(path, comment))
+    this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), ({ path, id }) => docs().removeComment(path, id))
+    this.router.register("comments.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), ({ path, moved }) =>
+      docs().reanchorComments(path, moved),
     )
 
     const shares = () => this.requireWorkspace().shares
@@ -807,28 +869,30 @@ export class Core {
                 // once a run finds the sign-in page, and signed in again once a PDF comes through
                 proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
                 agent: async (prompt, signal, pictures) =>
-                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, ...(await this.backgroundAgent()) }),
+                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
                   const settings = await this.settings.get()
                   const chosen = settings.library.digestLanguage
                   return chosen ? normalizeNoteLanguage(chosen) : defaultNoteLanguage(settings, this.systemLanguages)
                 },
               },
-              collections: {
+              threads: {
                 agent: async (prompt, signal, allow, run) => {
-                  // Without owlit's tools the agent couldn't write the collection at all. The workspace
-                  // becomes the open one only once its socket is up (or failed to open, for good).
-                  // The run's tools sign its searches and writes, so About can show them as one batch.
+                  // Without owlit's tools (no socket: it failed to open) the agent couldn't write the
+                  // thread at all. The run's tools sign its searches and writes, so About can show
+                  // them as one batch.
                   const mcpServers = this.mcpServers(root, undefined, run)
-                  if (!mcpServers.length && this.workspace?.root !== root) return null
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-                  return this.background.run({ prompt, root, mcpServers, signal, ...(await this.backgroundAgent()), allow })
+                  return this.background.run({ prompt, root, mcpServers, signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
                 },
-                changed: (id, collection) => {
-                  if (this.workspace?.root === root) this.notifier.notify("collections.changed", { id, collection })
+                changed: (id, thread) => {
+                  if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
-                // A chat's agent gathered papers into a collection: the chat shows it with Undo, as for any agent write
-                wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "collection", path: id, ...change }),
+                // A chat's agent gathered papers into a thread: the chat shows it with Undo, as for any agent write
+                wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change }),
+              },
+              memoryChanged: (lines) => {
+                if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
               },
               shares: {
                 server: () => this.options.shareServer ?? null,
@@ -846,6 +910,8 @@ export class Core {
                 definitions: (workspace) => this.taskDefinitions(workspace),
                 onChange: (task) => this.taskChanges.push(task),
                 limits: { parse: (await this.settings.get()).parsing.concurrency ?? 2 },
+                // Started below, once the workspace's socket is up
+                start: false,
               },
             })
       if (this.workspace !== next) {
@@ -871,8 +937,8 @@ export class Core {
               change.reload || change.folders.deleted.length ? undefined : { docs: [...change.changed.map((f) => f.path), ...change.deleted.map((f) => f.path)] },
             )
           })
-          // Collections the user watches get their daily look
-          void next.collections.checkWatched().catch((error) => console.error("[core] couldn't check watched collections", error))
+          // Threads the user watches get their daily look
+          void next.threads.checkWatched().catch((error) => console.error("[core] couldn't check watched threads", error))
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)
@@ -905,6 +971,8 @@ export class Core {
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
+      // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
+      if (opened) await next.tasks.start()
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
       // Only the recent list: the switch has happened either way
@@ -954,7 +1022,7 @@ export class Core {
   // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)
   private mcpServers(root: string, chatId?: string, run?: string) {
     const mcp = this.options.mcp
-    if (!mcp || !this.socket) return []
+    if (!mcp || this.socket?.root !== root) return []
     return [
       {
         name: "owlit",
@@ -980,7 +1048,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.collections.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.threads.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   private requireWorkspace() {

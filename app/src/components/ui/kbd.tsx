@@ -1,6 +1,15 @@
 import { cn } from "@/lib/utils"
 
-function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
+// The return arrows aren't in the interface font, and the fallback draws them about a pixel high beside ⌘
+// and letters (their ink stops above the baseline), so they are set a pixel lower. One run of text, so the
+// keys keep their spacing.
+const RETURN = /([↵↩])/
+function lowerReturn(children: React.ReactNode) {
+  if (typeof children !== "string" || !RETURN.test(children)) return children
+  return <span>{children.split(RETURN).map((part, i) => (RETURN.test(part) ? <span key={i} className="relative top-px">{part}</span> : part))}</span>
+}
+
+function Kbd({ className, children, ...props }: React.ComponentProps<"kbd">) {
   return (
     <kbd
       data-slot="kbd"
@@ -9,7 +18,9 @@ function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
         className
       )}
       {...props}
-    />
+    >
+      {lowerReturn(children)}
+    </kbd>
   )
 }
 

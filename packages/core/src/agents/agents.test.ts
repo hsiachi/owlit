@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { SettingsStore } from "../settings.ts"
-import { Agents, tidy } from "./agents.ts"
+import { agentEnv, Agents, tidy } from "./agents.ts"
 import { splitCommand } from "./command.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
@@ -24,7 +24,7 @@ afterEach(() => {
   delete process.env.FAKE_ACP_AUTH
 })
 
-async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH ?? "") {
+async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH ?? "", proxyEnv?: () => Promise<Record<string, string>>) {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-agents-")))
   const heard: Connector[] = []
   const agents = new Agents({
@@ -34,6 +34,7 @@ async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH 
     notify: (c) => heard.push(c),
     idleMs,
     searchPath,
+    proxyEnv,
   })
   made.push(agents)
   const added = await agents.add("Fake", `"${process.execPath}" "${fake}"`)
@@ -44,6 +45,43 @@ describe("splitCommand", () => {
   it("splits on spaces and keeps quoted words whole", () => {
     expect(splitCommand(`gemini --experimental-acp`)).toEqual(["gemini", "--experimental-acp"])
     expect(splitCommand(`"/Applications/My Agent/bin" --x 'a b' ""`)).toEqual(["/Applications/My Agent/bin", "--x", "a b", ""])
+  })
+})
+
+describe("agentEnv", () => {
+  it("drops the variables of a Claude Code session owlit was started from, and keeps sign-in ones", () => {
+    const env = agentEnv({
+      PATH: "/usr/bin",
+      HOME: "/Users/me",
+      CLAUDECODE: "1",
+      CLAUDE_PID: "123",
+      CLAUDE_EFFORT: "medium",
+      AI_AGENT: "claude-code_2-1-295_agent",
+      CLAUDE_CODE_ENTRYPOINT: "claude-desktop",
+      CLAUDE_CODE_SESSION_ID: "abc",
+      CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH: "1",
+      CLAUDE_AGENT_SDK_VERSION: "0.3.295",
+      CLAUDE_PREVIEW_CLASSIFIER_FLOOR: "1",
+      CLAUDE_CODE_OAUTH_TOKEN: "token",
+      CLAUDE_CODE_USE_BEDROCK: "1",
+      CLAUDE_CONFIG_DIR: "/Users/me/.claude-work",
+      ANTHROPIC_API_KEY: "key",
+      HTTPS_PROXY: "http://127.0.0.1:7890",
+    })
+    expect(env).toEqual({
+      PATH: "/usr/bin",
+      HOME: "/Users/me",
+      CLAUDE_CODE_OAUTH_TOKEN: "token",
+      CLAUDE_CODE_USE_BEDROCK: "1",
+      CLAUDE_CONFIG_DIR: "/Users/me/.claude-work",
+      ANTHROPIC_API_KEY: "key",
+      HTTPS_PROXY: "http://127.0.0.1:7890",
+    })
+  })
+
+  it("leaves an environment from outside a Claude Code session as it is", () => {
+    const env = { PATH: "/usr/bin", CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8000" }
+    expect(agentEnv(env)).toEqual(env)
   })
 })
 
@@ -95,6 +133,14 @@ describe("agents", () => {
     expect(codex).toMatchObject({ status: "not_installed", installHint: "npm install -g @agentclientprotocol/codex-acp" })
   })
 
+  // A turn ends with this sentence; before, it was the bare name ("Claude Code") under "Owlit stopped"
+  it("explains a missing agent when a turn starts it", async () => {
+    const empty = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-empty-path-")))
+    const { agents } = await setup(60_000, async () => empty)
+    const error = await agents.process("codex").catch((e: Error) => e)
+    expect((error as Error).message).toBe("Codex isn't installed, or Owlit can't find it. Run npm install -g @agentclientprotocol/codex-acp in a terminal to install it, then try again.")
+  })
+
   it("says when an agent isn't signed in", async () => {
     const { agents, id } = await setup()
     process.env.FAKE_ACP_AUTH = "required"
@@ -123,6 +169,17 @@ describe("agents", () => {
     const again = (await agents.process(id)).pid!
     expect(again).not.toBe(pid)
     expect(alive(again)).toBe(true)
+  })
+
+  it("tells each start of an agent the proxy as it is then", async () => {
+    let proxy = "http://127.0.0.1:7890"
+    const { agents, id } = await setup(undefined, undefined, async () => ({ HTTPS_PROXY: proxy }))
+    const proc = await agents.process(id)
+    expect((await proc.initialized())._meta?.proxy).toBe("http://127.0.0.1:7890")
+    proxy = "http://127.0.0.1:7897"
+    expect((await proc.initialized())._meta?.proxy).toBe("http://127.0.0.1:7890")
+    proc.stop()
+    expect((await proc.initialized())._meta?.proxy).toBe("http://127.0.0.1:7897")
   })
 
   it("survives a crash: one error, then the next call starts it again", async () => {

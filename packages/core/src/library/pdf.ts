@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { paperDir } from "./paths.ts"
+import { fill, publisherOf, type PublisherApi, type PublisherKeys } from "./publisher-table.ts"
 import { messageOf } from "../util.ts"
 
 // Where a paper's PDF can come from, tried in order until one gives a real PDF. Not finding one is a
@@ -27,39 +28,20 @@ export interface Route {
   url: string
   // Sent with the request and never written down (a publisher's API key)
   headers?: Record<string, string>
+  // Refuses a PDF the route gave that isn't the paper (PublisherApi.verify)
+  verify?: PublisherApi["verify"]
+  // Found on a page or by title rather than built from the paper's ids: the PDF's first pages must be
+  // the paper's before it is kept
+  checkTitle?: boolean
 }
-
-// The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
-// browser or a check: Elsevier's article API and Wiley's text-and-data-mining API
-export interface PublisherKeys {
-  elsevierApiKey?: string
-  wileyTdmToken?: string
-}
-
-const ELSEVIER_PREFIXES = ["10.1016/", "10.1006/", "10.1053/", "10.1054/", "10.1067/", "10.1078/", "10.1383/", "10.1529/"]
-const WILEY_PREFIXES = ["10.1002/", "10.1111/", "10.1046/", "10.1113/", "10.1034/"]
-export const ELSEVIER_API_HOST = "api.elsevier.com"
-export const WILEY_API_HOST = "api.wiley.com"
 
 // The publisher's API route for a DOI, when owlit has its key
 export function apiRoute(doi: string, keys: PublisherKeys): Route | undefined {
-  if (keys.elsevierApiKey && ELSEVIER_PREFIXES.some((p) => doi.startsWith(p))) {
-    return {
-      kind: "api",
-      name: "api:elsevier",
-      url: `https://${ELSEVIER_API_HOST}/content/article/doi/${doi}?httpAccept=application/pdf`,
-      headers: { "x-els-apikey": keys.elsevierApiKey },
-    }
-  }
-  if (keys.wileyTdmToken && WILEY_PREFIXES.some((p) => doi.startsWith(p))) {
-    return {
-      kind: "api",
-      name: "api:wiley",
-      url: `https://${WILEY_API_HOST}/onlinelibrary/tdm/v1/articles/${encodeURIComponent(doi)}`,
-      headers: { "wiley-tdm-client-token": keys.wileyTdmToken },
-    }
-  }
-  return undefined
+  const publisher = publisherOf(doi)
+  const api = publisher?.api
+  const key = api && keys[api.key]
+  if (!api || !key) return undefined
+  return { kind: "api", name: `api:${publisher.name}`, url: api.url(doi), headers: { [api.header]: key }, ...(api.verify ? { verify: api.verify } : {}) }
 }
 
 export interface Attempt {
@@ -91,35 +73,15 @@ export interface Acquisition {
   // it), with the page it ended on; or it was sent and nothing came (missed). Kept across owlit's own
   // looks and restarts, until a PDF comes or the user's browser is sent again and ends otherwise.
   yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
+  // What owlit's own browser found on the publisher's page when it gave no PDF: an offer to buy, reached
+  // through the library's proxy (no-access), or a page that wasn't there (missing). Kept through the
+  // plain routes' looks, until owlit's browser looks again.
+  looked?: { outcome: "no-access" | "missing"; at: number; host?: string; title?: string }
+  // How many looks in a row found no PDF, for spacing out the daily look (library.retryMissingDaily)
+  looks?: number
   // When the user's browser was last sent for it, and whether to an article page for them to save the
   // PDF from: their Downloads is looked at from then, across restarts (library.resumeDownloads)
   sentToBrowser?: { at: number; page: boolean }
-}
-
-// Direct PDF links publishers give for a DOI without a browser session. {doi} is the DOI, {suffix}
-// the part after the "/"; {landing} the page doi.org leads to (costs one request).
-const PUBLISHERS: { name: string; prefix: string; pdf: string }[] = [
-  { name: "frontiers", prefix: "10.3389/", pdf: "https://www.frontiersin.org/articles/{doi}/pdf" },
-  { name: "plos", prefix: "10.1371/journal.pone.", pdf: "https://journals.plos.org/plosone/article/file?id={doi}&type=printable" },
-  { name: "bmc", prefix: "10.1186/", pdf: "https://link.springer.com/content/pdf/{doi}.pdf" },
-  { name: "springer", prefix: "10.1007/", pdf: "https://link.springer.com/content/pdf/{doi}.pdf" },
-  { name: "nature", prefix: "10.1038/", pdf: "https://www.nature.com/articles/{suffix}.pdf" },
-  { name: "pnas", prefix: "10.1073/", pdf: "https://www.pnas.org/doi/pdf/{doi}" },
-  { name: "science", prefix: "10.1126/", pdf: "https://www.science.org/doi/pdf/{doi}" },
-  { name: "acs", prefix: "10.1021/", pdf: "https://pubs.acs.org/doi/pdf/{doi}" },
-  { name: "iop", prefix: "10.1088/", pdf: "https://iopscience.iop.org/article/{doi}/pdf" },
-  { name: "acm", prefix: "10.1145/", pdf: "https://dl.acm.org/doi/pdf/{doi}" },
-  { name: "sage", prefix: "10.1177/", pdf: "https://journals.sagepub.com/doi/pdf/{doi}" },
-  { name: "wiley", prefix: "10.1002/", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
-  { name: "wiley", prefix: "10.1111/", pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}" },
-  { name: "tandf", prefix: "10.1080/", pdf: "https://www.tandfonline.com/doi/pdf/{doi}" },
-  { name: "mdpi", prefix: "10.3390/", pdf: "{landing}/pdf" },
-  { name: "jmir", prefix: "10.2196/", pdf: "{landing}/PDF" },
-  { name: "biorxiv", prefix: "10.1101/", pdf: "{landing}.full.pdf" },
-]
-
-export function publisherOf(doi: string) {
-  return PUBLISHERS.filter((p) => doi.startsWith(p.prefix)).sort((a, b) => b.prefix.length - a.prefix.length)[0]
 }
 
 // The routes for a paper, best first, without repeats. Landing pages and Unpaywall cost a request,
@@ -154,9 +116,8 @@ export async function* routesFor(
   const api = lookups.keys ? apiRoute(doi, lookups.keys) : undefined
   if (api && fresh(api)) yield api
   const publisher = publisherOf(doi)
-  if (publisher) {
-    const suffix = doi.slice(doi.indexOf("/") + 1)
-    let url: string | undefined = publisher.pdf.replace("{doi}", doi).replace("{suffix}", suffix)
+  if (publisher?.pdf) {
+    let url: string | undefined = fill(publisher.pdf, doi)
     if (url.includes("{landing}")) {
       const landing = await lookups.landing(doi)
       url = landing ? url.replace("{landing}", landing.replace(/\/$/, "")) : undefined
@@ -165,6 +126,13 @@ export async function* routesFor(
       const route: Route = { kind: "publisher", name: `publisher:${publisher.name}`, url }
       if (fresh(route)) yield route
     }
+  }
+  // OSF's preprints (PsyArXiv, SocArXiv: 10.31234/osf.io/hcn5a) are open, as a file under their id; one
+  // that isn't a PDF (a Word manuscript) is turned away like any other
+  const osf = /^10\.\d+\/osf\.io\/([a-z0-9]+)$/i.exec(doi)
+  if (osf) {
+    const route: Route = { kind: "publisher", name: "publisher:osf", url: `https://osf.io/${osf[1]}/download` }
+    if (fresh(route)) yield route
   }
   for (const route of await lookups.unpaywall(doi)) if (fresh(route)) yield route
 }
@@ -231,9 +199,12 @@ export async function registeredUrl(http: Http, doi: string, signal?: AbortSigna
 
 // Refused as not being a PDF: an HTML page, a login wall, an empty answer
 export class NotAPdf extends Error {
-  constructor(message: string) {
+  // The web page that came instead, when one did: a repository's page for the paper may link its PDF
+  readonly page?: string
+  constructor(message: string, page?: string) {
     super(message)
     this.name = "NotAPdf"
+    if (page) this.page = page
   }
 }
 
@@ -241,6 +212,15 @@ export class NotAPdf extends Error {
 // half-downloaded file never takes its name.
 export async function downloadPdf(http: Http, url: string, dest: string, signal?: AbortSignal, headers?: Record<string, string>) {
   const response = await http.get(url, { signal, retries: 1, timeoutMs: 120_000, headers: { accept: "application/pdf,*/*;q=0.8", ...headers } })
+  // An AWS WAF check (JMIR, 2026-10-15) answers 202 with an empty body and a script for browsers: a check,
+  // not an empty file
+  if (response.status === 202) {
+    await response.body?.cancel().catch(() => {})
+    const error = new HttpError(202, url, `${hostOf(response.url || url)} only lets browsers in.`)
+    error.finalUrl = response.url || url
+    error.challenged = true
+    throw error
+  }
   if (!response.body) throw new NotAPdf(`${hostOf(url)} sent nothing.`)
   const declared = Number(response.headers.get("content-length"))
   if (declared > PDF_MAX_BYTES) {
@@ -259,7 +239,7 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
       if (head.length < 5) {
         head = Buffer.concat([head, Buffer.from(chunk)]).subarray(0, 5)
         if (head.length >= 5 && !isPdfBytes(head)) {
-          throw new NotAPdf(type.includes("html") ? `${host} served a web page, not a PDF.` : `${host} didn't send a PDF.`)
+          throw type.includes("html") ? new NotAPdf(`${host} served a web page, not a PDF.`, response.url || url) : new NotAPdf(`${host} didn't send a PDF.`)
         }
       }
       yield chunk
@@ -275,6 +255,51 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
     await rm(part, { force: true })
     throw error
   }
+}
+
+// The PDF a repository's page for a paper names (its citation_pdf_url, or a link to the PDF as an
+// alternate form of the page), for an open-access link that leads to the page rather than the file
+// (2026-10-15: qucosa's and DORAS's pages; edoc.unibas.ch's names its logo, which isn't a PDF and is
+// turned away when downloaded). The page is read up to 2 MB.
+export async function pdfNamedOnPage(http: Http, page: string, signal?: AbortSignal): Promise<string | undefined> {
+  try {
+    const response = await http.get(page, { signal, retries: 1, headers: { accept: "text/html" } })
+    if (!response.body) return undefined
+    let html = ""
+    const decoder = new TextDecoder()
+    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      html += decoder.decode(chunk, { stream: true })
+      if (html.length > 2 * 1024 * 1024) break
+    }
+    await response.body.cancel().catch(() => {})
+    const found = pdfInHtml(html, response.url || page)
+    return found && found !== page ? found : undefined
+  } catch (error) {
+    if (signal?.aborted) throw error
+    return undefined
+  }
+}
+
+export function pdfInHtml(html: string, page: string) {
+  const attr = (tag: string, name: string) => new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(tag)?.slice(2).find((v) => v !== undefined)
+  const candidates: string[] = []
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    if (/^citation_pdf_url$/i.test(attr(tag, "name") ?? attr(tag, "property") ?? "")) candidates.push(attr(tag, "content") ?? "")
+  }
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    if (/\balternate\b/i.test(attr(tag, "rel") ?? "") && /application\/pdf/i.test(attr(tag, "type") ?? "")) candidates.push(attr(tag, "href") ?? "")
+  }
+  for (const candidate of candidates) {
+    const text = candidate.replace(/&amp;/g, "&").trim()
+    if (!text) continue
+    try {
+      const url = new URL(text, page)
+      if (/^https?:$/.test(url.protocol)) return url.toString()
+    } catch {
+      // Not an address
+    }
+  }
+  return undefined
 }
 
 export const acquisitionFile = (root: string, id: string) => path.join(paperDir(root, id), "acquisition.json")

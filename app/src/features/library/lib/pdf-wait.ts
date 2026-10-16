@@ -28,10 +28,11 @@ export function pdfWait(p: Paper): PdfWait | undefined {
     case "page":
     case "queued":
     case "opened":
-    case "missed":
       return n.fromBrowser.state
   }
+  // Turned away outranks nothing coming: the publisher said why
   if (n.noAccess) return n.noAccess.missing ? "missing" : "no-access"
+  if (n.fromBrowser?.state === "missed") return "missed"
   return n.needs ? "browser" : "not-found"
 }
 

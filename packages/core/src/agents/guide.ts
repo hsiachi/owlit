@@ -15,7 +15,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "workspace",
     title: "The workspace",
-    text: `The workspace is one folder on the user's Mac. Their docs are the Markdown files in it, papers live in library/, and owlit's own state in .owlit/ (the collections among it). File › Open Workspace… (⌘O) opens another folder and File › Open Recent lists earlier ones. Other programs (Finder, Obsidian, git) can change the folder too; owlit follows along.`,
+    text: `The workspace is one folder on the user's Mac. Their docs are the Markdown files in it, papers live in library/, and owlit's own state in .owlit/ (the threads among it). File › Open Workspace… (⌘O) opens another folder and File › Open Recent lists earlier ones. Other programs (Finder, Obsidian, git) can change the folder too; owlit follows along.`,
   },
   {
     id: "papers",
@@ -30,7 +30,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "reading",
     title: "Reading and highlighting",
-    text: `Open a paper from the Library to read it. Selecting text brings up a small bar: four highlight colours (keys 1–4), Copy (⌘C), Comment, and Ask Owlit, which sends the passage to Owlit. ⌘F finds in the PDF. The panel beside the PDF has Notes (one Markdown note per paper), Highlights and About; About lists the collections that hold the paper. Status (Unread, Reading, Read), the star and tags are set from the paper's menu or the paper page.`,
+    text: `Open a paper from the Library to read it. Selecting text brings up a small bar: four highlight colours (keys 1–4), Copy (⌘C), Comment, and Ask Owlit, which sends the passage to Owlit. ⌘F finds in the PDF. The panel beside the PDF has Notes (one Markdown note per paper), Highlights and About; About lists the threads that hold the paper. Status (Unread, Reading, Read), the star and tags are set from the paper's menu or the paper page.`,
   },
   {
     id: "citing",
@@ -40,7 +40,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "docs",
     title: "Docs",
-    text: `Docs are the Markdown files in the workspace, shown as the folder tree in Docs. ⌘N in Docs makes a new doc; its first line is the title and names the file. Every change is saved. Selecting text offers Chat with Owlit. Asking Owlit to review a doc leaves notes in its margin, stored beside the file, not in it. A doc's menu has Versions… for earlier versions. Deleting moves the file to the system Trash, with Undo.`,
+    text: `Docs are the Markdown files in the workspace, shown as the folder tree in Docs. ⌘N in Docs makes a new doc; its first line is the title and names the file. Every change is saved. Selecting text offers Ask Owlit and a comment icon (⌥⌘M). Comments, Owlit's, the user's and a shared doc's readers', sit in a column to the right of the doc, each level with its words, stored beside the file, not in it; the header's comment button shows or hides the column. A comment is flat: replies go to the whole comment, and Owlit doesn't answer replies; Ask Owlit on a comment opens a chat about it. Asking Owlit to review a doc leaves comments. A doc's menu has Versions… for earlier versions. Deleting moves the file to the system Trash, with Undo.`,
   },
   {
     id: "owlit",
@@ -53,9 +53,9 @@ const TOPICS: GuideTopic[] = [
     text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as digests.`,
   },
   {
-    id: "collections",
-    title: "Collections",
-    text: `A collection is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Collections page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the collection; opening one or Add to Library brings it into the Library. On a collection: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Watch for new papers, Move to project, Export as CSV and Delete.`,
+    id: "threads",
+    title: "Threads",
+    text: `A thread is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Threads page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the thread; opening one or Add to Library brings it into the Library. On a thread: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Watch for new papers, Move to project, Export as CSV and Delete.`,
   },
   {
     id: "undo",
@@ -63,9 +63,14 @@ const TOPICS: GuideTopic[] = [
     text: `Every change Owlit makes outside a chat (a paper added, a note on a doc, a topic line, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit proposes to a doc or a note is shown in place first, with Apply or Discard; once applied, ⌘Z undoes it in one step.`,
   },
   {
+    id: "memory",
+    title: "What Owlit keeps in mind",
+    text: `Owlit keeps a short list about the user for this workspace: how they like it to work ("cite as (Author, Year)", "answer in Chinese") and facts about their work ("I'm writing my thesis on…"). Every chat starts with it, whichever agent runs, and so does background work. Owlit adds a line when the user tells it to remember something or says "from now on", when they correct how it works, or when they state a fact about their work; the answer's result card shows "Remembered" with Undo. The list is in Settings › Owlit › What Owlit keeps in mind (Edit, Remove, Add one) and in the file .owlit/memory.md. The agents' own memory features are off inside owlit; this list is the only memory.`,
+  },
+  {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, the agent and language for background work such as digests, and whether owlit remembers what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, what Owlit keeps in mind about them, the agent and language for background work such as digests, and whether owlit records what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",

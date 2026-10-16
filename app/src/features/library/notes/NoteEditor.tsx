@@ -11,7 +11,7 @@ import { drawnEdits } from "@/features/chat/in-place"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { useSelectionMenu } from "@/components/selection-menu"
 import { askAboutPassage } from "../actions"
-import { useReaderStore } from "../reader/reader-store"
+import { showInPaper } from "../paper-view"
 import { useLibraryStore } from "../store"
 import { NoteMention } from "./note-mention"
 import { consumeFocusEnd, notePathOf } from "./note-actions"
@@ -25,7 +25,7 @@ const HIGHLIGHT_LINK = "owlit://highlight/"
 const live = (editor: Editor | null): editor is Editor => !!editor && !editor.isDestroyed
 
 // One note per paper, kept as Markdown. Markdown shortcuts as you type (#, -, >, **), @ to
-// mention a paper, doc or collection. Saved on every change; nothing says "saved".
+// mention a paper, doc or thread. Saved on every change; nothing says "saved".
 // The note is the user's, so Owlit works on it as on a doc: a selection offers "Ask Owlit",
 // and an edit Owlit proposes is shown in the note before anything changes.
 export function NoteEditor({ paperId }: { paperId: string }) {
@@ -60,7 +60,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
           const href = a?.getAttribute("href") ?? ""
           if (!href.startsWith(HIGHLIGHT_LINK)) return false
           const h = useLibraryStore.getState().highlights[href.slice(HIGHLIGHT_LINK.length)]
-          if (h) useReaderStore.getState().api?.jumpToHighlight(h)
+          if (h) showInPaper(h.paperId, { highlight: h }).catch(() => undefined)
           else toast(t`That highlight was deleted`)
           return true
         },

@@ -23,6 +23,7 @@ import { ConnectorStatusChip } from "../ConnectorStatusChip"
 import { useResolvedSelection } from "../../use-selection"
 import { roleWords } from "../../lib/selection"
 import { openSettings } from "@/features/settings/store"
+import { useAfterWait } from "@/hooks/use-after-wait"
 
 // A compact trigger: no chevron (a menu opens from each), a tooltip naming what it sets. Radix needs the
 // tooltip and menu triggers stacked on the same button.
@@ -79,6 +80,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
   const unavailable = isUnavailable(connector)
   const agent = connector?.name
   const status = connector ? statusLabel(connector.status) : undefined
+  const checking = useAfterWait(connector?.status === "checking")
   const modelName = model?.name ?? ""
   const effortName = effort?.name ?? ""
   const roleSaid = roleWords(role.id)
@@ -93,7 +95,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
           tip={connector ? (unavailable || connector.status === "checking" ? `${connector.name} · ${status}` : connector.name) : t`No agent`}
           className={cn("w-7 justify-center px-0", unavailable && "text-destructive hover:text-destructive")}
         >
-          {connector?.status === "checking" ? <Spinner className="size-3.5" /> : unavailable ? <TriangleAlertIcon className="size-4" /> : <AgentIcon id={connector?.id} />}
+          {checking ? <Spinner wait={false} className="size-3.5" /> : unavailable ? <TriangleAlertIcon className="size-4" /> : <AgentIcon id={connector?.id} />}
         </PickerButton>
         <DropdownMenuContent align="end" className="w-56">
           {connectors.map((c) => (

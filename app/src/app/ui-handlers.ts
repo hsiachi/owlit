@@ -14,8 +14,8 @@ import { openEditor, onEditorsChanged } from "@/features/docs/editors"
 import { mentionRoute, mentionTitle } from "@/features/docs/lib/mentions"
 import { fileAt } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
-import type { PassageTarget } from "@/features/library/reader/passages"
-import { whenReaderReady } from "@/features/library/reader/reader-store"
+import { pdfReader, showInPaper } from "@/features/library/paper-view"
+import { quoteTarget } from "@/features/library/reader/passages"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { registerUiHandler, waitFor } from "@/lib/ui-actions"
 
@@ -43,20 +43,6 @@ function target(uri: string): Target {
   }
   if (!mentionRoute(uri)) throw new Error(`owlit has nothing at ${uri}.`)
   return { kind: "other", title: mentionTitle(uri) ?? uri }
-}
-
-// A quoted passage as the reader finds passages: by a phrase that opens it and one that closes it
-function passageOf(quote: string, page?: number): PassageTarget {
-  const words = quote.trim().split(/\s+/)
-  const n = Math.min(8, words.length)
-  return { id: `agent:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), page: page ? page - 1 : undefined }
-}
-
-// The paper's reader, once it has laid out its pages
-function reader(id: string) {
-  const paper = useLibraryStore.getState().papers[id]
-  if (!paper.pdf) throw new Error(`${paper.title} has no PDF in owlit yet.`)
-  return whenReaderReady(id)
 }
 
 // Where a quote is in a doc: word for word, else the same words with any Markdown or line breaks
@@ -92,16 +78,7 @@ export function startUiHandlers(router: typeof appRouter) {
     const t = target(uri)
     if (t.kind === "other") throw new Error("Only papers and docs have places to go to; open this one instead.")
     await show(uri, chatId)
-    if (t.kind === "paper") {
-      const api = await reader(t.id)
-      if (!quote) {
-        if (page) api.showPage(page - 1)
-        return { title: t.title, found: true }
-      }
-      const found = await api.showPassage(passageOf(quote, page), "jump")
-      if (!found && page) api.showPage(page - 1)
-      return { title: t.title, found }
-    }
+    if (t.kind === "paper") return { title: t.title, found: await showInPaper(t.id, { page, quote }) }
     await waitFor(() => openEditor(t.id), onEditorsChanged, EDITOR_WITHIN_MS, "The doc didn't open in time.")
     // The editor that stays: one made while the page mounts can be replaced at once (StrictMode)
     await new Promise((r) => setTimeout(r))
@@ -119,8 +96,8 @@ export function startUiHandlers(router: typeof appRouter) {
     const t = target(uri)
     if (t.kind !== "paper") throw new Error("Only passages in a paper can be highlighted.")
     await show(uri, chatId)
-    const api = await reader(t.id)
-    const h = await api.markPassage(passageOf(quote), color ?? "yellow")
+    const api = await pdfReader(t.id)
+    const h = await api.markPassage(quoteTarget(quote), color ?? "yellow")
     if (!h) throw new Error(`That passage isn't in ${t.title}'s PDF word for word; quote it as library_read gives it.`)
     return { title: t.title, highlightId: h.id, page: h.page + 1 }
   })

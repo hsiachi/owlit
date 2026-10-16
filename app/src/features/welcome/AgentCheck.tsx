@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { CopyIcon, LoaderCircleIcon } from "lucide-react"
+import { CopyIcon } from "lucide-react"
 import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
 import { InlineLink } from "@/components/inline-link"
@@ -10,6 +10,7 @@ import { canRun, canSetUp, connectorProblem, isChecking, problemSentence, settin
 import { useChatStore } from "@/features/chat/store"
 import { openSettings } from "@/features/settings/store"
 import { copyText } from "@/lib/clipboard"
+import { Spinner } from "@/components/ui/spinner"
 
 // One line at the bottom of the welcome page: whether an agent on this Mac can run Owlit. It only
 // reports; Create and Open work either way. Every agent is checked afresh when the page opens, and the
@@ -62,7 +63,7 @@ export function AgentCheck() {
     )
   } else if (checking) {
     body = (
-      <Line icon={<LoaderCircleIcon className="animate-spin" />}>
+      <Line icon={<Spinner />}>
         <span>{t`Looking for an agent on this Mac…`}</span>
       </Line>
     )
@@ -70,7 +71,7 @@ export function AgentCheck() {
     const name = busy.name
     const percent = Math.round((settingUp(busy) ?? 0) * 100)
     body = (
-      <Line icon={<LoaderCircleIcon className="animate-spin" />}>
+      <Line icon={<Spinner />}>
         <span className="flex-1 tabular-nums">{t`Setting up ${name}… ${percent}%`}</span>
         <Button variant="text" size="inline" className="-my-1 -mr-1.5" onClick={() => void cancelSetUp(busy.id)}>
           {t`Cancel`}

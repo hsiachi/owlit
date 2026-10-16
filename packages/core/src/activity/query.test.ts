@@ -32,7 +32,7 @@ const journal: JournalEntry[] = [
   user({ kind: "doc.edited", at: now - DAY + 7 * MIN, path: "notes/a.md" }),
   user({ kind: "doc.edited", at: now - DAY + 8 * MIN, path: "notes/a.md" }),
   agent({ kind: "agent.wrote", at: now - DAY + 9 * MIN, path: "notes/a.md", versionId: "v1", chatId: "c1" }),
-  agent({ kind: "agent.wrote", at: now - DAY + 9 * MIN, path: ".owlit/collections/x/collection.json", versionId: "v2" }),
+  agent({ kind: "agent.wrote", at: now - DAY + 9 * MIN, path: ".owlit/threads/x/thread.json", versionId: "v2" }),
   user({ kind: "chat.ended", at: now - DAY + 10 * MIN, chatId: "c1" }),
 ]
 

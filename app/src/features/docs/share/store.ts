@@ -13,7 +13,7 @@ import { useDocsUiStore } from "../ui-store"
 // doc's path, as core keeps them; a rename arrives as the old path gone and the new one shared.
 
 // A reader's comment on a passage, with the replies under it
-export interface Thread {
+export interface CommentThread {
   root: ShareComment & { anchor: ShareAnchor }
   replies: ShareComment[]
 }
@@ -27,11 +27,11 @@ interface ShareState {
 
 export const useShareStore = create<ShareState>(() => ({ server: null, byPath: {}, comments: {} }))
 
-// The open threads of a doc's comments, in the order they were written
-export function threadsOf(comments: ShareComment[] | undefined): Thread[] {
+// The open threads of a doc's comments, in the order they were written; or the resolved ones
+export function commentThreadsOf(comments: ShareComment[] | undefined, { resolved = false } = {}): CommentThread[] {
   if (!comments) return []
   return comments
-    .filter((c): c is Thread["root"] => !c.parent && !!c.anchor && !c.resolved)
+    .filter((c): c is CommentThread["root"] => !c.parent && !!c.anchor && !!c.resolved === resolved)
     .map((root) => ({ root, replies: comments.filter((c) => c.parent === root.id) }))
 }
 
@@ -72,7 +72,7 @@ function sayNew(path: string, before: ShareComment[] | undefined, after: ShareCo
           label: t`Open`,
           onClick: () => {
             const thread = first.parent ?? first.id
-            useDocsUiStore.getState().setOpenComment(file.id, thread)
+            useDocsUiStore.getState().setOpenComment(file.id, `r:${thread}`)
             void import("@/app/router").then(({ router }) => router.navigate(`/docs/${file.id}`))
           },
         }

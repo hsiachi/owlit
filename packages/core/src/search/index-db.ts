@@ -152,7 +152,7 @@ export class IndexDb {
 
   private create() {
     this.db.exec(`
-      DROP TABLE IF EXISTS papers; DROP TABLE IF EXISTS docs; DROP TABLE IF EXISTS chats; DROP TABLE IF EXISTS knowledge;
+      DROP TABLE IF EXISTS papers; DROP TABLE IF EXISTS docs; DROP TABLE IF EXISTS chats;
       DROP TABLE IF EXISTS links; DROP TABLE IF EXISTS meta;
       CREATE VIRTUAL TABLE papers USING fts5(id UNINDEXED, title, authors, venue, tags, ids, year UNINDEXED, abstract, fulltext, tokenize = 'unicode61 remove_diacritics 2');
       CREATE VIRTUAL TABLE docs USING fts5(path UNINDEXED, title, text, tokenize = 'unicode61 remove_diacritics 2');
@@ -219,7 +219,7 @@ export function toMatch(query: string) {
 // owlit:// mentions and [[wikilinks]] in a text
 export function linksIn(text: string): Link[] {
   const links: Link[] = []
-  for (const m of text.matchAll(/owlit:\/\/(library|docs|collections)\/([^\s)"'#\]>]+)/g)) {
+  for (const m of text.matchAll(/owlit:\/\/(library|docs|threads)\/([^\s)"'#\]>]+)/g)) {
     links.push({ to: `owlit://${m[1]}/${decodeOrKeep(m[2])}`, kind: "mention" })
   }
   for (const m of text.matchAll(/\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g)) links.push({ to: `wikilink:${m[1].trim()}`, kind: "wikilink" })

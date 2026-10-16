@@ -11,8 +11,7 @@ import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
-import type { PaperGroup } from "../lib/filter"
-import { needsYou, pdfWait } from "../lib/pdf-wait"
+import { noPdfReason, type PaperGroup } from "../lib/filter"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
@@ -96,18 +95,20 @@ function DigestMark({ state }: { state: DigestState }) {
   return null
 }
 
-// A paper without its PDF says why in its row: Needs you while a publisher waits on the user; once their
-// browser was turned away or nothing came of it, what happened, a plain detail, since nothing waits on
-// them any more
+// A paper without its PDF says why in its row: Needs you while a publisher waits on the user; otherwise
+// what happened (turned away, nothing came, nothing found), a plain detail, since nothing waits on them
 function noPdfWord(p: Paper) {
-  if (needsYou(p)) return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
-  switch (pdfWait(p)) {
-    case "missing":
-      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
+  switch (noPdfReason(p)) {
+    case "needs":
+      return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
     case "no-access":
       return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+    case "missing":
+      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
     case "missed":
       return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
+    case "not-found":
+      return t({ message: "No PDF", comment: "owlit looked for the paper's PDF and found none" })
   }
   return undefined
 }
@@ -192,7 +193,7 @@ const COLUMNS = [
   { key: "year", label: msg`Year`, width: 64, sort: "year" },
   { key: "venue", label: msg`Venue`, width: 160, sort: "venue" },
   { key: "citations", label: msg({ message: "Citations", comment: "how often a paper is cited by other works" }), width: 88, sort: "citations" },
-  { key: "collection", label: msg({ message: "Collection", comment: "table column: the collection a paper came from" }), width: 160, sort: "collection" },
+  { key: "thread", label: msg({ message: "Thread", comment: "table column: the thread a paper came from" }), width: 160, sort: "thread" },
   { key: "tags", label: msg`Tags`, width: 144 },
   { key: "status", label: msg`Status`, width: 104 },
   { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
@@ -205,10 +206,10 @@ type ColumnKey = Column["key"]
 // can't fit every column, they give way least-needed first; Year and Added (which holds the
 // row's actions) always stay.
 const TITLE_MIN = 320
-const GIVE_WAY: ColumnKey[] = ["citations", "venue", "collection", "status", "tags", "authors"]
+const GIVE_WAY: ColumnKey[] = ["citations", "venue", "thread", "status", "tags", "authors"]
 
-// The collections that hold each paper, most recently changed first
-type ByCollection = ReadonlyMap<string, { id: string; title: string }[]>
+// The threads that hold each paper, most recently changed first
+type ByThread = ReadonlyMap<string, { id: string; title: string }[]>
 
 // Columns no paper in view fills (no tags yet, every paper unread) are left out rather than shown blank
 const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
@@ -221,14 +222,14 @@ const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
 // Added says "Oct 8 · Owlit" for a paper Owlit added, which needs a wider cell than a date alone
 const ADDED_BY_OWLIT_WIDTH = 136
 
-function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byCollection: ByCollection | undefined): Column[] {
+function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byThread: ByThread | undefined): Column[] {
   const kept = useMemo(() => {
     const byOwlit = papers.some((p) => p.addedBy === "agent")
-    const filled = { ...FILLED, collection: (p: Paper) => !!byCollection?.get(p.id)?.length }
+    const filled = { ...FILLED, thread: (p: Paper) => !!byThread?.get(p.id)?.length }
     return COLUMNS.filter((c) => !filled[c.key] || papers.some(filled[c.key]!)).map((c) =>
       c.key === "added" && byOwlit ? { ...c, width: ADDED_BY_OWLIT_WIDTH } : c,
     ) as Column[]
-  }, [papers, byCollection])
+  }, [papers, byThread])
   // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
   // before paint, so the table never shows a frame with every column squeezed in; and it only
   // re-renders when a column actually comes or goes.
@@ -254,7 +255,7 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
 
 type TableRowProps = { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[]; holding?: { id: string; title: string }[] }
 
-// The collections holding a paper come fresh from every library change, so they are compared by what they say
+// The threads holding a paper come fresh from every library change, so they are compared by what they say
 const sameHolding = (a: TableRowProps["holding"], b: TableRowProps["holding"]) =>
   a === b || (!!a && !!b && a.length === b.length && a.every((c, i) => c.id === b[i]!.id && c.title === b[i]!.title))
 
@@ -305,7 +306,7 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
             {paper.citations && citationsShort(paper.citations.count)}
           </td>
         )}
-        {columns.has("collection") && (
+        {columns.has("thread") && (
           <td className={td} title={holding && holding.length > 1 ? holding.map((c) => c.title).join("\n") : holding?.[0]?.title}>
             {holding?.length ? (
               <span className="flex items-center gap-1.5">
@@ -358,14 +359,14 @@ const PeekRow = memo(function PeekRow({ paper, open, span }: { paper: Paper; ope
 
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
 // Column headers sort; clicking a row opens its card in a full-width row beneath it. Sorted by
-// collection, the table falls into the list's groups, each under its collection's title.
-export function PaperTable({ papers, groups, byCollection, snippets }: { papers: Paper[]; groups?: PaperGroup[]; byCollection?: ByCollection; snippets?: ReadonlyMap<string, string> }) {
+// thread, the table falls into the list's groups, each under its thread's title.
+export function PaperTable({ papers, groups, byThread, snippets }: { papers: Paper[]; groups?: PaperGroup[]; byThread?: ByThread; snippets?: ReadonlyMap<string, string> }) {
   const peekId = useLibraryUi((s) => s.peekId)
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
   const tagFilter = useLibraryUi((s) => s.tags)
   const table = useRef<HTMLTableElement>(null)
-  const columns = useColumns(table, papers, byCollection)
+  const columns = useColumns(table, papers, byThread)
   // Kept while the same columns show, so the memoized rows aren't redrawn by every library change
   const keys = columns.map((c) => c.key).join(" ")
   const shown = useMemo(() => new Set(keys.split(" ") as ColumnKey[]), [keys])
@@ -411,7 +412,7 @@ export function PaperTable({ papers, groups, byCollection, snippets }: { papers:
             )}
             {g.papers.map((p, i) => (
               <Fragment key={p.id}>
-                <TableRow paper={p} peeked={p.id === peekId} last={i === g.papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} holding={byCollection?.get(p.id)} />
+                <TableRow paper={p} peeked={p.id === peekId} last={i === g.papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} holding={byThread?.get(p.id)} />
                 <PeekRow paper={p} open={p.id === peekId} span={columns.length} />
               </Fragment>
             ))}

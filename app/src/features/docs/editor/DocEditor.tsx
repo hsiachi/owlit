@@ -12,14 +12,16 @@ import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { allDocMentions, docMentionable, mentionLabel, mentionTooltip, openMention, paperUnread } from "../lib/mentions"
+import { allDocMentions, docMentionable, mentionTooltip, openMention, paperUnread } from "../lib/mentions"
 import { useLibraryStore } from "@/features/library/store"
 import { freshDocIds, useDocsStore } from "../store"
-import { type AgentNote, type WorkspaceFile } from "../types"
+import { type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
-import { agentNotes, noteSpots, setNotes, setOpenNote } from "./agent-notes"
+import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
+import { commentViews } from "../comments/model"
+import { setCommentSlot, setCommentTops } from "../comments/layout"
 import { selectionMenu } from "./selection-menu"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { agentSuggestions, setPendingEdits } from "./suggestions"
@@ -29,11 +31,9 @@ import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
 import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
-import { toastError, toastUndo } from "@/lib/toast"
 import { routeSubject } from "@/app/route-subject"
 import { anchorAt } from "@owlit/protocol"
-import { readerComments, setOpenThread, setThreads, threadSpots } from "./reader-comments"
-import { shares, threadsOf, useShareStore, type Thread } from "../share/store"
+import { useShareStore } from "../share/store"
 
 // A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
 // carry no user event at all; neither is the user's edit.
@@ -59,31 +59,12 @@ function chatAbout(fileId: string, text: string, from?: number) {
   if (file) useAgentWindow.getState().open({ text, source: docMentionable(file), from })
 }
 
-// Dismissing a note moves on to the next one, so a review can be worked through in one go
-function dismissNote(fileId: string, note: AgentNote, next: string | null) {
-  useDocsUiStore.getState().setOpenNote(fileId, next)
-  const removed = useDocsStore.getState().removeNote(fileId, note.id)
-  if (removed) toastUndo(t`Note dismissed`, () => useDocsStore.getState().restoreNote(fileId, removed))
-}
-
-// A reader's comment, answered or put away; the doc's path is looked up then, as it may have been renamed
-const pathOf = (fileId: string) => useDocsStore.getState().files[fileId]?.path
-async function replyTo(fileId: string, thread: Thread, text: string) {
-  const path = pathOf(fileId)
-  if (!path) return
-  await shares.reply(path, thread.root.id, text).catch((error: unknown) => {
-    toastError(error)
-    throw error
-  })
-}
-function resolveThread(fileId: string, thread: Thread) {
-  const path = pathOf(fileId)
-  if (!path) return
-  useDocsUiStore.getState().setOpenComment(fileId, null)
-  void shares
-    .resolve(path, thread.root.id, true)
-    .then(() => toastUndo(t`Comment resolved`, () => shares.resolve(path, thread.root.id, false)))
-    .catch(toastError)
+// Starts a comment on the selected words: its card opens in the column, level with them
+function startComment(fileId: string, view: EditorView) {
+  const { from, to } = view.state.selection.main
+  if (from === to || !isPassage(view.state.sliceDoc(from, to))) return false
+  useDocsUiStore.getState().setNewComment({ docId: fileId, from, to })
+  return true
 }
 
 const SAVE_DELAY = 300
@@ -121,12 +102,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       if (dirty) {
         const text = view.state.doc.toString()
         useDocsStore.getState().writeDoc(id, crlf ? text.replace(/\n/g, "\r\n") : text)
-        saveNotePlaces()
+        saveCommentPlaces()
       }
       dirty = userEdited = false
     }
-    // Passages edited while the doc was open are saved as they read now, so their notes find them next time
-    let saveNotePlaces = () => {}
+    // Passages edited while the doc was open are saved as they read now, so their comments find them next time
+    let saveCommentPlaces = () => {}
     // Owlit's proposed edits drawn in the doc are answered here, so the chat's card points at the doc
     const setDrawn = drawnEdits()
 
@@ -165,22 +146,16 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup(() => allDocMentions(id)),
-          selectionMenu((text, view) => chatAbout(id, text, view.state.selection.main.from)),
+          selectionMenu(
+            (text, view) => chatAbout(id, text, view.state.selection.main.from),
+            (view) => startComment(id, view),
+          ),
+          keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
           agentSuggestions(respondToEdit, setDrawn),
-          agentNotes({
-            onOpen: (noteId) => useDocsUiStore.getState().setOpenNote(id, noteId),
-            onChat: (note) => {
-              useDocsUiStore.getState().setOpenNote(id, null)
-              chatAbout(id, note.quote, noteSpots(view.state).find((s) => s.item.id === note.id && !s.lost)?.from)
-            },
-            onDismiss: (note, next) => dismissNote(id, note, next),
-            mentionLabel,
-            onOpenMention: (uri) => openMention(uri, (to) => navigateRef.current(to)),
-          }),
-          readerComments({
-            onOpen: (threadId) => useDocsUiStore.getState().setOpenComment(id, threadId),
-            onReply: (thread, text) => replyTo(id, thread, text),
-            onResolve: (thread) => resolveThread(id, thread),
+          commentMarks({
+            onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
+            onLayout: (tops) => setCommentTops(id, tops),
+            onSlot: (el, was) => setCommentSlot(id, el, was),
           }),
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
@@ -216,61 +191,53 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       view.dispatch({ effects: editable.reconfigure(lock(missing)) })
     })
 
-    // The doc's margin notes follow the store
-    let notes = useDocsStore.getState().notes[id]
-    view.dispatch({ effects: setNotes.of(notes ?? []) })
-    const unsubscribeNotes = useDocsStore.subscribe((s) => {
-      if (s.notes[id] === notes) return
-      notes = s.notes[id]
-      view.dispatch({ effects: setNotes.of(notes ?? []) })
-    })
-    // Readers' comments on the doc's share link follow the share store, by the doc's path now
-    const commentsNow = () => useShareStore.getState().comments[useDocsStore.getState().files[id]?.path ?? ""]
-    let comments = commentsNow()
-    view.dispatch({ effects: setThreads.of(threadsOf(comments)) })
-    const unsubscribeComments = useShareStore.subscribe(() => {
-      const next = commentsNow()
-      if (next === comments) return
-      comments = next
-      view.dispatch({ effects: setThreads.of(threadsOf(comments)) })
-    })
-    const openCommentFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openComment?.docId === id ? s.openComment.threadId : null)
-    let openComment = openCommentFor(useDocsUiStore.getState())
-    if (openComment) view.dispatch({ effects: setOpenThread.of(openComment) })
-    const unsubscribeOpenComment = useDocsUiStore.subscribe((s) => {
-      const next = openCommentFor(s)
-      if (next === openComment) return
-      openComment = next
-      view.dispatch({ effects: setOpenThread.of(next) })
-      const spot = threadSpots(view.state).find((n) => n.item.root.id === next)
-      if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 200 }) })
-    })
-
-    saveNotePlaces = () => {
-      const doc = view.state.doc
-      let text: string | undefined
-      const moved: Record<string, Pick<AgentNote, "quote" | "prefix" | "suffix">> = {}
-      for (const s of noteSpots(view.state)) {
-        if (s.lost || doc.sliceString(s.from, s.to) === s.item.quote) continue
-        moved[s.item.id] = anchorAt((text ??= doc.toString()), s.from, s.to)
-      }
-      if (Object.keys(moved).length) useDocsStore.getState().reanchorNotes(id, moved)
+    // The doc's comments follow the stores: Owlit's and yours beside the file, readers' on the share link
+    // (by the doc's path now)
+    const ownNow = () => useDocsStore.getState().comments[id]
+    const readersNow = () => useShareStore.getState().comments[useDocsStore.getState().files[id]?.path ?? ""]
+    let own = ownNow()
+    let readers = readersNow()
+    view.dispatch({ effects: setComments.of(commentViews(own, readers)) })
+    const refreshComments = () => {
+      if (ownNow() === own && readersNow() === readers) return
+      own = ownNow()
+      readers = readersNow()
+      view.dispatch({ effects: setComments.of(commentViews(own, readers)) })
     }
+    const unsubscribeOwn = useDocsStore.subscribe(refreshComments)
+    const unsubscribeReaders = useShareStore.subscribe(refreshComments)
 
-    // Which note is open is shared with the header's note count. Opening one scrolls only as far as it
-    // takes to show the note, so a note opened from the text it sits under doesn't move the page.
-    const openFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openNote?.docId === id ? s.openNote.noteId : null)
+    // Which comment is open, and the one being started, are shared with the column. Opening one from the
+    // column scrolls only as far as it takes to show its words.
+    const openFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.openComment?.docId === id ? s.openComment.key : null)
+    const draftFor = (s: ReturnType<typeof useDocsUiStore.getState>) => (s.newComment?.docId === id ? s.newComment : null)
     let open = openFor(useDocsUiStore.getState())
-    if (open) view.dispatch({ effects: setOpenNote.of(open) })
+    let draft = draftFor(useDocsUiStore.getState())
+    if (open) view.dispatch({ effects: setOpenComment.of(open) })
     const unsubscribeOpen = useDocsUiStore.subscribe((s) => {
       const next = openFor(s)
+      const nextDraft = draftFor(s)
+      if (nextDraft !== draft) {
+        draft = nextDraft
+        view.dispatch({ effects: setNewComment.of(draft ? { from: draft.from, to: draft.to } : null) })
+      }
       if (next === open) return
       open = next
-      view.dispatch({ effects: setOpenNote.of(next) })
-      const spot = noteSpots(view.state).find((n) => n.item.id === next)
-      // Room below the passage's last line for the card
-      if (spot) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.lineAt(spot.to).to, { y: "nearest", yMargin: 160 }) })
+      view.dispatch({ effects: setOpenComment.of(next) })
+      const spot = commentSpots(view.state).find((c) => c.item.key === next && !c.lost)
+      if (spot) view.dispatch({ effects: EditorView.scrollIntoView(spot.from, { y: "nearest", yMargin: 120 }) })
     })
+
+    saveCommentPlaces = () => {
+      const doc = view.state.doc
+      let text: string | undefined
+      const moved: Record<string, CommentAnchor> = {}
+      for (const s of commentSpots(view.state)) {
+        if (s.lost || !s.item.doc || doc.sliceString(s.from, s.to) === s.item.doc.quote) continue
+        moved[s.item.doc.id] = anchorAt((text ??= doc.toString()), s.from, s.to)
+      }
+      if (Object.keys(moved).length) useDocsStore.getState().reanchorComments(id, moved)
+    }
 
     // A right-click on a selected passage starts the system's text menu with "Ask Owlit", as the floating
     // menu offers it
@@ -287,10 +254,9 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       flush()
       unsubscribe()
       setDrawn([])
-      unsubscribeNotes()
+      unsubscribeOwn()
+      unsubscribeReaders()
       unsubscribeOpen()
-      unsubscribeComments()
-      unsubscribeOpenComment()
       unsubscribeMissing()
       unregister()
       view.destroy()

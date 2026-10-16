@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow"
 import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { cancelTask, resumeTask, tasksOfKind, useTasksStore } from "@/features/tasks/store"
+import { mightComeThroughBrowser } from "./lib/filter"
 import { useLibraryStore } from "./store"
 import { pdfWait } from "./lib/pdf-wait"
 import type { Paper } from "./types"
@@ -114,6 +115,11 @@ export function useFromBrowser(): FromBrowserView {
     return { run, waiting, pages, browser }
   }, [task, stoppedOn, waiting, pages, browser])
 }
+
+// Papers owlit found nothing for that the user's browser hasn't been sent for: a long shot, offered only
+// in the No PDF view (lib/filter.ts)
+export const useMightComeThroughBrowser = () =>
+  useLibraryStore(useShallow((s) => Object.values(s.papers).filter(mightComeThroughBrowser).sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))))
 
 // What a run did, by paper id: its progress note once it has ended
 export interface RunTally {

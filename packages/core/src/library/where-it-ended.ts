@@ -1,3 +1,4 @@
+import type { PageSeen } from "../host.ts"
 import { siteOf } from "./browser-routes.ts"
 
 // Where a tab owlit opened in the user's browser ended up, when the PDF it was sent for didn't come.
@@ -110,3 +111,19 @@ function mentions(at: URL, site: string) {
   if (at.hostname.includes(dashed)) return true
   return at.pathname.toLowerCase().includes(`/${site.split(".").reverse().join("/")}/`)
 }
+
+// What owlit's own browser found when a publisher's page gave it no PDF (desktop browser.ts sees the
+// page): a page that wasn't there; an offer to buy or get access, which through the library's proxy is
+// the library saying no; or a page with no PDF on it that a person may still find one on
+export type PageVerdict = "missing" | "no-access" | "no-link"
+
+export function pageVerdict(seen: PageSeen): PageVerdict {
+  if (seen.status === 404 || seen.status === 410 || MISSING.test(seen.title)) return "missing"
+  if (seen.offersAccess || PAYWALL.test(seen.title)) return "no-access"
+  return "no-link"
+}
+
+// The words of a control on the page that offers access rather than the paper (browser.ts looks for one
+// on screen): APA PsycNet's "Get Access", Elsevier's "Get access", Springer's "Buy article PDF",
+// ScienceDirect's "Purchase PDF", "Access through your institution"
+export const ACCESS_OFFER = /^(get (full )?access|buy|purchase|rent)\b|access through your institution|institutional (login|access)|access options|^subscribe\b|购买|订阅/i
