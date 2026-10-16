@@ -1,4 +1,4 @@
-import { readFile, rm } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { readPdf } from "./text/extract.ts"
 
 // What owlit knows about each publisher, in one place: the DOIs that are its, its sites, where a PDF can
@@ -190,7 +190,6 @@ export function fill(template: string, doi: string) {
 async function wholeArticle(file: string, wasmPath: string | undefined) {
   const { pageCount } = await readPdf(await readFile(file), { wasmPath, maxPages: 0 })
   if (pageCount <= 1) {
-    await rm(file, { force: true })
     throw new Error("Elsevier's API gave only the first page: it sees no subscription from this network.")
   }
 }

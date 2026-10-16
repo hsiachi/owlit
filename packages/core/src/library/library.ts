@@ -88,9 +88,6 @@ const LANDED_AT_ONCE = 5
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
 
-// The steps that find a paper's PDF or read it: a PDF the user puts in stops them
-const PDF_STEPS = ["paper.pdf", "paper.pdf.browser", "paper.parse", "paper.figures"]
-
 // Getting PDFs from the user's own browser (getInBrowser): one run at a time, for whichever papers
 const FROM_BROWSER = "papers.fromBrowser"
 // Each PDF opened there at least this long after the one before, as a person downloading papers one
@@ -1727,11 +1724,10 @@ export class Library {
 
   // The file becomes the paper's PDF, and the steps that read it follow. Under the library's lock.
   private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked", route: PlacedBy = "dropped") {
-    // A download or a publisher's page still looking must not replace the user's file when it lands,
-    // nor a reading of the old file come back over the new one's
-    for (const t of this.scheduler?.list() ?? []) {
-      if (t.subject === id && !isTaskFinished(t) && PDF_STEPS.includes(t.kind)) this.scheduler!.cancel(t.id)
-    }
+    // A download or a publisher's page still looking must not replace the user's file when it lands, nor
+    // a reading of the old file (its text, its parse, its figures, a digest of it) come back over the new
+    // one's: every open step of the paper stops but the lookup of its details, which reads no PDF
+    this.scheduler?.cancelSubject(id, (task) => task.kind === "paper.metadata")
     // Not looked for in Downloads any more, and nothing there to confirm
     this.downloadWatch?.stop(id)
     this.offered.delete(id)
@@ -2068,6 +2064,10 @@ export class Library {
             keys: { elsevierApiKey: settings.elsevierApiKey, wileyTdmToken: settings.wileyTdmToken },
           })
           const dest = pdfFile(this.root, id)
+          // Each download stays a file of its own beside paper.pdf until it is checked, and is moved in
+          // under the library's lock: the user may place their own PDF meanwhile, which a download turned
+          // away must never touch, and which one that passed mustn't replace
+          const download = `${dest}.${process.pid}-${ctx.task.id}.download`
           // A repository's page that came instead of its PDF may name the PDF: tried next, once
           const pages: Route[] = []
           const iterator = routes[Symbol.asyncIterator]()
@@ -2081,44 +2081,48 @@ export class Library {
             pages.push(...(await this.copiesByTitle(record!, http, ctx.signal)))
             return pages.shift()
           }
-          for (let route = await next(); route; route = await next()) {
-            ctx.progress(tried.length, undefined, route.name)
-            // A site that answers plain downloads with a check is left to the browser for a while:
-            // asking again only counts against this network
-            const site = siteOf(hostOf(route.url))
-            if (route.kind !== "api" && (await this.publishers.plainRefused(site))) continue
-            try {
-              await downloadPdf(http, route.url, dest, ctx.signal, route.headers)
-              await route.verify?.(dest, this.services.pdfiumWasm)
-              // A PDF owlit didn't pick by its address must be the paper: a repository's page can name
-              // another paper's file, or its logo
-              if (route.checkTitle && isThisPaper(await this.lookAtPdf(dest), { doi: record.ids.doi, title: record.title }) === "no") {
-                await rm(dest, { force: true })
-                throw new NotAPdf(`${hostOf(route.url)} gave the PDF of another paper.`)
+          try {
+            for (let route = await next(); route; route = await next()) {
+              ctx.progress(tried.length, undefined, route.name)
+              // A site that answers plain downloads with a check is left to the browser for a while:
+              // asking again only counts against this network
+              const site = siteOf(hostOf(route.url))
+              if (route.kind !== "api" && (await this.publishers.plainRefused(site))) continue
+              try {
+                await downloadPdf(http, route.url, download, ctx.signal, route.headers)
+                await route.verify?.(download, this.services.pdfiumWasm)
+                // A PDF owlit didn't pick by its address must be the paper: a repository's page can name
+                // another paper's file, or its logo
+                if (route.checkTitle && isThisPaper(await this.lookAtPdf(download), { doi: record.ids.doi, title: record.title }) === "no") {
+                  throw new NotAPdf(`${hostOf(route.url)} gave the PDF of another paper.`)
+                }
+              } catch (error) {
+                if (ctx.signal.aborted) throw error
+                if (error instanceof NotAPdf && error.page && (route.kind === "upstream" || route.kind === "unpaywall") && !route.checkTitle) {
+                  const named = await pdfNamedOnPage(http, error.page, ctx.signal)
+                  if (named && named !== route.url) pages.push({ kind: route.kind, name: `${route.name}:page`, url: named, checkTitle: true })
+                }
+                // Held against the site that put up the check, not where the route starts: a doi.org
+                // link that lands on dl.acm.org says nothing about doi.org
+                if (error instanceof HttpError && error.challenged) {
+                  const host = hostOf(error.finalUrl)
+                  await this.publishers.refusePlain(siteOf(host))
+                  void this.publishers.log({ paper: id, route: route.name, kind: "plain-refused", host, status: error.status })
+                }
+                tried.push({ by: "owlit", ended: "no-copy", at: Date.now(), route: route.name })
+                continue
               }
-            } catch (error) {
-              if (ctx.signal.aborted) throw error
-              if (error instanceof NotAPdf && error.page && (route.kind === "upstream" || route.kind === "unpaywall") && !route.checkTitle) {
-                const named = await pdfNamedOnPage(http, error.page, ctx.signal)
-                if (named && named !== route.url) pages.push({ kind: route.kind, name: `${route.name}:page`, url: named, checkTitle: true })
-              }
-              // Held against the site that put up the check, not where the route starts: a doi.org
-              // link that lands on dl.acm.org says nothing about doi.org
-              if (error instanceof HttpError && error.challenged) {
-                const host = hostOf(error.finalUrl)
-                await this.publishers.refusePlain(siteOf(host))
-                void this.publishers.log({ paper: id, route: route.name, kind: "plain-refused", host, status: error.status })
-              }
-              tried.push({ by: "owlit", ended: "no-copy", at: Date.now(), route: route.name })
-              continue
+              const sha256 = await sha256Of(download)
+              // Cancelled meanwhile (the user placed a PDF, or the paper moved or went to the trash): not
+              // moved in, and nothing is noted
+              await this.acquisitions.notePlaced(id, { by: "owlit", route: route.name, sha256 }, { signal: ctx.signal, place: () => rename(download, dest) })
+              this.pdfHashes?.set(sha256, id)
+              this.queueText(id, ctx.task.priority)
+              await this.announce([id])
+              return
             }
-            // Under the library's lock, after the signal, like every other try: see acquisition.ts
-            const sha256 = await sha256Of(dest)
-            await this.acquisitions.notePlaced(id, { by: "owlit", route: route.name, sha256 }, { signal: ctx.signal })
-            this.pdfHashes?.set(sha256, id)
-            this.queueText(id, ctx.task.priority)
-            await this.announce([id])
-            return
+          } finally {
+            await rm(download, { force: true })
           }
           // No server answered at all (doi.org, Unpaywall, the routes): the machine is offline, which
           // passes. One dead host among ones that answered is just a route that failed.

@@ -458,6 +458,7 @@ describe("publishers' APIs", () => {
     expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeUndefined()
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8"))
     expect(acquisition.tried.find((t: { route: string }) => t.route === "api:elsevier")).toMatchObject({ ended: "no-copy" })
+    expect(readdirSync(path.join(root, "library/papers", elsevier.id)).filter((name) => name.includes(".download"))).toEqual([])
     expect(existsSync(path.join(root, "library/papers", elsevier.id, "paper.pdf"))).toBe(false)
   })
 })

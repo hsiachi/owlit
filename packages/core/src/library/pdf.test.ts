@@ -1,5 +1,5 @@
 import type { PaperRecord } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -171,6 +171,44 @@ describe("paper.pdf", () => {
     const acquisition = JSON.parse(readFileSync(file, "utf8"))
     expect(acquisition.state).toBe("finding")
     expect(lookDue(acquisition, Date.now())).toBe(true)
+  })
+
+  it("leaves the user's PDF in place when a download is turned away at the same moment", async () => {
+    // The open copy the repository's page names comes only once the user has dropped their own, and is
+    // another paper's
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    let asked = false
+    const fetch = serving({
+      "api.unpaywall.org": () => Response.json({ oa_locations: [{ url_for_pdf: "https://repo.example.org/item/1", host_type: "repository" }] }),
+      "repo.example.org/item/1/other.pdf": () => {
+        asked = true
+        return new Response(
+          new ReadableStream({
+            async start(controller) {
+              await held
+              controller.enqueue(makePdf([[{ x: 72, y: 72, size: 12, text: "A different paper about something else entirely" }]]))
+              controller.close()
+            },
+          }),
+        )
+      },
+      "repo.example.org/item/1": () => new Response(`<html><head><meta name="citation_pdf_url" content="/item/1/other.pdf"></head></html>`, { headers: { "content-type": "text/html" } }),
+    })
+    const { root, call } = await setup(fetch, { contactEmail: "me@example.org" })
+    const paper = { id: "doi-10.9999-repo", title: "Lifelogging for memory support in everyday life", authors: [], ids: { doi: "10.9999/repo" } }
+    await call("library.add", { paper })
+    const looking = call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
+    await vi.waitFor(() => expect(asked).toBe(true))
+    const mine = path.join(root, "..", "mine.pdf")
+    writeFileSync(mine, PDF)
+    await call("library.attachPdf", { id: paper.id, path: mine })
+    release()
+    await looking
+    const dir = path.join(root, "library/papers", paper.id)
+    expect(readFileSync(path.join(dir, "paper.pdf")).equals(PDF)).toBe(true)
+    expect(JSON.parse(readFileSync(path.join(dir, "acquisition.json"), "utf8"))).toMatchObject({ state: "have-it", route: "dropped" })
+    expect(readdirSync(dir).filter((name) => name.includes(".download"))).toEqual([])
   })
 })
 
