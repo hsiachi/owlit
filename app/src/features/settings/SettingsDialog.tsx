@@ -2,6 +2,8 @@
 // (the shape of shadcn's sidebar-13 block). Opened from ⌘, or the app menu, the gear at the bottom of
 // the rail, and links where something could work better ("Set up library proxy", "Manage agents…"),
 // which open it at their section. Closing it leaves you exactly where you were.
+// Sections are named for what people come to do, not by subsystem. A section is groups parted by space,
+// never boxed, and is never a single row on an empty page.
 
 import { msg, t } from "@lingui/core/macro"
 import type { MessageDescriptor } from "@lingui/core"
