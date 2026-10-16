@@ -5250,7 +5250,7 @@ msgstr "Owlit {0} 已下载好，退出 Owlit 时安装。"
 #. a button: restart Owlit to install the update
 #. a button: restart Owlit to install the update
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/updates/store.ts
+#: app/src/features/updates/UpdateNotices.tsx
 #: apps/desktop/src/main.ts
 msgid "Restart"
 msgstr "重新启动"
@@ -6140,11 +6140,27 @@ msgstr "{0}/{1}"
 msgid "Skip tour"
 msgstr "跳过导览"
 
-#: app/src/features/updates/WhatsNewDialog.tsx
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "Owlit {ready} is ready"
+msgstr "Owlit {ready} 已下载好"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "It installs when you quit Owlit."
+msgstr "退出 Owlit 时安装。"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "Updated to {version}"
+msgstr "已更新到 {version}"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "What's new"
+msgstr "新内容"
+
+#: app/src/features/updates/UpdateNotices.tsx
 msgid "What's new in Owlit {version}"
 msgstr "Owlit {version} 的新内容"
 
-#: app/src/features/updates/WhatsNewDialog.tsx
+#: app/src/features/updates/UpdateNotices.tsx
 msgid "The changes in this version"
 msgstr "这个版本的改动"
 
@@ -6158,26 +6174,6 @@ msgstr "已是最新版本"
 #: apps/desktop/src/main.ts
 msgid "Owlit {0} is the newest version."
 msgstr "Owlit {0} 是最新版本。"
-
-#. placeholder {0}: found.version
-#. placeholder {0}: s.version
-#: app/src/features/updates/store.ts
-#: apps/desktop/src/main.ts
-msgid "Owlit {0} is ready"
-msgstr "Owlit {0} 已下载好"
-
-#: app/src/features/updates/store.ts
-msgid "It installs when you quit Owlit."
-msgstr "退出 Owlit 时安装。"
-
-#. placeholder {0}: updated.version
-#: app/src/features/updates/store.ts
-msgid "Updated to {0}"
-msgstr "已更新到 {0}"
-
-#: app/src/features/updates/store.ts
-msgid "What's new"
-msgstr "新内容"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
@@ -6588,6 +6584,11 @@ msgstr "问 Owlit 怎么做…"
 #: apps/desktop/src/main.ts
 msgid "Copy Diagnostics"
 msgstr "复制诊断信息"
+
+#. placeholder {0}: found.version
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is ready"
+msgstr "Owlit {0} 已下载好"
 
 #: apps/desktop/src/main.ts
 msgid "It installs when you quit Owlit, or now if you restart."

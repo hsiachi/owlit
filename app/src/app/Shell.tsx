@@ -5,7 +5,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import { AppSidebar } from "@/app/AppSidebar"
 import { CommandPalette } from "@/app/CommandPalette"
 import { ShortcutsDialog } from "@/app/ShortcutsDialog"
-import { WhatsNewDialog } from "@/features/updates/WhatsNewDialog"
+import { UpdateNotices } from "@/features/updates/UpdateNotices"
 import { ImportDialog } from "@/features/library/components/ImportDialog"
 import { useShortcutsShortcut } from "@/app/shortcuts"
 import { matchNav } from "@/app/nav"
@@ -120,7 +120,7 @@ function AppShell() {
         <CommandPalette />
         <SettingsDialog />
         <ShortcutsDialog />
-        <WhatsNewDialog />
+        <UpdateNotices />
         <ImportDialog />
         <TourOverlay />
         <IntroReplay />

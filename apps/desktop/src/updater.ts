@@ -14,6 +14,7 @@ import type { UpdaterHost } from "@owlit/core"
 import { app } from "electron"
 import { autoUpdater } from "electron-updater"
 import { execFile } from "node:child_process"
+import { writeFileSync } from "node:fs"
 import path from "node:path"
 
 export const updateFeed = process.env.OWLIT_UPDATE_FEED
@@ -35,8 +36,12 @@ export function createUpdater(): UpdaterHost {
   // Its info lines go nowhere; what goes wrong reaches core, which logs it
   autoUpdater.logger = { info: () => undefined, warn: (message: unknown) => console.warn("[updater]", message), error: () => undefined, debug: () => undefined }
   if (updateFeed) {
+    // The download reads its cache folder's name from this file, as a release reads it from the
+    // app-update.yml electron-builder writes into the app
+    const config = path.join(app.getPath("userData"), "trial-app-update.yml")
+    writeFileSync(config, `provider: generic\nurl: ${JSON.stringify(updateFeed)}\nupdaterCacheDirName: owlit-updater-trial\n`)
     autoUpdater.forceDevUpdateConfig = true
-    autoUpdater.setFeedURL({ provider: "generic", url: updateFeed })
+    autoUpdater.updateConfigPath = config
   }
   return {
     blocked: async () => {

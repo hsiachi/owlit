@@ -5250,7 +5250,7 @@ msgstr "Owlit {0} is ready. It installs when you quit Owlit."
 #. a button: restart Owlit to install the update
 #. a button: restart Owlit to install the update
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/updates/store.ts
+#: app/src/features/updates/UpdateNotices.tsx
 #: apps/desktop/src/main.ts
 msgid "Restart"
 msgstr "Restart"
@@ -6140,11 +6140,27 @@ msgstr "{0} of {1}"
 msgid "Skip tour"
 msgstr "Skip tour"
 
-#: app/src/features/updates/WhatsNewDialog.tsx
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "Owlit {ready} is ready"
+msgstr "Owlit {ready} is ready"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "It installs when you quit Owlit."
+msgstr "It installs when you quit Owlit."
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "Updated to {version}"
+msgstr "Updated to {version}"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "What's new"
+msgstr "What's new"
+
+#: app/src/features/updates/UpdateNotices.tsx
 msgid "What's new in Owlit {version}"
 msgstr "What's new in Owlit {version}"
 
-#: app/src/features/updates/WhatsNewDialog.tsx
+#: app/src/features/updates/UpdateNotices.tsx
 msgid "The changes in this version"
 msgstr "The changes in this version"
 
@@ -6158,26 +6174,6 @@ msgstr "You're up to date"
 #: apps/desktop/src/main.ts
 msgid "Owlit {0} is the newest version."
 msgstr "Owlit {0} is the newest version."
-
-#. placeholder {0}: found.version
-#. placeholder {0}: s.version
-#: app/src/features/updates/store.ts
-#: apps/desktop/src/main.ts
-msgid "Owlit {0} is ready"
-msgstr "Owlit {0} is ready"
-
-#: app/src/features/updates/store.ts
-msgid "It installs when you quit Owlit."
-msgstr "It installs when you quit Owlit."
-
-#. placeholder {0}: updated.version
-#: app/src/features/updates/store.ts
-msgid "Updated to {0}"
-msgstr "Updated to {0}"
-
-#: app/src/features/updates/store.ts
-msgid "What's new"
-msgstr "What's new"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
@@ -6588,6 +6584,11 @@ msgstr "Ask Owlit How To…"
 #: apps/desktop/src/main.ts
 msgid "Copy Diagnostics"
 msgstr "Copy Diagnostics"
+
+#. placeholder {0}: found.version
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is ready"
+msgstr "Owlit {0} is ready"
 
 #: apps/desktop/src/main.ts
 msgid "It installs when you quit Owlit, or now if you restart."
