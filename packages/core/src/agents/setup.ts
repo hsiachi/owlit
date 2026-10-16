@@ -18,19 +18,22 @@ export interface Managed {
   bin: string
   // The agent's own command, whose presence says the agent is on this Mac
   cli: string
-  // How to install the agent itself, in Terminal
-  installCli: string
   // About how much it takes on disk, measured 2026-10-13 (claude-agent-acp 0.88, codex-acp 2.2.1)
   sizeMb: number
 }
 
 export const MANAGED: Record<string, Managed> = {
-  "claude-code": { pkg: "@agentclientprotocol/claude-agent-acp", bin: "claude-agent-acp", cli: "claude", installCli: "curl -fsSL https://claude.ai/install.sh | bash", sizeMb: 290 },
-  codex: { pkg: "@agentclientprotocol/codex-acp", bin: "codex-acp", cli: "codex", installCli: "npm install -g @openai/codex", sizeMb: 335 },
+  "claude-code": { pkg: "@agentclientprotocol/claude-agent-acp", bin: "claude-agent-acp", cli: "claude", sizeMb: 290 },
+  codex: { pkg: "@agentclientprotocol/codex-acp", bin: "codex-acp", cli: "codex", sizeMb: 335 },
 }
 
 // How often the registry is asked whether a newer adapter exists
 const LATEST_TTL_MS = 12 * 60 * 60_000
+
+// npm's own registry, and the mirror tried when it can't be reached: in mainland China registry.npmjs.org
+// is often slow or out of reach without a proxy, and npmmirror carries the same packages
+const REGISTRIES = ["https://registry.npmjs.org", "https://registry.npmmirror.com"]
+const UNREACHABLE = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network/i
 
 export interface SetupOptions {
   // <userData>/agents: each adapter in a folder of its own
@@ -87,8 +90,12 @@ export class AgentSetups {
     this.cliFound.set(id, !!(await resolveExecutable(managed.cli, await this.options.searchPath())))
     const known = this.latest.get(id)
     if (!known || Date.now() - known.at > LATEST_TTL_MS) {
-      const answer = (await this.options.fetchJson(`https://registry.npmjs.org/${managed.pkg}/latest`).catch(() => null)) as { version?: string } | null
-      if (answer?.version) this.latest.set(id, { version: answer.version, at: Date.now() })
+      for (const registry of REGISTRIES) {
+        const answer = (await this.options.fetchJson(`${registry}/${managed.pkg}/latest`).catch(() => null)) as { version?: string } | null
+        if (!answer?.version) continue
+        this.latest.set(id, { version: answer.version, at: Date.now() })
+        break
+      }
     }
   }
 
@@ -101,7 +108,6 @@ export class AgentSetups {
     const error = this.errors.get(id)
     return {
       cliFound: this.cliFound.get(id) ?? false,
-      installCli: managed.installCli,
       sizeMb: managed.sizeMb,
       ...(installed ? { installed: installed.version } : {}),
       ...(installed && latest && newer(latest, installed.version) ? { latest } : {}),
@@ -136,8 +142,16 @@ export class AgentSetups {
       })
     }, 700)
     try {
-      await rm(next, { recursive: true, force: true })
-      await this.npm(["install", "--prefix", next, "--no-audit", "--no-fund", "--omit=dev", "--cache", cache, "--loglevel", "error", `${managed.pkg}@latest`], controller.signal)
+      for (const [i, registry] of REGISTRIES.entries()) {
+        await rm(next, { recursive: true, force: true })
+        try {
+          await this.npm(["install", "--prefix", next, "--registry", registry, "--no-audit", "--no-fund", "--omit=dev", "--cache", cache, "--loglevel", "error", `${managed.pkg}@latest`], controller.signal)
+          break
+        } catch (error) {
+          const last = i === REGISTRIES.length - 1
+          if (last || controller.signal.aborted || !(error instanceof NpmFailed && UNREACHABLE.test(error.stderr))) throw error
+        }
+      }
       if (!(await this.installedAt(next, managed))) throw new Error(t`npm finished, but the adapter isn't there.`)
       await rm(this.folder(id), { recursive: true, force: true })
       await rename(next, this.folder(id))
@@ -198,7 +212,7 @@ class NpmFailed extends Error {
 // One sentence for the row: the common causes in owlit's words, else npm's own last line
 function failure(error: unknown): string {
   const text = error instanceof NpmFailed ? error.stderr : error instanceof Error ? error.message : String(error)
-  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|network/i.test(text)) return t`Couldn't reach the npm registry. Check the network or proxy, then try again.`
+  if (UNREACHABLE.test(text)) return t`Couldn't reach the npm registry. Check the network or proxy, then try again.`
   if (/ENOSPC/.test(text)) return t`There isn't enough space on this Mac.`
   const last = text
     .split("\n")

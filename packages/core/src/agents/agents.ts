@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import type * as acp from "@agentclientprotocol/sdk"
 import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignIn, type SignInMethod } from "@owlit/protocol"
+import { spawn, type ChildProcess } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import { mkdir } from "node:fs/promises"
 import { homedir } from "node:os"
@@ -18,6 +19,8 @@ const IDLE_MS = 10 * 60_000
 // status` for it, about 0.1 s here, with a 5 s limit of its own). Past this, the check goes by the
 // session alone, as for agents that don't report one.
 const AUTH_STATUS_WAIT_MS = 3000
+// How long a sign-in in the browser may stay unfinished before it is given up
+const SIGN_IN_WAIT_MS = 10 * 60_000
 
 // A local agent owlit knows how to start
 interface ConnectorDef {
@@ -143,12 +146,16 @@ interface Live {
   authenticated?: boolean
   signInMethods?: SignInMethod[]
   signIns?: SignIn[]
+  // The agent's own browser sign-in, which owlit runs for Claude Code and Codex; args when it is one the
+  // agent means for a terminal
+  browserSignIn?: { id: string; args?: string[] }
 }
 
 // The local agents: which exist, whether they work, and the one running process for each
 export class Agents {
   private readonly options: AgentsOptions
   private processes = new Map<string, AcpProcess>()
+  private signingIn = new Map<string, ChildProcess>()
   private live = new Map<string, Live>()
   private readonly setups: AgentSetups | undefined
 
@@ -208,6 +215,7 @@ export class Agents {
     try {
       const init = await proc.initialized()
       if (def.launch) this.setLive(id, { signInMethods: signInMethodsOf(init), signIns: await signInsOf(proc) })
+      else this.setLive(id, { browserSignIn: browserSignInOf(init) })
       await mkdir(this.options.probeDir, { recursive: true })
       const session = await proc.newSession({ cwd: this.options.probeDir, mcpServers: [] }, ignoreSession)
       await proc.closeSession(session.sessionId)
@@ -234,7 +242,8 @@ export class Agents {
     const def = await this.def(id)
     const agent = def.name
     const command = splitCommand(BUILT_IN_SIGN_IN[id] ?? def.command)[0]
-    const error = def.launch
+    const error =
+      def.launch || this.live.get(id)?.browserSignIn
       ? t`${agent} isn't signed in. Sign in under Settings › Agents, then try again.`
       : t`${agent} isn't signed in. Run ${command} in a terminal to sign in, then try again.`
     this.setLive(id, { status: "error", authenticated: false, error })
@@ -270,10 +279,41 @@ export class Agents {
 
   // One of the agent's own sign-ins. A browser sign-in waits for the user to finish there.
   async signIn(id: string, methodId: string, apiKey?: string): Promise<Connector> {
+    const browser = this.live.get(id)?.browserSignIn
+    if (browser?.id === methodId && browser.args) return this.signInOutside(id, browser.args)
     const proc = await this.process(id)
     await proc.authenticate({ methodId, ...(apiKey ? { _meta: { apiKey } } : {}) }).catch((error) => {
       throw new RpcFailure(RpcErrorCode.Unavailable, messageOf(error))
     })
+    return this.check(id)
+  }
+
+  // Claude Code's sign-in is the agent's own command with the method's args, meant for a terminal. Run
+  // without one it opens the browser, waits for the sign-in to come back to it, and exits (claude-agent-acp
+  // 0.91, tried 2026-10-16), so people need neither Terminal nor their own `claude`. One at a time per
+  // agent; a sign-in left in the browser is given up after a while.
+  private async signInOutside(id: string, methodArgs: string[]): Promise<Connector> {
+    this.signingIn.get(id)?.kill()
+    const { file, args, env } = await this.spawnSpec(await this.def(id))
+    const proxy = (await this.options.proxyEnv?.()) ?? {}
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(file, [...args, ...methodArgs], { env: { ...env, ...proxy }, stdio: ["ignore", "ignore", "pipe"], timeout: SIGN_IN_WAIT_MS })
+      this.signingIn.set(id, child)
+      let stderr = ""
+      child.stderr.setEncoding("utf8")
+      child.stderr.on("data", (chunk: string) => {
+        stderr = (stderr + chunk).slice(-2000)
+      })
+      child.on("error", reject)
+      child.on("close", (code, signal) => {
+        if (this.signingIn.get(id) === child) this.signingIn.delete(id)
+        if (code === 0) resolve()
+        else reject(new RpcFailure(RpcErrorCode.Unavailable, signal ? t`The sign-in stopped before it was done.` : stderr.trim().split("\n").at(-1) || t`The sign-in didn't finish.`))
+      })
+    })
+    // Its process started before the sign-in, without it
+    this.processes.get(id)?.stop()
+    this.processes.delete(id)
     return this.check(id)
   }
 
@@ -312,16 +352,11 @@ export class Agents {
     const running = this.processes.get(id)
     if (running) return running
     const def = await this.def(id)
-    const own = !def.launch && this.options.setup ? await this.setups?.installed(id) : null
-    const launch: Launch | undefined = def.launch ?? (own && this.options.setup ? { ...this.options.setup.node, args: [...this.options.setup.node.args, own.entry] } : undefined)
-    const [name, ...args] = launch ? [launch.command, ...launch.args] : splitCommand(def.command)
-    const searchPath = await (this.options.searchPath ?? userPath)()
-    const file = launch ? launch.command : name ? await resolveExecutable(name, searchPath) : null
-    if (!file) throw new NotInstalled(this.notInstalled(def))
+    const { file, args, env } = await this.spawnSpec(def)
     const proc = new AcpProcess({
       file,
       args,
-      env: { ...agentEnv(process.env), PATH: searchPath, ...processEnv(id, process.env), ...launch?.env },
+      env,
       freshEnv: this.options.proxyEnv,
       cwd: this.options.cwd() ?? homedir(),
       idleMs: this.options.idleMs ?? IDLE_MS,
@@ -342,6 +377,19 @@ export class Agents {
   dispose() {
     for (const proc of this.processes.values()) proc.stop()
     this.processes.clear()
+    for (const child of this.signingIn.values()) child.kill()
+  }
+
+  // What starts the agent: owlit's own copy of the adapter, else the command on PATH
+  private async spawnSpec(def: ConnectorDef) {
+    const own = !def.launch && this.options.setup ? await this.setups?.installed(def.id) : null
+    const launch: Launch | undefined = def.launch ?? (own && this.options.setup ? { ...this.options.setup.node, args: [...this.options.setup.node.args, own.entry] } : undefined)
+    const [name, ...args] = launch ? [launch.command, ...launch.args] : splitCommand(def.command)
+    const searchPath = await (this.options.searchPath ?? userPath)()
+    const file = launch ? launch.command : name ? await resolveExecutable(name, searchPath) : null
+    if (!file) throw new NotInstalled(this.notInstalled(def))
+    const env: NodeJS.ProcessEnv = { ...agentEnv(process.env), PATH: searchPath, ...processEnv(def.id, process.env), ...launch?.env }
+    return { file, args, env }
   }
 
   // ---- inside ----
@@ -381,6 +429,7 @@ export class Agents {
       signIn: def.builtIn && !def.launch ? splitCommand(BUILT_IN_SIGN_IN[def.id] ?? def.command)[0] : undefined,
       signInMethods: live.signInMethods,
       signIns: live.signIns,
+      ...(live.browserSignIn ? { browserSignIn: live.browserSignIn.id } : {}),
       ...(def.launch ? { signsInHere: true } : {}),
       builtIn: def.builtIn,
       // Checked before: ready unless something since says otherwise
@@ -409,6 +458,16 @@ function signInMethodsOf(init: acp.InitializeResponse): SignInMethod[] {
     const owlit = (m._meta as { owlit?: { apiKey?: boolean; provider?: string } } | null | undefined)?.owlit
     return [{ id: m.id, name: m.name, ...(m.description ? { description: m.description } : {}), ...(owlit?.apiKey ? { apiKey: true } : {}), ...(owlit?.provider ? { provider: owlit.provider } : {}) }]
   })
+}
+
+// The sign-in owlit runs for Claude Code (its Claude subscription login) and Codex (ChatGPT in the
+// browser), so nobody needs the agent's own command or a terminal to sign in
+const BROWSER_SIGN_INS = ["claude-ai-login", "chat-gpt"]
+
+function browserSignInOf(init: acp.InitializeResponse): Live["browserSignIn"] {
+  const method = (init.authMethods ?? []).find((m) => BROWSER_SIGN_INS.includes(m.id))
+  if (!method) return undefined
+  return "type" in method && method.type === "terminal" ? { id: method.id, args: (method as { args?: string[] }).args ?? [] } : { id: method.id }
 }
 
 async function signInsOf(proc: AcpProcess): Promise<SignIn[]> {

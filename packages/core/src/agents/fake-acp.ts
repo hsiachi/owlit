@@ -19,12 +19,19 @@
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
-// FAKE_ACP_AUTH=required makes every new session fail as not signed in.
+// FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
+// as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
+// FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back.
 
 import * as acp from "@agentclientprotocol/sdk"
 import { randomUUID } from "node:crypto"
-import { writeFileSync } from "node:fs"
+import { existsSync, writeFileSync } from "node:fs"
 import { Readable, Writable } from "node:stream"
+
+if (process.argv.includes("--login")) {
+  writeFileSync(process.env.FAKE_ACP_SIGNED_IN!, "")
+  process.exit(0)
+}
 
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -60,13 +67,20 @@ class FakeAgent implements acp.Agent {
   async initialize(params: acp.InitializeRequest): Promise<acp.InitializeResponse> {
     // FAKE_ACP_AUTH=none: as claude-agent-acp when Claude Code is signed out, which still opens sessions
     // and says so only in its authStatus push, a moment after initialize
-    const reports = process.env.FAKE_ACP_AUTH === "none"
+    const browser = process.env.FAKE_ACP_AUTH === "browser"
+    const reports = process.env.FAKE_ACP_AUTH === "none" || (browser && !existsSync(process.env.FAKE_ACP_SIGNED_IN!))
     if (reports) setTimeout(() => void this.conn.extNotification("_auth/status_update", { authStatus: { kind: "none", label: "Not logged in" } }), 50)
     return {
       protocolVersion: acp.PROTOCOL_VERSION,
       agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} }, promptCapabilities: { image: true }, ...(reports ? { _meta: { authStatus: {} } } : {}) },
       agentInfo: { name: "fake-acp", version: "1.2.3" },
-      authMethods: process.env.FAKE_ACP_AUTH ? [{ id: "login", name: "Log in" }] : [],
+      authMethods: browser
+        ? params.clientCapabilities?.auth?.terminal
+          ? [{ id: "claude-ai-login", name: "Claude Subscription", type: "terminal", args: ["--login"] }]
+          : []
+        : process.env.FAKE_ACP_AUTH
+          ? [{ id: "login", name: "Log in" }]
+          : [],
       // The proxy it was started with, for the tests of proxy.ts
       // and what owlit told it beyond ACP, for the tests of process.ts
       _meta: { proxy: process.env.HTTPS_PROXY ?? null, client: params.clientCapabilities?._meta ?? null },
