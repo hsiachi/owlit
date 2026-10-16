@@ -1,0 +1,7 @@
+/* owlit's own tokens, type and components, so the popup looks like the app */
+@import "../../../../app/src/index.css";
+/* The app's pieces the popup draws with live outside this package */
+@source "../../../../app/src/components/ui/button.tsx";
+@source "../../../../app/src/components/ui/switch.tsx";
+@source "../../../../app/src/components/owlit-lockup.tsx";
+@source "../../../../app/src/components/ui/spinner.tsx";

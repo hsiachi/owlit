@@ -1139,6 +1139,7 @@ msgstr "Adding…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "In your Library"
 
@@ -6792,6 +6793,121 @@ msgstr "Open Link in Browser"
 msgid "Copy Link"
 msgstr "Copy Link"
 
+#: apps/extension/src/background/index.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "This page doesn't show a paper."
+msgstr "This page doesn't show a paper."
+
+#: apps/extension/src/background/index.ts
+msgid "This page names no PDF."
+msgstr "This page names no PDF."
+
+#: apps/extension/src/background/index.ts
+msgid "This paper isn't in your Library."
+msgstr "This paper isn't in your Library."
+
+#: apps/extension/src/background/index.ts
+msgid "owlit took this PDF"
+msgstr "owlit took this PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit needs to read {site} to get the PDF with your access."
+msgstr "owlit needs to read {site} to get the PDF with your access."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Take PDFs I open for papers in my Library"
+msgstr "Take PDFs I open for papers in my Library"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit"
+msgstr "Connected to owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open a workspace in owlit"
+msgstr "Open a workspace in owlit"
+
+#. placeholder {0}: connection.workspace
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit · {0}"
+msgstr "Connected to owlit · {0}"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open owlit to connect"
+msgstr "Open owlit to connect"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow it in owlit…"
+msgstr "Allow it in owlit…"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "You didn't allow it in owlit."
+msgstr "You didn't allow it in owlit."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Nobody answered in owlit."
+msgstr "Nobody answered in owlit."
+
+#: apps/extension/src/popup/Popup.tsx
+#: packages/core/src/extension/server.ts
+msgid "Open the owlit window, then press Connect again."
+msgstr "Open the owlit window, then press Connect again."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add the paper of any page to owlit, with its PDF."
+msgstr "Add the paper of any page to owlit, with its PDF."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connect to owlit"
+msgstr "Connect to owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit can't tell which paper this PDF is."
+msgstr "owlit can't tell which paper this PDF is."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add to owlit"
+msgstr "Add to owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Save PDF to owlit"
+msgstr "Save PDF to owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "In your Library, without its PDF. This page names no PDF to save."
+msgstr "In your Library, without its PDF. This page names no PDF to save."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit with its PDF"
+msgstr "Added to owlit with its PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit. owlit looks for its PDF."
+msgstr "Added to owlit. owlit looks for its PDF."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; {host} gave no PDF"
+msgstr "Added; {host} gave no PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; the PDF there isn't this paper's"
+msgstr "Added; the PDF there isn't this paper's"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "PDF saved to owlit"
+msgstr "PDF saved to owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{host} gave no PDF"
+msgstr "{host} gave no PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This isn't the paper's PDF"
+msgstr "This isn't the paper's PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This browser isn't connected to owlit."
+msgstr "This browser isn't connected to owlit."
+
 #. placeholder {0}: paper.authors[0]
 #: apps/share-web/src/App.tsx
 msgid "{0} et al."
@@ -7449,10 +7565,6 @@ msgstr "This browser isn't connected to owlit. Press Connect."
 #: packages/core/src/extension/server.ts
 msgid "Open a workspace in owlit."
 msgstr "Open a workspace in owlit."
-
-#: packages/core/src/extension/server.ts
-msgid "Open the owlit window, then press Connect again."
-msgstr "Open the owlit window, then press Connect again."
 
 #: packages/core/src/extension/server.ts
 #: packages/core/src/library/library.ts

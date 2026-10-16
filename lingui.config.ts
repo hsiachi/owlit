@@ -3,8 +3,9 @@ import { formatter } from "@lingui/format-po"
 import { createSwcExtractor } from "@lingui/native-tools"
 
 // One catalog per language for everything that shows words: the renderer, the desktop shell's menus and
-// dialogs, and core's messages that reach the screen. Messages are English in the code; `pnpm
-// i18n:extract` gathers them into packages/i18n/locales/<locale>.po, where each language is written.
+// dialogs, the browser extension, and core's messages that reach the screen. Messages are English in the
+// code; `pnpm i18n:extract` gathers them into packages/i18n/locales/<locale>.po, where each language is
+// written.
 // Text meant for agents (prompts, tool descriptions, the how-to guide) is not a message: it stays English.
 export default defineConfig({
   sourceLocale: "en",
@@ -14,7 +15,7 @@ export default defineConfig({
   catalogs: [
     {
       path: "<rootDir>/packages/i18n/locales/{locale}",
-      include: ["<rootDir>/app/src", "<rootDir>/apps/desktop/src", "<rootDir>/apps/share-web/src", "<rootDir>/packages/core/src"],
+      include: ["<rootDir>/app/src", "<rootDir>/apps/desktop/src", "<rootDir>/apps/extension/src", "<rootDir>/apps/share-web/src", "<rootDir>/packages/core/src"],
       exclude: ["**/*.test.ts", "**/*.test.tsx", "**/node_modules/**"],
     },
   ],

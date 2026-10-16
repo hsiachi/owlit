@@ -1,0 +1,36 @@
+{
+  "name": "@owlit/extension",
+  "private": true,
+  "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.mjs --watch",
+    "build": "node scripts/build.mjs",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lingui/core": "6.9.1",
+    "@lingui/react": "6.9.1",
+    "@owlit/i18n": "workspace:*",
+    "@owlit/protocol": "workspace:*",
+    "lucide-react": "^1.53.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@lingui/vite-plugin": "6.9.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/chrome": "0.3.5",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "5.0.2"
+  }
+}

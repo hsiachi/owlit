@@ -1139,6 +1139,7 @@ msgstr ""
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr ""
 
@@ -6792,6 +6793,121 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
+#: apps/extension/src/background/index.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "This page doesn't show a paper."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "This page names no PDF."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "This paper isn't in your Library."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "owlit took this PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit needs to read {site} to get the PDF with your access."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Take PDFs I open for papers in my Library"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open a workspace in owlit"
+msgstr ""
+
+#. placeholder {0}: connection.workspace
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit · {0}"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open owlit to connect"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow it in owlit…"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "You didn't allow it in owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Nobody answered in owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+#: packages/core/src/extension/server.ts
+msgid "Open the owlit window, then press Connect again."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add the paper of any page to owlit, with its PDF."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connect to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit can't tell which paper this PDF is."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Save PDF to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "In your Library, without its PDF. This page names no PDF to save."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit with its PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit. owlit looks for its PDF."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; {host} gave no PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; the PDF there isn't this paper's"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "PDF saved to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{host} gave no PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This isn't the paper's PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This browser isn't connected to owlit."
+msgstr ""
+
 #. placeholder {0}: paper.authors[0]
 #: apps/share-web/src/App.tsx
 msgid "{0} et al."
@@ -7448,10 +7564,6 @@ msgstr ""
 
 #: packages/core/src/extension/server.ts
 msgid "Open a workspace in owlit."
-msgstr ""
-
-#: packages/core/src/extension/server.ts
-msgid "Open the owlit window, then press Connect again."
 msgstr ""
 
 #: packages/core/src/extension/server.ts

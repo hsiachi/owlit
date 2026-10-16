@@ -12,8 +12,9 @@ dist/
 # The maintainer's own instructions for Claude Code (AGENTS.md is the shared one)
 CLAUDE.local.md
 
-# Desktop build output
+# Desktop and browser extension build output
 apps/desktop/release/
+apps/extension/release/
 
 # Product docs: not released yet, read by agents here (CLAUDE.md points at them). Anchored to the root:
 # unanchored, it also matched app/src/features/docs, and Tailwind, which skips ignored files, then never

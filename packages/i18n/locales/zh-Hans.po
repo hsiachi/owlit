@@ -1139,6 +1139,7 @@ msgstr "正在添加…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "已在你的文献库中"
 
@@ -6792,6 +6793,121 @@ msgstr "在浏览器中打开链接"
 msgid "Copy Link"
 msgstr "拷贝链接"
 
+#: apps/extension/src/background/index.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "This page doesn't show a paper."
+msgstr "这个页面上没有论文。"
+
+#: apps/extension/src/background/index.ts
+msgid "This page names no PDF."
+msgstr "这个页面没有给出 PDF。"
+
+#: apps/extension/src/background/index.ts
+msgid "This paper isn't in your Library."
+msgstr "这篇论文不在你的文献库中。"
+
+#: apps/extension/src/background/index.ts
+msgid "owlit took this PDF"
+msgstr "owlit 收下了这个 PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit needs to read {site} to get the PDF with your access."
+msgstr "owlit 需要读取 {site}，才能用你的访问权限获取 PDF。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Take PDFs I open for papers in my Library"
+msgstr "我打开文献库中论文的 PDF 时自动收下"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit"
+msgstr "已连接 owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open a workspace in owlit"
+msgstr "请在 owlit 中打开一个工作区"
+
+#. placeholder {0}: connection.workspace
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit · {0}"
+msgstr "已连接 owlit · {0}"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open owlit to connect"
+msgstr "打开 owlit 以连接"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow it in owlit…"
+msgstr "请在 owlit 中允许…"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "You didn't allow it in owlit."
+msgstr "你在 owlit 中没有允许。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Nobody answered in owlit."
+msgstr "owlit 里没有人回应。"
+
+#: apps/extension/src/popup/Popup.tsx
+#: packages/core/src/extension/server.ts
+msgid "Open the owlit window, then press Connect again."
+msgstr "打开 owlit 窗口，然后再点一次“连接”。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add the paper of any page to owlit, with its PDF."
+msgstr "把任何页面上的论文连同 PDF 添加到 owlit。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connect to owlit"
+msgstr "连接 owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit can't tell which paper this PDF is."
+msgstr "owlit 认不出这个 PDF 是哪篇论文。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add to owlit"
+msgstr "添加到 owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Save PDF to owlit"
+msgstr "把 PDF 存到 owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "In your Library, without its PDF. This page names no PDF to save."
+msgstr "已在文献库中，但没有 PDF。这个页面没有可保存的 PDF。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit with its PDF"
+msgstr "已连同 PDF 添加到 owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit. owlit looks for its PDF."
+msgstr "已添加到 owlit。owlit 会去找它的 PDF。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; {host} gave no PDF"
+msgstr "已添加；{host} 没有给出 PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; the PDF there isn't this paper's"
+msgstr "已添加；那里的 PDF 不是这篇论文的"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "PDF saved to owlit"
+msgstr "PDF 已存到 owlit"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{host} gave no PDF"
+msgstr "{host} 没有给出 PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This isn't the paper's PDF"
+msgstr "这不是这篇论文的 PDF"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This browser isn't connected to owlit."
+msgstr "这个浏览器还没有连接 owlit。"
+
 #. placeholder {0}: paper.authors[0]
 #: apps/share-web/src/App.tsx
 msgid "{0} et al."
@@ -7449,10 +7565,6 @@ msgstr "这个浏览器还没有连接 owlit。请点“连接”。"
 #: packages/core/src/extension/server.ts
 msgid "Open a workspace in owlit."
 msgstr "请在 owlit 中打开一个工作区。"
-
-#: packages/core/src/extension/server.ts
-msgid "Open the owlit window, then press Connect again."
-msgstr "打开 owlit 窗口，然后再点一次“连接”。"
 
 #: packages/core/src/extension/server.ts
 #: packages/core/src/library/library.ts
