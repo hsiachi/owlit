@@ -14,7 +14,7 @@ import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Threads, type ThreadsServices } from "../threads/threads.ts"
 import { findQuote } from "../library/quotes.ts"
-import { isPaperId, paperDir } from "../library/paths.ts"
+import { paperDir } from "../library/paths.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
 import { Shares, type SharesServices } from "../share/shares.ts"
 import { acquireLock, lockFileFor, WorkspaceLockedError } from "./lock.ts"
@@ -83,9 +83,12 @@ export class Workspace {
     this.threads = new Threads(path.join(root, OWLIT_DIR), { versions: this.versions }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
+      canonical: (id, ids) => this.library.canonical(id, ids),
+      facts: (id, paper) => this.library.rowFacts(id, paper),
       findPassage: async (id, quote) => {
-        if (!isPaperId(id)) return undefined
-        const text = await readFile(path.join(paperDir(root, id), "text.md"), "utf8").catch(() => null)
+        const here = await this.library.canonical(id)
+        if (!here) return undefined
+        const text = await readFile(path.join(paperDir(root, here), "text.md"), "utf8").catch(() => null)
         return text === null ? undefined : findQuote(text, quote)
       },
       searches: (by, since) => this.library.searchesBy(by, since),

@@ -61,6 +61,13 @@ export function paperFacts(row: ThreadRow, library: Paper | undefined): ThreadPa
   return { ...row.paper, title: library.title, authors: library.authors, year: library.year, venue: library.venue, abstract: library.abstract ?? row.paper.abstract }
 }
 
+// The thread as the user sees it, for what leaves the app (Export as a doc, CSV): each row's paper with
+// the Library's facts, as the table shows it
+export function withLibraryFacts(c: Thread): Thread {
+  const { papers, aliases } = useLibraryStore.getState()
+  return { ...c, rows: c.rows.map((r) => ({ ...r, paper: paperFacts(r, libraryPaperOf(r, papers, aliases)) })) }
+}
+
 // "Chang et al. 2023"
 export const citeOf = (p: Pick<ThreadPaper, "authors" | "year">) => citationLabel({ authors: p.authors, year: p.year })
 

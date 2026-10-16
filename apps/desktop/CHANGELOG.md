@@ -8,6 +8,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - A starred paper's star is filled in black (white in dark mode) instead of yellow, so it never reads as waiting or a comment.
 - When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
+- A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.
 - A comment Owlit held while you were typing lands in the workspace it was made in when you switch to another, never in a doc of the same name there.
 
 ## 0.2.0

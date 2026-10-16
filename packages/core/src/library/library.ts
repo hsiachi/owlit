@@ -402,11 +402,7 @@ export class Library {
   // For each input, the paper in the library it names, offline
   async known(inputs: string[]): Promise<(string | null)[]> {
     return Promise.all(
-      inputs.map(async (input) => {
-        const ref = parseRef(input)
-        if (!ref || ref.kind === "url") return null
-        return (await this.index.find({ [ref.kind]: ref.value })) ?? null
-      }),
+      inputs.map(async (input) => (parseRef(input)?.kind === "url" ? null : ((await this.canonical(input.trim())) ?? null))),
     )
   }
 
@@ -1028,10 +1024,31 @@ export class Library {
     return summary
   }
 
+  // The library's id for a paper named by any id it goes by: its own, one it had before (a copy folded
+  // into it, a move to its DOI), or what the id itself says (doi-…, arxiv-…), the ids given, or the ids a
+  // search showed for it lately, matched by DOI, arXiv and the others. Undefined when the library doesn't
+  // have it. Everything that takes a paper id from outside (an agent, a thread row) goes through this:
+  // a search names a paper by its own id, which often isn't the one the library files it under.
+  async canonical(id: string, ids?: PaperIds): Promise<string | undefined> {
+    if (isPaperId(id) && (await readRecord(this.root, id))) return id
+    const alias = (await this.aliases())[id]
+    if (alias && (await readRecord(this.root, alias))) return alias
+    const ref = parseRef(id)
+    const known: PaperIds = { ...(ref ? { [ref.kind]: ref.value } : {}), ...(this.kept(id)?.resolution.ids ?? this.found.get(id)?.paper.ids), ...ids }
+    return Object.keys(known).length ? this.index.find(known) : undefined
+  }
+
+  // The library's id for a paper an agent names, or the "not in the library" refusal
+  private async here(id: string) {
+    const here = await this.canonical(id)
+    if (!here) throw notFound(id)
+    return here
+  }
+
   // Part of a paper as text for an agent: its full text (all of it, some pages, or one section), its
-  // digest or the user's note
-  async read(id: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number }> {
-    if (!(await readRecord(this.root, id))) throw notFound(id)
+  // digest or the user's note. id: any id the paper goes by.
+  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number }> {
+    const id = await this.here(name)
     if (part === "digest") return { text: (await this.digest(id)) ?? "" }
     if (part === "note") return { text: (await readNote(this.root, id))?.content ?? "" }
     const markdown = await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => null)
@@ -1164,9 +1181,8 @@ export class Library {
     return this.searchLog
   }
 
-  async highlights(id: string): Promise<Highlight[]> {
-    if (!(await readRecord(this.root, id))) throw notFound(id)
-    return readHighlights(this.root, id)
+  async highlights(name: string): Promise<Highlight[]> {
+    return readHighlights(this.root, await this.here(name))
   }
 
   // The paper's full text with where each line sits, or null before it has been read
@@ -2428,13 +2444,23 @@ export class Library {
   // What a paper is, for a thread's row: the Library's record when the paper is here, otherwise what a
   // search found lately (partial or not: a thread keeps what the search showed)
   async snapshot(id: string): Promise<ThreadPaper | undefined> {
-    const here = isPaperId(id) ? await readRecord(this.root, id) : undefined
+    const canonical = await this.canonical(id)
+    const here = canonical ? await readRecord(this.root, canonical) : undefined
     const from: Resolution | PaperRecord | undefined = here ?? this.kept(id)?.resolution
     if (from) return clean({ ...pick(from), tldr: from.tldr, citationCount: from.citationCount, openPdf: (from.pdfUrls?.length ?? 0) > 0 || undefined })
     const found = this.found.get(id)
     if (!found || Date.now() - found.at >= FOUND_TTL_MS) return undefined
     const p = found.paper
     return clean({ title: p.title, authors: p.authors, ids: p.ids, year: p.year, venue: p.venue, abstract: p.abstract, tldr: p.tldr, kind: p.kind, citationCount: p.citationCount, openPdf: p.openPdf })
+  }
+
+  // A thread row's paper as the user sees it: the Library's facts, with their corrections, when the
+  // library has it under any of its ids; otherwise what the search showed when the row was made
+  async rowFacts(id: string, kept: ThreadPaper): Promise<ThreadPaper> {
+    const here = await this.canonical(id, kept.ids)
+    const paper = here ? await this.get(here) : undefined
+    if (!paper) return kept
+    return { ...kept, title: paper.title, authors: paper.authors, year: paper.year, venue: paper.venue, abstract: paper.abstract ?? kept.abstract }
   }
 
   // The search that showed a paper lately, for a row's foundBy

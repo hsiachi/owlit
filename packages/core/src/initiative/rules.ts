@@ -49,7 +49,7 @@ export interface World {
   threads(): Promise<number>
   // The threads that have this paper as a row, and whether some of its answers there rest only on its
   // abstract
-  rowsOf(paperId: string): Promise<{ thread: string; fromAbstract: boolean }[]>
+  rowsOf(paperId: string): Promise<{ thread: string; row?: string; fromAbstract: boolean }[]>
   // Owlit's standing comments that cite this paper, as "<doc path>#<comment id>", in docs Owlit isn't
   // kept out of
   leaning(paperId: string): Promise<string[]>
@@ -218,8 +218,10 @@ export const paperRead = defineRule({
   needs: "away",
   when: async (event, { world, presence }) => {
     if (!presence.isAway) return untilAway(event.paperId)
-    const outcomes: Outcome[] = (await world.rowsOf(event.paperId)).map(({ thread, fromAbstract }) => {
-      const subject = `${thread}:${event.paperId}`
+    const outcomes: Outcome[] = (await world.rowsOf(event.paperId)).map(({ thread, row, fromAbstract }) => {
+      // The row's own id, which a search gave and may not be the library's; a journal from before rows
+      // were named has none
+      const subject = `${thread}:${row ?? event.paperId}`
       return fromAbstract ? job(subject, "threads.reread", "background") : { subject, none: "answered from the full text already" }
     })
     for (const comment of await world.leaning(event.paperId)) outcomes.push(job(`${comment}|${event.paperId}`, RECHECK_RUN, "background"))

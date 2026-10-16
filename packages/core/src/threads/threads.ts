@@ -20,6 +20,7 @@ import {
   type ThreadSize,
   type TaskPriority,
   type ThreadRow,
+  type PaperIds,
   type ThreadSummary,
   type ThreadWrite,
   upgradeThread,
@@ -57,6 +58,11 @@ export interface ThreadsServices {
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
   // undefined when owlit has no text of the paper
   findPassage?: (paperId: string, quote: string) => Promise<number | null | undefined>
+  // The library's id for a paper named by any id it goes by, undefined when it isn't in the library: a row
+  // keeps the id the search gave, which often isn't the library's (Library.canonical)
+  canonical?: (id: string, ids?: PaperIds) => Promise<string | undefined>
+  // A row's paper as the thread is read: the Library's facts, with the user's corrections, when it is there
+  facts?: (id: string, paper: ThreadPaper) => Promise<ThreadPaper>
   // A thread changed under the windows (null: deleted)
   changed?: (id: string, thread: Thread | null) => void
   // An agent in a chat wrote to a thread; versionId takes the write back
@@ -120,27 +126,41 @@ export class Threads {
   async paperOf(paperId: string): Promise<ThreadPaper | undefined> {
     const ids = await readdir(this.dir).catch(() => [] as string[])
     for (const id of ids) {
-      const row = (await this.load(id).catch(() => undefined))?.rows.find((r) => r.id === paperId)
+      const row = await this.rowOf((await this.load(id).catch(() => undefined))?.rows ?? [], paperId)
       if (row) return row.paper
     }
     return undefined
   }
 
-  // The threads that have this paper as a row, and whether some of its answers there rest only on the
-  // abstract (the user's reading of it in full can give them again from the whole text)
-  async rowsOf(paperId: string): Promise<{ thread: string; fromAbstract: boolean }[]> {
-    const out: { thread: string; fromAbstract: boolean }[] = []
+  // The threads that have this paper as a row (under any id it goes by), and whether some of its answers
+  // there rest only on the abstract (the user's reading of it in full can give them again from the whole
+  // text)
+  async rowsOf(paperId: string): Promise<{ thread: string; row: string; fromAbstract: boolean }[]> {
+    const out: { thread: string; row: string; fromAbstract: boolean }[] = []
     for (const id of await readdir(this.dir).catch(() => [] as string[])) {
-      const row = (await this.load(id).catch(() => undefined))?.rows.find((r) => r.id === paperId)
-      if (row) out.push({ thread: id, fromAbstract: Object.values(row.cells).some((cell) => cell.depth !== "full") })
+      const row = await this.rowOf((await this.load(id).catch(() => undefined))?.rows ?? [], paperId)
+      if (row) out.push({ thread: id, row: row.id, fromAbstract: Object.values(row.cells).some((cell) => cell.depth !== "full") })
     }
     return out
   }
 
+  // The thread as it is read: each row's paper as the Library has it, when it is there
   async get(id: string): Promise<Thread> {
     const c = await this.load(id)
     if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread isn't here any more.`, { id })
-    return c
+    const facts = this.services.facts
+    return facts ? { ...c, rows: await Promise.all(c.rows.map(async (r) => ({ ...r, paper: await facts(r.id, r.paper) }))) } : c
+  }
+
+  // The row that is this paper: by its id, or by the library's id both go by
+  private async rowOf(rows: ThreadRow[], paperId: string): Promise<ThreadRow | undefined> {
+    const exact = rows.find((r) => r.id === paperId)
+    const canonical = this.services.canonical
+    if (exact || !canonical || !rows.length) return exact
+    const target = await canonical(paperId)
+    if (!target) return undefined
+    for (const r of rows) if ((await canonical(r.id, r.paper.ids)) === target) return r
+    return undefined
   }
 
   attach(tasks: Scheduler) {
@@ -186,7 +206,9 @@ export class Threads {
         retries: 1,
         run: async (ctx) => {
           const ids = (await this.list()).map((summary) => summary.id)
-          const threads = (await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)))).filter((c): c is Thread => !!c && !c.rows.some((r) => r.id === ctx.task.subject))
+          const loaded = await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)))
+          const threads: Thread[] = []
+          for (const c of loaded) if (c && !(await this.rowOf(c.rows, ctx.task.subject))) threads.push(c)
           if (!threads.length) return
           await agent(relateSkill.instructions({ threads, paperId: ctx.task.subject }), ctx, relateSkill.tools ?? NO_TOOLS, `${relateSkill.id}:${ctx.task.id}`)
         },
@@ -437,12 +459,14 @@ export class Threads {
       const added: string[] = []
       let updated = 0
       const left: string[] = []
-      for (const r of input.rows ?? []) {
-        if (c.yours.removed[itemId.row(r.id)]) {
-          left.push(r.id)
+      for (const asked of input.rows ?? []) {
+        if (c.yours.removed[itemId.row(asked.id)]) {
+          left.push(asked.id)
           continue
         }
-        let row = c.rows.find((have) => have.id === r.id)
+        // A paper the thread has under another of its ids is that row
+        let row = await this.rowOf(c.rows, asked.id)
+        const r = row ? { ...asked, id: row.id } : asked
         if (!row) {
           const paper = r.paper ?? (await this.services.paper?.(r.id))
           if (!paper) {

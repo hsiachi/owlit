@@ -96,8 +96,9 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return shown.map(paperLine).join("\n") + more
     }
     case "library_get": {
-      const { papers, notes } = await owlit.rpc.library.list()
-      const paper = papers.find((p) => p.id === str("id"))
+      // Any id the paper goes by: a search's, or one it had before it moved or a copy was folded into it
+      const [[here], { papers, notes }] = await Promise.all([owlit.rpc.library.known({ inputs: [str("id")] }), owlit.rpc.library.list()])
+      const paper = papers.find((p) => p.id === (here ?? str("id")))
       if (!paper) {
         // A paper a search found: its whole abstract, which the search's line cuts short
         const found = await owlit.rpc.library.found({ id: str("id") })
