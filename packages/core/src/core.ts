@@ -206,6 +206,7 @@ export class Core {
       writeRecord: (path, content, chatId) => this.fs.write(path, content, chatId),
       replied: (path, comment) => this.notifier.notify("comments.changed", { path, comment }),
       record: (entry) => this.journal.evaluation(entry),
+      userName: async () => (await this.settings.get()).profile.name ?? undefined,
     })
     // After presence has heard it (the bus calls kind listeners before catch-all ones, so this is one too)
     this.activity.subscribe((event) => {

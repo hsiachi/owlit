@@ -56,14 +56,16 @@ function Signed({ entry, className }: { entry: EntryView; className?: string }) 
   )
 }
 
-// A point carried over from a record of what people said (Go through): its first entry is signed with
-// where it came from, the record's name opening it, and that Owlit placed it, never a speaker's name
-function SignedFirst({ view, entry, className }: { view: CommentView; entry: EntryView; className?: string }) {
+// A point carried over from a record of what people said (Go through): under the first entry's signature,
+// one muted line saying where it came from, the record's name (without its "· reading" ending) opening it,
+// and that Owlit placed it. Never a speaker's name: the words say who said what.
+function SourceLine({ view, className }: { view: CommentView; className?: string }) {
   const navigate = useNavigate()
   const source = view.doc?.source
-  if (!source) return <Signed entry={entry} className={className} />
+  if (!source) return null
+  const name = source.label.replace(/ · (reading|解读)( \d+)?$/, "")
   return (
-    <span className={cn("min-w-0 truncate text-xs text-muted-foreground", className)}>
+    <p className={cn("text-xs text-muted-foreground", className)}>
       {t({ message: "From", comment: "before the name of the record a comment's point was carried over from: From P5 周会 · placed by Owlit" })}{" "}
       <button
         type="button"
@@ -74,13 +76,11 @@ function SignedFirst({ view, entry, className }: { view: CommentView; entry: Ent
           if (file) navigate(`/docs/${file.id}`)
         }}
       >
-        {source.label}
+        {name}
       </button>
       {" · "}
       {t({ message: "placed by Owlit", comment: "after the record's name on a comment Owlit carried over from it" })}
-      {" · "}
-      {ago(entry.at)}
-    </span>
+    </p>
   )
 }
 
@@ -105,8 +105,9 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
       {/* The comment colour, as on its words */}
       <span aria-hidden className="absolute top-2.5 bottom-2.5 left-1.5 w-0.5 rounded-full bg-comment-mark" />
       <div className="flex">
-        <SignedFirst view={view} entry={first} />
+        <Signed entry={first} />
       </div>
+      <SourceLine view={view} />
       {lost && <p className="text-xs text-muted-foreground">{t`Its passage has changed`}</p>}
       <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-foreground/80">{plainText(first.text)}</p>
       {/* Who answered last, so a reply that came while you were away shows without opening the card */}
@@ -159,7 +160,7 @@ export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: 
     <div className="rounded-xl border bg-card py-2 pr-1.5 pl-3 shadow-md" onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && actions.onClose()}>
       {/* The first row: who started it, then what acts on the whole comment */}
       <div className="flex h-6 items-center gap-1">
-        <SignedFirst view={view} entry={first} className="flex-1" />
+        <Signed entry={first} className="flex-1" />
         <IconButton label={t`Ask Owlit about this comment`} size="icon-xs" onClick={actions.onAsk}>
           <OwlitMark />
         </IconButton>
@@ -174,6 +175,7 @@ export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: 
         {first.editable && <EntryMenu entry={first} first hasReplies={replies.length > 0} onEdit={() => setEditing(first.id)} onDelete={() => actions.onDelete(first.id)} />}
       </div>
       <div className="pr-1.5">
+        <SourceLine view={view} className="mt-0.5" />
         {lost && <p className="mt-0.5 text-xs text-muted-foreground">{t`The passage this comment was on has changed: “${shorten(view.quote, 90)}”`}</p>}
         <EntryText entry={first} editing={editing === first.id} onSave={(text) => {
             actions.onEdit(first.id, text)

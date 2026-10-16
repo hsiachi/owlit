@@ -26,6 +26,8 @@ export interface GoThroughInput {
   docs: string[]
   // Today, as the record's date line says it
   today: string
+  // The user's name (Settings › Owlit › Your name), so their own words become "you"
+  user?: string
 }
 
 // Long material is cut here: a 30-minute meeting's transcript is about a fifth of it
@@ -38,6 +40,9 @@ export function goThroughPrompt(input: GoThroughInput) {
   return [
     `You are Owlit, going through material that comes from people (a meeting, reviews, someone's comments on a draft, an email of points, the user's own notes) against the user's docs. A summary says what the material contains; going through it says what it changes. You write down only what is new to the work, what differs from it, what was left open, what is owed, and what to look up. Everything that matches the work is dropped, in one closing clause.`,
     `The material is ${input.path}${cut ? " (cut short here; say so in the closing clause)" : ""}:\n\n<material>\n${material}\n</material>`,
+    input.user
+      ? `The user is ${input.user}. What ${input.user} said is the user's own: write "you" (你), never their name, and their to-dos are the user's tasks.`
+      : `You don't know the user's name. If one speaker is plainly the user (the docs are theirs, they present them), write that speaker as "you" (你); otherwise name every speaker.`,
     `First find the doc or docs it is about: the workspace's docs are ${input.docs.length ? input.docs.slice(0, 120).join(", ") : "(none)"}. Read the likely ones with docs_read. If none is about it, go through it against nothing: everything new is a point, and you leave no comments.`,
     `Keep the kinds of statement apart, and read the whole material before calling anything decided:
 - Decided: someone agreed out loud, or nobody objected and the meeting moved on with it.

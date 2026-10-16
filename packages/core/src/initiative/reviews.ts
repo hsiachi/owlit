@@ -34,6 +34,8 @@ export interface ReviewServices {
   replied: (path: string, comment: DocComment) => void
   record: (entry: EvaluationRecord) => void
   now?: () => number
+  // The user's name, when they gave one (a Go through writes their own words as "you")
+  userName?: () => Promise<string | undefined>
 }
 
 interface Held {
@@ -100,7 +102,8 @@ export class Reviews {
     this.records.set(runId, { path: record, label })
     try {
       const today = new Date(this.now()).toISOString().slice(0, 10)
-      const { text } = await this.services.agent(goThroughSkill.instructions({ path: rel, content, record, recordLabel: label, docs, today }), ctx, goThroughSkill.tools!, runId)
+      const user = (await this.services.userName?.())?.trim() || undefined
+      const { text } = await this.services.agent(goThroughSkill.instructions({ path: rel, content, record, recordLabel: label, docs, today, user }), ctx, goThroughSkill.tools!, runId)
       const reading = cleanReading(text)
       if (!reading.startsWith("# ")) throw new Error("Owlit's reading didn't come out as one.")
       await this.services.writeRecord(record, recordOf(reading, rel, chinese), ws.tasks.get(ctx.task.id)?.chatId)
