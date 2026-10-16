@@ -138,6 +138,43 @@ export function throughProxy(target: string, proxy: ProxySettings) {
   return `${base}${proxy.path ?? "/login"}?url=${target}`
 }
 
+// What the library sign-in window shows, each time it is looked at
+export interface SignInPage {
+  url: string
+  // A password field or a captcha on screen
+  asking: boolean
+}
+
+// Whether the library sign-in is over, from the pages the sign-in window went through: a sign-in step
+// (the university's own login site, or a password field on the proxy's host) and then the proxy's host
+// again, off its login paths and asking nothing, twice in a row. People didn't know to close the window
+// once signed in (2026-10-16), so it closes itself. Tsinghua's tlink signs in on id.tsinghua.edu.cn, by
+// password or by scanning a code, so leaving the host counts without a password field. A window that
+// opens on an already signed-in proxy shows no step, and stays for the person to close.
+export function signInWatch(entry: string) {
+  const proxyHost = hostOf(entry)
+  let stepped = false
+  let clear = 0
+  return (page: SignInPage): boolean => {
+    let at: URL
+    try {
+      at = new URL(page.url)
+    } catch {
+      return false
+    }
+    // about:blank before the first page
+    if (!at.hostname) return false
+    const onProxy = at.hostname === proxyHost || at.hostname.endsWith(`.${proxyHost}`)
+    if (!onProxy || page.asking) {
+      stepped = true
+      clear = 0
+      return false
+    }
+    clear = stepped && !/log-?in|sign-?in|sso|\/cas\b|auth/i.test(at.pathname) ? clear + 1 : 0
+    return clear >= 2
+  }
+}
+
 // The PDF's address worked out from the article page a browser landed on, for publishers whose pages
 // carry no citation_pdf_url: IEEE Xplore's /document/<arnumber> (its PDF is the stamp page's
 // getPDF.jsp), and OSF's preprints (PsyArXiv, SocArXiv), whose file is /<id>/download. Only on the

@@ -4941,6 +4941,21 @@ msgstr "在深色模式下调暗 PDF 页面"
 msgid "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
 msgstr "页面在两种外观模式下都保持白色；调暗后，在深色面板旁就不会刺眼。"
 
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: packages/core/src/agents/agents.ts
+msgid "The sign-in didn't finish."
+msgstr "登录没有完成。"
+
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+msgid "Finish signing in in your browser…"
+msgstr "请在浏览器中完成登录…"
+
+#. an agent's sign-in, which opens the browser
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign in…"
+msgstr "登录…"
+
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Sign out"
 msgstr "退出登录"
@@ -5186,6 +5201,10 @@ msgid "What you read, write and ask in this workspace is noted in .owlit/journal
 msgstr "你在这个工作区里读了什么、写了什么、问了什么，会记在 .owlit/journal.jsonl 里，好让 Owlit 跟上你的工作。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Tsinghua University"
+msgstr "清华大学"
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
 msgstr "{host} · 改写网址"
 
@@ -5247,8 +5266,8 @@ msgid "Sign-in"
 msgstr "登录"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
-msgstr "owlit 在自己的浏览器窗口中，以你的身份通过代理获取 PDF。图书馆过一段时间会让你退出登录；获取时如果要求登录，再登录一次即可。"
+msgid "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgstr "Owlit 在自己的浏览器窗口中，以你的身份通过代理获取 PDF。图书馆过一段时间会让你退出登录；获取时如果要求登录，再登录一次即可。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Waiting for the sign-in window…"
@@ -5263,12 +5282,8 @@ msgid "Sign in again…"
 msgstr "重新登录…"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in…"
-msgstr "登录…"
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in in the window that opened, then close it."
-msgstr "请在打开的窗口中登录，然后关闭它。"
+msgid "Sign in in the window that opened. It closes by itself once you're in."
+msgstr "请在打开的窗口中登录。登录完成后窗口会自动关闭。"
 
 #: app/src/features/settings/sections/PublisherApisGroup.tsx
 #: app/src/features/settings/store.ts
@@ -6055,6 +6070,14 @@ msgid "Setting up {name}… {percent}%"
 msgstr "正在设置 {name}… {percent}%"
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "{problem}."
+msgstr "{problem}。"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Sign in with your account in the browser."
+msgstr "在浏览器中用你的账号登录。"
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 msgstr "<0>{problem}。</0>在终端中运行 <1>{command}</1> 以登录。"
 
@@ -6071,20 +6094,25 @@ msgid "Set it up for Owlit (about {size} MB)."
 msgstr "为 Owlit 设置它（约 {size} MB）。"
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "{problem}."
-msgstr "{problem}。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Use another agent…"
-msgstr "使用其他智能体…"
-
-#: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit works through Claude Code or Codex."
 msgstr "Owlit 通过 Claude Code 或 Codex 工作。"
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "Install one in Terminal, then sign in:"
-msgstr "在终端里装一个，再登录："
+msgid "Set one up (about {size} MB), then sign in with your Claude or ChatGPT account."
+msgstr "设置其中一个（约 {size} MB），然后用你的 Claude 或 ChatGPT 账号登录。"
+
+#. fetch owlit's copy of an agent, e.g. Set up Claude Code
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set up {name}"
+msgstr "设置 {name}"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+msgstr "或者<0>用 ChatGPT 登录</0>，使用 Owlit engine (Beta)。"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Use another agent…"
+msgstr "使用其他智能体…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit needs a coding agent on this Mac."
@@ -6093,10 +6121,6 @@ msgstr "Owlit 需要这台 Mac 上有一个编程智能体。"
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "To use {name}, run this in Terminal:"
 msgstr "要使用 {name}，请在终端中运行："
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
-msgstr "或者<0>用 ChatGPT 登录</0>，使用 Owlit engine (Beta)。"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
@@ -6210,10 +6234,10 @@ msgstr "打开文件夹"
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
 
-#. title of the window that shows a publisher's or library's sign-in page
+#. title of the window that shows the library proxy's sign-in page
 #: apps/desktop/src/browser.ts
-msgid "Owlit · Publisher"
-msgstr "Owlit · 出版商"
+msgid "Sign in to your library · This window closes by itself once you're in"
+msgstr "登录你的图书馆 · 登录完成后此窗口会自动关闭"
 
 #: apps/desktop/src/cli-tool.ts
 msgid "The owlit command is installed"
@@ -6657,6 +6681,10 @@ msgstr "{agent} 的服务拒绝了请求（403）。如果 {agent} 已登录，�
 #: packages/core/src/agents/agents.ts
 msgid "The agent"
 msgstr "智能体"
+
+#: packages/core/src/agents/agents.ts
+msgid "The sign-in stopped before it was done."
+msgstr "登录在完成前中断了。"
 
 #: packages/core/src/agents/agents.ts
 msgid "owlit can't set agents up here."

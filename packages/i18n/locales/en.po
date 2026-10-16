@@ -4941,6 +4941,21 @@ msgstr "Dim PDF pages in the dark theme"
 msgid "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
 msgstr "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
 
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: packages/core/src/agents/agents.ts
+msgid "The sign-in didn't finish."
+msgstr "The sign-in didn't finish."
+
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+msgid "Finish signing in in your browser…"
+msgstr "Finish signing in in your browser…"
+
+#. an agent's sign-in, which opens the browser
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign in…"
+msgstr "Sign in…"
+
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Sign out"
 msgstr "Sign out"
@@ -5186,6 +5201,10 @@ msgid "What you read, write and ask in this workspace is noted in .owlit/journal
 msgstr "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Tsinghua University"
+msgstr "Tsinghua University"
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
 msgstr "{host} · rewrites addresses"
 
@@ -5247,8 +5266,8 @@ msgid "Sign-in"
 msgstr "Sign-in"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
-msgstr "owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgid "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgstr "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Waiting for the sign-in window…"
@@ -5263,12 +5282,8 @@ msgid "Sign in again…"
 msgstr "Sign in again…"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in…"
-msgstr "Sign in…"
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in in the window that opened, then close it."
-msgstr "Sign in in the window that opened, then close it."
+msgid "Sign in in the window that opened. It closes by itself once you're in."
+msgstr "Sign in in the window that opened. It closes by itself once you're in."
 
 #: app/src/features/settings/sections/PublisherApisGroup.tsx
 #: app/src/features/settings/store.ts
@@ -6055,6 +6070,14 @@ msgid "Setting up {name}… {percent}%"
 msgstr "Setting up {name}… {percent}%"
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "{problem}."
+msgstr "{problem}."
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Sign in with your account in the browser."
+msgstr "Sign in with your account in the browser."
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 msgstr "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 
@@ -6071,20 +6094,25 @@ msgid "Set it up for Owlit (about {size} MB)."
 msgstr "Set it up for Owlit (about {size} MB)."
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "{problem}."
-msgstr "{problem}."
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Use another agent…"
-msgstr "Use another agent…"
-
-#: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit works through Claude Code or Codex."
 msgstr "Owlit works through Claude Code or Codex."
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "Install one in Terminal, then sign in:"
-msgstr "Install one in Terminal, then sign in:"
+msgid "Set one up (about {size} MB), then sign in with your Claude or ChatGPT account."
+msgstr "Set one up (about {size} MB), then sign in with your Claude or ChatGPT account."
+
+#. fetch owlit's copy of an agent, e.g. Set up Claude Code
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set up {name}"
+msgstr "Set up {name}"
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+msgstr "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Use another agent…"
+msgstr "Use another agent…"
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit needs a coding agent on this Mac."
@@ -6093,10 +6121,6 @@ msgstr "Owlit needs a coding agent on this Mac."
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "To use {name}, run this in Terminal:"
 msgstr "To use {name}, run this in Terminal:"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
-msgstr "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
@@ -6210,10 +6234,10 @@ msgstr "Open a Folder"
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 msgstr "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 
-#. title of the window that shows a publisher's or library's sign-in page
+#. title of the window that shows the library proxy's sign-in page
 #: apps/desktop/src/browser.ts
-msgid "Owlit · Publisher"
-msgstr "Owlit · Publisher"
+msgid "Sign in to your library · This window closes by itself once you're in"
+msgstr "Sign in to your library · This window closes by itself once you're in"
 
 #: apps/desktop/src/cli-tool.ts
 msgid "The owlit command is installed"
@@ -6657,6 +6681,10 @@ msgstr "{agent}'s service refused the request (403). If {agent} is signed in, th
 #: packages/core/src/agents/agents.ts
 msgid "The agent"
 msgstr "The agent"
+
+#: packages/core/src/agents/agents.ts
+msgid "The sign-in stopped before it was done."
+msgstr "The sign-in stopped before it was done."
 
 #: packages/core/src/agents/agents.ts
 msgid "owlit can't set agents up here."

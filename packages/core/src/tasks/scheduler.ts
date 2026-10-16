@@ -251,6 +251,11 @@ export class Scheduler {
   }
 
   // Stops running without recording the interrupted runs as ended: the next start() runs them again
+  // Resolves once every change so far is in the log
+  flush() {
+    return this.store.flush()
+  }
+
   async dispose() {
     if (this.stopped) return
     this.stopped = true

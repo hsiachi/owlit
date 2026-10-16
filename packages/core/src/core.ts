@@ -21,6 +21,7 @@ import { guide } from "./agents/guide.ts"
 import { Background, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
 import { Initiative } from "./initiative/initiative.ts"
+import { exportArchive } from "./initiative/archive.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./initiative/reads.ts"
 import { RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./initiative/runs.ts"
@@ -185,7 +186,7 @@ export class Core {
     this.background = new Background(this.agents)
     // What Owlit does without being asked is decided by its rules (initiative/rules.ts), which hear what
     // the user does and what core sees, and the clock
-    this.initiative = new Initiative({ workspace: () => this.workspace, record: (entry) => this.journal.evaluation(entry) })
+    this.initiative = new Initiative({ workspace: () => this.workspace, record: (entry) => this.journal.evaluation(entry), trace: (entry) => this.journal.trace(entry) })
     this.activity.subscribe((event) => this.initiative.observe(event))
     this.hourly = setInterval(() => this.workspace && this.initiative.observe({ kind: "clock.hour", at: Date.now() }), 3_600_000)
     this.hourly.unref?.()
@@ -232,6 +233,25 @@ export class Core {
         return next
       },
     )
+
+    // Written where the user says, outside the workspace: handing it out is theirs to do
+    this.router.register("archive.export", z.object({ to: z.string().min(1), since: z.number().nonnegative().optional() }), async ({ to, since }) => {
+      const ws = this.requireWorkspace()
+      await Promise.all([this.journal.flush(), ws.tasks.flush()])
+      return exportArchive({
+        root: ws.root,
+        journal: ws.owlitPath("journal.jsonl"),
+        tasksLog: path.join(ws.dataDir, "tasks", "log.jsonl"),
+        to: path.resolve(ws.root, to),
+        since,
+        settings: await ws.initiative(),
+        recording: (await this.settings.get()).activity.enabled,
+        version: this.version().version,
+        now: Date.now(),
+      }).catch((error) => {
+        throw new RpcFailure(RpcErrorCode.InvalidParams, messageOf(error))
+      })
+    })
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)

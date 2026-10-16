@@ -1,4 +1,4 @@
-import { isMarkdown, type ActivityEvent, type InitiativeMode, type TaskPriority } from "@owlit/protocol"
+import { isMarkdown, type ActivityEvent, type CoreEvent, type InitiativeMode, type TaskPriority } from "@owlit/protocol"
 import { stat } from "node:fs/promises"
 import path from "node:path"
 import type { Workspace } from "../workspace/workspace.ts"
@@ -16,22 +16,7 @@ import { RECHECK_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./runs.ts
 // a result) without depending on it: see docs/decisions/0008.
 
 // What the rules hear: the user's activity, and what core sees on its own
-export type InitiativeEvent =
-  | ActivityEvent
-  // The user starred a paper (core sees it whether or not activity is recorded)
-  | { kind: "paper.starred"; at: number; paperId: string }
-  // A paper joined the library one at a time, not by an agent or a batch import: the user added it in
-  // the app (user), or another program put it in the library folder (outside: Finder, a sync)
-  | { kind: "paper.landed"; at: number; paperId: string; by: "user" | "outside" }
-  // The user's reading of a paper reached the whole of it (reading.ts › readInFull), once per paper
-  | { kind: "paper.read"; at: number; paperId: string }
-  // The workspace has opened and its tasks run
-  | { kind: "workspace.opened"; at: number }
-  // Once an hour while the workspace is open
-  | { kind: "clock.hour"; at: number }
-  // A file appeared in the workspace that neither the user nor an agent wrote there in the app (Finder,
-  // a sync): workspace-relative path
-  | { kind: "docs.appeared"; at: number; path: string }
+export type InitiativeEvent = ActivityEvent | CoreEvent
 
 export type InitiativeKind = InitiativeEvent["kind"]
 type EventOf<K extends InitiativeKind> = Extract<InitiativeEvent, { kind: K }>
@@ -46,12 +31,59 @@ export interface Job {
 // leave the doc or the window, or pause their typing), or, until "away", only once they are away.
 export type Outcome = { subject: string } & ({ job: Job } | { none: string } | { defer: string; until?: "away" })
 
+// All a rule may look at in the workspace. Each look is journaled with its answer (initiative.ts), so a
+// replay answers the same questions the same way after the workspace has moved on; a rule that needs
+// something else adds it here.
+export interface World {
+  // Why no digest would be written for a paper now, or null when one would
+  digestHeldBack(paperId: string): Promise<string | null>
+  // The threads Owlit watches, and whether a day has passed since each was checked
+  watched(): Promise<{ id: string; due: boolean }[]>
+  // A doc's Owlit state: kept out, and the modification time Owlit last read; null when it isn't one
+  // of the workspace's docs
+  doc(path: string): Promise<{ out: boolean; looked?: number } | null>
+  // When a file was last changed (ms), or null when it isn't on disk
+  mtime(path: string): Promise<number | null>
+  // How many threads have papers in them
+  threads(): Promise<number>
+  // The threads that have this paper as a row, and whether some of its answers there rest only on its
+  // abstract
+  rowsOf(paperId: string): Promise<{ thread: string; fromAbstract: boolean }[]>
+  // Owlit's standing comments that cite this paper, as "<doc path>#<comment id>", in docs Owlit isn't
+  // kept out of
+  leaning(paperId: string): Promise<string[]>
+  // When Owlit last looked over the docs (the daily look), or null when it never has
+  lastScan(): Promise<number | null>
+}
+
+export const worldOf = (ws: Workspace, now: number): World => ({
+  digestHeldBack: (paperId) => ws.library.digestHeldBack(paperId),
+  watched: () => ws.threads.watched(now),
+  doc: async (rel) => {
+    const owlit = await ws.docs.owlitOf(rel).catch(() => null)
+    return owlit ? { out: !!owlit.out, ...(owlit.looked ? { looked: owlit.looked.mtime } : {}) } : null
+  },
+  mtime: async (rel) => {
+    const info = await stat(path.join(ws.root, rel)).catch(() => null)
+    return info ? Math.round(info.mtimeMs) : null
+  },
+  threads: async () => (await ws.threads.list()).filter((c) => c.papers > 0).length,
+  rowsOf: (paperId) => ws.threads.rowsOf(paperId),
+  leaning: async (paperId) => {
+    const out: string[] = []
+    for (const [rel, comments] of Object.entries(await ws.docs.commentsAll())) {
+      if (!isMarkdown(rel) || (await ws.docs.owlitOf(rel).catch(() => null))?.out) continue
+      for (const c of leaningOn(comments, paperId)) out.push(`${rel}#${c.id}`)
+    }
+    return out
+  },
+  lastScan: () => ws.docs.scannedAt(),
+})
+
 export interface RuleContext {
-  ws: Workspace
+  world: World
   now: number
   presence: Presence
-  // When this rule last queued a run about this subject, from the journal's evaluations
-  lastJob: (subject: string) => Promise<number | null>
 }
 
 export interface Rule<K extends InitiativeKind = InitiativeKind> {
@@ -76,8 +108,8 @@ export const digestOnOpen = defineRule({
   id: "digest.onOpen",
   on: ["paper.opened"],
   needs: "off",
-  when: async (event, { ws }) => {
-    const held = await ws.library.digestHeldBack(event.paperId)
+  when: async (event, { world }) => {
+    const held = await world.digestHeldBack(event.paperId)
     return [held ? { subject: event.paperId, none: held } : job(event.paperId, "paper.digest", "waiting")]
   },
 })
@@ -87,8 +119,8 @@ export const digestOnStar = defineRule({
   id: "digest.onStar",
   on: ["paper.starred"],
   needs: "off",
-  when: async (event, { ws }) => {
-    const held = await ws.library.digestHeldBack(event.paperId)
+  when: async (event, { world }) => {
+    const held = await world.digestHeldBack(event.paperId)
     return [held ? { subject: event.paperId, none: held } : job(event.paperId, "paper.digest", "background")]
   },
 })
@@ -100,21 +132,21 @@ export const checkWatched = defineRule({
   on: ["workspace.opened", "clock.hour"],
   needs: "off",
   // The hourly look says only what became due, so the log doesn't fill with the same "not yet"
-  when: async (event, { ws, now }) =>
-    (await ws.threads.watched(now))
+  when: async (event, { world }) =>
+    (await world.watched())
       .filter(({ due }) => due || event.kind === "workspace.opened")
       .map(({ id, due }) => (due ? job(id, "threads.check", "background") : { subject: id, none: "checked within a day" })),
 })
 
 // Why a doc isn't one to review, or null if it changed since Owlit last looked
-async function unreviewable(ws: Workspace, subject: string) {
+async function unreviewable(world: World, subject: string) {
   if (!isMarkdown(subject)) return "not a Markdown doc"
-  const owlit = await ws.docs.owlitOf(subject).catch(() => null)
+  const owlit = await world.doc(subject)
   if (!owlit) return "not in the workspace"
   if (owlit.out) return "kept out"
-  const info = await stat(path.join(ws.root, subject)).catch(() => null)
-  if (!info) return "not on disk"
-  if (owlit.looked && Math.round(info.mtimeMs) <= owlit.looked.mtime) return "unchanged since Owlit looked"
+  const mtime = await world.mtime(subject)
+  if (mtime === null) return "not on disk"
+  if (owlit.looked !== undefined && mtime <= owlit.looked) return "unchanged since Owlit looked"
   return null
 }
 
@@ -127,9 +159,9 @@ export const reviewOnOpen = defineRule({
   key: (event) => event.path,
   // Flicking through docs isn't opening one to read
   settleMs: 3000,
-  when: async (event, { ws, now, presence }) => {
+  when: async (event, { world, now, presence }) => {
     const subject = event.path
-    const not = await unreviewable(ws, subject)
+    const not = await unreviewable(world, subject)
     if (not) return [{ subject, none: not }]
     if (presence.writingIn(subject, now)) return [{ subject, defer: "the user is writing in it" }]
     return [job(subject, REVIEW_RUN, "background")]
@@ -138,6 +170,9 @@ export const reviewOnOpen = defineRule({
 
 // ---- While the user is away (the night shift). These rules act only while the user is away, and wait
 // for that when they are here; what they make lands where the user isn't, and nothing they do notifies.
+
+// Not now: the user is here. One deferral about the event's subject, looked at again when they go away
+const untilAway = (subject: string): Outcome[] => [{ subject, defer: "waiting for the user to be away", until: "away" }]
 
 // The user stopped editing a doc a while ago: once they are away, Owlit reads what changed and leaves its
 // comments for when they are back
@@ -148,17 +183,14 @@ export const reviewSettled = defineRule({
   key: (event) => event.path,
   // An edit is settled once the doc has had no typing for this long
   settleMs: 10 * 60_000,
-  when: async (event, { ws, presence }) => {
+  when: async (event, { world, presence }) => {
     const subject = event.path
-    const not = await unreviewable(ws, subject)
+    const not = await unreviewable(world, subject)
     if (not) return [{ subject, none: not }]
     if (!presence.isAway) return [{ subject, defer: presence.openDoc === subject ? "the user is in it" : "waiting for the user to be away", until: "away" }]
     return [job(subject, SETTLED_REVIEW_RUN, "background")]
   },
 })
-
-// Not now: the user is here. One deferral about the event's subject, looked at again when they go away
-const untilAway = (subject: string): Outcome[] => [{ subject, defer: "waiting for the user to be away", until: "away" }]
 
 // A paper that came into the library one at a time, not by an agent and not in a batch import (the user
 // added it, or it arrived from outside the app): its digest, and whether it answers one of the threads'
@@ -167,13 +199,12 @@ export const paperLanded = defineRule({
   id: "paper.landed",
   on: ["paper.landed"],
   needs: "away",
-  when: async (event, { ws, presence }) => {
+  when: async (event, { world, presence }) => {
     if (!presence.isAway) return untilAway(event.paperId)
-    const held = await ws.library.digestHeldBack(event.paperId)
-    const threads = (await ws.threads.list()).filter((c) => c.papers > 0)
+    const held = await world.digestHeldBack(event.paperId)
     return [
       held ? { subject: event.paperId, none: held } : job(event.paperId, "paper.digest", "background"),
-      threads.length ? job(event.paperId, "paper.relate", "background") : { subject: event.paperId, none: "no threads to bring it to" },
+      (await world.threads()) ? job(event.paperId, "paper.relate", "background") : { subject: event.paperId, none: "no threads to bring it to" },
     ]
   },
 })
@@ -184,17 +215,13 @@ export const paperRead = defineRule({
   id: "paper.readInFull",
   on: ["paper.read"],
   needs: "away",
-  when: async (event, { ws, presence }) => {
+  when: async (event, { world, presence }) => {
     if (!presence.isAway) return untilAway(event.paperId)
-    const rows = await ws.threads.rowsOf(event.paperId)
-    const outcomes: Outcome[] = rows.map(({ thread, fromAbstract }) => {
+    const outcomes: Outcome[] = (await world.rowsOf(event.paperId)).map(({ thread, fromAbstract }) => {
       const subject = `${thread}:${event.paperId}`
       return fromAbstract ? job(subject, "threads.reread", "background") : { subject, none: "answered from the full text already" }
     })
-    for (const [rel, comments] of Object.entries(await ws.docs.commentsAll())) {
-      if (!isMarkdown(rel) || (await ws.docs.owlitOf(rel).catch(() => null))?.out) continue
-      for (const c of leaningOn(comments, event.paperId)) outcomes.push(job(`${rel}#${c.id}|${event.paperId}`, RECHECK_RUN, "background"))
-    }
+    for (const comment of await world.leaning(event.paperId)) outcomes.push(job(`${comment}|${event.paperId}`, RECHECK_RUN, "background"))
     return outcomes.length ? outcomes : [{ subject: event.paperId, none: "nothing of Owlit's leans on it" }]
   },
 })
@@ -207,8 +234,9 @@ export const dailyScan = defineRule({
   id: "docs.dailyScan",
   on: ["workspace.opened", "clock.hour"],
   needs: "away",
-  when: async (event, { now, presence, lastJob }) => {
-    const last = await lastJob("workspace")
+  when: async (event, { world, now, presence }) => {
+    const last = await world.lastScan()
+    // The hourly look says only what became due
     if (last !== null && now - last < DAY_MS) return event.kind === "workspace.opened" ? [{ subject: "workspace", none: "looked within a day" }] : []
     if (!presence.isAway) return untilAway("workspace")
     return [job("workspace", SCAN_RUN, "background")]

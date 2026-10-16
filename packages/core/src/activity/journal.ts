@@ -1,10 +1,10 @@
-import { JOURNALED_KINDS, type AgentRecord, type EvaluationRecord, type FeedbackRecord, type JournalEntry } from "@owlit/protocol"
+import { JOURNALED_KINDS, type AgentRecord, type JournaledCoreEvent, type EvaluationRecord, type FeedbackRecord, type JournalEntry, type LookedRecord } from "@owlit/protocol"
 import type { ActivityBus } from "./bus.ts"
 import { appendJsonl } from "../fs-util.ts"
 
 // Appends the coarse events to <workspace>/.owlit/journal.jsonl, one JSON object per line, in the
-// order they arrived. Fine-grained ones (page turns, idle, closing a doc) never reach the disk; reading
-// time does, already settled into 30-second pieces by the window.
+// order they arrived. Fine-grained ones (page turns) never reach the disk; reading time does, already
+// settled into 30-second pieces by the window.
 export class Journal {
   private writing: Promise<void> = Promise.resolve()
   private unsubscribe: () => void
@@ -35,6 +35,12 @@ export class Journal {
 
   // Each decision Owlit's rules took, with or without an action: the held-back log
   evaluation(entry: EvaluationRecord) {
+    const target = this.file()
+    if (target) this.append(target, { ...entry, actor: "owlit" })
+  }
+
+  // What Owlit's rules heard from core and looked at in the workspace, so a replay hears and finds the same
+  trace(entry: JournaledCoreEvent | LookedRecord) {
     const target = this.file()
     if (target) this.append(target, { ...entry, actor: "owlit" })
   }

@@ -1,13 +1,17 @@
-import type { DocComment, DocOwlit, EvaluationRecord, InitiativeMode, Task } from "@owlit/protocol"
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import type { DocComment, DocOwlit, EvaluationRecord, InitiativeMode, InitiativeSettings, Task } from "@owlit/protocol"
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
+import { ActivityBus } from "../activity/bus.ts"
+import { Journal } from "../activity/journal.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import { exportArchive, readArchive } from "./archive.ts"
 import { Initiative } from "./initiative.ts"
 import { ManualClock } from "./manual-clock.ts"
 import { Presence } from "./presence.ts"
-import { dailyScan, paperLanded, paperRead, reviewSettled, type Rule } from "./rules.ts"
+import { ManualClock as ReplayClock, replay } from "./replay.ts"
+import { dailyScan, paperLanded, paperRead, reviewSettled, type Rule, type World } from "./rules.ts"
 
 // The night shift's rules on a workspace of a doc, a thread and a comment, with the clock moved by hand
 
@@ -21,11 +25,12 @@ function fakeWorkspace(mode: InitiativeMode = "away", parts: { comments?: Record
   writeFileSync(path.join(root, "story.md"), "# Story\n\nA claim.\n")
   writeFileSync(path.join(root, "other.md"), "# Other\n")
   const owlit: Record<string, DocOwlit> = {}
+  const scan = { at: null as number | null }
   const ws = {
     root,
     owlitPath: (...s: string[]) => path.join(root, ".owlit", ...s),
     initiative: async () => ({ mode, dailyCap: 20 }),
-    docs: { owlitOf: async (rel: string) => owlit[rel] ?? {}, commentsAll: async () => parts.comments ?? {} },
+    docs: { owlitOf: async (rel: string) => owlit[rel] ?? {}, commentsAll: async () => parts.comments ?? {}, scannedAt: async () => scan.at },
     library: { digestHeldBack: async () => null },
     threads: { list: async () => [{ id: "t1", papers: 3 }], rowsOf: async () => parts.rows ?? [] },
     tasks: {
@@ -35,7 +40,7 @@ function fakeWorkspace(mode: InitiativeMode = "away", parts: { comments?: Record
       },
     },
   }
-  return { ws: ws as unknown as Workspace, queued, owlit }
+  return { ws: ws as unknown as Workspace, queued, owlit, scan }
 }
 
 function engine(rules: readonly Rule[], ws: Workspace) {
@@ -184,30 +189,100 @@ describe("The night shift", () => {
     expect(records.find((r) => r.subject === "t2:p1")).toMatchObject({ decision: "none", reason: "answered from the full text already" })
   })
 
-  it("looks over the docs once a day, by the journal's record of its last look", async () => {
-    const { ws, queued } = fakeWorkspace()
+  it("looks over the docs once a day, by when the last look started", async () => {
+    const { ws, queued, scan } = fakeWorkspace()
     const { clock, records, initiative } = engine([dailyScan], ws)
     initiative.observe({ kind: "idle", at, seconds: 30 })
     initiative.observe({ kind: "clock.hour", at })
     await initiative.idle()
     expect(queued).toEqual([{ kind: "docs.scan", subject: "workspace" }])
+    // The look starts (reviews.ts records it)
+    scan.at = clock.at
     clock.advance(60 * MIN)
     initiative.observe({ kind: "clock.hour", at: clock.at })
+    initiative.observe({ kind: "workspace.opened", at: clock.at })
     await initiative.idle()
     expect(queued).toHaveLength(1)
-    expect(records).toHaveLength(1)
+    expect(records.map((r) => [r.decision, r.reason ?? null])).toEqual([
+      ["job", null],
+      ["none", "looked within a day"],
+    ])
+    clock.advance(24 * 60 * MIN)
+    initiative.observe({ kind: "clock.hour", at: clock.at })
+    await initiative.idle()
+    expect(records.at(-1)).toMatchObject({ decision: "job" })
+  })
+})
 
-    // A new launch reads the last look from the journal
-    writeFileSync(ws.owlitPath("journal.jsonl"), records.map((r) => JSON.stringify({ ...r, actor: "owlit" })).join("\n") + "\n")
-    const next = engine([dailyScan], ws)
-    next.clock.at = clock.at
-    next.initiative.observe({ kind: "workspace.opened", at: clock.at })
-    await next.initiative.idle()
-    expect(next.records.map((r) => [r.decision, r.reason])).toEqual([["none", "looked within a day"]])
-    next.clock.at += 24 * 60 * MIN
-    next.initiative.observe({ kind: "idle", at: next.clock.at, seconds: 30 })
-    next.initiative.observe({ kind: "clock.hour", at: next.clock.at })
-    await next.initiative.idle()
-    expect(next.records.at(-1)).toMatchObject({ decision: "job" })
+describe("The night shift, replayed", () => {
+  it("decides the same again from the archive: waiting while the user is here, acting once they're away", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-night-replay-")))
+    const root = path.join(base, "ws")
+    mkdirSync(path.join(root, ".owlit"), { recursive: true })
+    const journalFile = path.join(root, ".owlit", "journal.jsonl")
+    const settings: InitiativeSettings = { mode: "away", dailyCap: 20 }
+    const clock = new ReplayClock(at)
+    const looked = new Map<string, number>()
+    const world: World = {
+      digestHeldBack: async () => null,
+      watched: async () => [],
+      doc: async (p) => (p === "story.md" ? { out: false, ...(looked.has(p) ? { looked: looked.get(p) } : {}) } : null),
+      mtime: async () => at + 60_000,
+      threads: async () => 1,
+      rowsOf: async () => [{ thread: "t1", fromAbstract: true }],
+      leaning: async () => ["story.md#c1"],
+      lastScan: async () => at - 2 * 24 * 60 * MIN,
+    }
+    let n = 0
+    const ws = { root, owlitPath: (...p: string[]) => path.join(root, ".owlit", ...p), initiative: async () => settings, tasks: { enqueue: () => ({ id: `t${++n}` }) as Task } } as unknown as Workspace
+    const bus = new ActivityBus()
+    const journal = new Journal(bus, () => journalFile)
+    const initiative = new Initiative({ workspace: () => ws, record: (e) => journal.evaluation(e), trace: (e) => journal.trace(e), clock, world: () => world })
+    bus.subscribe((event) => initiative.observe(event))
+    const until = async (t: number) => {
+      do await initiative.idle()
+      while (clock.fireNext(t))
+      clock.at = Math.max(clock.at, t)
+      await initiative.idle()
+    }
+    const user = async (t: number, event: Record<string, unknown>) => {
+      await until(t)
+      bus.publish({ ...event, at: clock.now() } as never)
+    }
+    const core = async (t: number, event: Record<string, unknown>) => {
+      await until(t)
+      initiative.observe({ ...event, at: clock.now() } as never)
+    }
+    await user(at, { kind: "doc.opened", path: "story.md" })
+    await user(at + 60_000, { kind: "doc.edited", path: "story.md" })
+    await core(at + 2 * MIN, { kind: "paper.landed", paperId: "p1", by: "user" })
+    await core(at + 3 * MIN, { kind: "paper.read", paperId: "p2" })
+    await core(at + 5 * MIN, { kind: "clock.hour" })
+    await user(at + 30 * MIN, { kind: "doc.closed", path: "story.md" })
+    await user(at + 31 * MIN, { kind: "idle", seconds: 30 })
+    await user(at + 60 * MIN, { kind: "back", seconds: 1800 })
+    await until(at + 61 * MIN)
+    await journal.flush()
+
+    const to = path.join(base, "archive")
+    const tasksLog = path.join(base, "tasks.jsonl")
+    writeFileSync(tasksLog, "")
+    await exportArchive({ root, journal: journalFile, tasksLog, to, settings, recording: true, version: "test", now: Date.now() })
+    const { recorded, replayed, unanswered } = await replay(await readArchive(to))
+    expect(recorded.map((d) => [d.rule, d.subject, d.decision, d.reason ?? null])).toEqual([
+      ["docs.reviewOnOpen", "story.md", "job", null],
+      ["paper.landed", "p1", "defer", "waiting for the user to be away"],
+      ["paper.readInFull", "p2", "defer", "waiting for the user to be away"],
+      ["docs.dailyScan", "workspace", "defer", "waiting for the user to be away"],
+      ["docs.reviewSettled", "story.md", "defer", "the user is in it"],
+      ["paper.landed", "p1", "job", null],
+      ["paper.landed", "p1", "job", null],
+      ["paper.readInFull", "t1:p2", "job", null],
+      ["paper.readInFull", "story.md#c1|p2", "job", null],
+      ["docs.dailyScan", "workspace", "job", null],
+      ["docs.reviewSettled", "story.md", "job", null],
+    ])
+    expect(replayed).toEqual(recorded)
+    expect(unanswered).toEqual([])
   })
 })

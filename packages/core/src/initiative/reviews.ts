@@ -212,6 +212,8 @@ export class Reviews {
     const ws = this.services.workspace()
     if (!ws) throw new Error("No workspace is open.")
     const now = this.now()
+    // What the daily rule goes by (rules.ts › docs.dailyScan), set as the look starts
+    await ws.docs.setScannedAt(now)
     const due: { path: string; heading: string; body: string }[] = []
     for (const { path: rel } of (await ws.docs.list()).files) {
       if (!isMarkdown(rel) || this.services.presence.inDoc(rel)) continue

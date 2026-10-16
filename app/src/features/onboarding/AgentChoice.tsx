@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { canRun, canSetUp, connectorProblem, isChecking, problemSentence, settingUp, statusLabel, useConnectorRecheck } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { SetupProgress } from "@/features/settings/sections/AgentsSection"
+import { BrowserSignIn } from "@/features/settings/sections/BrowserSignIn"
 import { updateSettings, useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/spinner"
@@ -13,7 +14,7 @@ import { Spinner } from "@/components/ui/spinner"
 // The agents on this Mac, and which one Owlit uses. The choice is both background work's agent and new
 // chats' agent, so the first day has one answer to "what runs Owlit"; Settings can part them later. Agents
 // not ready say what would make them ready, and are checked again when the window comes back to the front,
-// since people leave to run the command in Terminal. The Owlit engine (Beta) signs in under Settings, so a
+// since people may leave to run a command in Terminal. The Owlit engine (Beta) signs in under Settings, so a
 // first run leaves it out.
 export function AgentChoice() {
   const setUp = useChatStore((s) => s.setUpConnector)
@@ -39,8 +40,9 @@ export function AgentChoice() {
         // missing agent is a command to copy
         const progress = settingUp(c)
         const failed = progress === undefined && canSetUp(c) && !!c.setup?.error
-        const command =
-          problem === "not_installed" ? (c.setup ? c.setup.installCli : c.installHint) : problem === "signed_out" ? (c.signIn ?? c.command) : undefined
+        // Claude Code and Codex sign in in the browser from here; other agents' sign-in is a command
+        const browserSignIn = problem === "signed_out" && !!c.browserSignIn
+        const command = problem === "not_installed" ? c.installHint : problem === "signed_out" && !browserSignIn ? (c.signIn ?? c.command) : undefined
         return (
           <div
             key={c.id}
@@ -83,6 +85,10 @@ export function AgentChoice() {
                 <Button variant="text" size="inline" onClick={() => void setUp(c.id)}>
                   {failed ? t`Try again` : t({ message: "Set up", comment: "verb: fetch owlit's copy of the agent's adapter" })}
                 </Button>
+              </span>
+            ) : browserSignIn ? (
+              <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+                <BrowserSignIn c={c} variant="text" />
               </span>
             ) : null}
             {command && (

@@ -5,10 +5,12 @@ import { readJson, writeJsonAtomic } from "../fs-util.ts"
 interface OwlitFile {
   version: 1
   docs: Record<string, DocOwlit>
+  // When Owlit last looked over all the docs (its daily look while the user is away)
+  scannedAt?: number
 }
 
 // .owlit/docs/owlit.json: what owlit keeps about Owlit and each of your docs (kept out or not, its last
-// look), by path. Docs moves an entry with its doc and drops it with a deleted one.
+// look), by path, and when it last looked over them all. Docs moves an entry with its doc and drops it with a deleted one.
 export class DocsOwlit {
   private readonly file: string
   private stored: OwlitFile | undefined
@@ -19,6 +21,16 @@ export class DocsOwlit {
 
   async get(rel: string): Promise<DocOwlit> {
     return (await this.load()).docs[rel] ?? {}
+  }
+
+  async scannedAt(): Promise<number | null> {
+    return (await this.load()).scannedAt ?? null
+  }
+
+  async setScannedAt(at: number) {
+    const stored = await this.load()
+    this.stored = { ...stored, scannedAt: at }
+    await writeJsonAtomic(this.file, this.stored)
   }
 
   setOut(rel: string, out: boolean) {
@@ -63,14 +75,14 @@ export class DocsOwlit {
     const stored = await this.load()
     const docs = change(stored.docs)
     if (JSON.stringify(docs) === JSON.stringify(stored.docs)) return
-    this.stored = { version: 1, docs }
+    this.stored = { ...stored, docs }
     await writeJsonAtomic(this.file, this.stored)
   }
 
   private async load() {
     if (!this.stored) {
       const stored = await readJson<OwlitFile>(this.file).catch(() => undefined)
-      this.stored = { version: 1, docs: stored?.docs ?? {} }
+      this.stored = { version: 1, docs: stored?.docs ?? {}, ...(stored?.scannedAt ? { scannedAt: stored.scannedAt } : {}) }
     }
     return this.stored
   }

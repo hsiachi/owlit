@@ -1,5 +1,5 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
-import type { InitiativeSettings } from "./initiative.ts"
+import type { ArchiveSummary, InitiativeSettings } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
@@ -91,6 +91,9 @@ export interface Methods {
   "initiative.set": { params: { patch: Partial<InitiativeSettings> }; result: InitiativeSettings }
   // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
   "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
+  // Everything Owlit did on its own here (what it heard, each decision, what you did with its work, its
+  // runs) as one archive in a new folder outside the workspace, from since (ms) on
+  "archive.export": { params: { to: string; since?: number }; result: ArchiveSummary }
   "workspace.layout":{ params: void; result: Record<string, unknown> }
   // Merges into the layout; a key set to null is removed
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }

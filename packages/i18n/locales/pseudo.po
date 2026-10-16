@@ -4941,6 +4941,21 @@ msgstr ""
 msgid "Pages stay white in both themes; dimmed, they don't glare beside the dark panels."
 msgstr ""
 
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: packages/core/src/agents/agents.ts
+msgid "The sign-in didn't finish."
+msgstr ""
+
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+msgid "Finish signing in in your browser…"
+msgstr ""
+
+#. an agent's sign-in, which opens the browser
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Sign in…"
+msgstr ""
+
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Sign out"
 msgstr ""
@@ -5186,6 +5201,10 @@ msgid "What you read, write and ask in this workspace is noted in .owlit/journal
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Tsinghua University"
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
 msgstr ""
 
@@ -5247,7 +5266,7 @@ msgid "Sign-in"
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgid "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
@@ -5263,11 +5282,7 @@ msgid "Sign in again…"
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in…"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in in the window that opened, then close it."
+msgid "Sign in in the window that opened. It closes by itself once you're in."
 msgstr ""
 
 #: app/src/features/settings/sections/PublisherApisGroup.tsx
@@ -6055,6 +6070,14 @@ msgid "Setting up {name}… {percent}%"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
+msgid "{problem}."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Sign in with your account in the browser."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
 msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
 msgstr ""
 
@@ -6071,19 +6094,24 @@ msgid "Set it up for Owlit (about {size} MB)."
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "{problem}."
-msgstr ""
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Use another agent…"
-msgstr ""
-
-#: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit works through Claude Code or Codex."
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
-msgid "Install one in Terminal, then sign in:"
+msgid "Set one up (about {size} MB), then sign in with your Claude or ChatGPT account."
+msgstr ""
+
+#. fetch owlit's copy of an agent, e.g. Set up Claude Code
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set up {name}"
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+msgstr ""
+
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Use another agent…"
 msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
@@ -6092,10 +6120,6 @@ msgstr ""
 
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "To use {name}, run this in Terminal:"
-msgstr ""
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
 msgstr ""
 
 #: app/src/features/welcome/WelcomePage.tsx
@@ -6210,9 +6234,9 @@ msgstr ""
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 msgstr ""
 
-#. title of the window that shows a publisher's or library's sign-in page
+#. title of the window that shows the library proxy's sign-in page
 #: apps/desktop/src/browser.ts
-msgid "Owlit · Publisher"
+msgid "Sign in to your library · This window closes by itself once you're in"
 msgstr ""
 
 #: apps/desktop/src/cli-tool.ts
@@ -6656,6 +6680,10 @@ msgstr ""
 #. stands in for an agent's name at the start of a sentence: The agent ran into a problem.
 #: packages/core/src/agents/agents.ts
 msgid "The agent"
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
+msgid "The sign-in stopped before it was done."
 msgstr ""
 
 #: packages/core/src/agents/agents.ts

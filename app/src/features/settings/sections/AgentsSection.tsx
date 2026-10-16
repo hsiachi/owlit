@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ConnectorStatusChip } from "@/features/chat/components/ConnectorStatusChip"
 import { Button } from "@/components/ui/button"
-import { canSetUp, isBroken, isChecking, isFound as isReady, settingUp } from "@/features/chat/lib/connector-status"
+import { canSetUp, isBroken, isChecking, isFound as isReady, needsSignIn, settingUp } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import type { Connector } from "@/features/chat/types"
 import { useFoldWhile } from "../form-state"
 import { FoldedForm, Group, IconAction, List, Note, Row } from "../parts"
+import { BrowserSignIn } from "./BrowserSignIn"
 import { EngineSignIns } from "./EngineSignIns"
 import { useAfterWait } from "@/hooks/use-after-wait"
 
@@ -123,6 +124,7 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
           {isReady(c) && checkAction}
           {!owned && <Status c={c} />}
           <SetupControl c={c} />
+          {needsSignIn(c) && <BrowserSignIn c={c} className="last:-mr-1.5" />}
           {c.status === "not_installed" && !owned && installCommand(c) && <CopyButton text={installCommand(c)!} label={t`Copy install command`} size="icon-sm" className="last:-mr-1.5" />}
           {!isReady(c) && !owned && checkAction}
         </>
@@ -149,8 +151,8 @@ function ConnectorRow({ connector: c }: { connector: Connector }) {
   )
 }
 
-// What installs a missing agent: the agent itself when owlit sets up its adapter, else the adapter
-const installCommand = (c: Connector) => (c.setup ? (c.setup.cliFound ? undefined : c.setup.installCli) : c.installHint)
+// What installs a missing agent; none where owlit sets the agent up itself
+const installCommand = (c: Connector) => (c.setup ? undefined : c.installHint)
 
 // The custom-agent form stays folded until asked for
 function AddAgent({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {

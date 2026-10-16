@@ -117,6 +117,15 @@ export class Docs {
     return this.serial.run(() => this.owlit.setHalfDone(this.check(rel), halfDone))
   }
 
+  // When Owlit last looked over all the docs (its daily look)
+  scannedAt() {
+    return this.owlit.scannedAt()
+  }
+
+  setScannedAt(at: number) {
+    return this.serial.run(() => this.owlit.setScannedAt(at))
+  }
+
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
   // so an agent's edit can't slip into the listing without its version being kept
   list(): Promise<DocsListing> {

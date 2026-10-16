@@ -100,8 +100,10 @@ describe("activity.emit and the journal", () => {
     ]
     for (const event of events) await call("activity.emit", { event })
     await core["journal"].flush()
-    const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "paper.closed", "doc.opened"])
-    expect(lines()).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: "user" })))
+    // Closing a doc and going idle are kept for Owlit's rules, which wait on them; Owlit's own lines
+    // (its rules' decisions on opening the paper) are its, not the user's
+    const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "idle", "paper.closed", "doc.opened", "doc.closed"])
+    expect(lines().filter((l: { actor: string }) => l.actor === "user")).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: "user" })))
   })
 
   it("passes every event to bus listeners", async () => {

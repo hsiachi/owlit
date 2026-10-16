@@ -59,8 +59,9 @@ await build({
     electronVersion: require("electron/package.json").version,
     directories: { output: "release" },
     files: ["dist/**/*", "package.json"],
-    // npm runs scripts of its own, which can't run from inside the asar archive
-    asarUnpack: ["dist/npm/**"],
+    // npm runs scripts of its own, which can't run from inside the asar archive; the example workspace is
+    // copied with fs.cp, which Electron's asar support doesn't cover
+    asarUnpack: ["dist/npm/**", "dist/example-workspace/**"],
     npmRebuild: false,
     // icon.icns comes from scripts/icon.mjs, with a heavier line at the small sizes
     // Signed with the certificate before the dmg is made (see above)
