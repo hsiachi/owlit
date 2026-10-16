@@ -38,7 +38,7 @@ export function ExtensionGroup() {
         {!paired.length && (
           <Row
             name={t`Not connected`}
-            help={t`Install the owlit extension in your browser, then press Connect in it.`}
+            help={t`Install the owlit extension in Chrome, Edge, Brave, Arc or Firefox, then press Connect in it.`}
             control={
               <Button variant="outline" size="sm" asChild>
                 <a href={INSTALL_URL} target="_blank" rel="noreferrer">

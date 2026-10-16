@@ -4913,7 +4913,7 @@ msgid "Not connected"
 msgstr ""
 
 #: app/src/features/settings/sections/ExtensionGroup.tsx
-msgid "Install the owlit extension in your browser, then press Connect in it."
+msgid "Install the owlit extension in Chrome, Edge, Brave, Arc or Firefox, then press Connect in it."
 msgstr ""
 
 #: app/src/features/settings/sections/ExtensionGroup.tsx
