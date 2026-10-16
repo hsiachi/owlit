@@ -9,6 +9,8 @@ dist/
 
 # The maintainer's local notes: product vision and decisions, open work, ideas, brand sources, archive
 /local/
+# The maintainer's own instructions for Claude Code (AGENTS.md is the shared one)
+CLAUDE.local.md
 
 # Desktop build output
 apps/desktop/release/
