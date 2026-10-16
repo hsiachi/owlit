@@ -18,9 +18,9 @@ import { displayName } from "@/features/docs/types"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
-import { cn } from "@/lib/utils"
-import { citeOf, columnLabel, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
-import { editThread, put } from "../store"
+import { cn, scrollMotion } from "@/lib/utils"
+import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
+import { editThread, put, regroupRow } from "../store"
 import { ReadingMark, RowPeek } from "./AnswerRows"
 import { useThreadsUi } from "../ui-store"
 import { AskEach } from "./Work"
@@ -76,7 +76,6 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
   const [peek, setPeek] = useState<string | null>(null)
   // A row asked for from elsewhere (a link to one of its papers) opens where it first appears
   const asked = useThreadsUi((s) => s.peek)
-  const isOpen = (key: string, rowId: string) => peek === key || (peek === null && asked === rowId)
 
   const sortRows = (rows: ThreadRow[]) => {
     if (sort === "title") return [...rows].sort((a, b) => a.paper.title.localeCompare(b.paper.title))
@@ -96,21 +95,8 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
 
   const sections: Section[] = []
   if (grouping) {
-    // The shown grouping keeps two levels and each paper in live groups only (shownThread)
-    const groups = grouping.groups ?? []
-    const members = (id: string) => shown.rows.filter((r) => r.in?.[grouping.id]?.includes(id))
-    const add = (g: ThreadGroup, depth: number) => {
-      const own = members(g.id)
-      const children = groups.filter((c) => c.parent === g.id)
-      // A paper in two of its subgroups counts once
-      const total = [...new Set([...own, ...children.flatMap((c) => members(c.id))])]
-      // A group whose papers all went elsewhere says nothing
-      if (!total.length) return
-      sections.push({ key: g.id, group: g, grouping, label: g.name, one: g.one, rows: own, total, depth })
-      for (const c of children) add(c, depth + 1)
-    }
-    for (const g of groups.filter((g) => !g.parent)) add(g, 0)
-    const loose = shown.rows.filter((r) => !r.in?.[grouping.id]?.length)
+    const { groups, loose } = groupSections(shown, grouping)
+    for (const g of groups) sections.push({ key: g.group.id, group: g.group, grouping, label: g.group.name, one: g.group.one, rows: g.rows, total: g.total, depth: g.depth })
     if (loose.length) sections.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a thread in none of its groups" }), rows: loose, total: loose, depth: 0 })
   } else if (groupBy.startsWith("column:")) {
     const col = columns.find((c) => c.id === groupBy.slice(7))
@@ -122,6 +108,58 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
     if (none.length) sections.push({ key: "", label: t({ message: "Bear on none of them", comment: "papers that speak to none of the user's sentences" }), rows: none, total: none, depth: 0 })
   } else {
     sections.push({ key: "", label: "", rows: shown.rows, total: shown.rows, depth: 0 })
+  }
+
+  // Where each paper shows: a paper in several groups is a whole row in each, the first of them the one a
+  // link to it opens
+  const places = new Map<string, Section[]>()
+  for (const s of sections) for (const r of s.rows) places.set(r.id, [...(places.get(r.id) ?? []), s])
+  const placeKey = (s: Section, rowId: string) => `${s.key}:${rowId}`
+  const isOpen = (s: Section, rowId: string) => peek === placeKey(s, rowId) || (peek === null && asked === rowId && places.get(rowId)?.[0] === s)
+  // To a paper's other place: its group unfolded and showing all, the row brought into view, ringing twice
+  const jump = (s: Section, rowId: string) => {
+    setFolded((f) => (f.has(s.key) ? (f.delete(s.key), new Set(f)) : f))
+    setAll((a) => (a.has(s.key) ? a : new Set(a).add(s.key)))
+    requestAnimationFrame(() => {
+      const row = body.current?.querySelector<HTMLElement>(`[data-place="${CSS.escape(placeKey(s, rowId))}"]`)
+      if (!row) return
+      row.scrollIntoView({ block: "center", behavior: scrollMotion() })
+      const cell = row.querySelector<HTMLElement>("td")
+      cell?.classList.remove("animate-place-ring")
+      void cell?.offsetWidth
+      cell?.classList.add("animate-place-ring")
+      cell?.addEventListener("animationend", () => cell.classList.remove("animate-place-ring"), { once: true })
+    })
+  }
+  // A row's ⋯ in a grouping: one more group, another group instead of this one, or out of this one
+  const rowMenu = (s: Section, r: ThreadRow): MenuGroups | undefined => {
+    if (!grouping) return undefined
+    const column = grouping.id
+    const groups = grouping.groups ?? []
+    const isIn = r.in?.[column] ?? []
+    const here = s.group
+    return [
+      [
+        {
+          label: t({ message: "Add to group", comment: "put a paper in one more group of its thread, keeping it where it is" }),
+          childrenClassName: "w-56",
+          children: groups.filter((g) => !isIn.includes(g.id)).map((g) => ({ label: g.name, onSelect: () => void regroupRow(thread, { op: "place", column, row: r.id, group: g.id, in: true }) })),
+        },
+        {
+          label: t({ message: "Move to", comment: "take a paper out of this group and put it in another" }),
+          childrenClassName: "w-56",
+          children: groups.filter((g) => g.id !== here?.id).map((g) => ({ label: g.name, onSelect: () => void regroupRow(thread, { op: "move", column, row: r.id, group: g.id, from: here?.id ?? "" }) })),
+        },
+      ].filter((a) => a.children.length),
+      here
+        ? [
+            {
+              label: t({ message: "Remove from this group", comment: "take a paper out of the group it shows under; it stays in the thread" }),
+              onSelect: () => void regroupRow(thread, { op: "place", column, row: r.id, group: here.id, in: false }, t`Removed from ${here.name}`),
+            },
+          ]
+        : [],
+    ]
   }
 
   const span = columns.length + 2
@@ -218,19 +256,24 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
                         <TableRow
                           thread={thread}
                           row={r}
+                          place={placeKey(s, r.id)}
+                          first={places.get(r.id)?.[0] === s}
+                          others={(places.get(r.id) ?? []).filter((o) => o !== s)}
+                          onJump={(o) => jump(o, r.id)}
+                          menu={rowMenu(s, r)}
                           columns={columns}
                           // Grouped by a comparison's sentences, the group says which sentence; one sentence
                           // needs no saying
                           sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
                           indent={s.label ? s.depth + 1 : 0}
                           seenBefore={seenBefore}
-                          open={isOpen(`${s.key}:${r.id}`, r.id)}
+                          open={isOpen(s, r.id)}
                           onOpen={() => {
                             useThreadsUi.getState().set({ peek: null })
-                            setPeek(isOpen(`${s.key}:${r.id}`, r.id) ? "" : `${s.key}:${r.id}`)
+                            setPeek(isOpen(s, r.id) ? "" : placeKey(s, r.id))
                           }}
                         />
-                        <PeekRow thread={thread} row={r} grouping={grouping ?? groupings[0]} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
+                        <PeekRow thread={thread} row={r} grouping={grouping ?? groupings[0]} here={grouping ? s.group?.id : undefined} open={isOpen(s, r.id)} span={span} />
                       </Fragment>
                     ))}
                   {open && many && (
@@ -331,9 +374,21 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
           {
             label: t`Merge into`,
             childrenClassName: "w-56",
-            children: (section.grouping?.groups ?? []).filter((o) => o.id !== g.id).map((o) => ({ label: o.name, onSelect: () => void editThread(thread.id, { op: "merge", column, group: g.id, into: o.id }) })),
+            children: (section.grouping?.groups ?? [])
+              .filter((o) => o.id !== g.id)
+              .map((o) => ({
+                label: o.name,
+                onSelect: async () => {
+                  if (await editThread(thread.id, { op: "merge", column, group: g.id, into: o.id })) toastUndo(t`Merged into ${o.name}`, () => editThread(thread.id, { op: "unmerge", column, group: g.id }))
+                },
+              })),
           },
-          { label: t`Ungroup`, onSelect: () => void editThread(thread.id, { op: "ungroup", column, group: g.id }) },
+          {
+            label: t`Ungroup`,
+            onSelect: async () => {
+              if (await editThread(thread.id, { op: "ungroup", column, group: g.id })) toastUndo(t`Ungrouped ${g.name}`, () => editThread(thread.id, { op: "unremove", item: itemId.group(column, g.id) }))
+            },
+          },
         ],
         [
           {
@@ -342,7 +397,7 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
               if (!isDesktop) return
               const rows = section.total.map((r) => r.id)
               try {
-                const c = await rpc.threads.split({ id: thread.id, rows, asked: section.label })
+                const c = await rpc.threads.split({ id: thread.id, rows, asked: section.label, group: { column, id: g.id } })
                 put(c)
                 navigate(`/threads/${c.id}`)
                 toastUndo(t`Made a thread of its own`, async () => {
@@ -390,13 +445,43 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
   )
 }
 
-function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, open, onOpen }: { thread: Thread; row: ThreadRow; columns: ThreadColumn[]; sentenceShown: (column: ThreadColumn) => boolean; indent: number; seenBefore: number; open: boolean; onOpen: () => void }) {
+// A paper in several groups is a whole row in each, the same everywhere, with one muted line under its name
+// saying where else it is; each name there goes to that row
+function TableRow({
+  thread,
+  row,
+  place,
+  first,
+  others,
+  onJump,
+  menu,
+  columns,
+  sentenceShown,
+  indent,
+  seenBefore,
+  open,
+  onOpen,
+}: {
+  thread: Thread
+  row: ThreadRow
+  place: string
+  first: boolean
+  others: Section[]
+  onJump: (section: Section) => void
+  menu: MenuGroups | undefined
+  columns: ThreadColumn[]
+  sentenceShown: (column: ThreadColumn) => boolean
+  indent: number
+  seenBefore: number
+  open: boolean
+  onOpen: () => void
+}) {
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
   const fresh = (thread.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
-    <tr id={`row-${row.id}`} className="group/row">
+    <tr id={first ? `row-${row.id}` : undefined} data-place={place} className="group/row">
       <td className={cn(td, pinnedCell, pinnedEdge, "cursor-default text-sm")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>
@@ -407,6 +492,33 @@ function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, ope
           </span>
         </span>
         <span className="block truncate text-detail text-muted-foreground">{citeOf(facts)}</span>
+        {others.length > 0 && (
+          <span className="block truncate text-detail text-muted-foreground">
+            {t({ message: "Also in", comment: "followed by the other groups of this thread that hold the paper" })}{" "}
+            {others.map((o, i) => (
+              <Fragment key={o.key}>
+                {i > 0 && " · "}
+                {/* Inline text, not a button box, so a long name is cut by the line's ellipsis like any text */}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="rounded-sm outline-none hover:text-foreground hover:underline focus-key:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onJump(o)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return
+                    e.stopPropagation()
+                    onJump(o)
+                  }}
+                >
+                  {o.label}
+                </span>
+              </Fragment>
+            ))}
+          </span>
+        )}
       </td>
       {columns.map((c) => (
         <td key={c.id} className={cn(td, "group-hover/row:bg-muted")}>
@@ -417,16 +529,16 @@ function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, ope
           )}
         </td>
       ))}
-      <td className={cn(td, "group-hover/row:bg-muted")} />
+      <td className={cn(td, "py-1.5 pr-1.5 pl-0 group-hover/row:bg-muted")}>{menu && <RowMenuButton groups={menu} label={t`Paper actions`} menuClassName="w-56" keepSpace />}</td>
     </tr>
   )
 }
 
-function PeekRow({ thread, row, grouping, open, span }: { thread: Thread; row: ThreadRow; grouping: ThreadColumn | undefined; open: boolean; span: number }) {
+function PeekRow({ thread, row, grouping, here, open, span }: { thread: Thread; row: ThreadRow; grouping: ThreadColumn | undefined; here: string | undefined; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
     <TablePeekRow open={open} span={span} pinned>
-      <RowPeek thread={thread} row={row} grouping={grouping} library={library} className={tablePeekCard} />
+      <RowPeek thread={thread} row={row} grouping={grouping} here={here} library={library} className={tablePeekCard} />
     </TablePeekRow>
   )
 }

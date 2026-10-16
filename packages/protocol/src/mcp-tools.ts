@@ -270,7 +270,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         rows: {
           type: "string",
           description:
-            'JSON array of papers to add or update: [{"id": "doi-10.1145-…", "answer": "Replay ratings were 0.6 points lower than live ones.", "depth": "abstract"}, {"id": "arxiv-2408.00447", "answer": "…", "depth": "full", "quote": "words from the text", "group": "eval"}]. Answers for other columns go in "cells": {"<column id>": {"text": "…", "depth": "abstract"}}.',
+            'JSON array of papers to add or update: [{"id": "doi-10.1145-…", "answer": "Replay ratings were 0.6 points lower than live ones.", "depth": "abstract"}, {"id": "arxiv-2408.00447", "answer": "…", "depth": "full", "quote": "words from the text", "group": "eval"}]. Answers for other columns go in "cells": {"<column id>": {"text": "…", "depth": "abstract"}}. A paper usually goes in one group; give it a second, as "groups": ["eval", "data"] instead of group, only when it is really used in both.',
         },
         memo: {
           type: "string",

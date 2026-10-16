@@ -211,6 +211,56 @@ describe("Threads, the user's groups", () => {
   })
 })
 
+describe("Threads, a paper in several groups", () => {
+  it("adds a paper to one more group, takes it out of one, and moves it out of the one it was opened in", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads, { groups: GROUPS, rows: [{ id: "doi-10.1145-1", group: "a" }] })
+    await threads.edit(id, { op: "place", column: "topic", row: "doi-10.1145-1", group: "b", in: true })
+    expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["a", "b"])
+    // From its row under b, to c: it stays in a
+    await threads.edit(id, { op: "move", column: "topic", row: "doi-10.1145-1", group: "c", from: "b" })
+    expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["a", "c"])
+    await threads.edit(id, { op: "place", column: "topic", row: "doi-10.1145-1", group: "a", in: false })
+    expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["c"])
+    // Owlit writing it into a and b again doesn't bring it back to either: the user took it out of both
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", groups: ["a", "b"] }] })
+    expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["c"])
+    // Undo of a change puts the user's earlier placements of the paper back
+    await threads.edit(id, { op: "unplace", column: "topic", row: "doi-10.1145-1", placed: { a: null, b: null, c: null } })
+    expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["a", "b"])
+  })
+
+  it("merges a group into one the paper is in already: then it is in that one only; Undo splits them again", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads, { groups: GROUPS, rows: [{ id: "doi-10.1145-1", groups: ["a", "b"] }, { id: "doi-10.1145-2", group: "a" }] })
+    await threads.edit(id, { op: "merge", column: "topic", group: "a", into: "b" })
+    expect(inGroups(await threads.get(id))).toEqual({ "doi-10.1145-1": ["b"], "doi-10.1145-2": ["b"] })
+    await threads.edit(id, { op: "unmerge", column: "topic", group: "a" })
+    expect(inGroups(await threads.get(id))).toEqual({ "doi-10.1145-1": ["a", "b"], "doi-10.1145-2": ["a"] })
+  })
+
+  it("ungroups: each paper leaves the group, and one in no other group is in none", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads, { groups: GROUPS, rows: [{ id: "doi-10.1145-1", groups: ["a", "b"] }, { id: "doi-10.1145-2", group: "a" }] })
+    await threads.edit(id, { op: "ungroup", column: "topic", group: "a" })
+    expect(inGroups(await threads.get(id))).toEqual({ "doi-10.1145-1": ["b"], "doi-10.1145-2": [] })
+  })
+
+  it("makes a group a thread of its own: papers only there move, papers also in another group are copied", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads, { groups: GROUPS, rows: [{ id: "doi-10.1145-1", groups: ["a", "b"] }, { id: "doi-10.1145-2", group: "a" }] })
+    const split = await threads.split(id, ["doi-10.1145-1", "doi-10.1145-2"], "Replay", { column: "topic", id: "a" })
+    expect(split.rows.map((r) => r.id)).toEqual(["doi-10.1145-1", "doi-10.1145-2"])
+    expect(split.splitFrom).toMatchObject({ group: { column: "topic", id: "a" }, copied: ["doi-10.1145-1"] })
+    const from = await threads.get(id)
+    expect(inGroups(from)).toEqual({ "doi-10.1145-1": ["b"] })
+    expect(shownThread(from).columns.at(-1)?.groups?.map((g) => g.id)).toEqual(["b", "c"])
+    // Undo: the moved paper and the group come back, the copied one is there once
+    const back = await threads.unsplit(split.id)
+    expect(inGroups(back)).toEqual({ "doi-10.1145-1": ["a", "b"], "doi-10.1145-2": ["a"] })
+  })
+})
+
 describe("Threads kept before groupings", () => {
   it("upgrades a version 1 thread once: its groups become a hidden Topic grouping", async () => {
     const { owlit, threads } = setup()

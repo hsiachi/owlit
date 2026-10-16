@@ -61,6 +61,15 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
   return true
 }
 
+// A paper into or out of a group. What takes it out of one says so with Undo (undo), which puts the user's
+// earlier placements of that paper in that grouping back as they were.
+export async function regroupRow(c: Thread, edit: Extract<ThreadEdit, { op: "place" | "move" }>, undo?: string) {
+  const prefix = `${edit.column}:${edit.row}:`
+  const groups = c.columns.find((col) => col.id === edit.column)?.groups ?? []
+  const placed = Object.fromEntries(groups.map((g) => [g.id, c.yours.placed[`${prefix}${g.id}`] ?? null]))
+  if ((await editThread(c.id, edit)) && undo) toastUndo(undo, () => editThread(c.id, { op: "unplace", column: edit.column, row: edit.row, placed }))
+}
+
 // Removing is immediate and says so with Undo, like every removal in owlit
 export async function removeItem(id: string, item: string, label: string) {
   if (await editThread(id, { op: "remove", item })) toastUndo(label, () => editThread(id, { op: "unremove", item }))

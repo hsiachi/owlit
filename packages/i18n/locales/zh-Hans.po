@@ -5571,6 +5571,18 @@ msgstr "与 {of} 相似的论文"
 msgid "You've read some of it"
 msgstr "你读过一部分"
 
+#. button on a paper's card: the groups of the thread it is in
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Groups…"
+msgstr "分组…"
+
+#. placeholder {0}: g.name
+#. placeholder {0}: here.name
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Removed from {0}"
+msgstr "已移出「{0}」"
+
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Not in your Library"
 msgstr "不在你的文献库中"
@@ -5579,23 +5591,12 @@ msgstr "不在你的文献库中"
 msgid "From the abstract"
 msgstr "来自摘要"
 
+#. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Also in"
 msgstr "也在"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Move to group"
-msgstr "移到分组"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Move to group…"
-msgstr "移到分组…"
-
-#. a paper in no group of its thread
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "No group"
-msgstr "不分组"
 
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Open at p. {page}"
@@ -5680,6 +5681,21 @@ msgstr "未分组"
 msgid "Bear on none of them"
 msgstr "都不相干"
 
+#. put a paper in one more group of its thread, keeping it where it is
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Add to group"
+msgstr "加入分组"
+
+#. take a paper out of this group and put it in another
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Move to"
+msgstr "移到"
+
+#. take a paper out of the group it shows under; it stays in the thread
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Remove from this group"
+msgstr "移出这个分组"
+
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5726,9 +5742,19 @@ msgstr "隐藏这一列"
 msgid "Merge into"
 msgstr "合并到"
 
+#. placeholder {0}: o.name
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Merged into {0}"
+msgstr "已合并到「{0}」"
+
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Ungroup"
 msgstr "取消分组"
+
+#. placeholder {0}: g.name
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Ungrouped {0}"
+msgstr "已取消分组「{0}」"
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Make it a thread of its own"
@@ -5745,6 +5771,10 @@ msgstr "分组名称"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group actions"
 msgstr "分组操作"
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Paper actions"
+msgstr "论文操作"
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "You edited this"
