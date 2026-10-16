@@ -40,10 +40,12 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
   try {
     const response = await deps.fetch(url, { credentials: "include", redirect: "follow", signal: controller.signal })
     const bytes = await response.arrayBuffer()
-    // By its first bytes, or its type with the mark a little further in (some servers send a line first)
+    // By its first bytes, or its type with the mark a little further in (some servers send a line first).
+    // What goes to owlit starts at the mark: owlit takes a body as a PDF only when it begins with it.
     const head = new TextDecoder("latin1").decode(bytes.slice(0, 1024))
     const typed = /^application\/(x-)?pdf\b/i.test(response.headers.get("content-type") ?? "")
-    if (head.startsWith("%PDF-") || (typed && head.includes("%PDF-"))) return { kind: "pdf", bytes, url: response.url || url }
+    const mark = head.indexOf("%PDF-")
+    if (mark === 0 || (typed && mark > 0)) return { kind: "pdf", bytes: mark ? bytes.slice(mark) : bytes, url: response.url || url }
     const html = new TextDecoder().decode(bytes.slice(0, PAGE_MAX_CHARS))
     return { kind: "page", page: { url: response.url || url, status: response.status, html, proxy } }
   } catch {

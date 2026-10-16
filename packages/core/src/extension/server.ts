@@ -321,17 +321,22 @@ export class ExtensionServer {
           }
           if (/^application\/pdf\b/i.test(raw.headers["content-type"] ?? "")) {
             const at = query.get("host")?.trim() || paper.host
-            return this.withPdf(raw, async (file) => {
-              // Another paper's PDF (a publisher's page can link the wrong one): no copy there
-              if ((await library.isPdfOf(paper.paperId, file)) === "no") {
-                await library.noteExtensionTry(paper.paperId, { by: "extension", ended: "no-copy", at: Date.now(), host: at })
-                this.work.settle(id, "no-copy")
-                throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
-              }
-              const placed = await library.attachPdf(paper.paperId, file, `extension:${at}`)
-              this.work.settle(id, undefined)
-              return { body: { paper: shown(placed) } satisfies PaperAnswer }
-            })
+            try {
+              return await this.withPdf(raw, async (file) => {
+                // Another paper's PDF (a publisher's page can link the wrong one): no copy there
+                if ((await library.isPdfOf(paper.paperId, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
+                const placed = await library.attachPdf(paper.paperId, file, `extension:${at}`)
+                this.work.settle(id, undefined)
+                return { body: { paper: shown(placed) } satisfies PaperAnswer }
+              })
+            } catch (error) {
+              // A body owlit couldn't take (not a PDF to owlit, too large, another paper's, a failure
+              // placing it) is no copy there. The item is settled whatever failed: the extension doesn't
+              // answer again, and an item left in flight holds back every other paper of its site.
+              await library.noteExtensionTry(paper.paperId, { by: "extension", ended: "no-copy", at: Date.now(), host: at }).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+              this.work.settle(id, "no-copy")
+              throw error
+            }
           }
           const body = ended.safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)

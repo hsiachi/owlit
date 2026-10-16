@@ -289,6 +289,20 @@ describe("the extension's port", () => {
       expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "no-copy", host: "journals.sagepub.com" })
     })
 
+    it("lets go of a fetch whose PDF owlit couldn't take, so the site goes on", async () => {
+      const { call, request, token, root, server } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      // A server that sent a line before the PDF's mark
+      const sent = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: Buffer.concat([Buffer.from("\n"), pdfOf([`https://doi.org/${SAGE}`, title])]) })
+      expect(sent).toMatchObject({ status: 415, body: { reason: "not-a-pdf" } })
+      expect(server.work.paperOf(item.id)).toBeUndefined()
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "no-copy", host: "journals.sagepub.com" })
+      // The next paper there is handed out now, not after the extension's answer is given up on
+      await call("library.fetchPdf", { id })
+      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id }])
+    })
+
     // A paper's acquisition.json as an earlier run of owlit left it
     const acquired = (root: string, paperId: string, state: string, tried: object[]) =>
       writeFileSync(path.join(root, "library/papers", paperId, "acquisition.json"), JSON.stringify({ version: 2, state, tried, dropHere: path.join(root, "library/papers", paperId, "paper.pdf") }))

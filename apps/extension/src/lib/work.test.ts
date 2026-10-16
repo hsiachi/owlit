@@ -32,6 +32,13 @@ describe("fetching a paper for owlit", () => {
     expect(asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1"])
   })
 
+  it("hands over a PDF a server sent a line before, from its mark on", async () => {
+    const late = new Uint8Array([10, 13, 10, ...PDF])
+    const { deps } = web({ "https://journals.sagepub.com/doi/pdf/10.1177/1": { body: late } })
+    const got = await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), deps)
+    expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
+  })
+
   it("follows the page's citation_pdf_url to its PDF", async () => {
     const page = `<html><head><title>A Paper</title><meta name="citation_title" content="A Paper"><meta name="citation_pdf_url" content="/doi/pdf/10.1177/1"></head></html>`
     const { deps, asked } = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: page }, "https://journals.sagepub.com/doi/pdf/10.1177/1": { body: PDF } })
