@@ -6,6 +6,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 - Chats and threads no longer show an empty ring before their titles when nothing is happening.
 - A starred paper's star is filled in black (white in dark mode) instead of yellow, so it never reads as waiting or a comment.
+- When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - A comment Owlit held while you were typing lands in the workspace it was made in when you switch to another, never in a doc of the same name there.
 
 ## 0.2.0

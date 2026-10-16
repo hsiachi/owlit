@@ -158,7 +158,8 @@ export class Turns {
     try {
       return await this.run(req, ws, turn)
     } finally {
-      this.turns.delete(req.chatId)
+      // A reply still waiting on the agent's own agents stays the chat's running turn
+      if (!turn.late) this.turns.delete(req.chatId)
     }
   }
 
@@ -214,6 +215,12 @@ export class Turns {
       log(`answered (${response.stopReason})`)
       await quiet(turn)
       const stop: StopReason = turn.cancelled || response.stopReason === "cancelled" ? "cancelled" : response.stopReason === "refusal" ? "refusal" : "end_turn"
+      // The agent's prompt is over but its own agents are still at work: the reply waits for them (see
+      // keepOpen), its agents still working and its process held
+      if (stop === "end_turn" && turn.message.parts.some((p) => p.type === "agent" && p.status === "working")) {
+        this.keepOpen(live, turn)
+        return stop
+      }
       await finish(stop === "cancelled" ? "cancelled" : "done")
       // The agent may still go on (see reopen)
       if (stop !== "cancelled") this.ended.set(req.chatId, turn)
@@ -244,9 +251,11 @@ export class Turns {
       await finish("error", text)
       throw new RpcFailure(RpcErrorCode.InternalError, text)
     } finally {
-      this.closePermissions(turn)
-      if (live) live.turn = null
-      this.letGo(req.chatId)
+      if (!turn.late) {
+        this.closePermissions(turn)
+        if (live) live.turn = null
+        this.letGo(req.chatId)
+      }
     }
   }
 
@@ -546,15 +555,16 @@ export class Turns {
     return out
   }
 
-  // ---- A reply the agent takes up again ----
+  // ---- A reply that goes on after its prompt ----
   //
-  // An agent may go on after its turn has ended: Claude Code's prompt can come back end_turn while a
-  // report from one of its background agents is still on its way, and the answer that report leads to
-  // streams in a moment later with no prompt open (profiles.ts, ownTurnOver). That belongs to the reply it
-  // continues, so the chat's last reply is opened again: it streams, is saved and can be stopped like a
-  // running turn. Only a reply whose turn ended normally, and that is still the chat's last, is opened
-  // again; a reply the user stopped stays stopped. Stop ends it at once and cancels the session, and the
-  // user's next message ends it too (see prompt).
+  // An agent may go on after its prompt has come back: Claude Code's prompt can come back end_turn while
+  // its own agents still work, and the answer their reports lead to streams in later with no prompt open
+  // (profiles.ts, ownTurnOver). That belongs to the reply it continues. A reply whose agents are still at
+  // work when its prompt comes back stays open (keepOpen); one that had ended is opened again for what
+  // comes after (reopen). Either way it streams, is saved and can be stopped like a running turn, and
+  // ends once its agents are done and nothing more comes. Only a reply whose turn ended normally, and
+  // that is still the chat's last, is opened again; a reply the user stopped stays stopped. Stop ends it
+  // at once and cancels the session, and the user's next message ends it too (see prompt).
 
   // The turn that is running on this session, or starting on it (a new message whose session is still
   // being got ready: what the agent sends meanwhile is already the new turn's)
@@ -587,14 +597,20 @@ export class Turns {
     const { finishedAt: _finished, ...message } = turn.message
     turn.message = { ...message, status: "streaming" }
     turn.cancelled = false
+    if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${turn.chatId.slice(0, 8)}] reply ${turn.message.id.slice(0, 8)} taken up again`)
+    this.keepOpen(live, turn)
+    return true
+  }
+
+  // The reply goes on with no prompt open: it stays the chat's running turn, and the agent's process is
+  // held (an idle one is closed, and its agents' work with it) until it ends (endLate)
+  private keepOpen(live: Live, turn: Turn) {
     turn.late = { calls: new Set(), release: live.proc.hold() }
     live.turn = turn
     this.turns.set(turn.chatId, turn)
     if (turn.role === "coauthor") this.coauthors.set(turn.chatId, Infinity)
-    if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${turn.chatId.slice(0, 8)}] reply ${turn.message.id.slice(0, 8)} taken up again`)
     this.options.lateReply?.(turn.chatId, turn.message)
     this.lateTick(turn)
-    return true
   }
 
   // Something came on the session of a reply open again; over: the agent's own sign that its turn is over
