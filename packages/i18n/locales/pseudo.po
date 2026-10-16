@@ -918,8 +918,10 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
+#. button: let the owlit extension read this site, for the papers waiting there
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "Allow"
 msgstr ""
 
@@ -6812,6 +6814,10 @@ msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "owlit needs to read {site} to get the PDF with your access."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{papers, plural, one {owlit needs {host} for # paper} other {owlit needs {host} for # papers}}"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx

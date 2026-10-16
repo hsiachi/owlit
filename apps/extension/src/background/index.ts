@@ -1,11 +1,13 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionPaper, ExtensionStatus, PairAnswer, PairStarted, PaperAnswer } from "@owlit/protocol"
+import type { ExtensionPaper, ExtensionStatus, PairAnswer, PairStarted, PaperAnswer, WorkAnswer } from "@owlit/protocol"
 import { browserName } from "../lib/browser-name.ts"
 import { startI18n } from "../lib/i18n.ts"
-import type { Answers, Connection, Outcome, PageState, PopupState, Request } from "../lib/messages.ts"
+import { originsOf, type Answers, type Connection, type Outcome, type PageState, type PopupState, type Request } from "../lib/messages.ts"
 import { ask, OwlitError, Unreachable } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { contentTypeOf, isPdfResponse, takesPdfTab } from "../lib/pdf-tab.ts"
+import { isThrough } from "../lib/verdict.ts"
+import { doWork } from "../lib/work.ts"
 
 // The extension's service worker: the one place that talks to owlit and fetches with the user's cookies.
 // The popup and the content script only ask it. Chrome stops it when idle, so what must outlast that is in
@@ -40,6 +42,7 @@ async function connection(): Promise<Connection> {
   try {
     const status = await ask<ExtensionStatus>("/status", { token })
     void chrome.alarms.clear(RECONNECT)
+    keepAsking()
     return { state: "connected", workspace: status.workspace?.name ?? null }
   } catch (error) {
     if (error instanceof OwlitError && error.status === 401) {
@@ -262,6 +265,7 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   void (async () => {
     const pdfUrl = (await pdfTabs()).get(tabId)
     if (pdfUrl && pdfUrl === tab.url) await takePdfTab(tabId, pdfUrl)
+    else await watchForThrough(tabId, tab.url!)
   })()
 })
 
@@ -269,11 +273,86 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   void chrome.storage.session.remove(pageKey(tabId))
 })
 
+// ---- Fetching for owlit
+
+// Kept in session storage, so a restarted worker still knows where to watch
+type Waits = WorkAnswer["waits"]
+const waitsKey = "waits"
+const waits = async () => ((await chrome.storage.session.get(waitsKey))[waitsKey] ?? []) as Waits
+// Restarts the asking if the worker was stopped meanwhile
+const WORK = "work"
+
+const permitted = (url: string) => chrome.permissions.contains({ origins: [`${new URL(url).origin}/*`] }).catch(() => false)
+
+let asking: Promise<void> | null = null
+
+// One GET /work at a time, held open by owlit until something is due; each paper it hands over is
+// fetched beside it, at owlit's pace (owlit gives one per site at a time). Ends when owlit can't be
+// reached or forgot this browser; the alarm or the next connection starts it again.
+function keepAsking() {
+  asking ??= (async () => {
+    try {
+      for (;;) {
+        const { token } = await local()
+        if (!token) return
+        const answer = await ask<WorkAnswer>("/work", { token })
+        // An extension call between holds also keeps Chrome from taking the worker for idle
+        await chrome.storage.session.set({ [waitsKey]: answer.waits })
+        for (const item of answer.work) {
+          void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, ask, token }).catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
+        }
+      }
+    } catch (error) {
+      if (error instanceof OwlitError && error.status === 401) await chrome.storage.local.remove("token")
+      else if (error instanceof Unreachable) void chrome.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+      else console.error("[owlit] asking owlit for work failed", error)
+    } finally {
+      asking = null
+    }
+  })()
+}
+
+// The wait at a site this tab is on, if any: the site itself or a host under it (a proxy's rewritten
+// publisher hosts are under the proxy's)
+const waitAt = (all: Waits, host: string) => all.find((w) => w.kind !== "permission" && (host === w.host || host.endsWith(`.${w.host}`)))
+
+async function resume(host: string) {
+  const { token } = await local()
+  if (!token) return
+  await ask("/work/resume", { token, json: { host } })
+  await chrome.storage.session.set({ [waitsKey]: (await waits()).filter((w) => w.host !== host) })
+}
+
+// A page that finished loading at a site paused for a check or a sign-in: once it is neither, the user
+// got through, and owlit goes on there
+async function watchForThrough(tabId: number, url: string) {
+  if (!/^https?:/.test(url)) return
+  const at = new URL(url).hostname
+  const wait = waitAt(await waits(), at)
+  if (!wait) return
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, 500_000) }),
+    })
+    const seen = result?.result as { url: string; html: string } | undefined
+    if (!seen) return
+    const proxy = wait.proxied ? { host: wait.host } : undefined
+    if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy })) await resume(wait.host)
+  } catch {
+    // A page the extension may not read, or one that went away
+  }
+}
+
 // ---- Staying connected
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === RECONNECT) void connection()
+  if (alarm.name === WORK) keepAsking()
 })
+// Every time the worker starts: Chrome stops it when idle, and a stopped worker asks for no work
+void chrome.alarms.create(WORK, { periodInMinutes: 0.5 })
+keepAsking()
 
 chrome.tabs.onActivated.addListener(() => {
   void (async () => {
@@ -301,11 +380,12 @@ chrome.runtime.onInstalled.addListener(() => void registerGranted())
 
 async function popupState(tabId: number): Promise<PopupState> {
   const [conn, takePdfs] = await Promise.all([connection(), takePdfsOn()])
+  const needs = conn.state === "connected" ? (await waits()).filter((w) => w.kind === "permission").map(({ host, papers }) => ({ host, papers })) : []
   const page = await pageOf(tabId)
-  if (!page) return { connection: conn, page: null, takePdfs }
+  if (!page) return { connection: conn, page: null, takePdfs, needs }
   const { token } = await local()
   const inLibrary = conn.state === "connected" && conn.workspace && token && (page.paper || page.pdfTab) ? await lookUp(page, token).catch(() => undefined) : undefined
-  return { connection: conn, page: { ...page, inLibrary }, takePdfs }
+  return { connection: conn, page: { ...page, inLibrary }, takePdfs, needs }
 }
 
 async function answer(request: Request, sender: chrome.runtime.MessageSender): Promise<Answers[Request["kind"]]> {
@@ -320,6 +400,10 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       return save(request.tabId)
     case "takePdfs":
       await chrome.storage.local.set({ takePdfs: request.on })
+      return null
+    case "allowed":
+      // Asked for in the popup (a permission can only be asked from a click); held, owlit goes on there
+      if (await chrome.permissions.contains({ origins: originsOf(request.host) })) await resume(request.host).catch(() => undefined)
       return null
     case "page": {
       const tabId = sender.tab?.id

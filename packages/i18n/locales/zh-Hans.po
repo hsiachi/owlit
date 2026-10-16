@@ -918,8 +918,10 @@ msgstr "未安装"
 msgid "Error"
 msgstr "出错"
 
+#. button: let the owlit extension read this site, for the papers waiting there
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "Allow"
 msgstr "允许"
 
@@ -6813,6 +6815,10 @@ msgstr "owlit 收下了这个 PDF"
 #: apps/extension/src/popup/Popup.tsx
 msgid "owlit needs to read {site} to get the PDF with your access."
 msgstr "owlit 需要读取 {site}，才能用你的访问权限获取 PDF。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{papers, plural, one {owlit needs {host} for # paper} other {owlit needs {host} for # papers}}"
+msgstr "{papers, plural, other {owlit 需要读取 {host}，有 # 篇论文在等}}"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "Take PDFs I open for papers in my Library"

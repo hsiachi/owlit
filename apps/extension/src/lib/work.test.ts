@@ -1,0 +1,85 @@
+import type { WorkItem } from "@owlit/protocol"
+import { describe, expect, it, vi } from "vitest"
+import { OwlitError } from "./owlit.ts"
+import { doWork, fetchFor, type FetchDeps } from "./work.ts"
+
+const PDF = new TextEncoder().encode("%PDF-1.7\n...")
+const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "w1", paperId: "doi-10.1177-1", url: "https://journals.sagepub.com/doi/10.1177/1", host: "sagepub.com", proxied: false, ...extra })
+
+// A web of addresses: each answers with a body, a status and where its redirects ended
+type Answer = { body: string | Uint8Array; status?: number; type?: string; endsAt?: string } | "down"
+function web(answers: Record<string, Answer>, permitted: (url: string) => boolean = () => true) {
+  const asked: string[] = []
+  const fetch = (async (url: string, init?: RequestInit) => {
+    asked.push(url)
+    expect(init?.credentials).toBe("include")
+    const answer = answers[url] ?? { body: "<title>Not Found</title>", status: 404 }
+    if (answer === "down") throw new TypeError("Failed to fetch")
+    const response = new Response(answer.body as BodyInit, { status: answer.status ?? 200, headers: { "content-type": answer.type ?? (typeof answer.body === "string" ? "text/html" : "application/pdf") } })
+    Object.defineProperty(response, "url", { value: answer.endsAt ?? url })
+    return response
+  }) as unknown as typeof globalThis.fetch
+  const deps: FetchDeps = { fetch, permitted: async (url) => permitted(url) }
+  return { deps, asked }
+}
+
+describe("fetching a paper for owlit", () => {
+  it("takes the PDF the address gives", async () => {
+    const { deps, asked } = web({ "https://journals.sagepub.com/doi/pdf/10.1177/1": { body: PDF } })
+    const got = await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), deps)
+    expect(got).toMatchObject({ host: "journals.sagepub.com" })
+    expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
+    expect(asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1"])
+  })
+
+  it("follows the page's citation_pdf_url to its PDF", async () => {
+    const page = `<html><head><title>A Paper</title><meta name="citation_title" content="A Paper"><meta name="citation_pdf_url" content="/doi/pdf/10.1177/1"></head></html>`
+    const { deps, asked } = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: page }, "https://journals.sagepub.com/doi/pdf/10.1177/1": { body: PDF } })
+    const got = await fetchFor(item(), deps)
+    expect("pdf" in got).toBe(true)
+    expect(asked).toEqual(["https://journals.sagepub.com/doi/10.1177/1", "https://journals.sagepub.com/doi/pdf/10.1177/1"])
+  })
+
+  it("says check for a check page, with its host and title but not its text", async () => {
+    const { deps } = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: "<title>Just a moment...</title><p>secret words</p>", status: 403 } })
+    const got = await fetchFor(item(), deps)
+    expect(got).toEqual({ ended: "check", host: "journals.sagepub.com", title: "Just a moment...", url: "https://journals.sagepub.com/doi/10.1177/1" })
+  })
+
+  it("says sign-in where the proxy sends it to sign in", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
+    const { deps } = web({ [entry]: { body: "<title>Sign in</title>", endsAt: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/x" } })
+    const got = await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), deps)
+    expect(got).toMatchObject({ ended: "sign-in", host: "id.tsinghua.edu.cn" })
+  })
+
+  it("says not there for a 404", async () => {
+    const { deps } = web({})
+    expect(await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), deps)).toMatchObject({ ended: "not-there", host: "journals.sagepub.com" })
+  })
+
+  it("fetches nothing on a site it may not read", async () => {
+    const { deps, asked } = web({}, () => false)
+    expect(await fetchFor(item(), deps)).toEqual({ ended: "no-permission", host: "sagepub.com" })
+    expect(asked).toEqual([])
+  })
+
+  it("says offline when nothing answers, and no copy when it is too slow", async () => {
+    expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
+    const never = { fetch: ((_: string, init: RequestInit) => new Promise((_, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))) as unknown as typeof fetch, permitted: async () => true, timeoutMs: 5 }
+    expect(await fetchFor(item(), never)).toMatchObject({ ended: "no-copy" })
+  })
+
+  it("hands the PDF or the word to owlit, and lets go of an answer owlit no longer waits for", async () => {
+    const ask = vi.fn(async () => ({}))
+    const pdfWeb = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: PDF } })
+    await doWork(item(), { ...pdfWeb.deps, ask: ask as never, token: "t" })
+    expect(ask).toHaveBeenLastCalledWith("/work/w1?host=journals.sagepub.com", expect.objectContaining({ method: "POST", token: "t", pdf: expect.any(ArrayBuffer) }))
+    await doWork(item(), { ...web({}, () => false).deps, ask: ask as never, token: "t" })
+    expect(ask).toHaveBeenLastCalledWith("/work/w1", { token: "t", json: { ended: "no-permission", host: "sagepub.com" } })
+    const gone = vi.fn(async () => {
+      throw new OwlitError(404, { reason: "not-found" })
+    })
+    await expect(doWork(item(), { ...web({}).deps, ask: gone as never, token: "t" })).resolves.toMatchObject({ ended: "not-there" })
+  })
+})

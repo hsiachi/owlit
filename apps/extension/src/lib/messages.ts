@@ -27,6 +27,8 @@ export interface PopupState {
   connection: Connection
   page: PageState | null
   takePdfs: boolean
+  // Sites owlit has papers waiting at that the extension may not read yet
+  needs: { host: string; papers: number }[]
 }
 
 // How the button's work ended; the popup says it in one sentence
@@ -48,6 +50,8 @@ export type Request =
   | { kind: "save"; tabId: number }
   | { kind: "takePdfs"; on: boolean }
   | { kind: "page"; html: string; url: string }
+  // The user let the extension read this site from the popup: owlit goes on there
+  | { kind: "allowed"; host: string }
 
 // What a request is answered with
 export interface Answers {
@@ -57,7 +61,12 @@ export interface Answers {
   save: Outcome
   takePdfs: null
   page: null
+  allowed: null
 }
+
+// A site's own addresses and every one under it: what the extension asks the user to let it read for
+// owlit's papers there
+export const originsOf = (host: string) => [`https://${host}/*`, `https://*.${host}/*`]
 
 export function send<R extends Request>(request: R): Promise<Answers[R["kind"]]> {
   return chrome.runtime.sendMessage(request)

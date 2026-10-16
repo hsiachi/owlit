@@ -1,10 +1,10 @@
-import { t } from "@lingui/core/macro"
+import { plural, t } from "@lingui/core/macro"
 import { useCallback, useEffect, useState } from "react"
 import { OwlitLockup } from "@/components/owlit-lockup"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
-import { send, type Connection, type Outcome, type PageState, type PopupState } from "../lib/messages.ts"
+import { originsOf, send, type Connection, type Outcome, type PageState, type PopupState } from "../lib/messages.ts"
 
 // The toolbar button's popup: whether this browser is connected to owlit, the page's paper with the one
 // thing to do with it, and the one setting. The work itself happens in the background, which outlives
@@ -62,11 +62,28 @@ export function Popup() {
     }
   }
 
+  // owlit's papers waiting at a site the extension may not read: the permission is asked for from this
+  // click, as the browser requires, and owlit goes on there once it is given
+  const allow = async (host: string) => {
+    const granted = await chrome.permissions.request({ origins: originsOf(host) }).catch(() => false)
+    if (!granted) return
+    await send({ kind: "allowed", host })
+    if (tabId !== null) void refresh(tabId)
+  }
+
   return (
     <main className="flex w-80 flex-col gap-3 p-4 text-sm">
       <header className="flex items-center justify-between gap-2">
         <OwlitLockup className="h-4.5 w-auto text-foreground" />
       </header>
+      {state?.needs.map(({ host, papers }) => (
+        <section key={host} className="flex items-center justify-between gap-3 border-b pb-3">
+          <p className="min-w-0 text-detail">{plural(papers, { one: `owlit needs ${host} for # paper`, other: `owlit needs ${host} for # papers` })}</p>
+          <Button size="sm" variant="outline" onClick={() => void allow(host)}>
+            {t({ message: "Allow", comment: "button: let the owlit extension read this site, for the papers waiting there" })}
+          </Button>
+        </section>
+      ))}
       {state ? <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(kind, page) => void act(kind, page)} /> : <Spinner className="text-muted-foreground" />}
       {state?.connection.state === "connected" && (
         <label className="flex items-center justify-between gap-3 border-t pt-3 text-detail text-muted-foreground">

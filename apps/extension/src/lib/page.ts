@@ -1,3 +1,5 @@
+import { siteOf } from "./verdict.ts"
+
 // What a page says about the paper it shows: the meta tags publishers and arXiv put in a paper's page for
 // Google Scholar (citation_*), Dublin Core's identifier, and a DOI or arXiv id in its address when the
 // tags say nothing. Read from the page's <head> as text, so it runs the same in a content script, in the
@@ -121,6 +123,33 @@ function pdfIn(html: string, metas: Map<string, string[]>, page: string) {
     try {
       const url = new URL(candidate, page)
       if (/^https?:$/.test(url.protocol)) return url.toString()
+    } catch {
+      // Not an address
+    }
+  }
+  return undefined
+}
+
+// The page's own link to its PDF, for a page without citation_pdf_url: one labelled just "PDF" (or
+// "Download PDF"), to a .pdf on the page's own site. APA PsycNet's full-text pages link
+// /fulltext/<id>.pdf this way and carry no citation tags. core's browser-routes.ts pdfLinkOn, copied:
+// change them together.
+export function pdfLinkIn(html: string, page: string): string | undefined {
+  let base: URL
+  try {
+    base = new URL(page)
+  } catch {
+    return undefined
+  }
+  const site = siteOf(base.hostname)
+  for (const link of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const text = decode(link[2].replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim()
+    if (!/^(download\s+)?(article\s+)?pdf$/i.test(text)) continue
+    const href = attr(`<a ${link[1]}>`, "href")
+    if (!href) continue
+    try {
+      const url = new URL(href, base)
+      if (/^https?:$/.test(url.protocol) && siteOf(url.hostname) === site && /\.pdf$/i.test(url.pathname)) return url.toString()
     } catch {
       // Not an address
     }
