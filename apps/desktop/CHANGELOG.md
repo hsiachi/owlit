@@ -9,6 +9,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - A paper without a PDF is called the same thing in its row, the No PDF filter and its page (Finding, Not found, No access, No PDF there, For your browser, Nothing came), and its page says what was tried, when, and when Owlit looks again. The Needs you filter is gone; a paper a publisher's check stopped is no longer amber.
 - A paper Owlit couldn't look for because the network was down is looked for again at the next start, instead of waiting for Find PDF.
 - A PDF you drop while Owlit is downloading another copy is never lost.
+- An owlit extension for your browser: Add to owlit from any paper's page, Save PDF to owlit for a paper that lacks one, with your browser's access to journals; and a PDF you open for such a paper comes to owlit by itself. The first time, Owlit asks you to allow it. Settings › Papers › Browser extension.
 
 ## 0.2.0
 
