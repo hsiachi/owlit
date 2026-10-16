@@ -1,6 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
-import { isTaskFinished, itemId, QUESTION_COLUMN, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { isTaskFinished, itemId, QUESTION_COLUMN, sameWords, threadOfSubject, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { useShallow } from "zustand/react/shallow"
 import { Fragment, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
@@ -12,16 +13,17 @@ import { RenameInput } from "@/components/rename-input"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { SentenceEditor } from "@/components/sentence-editor"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { displayName } from "@/features/docs/types"
-import { tasksFor, useTasksStore } from "@/features/tasks/store"
+import { tasksFor, tasksOfKind, useTasksStore } from "@/features/tasks/store"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { cn, scrollMotion } from "@/lib/utils"
 import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
 import { editThread, put, regroupRow } from "../store"
 import { ReadingMark, RowPeek } from "./AnswerRows"
+import { groupAnotherWay } from "../runs"
 import { useThreadsUi } from "../ui-store"
 import { AskEach } from "./Work"
 
@@ -65,10 +67,34 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
 }
 
 export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
-  const columns = shown.columns.filter((c) => !c.hidden)
+  // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
+  // nothing to group by until it is done
+  const filling = useTasksStore(
+    useShallow((s) =>
+      tasksOfKind(s.byId, "threads.fill")
+        .filter((task) => !isTaskFinished(task) && threadOfSubject(task.subject) === thread.id)
+        .map((task) => task.subject.slice(task.subject.indexOf(":") + 1)),
+    ),
+  )
+  const columns = shown.columns.filter((c) => !c.hidden || (c.kind === "grouping" && filling.includes(c.id)))
   const compare = columns.find((c) => c.kind === "compare")
-  const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length)
-  const [groupBy, setGroupBy] = useState<GroupBy>(groupings[0] ? `grouping:${groupings[0].id}` : "none")
+  const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length && !filling.includes(c.id))
+  // What the table is grouped by is remembered for the thread (yours.view); one that isn't there (a
+  // grouping still being worked out, a comparison hidden) gives way to the first grouping
+  const [chosen, setChosen] = useState<GroupBy>()
+  const want = chosen ?? (thread.yours.view?.groupBy as GroupBy | undefined)
+  const groupBy: GroupBy =
+    want === "none" ||
+    (want?.startsWith("grouping:") && groupings.some((c) => c.id === want.slice(9))) ||
+    (want?.startsWith("column:") && columns.some((c) => c.kind === "compare" && c.id === want.slice(7)))
+      ? want!
+      : groupings[0]
+        ? `grouping:${groupings[0].id}`
+        : "none"
+  const setGroupBy = (value: GroupBy) => {
+    setChosen(value)
+    void editThread(thread.id, { op: "view", groupBy: value })
+  }
   const grouping = groupBy.startsWith("grouping:") ? groupings.find((c) => c.id === groupBy.slice(9)) : undefined
   const [sort, setSort] = useState<string>("order")
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -190,7 +216,7 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
   return (
     <div ref={root} className="group/table mt-8">
       <div className="mb-2 -ml-2 flex flex-wrap items-center gap-1">
-        {groupOptions.length > 1 && <ChoiceMenu value={groupBy} onChange={setGroupBy} label={t`Group by`} trigger={<GroupWord label={t`Group by`} value={groupOptions.find((o) => o.value === groupBy)?.label} />} align="start" options={groupOptions} />}
+        <GroupByMenu thread={thread} value={groupBy} options={groupOptions} grouping={grouping} onChange={setGroupBy} onAnotherWay={(id) => setGroupBy(`grouping:${id}`)} />
         <ChoiceMenu
           value={sort}
           onChange={setSort}
@@ -315,6 +341,94 @@ const pinnedEdge = "group-data-scrolled/table:shadow-[inset_-1px_0_0_var(--color
 // fill is the row's (translucent) laid over that sheet
 const pinnedCell = "sticky left-0 z-[1] bg-background group-hover/row:[background-image:linear-gradient(var(--color-muted),var(--color-muted))]"
 
+// Group by: the thread's groupings, its comparisons' sentences, or none; the grouping shown as a column or
+// not; and Group another way…, which asks Owlit for a new grouping in the user's words and groups by it once
+// Owlit is done
+function GroupByMenu({
+  thread,
+  value,
+  options,
+  grouping,
+  onChange,
+  onAnotherWay,
+}: {
+  thread: Thread
+  value: GroupBy
+  options: { value: GroupBy; label: string }[]
+  grouping: ThreadColumn | undefined
+  onChange: (value: GroupBy) => void
+  onAnotherWay: (column: string) => void
+}) {
+  const [asking, setAsking] = useState(false)
+  const [question, setQuestion] = useState("")
+  // The question opens once the menu is wholly gone: while it closes, its focus trap would take the focus
+  // back from the question's field, and that closes the question
+  const askAfterClose = useRef(false)
+  const another = options.some((o) => o.value.startsWith("grouping:"))
+  const ask = async () => {
+    const q = question.trim()
+    if (!q) return
+    setAsking(false)
+    setQuestion("")
+    const c = await groupAnotherWay(thread.id, q)
+    const column = c?.columns.find((col) => col.kind === "grouping" && sameWords(col.question, q))
+    if (column) onAnotherWay(column.id)
+  }
+  return (
+    <Popover open={asking} onOpenChange={setAsking}>
+      <DropdownMenu>
+        <PopoverAnchor asChild>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground">
+              <GroupWord label={t`Group by`} value={options.find((o) => o.value === value)?.label} />
+              <ChevronDownIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </PopoverAnchor>
+        <DropdownMenuContent
+          align="start"
+          className="w-auto max-w-80 min-w-48"
+          onCloseAutoFocus={(e) => {
+            if (!askAfterClose.current) return
+            e.preventDefault()
+            askAfterClose.current = false
+            setAsking(true)
+          }}
+        >
+          {options.map((o) => (
+            <DropdownMenuItem key={o.value} onSelect={() => o.value !== value && onChange(o.value)}>
+              <span className="flex-1 truncate">{o.label}</span>
+              {o.value === value && <CheckIcon className="text-muted-foreground" />}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          {grouping && (
+            <DropdownMenuItem onSelect={() => void editThread(thread.id, { op: "hide", column: grouping.id, hidden: !grouping.hidden })}>
+              <span className="flex-1">{t({ message: "Show as a column", comment: "menu switch: the groups each paper is in, as a column of the table" })}</span>
+              {!grouping.hidden && <CheckIcon className="text-muted-foreground" />}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={() => (askAfterClose.current = true)}>
+            {another ? t({ message: "Group another way…", comment: "ask Owlit to group a thread's papers by something else" }) : t({ message: "Group the papers…", comment: "ask Owlit to group a thread's papers" })}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <PopoverContent align="start" className="w-80 gap-0 p-1.5">
+        <input
+          autoFocus
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void ask()}
+          placeholder={t({ message: "Group by…", comment: "placeholder: what to group a thread's papers by, in the user's words" })}
+          aria-label={t`What to group the papers by`}
+          className="mb-1 h-9 w-full rounded-lg border bg-card px-2.5 text-sm outline-none focus:border-foreground/30"
+        />
+        <p className="px-2.5 pt-1 pb-1 text-detail text-muted-foreground">{t`Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done.`}</p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function GroupWord({ label, value }: { label: string; value: string | undefined }) {
   return (
     <span>
@@ -327,7 +441,8 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
 // A column's name, with what can be done to it; while Owlit fills it, how far it got
 function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn }) {
   const filling = useTasksStore((s) => tasksFor(s.byId, `${thread.id}:${column.id}`).some((task) => task.kind === "threads.fill" && !isTaskFinished(task)))
-  const done = thread.rows.filter((r) => r.cells[column.id] && !thread.yours.removed[itemId.row(r.id)]).length
+  // A grouping counts the papers Owlit has put in a group so far
+  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.yours.removed[itemId.row(r.id)]).length
   const of = thread.rows.filter((r) => !thread.yours.removed[itemId.row(r.id)]).length
   const label = columnLabel(column)
   const progress = filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>
@@ -348,7 +463,7 @@ function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        {column.kind !== "grouping" && <DropdownMenuItem onSelect={() => void askAgain(thread.id, column.id)}>{t`Ask again`}</DropdownMenuItem>}
+        <DropdownMenuItem onSelect={() => void askAgain(thread.id, column.id)}>{t`Ask again`}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void editThread(thread.id, { op: "hide", column: column.id, hidden: true })}>{t`Hide column`}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

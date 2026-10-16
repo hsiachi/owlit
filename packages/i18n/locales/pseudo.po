@@ -5701,10 +5701,6 @@ msgstr ""
 msgid "Sentences of {0}"
 msgstr ""
 
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group by"
-msgstr ""
-
 #. sort: the order Owlit added papers in
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "As gathered"
@@ -5724,6 +5720,38 @@ msgstr ""
 #. placeholder {0}: rows.length - SHOWN
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{0, plural, one {# more} other {# more}}"
+msgstr ""
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group by"
+msgstr ""
+
+#. menu switch: the groups each paper is in, as a column of the table
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Show as a column"
+msgstr ""
+
+#. ask Owlit to group a thread's papers by something else
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group another way…"
+msgstr ""
+
+#. ask Owlit to group a thread's papers
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group the papers…"
+msgstr ""
+
+#. placeholder: what to group a thread's papers by, in the user's words
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group by…"
+msgstr ""
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "What to group the papers by"
+msgstr ""
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done."
 msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -6001,6 +6029,10 @@ msgstr ""
 
 #: app/src/features/threads/runs.ts
 msgid "Finding more papers…"
+msgstr ""
+
+#: app/src/features/threads/runs.ts
+msgid "Grouping the papers by “{question}”…"
 msgstr ""
 
 #: app/src/features/threads/runs.ts
@@ -7456,6 +7488,10 @@ msgstr ""
 
 #: packages/core/src/threads/threads.ts
 msgid "Say what to ask of each paper."
+msgstr ""
+
+#: packages/core/src/threads/threads.ts
+msgid "Say what to group the papers by."
 msgstr ""
 
 #: packages/core/src/threads/threads.ts

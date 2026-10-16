@@ -5701,10 +5701,6 @@ msgstr "Remove from this group"
 msgid "Sentences of {0}"
 msgstr "Sentences of {0}"
 
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group by"
-msgstr "Group by"
-
 #. sort: the order Owlit added papers in
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "As gathered"
@@ -5725,6 +5721,38 @@ msgstr "Paper"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{0, plural, one {# more} other {# more}}"
 msgstr "{0, plural, one {# more} other {# more}}"
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group by"
+msgstr "Group by"
+
+#. menu switch: the groups each paper is in, as a column of the table
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Show as a column"
+msgstr "Show as a column"
+
+#. ask Owlit to group a thread's papers by something else
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group another way…"
+msgstr "Group another way…"
+
+#. ask Owlit to group a thread's papers
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group the papers…"
+msgstr "Group the papers…"
+
+#. placeholder: what to group a thread's papers by, in the user's words
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Group by…"
+msgstr "Group by…"
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "What to group the papers by"
+msgstr "What to group the papers by"
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done."
+msgstr "Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done."
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{done} of {of}"
@@ -6002,6 +6030,10 @@ msgstr "Gathering papers…"
 #: app/src/features/threads/runs.ts
 msgid "Finding more papers…"
 msgstr "Finding more papers…"
+
+#: app/src/features/threads/runs.ts
+msgid "Grouping the papers by “{question}”…"
+msgstr "Grouping the papers by “{question}”…"
 
 #: app/src/features/threads/runs.ts
 msgid "Asking each paper “{question}”…"
@@ -7457,6 +7489,10 @@ msgstr "Say what to collect papers on."
 #: packages/core/src/threads/threads.ts
 msgid "Say what to ask of each paper."
 msgstr "Say what to ask of each paper."
+
+#: packages/core/src/threads/threads.ts
+msgid "Say what to group the papers by."
+msgstr "Say what to group the papers by."
 
 #: packages/core/src/threads/threads.ts
 msgid "That column isn't there any more."

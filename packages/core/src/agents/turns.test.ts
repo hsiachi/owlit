@@ -70,7 +70,7 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 17/)
+    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 18/)
   })
 
   it("tells a session owlit's memory when it is new to it, and again only when it changed", async () => {

@@ -317,6 +317,11 @@ describe("owlit-mcp", () => {
     expect(read).toMatch(/arxiv-2005.11401 · .* · in doc \(Per document\) \(the user put it here, keep it\)/)
     expect(read).toMatch(/The user changed the groups \(keep it so\):\n- ungrouped tok \(Per token\): leave it out\n- took arxiv-2005.11401 out of tok: don't put it back/)
     expect((await tool("thread_write", { id, groups })).text).toMatch(/Kept as the user had it:\n- The user ungrouped tok \(Per token\)/)
+
+    // Another way to group them is a new grouping of the same thread
+    await tool("thread_write", { id, new_grouping: "by method", groups: JSON.stringify([{ id: "abl", name: "Ablations" }]), rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "abl" }]) })
+    expect((await tool("thread_read", { id })).text).toMatch(/Grouping g\d+ \(by method\): abl = Ablations/)
+    expect((await tool("thread_list")).text.split("\n")).toHaveLength(1)
   })
 
   it("lets the user undo an agent's comment and paper, and undo the undo", async () => {

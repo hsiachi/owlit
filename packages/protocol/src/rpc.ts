@@ -214,6 +214,9 @@ export interface Methods {
   "threads.ask": { params: { id: string; question: string }; result: Thread }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
   "threads.fill": { params: { id: string; column: string }; result: Task }
+  // Group another way: a new grouping, by what the user said to group by, which Owlit fills in the
+  // background (groups first, then each paper's)
+  "threads.group": { params: { id: string; question: string }; result: Thread }
   // A column that sets every paper against sentences the user picked from a doc of theirs
   "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: Thread }
   // Moves the thread to .owlit/trash/

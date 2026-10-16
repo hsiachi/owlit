@@ -46,6 +46,7 @@ Your answer at the end is one line on what you added.`
 
 export function fillPrompt(c: Thread, column: ThreadColumn) {
   if (column.kind === "compare") return comparePrompt(c, column)
+  if (column.kind === "grouping") return groupingPrompt(c, column)
   return `You are answering a question for every paper of a thread in owlit. The thread's question: «${c.asked.text}». The column to fill: ${column.id} — «${column.question}».
 
 ${ABOUT(c)}
@@ -61,6 +62,19 @@ ${lines}
 ${ABOUT(c)}
 For every row without a cell in column ${column.id}, decide which one of the sentences the paper bears on most, and how: "supports" (its findings back the sentence), "challenges" (its findings cut against it or qualify it), or "related" (on the same matter without settling it). Write cells: {"${column.id}": {"rel": "supports", "sentence": "l2", "text": "a short phrase on why", "depth": "abstract"}} with thread_write id ${c.id}, in batches of up to 25 rows. When the paper speaks to none of them, write {"text": "No bearing", "depth": "abstract"} without rel. Judge from the whole abstract (library_get gives it); a paper in the user's library with full text may be judged from it (library_read), with depth full and the words in quote. The sentences are the user's: never change or restate them.
 Don't change other columns or the memo. Your answer at the end is one line on what you did.`
+}
+
+// A way of grouping the papers the user asked for: Owlit first settles the groups, then puts each paper
+// in them. Asked again, it groups them afresh; what the user did to the groups owlit keeps itself.
+function groupingPrompt(c: Thread, column: ThreadColumn) {
+  const again = (column.groups ?? []).length > 0
+  return `You are grouping the papers of a thread in owlit one way the user asked for: by «${column.question}». The thread's question: «${c.asked.text}». The grouping: ${column.id}.
+
+${ABOUT(c)}
+${again ? `The grouping has groups already and the user asked for it again: group the papers afresh, as you would now. Groups the user renamed, merged or ungrouped and papers they put in a group stay as they are whatever you write (thread_read shows them); build around them.
+` : ""}1. From the papers' answers and abstracts, decide the groups: named for what the papers in them share, in the language of «${column.question}», each with a one-line description (one), two levels at most (a group with a parent can't be a parent itself), at most about 30 papers in a group. Write the whole grouping first: thread_write id ${c.id}, grouping ${column.id}, groups [...].
+2. Then put every paper in its group: thread_write id ${c.id}, grouping ${column.id}, rows [{"id": "…", "group": "…"}], in batches of up to 25 rows. ${ONE_GROUP} A paper that fits none goes in no group (group "").
+Don't change answers, other columns, the memo or other groupings. Your answer at the end is one line on what you did.`
 }
 
 export function readPrompt(c: Thread) {
