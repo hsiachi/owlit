@@ -1070,7 +1070,9 @@ export class Core {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
                 // A chat's agent gathered papers into a thread: the chat shows it with Undo, as for any agent write
-                wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change }),
+                wrote: ({ id, ...change }) => {
+                  if (this.workspace?.root === root) this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change })
+                },
               },
               memoryChanged: (lines) => {
                 if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
@@ -1144,13 +1146,7 @@ export class Core {
           throw error
         }
       }
-      if (this.workspace && this.workspace !== next) {
-        this.turns.reset()
-        this.ui.reset()
-        await this.workspace.dispose()
-        // The old workspace's last task changes go out before clients hear of the switch
-        this.taskChanges.flush()
-      }
+      if (this.workspace && this.workspace !== next) await this.stopWorkspace(this.workspace)
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
@@ -1192,7 +1188,9 @@ export class Core {
     if (ws?.root !== root) throw new Error("The workspace closed.")
     const words = await runWords(ws, ctx.task)
     const session = await openRun(ws.chats, ctx.task, words, {
-      update: (chatId, messageId, update) => this.notifier.notify("chat.update", { chatId, messageId, update }),
+      update: (chatId, messageId, update) => {
+        if (this.workspace === ws) this.notifier.notify("chat.update", { chatId, messageId, update })
+      },
       created: (chat) => {
         if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
       },
@@ -1213,17 +1211,42 @@ export class Core {
     clearInterval(this.hourly)
     await this.updates.dispose()
     this.initiative.dispose()
-    this.reviews.dispose()
     await this.switching
-    // Background work stops before the agents it runs on: a run cut off by its agent closing would count
-    // as a failed try, where one stopped by closing stays running, to run again next time
-    await this.workspace?.tasks.dispose()
-    this.agents.dispose()
-    await this.journal.dispose()
-    await this.socket?.close().catch(() => undefined)
-    this.socket = null
-    await this.workspace?.dispose()
+    if (this.workspace) await this.stopWorkspace(this.workspace, { closing: true })
     this.workspace = null
+    this.reviews.dispose()
+    await this.journal.dispose()
+  }
+
+  // Everything that belongs to the open workspace stops here, in this order, whether owlit switches to
+  // another one or closes. Each step runs even if one before it failed: a switch still goes ahead, and
+  // the workspace's lock is still released. ws is still this.workspace throughout, so nothing that stops
+  // late can reach the next one.
+  private async stopWorkspace(ws: Workspace, { closing = false } = {}) {
+    const steps: [string, () => unknown][] = [
+      ["chat turns", () => this.turns.reset()],
+      ["the window's requests", () => this.ui.reset()],
+      // What Owlit's rules were settling or had put off was about this workspace
+      ["Owlit's rules", () => this.initiative.reset()],
+      // Background work stops before the agents it runs on: a run cut off by its agent closing would count
+      // as a failed try, where one stopped by closing stays running, to run again next time
+      ["background tasks", () => ws.tasks.dispose()],
+      ...(closing ? [["agents", () => this.agents.dispose()] as [string, () => unknown]] : []),
+      // After the tasks, whose runs may still add to what is held
+      ["Owlit's held comments", () => this.reviews.stop()],
+      // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
+      ["the socket", () => this.closeSocket()],
+      ["the journal", () => this.journal.flush()],
+      ["the workspace", () => ws.dispose()],
+    ]
+    for (const [what, step] of steps) {
+      try {
+        await step()
+      } catch (error) {
+        console.error(`[core] couldn't stop ${what} of ${ws.root}`, error)
+      }
+    }
+    // The old workspace's last task changes go out before clients hear of the switch
     this.taskChanges.flush()
   }
 
@@ -1258,11 +1281,16 @@ export class Core {
     ]
   }
 
-  // The socket of the workspace now open, in place of the last one's
+  private async closeSocket() {
+    const socket = this.socket
+    this.socket = null
+    await socket?.close()
+  }
+
+  // The socket of the workspace now open
   private async serveSocket(root: string) {
     if (!this.options.socket) return
-    await this.socket?.close().catch(() => undefined)
-    this.socket = null
+    await this.closeSocket().catch(() => undefined)
     try {
       this.socket = await SocketServer.start(root, this, this.options.socket === true ? undefined : this.options.socket.dir)
     } catch (error) {

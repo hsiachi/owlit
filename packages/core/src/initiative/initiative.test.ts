@@ -76,6 +76,22 @@ describe("Initiative", () => {
     ])
   })
 
+  it("forgets what was settling when the workspace closes", async () => {
+    const { ws, queued } = fakeWorkspace({ mode: "onOpen" })
+    const { clock, records, initiative } = engine([review], ws)
+    initiative.observe(docOpened("a.md"))
+    initiative.reset()
+    clock.advance(1000)
+    await initiative.idle()
+    expect(records).toEqual([])
+    expect(queued).toEqual([])
+    // Heard afterwards: taken as before
+    initiative.observe(docOpened("b.md"))
+    clock.advance(1000)
+    await initiative.idle()
+    expect(queued.map((q) => q.subject)).toEqual(["b.md"])
+  })
+
   it("leaves initiative rules out while the dial is Off; upkeep still runs", async () => {
     const { ws, queued } = fakeWorkspace({ mode: "off" })
     const { clock, records, initiative } = engine([review, upkeep], ws)

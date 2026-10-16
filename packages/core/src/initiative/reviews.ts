@@ -137,21 +137,40 @@ export class Reviews {
   async land() {
     const ready = this.held.filter((h) => !this.holds(h))
     this.held = this.held.filter((h) => !ready.includes(h))
+    await this.landAll(ready)
+    if (this.held.length) this.later()
+  }
+
+  // The workspace is closing, its tasks already stopped: the user has left every doc in it, so what was
+  // held lands now, while it is still the open one. It can't wait: the next workspace may have a doc at
+  // the same path. A Go through's points whose record never got written have nothing to point back to.
+  async stop() {
+    clearTimeout(this.timer)
+    this.timer = undefined
+    const held = this.held.filter((h) => !(h.run && this.records.has(h.run)))
+    this.held = []
+    this.records.clear()
+    this.made.clear()
+    await this.landAll(held)
+  }
+
+  dispose() {
+    clearTimeout(this.timer)
+    this.held = []
+  }
+
+  private async landAll(ready: Held[]) {
     const ws = this.services.workspace()
     for (const h of ready) {
       const content = ws ? await ws.docs.read(h.path).then((r) => r.content, () => null) : null
+      // Written into whichever workspace is open: never another one's doc at the same path
+      if (this.services.workspace() !== ws) return
       if (content !== null && content.includes(h.comment.quote)) {
         await this.write(h).catch((error) => console.error("[core] couldn't land Owlit's comment", error))
         continue
       }
       this.services.record({ kind: "evaluation", at: this.now(), rule: "docs.landing", subject: h.path, decision: "none", reason: "the passage changed before the comment landed", cause: "landing" })
     }
-    if (this.held.length) this.later()
-  }
-
-  dispose() {
-    clearTimeout(this.timer)
-    this.held = []
   }
 
   private holds(h: Held) {

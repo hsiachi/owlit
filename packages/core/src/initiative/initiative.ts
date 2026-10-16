@@ -77,7 +77,9 @@ export class Initiative {
   private chain: Promise<void> = Promise.resolve()
   // Runs started on Owlit's own initiative today (upkeep doesn't count), for the daily cap; read from
   // the journal the first time it is needed in a workspace
-  private today: { root: string; day: string; count: number } | null = null
+  private today: { day: string; count: number } | null = null
+  // Counts reset(): an evaluation queued before one is about a workspace that has closed
+  private epoch = 0
   // Decisions put off, by rule and subject: while the user writes in what they are about, or until away
   private deferred = new Map<string, Deferred>()
   // The deferral last logged for each rule and subject, so waiting on goes into the journal once
@@ -126,12 +128,21 @@ export class Initiative {
     return this.chain
   }
 
-  dispose() {
-    this.disposed = true
+  // The workspace is closing: what was settling or put off was about it, and the next one starts afresh
+  reset() {
+    this.epoch++
     for (const { timer } of this.settling.values()) this.clock.clearTimeout(timer)
     this.settling.clear()
     this.clock.clearTimeout(this.deferTimer)
+    this.deferTimer = undefined
     this.deferred.clear()
+    this.deferLogged.clear()
+    this.today = null
+  }
+
+  dispose() {
+    this.disposed = true
+    this.reset()
   }
 
   // away: the user has just gone away, and everything waiting is looked at again; otherwise only what
@@ -165,7 +176,10 @@ export class Initiative {
   }
 
   private evaluate(rule: Rule, event: InitiativeEvent) {
-    this.chain = this.chain.then(() => this.take(rule, event)).catch((error) => console.error(`[core] rule ${rule.id} failed`, error))
+    const epoch = this.epoch
+    this.chain = this.chain.then(async () => {
+      if (epoch === this.epoch) await this.take(rule, event)
+    }).catch((error) => console.error(`[core] rule ${rule.id} failed`, error))
   }
 
   private async take(rule: Rule, event: InitiativeEvent) {
@@ -213,11 +227,11 @@ export class Initiative {
 
   private async countToday(ws: Workspace, now: number) {
     const day = dayOf(now)
-    if (this.today?.root === ws.root && this.today.day === day) return this.today.count
+    if (this.today?.day === day) return this.today.count
     const initiative = new Set(this.rules.filter((r) => r.needs !== "off").map((r) => r.id))
     const entries = await readJournal(ws.owlitPath("journal.jsonl")).catch(() => [])
     const count = entries.filter((e) => e.kind === "evaluation" && e.decision === "job" && initiative.has(e.rule) && dayOf(e.at) === day).length
-    this.today = { root: ws.root, day, count }
+    this.today = { day, count }
     return count
   }
 }
