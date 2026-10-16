@@ -32,6 +32,24 @@ export interface Host {
   browserControl?(): Promise<BrowserControl | undefined>
   // The folder the user's browser saves downloads to
   downloadsDir?(): string
+  // Owlit's own updates (the desktop app: electron-updater on GitHub Releases)
+  updater?: UpdaterHost
+}
+
+// What fetches, downloads and installs a newer Owlit. core/updates decides when.
+export interface UpdaterHost {
+  // Why this copy can't update itself, when it can't: it isn't signed with the Developer ID, or it runs
+  // from somewhere it can't replace itself (a dmg, a copy macOS moved aside)
+  blocked?(): Promise<"unsigned" | "location" | undefined>
+  // Asks the feed. A newer version starts downloading at once and is returned; undefined when this one
+  // is the newest. Rejects when the feed can't be read.
+  check(): Promise<string | undefined>
+  // The download a check started: how far (0–100), done, or failed
+  onProgress(listener: (percent: number) => void): void
+  onDownloaded(listener: (version: string) => void): void
+  onError(listener: (error: Error) => void): void
+  // Quits Owlit and puts the downloaded version in place, then starts it
+  install(): void
 }
 
 // The user's browser, as owlit drives it for a run: a window of its own, tabs in it, and where each tab

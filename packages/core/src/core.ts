@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ChatMessage, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type BuildInfo, type ChatMessage, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -11,6 +11,7 @@ import { Agents } from "./agents/agents.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
+import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
@@ -97,6 +98,10 @@ export interface CoreOptions {
   shareTimings?: { settleMs?: number; pollMs?: number }
   // The example workspace the app ships, which workspace.createExample copies
   exampleDir?: string
+  // Where this build came from (the desktop app's build label); unset is a dev build
+  build?: Omit<BuildInfo, "version">
+  // The CHANGELOG.md the app ships, for what's new after an update
+  changelog?: string
 }
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
@@ -130,6 +135,8 @@ export class Core {
   private readonly initiative: Initiative
   private readonly hourly: ReturnType<typeof setInterval>
   private readonly reviews: Reviews
+  // Owlit updating itself
+  readonly updates: Updates
   private socket: SocketServer | null = null
   // The system's preferred languages (BCP 47, most preferred first), read once: the interface and digests
   // follow them until Settings says otherwise
@@ -185,6 +192,15 @@ export class Core {
       memory: async () => (await this.workspace?.memory.list()) ?? [],
     })
     this.background = new Background(this.agents)
+    this.updates = new Updates({
+      build: { version: this.version().version, channel: options.build?.channel ?? "dev", commit: options.build?.commit },
+      userDataDir: options.userDataDir,
+      updater: options.host?.updater,
+      changelog: options.changelog,
+      onboarded: async () => (await this.settings.get()).onboardedAt !== undefined,
+      answering: () => this.turns.answering(),
+      notify: (view) => this.notifier.notify("updates.changed", view),
+    })
     // What Owlit does without being asked is decided by its rules (initiative/rules.ts), which hear what
     // the user does and what core sees, and the clock
     this.initiative = new Initiative({ workspace: () => this.workspace, record: (entry) => this.journal.evaluation(entry), trace: (entry) => this.journal.trace(entry) })
@@ -262,6 +278,11 @@ export class Core {
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
     this.router.register("core.diagnostics", noParams, () => this.diagnostics())
+    this.router.register("updates.get", noParams, () => this.updates.view())
+    this.router.register("updates.check", noParams, () => this.updates.check())
+    this.router.register("updates.setAuto", z.object({ auto: z.boolean() }), ({ auto }) => this.updates.setAuto(auto))
+    this.router.register("updates.seen", noParams, () => this.updates.seen())
+    this.router.register("updates.restart", z.object({ force: z.boolean().optional() }), ({ force }) => this.updates.restart(force ?? false))
 
     this.router.register("workspace.current", noParams, () => this.workspace?.info ?? null)
     this.router.register("workspace.open", z.object({ path: z.string().min(1) }), ({ path }) => this.openWorkspace(path))
@@ -981,6 +1002,7 @@ export class Core {
     if (this.started) return
     this.started = true
     this.notifier.notify("core.hello", this.version())
+    void this.updates.start()
   }
 
   // The workspace to reopen at launch, if it is still there
@@ -1189,6 +1211,7 @@ export class Core {
   async dispose() {
     this.started = false
     clearInterval(this.hourly)
+    await this.updates.dispose()
     this.initiative.dispose()
     this.reviews.dispose()
     await this.switching
@@ -1261,7 +1284,7 @@ export class Core {
   private async diagnostics(): Promise<string> {
     const macos = await new Promise<string>((resolve) => execFile("sw_vers", ["-productVersion"], (error, out) => resolve(error ? process.platform : `macOS ${out.trim()}`)))
     const home = (p: string) => p.replace(homedir(), "~")
-    const lines = [`Owlit ${this.version().version} (${process.arch}) · ${macos} · Node ${process.versions.node}`]
+    const lines = [`Owlit ${this.version().version} (${process.arch}) · ${macos} · Node ${process.versions.node}`, this.updates.describe()]
     for (const c of await this.agents.list()) {
       const state = c.setup?.progress !== undefined ? "setting up" : c.status === "not_installed" ? (c.setup?.cliFound ? "on this Mac, not set up" : "not found") : c.authenticated === false ? "signed out" : c.status
       const copy = c.setup?.installed ? `, owlit's copy ${c.setup.installed}` : ""

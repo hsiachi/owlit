@@ -266,6 +266,11 @@ export class Turns {
     return null
   }
 
+  // How many chats have a turn running or starting
+  answering() {
+    return this.turns.size
+  }
+
   respondPermission(chatId: string, requestId: string, optionId: string) {
     for (const live of this.live.values()) {
       const pending = live.turn?.chatId === chatId ? live.turn.permissions.get(requestId) : undefined

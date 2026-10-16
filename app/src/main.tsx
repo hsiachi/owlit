@@ -14,6 +14,7 @@ import { startTrail } from "@/features/home/trail"
 import { startAppearance, storedAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
+import { startUpdates } from "@/features/updates/store"
 import { startShares } from "@/features/docs/share/store"
 import { startImports } from "@/features/library/imports"
 import { applyLocale, i18n } from "@/lib/i18n"
@@ -32,6 +33,7 @@ document.documentElement.dataset.platform =
 startAppearance()
 applyLocale(bridge?.locale ?? interfaceLocale(storedAppearance().language, navigator.languages))
 startSettings()
+startUpdates()
 
 // Listening to core: the open workspace, its background tasks, what it asks this window to do, and
 // what agents changed

@@ -42,6 +42,7 @@ const bridge: OwlitBridge = {
     }
   },
   notify: (notification) => ipcRenderer.send("notify", notification),
+  restartToUpdate: () => ipcRenderer.invoke("restart-to-update") as Promise<void>,
   onNotificationClick(listener) {
     const forward = (_event: IpcRendererEvent, chatId: string) => listener(chatId)
     ipcRenderer.on("notification-click", forward)

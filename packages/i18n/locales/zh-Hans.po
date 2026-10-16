@@ -1627,6 +1627,7 @@ msgstr "未检查"
 
 #. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Checking…"
 msgstr "正在检查…"
 
@@ -5116,6 +5117,11 @@ msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr "owlit 记住的内容只保存在这个工作区，绝不会发送到任何地方。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "Updates"
+msgstr "更新"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Your name"
 msgstr "你的名字"
@@ -5209,6 +5215,65 @@ msgstr "无论用哪种语言，专业术语都保留论文原文的写法。"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Language for digests"
 msgstr "导读语言"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Check now"
+msgstr "立即检查"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Move Owlit to the Applications folder to get updates."
+msgstr "把 Owlit 移到「应用程序」文件夹，才能收到更新。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "This copy isn't signed by Owlit's developer, so it can't update itself."
+msgstr "这份 Owlit 没有 Owlit 开发者的签名，不能自动更新。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Built from source ({label}), so it doesn't update itself."
+msgstr "从源码构建（{label}），不会自动更新。"
+
+#. placeholder {0}: status.version
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Downloading Owlit {0}…"
+msgstr "正在下载 Owlit {0}…"
+
+#. placeholder {0}: status.version
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Downloading Owlit {0}… {percent}%"
+msgstr "正在下载 Owlit {0}… {percent}%"
+
+#. placeholder {0}: status.version
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit {0} is ready. It installs when you quit Owlit."
+msgstr "Owlit {0} 已下载好，退出 Owlit 时安装。"
+
+#. a button: restart Owlit to install the update
+#. a button: restart Owlit to install the update
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/updates/UpdateNotices.tsx
+#: apps/desktop/src/main.ts
+msgid "Restart"
+msgstr "重新启动"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Up to date · checked {when}"
+msgstr "已是最新 · {when}检查过"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Not checked yet"
+msgstr "还没有检查过"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit {version}"
+msgstr "Owlit {version}"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Check for updates automatically"
+msgstr "自动检查更新"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "About once a day. A new version downloads in the background and installs when you quit Owlit."
+msgstr "大约每天一次。新版本在后台下载，退出 Owlit 时安装。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Remember what I do in owlit"
@@ -6137,6 +6202,41 @@ msgstr "{0}/{1}"
 msgid "Skip tour"
 msgstr "跳过导览"
 
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "Owlit {ready} is ready"
+msgstr "Owlit {ready} 已下载好"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "It installs when you quit Owlit."
+msgstr "退出 Owlit 时安装。"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "Updated to {version}"
+msgstr "已更新到 {version}"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "What's new"
+msgstr "新内容"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "What's new in Owlit {version}"
+msgstr "Owlit {version} 的新内容"
+
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "The changes in this version"
+msgstr "这个版本的改动"
+
+#: app/src/features/updates/store.ts
+#: apps/desktop/src/main.ts
+msgid "You're up to date"
+msgstr "已是最新版本"
+
+#. placeholder {0}: found.version
+#: app/src/features/updates/store.ts
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is the newest version."
+msgstr "Owlit {0} 是最新版本。"
+
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
 msgstr "Owlit 将使用 <0>{name}</0>"
@@ -6397,6 +6497,10 @@ msgid "About {name}"
 msgstr "关于 {name}"
 
 #: apps/desktop/src/main.ts
+msgid "Check for Updates…"
+msgstr "检查更新…"
+
+#: apps/desktop/src/main.ts
 msgid "Install Command Line Tool…"
 msgstr "安装命令行工具…"
 
@@ -6542,6 +6646,80 @@ msgstr "问 Owlit 怎么做…"
 #: apps/desktop/src/main.ts
 msgid "Copy Diagnostics"
 msgstr "复制诊断信息"
+
+#. placeholder {0}: found.version
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is ready"
+msgstr "Owlit {0} 已下载好"
+
+#: apps/desktop/src/main.ts
+msgid "It installs when you quit Owlit, or now if you restart."
+msgstr "退出 Owlit 时安装；现在重新启动也可以。"
+
+#: apps/desktop/src/main.ts
+msgid "Restart Now"
+msgstr "现在重新启动"
+
+#: apps/desktop/src/main.ts
+msgid "Later"
+msgstr "稍后"
+
+#. placeholder {0}: found.version
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is downloading"
+msgstr "正在下载 Owlit {0}"
+
+#: apps/desktop/src/main.ts
+msgid "You can keep working. It installs when you quit Owlit."
+msgstr "可以继续工作，退出 Owlit 时安装。"
+
+#: apps/desktop/src/main.ts
+msgid "Couldn't check for updates"
+msgstr "无法检查更新"
+
+#: apps/desktop/src/main.ts
+msgid "Try Again"
+msgstr "重试"
+
+#: apps/desktop/src/main.ts
+msgid "This copy isn't signed by Owlit's developer, so it can't install updates. Download the latest Owlit from GitHub."
+msgstr "这份 Owlit 没有 Owlit 开发者的签名，不能安装更新。请从 GitHub 下载最新的 Owlit。"
+
+#: apps/desktop/src/main.ts
+msgid "This Owlit was built from source ({label}), so it doesn't update itself."
+msgstr "这个 Owlit 从源码构建（{label}），不会自动更新。"
+
+#: apps/desktop/src/main.ts
+msgid "This Owlit doesn't update itself"
+msgstr "这个 Owlit 不会自动更新"
+
+#: apps/desktop/src/main.ts
+msgid "Restart Owlit now?"
+msgstr "现在重新启动 Owlit？"
+
+#: apps/desktop/src/main.ts
+msgid "{answering, plural, one {A chat is still answering, and stops if Owlit restarts now.} other {# chats are still answering, and stop if Owlit restarts now.}}"
+msgstr "{answering, plural, other {有 # 个对话还在回答，现在重新启动会中断它们。}}"
+
+#: apps/desktop/src/main.ts
+msgid "Not Now"
+msgstr "以后再说"
+
+#: apps/desktop/src/main.ts
+msgid "Move Owlit to Applications?"
+msgstr "把 Owlit 移到「应用程序」？"
+
+#: apps/desktop/src/main.ts
+msgid "Owlit can only keep itself up to date from the Applications folder."
+msgstr "Owlit 只有在「应用程序」文件夹里才能自动更新。"
+
+#: apps/desktop/src/main.ts
+msgid "Move"
+msgstr "移动"
+
+#: apps/desktop/src/main.ts
+msgid "Owlit couldn't be moved"
+msgstr "无法移动 Owlit"
 
 #: apps/desktop/src/text-menu.ts
 msgid "No Guesses Found"
@@ -7541,6 +7719,23 @@ msgstr "那条脉络已经在这里了。"
 #: packages/core/src/threads/threads.ts
 msgid "That thread is no longer in the trash."
 msgstr "那条脉络已不在废纸篓中。"
+
+#: packages/core/src/updates/updates.ts
+msgid "There's no update ready to install."
+msgstr "没有可以安装的更新。"
+
+#: packages/core/src/updates/updates.ts
+msgid "GitHub couldn't be reached. Check your connection or proxy, then try again."
+msgstr "连不上 GitHub。检查网络或代理后再试。"
+
+#: packages/core/src/updates/updates.ts
+msgid "GitHub turned the check away for now. Try again in an hour."
+msgstr "GitHub 暂时拒绝了检查请求，一小时后再试。"
+
+#. placeholder {0}: text.split("\n")[0]
+#: packages/core/src/updates/updates.ts
+msgid "The update didn't come through: {0}"
+msgstr "更新没有完成：{0}"
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts

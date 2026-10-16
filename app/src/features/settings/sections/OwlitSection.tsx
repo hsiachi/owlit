@@ -3,9 +3,12 @@ import { useState } from "react"
 import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES, type InitiativeMode } from "@owlit/protocol"
 import { isDesktop } from "@/lib/rpc"
 import { setInitiative, useInitiativeSettings } from "../initiative"
+import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
+import { checkForUpdates, restartToUpdate, setAutoUpdate, useUpdates } from "@/features/updates/store"
+import { ago } from "@/lib/time"
 import { toastError } from "@/lib/toast"
 import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
@@ -35,6 +38,11 @@ export function OwlitSection() {
       <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays in this workspace and is never sent anywhere.`}>
         <MemoryRow />
       </Group>
+      {isDesktop && (
+        <Group id="updates" label={t`Updates`}>
+          <UpdatesRows />
+        </Group>
+      )}
     </>
   )
 }
@@ -176,6 +184,62 @@ export function LanguageRow() {
 }
 
 const OTHER = "other"
+
+// This version, where an update stands, and the switch for checking by itself. A build that doesn't update
+// itself says why, and has no switch.
+function UpdatesRows() {
+  const view = useUpdates((s) => s.view)
+  if (!view) return null
+  const { build, status, checkedAt } = view
+  const version = build.version
+  const label = [build.channel, build.commit].filter(Boolean).join(" · ")
+  const checkNow = (
+    <Button variant="text" size="inline" className="last:-mr-1.5" onClick={() => void checkForUpdates().catch(toastError)}>
+      {t`Check now`}
+    </Button>
+  )
+  let help: string
+  let control: React.ReactNode = null
+  if (status.kind === "off") {
+    help =
+      status.reason === "location"
+        ? t`Move Owlit to the Applications folder to get updates.`
+        : status.reason === "unsigned"
+          ? t`This copy isn't signed by Owlit's developer, so it can't update itself.`
+          : t`Built from source (${label}), so it doesn't update itself.`
+  } else if (status.kind === "checking") {
+    help = t`Checking…`
+  } else if (status.kind === "downloading") {
+    const percent = status.percent
+    help = percent === undefined ? t`Downloading Owlit ${status.version}…` : t`Downloading Owlit ${status.version}… ${percent}%`
+  } else if (status.kind === "ready") {
+    help = t`Owlit ${status.version} is ready. It installs when you quit Owlit.`
+    control = (
+      <Button variant="text" size="inline" className="last:-mr-1.5" onClick={() => void restartToUpdate()}>
+        {t({ message: "Restart", comment: "a button: restart Owlit to install the update" })}
+      </Button>
+    )
+  } else if (status.kind === "failed") {
+    help = status.message
+    control = checkNow
+  } else {
+    const when = checkedAt && ago(checkedAt, { inSentence: true })
+    help = when ? t`Up to date · checked ${when}` : t`Not checked yet`
+    control = checkNow
+  }
+  return (
+    <List>
+      <Row name={t`Owlit ${version}`} help={help} control={control} />
+      {status.kind !== "off" && (
+        <Row
+          name={t`Check for updates automatically`}
+          help={t`About once a day. A new version downloads in the background and installs when you quit Owlit.`}
+          control={<Switch checked={view.auto} onCheckedChange={(on) => void setAutoUpdate(on).catch(toastError)} aria-label={t`Check for updates automatically`} />}
+        />
+      )}
+    </List>
+  )
+}
 
 function MemoryRow() {
   const enabled = useSettings((s) => s.view?.activity.enabled ?? true)

@@ -28,6 +28,7 @@ const GROUPS = {
   memory: { section: "owlit", label: msg`What Owlit keeps in mind` },
   background: { section: "owlit", label: msg`Background work` },
   privacy: { section: "owlit", label: msg`Privacy` },
+  updates: { section: "owlit", label: msg`Updates` },
   sources: { section: "papers", label: msg`Finding papers` },
   proxy: { section: "papers", label: msg`Library proxy` },
   "publisher-apis": { section: "papers", label: msg`Publishers' APIs` },

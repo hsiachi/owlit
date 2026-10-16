@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
@@ -8,9 +9,23 @@ export const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.ur
 export const appDir = path.resolve(desktopDir, "../../app")
 export const distDir = path.join(desktopDir, "dist")
 
+// Where a build came from, baked into main: release (pnpm release, sent to people), local (pnpm build and
+// pnpm app:install, made from a checkout) or dev (pnpm dev and pnpm try), and the commit it was made at,
+// with "+" when the checkout had changes. Only a release updates itself (core updates/).
+export function buildLabel(channel) {
+  const git = (...args) => execFileSync("git", ["-C", desktopDir, ...args], { encoding: "utf8" }).trim()
+  let commit
+  try {
+    commit = git("rev-parse", "--short", "HEAD") + (git("status", "--porcelain") ? "+" : "")
+  } catch {
+    // Not a git checkout (a source archive)
+  }
+  return { channel, commit }
+}
+
 // Main and preload are bundled together with core, so a packaged app needs no node_modules. Preload is
 // CommonJS because a sandboxed preload cannot be an ES module.
-export function esbuildOptions({ production }) {
+export function esbuildOptions({ production, channel }) {
   return {
     absWorkingDir: desktopDir,
     entryPoints: { main: "src/main.ts", preload: "src/preload.ts", "owlit-mcp": "../../packages/owlit-mcp/src/main.ts", "owlit-agent": "../../packages/owlit-agent/src/main.ts", owlit: "../../packages/cli/src/main.ts" },
@@ -30,6 +45,7 @@ export function esbuildOptions({ production }) {
       // pnpm release reads it from .env.release.local (build.mjs); a run can still name another in its own
       // environment
       __OWLIT_SHARE_SERVER__: JSON.stringify(process.env.OWLIT_SHARE_SERVER ?? ""),
+      __OWLIT_BUILD__: JSON.stringify(buildLabel(channel)),
     },
     // ES modules bundled into CommonJS (pdfium's loader) ask where they are through import.meta.url
     // (no require here: the sandboxed preload shares the banner and may not require node modules)
@@ -84,6 +100,8 @@ export function copyMainAssets() {
   // The example workspace the first-launch flow offers (workspace.createExample)
   const example = path.join(desktopDir, "resources", "example-workspace")
   if (existsSync(example)) cpSync(example, path.join(distDir, "example-workspace"), { recursive: true })
+  // What's new after an update reads its version's section here, offline (core updates/)
+  copyFileSync(path.join(desktopDir, "CHANGELOG.md"), path.join(distDir, "CHANGELOG.md"))
   // npm, which sets up owlit's own copy of Claude Code's and Codex's adapters (core agents/setup.ts). It
   // ships with its dependencies inside, so the folder is all it needs.
   const npm = path.dirname(createRequire(path.join(desktopDir, "package.json")).resolve("npm/package.json"))

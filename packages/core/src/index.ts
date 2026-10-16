@@ -3,7 +3,7 @@
 
 export { Core, CORE_VERSION, type CoreOptions } from "./core.ts"
 export { RpcFailure } from "./rpc/index.ts"
-export type { BrowserControl, BrowserEvent, BrowserHost, BrowserRequest, Host, PageSeen, PublisherNeed } from "./host.ts"
+export type { BrowserControl, BrowserEvent, BrowserHost, BrowserRequest, Host, PageSeen, PublisherNeed, UpdaterHost } from "./host.ts"
 export { NeedsUser, NoPdfOnPage } from "./host.ts"
 export { pdfFromLanded, pdfLinkOn, signInWatch, siteOf } from "./library/browser-routes.ts"
 export { isPdfBytes, PDF_MAX_BYTES } from "./library/pdf.ts"
