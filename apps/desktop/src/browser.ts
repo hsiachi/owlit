@@ -5,8 +5,8 @@
 //
 // It goes about it as a reader would, so sites have no reason to take it for a script: the PDF is
 // opened from the article page, as a click on its link opens it, and saved from that one response;
-// a site that asks for a person and asks again once that was done is left alone (2026-10-13: Cloudflare
-// in front of ScienceDirect and the ACM put up a new check every time the old one was passed).
+// a site that asks for a person and asks again once that was done is left alone (Cloudflare in front of
+// ScienceDirect and the ACM can put up a new check every time the old one is passed).
 
 import { t } from "@lingui/core/macro"
 import { ACCESS_OFFER, isCheckTitle, isPdfBytes, NeedsUser, NoPdfOnPage, PDF_MAX_BYTES, pdfFromLanded, pdfLinkOn, signInWatch, siteOf, type BrowserHost, type BrowserRequest, type PageSeen } from "@owlit/core"
@@ -29,7 +29,7 @@ const PDF_DOWNLOAD_MS = 180_000
 
 // Cloudflare and the like put these in the title (isCheckTitle) or the page. Only the interstitial's own markers:
 // Cloudflare loads /cdn-cgi/challenge-platform/ scripts on ordinary article pages too and sets
-// window._cf_chl_opt there (T&F's article pages, 2026-10-13), and pages embed invisible Turnstile
+// window._cf_chl_opt there (T&F's article pages), and pages embed invisible Turnstile
 // widgets (cf-chl-widget-…) in their forms (doi.org's error page does).
 // A captcha or a password field only counts when it is on screen; publishers load reCAPTCHA scripts
 // and hidden sign-in forms on ordinary pages. One small look per poll, not a copy of the page.
@@ -125,7 +125,7 @@ export function createBrowserHost(): BrowserHost {
       show: false,
       width: 1100,
       height: 800,
-      // Says what to do there: people didn't know to close it once signed in (2026-10-16). Kept over the
+      // Says what to do there: people don't know to close it once signed in. Kept over the
       // page's own title, since the window is only ever shown for this
       title: t({ message: "Sign in to your library · This window closes by itself once you're in", comment: "title of the window that shows the library proxy's sign-in page" }),
       // Never shown, so Chromium would slow its timers to a crawl: a check's script runs at its own pace
@@ -359,7 +359,7 @@ async function pageState(contents: WebContents, request: BrowserRequest): Promis
 
 // Through the library proxy, a page still on the proxy's own entry (or a login path on its host) is its
 // sign-in, not the article: signed out, Tsinghua's tlink answers /go?url= with a gateway page of
-// sign-in buttons and no password field, and the PDF's path rebased onto it is no PDF (2026-10-12)
+// sign-in buttons and no password field, and the PDF's path rebased onto it is no PDF
 function onProxySignIn(url: string, request: BrowserRequest) {
   if (!request.proxyHost) return false
   let at: URL, entry: URL

@@ -6,7 +6,7 @@ import { capital, shorten } from "@/lib/words"
 
 // What a tool call is called on screen. Agents name owlit's own tools by their MCP name
 // (mcp__owlit__library_search from Claude Code, mcp.owlit.library_search from Codex) and a paper's note by its file (library/papers/<id>/note.md, or
-// .owlit/papers/<id>/note.md in chats from before 2026-10-13); people shouldn't have to read either, in a chat's steps, its permission card or
+// .owlit/papers/<id>/note.md in older chats); people shouldn't have to read either, in a chat's steps, its permission card or
 // Home's "Waiting on you".
 
 // One of owlit's tools as it is about to run or runs ("List your Library") and once it ran ("Listed your

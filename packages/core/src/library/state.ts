@@ -102,9 +102,9 @@ export const noteRelPath = (id: string) => path.posix.join("library/papers", id,
 
 const noteFile = (root: string, id: string) => path.join(paperDir(root, id), "note.md")
 
-// Until 2026-10-13 the note was kept in .owlit/papers/<id>/, hidden with the machine state; the user
-// expected their own words next to the paper (a blind user test). A note still there moves beside the
-// paper the first time it is read or written, so nothing is lost and no second copy appears.
+// Older workspaces keep the note in .owlit/papers/<id>/, hidden with the machine state, where users don't
+// look for their own words. A note still there moves beside the paper the first time it is read or
+// written, so nothing is lost and no second copy appears.
 async function moveOldNote(root: string, id: string) {
   const old = path.join(paperStateDir(root, id), "note.md")
   const file = noteFile(root, id)

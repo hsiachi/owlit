@@ -20,7 +20,7 @@ export async function readRecord(root: string, id: string): Promise<PaperRecord 
 export const writeRecord = (root: string, record: PaperRecord) =>
   writeJsonAtomic(path.join(paperDir(root, record.id), "paper.json"), record, { parents: false })
 
-// The round of checks a record has had. 1 (2026-10-11): titles with their subtitles from Crossref,
+// The round of checks a record has had. 1: titles with their subtitles from Crossref,
 // abstracts that belong to another paper dropped, id-only records given their DOI. Raise it when a new
 // check should reach the papers already in libraries.
 export const METADATA_CHECKS = 1

@@ -60,12 +60,11 @@ export interface Publisher {
 const SPRINGER_PDF = "https://link.springer.com/content/pdf/{doi}.pdf"
 
 // The ACM: Cloudflare in front of the Digital Library puts a new check in front of owlit's browser
-// every time one is passed (2026-10-13), on campus and off, while the user's own browser is let
-// straight through. Its PDFs have been open access since 2026-01-01.
+// every time one is passed, on campus and off, while the user's own browser is let straight through.
+// Its PDFs are open access.
 //
 // The downloads: on Atypon's sites (the ACM, SAGE, Wiley, T&F, Science, PNAS) /doi/pdf/<doi>?download=true
-// has the PDF saved rather than shown (2026-10-14, Dia: ten ACM papers in a row in 2–12 s each, and one
-// paper from each of the others; a paper the reader has no access to stays on its abstract or "Get
+// has the PDF saved rather than shown (a paper the reader has no access to stays on its abstract or "Get
 // Access" page and saves nothing). Springer's content/pdf address is shown, not saved, so Springer has none.
 //
 // The browser rows are from pitta's measured table; any other DOI goes through doi.org and the page's

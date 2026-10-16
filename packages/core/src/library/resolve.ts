@@ -122,9 +122,8 @@ export async function resolve(http: Http, input: string | Ref, keys: MetadataKey
     throw new NotAPaper(t`No service owlit asks knows that paper.`)
   }
   // Known to one index only (a Semantic Scholar or OpenAlex record with no DOI or arXiv id): such a
-  // record is often a stray copy of a published paper (2026-10-10: a review came in twice, once as an
-  // S2 record without DOI, year or proper author names). Crossref may know the DOI by its title; then
-  // the paper is that DOI's.
+  // record is often a stray copy of a published paper, without DOI, year or proper author names, and the
+  // paper would come in twice. Crossref may know the DOI by its title; then the paper is that DOI's.
   if ((ref.kind === "s2" || ref.kind === "openalex") && !records.some((r) => publishedDoi(r.ids.doi) || r.ids.arxiv)) {
     const known = records.find((r) => r.title)
     const quietly = (error: unknown) => {
@@ -230,8 +229,8 @@ export function withSubtitle(short: string, full: string) {
 }
 
 // The first abstract that is about the paper. One that shares no word with a title of five or more
-// telling words belongs to another paper (2026-10-10: OpenAlex gave Fischhoff's "Hindsight !=
-// foresight" a cancer study's abstract); with no other to take, the paper goes without.
+// telling words belongs to another paper (OpenAlex has given Fischhoff's "Hindsight != foresight" a cancer
+// study's abstract); with no other to take, the paper goes without.
 function pickAbstract(title: string, from: (SourceRecord | undefined)[], fields: Resolution["fields"], dropped: NonNullable<Resolution["dropped"]>) {
   const words = stems(title)
   let wrong: SourceRecord | undefined

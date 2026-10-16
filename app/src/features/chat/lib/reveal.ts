@@ -1,5 +1,5 @@
-// How an answer being written comes onto the screen. Agents send text in bursts (measured 2026-10-16:
-// Claude Code pauses 0.3–0.5s a few times per answer and then a line or two lands at once; Codex sends
+// How an answer being written comes onto the screen. Agents send text in bursts (Claude Code pauses
+// 0.3–0.5s a few times per answer and then a line or two lands at once; Codex sends
 // clumps 8–10 times a second), so the shown text trails what has arrived and closes a share of the gap
 // every frame: it runs about TRAIL_MS behind, speeds up by itself after a burst and slows into a pause,
 // with no fixed speed to tune per agent.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { whereItEnded } from "./where-it-ended.ts"
 
-// Pages a real run left in Dia (2026-10-14, off campus, through Tsinghua's tlink), and a few other
+// Pages a real run left in Dia (off campus, through Tsinghua's tlink), and a few other
 // schools' sign-ins
 describe("where a tab in the user's browser ended", () => {
   const sage = { address: "https://journals.sagepub.com/doi/pdf/10.1177/0146167212445599?download=true", proxy: "https://tlink.lib.tsinghua.edu.cn/go" }
@@ -75,7 +75,7 @@ describe("where a tab in the user's browser ended", () => {
   })
 
   it("doesn't read sign-in words inside other words", () => {
-    // Article pages doi.org sent a run to (2026-10-15): "sso" in "Lessons" and "Association"
+    // Article pages doi.org sent a run to: "sso" in "Lessons" and "Association"
     const bmj = { address: "https://doi.org/10.1136/qhc.12.4.304", page: true }
     expect(whereItEnded({ url: "https://qualitysafety.bmj.com/content/12/4/304", title: "Lessons from a hospital | BMJ Quality & Safety" }, bmj)).toBe("landed")
     const apa = { address: "https://doi.org/10.1037/0022-3514.54.4.569", page: true }

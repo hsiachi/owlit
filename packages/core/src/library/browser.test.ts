@@ -110,7 +110,7 @@ describe("browser routes", () => {
     const oup = browserRoutes("10.1007/s12160-016-9830-8", undefined, "https://academic.oup.com/abm/article/52/6/446/4733473")[0]
     expect(oup).toMatchObject({ name: "browser:doi", landing: "https://doi.org/10.1007/s12160-016-9830-8" })
     expect(oup.allowHosts).toContain("oup.com")
-    // doi.org sending the reader to BMJ or APA no longer stops at a host it doesn't know
+    // doi.org sending the reader to BMJ or APA doesn't stop at a host it doesn't know
     expect(browserRoutes("10.1136/qhc.12.4.304", undefined, "https://qualitysafety.bmj.com/lookup/doi/10.1136/qhc.12.4.304")[0].allowHosts).toContain("bmj.com")
     expect(browserRoutes("10.1037/0022-3514.54.4.569", undefined, "https://doi.apa.org/doi/10.1037/0022-3514.54.4.569")[0].allowHosts).toContain("apa.org")
     // Not known: the prefix decides, as before
@@ -120,7 +120,7 @@ describe("browser routes", () => {
   })
 
   it("takes the page's own PDF link when it has no citation_pdf_url", () => {
-    // APA PsycNet's full-text page, as it was on 2026-10-11
+    // APA PsycNet's full-text page, as captured from the site
     const page = "https://psycnet.apa.org/fulltext/2025-04548-001.html"
     expect(
       pdfLinkOn(page, [

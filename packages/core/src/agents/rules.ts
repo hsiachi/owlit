@@ -2,26 +2,7 @@ import type { MemoryLine } from "@owlit/protocol"
 
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
-//
-// Version 1 (2026-10-09): first version. Bump the version line in the text when the rules change, and
-// say here what changed.
-// Version 4 (2026-10-10): questions about using owlit itself go to owlit_help.
-// Version 5 (2026-10-10): docs are deleted and moved with docs_delete and docs_move.
-// Version 6 (2026-10-11): files the user attaches are copies in .owlit/chats/<id>/files/, read in place.
-// Version 7 (2026-10-13): writing about papers in the library starts from their text, not from memory.
-// Version 8 (2026-10-13): a write's why is a plain sentence to the user; lines may be named by ^id.
-// Version 9 (2026-10-14): papers found for a question go into a thread, not the library.
-// Version 10 (2026-10-14): threads are Owlit's reading of papers.
-// Version 11 (2026-10-14): a citation in an answer gives the sentence it rests on as its link's title.
-// Version 12 (2026-10-14): activity_read says what the user did; look there before asking what they mean.
-// Version 13 (2026-10-14): the memo names a paper by its short title, and only papers that are rows.
-// Version 14 (2026-10-14): the memo describes the papers, not the search; what a search missed goes in note.
-// Version 15 (2026-10-15): papers found for a question go into threads, with thread_list, thread_read and
-// thread_write.
-// Version 16 (2026-10-16): remarks on a doc are comments, left with docs_add_comment.
-// Version 17 (2026-10-16): owlit's memory, kept with memory_write; never the agent's own memory.
-// Version 18 (2026-10-16): seeing a thread's papers another way is a new grouping of that thread, not a new
-// thread.
+// Bump RULES_VERSION whenever the rules change; the commit says what changed.
 export const RULES_VERSION = 18
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}

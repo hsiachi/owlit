@@ -7,9 +7,9 @@ import { readJsonl, writeFileAtomic } from "../fs-util.ts"
 // The comments on docs, kept beside the files and never in them: .owlit/docs/comments/ mirrors the
 // workspace, so the comments on "writing/Related work.md" are in
 // .owlit/docs/comments/writing/Related work.md.jsonl, one comment per line. A mirror (rather than hashed
-// names) can be read by hand, and a folder's comments move with one rename. Before comments, agents left
-// notes in .owlit/docs/notes/ with one text each; that folder is renamed on first use and its lines read
-// as Owlit's comments. The caller (Docs) runs every call one at a time, alongside the file changes they
+// names) can be read by hand, and a folder's comments move with one rename. An older workspace has agents'
+// notes in .owlit/docs/notes/, one text each; that folder is renamed on first use and its lines read as
+// Owlit's comments. The caller (Docs) runs every call one at a time, alongside the file changes they
 // follow.
 export class Comments {
   private readonly dir: string

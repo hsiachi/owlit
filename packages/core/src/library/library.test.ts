@@ -435,8 +435,8 @@ describe("library on disk", () => {
 describe("a paper's tasks when it moves or goes", () => {
   // A paper whose digest agent, the moment it is asked, has the paper moved to a DOI or removed: its
   // answer comes back as the paper goes (an answer already on its way when the task is cancelled), and
-  // the note's write waits for the library's lock behind the move. Before, that write brought the old
-  // id's folder back with only digest.md in it.
+  // the note's write waits for the library's lock behind the move. A write that went first would bring
+  // the old id's folder back with only digest.md in it.
   async function digestWhile(change: (library: Workspace["library"], id: string) => Promise<unknown>) {
     const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-library-")))
     const root = path.join(base, "ws")

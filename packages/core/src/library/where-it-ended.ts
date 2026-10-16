@@ -7,7 +7,7 @@ import { siteOf } from "./browser-routes.ts"
 // else, which is where schools sign their readers in (CAS, Shibboleth, OpenAthens, CARSI, Microsoft,
 // Google). No school or proxy product is named. Words only break ties.
 //
-// What a real run showed (2026-10-14, Dia, tlink off campus): SAGE answering an institution without the
+// What a real run showed (Dia, tlink off campus): SAGE answering an institution without the
 // journal with its abstract page; T&F with "Get Access"; tlink with /ui/unauthorized for a resource the
 // library hasn't got; its proxy with /ui/minute-limit ("Access Denied") when asked too often; the
 // school's sign-in on id.tsinghua.edu.cn; Cloudflare's "Just a moment..." in front of a download; the
@@ -48,7 +48,7 @@ const CHECK = /just a moment|attention required|security check|checking your bro
 const LIMIT = /(minute|rate|request|access)-?limit|too-?many/i
 // Whole words only (a host's labels, a path's segments, a title's words): "sso" is in "Lessons" and
 // "Association", "auth" begins "Author" and "Authentic", and doi.org sends article pages with such
-// titles to publishers owlit doesn't know (2026-10-15, BMJ's and the APA's stopped runs as sign-ins).
+// titles to publishers owlit doesn't know (BMJ's and the APA's would stop a run as sign-ins).
 // camelCase is read as words too, for /LoginForm and /userLogin.
 const SIGN_IN = /(?<![a-z])(log-?(in|on)s?|sign-?(in|on)|sso(login)?|saml|cas|idp|shibboleth|openathens|wayf|o?auth(n|server|enticate|entication)?)(?![a-z])|登录|认证|身份/i
 const signIn = (text: string) => SIGN_IN.test(text) || SIGN_IN.test(text.replace(/([a-z])([A-Z])/g, "$1 $2"))

@@ -90,14 +90,14 @@ export async function searchSource(
 }
 
 // S2 without a key is shared with everyone and often says "slow down". OpenAlex gives a daily allowance
-// (2026-10: a search costs 10 credits of 1,000 without a key, 10,000 with a free one); once it's used
-// up, "try again in a minute" sends an agent round in circles (seen 2026-10-10: 55 failed searches in
-// one literature review), so it hears when the allowance comes back and what to use meanwhile.
+// (a search costs 10 credits of 1,000 without a key, 10,000 with a free one); once it's used up, "try
+// again in a minute" sends an agent round in circles, searching again and again for a whole literature
+// review, so it hears when the allowance comes back and what to use meanwhile.
 //
 // These messages are read by two readers: the agent, as its tool's result, and the user, who sees the
-// same text when they open the failed step in the chat (seen 2026-10-13: "the user can add one in
-// Settings" shown to the user). So they speak of Owlit and the user in the third person, and the tool
-// arguments the agent needs stay in brackets.
+// same text when they open the failed step in the chat. So they speak of Owlit and the user in the third
+// person ("the user can add one in Settings" reads oddly to the user), and the tool arguments the agent
+// needs stay in brackets.
 function busy(error: unknown, name: string, keys: MetadataKeys) {
   if (error instanceof HttpError && error.status === 429 && error.quotaResetIn !== undefined) {
     const back = new Date(Date.now() + error.quotaResetIn * 1000)
@@ -128,8 +128,8 @@ function busy(error: unknown, name: string, keys: MetadataKeys) {
 export type RelatedKind = "references" | "cited_by" | "similar"
 
 // A paper's neighbours. Published work (a DOI) goes to OpenAlex, which filters and sorts; a preprint to
-// Semantic Scholar, since OpenAlex's records of arXiv papers can be another paper's (seen 2026-10-10: the
-// RAG paper's arXiv DOI held a 2026 title and its references). "similar" is S2's recommender.
+// Semantic Scholar, since OpenAlex's record for an arXiv DOI can hold another paper's title and
+// references. "similar" is S2's recommender.
 export async function relatedOf(
   http: Http,
   ids: PaperIds,

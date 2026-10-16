@@ -15,31 +15,16 @@ export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 
 // What an owlit session takes from the agent's own setup: nothing but its sign-in. A user's agent carries
 // whatever they set up for their other work (skills, plugins, hooks, MCP servers, subagents, their
-// CLAUDE.md, and on Claude Code the connectors of their claude.ai account), and all of it reached Owlit:
-// a stuck claude.ai connector tool held a turn for five minutes (2026-10-10), and one probe session was
-// offered over a hundred skills, a screen recorder's MCP server and Gmail. owlit's own MCP server and
-// rules are what the agent should work with.
-//
-// Claude Code (claude-agent-acp 0.88) passes `_meta.claudeCode.options` to the Agent SDK over its own
-// defaults, so:
-// - settingSources [] reads none of ~/.claude/settings.json, .claude/ or CLAUDE.md, and with them the
-//   user's hooks, plugins, skills and subagents; skills [] and plugins [] say so outright
-// - strictMcpConfig keeps the MCP servers to the ones owlit passes, claude.ai connectors included;
-//   disableClaudeAiConnectors says so again
-// - tools lists the built-in tools owlit wants. The rest publish or act outside the workspace (Artifact,
-//   scheduled and remote agents, push notifications, worktrees) or mean nothing here, and a Claude Code
-//   update can't add one behind owlit's back. ToolSearch stays because MCP tools may be deferred behind it.
-// - autoMemoryEnabled false: Claude Code's own memory (notes in ~/.claude/projects/<folder>/memory/)
-//   stays on without settingSources, out of the user's sight and outside the workspace, so each write
-//   asked like an edit. Owlit keeps its own memory in the workspace (memory.ts); autoDreamEnabled false
-//   stops the background tidying of the other. Checked 2026-10-16: the system prompt no longer names a
-//   memory folder.
-// Auto mode doesn't depend on any of it (checked: the session still offers it).
+// CLAUDE.md, claude.ai connectors), and all of it would reach Owlit: a stuck connector tool can hold a turn
+// for minutes, and a probe session was offered over a hundred skills, a screen recorder and Gmail. owlit's
+// own MCP server and rules are what the agent should work with. Auto mode doesn't depend on any of this.
 //
 // Codex takes no session options; what of the user's setup it leaves out is set for its whole process
-// (processEnv below). Two things still come through: the user's MCP servers and their own AGENTS.md
-// (an open question in the maintainer's local/ideas.md).
+// (processEnv below). The user's MCP servers and their ~/.codex/AGENTS.md still come through.
 
+// Built-in tools owlit wants. The rest publish or act outside the workspace (Artifact, scheduled and remote
+// agents, push notifications, worktrees) or mean nothing here, and listing them means a Claude Code update
+// can't add one behind owlit's back. ToolSearch stays because MCP tools may be deferred behind it.
 const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch", "TodoWrite", "AskUserQuestion"]
 
 export interface ClaudeOptions {
@@ -47,18 +32,25 @@ export interface ClaudeOptions {
   [option: string]: unknown
 }
 
-// The `_meta` for a session on this agent: owlit's isolation, with `options` (a role's) on top
+// The `_meta` for a session on this agent: owlit's isolation, with `options` (a role's) on top.
+// claude-agent-acp passes `_meta.claudeCode.options` to the Agent SDK over its own defaults.
 export function sessionMeta(connectorId: string, options: ClaudeOptions = {}): Record<string, unknown> | undefined {
   if (connectorId !== "claude-code") return undefined
   return {
     claudeCode: {
       options: {
+        // None of ~/.claude/settings.json, .claude/ or CLAUDE.md, and with them the user's hooks, plugins,
+        // skills and subagents; skills [] and plugins [] say so outright
         settingSources: [],
+        // Only the MCP servers owlit passes, claude.ai connectors left out (disableClaudeAiConnectors again)
         strictMcpConfig: true,
         skills: [],
         plugins: [],
         tools: CLAUDE_TOOLS,
         ...options,
+        // Claude Code's own memory (~/.claude/projects/<folder>/memory/) stays on without settingSources,
+        // out of the user's sight and outside the workspace, so each write asked like an edit. Owlit keeps
+        // its own memory in the workspace (memory.ts); autoDreamEnabled false stops the background tidying.
         settings: { disableClaudeAiConnectors: true, autoMemoryEnabled: false, autoDreamEnabled: false, ...options.settings },
       },
     },
@@ -67,22 +59,11 @@ export function sessionMeta(connectorId: string, options: ClaudeOptions = {}): R
 
 // What an agent's process is started with beyond the user's own environment. codex-acp sends CODEX_CONFIG
 // (JSON) with every new session as config over the user's ~/.codex/config.toml, so owlit's isolation for
-// Codex goes there, on top of any CODEX_CONFIG the user set. Checked 2026-10-16 with codex-acp 2.2.1
-// (Codex 0.160), by what the session's rollout file recorded and what it said it had:
-// - memories off: Codex keeps memories of every project in ~/.codex/memories, written in the background,
-//   and owlit's sessions read and added to them
-// - skills.include_instructions false: the session isn't told of any skill (the user's, their plugins',
-//   the workspace's .agents/skills or Codex's own), and has no tool to look one up
-// - plugins and apps off: the user's plugins (with their skills and MCP servers) and the connectors of
-//   their ChatGPT account (Gmail, Drive, publishing sites); tool_suggest off stops it offering to install
-//   more. computer_use, browser_use and in_app_browser off, as tools that act outside the workspace
-// - hooks off and notify [], so nothing the user set to run at a turn's events runs for owlit's
-// - project_doc_max_bytes 0: no AGENTS.md from the workspace. ~/.codex/AGENTS.md still comes; none of
-//   instructions, developer_instructions or project_doc_max_bytes stops it.
-// Merging only adds to the user's config, which is why their MCP servers stay: an entry's
-// `mcp_servers.<name>.enabled` false would turn one off, but codex-acp sends owlit's own server as the
-// whole `mcp_servers` key, and Codex applies the keys in no fixed order, so the entry was wiped in some
-// sessions and not others. codex-acp's own title thread doesn't get CODEX_CONFIG either (processSetup).
+// Codex goes there, on top of any CODEX_CONFIG the user set (checked with codex-acp 2.2.1, Codex 0.160, by
+// the session's rollout file). Merging only adds to the user's config, which is why their MCP servers stay:
+// `mcp_servers.<name>.enabled` false would be wiped in some sessions, since codex-acp sends owlit's own
+// server as the whole `mcp_servers` key and Codex applies keys in no fixed order. codex-acp's own title
+// thread doesn't get CODEX_CONFIG either (processSetup).
 export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<string, string> {
   if (connectorId !== "codex") return {}
   let config: Record<string, unknown> = {}
@@ -98,17 +79,25 @@ export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<
       ...config,
       features: {
         ...section("features"),
+        // Codex keeps memories of every project in ~/.codex/memories, written in the background
         memories: false,
+        // The user's plugins (with their skills and MCP servers) and their ChatGPT connectors (Gmail, Drive,
+        // publishing sites); tool_suggest would offer to install more
         plugins: false,
         apps: false,
         tool_suggest: false,
+        // Tools that act outside the workspace
         computer_use: false,
         browser_use: false,
         in_app_browser: false,
+        // With notify [], nothing the user set to run at a turn's events runs for owlit's
         hooks: false,
       },
       memories: { ...section("memories"), generate_memories: false, use_memories: false },
+      // The session isn't told of any skill (the user's, their plugins', the workspace's .agents/skills or
+      // Codex's own), and has no tool to look one up
       skills: { ...section("skills"), include_instructions: false },
+      // No AGENTS.md from the workspace. ~/.codex/AGENTS.md still comes; no config key stops it.
       project_doc_max_bytes: 0,
       notify: [],
     }),
@@ -121,7 +110,7 @@ export function processEnv(connectorId: string, env: NodeJS.ProcessEnv): Record<
 // with a title given to it, so each of owlit's is named "Owlit" as soon as it opens (owlit names chats
 // itself; the name is what the user's Codex lists it by). Naming takes codex-acp's `_session/rename`, which
 // it offers only to a client that says it keeps a session index (JetBrains AIR's extension); owlit uses no
-// other part of it. Checked 2026-10-16 with codex-acp 2.2.1: no title thread starts.
+// other part of it (codex-acp 2.2.1).
 export function processSetup(connectorId: string): Pick<ProcessOptions, "clientMeta" | "opened"> {
   if (connectorId !== "codex") return {}
   return {
@@ -134,8 +123,7 @@ export function processSetup(connectorId: string): Pick<ProcessOptions, "clientM
 
 // What a role means on each agent. owlit relies on one thing: an agent asks, with the diff, before it
 // changes the user's files. Each agent is held to that with its own controls, since none of them sends
-// its edits through ACP's fs/write_text_file (tried 2026-10-10 with claude-agent-acp 0.88 and
-// codex-acp 2.2.1):
+// its edits through ACP's fs/write_text_file (claude-agent-acp 0.88, codex-acp 2.2.1):
 // - Claude Code runs in its auto mode. Its own permission rules make its file-editing tools ask (or
 //   refuse) even there, and its sandbox stops shell commands writing the workspace, so a `sed` or an
 //   `echo >>` fails and it falls back to the editing tool, which asks. Its auto classifier still judges
@@ -191,8 +179,8 @@ export function backgroundMeta(connectorId: string, tools: string[]): Record<str
 
 // ---- Reading what an agent sends ----
 
-// A tool call's tool, as the agent names it: ACP's own name (Tool Call Name RFD, settled 2026-09-17;
-// claude-agent-acp 0.88 sends it), else Claude Code's older _meta.claudeCode.toolName
+// A tool call's tool, as the agent names it: ACP's own name (Tool Call Name RFD; claude-agent-acp ≥0.88
+// sends it), else Claude Code's older _meta.claudeCode.toolName
 export function toolNameOf(call: { name?: string | null; _meta?: Record<string, unknown> | null }): string | undefined {
   const standard = typeof call.name === "string" && call.name ? call.name : undefined
   const claude = (call._meta?.claudeCode as { toolName?: unknown } | undefined)?.toolName
@@ -200,7 +188,7 @@ export function toolNameOf(call: { name?: string | null; _meta?: Record<string, 
 }
 
 // The report an agent's own agent hands back, when this step is how it does: Claude Code's agents end with
-// a SubagentHandback call whose input is the report (checked 2026-10-11, claude-agent-acp 0.88); the step
+// a SubagentHandback call whose input is the report (claude-agent-acp 0.88); the step
 // itself only says "Report delivered"
 export function handbackOf(call: { name?: string | null; _meta?: Record<string, unknown> | null; rawInput?: unknown }): string | undefined {
   if (toolNameOf(call) !== "SubagentHandback") return undefined
@@ -212,11 +200,11 @@ export function handbackOf(call: { name?: string | null; _meta?: Record<string, 
 
 // Whether this update closes a turn of the agent's own, one no prompt waits for. Claude Code goes on after
 // its prompt has returned: when a background agent reports back after end_turn, the report starts a turn of
-// its own, and its answer streams in with no prompt open (checked 2026-10-11, claude-agent-acp 0.88: two
-// parallel agents, end_turn at 18.1s, the real answer from 19.9s). Each of its turns, those included, ends
-// with a usage_update that carries the session's cost, sent right after the turn's last words (its
-// `result` message; also sent once more for each finished background task, which says nothing new). An
-// agent this says nothing for is waited out instead (turns.ts, LATE_QUIET_MS).
+// its own, and its answer streams in with no prompt open, seconds after end_turn (claude-agent-acp 0.88).
+// Each of its turns, those included, ends with a usage_update that carries the session's cost, sent right
+// after the turn's last words (its `result` message; also sent once more for each finished background
+// task, which says nothing new). An agent this says nothing for is waited out instead (turns.ts,
+// LATE_QUIET_MS).
 export function ownTurnOver(connectorId: string, u: acp.SessionUpdate): boolean {
   return connectorId === "claude-code" && u.sessionUpdate === "usage_update" && !!u.cost
 }
@@ -236,8 +224,8 @@ export const bareToolTitle = (title: string) => title.replace(OWLIT_PREFIX, "")
 
 // ---- Files the user attaches ----
 
-// Every agent gets an attached file as a link to owlit's copy and reads it with its own tools (checked
-// 2026-10-11, attachments-proposal.md): Claude Code (claude-agent-acp 0.88) reads a PDF with its Read
+// Every agent gets an attached file as a link to owlit's copy and reads it with its own tools, so owlit
+// needn't convert anything for them: Claude Code (claude-agent-acp 0.88) reads a PDF with its Read
 // tool and a Word file by unzipping it; Codex (codex-acp 2.2.1) reads a PDF with pdftotext and a Word file
 // by unzipping it. The Owlit engine has no shell: it reads text files with its own tool, PDFs through
 // owlit's docs_read, and sees images when its model does, but can't open a Word file or anything else
@@ -254,8 +242,8 @@ export const PICTURE_MAX_BYTES = 5 * 1024 * 1024
 
 // Whether an attached image also goes to the agent as a picture (an ACP image block), so its model sees
 // it without a step: when the agent says it takes images. Codex says so for every model, but refuses the
-// whole prompt when the chat's model takes text only (codex-acp 2.2.1). Every model it listed on
-// 2026-10-11 takes images; the open-weight gpt-oss models (Codex's --oss) and Codex-Spark are taken to be
+// whole prompt when the chat's model takes text only (codex-acp 2.2.1). Its listed models take images;
+// the open-weight gpt-oss models (Codex's --oss) and Codex-Spark are taken to be
 // text-only, so they get the link alone, which loses nothing. The Owlit engine knows its models and leaves
 // the picture out itself, with a word to the model, when one takes text only.
 export function sendsPictures(connectorId: string, init: Pick<acp.InitializeResponse, "agentCapabilities">, modelId?: string) {

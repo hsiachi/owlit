@@ -24,7 +24,7 @@ export interface SessionHandler {
 export type AgentNotice = { kind: "started"; agentId: string; title: string } | { kind: "state"; agentId: string; state: string }
 
 // Whose sign-in the agent's process runs on, as claude-agent-acp reports it (its authStatus extension, a
-// push on `_auth/status_update`; checked 2026-10-13 with 0.88): "none" is a Claude Code that is signed
+// push on `_auth/status_update`, claude-agent-acp 0.88): "none" is a Claude Code that is signed
 // out, which its initialize and newSession don't say otherwise
 export interface AuthStatus {
   kind: "account" | "api_key" | "gateway" | "external" | "none"
@@ -397,7 +397,7 @@ export class AcpProcess {
 
   // Takes an agent's announcements of its own agents out of what it sends, before the SDK reads it.
   // Claude Code and Codex send them under names from before the draft settled ("subagent_spawned",
-  // "subagent_state_update"; checked 2026-10-11 with claude-agent-acp 0.88), which no SDK release knows:
+  // "subagent_state_update"; claude-agent-acp 0.88), which no SDK release knows:
   // the SDK would refuse each one as invalid and drop it. The draft's own "subagent_update" is taken the
   // same way.
   private takeAgentNotices(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {

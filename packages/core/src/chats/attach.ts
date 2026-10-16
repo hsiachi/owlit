@@ -11,7 +11,7 @@ import { messageOf } from "../util.ts"
 type Params = ParamsOf<"chats.attach">
 type Result = ResultOf<"chats.attach">
 
-// A file the user attaches to a message (PRODUCT.md §4, Files in chat). What owlit already has is
+// A file the user attaches to a message. What owlit already has is
 // pointed at rather than copied, since each thing has one home: a PDF the Library has (the same bytes)
 // is that paper, so the agent also gets its notes and highlights; a file in the user's docs is that doc.
 // Anything else is copied into the chat's folder now, when it is attached, so sending never waits on a

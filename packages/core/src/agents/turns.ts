@@ -550,16 +550,11 @@ export class Turns {
   //
   // An agent may go on after its turn has ended: Claude Code's prompt can come back end_turn while a
   // report from one of its background agents is still on its way, and the answer that report leads to
-  // streams in a moment later with no prompt open (2026-10-11; profiles.ts, ownTurnOver). That belongs to
-  // the reply it continues, so the chat's last reply is opened again: it streams, is saved and can be
-  // stopped like a running turn, and ends again when the agent is done. Only a reply whose turn ended
-  // normally, and that is still the chat's last, is opened again; a reply the user stopped stays stopped.
-  //
-  // When it ends: at the agent's own sign that its turn is over, where profiles.ts knows one, with no
-  // question open and none of its agents at work; otherwise once LATE_QUIET_MS pass with nothing new. A
-  // tool call or agent still running stretches that to LATE_STALLED_MS (a command can run silently for
-  // minutes), and a question waits for the user as in any turn. Stop ends it at once and cancels the
-  // session, and the user's next message ends it too (see prompt).
+  // streams in a moment later with no prompt open (profiles.ts, ownTurnOver). That belongs to the reply it
+  // continues, so the chat's last reply is opened again: it streams, is saved and can be stopped like a
+  // running turn. Only a reply whose turn ended normally, and that is still the chat's last, is opened
+  // again; a reply the user stopped stays stopped. Stop ends it at once and cancels the session, and the
+  // user's next message ends it too (see prompt).
 
   // The turn that is running on this session, or starting on it (a new message whose session is still
   // being got ready: what the agent sends meanwhile is already the new turn's)
@@ -602,7 +597,8 @@ export class Turns {
     return true
   }
 
-  // Something came on the session of a reply open again; over: the agent's sign that its turn is over
+  // Something came on the session of a reply open again; over: the agent's own sign that its turn is over
+  // (where profiles.ts knows one), which ends it unless a question is open or its agents are at work
   private lateHeard(turn: Turn, over: boolean) {
     if (over && !this.lateBusy(turn)) void this.endLate(turn, "done")
     else this.lateTick(turn)
@@ -618,7 +614,8 @@ export class Turns {
     return running ? "running" : null
   }
 
-  // Starts the wait for the reply's end again
+  // Starts the wait for the reply's end again: LATE_QUIET_MS with nothing new, or LATE_STALLED_MS while a
+  // tool call or agent still runs (a command can run silently for minutes)
   private lateTick(turn: Turn, update?: SessionUpdate) {
     const late = turn.late
     if (!late || late.ending) return
@@ -718,7 +715,7 @@ async function quiet(turn: Turn) {
 const CLAIM_AFTER_MS = 5000
 
 // How long a reply taken up again waits for more before it ends, for an agent with no sign of its own that
-// its turn is over; within one turn Claude Code's longest silence was a couple of seconds (2026-10-11)
+// its turn is over; within one turn Claude Code is rarely silent for more than a couple of seconds
 const LATE_QUIET_MS = 15_000
 // The same while a tool call or one of its agents is still running, as long as the agent's process would
 // stay up with nothing to do

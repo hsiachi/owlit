@@ -9,7 +9,7 @@
 //   but only halfway to a caption beside it, so figures set side by side stay apart;
 // - pieces that would take body text inside their joint box are not joined: that is two figures.
 //
-// Checked by eye on 132 papers (2026-10-13): about one figure in five comes in pieces. Still missed,
+// About one figure in five comes in pieces (checked by eye on 132 papers). Still missed,
 // and left out rather than misplaced: captions beside a figure, rotated pages, unnumbered figures.
 
 export interface Box {

@@ -476,7 +476,7 @@ function paperLine(p: Paper) {
 }
 
 // Why a paper has no PDF, in words an agent can pass on. A bare "no PDF" had an agent tell the user to
-// set up the library proxy they already had (2026-10-10), and say nothing of the papers waiting for the
+// set up the library proxy they already had, and say nothing of the papers waiting for the
 // user's browser.
 export function pdfFact(p: Pick<Paper, "pdf" | "noPdf" | "ids">) {
   if (p.pdf) return ""

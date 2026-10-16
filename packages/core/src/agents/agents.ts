@@ -221,8 +221,7 @@ export class Agents {
       await proc.closeSession(session.sessionId)
       const probed = probe(init, session)
       await this.options.settings.update((s) => ({ ...s, connectors: { ...s.connectors, probed: { ...s.connectors.probed, [id]: probed } } }))
-      // A signed-out Claude Code opens a session all the same and only refuses the first prompt (seen
-      // 2026-10-13: the welcome check said "Owlit will use Claude Code", the first message stopped); its
+      // A signed-out Claude Code opens a session all the same and only refuses the first prompt; its
       // adapter does say so, in a report of its own, so the check asks for that before calling it ready
       if ((await proc.authStatus(AUTH_STATUS_WAIT_MS))?.kind === "none") {
         await this.signedOut(id)
@@ -290,7 +289,7 @@ export class Agents {
 
   // Claude Code's sign-in is the agent's own command with the method's args, meant for a terminal. Run
   // without one it opens the browser, waits for the sign-in to come back to it, and exits (claude-agent-acp
-  // 0.91, tried 2026-10-16), so people need neither Terminal nor their own `claude`. One at a time per
+  // ≥0.91), so people need neither Terminal nor their own `claude`. One at a time per
   // agent; a sign-in left in the browser is given up after a while.
   private async signInOutside(id: string, methodArgs: string[]): Promise<Connector> {
     this.signingIn.get(id)?.kill()

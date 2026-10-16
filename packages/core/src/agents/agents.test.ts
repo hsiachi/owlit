@@ -133,7 +133,7 @@ describe("agents", () => {
     expect(codex).toMatchObject({ status: "not_installed", installHint: "npm install -g @agentclientprotocol/codex-acp" })
   })
 
-  // A turn ends with this sentence; before, it was the bare name ("Claude Code") under "Owlit stopped"
+  // A turn ends with this sentence, not the bare name ("Claude Code") under "Owlit stopped"
   it("explains a missing agent when a turn starts it", async () => {
     const empty = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-empty-path-")))
     const { agents } = await setup(60_000, async () => empty)
