@@ -239,6 +239,27 @@ export class Threads {
     })
   }
 
+  // A new way of grouping the papers: a hidden grouping column with the user's words as its question,
+  // filled in the background. The same words again fill the grouping there is (Ask again).
+  group(id: string, question: string) {
+    return this.serial.run(async () => {
+      const c = await this.get(id)
+      const q = question.trim()
+      if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to group the papers by.`)
+      let column = c.columns.find((col) => col.kind === "grouping" && sameWords(col.question, q))
+      if (!column) {
+        column = { id: freshId("g", c.columns.map((col) => col.id)), question: q, kind: "grouping", hidden: true, groups: [] }
+        c.columns.push(column)
+        c.updatedAt = Date.now()
+        await this.save(c)
+        await this.record(c.id, { at: c.updatedAt, by: "you", items: [`column:${column.id}`] })
+        this.services.changed?.(c.id, c)
+      }
+      this.queue("threads.fill", `${c.id}:${column.id}`, "asked")
+      return c
+    })
+  }
+
   async fill(id: string, columnId: string) {
     const c = await this.get(id)
     if (!c.columns.some((col) => col.id === columnId)) throw new RpcFailure(RpcErrorCode.NotFound, t`That column isn't there any more.`)
@@ -342,8 +363,19 @@ export class Threads {
       // leaves it out.
       const userKept: string[] = []
       const wantsGroups = !!input.groups || (input.rows ?? []).some((r) => r.group !== undefined || r.groups !== undefined)
-      let grouping = wantsGroups ? (input.grouping ? c.columns.find((col) => col.id === input.grouping) : c.columns.find((col) => col.kind === "grouping")) : undefined
-      if (wantsGroups && input.grouping && grouping?.kind !== "grouping") problems.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic).`)
+      const newGrouping = input.newGrouping?.trim()
+      let grouping = newGrouping
+        ? c.columns.find((col) => col.kind === "grouping" && sameWords(col.question, newGrouping))
+        : wantsGroups
+          ? input.grouping
+            ? c.columns.find((col) => col.id === input.grouping)
+            : c.columns.find((col) => col.kind === "grouping")
+          : undefined
+      if (newGrouping && !grouping) {
+        grouping = { id: freshId("g", c.columns.map((col) => col.id)), question: newGrouping, kind: "grouping", hidden: true, groups: [] }
+        c.columns.push(grouping)
+        mark(`column:${grouping.id}`, false)
+      } else if (wantsGroups && input.grouping && grouping?.kind !== "grouping") problems.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic), or give new_grouping to start one.`)
       else if (wantsGroups && !grouping) {
         let id = GROUPING_COLUMN
         for (let n = 2; c.columns.some((col) => col.id === id); n++) id = `${GROUPING_COLUMN}${n}`
@@ -551,8 +583,8 @@ export class Threads {
         throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the thread any more.`)
       }
       const items = done.items
-      // Looking changes nothing worth a line in the history, nor the order of the list
-      if (edit.op !== "seen") {
+      // Looking, and how the user looks, change nothing worth a line in the history, nor the order of the list
+      if (edit.op !== "seen" && edit.op !== "view") {
         c.updatedAt = now
         await this.record(c.id, { at: now, by: "you", items: items.length ? items : [edit.op] })
       }

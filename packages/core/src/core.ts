@@ -821,6 +821,7 @@ export class Core {
         rows: z.array(z.object({ id: z.string().min(1), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), groups: z.array(z.string()).optional(), foundBy: z.string().optional() })).optional(),
         groups: z.array(group).optional(),
         grouping: z.string().optional(),
+        newGrouping: z.string().optional(),
         removeRows: z.array(z.string()).optional(),
         why: z.string().optional(),
         note: z.string().optional(),
@@ -850,6 +851,7 @@ export class Core {
           z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
           z.object({ op: z.literal("project"), project: z.string() }),
           z.object({ op: z.literal("seen") }),
+          z.object({ op: z.literal("view"), groupBy: z.string().min(1) }),
         ]),
       }),
       ({ id, edit }) => threads().edit(id, edit),
@@ -873,6 +875,7 @@ export class Core {
       ({ id, doc, sentences }) => threads().compare(id, doc, sentences),
     )
     this.router.register("threads.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), ({ id, column }) => threads().fill(id, column))
+    this.router.register("threads.group", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => threads().group(id, question))
     this.router.register("threads.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), ({ id, question }) => threads().ask(id, question))
     this.router.register("threads.delete", z.object({ id: z.string().min(1) }), ({ id }) => threads().delete(id))
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), ({ id }) => threads().undelete(id))

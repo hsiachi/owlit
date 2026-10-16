@@ -289,7 +289,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
       if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
       const done = await owlit.rpc.threads.write({
-        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping" }),
+        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
         ...(options.run && !options.chatId ? { run: options.run } : {}),
         ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
         ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),

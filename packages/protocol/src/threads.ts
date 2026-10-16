@@ -112,6 +112,9 @@ export interface ThreadYours {
   // Groups the user merged into another, by "<column>:<group>": a paper Owlit puts in one later goes in the
   // other
   merged: Record<string, string>
+  // How the user last looked at the table: what it is grouped by ("grouping:<column>", "column:<column>"
+  // for a comparison's sentences, or "none"). A preference of theirs, not a change: no dot, no history.
+  view?: { groupBy?: string }
 }
 
 export interface Thread {
@@ -329,6 +332,9 @@ export interface ThreadWrite {
   // The grouping column that groups and the rows' group(s) are for: the first grouping by default, and a
   // hidden Topic grouping when the thread has none yet
   grouping?: string
+  // A new way of grouping the papers, by what it divides them by ("the chapters of the story"): the write's
+  // groups and the rows' group(s) are for it. One the thread has already, by the same words, is that one.
+  newGrouping?: string
   // Rows Owlit takes out (the user's own removals are separate and stay)
   removeRows?: string[]
   why?: string
@@ -406,6 +412,8 @@ export type ThreadEdit =
   | { op: "hide"; column: string; hidden: boolean }
   | { op: "project"; project: string }
   | { op: "seen" }
+  // What the table is grouped by, remembered for the thread (yours.view)
+  | { op: "view"; groupBy: string }
 
 // Owlit's own text for an item, before the user's rewrite
 export function owlitText(c: Thread, item: string): string | undefined {
@@ -500,6 +508,9 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
     }
     case "project":
       c.project = edit.project
+      return { items: [] }
+    case "view":
+      c.yours.view = { ...c.yours.view, groupBy: edit.groupBy }
       return { items: [] }
     case "seen":
       // Covers every change so far, even one dated a moment ahead so that it got its dot

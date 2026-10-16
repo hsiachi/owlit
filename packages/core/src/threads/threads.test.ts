@@ -261,6 +261,31 @@ describe("Threads, a paper in several groups", () => {
   })
 })
 
+describe("Threads, several groupings", () => {
+  it("starts a new grouping from a chat's write, and finds it again by the same words", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads)
+    await threads.write({ id, newGrouping: "按方法", groups: [{ id: "m1", name: "回放" }], rows: [{ id: "doi-10.1145-1", group: "m1" }] })
+    await threads.write({ id, newGrouping: "按方法", rows: [{ id: "doi-10.1145-2", group: "m1" }] })
+    const c = await threads.get(id)
+    const groupings = c.columns.filter((col) => col.kind === "grouping")
+    expect(groupings).toEqual([{ id: expect.any(String), question: "按方法", kind: "grouping", hidden: true, groups: [{ id: "m1", name: "回放" }] }])
+    expect(c.rows.map((r) => r.in)).toEqual([{ [groupings[0]!.id]: ["m1"] }, { [groupings[0]!.id]: ["m1"] }])
+  })
+
+  it("remembers what the table is grouped by without a dot, a line in the history or a new date", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads)
+    const before = await threads.get(id)
+    await threads.edit(id, { op: "view", groupBy: "grouping:topic" })
+    const c = await threads.get(id)
+    expect(c.yours.view).toEqual({ groupBy: "grouping:topic" })
+    expect(c.updatedAt).toBe(before.updatedAt)
+    expect(c.changedAt).toEqual(before.changedAt)
+    expect((await threads.history(id)).some((l) => l.items.includes("view"))).toBe(false)
+  })
+})
+
 describe("Threads kept before groupings", () => {
   it("upgrades a version 1 thread once: its groups become a hidden Topic grouping", async () => {
     const { owlit, threads } = setup()
@@ -440,6 +465,12 @@ describe("Threads, Owlit's work in the background", () => {
           { by: `run:${run}`, at: Date.now(), query: "replay ratings validity", source: "openalex", results: ["doi-10.1145-1", "doi-10.1145-9"] },
           { by: `run:${run}`, at: Date.now(), query: "cited_by of doi-10.1145-1", source: "openalex", results: ["doi-10.1145-8"] },
         )
+        // Grouping: the groups first, then every paper in one, as the prompt says
+        const grouping = /The grouping: ([\w-]+)/.exec(prompt)?.[1]
+        if (id && grouping) {
+          await ctx.threads.write({ id, grouping, groups: [{ id: "ch1", name: "Chapter 1" }, { id: "ch2", name: "Chapter 2" }], run })
+          await ctx.threads.write({ id, grouping, rows: [{ id: "doi-10.1145-1", group: "ch1" }, { id: "doi-10.1145-2", group: "ch2" }], run })
+        }
         if (id && prompt.includes("gathering"))
           await ctx.threads.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", run })
         return { text: "Gathered one paper." }
@@ -507,6 +538,31 @@ describe("Threads, Owlit's work in the background", () => {
     expect(prompts[0]?.prompt).toMatch(/- l2: «Timing is one stage of four\.»/)
     await threads.edit(id, { op: "hide", column: column.id, hidden: true })
     expect((await threads.get(id)).columns.find((col) => col.id === column.id)?.hidden).toBe(true)
+  })
+
+  it("groups the papers another way: a hidden grouping the agent fills, groups first; asked again, the user's moves stay", async () => {
+    const { threads, scheduler, prompts } = withRuns()
+    const { id } = await start(threads, { groups: [{ id: "a", name: "A" }], rows: [{ id: "doi-10.1145-1", group: "a" }] })
+    const c = await threads.group(id, "the chapters of my story")
+    const column = c.columns.at(-1)!
+    expect(column).toMatchObject({ kind: "grouping", question: "the chapters of my story", hidden: true, groups: [] })
+    await scheduler.wait((await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!.id)
+    expect(prompts[0]?.prompt).toMatch(/by «the chapters of my story»/)
+    expect(prompts[0]?.prompt).not.toMatch(/afresh/)
+    let now = shownThread(await threads.get(id))
+    expect(now.columns.find((col) => col.id === column.id)?.groups?.map((g) => g.id)).toEqual(["ch1", "ch2"])
+    expect(now.rows.map((r) => r.in)).toEqual([
+      { topic: ["a"], [column.id]: ["ch1"] },
+      { [column.id]: ["ch2"] },
+    ])
+    // The user moves a paper in the new grouping, then asks for it again: the move stays
+    await threads.edit(id, { op: "move", column: column.id, row: "doi-10.1145-1", group: "ch2", from: "ch1" })
+    await scheduler.wait((await threads.fill(id, column.id)).id)
+    expect(prompts.at(-1)?.prompt).toMatch(/afresh/)
+    now = shownThread(await threads.get(id))
+    expect(now.rows.map((r) => r.in?.[column.id])).toEqual([["ch2"], ["ch2"]])
+    // The same words again are the same grouping
+    expect((await threads.group(id, "the chapters  of my story")).columns.filter((col) => col.kind === "grouping")).toHaveLength(2)
   })
 
   it("checks watched threads once a day", async () => {

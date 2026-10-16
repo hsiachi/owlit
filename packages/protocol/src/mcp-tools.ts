@@ -279,9 +279,13 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         groups: {
           type: "string",
           description:
-            'JSON array of the whole grouping, for many papers: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}]. Two levels at most: a group with a parent can\'t be a parent itself. Groups the user merged or ungrouped stay so, and papers the user put in a group stay there; thread_read says which. (optional)',
+            'JSON array of the whole grouping, for many papers: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}]. It replaces the thread\'s own grouping (Topic), or the one named in grouping; to group the papers another way, give new_grouping instead and keep the others. Two levels at most: a group with a parent can\'t be a parent itself. Groups the user merged or ungrouped stay so, and papers the user put in a group stay there; thread_read says which. (optional)',
         },
         grouping: { type: "string", description: "Which grouping groups and the rows' group are for, by its column id as thread_read gives it; leave out for the thread's own (Topic) (optional)" },
+        new_grouping: {
+          type: "string",
+          description: "A new way of grouping this thread's papers, in the user's words (\"by method\", \"按研究故事的章节\"): groups and the rows' group in this write are for it. When the user asks to see the papers another way, use this rather than starting a new thread. (optional)",
+        },
         columns: { type: "array", items: { type: "string" }, description: "New questions to ask of every paper, each becoming a column (optional)" },
         remove_rows: { type: "array", items: { type: "string" }, description: "Ids of papers you take out again (optional)" },
         why: { type: "string", description: "One plain sentence on what this write did, for the thread's history (optional)" },

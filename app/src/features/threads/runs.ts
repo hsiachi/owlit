@@ -38,8 +38,9 @@ export function runWords(task: Task & { kind: ThreadRun }, c: Thread | undefined
     case "threads.more":
       return t`Finding more papers…`
     case "threads.fill": {
-      const question = c?.columns.find((col) => col.id === task.subject.split(":")[1])?.question ?? ""
-      return t`Asking each paper “${question}”…`
+      const column = c?.columns.find((col) => col.id === task.subject.split(":")[1])
+      const question = column?.question ?? ""
+      return column?.kind === "grouping" ? t`Grouping the papers by “${question}”…` : t`Asking each paper “${question}”…`
     }
     case "threads.read":
       return t`Reading papers in full…`
@@ -71,6 +72,19 @@ export async function gather(question: string, size: ThreadSize, project: string
 export async function startRun(id: string, run: "more" | "read" | "check") {
   if (!isDesktop) return desktopOnly()
   await rpc.threads.run({ id, run }).catch(toastError)
+}
+
+// Group another way: a new grouping Owlit works out in the background; the thread with it
+export async function groupAnotherWay(id: string, question: string): Promise<Thread | undefined> {
+  if (!isDesktop) return void desktopOnly()
+  try {
+    const c = await rpc.threads.group({ id, question })
+    put(c)
+    return c
+  } catch (error) {
+    toastError(error)
+    return undefined
+  }
 }
 
 export async function askEach(id: string, question: string) {
