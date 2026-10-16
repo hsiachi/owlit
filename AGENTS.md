@@ -32,29 +32,35 @@ and leave `pnpm try` for a person to open.
   command.
 - `packages/owlit-agent/`: owlit's own agent (the Owlit engine).
 
+CONTRIBUTING.md has the full layout, the environment variables and how releases work.
+
 ## Rules
 
-- **English everywhere in code**: identifiers, comments, UI text, commit messages. The app is translated
-  through Lingui: UI text goes through `t` / `<Trans>` (`@lingui/core/macro`), then `pnpm i18n:extract`.
-  Text meant for agents (prompts, tool descriptions) is never translated.
+- **English everywhere in code**: identifiers, comments, UI text, commit messages. UI text is translated
+  (see `app/AGENTS.md`); text meant for agents (prompts, tool descriptions) is never translated.
 - **Names**: the app is "owlit" (lowercase); the assistant inside it is "Owlit". The UI never names an
   engine (Claude Code, Codex) except where the user picks one.
 - **The code describes what it does.** Put the reason for anything non-obvious in a comment where it is
   implemented, not in a doc. Don't add docs or Markdown files unless asked.
-- **UI changes follow [DESIGN.md](DESIGN.md)**: read it first, use its tokens, and update it in the same
-  change when a style rule changes. It says how things look, not what they do.
-- **shadcn (radix-nova)**: copy the official component or block markup; don't approximate it by hand.
+- **Comments.** An export gets a one-line contract when its name doesn't say it. Inside a function, comment
+  only what the code can't say: why, what breaks if it changes, invariants and ordering, an upstream or
+  platform workaround (name the cause), "change X with Y", why a constant has its value. No dates, no
+  "before / now / used to / no longer / fixed", no counts from one run, no pointers outside the repo, no
+  product specs: the story of a change goes in the commit message. Name an agent or adapter version only
+  when behaviour depends on it. A reason that needs a long paragraph splits onto the branches it explains,
+  or the code should change. No TODOs.
+- **Write for someone who never saw the session.** Before finishing, reread every comment, commit message
+  and changelog line you wrote as a person who has only the repo: no "as discussed", no discarded
+  alternatives, no account of how you got there.
+- **Each area has its own rules**: read `app/AGENTS.md` before changing the renderer and
+  `packages/core/AGENTS.md` before changing core.
+- **This file stays short.** A new rule or trap goes in only if it isn't obvious from the code, was hit
+  more than once, and says exactly what to do. One that holds in one area goes in that area's file.
 
 ## Traps we have hit
 
-- **Tests must not depend on timing.** On macOS a just-started recursive `fs.watch` can miss a write made
-  in its first moments: poll with `vi.waitFor` and write again, never sleep a fixed time. Don't assert
-  wall-clock limits ("< 200ms"); check order instead.
-- **A flaky core test is usually a real race.** Reproduce it with forced delays before changing the test.
-  Writes into a paper's folder check `ctx.signal` first and use `writeFileAtomic(…, { parents: false })`,
-  so a task that outlives a move or delete can't bring the old folder back (see `paperDir` in
-  `packages/core/src/library/paths.ts`).
-- **Nothing in `app/public/` is private**: Vite copies it into every build that ships.
+- **Tests must not depend on timing.** Poll with `vi.waitFor` instead of sleeping a fixed time, and check
+  order instead of wall-clock limits ("< 200ms"). Core has the details.
 
 ## Commits and branches
 

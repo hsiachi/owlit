@@ -4,8 +4,22 @@ Issues and pull requests are welcome. For anything bigger than a fix, open an is
 the shape before you write it. UI changes follow [DESIGN.md](DESIGN.md) (tokens in its front matter, the
 reasons in the body); if a change alters a style decision, update DESIGN.md in the same change.
 
+`npx @google/design.md lint DESIGN.md` checks the front matter: it should report no errors. Its contrast
+warnings are on translucent fills it can't read, and its orphans (`border`, `input`) are tokens the format
+can't attach to a component.
+
 By contributing you agree that your contribution is licensed under the project's
 [AGPL-3.0-or-later](LICENSE).
+
+## Using AI tools
+
+Much of owlit is written with coding agents, and you're welcome to use them too. The rules agents follow
+here are in [AGENTS.md](AGENTS.md). In a pull request:
+
+- Say which tool you used and for what, in the description.
+- Understand every line you submit and be ready to explain it; a reviewer's question is answered by you,
+  not pasted into an agent.
+- Open issues and pull requests yourself. Ones an agent opened or wrote on its own are closed.
 
 ## Running from source
 
