@@ -41,7 +41,7 @@ rmSync(distDir, { recursive: true, force: true })
 execFileSync("pnpm", ["run", "build"], { cwd: appDir, stdio: "inherit" })
 cpSync(path.join(appDir, "dist"), path.join(distDir, "renderer"), { recursive: true })
 
-await esbuild.build(esbuildOptions({ production: true }))
+await esbuild.build(esbuildOptions({ production: true, channel: release ? "release" : "local" }))
 copyMainAssets()
 
 const identity = process.env.OWLIT_SIGN_IDENTITY

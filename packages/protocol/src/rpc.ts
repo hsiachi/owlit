@@ -13,6 +13,7 @@ import type { Locale } from "./languages.ts"
 import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
+import type { UpdateCheck, UpdatesView } from "./updates.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -66,6 +67,15 @@ export interface Methods {
   // A short plain-text report for someone helping with a problem: versions, the agents and what keeps
   // them from running, where owlit keeps its data. No keys, no paper titles, no file contents.
   "core.diagnostics": { params: void; result: string }
+  // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
+  // itself, and the window having shown "Updated to"
+  "updates.get": { params: void; result: UpdatesView }
+  "updates.check": { params: void; result: UpdateCheck }
+  "updates.setAuto": { params: { auto: boolean }; result: UpdatesView }
+  "updates.seen": { params: void; result: void }
+  // Quits and installs the downloaded update. While a chat is still answering it doesn't, and says how
+  // many are, unless force: the window asks first.
+  "updates.restart": { params: { force?: boolean }; result: { answering: number } }
   // The open workspace, or null before one is chosen
   "workspace.current": { params: void; result: WorkspaceInfo | null }
   // The open workspace, and whether one is opening right now
@@ -498,6 +508,8 @@ export interface Notifications {
   "activity.status": { enabled: boolean }
   // Any setting changed, from any window or the app menu
   "settings.changed": SettingsView
+  // Where an update stands changed: a check, a download, the switch
+  "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
   // The dial moved, in any window
@@ -606,5 +618,7 @@ export interface OwlitBridge {
   // A system notification, shown only while no owlit window is in front; clicking it brings the window
   // forward and calls onNotificationClick with its chatId
   notify(notification: { title: string; body: string; chatId: string }): void
+  // Quits and installs the downloaded update; asks first, in the system's dialog, while a chat is answering
+  restartToUpdate(): Promise<void>
   onNotificationClick(listener: (chatId: string) => void): () => void
 }

@@ -1627,6 +1627,7 @@ msgstr ""
 
 #. an agent's status: checking whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
+#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Checking…"
 msgstr ""
 
@@ -5116,6 +5117,11 @@ msgid "What owlit remembers stays in this workspace and is never sent anywhere."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "Updates"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Your name"
 msgstr ""
@@ -5208,6 +5214,65 @@ msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Language for digests"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Check now"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Move Owlit to the Applications folder to get updates."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "This copy isn't signed by Owlit's developer, so it can't update itself."
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Built from source ({label}), so it doesn't update itself."
+msgstr ""
+
+#. placeholder {0}: status.version
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Downloading Owlit {0}…"
+msgstr ""
+
+#. placeholder {0}: status.version
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Downloading Owlit {0}… {percent}%"
+msgstr ""
+
+#. placeholder {0}: status.version
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit {0} is ready. It installs when you quit Owlit."
+msgstr ""
+
+#. a button: restart Owlit to install the update
+#. a button: restart Owlit to install the update
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/updates/store.ts
+#: apps/desktop/src/main.ts
+msgid "Restart"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Up to date · checked {when}"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Not checked yet"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit {version}"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Check for updates automatically"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "About once a day. A new version downloads in the background and installs when you quit Owlit."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -6075,6 +6140,45 @@ msgstr ""
 msgid "Skip tour"
 msgstr ""
 
+#: app/src/features/updates/WhatsNewDialog.tsx
+msgid "What's new in Owlit {version}"
+msgstr ""
+
+#: app/src/features/updates/WhatsNewDialog.tsx
+msgid "The changes in this version"
+msgstr ""
+
+#: app/src/features/updates/store.ts
+#: apps/desktop/src/main.ts
+msgid "You're up to date"
+msgstr ""
+
+#. placeholder {0}: found.version
+#: app/src/features/updates/store.ts
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is the newest version."
+msgstr ""
+
+#. placeholder {0}: found.version
+#. placeholder {0}: s.version
+#: app/src/features/updates/store.ts
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is ready"
+msgstr ""
+
+#: app/src/features/updates/store.ts
+msgid "It installs when you quit Owlit."
+msgstr ""
+
+#. placeholder {0}: updated.version
+#: app/src/features/updates/store.ts
+msgid "Updated to {0}"
+msgstr ""
+
+#: app/src/features/updates/store.ts
+msgid "What's new"
+msgstr ""
+
 #: app/src/features/welcome/AgentCheck.tsx
 msgid "Owlit will use <0>{name}</0>"
 msgstr ""
@@ -6335,6 +6439,10 @@ msgid "About {name}"
 msgstr ""
 
 #: apps/desktop/src/main.ts
+msgid "Check for Updates…"
+msgstr ""
+
+#: apps/desktop/src/main.ts
 msgid "Install Command Line Tool…"
 msgstr ""
 
@@ -6479,6 +6587,75 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Copy Diagnostics"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "It installs when you quit Owlit, or now if you restart."
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Restart Now"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Later"
+msgstr ""
+
+#. placeholder {0}: found.version
+#: apps/desktop/src/main.ts
+msgid "Owlit {0} is downloading"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "You can keep working. It installs when you quit Owlit."
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Couldn't check for updates"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Try Again"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "This copy isn't signed by Owlit's developer, so it can't install updates. Download the latest Owlit from GitHub."
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "This Owlit was built from source ({label}), so it doesn't update itself."
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "This Owlit doesn't update itself"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Restart Owlit now?"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "{answering, plural, one {A chat is still answering, and stops if Owlit restarts now.} other {# chats are still answering, and stop if Owlit restarts now.}}"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Not Now"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Move Owlit to Applications?"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Owlit can only keep itself up to date from the Applications folder."
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Move"
+msgstr ""
+
+#: apps/desktop/src/main.ts
+msgid "Owlit couldn't be moved"
 msgstr ""
 
 #: apps/desktop/src/text-menu.ts
@@ -7474,6 +7651,23 @@ msgstr ""
 
 #: packages/core/src/threads/threads.ts
 msgid "That thread is no longer in the trash."
+msgstr ""
+
+#: packages/core/src/updates/updates.ts
+msgid "There's no update ready to install."
+msgstr ""
+
+#: packages/core/src/updates/updates.ts
+msgid "GitHub couldn't be reached. Check your connection or proxy, then try again."
+msgstr ""
+
+#: packages/core/src/updates/updates.ts
+msgid "GitHub turned the check away for now. Try again in an hour."
+msgstr ""
+
+#. placeholder {0}: text.split("\n")[0]
+#: packages/core/src/updates/updates.ts
+msgid "The update didn't come through: {0}"
 msgstr ""
 
 #. the suggested folder name for a new workspace

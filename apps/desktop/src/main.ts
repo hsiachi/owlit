@@ -5,8 +5,9 @@ import { plural, t } from "@lingui/core/macro"
 import { Core } from "@owlit/core"
 import { activateLocale } from "@owlit/i18n"
 import { CATALOGS } from "@owlit/i18n/catalogs"
-import { interfaceLocale, type AppearanceSettings, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
+import { interfaceLocale, type AppearanceSettings, type BuildChannel, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notification, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
+import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { createBrowserHost } from "./browser.ts"
@@ -14,9 +15,15 @@ import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { hostFetch } from "./net-fetch.ts"
 import { attachTextMenu } from "./text-menu.ts"
+import { appBundle, cantReplaceItself, createUpdater, updateFeed } from "./updater.ts"
 
 // The share server named at build time (scripts/shared.mjs); "" when none was
 declare const __OWLIT_SHARE_SERVER__: string
+// Where this build came from (scripts/shared.mjs buildLabel)
+declare const __OWLIT_BUILD__: { channel: BuildChannel; commit?: string }
+
+// A trial feed (updater.ts) makes any build behave as a release, so updating can be tried before one exists
+const build = updateFeed ? { ...__OWLIT_BUILD__, channel: "release" as const } : __OWLIT_BUILD__
 
 // Set by scripts/dev.mjs: the renderer comes from Vite's dev server, with HMR
 const devUrl = process.env.OWLIT_DEV_URL
@@ -317,6 +324,7 @@ async function updateMenu(core: Core) {
           label: name,
           submenu: [
             { role: "about", label: t`About ${name}` },
+            { label: t`Check for Updates…`, click: () => void checkForUpdates(core) },
             { type: "separator" },
             settingsItem,
             { label: t`Install Command Line Tool…`, click: () => void installCliTool() },
@@ -433,6 +441,86 @@ async function updateMenu(core: Core) {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
+// ---- Updates: the menu's Check for Updates…, Restart to update, and moving out of the dmg. When to
+// check and what was found is core's (core/updates); these say it in the system's own dialogs.
+
+function frontWindow() {
+  return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+}
+
+async function showBox(options: Electron.MessageBoxOptions) {
+  const win = frontWindow()
+  return win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options)
+}
+
+async function checkForUpdates(core: Core) {
+  const found = await call(core, "updates.check")
+  if (found.kind === "current") {
+    await showBox({ message: t`You're up to date`, detail: t`Owlit ${found.version} is the newest version.`, buttons: [t`OK`] })
+  } else if (found.kind === "found") {
+    const { status } = await call(core, "updates.get")
+    if (status.kind === "ready") {
+      const { response } = await showBox({ message: t`Owlit ${found.version} is ready`, detail: t`It installs when you quit Owlit, or now if you restart.`, buttons: [t`Restart Now`, t`Later`], defaultId: 0, cancelId: 1 })
+      if (response === 0) await restartToUpdate(core)
+    } else {
+      await showBox({ message: t`Owlit ${found.version} is downloading`, detail: t`You can keep working. It installs when you quit Owlit.`, buttons: [t`OK`] })
+    }
+  } else if (found.kind === "failed") {
+    const { response } = await showBox({ type: "warning", message: t`Couldn't check for updates`, detail: found.message, buttons: [t`Try Again`, t`OK`], defaultId: 1, cancelId: 1 })
+    if (response === 0) await checkForUpdates(core)
+  } else if (found.reason === "location") {
+    await offerMove(true)
+  } else {
+    const label = [build.channel, build.commit].filter(Boolean).join(" · ")
+    const detail =
+      found.reason === "unsigned"
+        ? t`This copy isn't signed by Owlit's developer, so it can't install updates. Download the latest Owlit from GitHub.`
+        : t`This Owlit was built from source (${label}), so it doesn't update itself.`
+    await showBox({ message: t`This Owlit doesn't update itself`, detail, buttons: [t`OK`] })
+  }
+}
+
+// Restart to update, from the menu's dialog or the window. A chat still answering would be cut off, so
+// that asks first; Owlit's own work picks up where it was after the restart.
+async function restartToUpdate(core: Core) {
+  const { answering } = await call(core, "updates.restart", {})
+  if (!answering) return
+  const { response } = await showBox({
+    message: t`Restart Owlit now?`,
+    detail: plural(answering, { one: "A chat is still answering, and stops if Owlit restarts now.", other: "# chats are still answering, and stop if Owlit restarts now." }),
+    buttons: [t`Restart`, t`Not Now`],
+    defaultId: 1,
+    cancelId: 1,
+  })
+  if (response === 0) await call(core, "updates.restart", { force: true })
+}
+
+// A release opened from the dmg (or where macOS moved it aside) can't update itself: offer, once per
+// place, to move it to Applications, which starts it again from there. byHand: from Check for Updates…,
+// which always asks.
+async function offerMove(byHand = false) {
+  if (build.channel !== "release" || !app.isPackaged || !cantReplaceItself()) return
+  const asked = path.join(app.getPath("userData"), "move-asked.txt")
+  const bundle = appBundle()
+  if (!byHand && (await readFile(asked, "utf8").catch(() => "")) === bundle) return
+  const { response } = await showBox({
+    message: t`Move Owlit to Applications?`,
+    detail: t`Owlit can only keep itself up to date from the Applications folder.`,
+    buttons: [t`Move`, t`Not Now`],
+    defaultId: 0,
+    cancelId: 1,
+  })
+  if (response === 0) {
+    try {
+      app.moveToApplicationsFolder()
+    } catch (error) {
+      await showBox({ type: "warning", message: t`Owlit couldn't be moved`, detail: (error as Error).message, buttons: [t`OK`] })
+    }
+  } else {
+    await writeFile(asked, bundle).catch(() => undefined)
+  }
+}
+
 // ---- Start ----
 
 // One owlit at a time: a second launch hands over to the first, which comes to the front
@@ -458,7 +546,11 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(async () => {
+    // Before anything starts: moving starts Owlit again from Applications
+    await offerMove()
     if (!devUrl) serveRenderer()
+    // About Owlit: the version, and where this build came from
+    app.setAboutPanelOptions({ applicationVersion: app.getVersion(), version: [build.channel, build.commit].filter(Boolean).join(" · ") })
     // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
     if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
     const browser = createBrowserHost()
@@ -484,6 +576,9 @@ if (!app.requestSingleInstanceLock()) {
       shareServer: process.env.OWLIT_SHARE_SERVER || __OWLIT_SHARE_SERVER__ || undefined,
       // Unpacked from the asar archive too (asarUnpack): fs.cp can't read a folder inside it
       exampleDir: path.join(unpacked, "example-workspace"),
+      build,
+      // Copied beside main by scripts/shared.mjs
+      changelog: path.join(__dirname, "CHANGELOG.md"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: hostFetch,
@@ -526,9 +621,12 @@ if (!app.requestSingleInstanceLock()) {
         },
         // OWLIT_DOWNLOADS (tests): another folder in place of the user's Downloads
         downloadsDir: () => process.env.OWLIT_DOWNLOADS ?? app.getPath("downloads"),
+        // Only a release has a feed to update from; core says why the others don't
+        updater: build.channel === "release" ? createUpdater() : undefined,
       },
     })
     attachCore(core)
+    ipcMain.handle("restart-to-update", () => restartToUpdate(core))
     // Development aid: print every activity event the renderer reports
     if (process.env.OWLIT_LOG_ACTIVITY) core.activity.subscribe((event) => console.log("[activity]", JSON.stringify(event)))
     // Development aid: print what the workspace watcher reports (paths only, not text)
