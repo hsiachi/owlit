@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, rm } from "node:fs/promises"
 import path from "node:path"
 import type { PaperFigure, PaperText } from "@owlit/protocol"
-import { readJson, writeFileAtomic, writeJsonAtomic } from "../../fs-util.ts"
+import { ignoreExisting, readJson, writeFileAtomic, writeJsonAtomic } from "../../fs-util.ts"
 import { paperDir } from "../paths.ts"
 import { workspaceFileUrl } from "../state.ts"
 import { captionLabel, groupLayout, type LayoutPage, type PlannedFigure } from "./group.ts"
@@ -31,10 +31,6 @@ export interface FiguresFile {
   figures: FigureRecord[]
   // Looking for them failed (the PDF unreadable, the cloud unreachable): none, and why
   error?: string
-}
-
-function ignoreExisting(error: NodeJS.ErrnoException) {
-  if (error.code !== "EEXIST") throw error
 }
 
 const FIGURES_JSON = "figures.json"

@@ -752,11 +752,14 @@ export class Library {
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial.run(async () => {
+          // The paper moved to a DOI or went to the trash while the agent wrote (both cancel under this
+          // lock): the note isn't written into a folder that is no longer there
+          ctx.signal.throwIfAborted()
           // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
           if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
           const kept: DigestRecord = { version: 1, format: DIGEST_FORMAT, by: connectorId, ...(model ? { model } : {}), language, ...(drifted(digest, language) ? { drift: true } : {}), at: Date.now() }
-          await writeFileAtomic(path.join(dir, "digest.md"), digest)
-          await writeJsonAtomic(path.join(dir, "digest.json"), kept)
+          await writeFileAtomic(path.join(dir, "digest.md"), digest, { parents: false })
+          await writeJsonAtomic(path.join(dir, "digest.json"), kept, { parents: false })
         })
         await this.announce([id])
       },
@@ -820,7 +823,7 @@ export class Library {
           const host = hostOf(routes[0].landing)
           tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${host} only lets your own browser in.`, at: Date.now() })
           needs = { reason: "browser", route: routes[0].name, at: Date.now(), host }
-          const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
+          const noted = await this.noPdf(id, ctx.signal, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
           if (noted) await this.announce([id])
           return
         }
@@ -833,7 +836,7 @@ export class Library {
             if (previous?.result === "no_pdf" && previous.needs) return
             tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${hold.site} asked for a person recently.`, at: Date.now() })
             needs = { reason: hold.reason, route: routes[0].name, at: Date.now(), host: hold.site }
-            const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
+            const noted = await this.noPdf(id, ctx.signal, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
             if (noted) await this.announce([id])
             return
           }
@@ -844,7 +847,7 @@ export class Library {
             if (previous?.result === "no_pdf" && previous.needs) return
             tried.push({ route: routes[0].name, url: routes[0].landing, error: `Not tried: ${checking} keeps showing owlit's browser a check.`, at: Date.now() })
             needs = { reason: "browser", route: routes[0].name, at: Date.now(), host: checking }
-            const noted = await this.noPdf(id, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
+            const noted = await this.noPdf(id, ctx.signal, () => ({ version: 1, result: "no_pdf", tried, at: Date.now(), dropHere: dest, needs }))
             if (noted) await this.announce([id])
             return
           }
@@ -882,9 +885,10 @@ export class Library {
             for (const site of sites) await this.publishers.visitEnded(site, "pdf")
             // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
             await this.serial.run(async () => {
-              // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
+              // Cancelled meanwhile (the user attached a PDF, or the paper moved or went to the trash): it
+              // isn't wanted over theirs, nor where the paper was
               ctx.signal.throwIfAborted()
-              await writeFileAtomic(dest, Buffer.from(bytes))
+              await writeFileAtomic(dest, Buffer.from(bytes), { parents: false })
               const sha256 = await sha256Of(dest)
               this.pdfHashes?.set(sha256, id)
               await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
@@ -930,7 +934,7 @@ export class Library {
         if (!settings.proxy?.base) tried.push({ route: "browser:proxied", url: "", error: "Not tried: no library proxy is set up.", at: Date.now() })
         // A page that wasn't there isn't the user's browser's to look at either
         if (looked?.outcome === "missing") needs = undefined
-        const noted = await this.noPdf(id, (before) => ({
+        const noted = await this.noPdf(id, ctx.signal, (before) => ({
           version: 1,
           result: "no_pdf",
           tried,
@@ -960,7 +964,7 @@ export class Library {
           by: "unknown",
           at: Math.round((await stat(path.join(dir, "digest.md"))).mtimeMs),
         }
-        await writeJsonAtomic(path.join(dir, "digest.json"), { ...record, rewriteAsked: Date.now() } satisfies DigestRecord)
+        await writeJsonAtomic(path.join(dir, "digest.json"), { ...record, rewriteAsked: Date.now() } satisfies DigestRecord, { parents: false })
       })
     }
     this.queue("paper.digest", id, priority)
@@ -1991,14 +1995,15 @@ export class Library {
             ctx.signal.throwIfAborted()
             const dir = paperDir(this.root, id)
             const previous = await readText(this.root, id)
-            if (previous?.source === "pdfium") await writeJsonAtomic(path.join(dir, "text.pdfium.json"), previous)
+            if (previous?.source === "pdfium") await writeJsonAtomic(path.join(dir, "text.pdfium.json"), previous, { parents: false })
             await writeText(this.root, id, text)
-            await writeJsonAtomic(path.join(dir, "parse.json"), { version: 1, status: "done", service: settings.service, at: Date.now(), ...(job ? { job } : {}) })
+            await writeJsonAtomic(path.join(dir, "parse.json"), { version: 1, status: "done", service: settings.service, at: Date.now(), ...(job ? { job } : {}) }, { parents: false })
             // The figures come with the reading; they are a bonus, so failing them fails nothing
             try {
               if (result.layout) await writeFiguresFromLayout(this.root, id, result.layout, result.images, bytes, this.services.pdfiumWasm, ctx.signal)
               else await writeFiguresFromText(this.root, id, text, bytes, this.services.pdfiumWasm, ctx.signal)
             } catch (error) {
+              if (ctx.signal.aborted) throw error
               await noFigures(this.root, id, messageOf(error))
             }
             this.queue("index.paper", id, "background")
@@ -2006,7 +2011,7 @@ export class Library {
           } catch (error) {
             if (ctx.signal.aborted) throw error
             const message = messageOf(error)
-            await writeJsonAtomic(path.join(paperDir(this.root, id), "parse.json"), { version: 1, status: "failed", error: message, attempts: ctx.task.attempts, at: Date.now() })
+            await writeJsonAtomic(path.join(paperDir(this.root, id), "parse.json"), { version: 1, status: "failed", error: message, attempts: ctx.task.attempts, at: Date.now() }, { parents: false })
             if (error instanceof ParseRefused) throw new TaskFailure(message)
             throw error
           }
@@ -2082,6 +2087,8 @@ export class Library {
           }
           // A text.md brought from pitta is MinerU's: better than pdfium's, so only the coordinates are added
           const legacy = (await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")).startsWith(LEGACY_TEXT_MARK)
+          // Moved to a DOI or trashed while it was read: nothing is written, or queued, for the old id
+          ctx.signal.throwIfAborted()
           await writeText(this.root, id, text, { markdown: !legacy })
           this.queue("index.paper", id, "background")
           // An imported paper gets no digest of its own accord, and MinerU only if the import allowed it
@@ -2171,6 +2178,7 @@ export class Library {
             tried.push({ route: route.name, url: route.url, status: 200, at: Date.now() })
             // Under the library's lock, like a no_pdf verdict and a drop: see noPdf()
             await this.serial.run(async () => {
+              ctx.signal.throwIfAborted()
               const sha256 = await sha256Of(dest)
               this.pdfHashes?.set(sha256, id)
               await writeAcquisition(this.root, id, { version: 1, result: "ok", route: route.name, tried, at: Date.now(), dropHere: dest, sha256 })
@@ -2186,7 +2194,7 @@ export class Library {
           // passes. One dead host among ones that answered is just a route that failed.
           if (heard.asked && !heard.answered) throw new HttpError(0, tried[0]?.url ?? "", t`Couldn't reach any source of PDFs.`)
           let before: Acquisition | undefined
-          const noted = await this.noPdf(id, (previous) => {
+          const noted = await this.noPdf(id, ctx.signal, (previous) => {
             before = previous
             return {
               version: 1,
@@ -2323,9 +2331,11 @@ export class Library {
   // its record stands. paper.pdf and paper.pdf.browser can run at once for a paper (the user asks
   // just after the automatic run), so the look and the write share the library's lock with the
   // writers of an ok record; otherwise a no_pdf could land last over a PDF that is there. Whether
-  // it was noted.
-  private noPdf(id: string, acquisition: (previous: Acquisition | undefined) => Acquisition): Promise<boolean> {
+  // it was noted. Not once the run is cancelled: the paper may have moved to a DOI or gone to the trash
+  // while this run waited for the lock.
+  private noPdf(id: string, signal: AbortSignal, acquisition: (previous: Acquisition | undefined) => Acquisition): Promise<boolean> {
     return this.serial.run(async () => {
+      signal.throwIfAborted()
       if (await hasPdfFile(this.root, id)) return false
       const previous = await readAcquisition(this.root, id)
       const next = acquisition(previous)

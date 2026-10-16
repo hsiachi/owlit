@@ -1,7 +1,7 @@
 import type { PaperIds, PaperRecord } from "@owlit/protocol"
-import { readdir } from "node:fs/promises"
+import { mkdir, readdir } from "node:fs/promises"
 import path from "node:path"
-import { readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
+import { ignoreExisting, readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { isPaperId, paperDir, PAPERS_DIR } from "./paths.ts"
 import type { Resolution } from "./resolve.ts"
 import { titleKey } from "./sources/crossref.ts"
@@ -18,7 +18,7 @@ export async function readRecord(root: string, id: string): Promise<PaperRecord 
 }
 
 export const writeRecord = (root: string, record: PaperRecord) =>
-  writeJsonAtomic(path.join(paperDir(root, record.id), "paper.json"), record)
+  writeJsonAtomic(path.join(paperDir(root, record.id), "paper.json"), record, { parents: false })
 
 // The round of checks a record has had. 1 (2026-10-11): titles with their subtitles from Crossref,
 // abstracts that belong to another paper dropped, id-only records given their DOI. Raise it when a new
@@ -72,8 +72,9 @@ export function recordFrom(id: string, resolution: Resolution, previous?: PaperR
 // Each service's answer as it came: sources/openalex.json, sources/s2.json, sources/arxiv.xml
 export async function keepSources(root: string, id: string, records: SourceRecord[]) {
   const dir = path.join(paperDir(root, id), "sources")
+  await mkdir(dir).catch(ignoreExisting)
   for (const record of records) {
-    await writeFileAtomic(path.join(dir, `${record.source}.${record.raw.trimStart().startsWith("<") ? "xml" : "json"}`), record.raw)
+    await writeFileAtomic(path.join(dir, `${record.source}.${record.raw.trimStart().startsWith("<") ? "xml" : "json"}`), record.raw, { parents: false })
   }
 }
 

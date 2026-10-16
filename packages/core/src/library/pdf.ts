@@ -306,7 +306,8 @@ export const acquisitionFile = (root: string, id: string) => path.join(paperDir(
 
 export const readAcquisition = (root: string, id: string) => readJson<Acquisition>(acquisitionFile(root, id)).catch(() => undefined)
 
-export const writeAcquisition = (root: string, id: string, acquisition: Acquisition) => writeJsonAtomic(acquisitionFile(root, id), acquisition)
+export const writeAcquisition = (root: string, id: string, acquisition: Acquisition) =>
+  writeJsonAtomic(acquisitionFile(root, id), acquisition, { parents: false })
 
 export const pdfFile = (root: string, id: string) => path.join(paperDir(root, id), "paper.pdf")
 
