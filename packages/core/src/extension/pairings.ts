@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { ExtensionPairing, ExtensionView, PairAnswer, StoredPairing } from "@owlit/protocol"
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto"
 import type { SettingsStore } from "../settings.ts"
+import { clean } from "../util.ts"
 import { HttpFailure } from "./http.ts"
 
 // How long the question stays in the window before the extension has to ask again
@@ -17,8 +18,12 @@ const sha256 = (text: string) => createHash("sha256").update(text).digest("hex")
 interface Question {
   id: string
   browser: string
+  // The extension that asked, shown with the question; only it may collect the answer
+  origin?: string
   at: number
-  answer?: { allowed: true; token: string } | { allowed: false }
+  // Allowed: the pairing is kept once its token is collected, so one never collected (the extension's
+  // worker stopped while it waited) leaves no listed browser without a token
+  answer?: { allowed: true; token: string; pairing: StoredPairing } | { allowed: false }
   expired?: boolean
   // GET /pair/:pairing requests holding for the answer
   waiters: Set<() => void>
@@ -41,25 +46,27 @@ export class Pairings {
 
   async view(serving: boolean, portTaken: boolean): Promise<Omit<ExtensionView, "waits">> {
     const paired = await this.paired()
-    const asking = [...this.questions.values()].filter((q) => !q.answer && !q.expired).map(({ id, browser, at }) => ({ id, browser, at }))
-    return { serving, portTaken, paired: paired.map(({ id, browser, pairedAt, lastSeenAt }): ExtensionPairing => (lastSeenAt ? { id, browser, pairedAt, lastSeenAt } : { id, browser, pairedAt })), asking }
+    const asking = [...this.questions.values()].filter((q) => !q.answer && !q.expired).map(({ id, browser, origin, at }) => clean({ id, browser, origin, at }))
+    return { serving, portTaken, paired: paired.map(({ id, browser, origin, pairedAt, lastSeenAt }): ExtensionPairing => clean({ id, browser, origin, pairedAt, lastSeenAt })), asking }
   }
 
-  // The pairing this bearer token belongs to
-  async byToken(token: string): Promise<StoredPairing | undefined> {
+  // The pairing this bearer token belongs to, when the request comes from the extension it was given to
+  async byToken(token: string, origin: string | undefined): Promise<StoredPairing | undefined> {
     const offered = Buffer.from(sha256(token), "hex")
-    return (await this.paired()).find((p) => {
+    const pairing = (await this.paired()).find((p) => {
       const kept = Buffer.from(p.tokenSha256, "hex")
       return kept.length === offered.length && timingSafeEqual(kept, offered)
     })
+    return pairing && pairing.origin === origin ? pairing : undefined
   }
 
   // An extension in this browser asks to connect: the question goes to the window
-  ask(browser: string): { pairing: string; expiresIn: number } {
+  ask(browser: string, origin: string | undefined): { pairing: string; expiresIn: number } {
     const id = randomUUID()
     const question: Question = {
       id,
       browser,
+      origin,
       at: Date.now(),
       waiters: new Set(),
       timer: setTimeout(() => {
@@ -75,10 +82,12 @@ export class Pairings {
     return { pairing: id, expiresIn: this.questionMs }
   }
 
-  // The answer once there is one, or "waiting" after holdMs; the token is handed over once
-  async wait(id: string, holdMs: number, closed: AbortSignal): Promise<PairAnswer> {
+  // The answer once there is one, or "waiting" after holdMs; the token is handed over once, to the
+  // extension that asked, and the pairing is kept then
+  async wait(id: string, holdMs: number, closed: AbortSignal, origin: string | undefined): Promise<PairAnswer> {
     const question = this.questions.get(id)
-    if (!question) throw new HttpFailure(404, "not-found", t`owlit has no such question.`)
+    // Another extension that learnt the question's id is told nothing of it
+    if (!question || question.origin !== origin) throw new HttpFailure(404, "not-found", t`owlit has no such question.`)
     if (!question.answer && !question.expired) {
       await new Promise<void>((resolve) => {
         const done = () => {
@@ -92,8 +101,11 @@ export class Pairings {
       })
     }
     if (question.answer?.allowed) {
-      const { token } = question.answer
+      const { token, pairing } = question.answer
+      // Gone before the write, so a second request for it at the same moment can't keep it twice
       this.questions.delete(id)
+      await this.settings.update((s) => ({ ...s, extension: { paired: [...(s.extension?.paired ?? []), pairing] } }))
+      this.changed()
       return { state: "allowed", token }
     }
     if (question.answer) {
@@ -110,9 +122,8 @@ export class Pairings {
     if (!question || question.answer || question.expired) return
     if (allow) {
       const token = randomBytes(32).toString("base64url")
-      const pairing: StoredPairing = { id: randomUUID(), browser: question.browser, tokenSha256: sha256(token), pairedAt: Date.now() }
-      await this.settings.update((s) => ({ ...s, extension: { paired: [...(s.extension?.paired ?? []), pairing] } }))
-      question.answer = { allowed: true, token }
+      const pairing: StoredPairing = clean({ id: randomUUID(), browser: question.browser, origin: question.origin, tokenSha256: sha256(token), pairedAt: Date.now() })
+      question.answer = { allowed: true, token, pairing }
     } else question.answer = { allowed: false }
     clearTimeout(question.timer)
     // Answered and never collected (the extension went away): its token isn't kept in memory for long

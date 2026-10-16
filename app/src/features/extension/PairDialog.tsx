@@ -25,6 +25,13 @@ export function PairDialog() {
         <AlertDialogContent onEscapeKeyDown={() => void answerPairing(asking.id, false)}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t`An extension in ${asking.browser} wants to connect to owlit.`}</AlertDialogTitle>
+            {/* The browser's name is the extension's own word; its address is the browser's, so a look-alike
+                extension shows an address that isn't owlit's */}
+            {asking.origin ? (
+              <p className="font-mono text-detail break-all text-muted-foreground">{asking.origin}</p>
+            ) : (
+              <p className="text-detail text-muted-foreground">{t`It didn't say which extension it is.`}</p>
+            )}
             {/* For screen readers; the title says what is asked */}
             <AlertDialogDescription className="sr-only">{t`It can add the papers you open in ${asking.browser} to your Library and give owlit their PDFs.`}</AlertDialogDescription>
           </AlertDialogHeader>

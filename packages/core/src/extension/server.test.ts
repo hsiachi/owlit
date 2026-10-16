@@ -1,5 +1,5 @@
 import type { ExtensionView, RpcNotification } from "@owlit/protocol"
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import net from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -133,6 +133,32 @@ describe("the extension's port", () => {
     const view = await call("extension.forget", { id: stored.extension.paired[0].id })
     expect(view.paired).toEqual([])
     expect((await request("/status", { token })).status).toBe(401)
+  })
+
+  it("shows who is asking, and ties the token to that extension", async () => {
+    const { call, request, userDataDir } = await setup()
+    await call("ui.focus", { clientId: "window-1" })
+    const started = await request("/pair", { body: { browser: "Chrome" } })
+    await vi.waitFor(async () => expect((await call("extension.get")).asking).toHaveLength(1))
+    const [asking] = (await call("extension.get")).asking
+    expect(asking).toMatchObject({ browser: "Chrome", origin: ORIGIN })
+    await call("extension.answer", { id: asking.id, allow: true })
+    // Allowed but not yet collected: nothing is listed, nor kept
+    expect((await call("extension.get")).paired).toEqual([])
+    const settingsFile = path.join(userDataDir, "settings.json")
+    expect(existsSync(settingsFile) ? JSON.parse(readFileSync(settingsFile, "utf8")).extension?.paired ?? [] : []).toEqual([])
+    // Another extension can't collect the token
+    const other = "chrome-extension://ponmlkjihgfedcbaponmlkjihgfedcba"
+    expect((await request(`/pair/${started.body.pairing}`, { origin: other })).status).toBe(404)
+    const answer = await request(`/pair/${started.body.pairing}`, { origin: null, headers: { "x-owlit-extension": ORIGIN } })
+    expect(answer.body.state).toBe("allowed")
+    const token = answer.body.token as string
+    expect((await call("extension.get")).paired).toEqual([expect.objectContaining({ browser: "Chrome", origin: ORIGIN })])
+    // The token works for that extension only, with its Origin or, where the browser sends none, its header
+    expect((await request("/status", { token })).status).toBe(200)
+    expect((await request("/status", { token, origin: null, headers: { "x-owlit-extension": ORIGIN } })).status).toBe(200)
+    expect((await request("/status", { token, origin: other })).status).toBe(401)
+    expect((await request("/status", { token, origin: null, headers: { "x-owlit-extension": "1" } })).status).toBe(401)
   })
 
   it("tells the extension when the user doesn't allow it", async () => {

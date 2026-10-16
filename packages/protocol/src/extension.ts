@@ -10,6 +10,10 @@ export const EXTENSION_PORT = 21837
 export interface StoredPairing {
   id: string
   browser: string
+  // The extension that asked (chrome-extension://<id>, moz-extension://<uuid>), from its requests' Origin
+  // or, where the browser sends none, its x-owlit-extension header; absent when it gave neither. Its
+  // token is taken only from the same one.
+  origin?: string
   tokenSha256: string
   pairedAt: number
   // The last request it made, kept at most once a minute
@@ -19,6 +23,7 @@ export interface StoredPairing {
 export interface ExtensionPairing {
   id: string
   browser: string
+  origin?: string
   pairedAt: number
   lastSeenAt?: number
 }
@@ -31,7 +36,7 @@ export interface ExtensionView {
   portTaken: boolean
   paired: ExtensionPairing[]
   // Extensions waiting for the user to say whether they may connect, oldest first
-  asking: { id: string; browser: string; at: number }[]
+  asking: { id: string; browser: string; origin?: string; at: number }[]
   // Sites whose papers the extension can't fetch until the user does something there, one per site
   waits: ExtensionWait[]
 }

@@ -78,7 +78,7 @@ function mockView(): ExtensionView {
     serving: state !== "taken",
     portTaken: state === "taken",
     paired,
-    asking: state === "asking" ? [{ id: "mock-ask", browser: "Dia", at: now }] : [],
+    asking: state === "asking" ? [{ id: "mock-ask", browser: "Dia", origin: "chrome-extension://abcdefghijklmnopabcdefghijklmnop", at: now }] : [],
     waits: paired.length
       ? [
           { kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor: false },

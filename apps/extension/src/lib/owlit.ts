@@ -23,8 +23,9 @@ export class Unreachable extends Error {}
 
 export async function ask<T>(route: string, init: { method?: string; token?: string; json?: unknown; pdf?: ArrayBuffer; signal?: AbortSignal } = {}): Promise<T> {
   // Chromium sends no Origin with this extension's GETs to owlit: owlit tells it from a web page by this
-  // header (EXTENSION_HEADER in core's server.ts), which a page can't send
-  const headers: Record<string, string> = { "x-owlit-extension": ext.runtime.getManifest().version }
+  // header (EXTENSION_HEADER in core's server.ts), which a page can't send, and knows which extension it
+  // is by the origin it names, the one its other requests' Origin gives (its token is tied to it)
+  const headers: Record<string, string> = { "x-owlit-extension": ext.runtime.getURL("").replace(/\/$/, "") }
   if (init.token) headers.authorization = `Bearer ${init.token}`
   let body: BodyInit | undefined
   if (init.pdf) {

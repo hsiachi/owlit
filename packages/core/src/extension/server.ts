@@ -57,6 +57,9 @@ interface Request {
   raw: IncomingMessage
   // Aborted when the extension stops waiting
   closed: AbortSignal
+  // The extension asking: its Origin, or where the browser sends none, the origin it names in
+  // EXTENSION_HEADER; undefined when it gave neither
+  requester: string | undefined
   pairing: StoredPairing | null
 }
 
@@ -164,6 +167,9 @@ export class ExtensionServer {
       raw.resume()
       return
     }
+    const named = raw.headers[EXTENSION_HEADER]
+    // The browser's Origin wins: an extension can name any origin in a header, never in its Origin
+    const requester = origin ?? (typeof named === "string" && EXTENSION_ORIGIN.test(named) ? named : undefined)
     const cors: Record<string, string> = origin ? { "access-control-allow-origin": origin, vary: "Origin" } : {}
     if (raw.method === "OPTIONS") {
       response.writeHead(204, {
@@ -185,11 +191,11 @@ export class ExtensionServer {
       let pairing: StoredPairing | null = null
       if (!route.open) {
         const token = /^Bearer\s+(\S+)$/i.exec(raw.headers.authorization ?? "")?.[1]
-        pairing = (token && (await this.pairings.byToken(token))) || null
+        pairing = (token && (await this.pairings.byToken(token, requester))) || null
         if (!pairing) throw new HttpFailure(401, "not-paired", t`This browser isn't connected to owlit. Press Connect.`)
         void this.pairings.seen(pairing).catch((error) => console.error("[core] couldn't note the extension's visit", error))
       }
-      const answer = await route.handle({ method: raw.method ?? "GET", parts, query: url.searchParams, raw, closed: closed.signal, pairing })
+      const answer = await route.handle({ method: raw.method ?? "GET", parts, query: url.searchParams, raw, closed: closed.signal, requester, pairing })
       send(response, answer.status ?? 200, answer.body, cors)
     } catch (error) {
       const failure = asHttpFailure(error)
@@ -227,18 +233,18 @@ export class ExtensionServer {
         method: "POST",
         path: is("pair"),
         open: true,
-        handle: async ({ raw }) => {
+        handle: async ({ raw, requester }) => {
           const body = pair.safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           if (!this.host.hasWindow()) throw new HttpFailure(503, "no-window", t`Open the owlit window, then press Connect again.`)
-          return { status: 202, body: this.pairings.ask(body.data.browser) satisfies PairStarted }
+          return { status: 202, body: this.pairings.ask(body.data.browser, requester) satisfies PairStarted }
         },
       },
       {
         method: "GET",
         path: is("pair", null),
         open: true,
-        handle: async ({ parts, closed }) => ({ body: (await this.pairings.wait(parts[1], this.options.holdMs, closed)) satisfies PairAnswer }),
+        handle: async ({ parts, closed, requester }) => ({ body: (await this.pairings.wait(parts[1], this.options.holdMs, closed, requester)) satisfies PairAnswer }),
       },
       {
         method: "GET",

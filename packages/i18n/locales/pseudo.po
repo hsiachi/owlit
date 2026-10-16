@@ -2929,6 +2929,10 @@ msgstr ""
 msgid "An extension in {0} wants to connect to owlit."
 msgstr ""
 
+#: app/src/features/extension/PairDialog.tsx
+msgid "It didn't say which extension it is."
+msgstr ""
+
 #. placeholder {0}: asking.browser
 #: app/src/features/extension/PairDialog.tsx
 msgid "It can add the papers you open in {0} to your Library and give owlit their PDFs."

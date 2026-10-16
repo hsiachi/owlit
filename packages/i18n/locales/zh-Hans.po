@@ -2929,6 +2929,10 @@ msgstr "{stem} 副本"
 msgid "An extension in {0} wants to connect to owlit."
 msgstr "{0} 中的一个扩展想要连接 owlit。"
 
+#: app/src/features/extension/PairDialog.tsx
+msgid "It didn't say which extension it is."
+msgstr "它没有说明自己是哪个扩展。"
+
 #. placeholder {0}: asking.browser
 #: app/src/features/extension/PairDialog.tsx
 msgid "It can add the papers you open in {0} to your Library and give owlit their PDFs."
