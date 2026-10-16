@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { findAnchor, locateInMarkdown, type CommentAnchor, type DocComment } from "@owlit/protocol"
+import { findAnchor, isOpenComment, locateInMarkdown, type CommentAnchor, type DocComment } from "@owlit/protocol"
 import { newId } from "@/lib/id"
 import { rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
@@ -47,7 +47,7 @@ function fromDoc(c: DocComment): CommentView {
   return {
     key: docKey(c.id),
     quote: c.quote,
-    resolved: !!c.resolvedAt,
+    resolved: !!(c.resolvedAt || c.foldedAt),
     createdAt: c.createdAt,
     doc: c,
     find: (text) => {
@@ -90,15 +90,16 @@ function fromThread(th: CommentThread): CommentView {
 
 // The open comments on a doc, Owlit's, yours and readers', in the order they were started
 export function commentViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
-  const own = (docComments ?? []).filter((c) => !c.resolvedAt && !c.dismissedAt && c.entries.length).map(fromDoc)
+  const own = (docComments ?? []).filter(isOpenComment).map(fromDoc)
   return [...own, ...commentThreadsOf(readerComments).map(fromThread)].sort((a, b) => a.createdAt - b.createdAt)
 }
 
 // The ones put away, newest first, for the Resolved comments list
 export function resolvedViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
-  // Dismissed ones are Owlit's memory of what not to say, not something to open again
-  const own = (docComments ?? []).filter((c) => c.resolvedAt && !c.dismissedAt && c.entries.length).map(fromDoc)
-  const at = (v: CommentView) => v.doc?.resolvedAt ?? v.createdAt
+  // Dismissed ones are Owlit's memory of what not to say, not something to open again. Ones Owlit folded
+  // away (their words changed, nobody answered) are history like resolved ones.
+  const own = (docComments ?? []).filter((c) => (c.resolvedAt || c.foldedAt) && !c.dismissedAt && c.entries.length).map(fromDoc)
+  const at = (v: CommentView) => v.doc?.resolvedAt ?? v.doc?.foldedAt ?? v.createdAt
   return [...own, ...commentThreadsOf(readerComments, { resolved: true }).map(fromThread)].sort((a, b) => at(b) - at(a))
 }
 
@@ -179,11 +180,11 @@ export function dismiss(fileId: string, view: CommentView) {
   void rpc.comments.dismiss({ path, id: view.doc.id }).catch(toastError)
 }
 
-// Opens a resolved comment again
+// Opens a resolved comment again, or one Owlit folded away
 export function reopen(fileId: string, view: CommentView) {
   if (view.doc) {
     const now = docComment(fileId, view.doc.id)
-    if (now) useDocsStore.getState().putComment(fileId, { ...now, resolvedAt: undefined })
+    if (now) useDocsStore.getState().putComment(fileId, { ...now, resolvedAt: undefined, foldedAt: undefined })
     return
   }
   const path = pathOf(fileId)

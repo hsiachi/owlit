@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { readJournal, readingOf } from "./reading.ts"
+import { fullReadAt, readInFull, readJournal, readingOf } from "./reading.ts"
 
 const at = 1_790_000_000_000
 const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: "user" })
@@ -84,5 +84,31 @@ describe("readJournal", () => {
     writeFileSync(file, [JSON.stringify(user({ kind: "paper.opened", at, paperId: "p" })), '{"kind":"paper.fo', ""].join("\n"))
     expect(await readJournal(file)).toEqual([{ kind: "paper.opened", at, paperId: "p", actor: "user" }])
     expect(await readJournal(path.join(path.dirname(file), "missing.jsonl"))).toEqual([])
+  })
+})
+
+describe("readInFull", () => {
+  const dwell = (page: number, at2 = at) => user({ kind: "paper.dwell", at: at2, paperId: "p", page, seconds: 20 })
+  it("is most of the paper's pages read at the top of the screen, or a long stay without a page count", () => {
+    const reading = readingOf([1, 2, 3, 4, 5, 6].map((p) => dwell(p))).get("p")
+    expect(readInFull(reading, 10)).toBe(true)
+    expect(readInFull(reading, 11)).toBe(false)
+    expect(readInFull(reading, null)).toBe(false)
+    expect(readInFull(readingOf([user({ kind: "paper.focus", at, paperId: "p", view: "pdf", seconds: 900 })]).get("p"), null)).toBe(true)
+  })
+
+  it("is said on the visit that got there, once", () => {
+    const visit = (from: number, pages: number[]) => [
+      user({ kind: "paper.opened", at: from, paperId: "p" }),
+      ...pages.map((p) => dwell(p, from + p * 1000)),
+      user({ kind: "paper.closed", at: from + 60_000, paperId: "p" }),
+    ]
+    const first = visit(at, [1, 2, 3])
+    const second = visit(at + 100_000, [4, 5, 6])
+    const third = visit(at + 200_000, [7])
+    const all = [...first, ...second, ...third]
+    expect(fullReadAt(all, "p", at + 60_000, 10)).toBe(false)
+    expect(fullReadAt(all, "p", at + 160_000, 10)).toBe(true)
+    expect(fullReadAt(all, "p", at + 260_000, 10)).toBe(false)
   })
 })

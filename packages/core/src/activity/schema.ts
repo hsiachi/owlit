@@ -28,6 +28,7 @@ export const activityEvent: z.ZodType<ActivityEvent> = z.discriminatedUnion("kin
   z.object({ kind: z.literal("chat.sent"), at, chatId: id }),
   z.object({ kind: z.literal("chat.ended"), at, chatId: id }),
   z.object({ kind: z.literal("idle"), at, seconds: z.number().nonnegative() }),
+  z.object({ kind: z.literal("back"), at, seconds: z.number().nonnegative() }),
 ])
 
 // What an agent may ask about the user's activity; mirrors ActivityQuery in protocol

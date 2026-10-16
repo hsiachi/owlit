@@ -4,32 +4,9 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import type { Workspace } from "../workspace/workspace.ts"
-import { Initiative, type Clock } from "./initiative.ts"
+import { Initiative } from "./initiative.ts"
+import { ManualClock } from "./manual-clock.ts"
 import { defineRule, RULES, type Rule } from "./rules.ts"
-
-// A clock that moves only when told
-class ManualClock implements Clock {
-  at = Date.parse("2026-10-16T09:00:00Z")
-  private timers: { due: number; fn: () => void; id: number }[] = []
-  private next = 0
-  now() {
-    return this.at
-  }
-  setTimeout(fn: () => void, ms: number) {
-    const id = ++this.next
-    this.timers.push({ due: this.at + ms, fn, id })
-    return id
-  }
-  clearTimeout(handle: unknown) {
-    this.timers = this.timers.filter((t) => t.id !== handle)
-  }
-  advance(ms: number) {
-    this.at += ms
-    const due = this.timers.filter((t) => t.due <= this.at).sort((a, b) => a.due - b.due)
-    this.timers = this.timers.filter((t) => t.due > this.at)
-    for (const t of due) t.fn()
-  }
-}
 
 // Just what the engine and these rules touch of a workspace
 function fakeWorkspace(settings: Partial<InitiativeSettings> = {}) {
@@ -138,12 +115,16 @@ describe("Initiative", () => {
     expect(queued.map((q) => q.subject)).toEqual(["a.md", "b.md", "c.md"])
   })
 
-  it("keeps today's upkeep rules (digests, watched threads) at Off, and review behind When I open things", () => {
+  it("keeps today's upkeep rules (digests, watched threads) at Off, review behind When I open things, the night shift behind Also while I'm away", () => {
     expect(RULES.map((r) => [r.id, r.needs])).toEqual([
       ["digest.onOpen", "off"],
       ["digest.onStar", "off"],
       ["threads.checkWatched", "off"],
       ["docs.reviewOnOpen", "onOpen"],
+      ["docs.reviewSettled", "away"],
+      ["paper.landed", "away"],
+      ["paper.readInFull", "away"],
+      ["docs.dailyScan", "away"],
     ])
   })
 

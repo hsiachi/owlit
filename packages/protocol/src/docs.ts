@@ -60,6 +60,9 @@ export interface DocComment {
   resolvedAt?: number
   // One of Owlit's comments the user dismissed: not shown, and kept so Owlit doesn't say it again
   dismissedAt?: number
+  // One of Owlit's comments it folded away itself: the words it was on changed and nobody answered it in
+  // a week. Not shown; kept with the doc's comments as history
+  foldedAt?: number
 }
 
 export interface CommentEntry {
@@ -93,7 +96,7 @@ export function asComment(value: DocComment | LegacyNote): DocComment {
 }
 
 // Still open: not resolved, and with something said
-export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && c.entries.length > 0
+export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && !c.foldedAt && c.entries.length > 0
 
 // A version kept so an agent's change can be taken back (.owlit/versions/): a doc's text
 // before a write, a note an agent left, a paper an agent added, a thread before an agent wrote to it.
@@ -121,6 +124,9 @@ export interface DocOwlit {
   // When you chose Keep Owlit out; absent while Owlit is let in (the default)
   out?: number
   looked?: DocLook
+  // Sections Owlit's daily look found half done (an empty heading, a TODO), by a hash of the heading,
+  // with when it first found each so: one still half done a week later gets a comment, once
+  halfDone?: Record<string, number>
 }
 
 // Owlit's last look at a doc: when, the doc's modification time it read, and what came of it

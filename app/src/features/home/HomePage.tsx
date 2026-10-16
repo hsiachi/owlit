@@ -23,7 +23,8 @@ import { ago } from "@/lib/time"
 import { type Place, usePlaces } from "./where"
 
 // Home answers, in this order: where was I (every launch), what is waiting for me (only while something
-// waits) and what changed while I was away (only after three days or more). There is no composer: asking
+// waits) and what changed while I was away (Owlit's runs after any time away; the rest only after three
+// days or more). There is no composer: asking
 // happens in Chat and the agent window. PDFs dropped anywhere on it go to the Library.
 
 const RECENT = 8
@@ -36,6 +37,9 @@ export function HomePage() {
   const [lead, ...rest] = places
   const [openedAt] = useState(() => Date.now())
   const since = awayFrom && openedAt - awayFrom >= AWAY_FOR ? awayFrom : null
+  // Short of that, the last time the user was away in this launch: Owlit's runs meanwhile are still said
+  const lastAway = useTrail((s) => s.lastAway)
+  const runsFrom = since ?? lastAway?.from ?? null
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col" {...dropProps}>
@@ -51,7 +55,7 @@ export function HomePage() {
               <div className="mt-8 empty:hidden">
                 <WaitingOnYou />
               </div>
-              {since && <SinceYouLeft since={since} />}
+              {runsFrom && <SinceYouLeft since={runsFrom} all={!!since} />}
               {rest.length > 0 && (
                 <section className="mt-8">
                   <GroupLabel>{t`Recent`}</GroupLabel>

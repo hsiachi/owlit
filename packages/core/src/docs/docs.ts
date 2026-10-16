@@ -86,6 +86,8 @@ export class Docs {
   // A Markdown file's text changed outside core (null: there was none / there is none now). Core uses it
   // to keep what an agent overwrote when the agent writes the disk itself.
   textChanged: ((rel: string, before: string | null, after: string | null) => void) | undefined
+  // A file appeared that core didn't write (Finder, a sync, an agent's own file tools), not a rename
+  appeared: ((rel: string) => void) | undefined
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -109,6 +111,10 @@ export class Docs {
 
   setLooked(rel: string, looked: DocLook) {
     return this.serial.run(() => this.owlit.setLooked(this.check(rel), looked))
+  }
+
+  setHalfDone(rel: string, halfDone: Record<string, number>) {
+    return this.serial.run(() => this.owlit.setHalfDone(this.check(rel), halfDone))
   }
 
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
@@ -539,6 +545,7 @@ export class Docs {
         }
       }
     }
+    if (external) for (const [p, e] of added) if (!e.dir && !byIno.has(e.ino)) this.appeared?.(p)
     for (const [p, e] of removed) {
       if (e.dir || renamedFrom.has(p) || !keepsText(p, e)) continue
       const before = this.texts.get(p)

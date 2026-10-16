@@ -36,12 +36,14 @@ export type ActivityEvent =
   | { kind: "chat.ended"; at: number; chatId: string }
   // The window has been in the background this long
   | { kind: "idle"; at: number; seconds: number }
+  // The window came to the front again after an idle stretch this long
+  | { kind: "back"; at: number; seconds: number }
 
 export type ActivityKind = ActivityEvent["kind"]
 
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
-// What goes into .owlit/journal.jsonl. The rest (page turns, idle, closing a doc, removing a highlight,
+// What goes into .owlit/journal.jsonl. The rest (page turns, idle and back, closing a doc, removing a highlight,
 // sending a message) is only for live listeners.
 export const JOURNALED_KINDS = [
   "paper.opened",

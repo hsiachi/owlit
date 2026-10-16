@@ -32,6 +32,13 @@ export class DocsOwlit {
     return this.change(rel, (entry) => ({ ...entry, looked }))
   }
 
+  setHalfDone(rel: string, halfDone: Record<string, number>) {
+    return this.change(rel, (entry) => {
+      const { halfDone: _was, ...rest } = entry
+      return Object.keys(halfDone).length ? { ...rest, halfDone } : rest
+    })
+  }
+
   // A doc or folder moved: the entries under it follow
   async move(from: string, to: string) {
     await this.rewrite((docs) => Object.fromEntries(Object.entries(docs).map(([p, e]) => [isWithin(p, from) ? to + p.slice(from.length) : p, e])))

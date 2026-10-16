@@ -29,10 +29,15 @@ export function useDocOwlit(path: string): DocOwlit | undefined {
 }
 
 // When the user last saw each doc's comments from Owlit, by path: newer ones carry Owlit's dot on the
-// chip until they have been on screen a moment. Kept per window, as the digests' marks are.
-export const useOwlitSeen = create<{ seen: Record<string, number>; markSeen: (path: string) => void }>()(
-  persist((set) => ({ seen: {}, markSeen: (path) => set((s) => ({ seen: { ...s.seen, [path]: Date.now() } })) }), { name: "owlit-doc-comments-seen" }),
+// chip and the doc's row until they have been on screen a moment. A doc never opened here counts from
+// when this window first kept these (since), so comments from before then aren't news. Kept per window,
+// as the digests' marks are.
+export const useOwlitSeen = create<{ seen: Record<string, number>; since: number; markSeen: (path: string) => void }>()(
+  persist((set) => ({ seen: {}, since: Date.now(), markSeen: (path) => set((s) => ({ seen: { ...s.seen, [path]: Date.now() } })) }), { name: "owlit-doc-comments-seen" }),
 )
+
+// When the user last saw a doc's comments from Owlit
+export const useOwlitSeenAt = (path: string) => useOwlitSeen((s) => s.seen[path] ?? s.since)
 
 // Owlit's open comments on a doc that came after the user last saw its comments, oldest first
 export function newOwlitComments(comments: DocComment[] | undefined, seenAt: number | undefined) {

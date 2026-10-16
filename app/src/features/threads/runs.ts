@@ -45,6 +45,8 @@ export function runWords(task: Task & { kind: ThreadRun }, c: Thread | undefined
       return t`Reading papers in full…`
     case "threads.check":
       return t`Looking for new papers…`
+    case "threads.reread":
+      return t`Answering a paper again from its full text…`
   }
 }
 

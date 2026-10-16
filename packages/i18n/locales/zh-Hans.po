@@ -2635,6 +2635,10 @@ msgid "Doc actions"
 msgstr "文档操作"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Owlit commented since you last looked"
+msgstr "自你上次查看后 Owlit 留了评论"
+
+#: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Shared by link"
 msgstr "已通过链接分享"
 
@@ -3034,6 +3038,10 @@ msgstr "{added, plural, other {新增 # 篇论文}}"
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Changed"
 msgstr "有改动"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "Since you left at {left}"
+msgstr "你 {left}离开后"
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left on {left}"
@@ -5945,6 +5953,10 @@ msgid "Looking for new papers…"
 msgstr "正在找新论文…"
 
 #: app/src/features/threads/runs.ts
+msgid "Answering a paper again from its full text…"
+msgstr "正在按全文重新回答一篇论文…"
+
+#: app/src/features/threads/runs.ts
 msgid "Owlit works on threads in the desktop app."
 msgstr "Owlit 在桌面版里处理脉络。"
 
@@ -6733,6 +6745,58 @@ msgid "You opened “{name}”, which changed since Owlit last looked."
 msgstr "你打开了“{name}”，它在 Owlit 上次看过之后改过。"
 
 #: packages/core/src/agents/runs.ts
+msgid "Reading “{name}” after your edits"
+msgstr "正在读你改过的“{name}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked at “{name}” after your edits"
+msgstr "看过了你改过的“{name}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "You stopped editing “{name}” a while ago, and you're away."
+msgstr "你停下编辑“{name}”已有一会儿，而且你不在。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looking over your docs"
+msgstr "正在翻看你的文档"
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked over your docs"
+msgstr "翻看了你的文档"
+
+#: packages/core/src/agents/runs.ts
+msgid "A day has passed since Owlit last looked over your docs, and you're away."
+msgstr "距 Owlit 上次翻看你的文档已过了一天，而且你不在。"
+
+#: packages/core/src/agents/runs.ts
+msgid "a paper"
+msgstr "一篇论文"
+
+#: packages/core/src/agents/runs.ts
+msgid "Checking a comment in “{name}” against “{title}”"
+msgstr "正在对照“{title}”核对“{name}”里的一条评论"
+
+#: packages/core/src/agents/runs.ts
+msgid "Checked a comment in “{name}” against “{title}”"
+msgstr "对照“{title}”核对了“{name}”里的一条评论"
+
+#: packages/core/src/agents/runs.ts
+msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
+msgstr "你读完了“{title}”全文，而 Owlit 在“{name}”里的评论依据的正是它。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Seeing which threads “{title}” belongs in"
+msgstr "正在看“{title}”该归入哪些脉络"
+
+#: packages/core/src/agents/runs.ts
+msgid "Saw which threads “{title}” belongs in"
+msgstr "看了“{title}”该归入哪些脉络"
+
+#: packages/core/src/agents/runs.ts
+msgid "“{title}” came into your library."
+msgstr "“{title}”进了你的文献库。"
+
+#: packages/core/src/agents/runs.ts
 msgid "Answering your reply in “{name}”"
 msgstr "正在回复你在“{name}”里的回复"
 
@@ -6796,6 +6860,18 @@ msgstr "通读了「{title}」里的论文"
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to read the papers in “{title}”."
 msgstr "你请 Owlit 通读「{title}」里的论文。"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering “{paper}” again in “{title}”"
+msgstr "正在「{title}」里重新回答“{paper}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered “{paper}” again in “{title}”"
+msgstr "在「{title}」里重新回答了“{paper}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "You read “{paper}” in full; its answers in “{title}” came from its abstract."
+msgstr "你读完了“{paper}”全文；它在「{title}」里的回答原本只依据摘要。"
 
 #: packages/core/src/agents/runs.ts
 msgid "Checked “{title}” for new papers"

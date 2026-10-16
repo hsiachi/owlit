@@ -83,5 +83,33 @@ export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: stri
   return out
 }
 
+// Read in full, beyond read: the pages that stayed at the top of the screen cover most of the paper
+// (references and appendices are usually the rest). Without a page count, a long stay on the PDF does.
+export const FULL_SHARE = 0.6
+export const FULL_SECONDS_UNCOUNTED = 15 * 60
+
+export function readInFull(reading: Pick<PaperReading, "pages" | "pdfSeconds"> | undefined, pageCount: number | null) {
+  if (!reading) return false
+  if (!pageCount) return reading.pdfSeconds >= FULL_SECONDS_UNCOUNTED
+  return Object.keys(reading.pages).length >= Math.max(2, Math.ceil(pageCount * FULL_SHARE))
+}
+
+// Whether the visit to a paper that ended at `closedAt` is the one that made it read in full: it is now,
+// and wasn't before that visit began. A paper becomes read in full once.
+export function fullReadAt(entries: readonly JournalEntry[], paperId: string, closedAt: number, pageCount: number | null, alias?: (id: string) => string) {
+  const opened = entries.findLast((e) => e.actor === "user" && e.kind === "paper.opened" && (alias?.(e.paperId) ?? e.paperId) === paperId && e.at <= closedAt)?.at
+  if (opened === undefined) return false
+  const before = readingOf(
+    entries.filter((e) => e.at < opened),
+    alias,
+  ).get(paperId)
+  // What the leaving settled comes with the closing, a moment either side of it
+  const after = readingOf(
+    entries.filter((e) => e.at <= closedAt + 5000),
+    alias,
+  ).get(paperId)
+  return readInFull(after, pageCount) && !readInFull(before, pageCount)
+}
+
 // The entries of a journal file in order; a line that doesn't parse (a write cut short) is skipped
 export const readJournal = (file: string) => readJsonl<JournalEntry>(file)

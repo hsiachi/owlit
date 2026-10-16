@@ -2635,6 +2635,10 @@ msgid "Doc actions"
 msgstr ""
 
 #: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Owlit commented since you last looked"
+msgstr ""
+
+#: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Shared by link"
 msgstr ""
 
@@ -3033,6 +3037,10 @@ msgstr ""
 #. a thread Owlit changed without adding papers
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Changed"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "Since you left at {left}"
 msgstr ""
 
 #: app/src/features/home/SinceYouLeft.tsx
@@ -5945,6 +5953,10 @@ msgid "Looking for new papers…"
 msgstr ""
 
 #: app/src/features/threads/runs.ts
+msgid "Answering a paper again from its full text…"
+msgstr ""
+
+#: app/src/features/threads/runs.ts
 msgid "Owlit works on threads in the desktop app."
 msgstr ""
 
@@ -6733,6 +6745,58 @@ msgid "You opened “{name}”, which changed since Owlit last looked."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
+msgid "Reading “{name}” after your edits"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked at “{name}” after your edits"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You stopped editing “{name}” a while ago, and you're away."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looking over your docs"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Looked over your docs"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "A day has passed since Owlit last looked over your docs, and you're away."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "a paper"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Checking a comment in “{name}” against “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Checked a comment in “{name}” against “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Seeing which threads “{title}” belongs in"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Saw which threads “{title}” belongs in"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "“{title}” came into your library."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
 msgid "Answering your reply in “{name}”"
 msgstr ""
 
@@ -6795,6 +6859,18 @@ msgstr ""
 
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to read the papers in “{title}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answering “{paper}” again in “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "Answered “{paper}” again in “{title}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You read “{paper}” in full; its answers in “{title}” came from its abstract."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts

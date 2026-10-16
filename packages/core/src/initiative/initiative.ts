@@ -27,9 +27,15 @@ export interface InitiativeOptions {
 }
 
 // Events core makes itself, which say nothing about where the user is
-const CORE_KINDS = new Set<string>(["paper.starred", "workspace.opened", "clock.hour"])
+const CORE_KINDS = new Set<string>(["paper.starred", "paper.landed", "paper.read", "docs.appeared", "workspace.opened", "clock.hour"])
 
 const dayOf = (at: number) => new Date(at).toDateString()
+
+interface Deferred {
+  rule: Rule
+  event: InitiativeEvent
+  until?: "away"
+}
 
 export class Initiative {
   private readonly rules: readonly Rule[]
@@ -39,11 +45,13 @@ export class Initiative {
   // Settling evaluations by rule and key: the last event heard, and its timer
   private settling = new Map<string, { event: InitiativeEvent; timer: unknown }>()
   private chain: Promise<void> = Promise.resolve()
-  // Runs started on Owlit's own initiative today (upkeep doesn't count), for the daily cap; read from
-  // the journal the first time it is needed in a workspace
-  private today: { root: string; day: string; count: number } | null = null
-  // Decisions put off while the user writes in what they are about, by rule and subject
-  private deferred = new Map<string, { rule: Rule; event: InitiativeEvent }>()
+  // The runs the rules queued in this workspace (rule, subject, when), read from the journal the first
+  // time they are needed and kept up from then on: for the daily cap and a rule's last run
+  private jobs: { root: string; list: { rule: string; subject: string; at: number }[] } | null = null
+  // Decisions put off, by rule and subject: while the user writes in what they are about, or until away
+  private deferred = new Map<string, Deferred>()
+  // The deferral last logged for each rule and subject, so waiting on goes into the journal once
+  private deferLogged = new Map<string, string>()
   private deferTimer: unknown
   private disposed = false
   readonly presence: Presence
@@ -59,8 +67,10 @@ export class Initiative {
   observe(event: InitiativeEvent) {
     if (this.disposed) return
     if (!CORE_KINDS.has(event.kind)) this.presence.hear(event as ActivityEvent)
-    // What waited for the user to stop or leave is looked at again when they do
-    if (event.kind === "doc.closed" || event.kind === "idle") this.retryDeferred()
+    // What waited for the user to stop or leave is looked at again when they do; what waited for them to
+    // be away, once they are
+    if (event.kind === "doc.closed") this.retryDeferred(false)
+    if (event.kind === "idle" && this.presence.isAway) this.retryDeferred(true)
     for (const rule of this.rules) {
       if (!(rule.on as readonly string[]).includes(event.kind)) continue
       if (!rule.settleMs) {
@@ -91,19 +101,34 @@ export class Initiative {
     this.deferred.clear()
   }
 
-  private retryDeferred() {
-    this.clock.clearTimeout(this.deferTimer)
-    this.deferTimer = undefined
-    const waiting = [...this.deferred.values()]
-    this.deferred.clear()
-    for (const { rule, event } of waiting) this.evaluate(rule, event)
+  // away: the user has just gone away, and everything waiting is looked at again; otherwise only what
+  // waited for a pause
+  private retryDeferred(away: boolean) {
+    const waiting = [...this.deferred.entries()].filter(([, d]) => away || !d.until)
+    for (const [key] of waiting) this.deferred.delete(key)
+    if (![...this.deferred.values()].some((d) => !d.until)) {
+      this.clock.clearTimeout(this.deferTimer)
+      this.deferTimer = undefined
+    }
+    // A rule that put off several subjects of one event looks at the event once
+    const again = new Map<Rule, Set<InitiativeEvent>>()
+    for (const [, { rule, event }] of waiting) {
+      const events = again.get(rule) ?? new Set()
+      if (events.has(event)) continue
+      again.set(rule, events.add(event))
+      this.evaluate(rule, event)
+    }
   }
 
   // A decision put off is taken again once the user may have stopped: when they leave the doc or the
-  // window, or after a typing pause's length
-  private defer(rule: Rule, event: InitiativeEvent, subject: string) {
-    this.deferred.set(`${rule.id}\u0000${subject}`, { rule, event })
-    if (this.deferTimer === undefined) this.deferTimer = this.clock.setTimeout(() => this.retryDeferred(), TYPING_MS)
+  // window, or after a typing pause's length; one that waits for them to be away, when they go
+  private defer(rule: Rule, event: InitiativeEvent, subject: string, until: "away" | undefined) {
+    this.deferred.set(`${rule.id}\u0000${subject}`, { rule, event, until })
+    if (!until && this.deferTimer === undefined)
+      this.deferTimer = this.clock.setTimeout(() => {
+        this.deferTimer = undefined
+        this.retryDeferred(false)
+      }, TYPING_MS)
   }
 
   private evaluate(rule: Rule, event: InitiativeEvent) {
@@ -117,16 +142,24 @@ export class Initiative {
     // Off for this rule: it doesn't run at all, so there is nothing to log
     if (!dialAllows(settings.mode, rule.needs)) return
     const now = this.clock.now()
-    const outcomes = await rule.when(event as never, { ws, now, presence: this.presence })
+    const lastJob = async (subject: string) => {
+      const list = await this.jobsOf(ws)
+      for (let i = list.length - 1; i >= 0; i--) if (list[i]!.rule === rule.id && list[i]!.subject === subject) return list[i]!.at
+      return null
+    }
+    const outcomes = await rule.when(event as never, { ws, now, presence: this.presence, lastJob })
     for (const outcome of outcomes) {
       const base = { kind: "evaluation" as const, at: now, rule: rule.id, subject: outcome.subject, cause: event.kind }
-      if ("none" in outcome) {
-        this.record({ ...base, decision: "none", reason: outcome.none })
+      const key = `${rule.id}\u0000${outcome.subject}`
+      if ("defer" in outcome) {
+        if (this.deferLogged.get(key) !== outcome.defer) this.record({ ...base, decision: "defer", reason: outcome.defer })
+        this.deferLogged.set(key, outcome.defer)
+        this.defer(rule, event, outcome.subject, outcome.until)
         continue
       }
-      if ("defer" in outcome) {
-        this.record({ ...base, decision: "defer", reason: outcome.defer })
-        this.defer(rule, event, outcome.subject)
+      this.deferLogged.delete(key)
+      if ("none" in outcome) {
+        this.record({ ...base, decision: "none", reason: outcome.none })
         continue
       }
       const initiative = rule.needs !== "off"
@@ -136,7 +169,7 @@ export class Initiative {
       }
       try {
         const task = ws.tasks.enqueue(outcome.job.kind, outcome.job.subject, outcome.job.priority)
-        if (initiative && this.today) this.today.count++
+        ;(await this.jobsOf(ws)).push({ rule: rule.id, subject: outcome.subject, at: now })
         this.record({ ...base, decision: "job", taskId: task.id })
       } catch (error) {
         this.record({ ...base, decision: "none", reason: messageOf(error) })
@@ -144,13 +177,19 @@ export class Initiative {
     }
   }
 
+  private async jobsOf(ws: Workspace) {
+    if (this.jobs?.root === ws.root) return this.jobs.list
+    const entries = await readJournal(ws.owlitPath("journal.jsonl")).catch(() => [])
+    const list = entries.flatMap((e) => (e.kind === "evaluation" && e.decision === "job" ? [{ rule: e.rule, subject: e.subject, at: e.at }] : []))
+    // Another workspace may have opened while the journal was read
+    if (this.jobs?.root !== ws.root) this.jobs = { root: ws.root, list }
+    return this.jobs.list
+  }
+
+  // Runs started on Owlit's own initiative today; upkeep doesn't count
   private async countToday(ws: Workspace, now: number) {
     const day = dayOf(now)
-    if (this.today?.root === ws.root && this.today.day === day) return this.today.count
     const initiative = new Set(this.rules.filter((r) => r.needs !== "off").map((r) => r.id))
-    const entries = await readJournal(ws.owlitPath("journal.jsonl")).catch(() => [])
-    const count = entries.filter((e) => e.kind === "evaluation" && e.decision === "job" && initiative.has(e.rule) && dayOf(e.at) === day).length
-    this.today = { root: ws.root, day, count }
-    return count
+    return (await this.jobsOf(ws)).filter((j) => initiative.has(j.rule) && dayOf(j.at) === day).length
   }
 }

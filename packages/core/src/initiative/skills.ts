@@ -1,6 +1,6 @@
 import type { TaskLane, Thread, ThreadColumn } from "@owlit/protocol"
 import { DIGEST_FORMAT, digestPrompt } from "../library/digest/prompt.ts"
-import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt, type GatherSize } from "../threads/prompts.ts"
+import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt, relatePrompt, rereadPrompt, type GatherSize } from "../threads/prompts.ts"
 
 // Every kind of work Owlit does in a background session has one shape: what it is told (instructions,
 // with a format version so a change of wording is visible in what it wrote), the owlit tools it may use
@@ -63,4 +63,24 @@ export const checkSkill = defineSkill<{ thread: Thread; since: number }>({
   tools: SEARCH,
   writes: ["thread"],
   instructions: ({ thread, since }) => checkPrompt(thread, since),
+})
+
+// The user read one of a thread's papers in full: its row is answered again from the whole text
+export const rereadSkill = defineSkill<{ thread: Thread; paperId: string }>({
+  id: "threads.reread",
+  format: 1,
+  lane: "agent",
+  tools: /^thread_write$/,
+  writes: ["thread"],
+  instructions: ({ thread, paperId }) => rereadPrompt(thread, paperId),
+})
+
+// A paper that landed in the library from outside: gathered into the threads whose question it answers
+export const relateSkill = defineSkill<{ threads: readonly Thread[]; paperId: string }>({
+  id: "paper.relate",
+  format: 1,
+  lane: "agent",
+  tools: /^thread_write$/,
+  writes: ["thread"],
+  instructions: ({ threads, paperId }) => relatePrompt(threads, paperId),
 })
