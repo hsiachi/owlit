@@ -153,7 +153,9 @@ export function ActionsOnRightClick({
 // keyboard focus or has this menu up, and darkens on its own hover. "Up" lasts until the menu's fade-out
 // ends: hiding the trigger as soon as the menu closes leaves the fading menu anchored to nothing, and it
 // jumps to the window's top-left corner. A row's date that gives way to it can hide on
-// `group-has-data-menu-up/row`.
+// `group-has-data-menu-up/row`. Nothing in the row moves when it shows: in the row's flow it keeps its
+// place while hidden (keepSpace); floating at the row's end, it sits over the title, which fades
+// under it (fadeUnderRowMenu).
 export function RowMenuButton({
   groups,
   menu,
@@ -161,6 +163,7 @@ export function RowMenuButton({
   onOpen,
   side,
   align = "end",
+  keepSpace,
   className,
   menuClassName,
 }: {
@@ -170,6 +173,7 @@ export function RowMenuButton({
   onOpen?: () => void
   side?: "right" | "bottom"
   align?: "start" | "end"
+  keepSpace?: boolean
   className?: string
   menuClassName?: string
 }) {
@@ -189,7 +193,10 @@ export function RowMenuButton({
           data-menu-up={up || undefined}
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "hidden size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none group-hover/row:flex group-focus-key/row:flex group-has-focus-key/row:flex hover:bg-foreground/8 hover:text-foreground focus-key:bg-foreground/8 data-menu-up:flex data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground [&_svg]:size-4",
+            "size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-foreground/8 hover:text-foreground focus-key:bg-foreground/8 data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground [&_svg]:size-4",
+            keepSpace
+              ? "invisible flex group-hover/row:visible group-focus-key/row:visible group-has-focus-key/row:visible data-menu-up:visible"
+              : "hidden group-hover/row:flex group-focus-key/row:flex group-has-focus-key/row:flex data-menu-up:flex",
             className,
           )}
         >
@@ -206,6 +213,12 @@ export function RowMenuButton({
     </DropdownMenu>
   )
 }
+
+// For what a floating RowMenuButton sits over: its end fades out while the ⋯ shows (the
+// `fade-under-menu` utility in index.css). It goes on an element that reaches the row's end and carries
+// no fill, so the row's own hover fill stays whole.
+export const fadeUnderRowMenu =
+  "group-hover/row:fade-under-menu group-focus-key/row:fade-under-menu group-has-focus-key/row:fade-under-menu group-has-data-menu-up/row:fade-under-menu"
 
 // A page header's ⋯, the trigger of its DropdownMenu (the menu's content goes beside it): a ghost icon
 // button that keeps the `muted` fill while its menu is up

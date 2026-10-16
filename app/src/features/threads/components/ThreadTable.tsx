@@ -325,7 +325,9 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
           )}
           {section.one && <span className="min-w-0 truncate text-detail text-muted-foreground">{section.one}</span>}
           <span className="ml-auto shrink-0 text-detail text-muted-foreground tabular-nums">{[count, rels].filter(Boolean).join(" · ")}</span>
-          {g && <RowMenuButton groups={groups} label={t`Group actions`} menuClassName="w-56" />}
+          {/* The ⋯ holds its place while hidden, and a section without one keeps the same room, so the counts
+              stay put on hover and line up from row to row */}
+          {g ? <RowMenuButton groups={groups} label={t`Group actions`} menuClassName="w-56" keepSpace /> : <span className="size-6 shrink-0" />}
         </div>
       </td>
     </tr>

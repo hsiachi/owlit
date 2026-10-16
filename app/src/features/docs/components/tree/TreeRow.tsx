@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
+import { ActionsOnRightClick, fadeUnderRowMenu, RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { RenameInput } from "@/components/rename-input"
 import { useDocActions } from "../../actions"
 import { useDocsUiStore } from "../../ui-store"
@@ -123,14 +123,20 @@ export function TreeRow({
           onDragStart={(e) => dragStart(e, key)}
           onClick={(e) => pickOnClick(e, key, tree.activeId) || onOpen()}
           onMouseEnter={fullNameOnHover(name)}
-          className={cn("flex min-w-0 flex-1 items-center gap-1 py-1.5 text-left outline-hidden group-hover/row:pr-6", buttonClassName)}
+          // The ⋯ floats over the row's end, where the name fades under it, so nothing makes room for it
+          className={cn("flex min-w-0 flex-1 items-center gap-1 py-1.5 text-left outline-hidden", fadeUnderRowMenu, buttonClassName)}
         >
           {/* Every row keeps a chevron-wide slot, so names at the same depth line up whether they are folders or files */}
           <span className="flex size-3.5 shrink-0 items-center justify-center">{lead}</span>
           <span data-name className={cn("truncate", nameClassName)}>
             {name}
           </span>
-          {trail && <span className="ml-auto flex shrink-0 items-center pl-1 text-muted-foreground group-hover/row:hidden">{trail}</span>}
+          {/* It keeps its room while the ⋯ shows in its place, so a long name doesn't grow into it */}
+          {trail && (
+            <span className="ml-auto flex shrink-0 items-center pl-1 text-muted-foreground group-hover/row:invisible group-focus-key/row:invisible group-has-focus-key/row:invisible group-has-data-menu-up/row:invisible">
+              {trail}
+            </span>
+          )}
         </button>
         <RowMenuButton groups={menu.groups} label={menuLabel} onOpen={menu.onOpen} side="right" align="start" className="absolute top-1/2 right-1 -translate-y-1/2" />
       </div>

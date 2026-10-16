@@ -563,6 +563,11 @@
 @utility menu-surface {
   @apply bg-popover shadow-lg ring-1 ring-foreground/8 dark:ring-foreground/14;
 }
+/* Under a row's ⋯ floating at the row's end (fadeUnderRowMenu): the title runs on under it and fades out
+   over the 20px before it, so the ⋯ needs no room made and the title never re-truncates */
+@utility fade-under-menu {
+  mask-image: linear-gradient(to left, transparent 1.5rem, #000 2.75rem);
+}
 /* ---- Paper note (Tiptap, rendered with the .markdown styles) ---- */
 .note-editor p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
