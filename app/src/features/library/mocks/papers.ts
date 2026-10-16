@@ -1,8 +1,20 @@
-import type { Paper } from "@owlit/protocol"
+import type { Paper, PdfState, PdfTry } from "@owlit/protocol"
 
 const DAY = 86_400_000
 const now = Date.now()
 const daysAgo = (d: number) => now - d * DAY
+
+// Where getting a paper's PDF stands, as core would say it: owlit's routes found no copy two days ago,
+// then the last try given, which is the reason
+const owlitLook: PdfTry[] = [
+  { by: "owlit", ended: "no-copy", at: daysAgo(2), route: "arxiv" },
+  { by: "owlit", ended: "no-copy", at: daysAgo(2), route: "unpaywall/repository" },
+  { by: "owlit", ended: "no-copy", at: daysAgo(2), route: "publisher:acm" },
+]
+const noPdf = (last?: PdfTry, extra: Partial<PdfState> = {}): PdfState => {
+  const tried = [...owlitLook, ...(last ? [last] : [])]
+  return { state: "no-pdf", tried, reason: tried.at(-1), nextLook: daysAgo(-1), ...extra }
+}
 
 // Ids p1–p8 match the Chat feature's mock mentionables so @-mentions line up
 export const seedPapers: Paper[] = [
@@ -210,6 +222,7 @@ export const seedPapers: Paper[] = [
     abstract:
       "Surfaces related-work paragraphs from many papers on a topic and groups them, so a newcomer can see how a field has already been organised before writing their own review.",
     ids: { doi: "10.1145/3544548.3580841" },
+    pdfState: noPdf(),
     addedAt: daysAgo(9),
     addedBy: "user",
     starred: false,
@@ -244,6 +257,7 @@ export const seedPapers: Paper[] = [
     abstract:
       "A study of non-experts writing prompts in a chatbot design tool, finding opportunistic rather than systematic strategies and expectations borrowed from human instruction.",
     ids: { doi: "10.1145/3544548.3581388" },
+    pdfState: noPdf({ by: "you", ended: "no-access", at: daysAgo(1), host: "dl.acm.org", title: "Proceedings of CHI 2023" }),
     addedAt: daysAgo(4),
     addedBy: "user",
     starred: false,
@@ -295,6 +309,7 @@ export const seedPapers: Paper[] = [
     abstract:
       "Describes sensemaking as two interleaved loops, foraging for information and building schemas from it, and locates where tools could help in each.",
     ids: {},
+    pdfState: { state: "no-pdf", tried: [{ by: "owlit", ended: "no-copy", at: daysAgo(0.5), route: "title:openalex" }], reason: { by: "owlit", ended: "no-copy", at: daysAgo(0.5), route: "title:openalex" }, nextLook: daysAgo(-0.5) },
     addedAt: daysAgo(0.5),
     addedBy: "user",
     starred: true,
@@ -302,3 +317,33 @@ export const seedPapers: Paper[] = [
     tags: ["sensemaking", "to-cite"],
   },
 ]
+
+// One paper for each place getting a PDF can stand, for the No PDF view and the card
+const pdfStates: [string, string, PdfState][] = [
+  ["Finding", "10.1145/3613904.3642001", { state: "finding", tried: [] }],
+  ["Waiting for the network", "10.1145/3613904.3642002", { state: "finding", tried: [{ by: "owlit", ended: "offline", at: daysAgo(0.1) }], reason: { by: "owlit", ended: "offline", at: daysAgo(0.1) } }],
+  ["No access through the library", "10.1145/3613904.3642003", noPdf({ by: "you", ended: "no-access", at: daysAgo(1), host: "dl.acm.org", title: "Proceedings of CHI" })],
+  ["Not offered by the library", "10.1177/0956797620904990", noPdf({ by: "you", ended: "not-offered", at: daysAgo(1), host: "tlink.lib.tsinghua.edu.cn", title: "Unauthorized" })],
+  ["Not there", "10.1037/a0017908", noPdf({ by: "owlit", ended: "not-there", at: daysAgo(1), host: "psycnet.apa.org", title: "DOI Not Found", route: "browser:doi" })],
+  ["Stopped by a check", "10.1177/0956797619877311", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "journals.sagepub.com", route: "browser:sage" })],
+  ["Wants a sign-in", "10.1016/j.cell.2020.01.001", noPdf({ by: "owlit", ended: "sign-in", at: daysAgo(1), host: "www.sciencedirect.com", route: "browser:elsevier:proxied" })],
+  ["Nothing came", "10.1145/3706598.3713300", noPdf({ by: "you", ended: "nothing-came", at: daysAgo(1) })],
+  ["Waiting its turn in the browser", "10.1145/3706598.3713332", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "dl.acm.org", route: "browser:acm" }, { run: { state: "queued", browser: "Dia" } })],
+  ["A page open to save from", "10.1145/3706598.3713400", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "dl.acm.org", route: "browser:acm" }, { run: { state: "page", browser: "Dia" } })],
+]
+seedPapers.push(
+  ...pdfStates.map(([title, doi, pdfState], i): Paper => ({
+    id: `pdf-${i + 1}`,
+    title: `${title} (an example of a paper without its PDF)`,
+    authors: ["Ada Example"],
+    year: 2024,
+    venue: "CHI",
+    ids: { doi },
+    pdfState,
+    addedAt: daysAgo(4 + i * 0.1),
+    addedBy: "user",
+    starred: false,
+    status: "unread",
+    tags: [],
+  })),
+)

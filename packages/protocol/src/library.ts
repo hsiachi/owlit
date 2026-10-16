@@ -53,8 +53,8 @@ export interface PdfState {
   state: "finding" | "no-pdf"
   // Newest last
   tried: PdfTry[]
-  // The try that says where the paper stands: the newest, except that owlit's own look finding no copy
-  // doesn't hide what an earlier try learnt (a library that said no). Absent before any try.
+  // The try that says where the paper stands: the newest, except where owlit's own try says less than an
+  // earlier one (no open copy after a library that said no). Absent before any try.
   reason?: PdfTry
   // When owlit's back-off look runs next; absent when it won't
   nextLook?: number
@@ -62,7 +62,8 @@ export interface PdfState {
   // with the file to come, its article page open for the user to save the PDF from, or the paper the run
   // stopped on for the user. browser is that browser's name; why, what its tab showed when the run
   // stopped, with that page's title and host; offered, a PDF that arrived in Downloads (its file name)
-  // owlit isn't sure is this paper's. Kept in memory only, and goes with the run.
+  // owlit isn't sure is this paper's. Kept in memory only; it goes with the run in the user's browser
+  // (papers.fromBrowser).
   run?: {
     state: "queued" | "opened" | "page" | "waiting"
     browser?: string

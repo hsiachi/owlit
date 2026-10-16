@@ -140,7 +140,7 @@ function Done({ summary }: { summary: ImportSummary }) {
   // Said once every new paper's PDF lookup has ended, so the number doesn't count down in front of you
   const withoutPdf = useMemo(() => {
     const here = summary.added.map((id) => papers[id]).filter(Boolean)
-    if (here.some((p) => pdfWait(p) === "not-yet")) return null
+    if (here.some((p) => pdfWait(p) === "finding")) return null
     return here.filter((p) => !p.pdf).length
   }, [summary.added, papers])
 

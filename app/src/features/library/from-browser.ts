@@ -11,26 +11,25 @@ import { useLibraryStore } from "./store"
 import { pdfWait } from "./lib/pdf-wait"
 
 // Papers owlit couldn't get alone, got from the user's own browser one at a time by core's
-// papers.fromBrowser run. Started from the paper's card, Home's Waiting on you, or the Library under
-// Needs you; each of them shows the same run.
+// papers.fromBrowser run. Started from the paper's card or the Library's line; the Library's line and
+// Home's rows show the same run.
 
 const KIND = "papers.fromBrowser"
 
 // The run, while it goes on: its progress (done of total), and waiting_for_you when it stopped for the
-// user (the paper it stopped on carries why, in noPdf.fromBrowser)
+// user (the paper it stopped on carries why, in pdfState.run)
 export const useFromBrowserRun = () => useTasksStore((s) => tasksOfKind(s.byId, KIND).find((task) => !isTaskFinished(task)))
 
 // The paper a run stopped on, and what its tab showed. Read from the run's own mark rather than from
 // pdfWait, which puts a file to confirm first: a sign-in can bring the PDF the run stopped for.
-export const useStoppedOn = () =>
-  useLibraryStore((s) => Object.values(s.papers).find((p) => p.noPdf?.fromBrowser?.state === "waiting"))
+export const useStoppedOn = () => useLibraryStore((s) => Object.values(s.papers).find((p) => p.pdfState?.run?.state === "waiting"))
 
 // The papers waiting on the user's browser, found once per papers object: the store's other changes (a
 // highlight, a note) keep it, and the sidebar asks on every one. Shared: don't sort or change them.
 interface ForBrowser {
-  // Papers the user's browser hasn't been sent to yet: owlit couldn't get them alone, and no run tried
-  // them. Ones a run tried (no access, didn't come) are left to their own card's Try again, so Get them
-  // doesn't open the same paywalls again. The longest waiting first.
+  // Papers whose publisher stopped owlit with a check or a sign-in, which the user's browser may get past.
+  // Ones a run tried (no access, nothing came) say so instead, and are left to their own card, so Get
+  // them doesn't open the same paywalls again. The longest waiting first.
   waiting: Paper[]
   // Article pages a run left open in the user's browser for them to save the PDF from, while Downloads
   // is watched for it: they need the user too, though Get them has nothing to open for them
@@ -47,12 +46,12 @@ function forBrowserOf(papers: Record<string, Paper>): ForBrowser {
   found = { waiting: [], pages: [], offered: [] }
   for (const p of Object.values(papers)) {
     const wait = pdfWait(p)
-    if (wait === "browser") found.waiting.push(p)
+    if (wait === "for-browser") found.waiting.push(p)
     else if (wait === "page") found.pages.push(p)
     else if (wait === "offered") found.offered.push(p)
-    found.browser ??= p.noPdf?.fromBrowser?.browser
+    found.browser ??= p.pdfState?.run?.browser
   }
-  found.waiting.sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
+  found.waiting.sort((a, b) => since(a) - since(b))
   forBrowser.set(papers, found)
   return found
 }
@@ -117,8 +116,10 @@ export function useFromBrowser(): FromBrowserView {
 
 // Papers owlit found nothing for that the user's browser hasn't been sent for: a long shot, offered only
 // in the No PDF view (lib/filter.ts)
-export const useMightComeThroughBrowser = () =>
-  useLibraryStore(useShallow((s) => Object.values(s.papers).filter(mightComeThroughBrowser).sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))))
+export const useMightComeThroughBrowser = () => useLibraryStore(useShallow((s) => Object.values(s.papers).filter(mightComeThroughBrowser).sort((a, b) => since(a) - since(b))))
+
+// When the try that says where the paper stands was made
+const since = (p: Paper) => p.pdfState?.reason?.at ?? 0
 
 // What a run did, by paper id: its progress note once it has ended
 export interface RunTally {
@@ -158,7 +159,7 @@ function parseTally(note: string | undefined): RunTally | undefined {
 
 // The short line for the paper a run stopped on: "Sign in to your library in Dia"
 export function stoppedLine(paper: Paper | undefined) {
-  const from = paper?.noPdf?.fromBrowser
+  const from = paper?.pdfState?.run
   const browser = from?.browser
   const title = from?.page?.title || from?.page?.host || ""
   switch (from?.why) {
@@ -176,13 +177,13 @@ export function stoppedLine(paper: Paper | undefined) {
 
 // Continue, or what continuing means: "I've signed in"
 export const continueLabel = (paper: Paper | undefined) =>
-  paper?.noPdf?.fromBrowser?.why === "sign-in" ? t`I've signed in` : t({ message: "Continue", context: "carry on getting PDFs from the browser" })
+  paper?.pdfState?.run?.why === "sign-in" ? t`I've signed in` : t({ message: "Continue", context: "carry on getting PDFs from the browser" })
 
 export async function getInBrowser(ids: string[]) {
   try {
     const papers = await rpc.library.getInBrowser({ ids })
     const { updatePaper } = useLibraryStore.getState()
-    for (const paper of papers) updatePaper(paper.id, { noPdf: paper.noPdf })
+    for (const paper of papers) updatePaper(paper.id, { pdfState: paper.pdfState })
   } catch (e) {
     toastError(e, t`Couldn't open your browser.`)
   }

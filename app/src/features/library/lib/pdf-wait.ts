@@ -1,48 +1,82 @@
-import type { Paper } from "@owlit/protocol"
+import { t } from "@lingui/core/macro"
+import type { Paper, PdfEnded, PdfState } from "@owlit/protocol"
 
-// Where a paper without its PDF stands: the one reading of paper.noPdf that every place goes by, so they
-// never disagree. In the order the card tells them apart:
-// - offered: a file arrived in Downloads and owlit isn't sure it is this paper's; the user says
-// - run-stopped: the paper a run in the user's browser stopped on for them (a sign-in, a check)
-// - page: its article page is open in their browser for them to save the PDF from
-// - queued, opened: a run has it, waiting its turn or opened there with the file to come
-// - missed: their browser was sent for it and nothing came
-// - no-access: their browser reached the publisher (or the library's proxy) and was turned away
-// - missing: the publisher has no PDF at the address it went to
-// - browser: owlit couldn't get it alone and their browser is the way; not sent there yet
-// - not-found: owlit looked and found no copy
-// - not-yet: owlit hasn't looked
-// undefined once it has its PDF. A page or a stopped run counts whatever sent the paper there: a
-// publisher's hold, or the user picking their browser on a not-found card.
-export type PdfWait = "offered" | "run-stopped" | "page" | "queued" | "opened" | "missed" | "no-access" | "missing" | "browser" | "not-found" | "not-yet"
+// Where a paper without its PDF stands, read off what core keeps (paper.pdfState) and never worked out
+// again: its state, the ending of the try that says why, and a run in the user's browser that has it.
+// Every place goes by this one reading, so the row, the No PDF groups, the card, Home and the rail agree.
+// - finding, offline: owlit is looking, or waits for the network
+// - not-found, no-access, not-offered, not-there, nothing-came: no PDF, for that reason
+// - for-browser: a page stopped owlit with a check or a sign-in; the user's browser may get past it
+// - queued, opened: a run in the user's browser has it, waiting its turn or opened there
+// - page, run-stopped, offered: that run waits on the user (an article page to save from, a sign-in or
+//   a check in their browser, a downloaded file to confirm)
+export type PdfWait =
+  | "finding"
+  | "offline"
+  | "not-found"
+  | "no-access"
+  | "not-offered"
+  | "not-there"
+  | "for-browser"
+  | "nothing-came"
+  | "queued"
+  | "opened"
+  | "page"
+  | "run-stopped"
+  | "offered"
 
-export function pdfWait(p: Paper): PdfWait | undefined {
-  if (p.pdf) return undefined
-  const n = p.noPdf
-  if (!n) return "not-yet"
-  if (n.offered) return "offered"
-  switch (n.fromBrowser?.state) {
-    case "waiting":
-      return "run-stopped"
-    case "page":
-    case "queued":
-    case "opened":
-      return n.fromBrowser.state
-  }
-  // Turned away outranks nothing coming: the publisher said why
-  if (n.noAccess) return n.noAccess.missing ? "missing" : "no-access"
-  if (n.fromBrowser?.state === "missed") return "missed"
-  return n.needs ? "browser" : "not-found"
+const BY_ENDED: Record<PdfEnded, PdfWait> = {
+  "no-copy": "not-found",
+  "no-access": "no-access",
+  "not-offered": "not-offered",
+  "not-there": "not-there",
+  check: "for-browser",
+  "sign-in": "for-browser",
+  "nothing-came": "nothing-came",
+  // Not reasons for having no PDF; core never gives them as one
+  pdf: "not-found",
+  offline: "offline",
 }
 
-// Something only the user can do now: the rail's dot, Home's rows and the row's Needs you. Once their
-// browser was turned away or nothing came of it, there is nothing for them to do now, so it leaves the
-// amber rung and its card's Try again is all that is left. A run at work needs nothing of them.
-export const waitsOnYou = (w: PdfWait | undefined) => w === "offered" || w === "run-stopped" || w === "page" || w === "browser"
+const BY_RUN: Record<NonNullable<PdfState["run"]>["state"], PdfWait> = { queued: "queued", opened: "opened", page: "page", waiting: "run-stopped" }
 
-// The Library's Needs you: what waits on the user, and a run's papers while it goes on, so they can be
-// watched leaving the list
-export const needsYou = (p: Paper) => {
-  const w = pdfWait(p)
-  return waitsOnYou(w) || w === "queued" || w === "opened"
+export function pdfWait(p: Pick<Paper, "pdf" | "pdfState">): PdfWait | undefined {
+  if (p.pdf) return undefined
+  const s = p.pdfState
+  if (s?.run) return s.run.offered ? "offered" : BY_RUN[s.run.state]
+  if (!s || s.state === "finding") return s?.reason?.ended === "offline" ? "offline" : "finding"
+  return BY_ENDED[s.reason?.ended ?? "no-copy"]
+}
+
+// Something only the user can do now, in the run they started: Home's rows, the rail's dot, the row's
+// amber word. A page that stopped owlit is the user's browser's chance, not their move, so it isn't.
+export const waitsOnYou = (w: PdfWait | undefined) => w === "page" || w === "run-stopped" || w === "offered"
+
+// The one name of each state, said the same in the row, the No PDF group and the card's title
+export function pdfWord(w: PdfWait | undefined): string | undefined {
+  switch (w) {
+    case undefined:
+      return undefined
+    case "finding":
+    case "offline":
+      return t({ message: "Finding", comment: "a paper whose PDF owlit is looking for" })
+    case "not-found":
+      return t({ message: "Not found", comment: "owlit looked for the paper's PDF and found no copy" })
+    case "no-access":
+    case "not-offered":
+      return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+    case "not-there":
+      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
+    case "for-browser":
+      return t({ message: "For your browser", comment: "a paper whose publisher stopped owlit with a check or a sign-in; the user's own browser may get it" })
+    case "nothing-came":
+      return t({ message: "Nothing came", comment: "the user's browser was sent for the PDF and none arrived" })
+    case "queued":
+    case "opened":
+      return t({ message: "In your browser…", comment: "a paper being got from the user's browser now" })
+    case "page":
+    case "run-stopped":
+    case "offered":
+      return t({ message: "Needs you", comment: "a paper being got from the user's browser that waits on them" })
+  }
 }

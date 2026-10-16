@@ -114,7 +114,6 @@ msgstr "什么也没找到。"
 #. verb: open the chat that waits
 #. verb: open the exported doc
 #. verb: open the paper that waits
-#. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/waiting-on-you.ts
@@ -474,23 +473,6 @@ msgstr "· 正在获取 PDF，{done}/{total}"
 msgid "· {done} of {total}"
 msgstr "· {done}/{total}"
 
-#. placeholder {0}: waiting.length
-#: app/src/app/waiting-on-you.ts
-msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
-msgstr "{0, plural, one {一篇论文需要用你的浏览器获取} other {# 篇论文需要用你的浏览器获取}}"
-
-#: app/src/app/waiting-on-you.ts
-msgid "Show them"
-msgstr "查看"
-
-#: app/src/app/waiting-on-you.ts
-msgid "Get it"
-msgstr "获取"
-
-#: app/src/app/waiting-on-you.ts
-msgid "Get them"
-msgstr "全部获取"
-
 #: app/src/app/waiting-on-you.ts
 msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
 msgstr "{n, plural, one {在 {browser} 打开的页面上保存 PDF} other {在 {browser} 打开的 # 个页面上保存 PDF}}"
@@ -507,6 +489,10 @@ msgstr "待确认的已下载 PDF"
 #: app/src/app/waiting-on-you.ts
 msgid "{0, plural, one {A downloaded PDF to confirm} other {# downloaded PDFs to confirm}}"
 msgstr "{0, plural, one {一个已下载的 PDF 待确认} other {# 个已下载的 PDF 待确认}}"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Show them"
+msgstr "查看"
 
 #: app/src/app/waiting-on-you.ts
 msgid "Owlit finished since you last looked"
@@ -3113,10 +3099,6 @@ msgstr "{0, plural, other {已移除 # 篇论文}}"
 msgid "Highlight deleted"
 msgstr "已删除高亮"
 
-#: app/src/features/library/client.ts
-msgid "Your browser can get this PDF."
-msgstr "你的浏览器可以获取这篇 PDF。"
-
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "Looking up {input}…"
 msgstr "正在查找 {input}…"
@@ -3228,8 +3210,8 @@ msgstr "正在用浏览器获取 PDF · {done}/{total}"
 
 #. placeholder {0}: waiting.length
 #: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
-msgstr "{0, plural, other {# 篇论文需要用你的浏览器获取}}"
+msgid "{0, plural, one {# paper for your browser} other {# papers for your browser}}"
+msgstr "{0, plural, other {# 篇可用浏览器获取}}"
 
 #. placeholder {0}: pages.length
 #. placeholder {0}: tally.pages.length
@@ -3276,11 +3258,9 @@ msgstr "从浏览器拿到 {got}/{total} 篇"
 msgid "Got from your browser"
 msgstr "从浏览器拿到的"
 
-#. group of papers the user's library doesn't give them
 #. the user's library doesn't give them this paper
 #: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
+#: app/src/features/library/lib/pdf-wait.ts
 msgid "No access"
 msgstr "无权限"
 
@@ -3289,17 +3269,9 @@ msgstr "无权限"
 msgid "{0, plural, one {# no access} other {# no access}}"
 msgstr "{0, plural, other {# 篇无权限}}"
 
-#. group of papers the user's browser was sent for and no PDF arrived
-#. the user's browser was sent for the PDF and none arrived
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "Didn't come"
-msgstr "没有下载下来"
-
 #. placeholder {0}: tally.missed.length
 #: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# didn't come} other {# didn't come}}"
+msgid "{0, plural, one {nothing came for #} other {nothing came for #}}"
 msgstr "{0, plural, other {# 篇没有下载下来}}"
 
 #: app/src/features/library/components/FromBrowserLine.tsx
@@ -3653,20 +3625,8 @@ msgstr "已加星标"
 msgid "Read"
 msgstr "已读"
 
-#. a paper whose publisher wants the user to check or sign in
-#. filter chip: papers whose publisher wants the user to check or sign in
-#. group of papers without a PDF whose publisher wants the user
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-#: app/src/features/settings/SettingsDialog.tsx
-msgid "Needs you"
-msgstr "需要你处理"
-
 #. filter chip: papers owlit has no PDF of
-#. owlit looked for the paper's PDF and found none
 #: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No PDF"
 msgstr "无 PDF"
@@ -3710,13 +3670,6 @@ msgstr "新导读"
 #: app/src/features/library/digest-rows.tsx
 msgid "Digest stopped"
 msgstr "导读已停止"
-
-#. group of papers whose publisher has no PDF of them
-#. the publisher has no PDF of the paper
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "No PDF there"
-msgstr "出版方无 PDF"
 
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"
@@ -3903,12 +3856,6 @@ msgstr "{0, plural, other {已添加 # 篇论文}}"
 msgid "Earlier"
 msgstr "更早"
 
-#. group of papers owlit looked for and found no PDF of
-#: app/src/features/library/lib/filter.ts
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
-msgstr "未找到 PDF"
-
 #. Library papers no thread holds
 #: app/src/features/library/lib/filter.ts
 msgid "Not from a thread"
@@ -3958,6 +3905,42 @@ msgstr "蓝色"
 msgid "Pink"
 msgstr "粉色"
 
+#. a paper whose PDF owlit is looking for
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Finding"
+msgstr "查找中"
+
+#. owlit looked for the paper's PDF and found no copy
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Not found"
+msgstr "未找到"
+
+#. the publisher has no PDF of the paper
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No PDF there"
+msgstr "出版方无 PDF"
+
+#. a paper whose publisher stopped owlit with a check or a sign-in; the user's own browser may get it
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "For your browser"
+msgstr "可用浏览器获取"
+
+#. the user's browser was sent for the PDF and none arrived
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Nothing came"
+msgstr "没有下载下来"
+
+#. a paper being got from the user's browser now
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "In your browser…"
+msgstr "正在用浏览器获取…"
+
+#. a paper being got from the user's browser that waits on them
+#: app/src/features/library/lib/pdf-wait.ts
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "Needs you"
+msgstr "需要你处理"
+
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
 msgstr "无法查找。"
@@ -3965,10 +3948,6 @@ msgstr "无法查找。"
 #: app/src/features/library/mock-client.ts
 msgid "That does not look like a DOI, an arXiv id or a URL."
 msgstr "这看起来不像 DOI、arXiv 编号或 URL。"
-
-#: app/src/features/library/mock-client.ts
-msgid "No open-access PDF was found for this paper."
-msgstr "没有找到这篇论文的开放获取 PDF。"
 
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "What do you take from this paper?"
@@ -4188,40 +4167,116 @@ msgid "Page {number}"
 msgstr "第 {number} 页"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Looking for a PDF…"
+msgid "Finding a PDF…"
 msgstr "正在查找 PDF…"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}; now trying {now}."
+msgstr "{tried}；正在试{now}。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Now trying {now}."
+msgstr "正在试{now}。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}."
+msgstr "{tried}。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "If you already have it, drop it here."
 msgstr "如果你已经有了，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Is this the paper's PDF?"
-msgstr "这是这篇论文的 PDF 吗？"
+msgid "Waiting for the network"
+msgstr "等待网络"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Drop a PDF here if you have it."
-msgstr "如果你有 PDF，拖到这里即可。"
+msgid "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
+msgstr "owlit 查找时连不上任何 PDF 来源。下次打开时会再找。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF yet"
-msgstr "还没有 PDF"
+msgid "No PDF found"
+msgstr "未找到 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Drop a PDF here, or let owlit look for an open-access copy."
-msgstr "把 PDF 拖到这里，或让 owlit 查找开放获取的版本。"
+msgid "owlit knows of no open copy of this paper."
+msgstr "owlit 不知道这篇论文有开放获取的版本。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser can get this PDF"
-msgstr "你的浏览器可以获取这篇 PDF"
+msgid "{tried}. It has no DOI, so owlit could only look by its title."
+msgstr "{tried}。它没有 DOI，owlit 只能按标题查找。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit can't get it by itself. It opens the paper's page in your browser: save the PDF there, and owlit takes it from Downloads."
-msgstr "owlit 自己拿不到。它会在你的浏览器里打开论文页面：在那里保存 PDF，owlit 再从“下载”文件夹取用。"
+msgid "It has no DOI, so owlit could only look by its title."
+msgstr "它没有 DOI，owlit 只能按标题查找。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit can't get it by itself. Your browser saves the PDF to Downloads, and owlit takes it from there."
-msgstr "owlit 自己拿不到。你的浏览器会把 PDF 存到“下载”文件夹，owlit 再从那里取用。"
+msgid "No access through your library"
+msgstr "通过你的图书馆无法访问"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} offered access instead of the PDF · {date}"
+msgstr "{host} 只给了购买入口，没有 PDF · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher offered access instead of the PDF · {date}"
+msgstr "出版商只给了购买入口，没有 PDF · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your library doesn't offer this paper"
+msgstr "你的图书馆没有这篇论文"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your library's proxy doesn't have it · {date}"
+msgstr "你的图书馆代理没有这篇 · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} 上没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "出版方没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered “{words}” · {date}"
+msgstr "它的回复是“{words}” · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered 404 · {date}"
+msgstr "它的回复是 404 · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Try it in your browser"
+msgstr "试试用浏览器获取"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} wants a sign-in · {date}"
+msgstr "{host} 要求登录 · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher wants a sign-in · {date}"
+msgstr "出版商要求登录 · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} stopped owlit with a check · {date}"
+msgstr "{host} 用人机验证拦下了 owlit · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher stopped owlit with a check · {date}"
+msgstr "出版商用人机验证拦下了 owlit · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Nothing came from your browser"
+msgstr "浏览器那边没有下载下来"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The page in {browser} may say you have no access to this paper, or {browser} may be asking you something: a check, a sign-in, or whether the site may download files."
+msgstr "{browser} 里的页面可能显示你没有这篇论文的访问权限，或者 {browser} 在等你回应：验证、登录，或是否允许该网站下载文件。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The page may say you have no access to this paper, or your browser may be asking you something: a check, a sign-in, or whether the site may download files."
+msgstr "页面可能显示你没有这篇论文的访问权限，或者浏览器在等你回应：验证、登录，或是否允许该网站下载文件。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Waiting its turn"
@@ -4272,64 +4327,12 @@ msgid "Getting PDFs waits for you to look at the page there. Then owlit goes on.
 msgstr "获取 PDF 正在等你看一下那个页面，之后 owlit 会继续。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library doesn't offer this paper"
-msgstr "你的图书馆没有这篇论文"
+msgid "Is this the paper's PDF?"
+msgstr "这是这篇论文的 PDF 吗？"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Its proxy answered “{title}”."
-msgstr "图书馆代理显示“{title}”。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Its proxy turned the paper away."
-msgstr "图书馆代理拒绝了这篇论文。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No access through your library"
-msgstr "通过你的图书馆无法访问"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Through your library, {host} offered access instead of the PDF. Your library may not subscribe to this journal."
-msgstr "通过你的图书馆访问时，{host} 给的是购买或访问选项，而不是 PDF。你的图书馆可能没有订阅这本期刊。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Through your library, the publisher offered access instead of the PDF. Your library may not subscribe to this journal."
-msgstr "通过你的图书馆访问时，出版商给的是购买或访问选项，而不是 PDF。你的图书馆可能没有订阅这本期刊。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser reached {host}, which showed its page instead of the PDF. Your library may not subscribe to this journal."
-msgstr "浏览器到了 {host}，但对方给的是页面而不是 PDF。你的图书馆可能没有订阅这本期刊。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher showed its page instead of the PDF. Your library may not subscribe to this journal."
-msgstr "出版商给的是页面而不是 PDF。你的图书馆可能没有订阅这本期刊。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr "{host} 上没有这篇论文的 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
-msgstr "出版方没有这篇论文的 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr "那边显示“{title}”。这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr "这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Nothing came from your browser"
-msgstr "浏览器那边没有下载下来"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The page in {browser} may say you have no access to this paper, or {browser} may be asking you something: a check, a sign-in, or whether the site may download files."
-msgstr "{browser} 里的页面可能显示你没有这篇论文的访问权限，或者 {browser} 在等你回应：验证、登录，或是否允许该网站下载文件。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The page may say you have no access to this paper, or your browser may be asking you something: a check, a sign-in, or whether the site may download files."
-msgstr "页面可能显示你没有这篇论文的访问权限，或者浏览器在等你回应：验证、登录，或是否允许该网站下载文件。"
+msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
+msgstr "{file} 刚出现在“下载”文件夹中，owlit 无法判断它属于哪篇论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
@@ -4352,20 +4355,21 @@ msgid "Could not find a PDF."
 msgstr "找不到 PDF。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{tried} Drop a PDF here if you have it."
-msgstr "{tried}如果你有 PDF，拖到这里即可。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{tried} It has no DOI, so owlit could only look by its title. Drop a PDF here if you have it."
-msgstr "{tried}这篇论文没有 DOI，owlit 只能按标题查找。如果你有 PDF，拖到这里即可。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
-msgstr "{file} 刚出现在“下载”文件夹中，owlit 无法判断它属于哪篇论文。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Choose file"
 msgstr "选择文件"
+
+#. button: owlit looks for the paper's PDF again, by its own routes
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Look again"
+msgstr "再找一次"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open in your browser again"
+msgstr "再用浏览器打开"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Get it in your browser"
+msgstr "用浏览器获取"
 
 #. button: take the downloaded file as the paper's PDF
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4378,20 +4382,12 @@ msgid "Not this"
 msgstr "不是这个"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Get it in your browser"
-msgstr "用浏览器获取"
+msgid "owlit looks again on {nextDate}"
+msgstr "owlit 会在 {nextDate} 再找"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: apps/share-web/src/App.tsx
-msgid "Try again"
-msgstr "重试"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Find PDF"
-msgstr "查找 PDF"
+msgid "owlit won't look again"
+msgstr "owlit 不会再找"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Or <0>get it in your browser</0>"
@@ -4402,12 +4398,12 @@ msgid "Your library may have it. <0>Set up library proxy</0>"
 msgstr "你的图书馆可能有。<0>设置图书馆代理</0>"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "the publisher"
-msgstr "出版商"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "the library proxy"
 msgstr "图书馆代理"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "the publisher"
+msgstr "出版商"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "open-access links"
@@ -4418,12 +4414,12 @@ msgid "a search by its title"
 msgstr "按标题搜索"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit knows of no open copy of this paper."
-msgstr "owlit 不知道这篇论文有开放获取的版本。"
+msgid "the ACL Anthology"
+msgstr "ACL Anthology"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Tried {list}."
-msgstr "已尝试：{list}。"
+msgid "Tried {list}"
+msgstr "试过{list}"
 
 #. placeholder {0}: c.chatTitle
 #: app/src/features/library/reader/CitedLayer.tsx
@@ -4517,18 +4513,16 @@ msgstr "返回第 {backPage} 页"
 msgid "Where this paper was read"
 msgstr "这篇论文读过的地方"
 
-#: app/src/features/library/rpc-client.ts
-#: packages/core/src/library/library.ts
-msgid "owlit couldn't look for a PDF."
-msgstr "owlit 无法查找 PDF。"
-
-#: app/src/features/library/rpc-client.ts
-msgid "No PDF found. Drop one here if you have it."
-msgstr "未找到 PDF。如果你有，拖到这里即可。"
-
 #: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr "Owlit 用的智能体"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: apps/share-web/src/App.tsx
+msgid "Try again"
+msgstr "重试"
 
 #: app/src/features/onboarding/AgentChoice.tsx
 #: app/src/features/welcome/AgentCheck.tsx
@@ -7414,6 +7408,10 @@ msgstr "文献库中已有另一篇论文使用这个 ID。"
 #: packages/core/src/library/library.ts
 msgid "owlit can't look for PDFs here."
 msgstr "owlit 在这里无法查找 PDF。"
+
+#: packages/core/src/library/library.ts
+msgid "owlit couldn't look for a PDF."
+msgstr "owlit 无法查找 PDF。"
 
 #: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."

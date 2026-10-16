@@ -7,7 +7,7 @@ import { WaitingDot } from "@/components/marks"
 import { JoinDots, StatusLine } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { dismissRun, getInBrowser, useFromBrowser, useLastRun, useMightComeThroughBrowser, type RunTally } from "../from-browser"
-import { noPdfReason } from "../lib/filter"
+import { pdfWait, pdfWord } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
 import { Spinner } from "@/components/ui/spinner"
@@ -16,15 +16,13 @@ import { Spinner } from "@/components/ui/spinner"
 // same ladder (DESIGN.md): while it runs, one quiet grey line with how far it has got and Stop; stopped
 // on the user, the amber dot and what their browser shows, with Show browser, Stop and Continue (I've
 // signed in, for a sign-in). Once it has ended, what it did, each part opening its papers, until put
-// away. With no run going, the dot again with the papers not yet tried and Get them, whatever the
-// filter: the rail's dot sends the user here, so what it waits for is the first thing on the page, and the
-// sentence shows those papers under Needs you. Article pages still open for the user to save from are
-// named after them. Home's row says the same from the same view (useFromBrowser).
+// away. With no run going, the papers a page stopped owlit on, in grey with Get them, whatever the
+// filter: their browser may get past the page, but nothing waits on the user. Article pages still open
+// for the user to save from do wait on them: the amber dot, named after them, which the rail's dot sends
+// the user here for. Home's rows say the same from the same view (useFromBrowser).
 export function FromBrowserLine() {
   const { run, waiting, pages } = useFromBrowser()
   const last = useLastRun()
-  const filter = useLibraryUi((s) => s.filter)
-  const setFilter = useLibraryUi((s) => s.setFilter)
   const showOnly = useLibraryUi((s) => s.showOnly)
   if (!run && !last && !waiting.length && !pages.length) return null
 
@@ -67,20 +65,20 @@ export function FromBrowserLine() {
       </IconButton>
     )
   } else {
-    mark = <WaitingDot />
-    const sentence = plural(waiting.length, { one: "# paper waits for your browser", other: "# papers wait for your browser" })
+    if (pages.length) mark = <WaitingDot />
+    const sentence = plural(waiting.length, { one: "# paper for your browser", other: "# papers for your browser" })
     const toSave = plural(pages.length, { one: "# to save from its page", other: "# to save from their pages" })
     const pagesLink = (
-      <InlineLink onClick={() => showOnly(pages.map((p) => p.id), t`To save from their pages`)}>{toSave}</InlineLink>
+      <InlineLink key="pages" onClick={() => showOnly(pages.map((p) => p.id), t`To save from their pages`)}>
+        {toSave}
+      </InlineLink>
     )
-    words = (
-      <JoinDots
-        items={[
-          ...(waiting.length > 0 ? [filter === "needs" ? sentence : <InlineLink key="waiting" onClick={() => setFilter("needs")}>{sentence}</InlineLink>] : []),
-          ...(pages.length > 0 ? [pagesLink] : []),
-        ]}
-      />
+    const waitingLink = (
+      <InlineLink key="waiting" onClick={() => showOnly(waiting.map((p) => p.id), pdfWord("for-browser") ?? "")}>
+        {sentence}
+      </InlineLink>
     )
+    words = <JoinDots items={[...(waiting.length > 0 ? [waitingLink] : []), ...(pages.length > 0 ? [pagesLink] : [])]} />
     actions = waiting.length > 0 && (
       <Button variant="text" size="inline" onClick={() => void getInBrowser(waiting.map((p) => p.id))}>
         {plural(waiting.length, { one: "Get it", other: "Get them" })}
@@ -99,7 +97,7 @@ export function FromBrowserLine() {
 // when that shows. Once tried there, each says what its tab ended on and leaves this count.
 export function NoPdfLine() {
   const papers = useLibraryStore((s) => s.papers)
-  const total = useMemo(() => Object.values(papers).filter((p) => !!noPdfReason(p)).length, [papers])
+  const total = useMemo(() => Object.values(papers).filter((p) => !!pdfWait(p)).length, [papers])
   const maybe = useMightComeThroughBrowser()
   const showOnly = useLibraryUi((s) => s.showOnly)
   if (!maybe.length) return null
@@ -123,7 +121,7 @@ export function NoPdfLine() {
   )
 }
 
-// "Got 5 of 9 from Dia · 2 no access · 2 to save from their pages · 1 didn't come", each part showing
+// "Got 5 of 9 from Dia · 2 no access · 2 to save from their pages · nothing came for 1", each part showing
 // its papers
 function Tally({ tally }: { tally: RunTally }) {
   const showOnly = useLibraryUi((s) => s.showOnly)
@@ -141,7 +139,7 @@ function Tally({ tally }: { tally: RunTally }) {
   if (got) part(tally.got, browser ? t`Got ${got} of ${total} from ${browser}` : t`Got ${got} of ${total} from your browser`, t`Got from your browser`)
   if (tally.noAccess.length) part(tally.noAccess, plural(tally.noAccess.length, { one: "# no access", other: "# no access" }), t`No access`)
   if (tally.pages.length) part(tally.pages, plural(tally.pages.length, { one: "# to save from its page", other: "# to save from their pages" }), t`To save from their pages`)
-  if (tally.missed.length) part(tally.missed, plural(tally.missed.length, { one: "# didn't come", other: "# didn't come" }), t`Didn't come`)
+  if (tally.missed.length) part(tally.missed, plural(tally.missed.length, { one: "nothing came for #", other: "nothing came for #" }), pdfWord("nothing-came") ?? "")
   return (
     <>
       {!got && <span>{browser ? t`${browser}:` : t`Your browser:`} </span>}

@@ -10,7 +10,7 @@ import { askSentence } from "@/features/chat/lib/step-words"
 import { callOf, chatWait, useSeenStore } from "@/features/chat/status"
 import { useChatStore } from "@/features/chat/store"
 import { importOrigin } from "@/features/library/components/ImportBanner"
-import { getInBrowser, showBrowser, useFromBrowser, useOfferedPdfs } from "@/features/library/from-browser"
+import { showBrowser, useFromBrowser, useOfferedPdfs } from "@/features/library/from-browser"
 import { useAskingImports } from "@/features/library/imports"
 import { citationLabel } from "@/features/library/lib/format"
 import type { Paper } from "@owlit/protocol"
@@ -62,7 +62,7 @@ export function useWaitingOnYou(): WaitingItem[] {
   const selected = useChatStore((s) => s.selection.connectorId)
   const background = useSettings((s) => s.view?.backgroundAgent)
   const imports = useAskingImports()
-  const { run, waiting, pages, browser } = useFromBrowser()
+  const { run, pages, browser } = useFromBrowser()
   const offered = useOfferedPdfs()
 
   return useMemo(() => {
@@ -126,10 +126,11 @@ export function useWaitingOnYou(): WaitingItem[] {
         open: { label: t`Answer`, run: () => navigate("/library") },
       })
     }
-    // Papers owlit couldn't get alone wait for the user's own browser: one line whose button gets them
-    // there in turn. While that runs, the line says how far it has got; stopped on the user, what their
-    // browser may be asking, with the browser one click away. Papers whose page was opened there wait
-    // for the user to save the PDF, on a line of their own.
+    // A run in the user's own browser that they started: while it goes on, how far it has got; stopped
+    // on the user, what their browser may be asking, with the browser one click away. Papers whose page
+    // was opened there wait for the user to save the PDF, on a line of their own. Papers a page stopped
+    // owlit on aren't here: their browser may get past it, but nothing waits on the user (the Library's
+    // line offers Get them).
     const paper = { place: "/library", icon: KIND_ICON.paper }
     if (run) {
       const { done, total } = run
@@ -139,25 +140,6 @@ export function useWaitingOnYou(): WaitingItem[] {
           ? { ...paper, key: "papers:from-browser", tone: "warning", what: run.what, where: t`· getting PDFs, ${done} of ${total}`, detail: run.detail, open: show, action: run.resume }
           : { ...paper, key: "papers:from-browser", tone: "working", what: run.what, where: t`· ${done} of ${total}`, open: show, action: run.stop },
       )
-    } else if (waiting.length) {
-      const one = waiting.length === 1
-      out.push({
-        ...paper,
-        key: "papers:browser",
-        tone: "warning",
-        what: plural(waiting.length, { one: "A paper waits for your browser", other: "# papers wait for your browser" }),
-        where: namesOf(waiting),
-        open: one
-          ? { label: t({ message: "Open", comment: "verb: open the paper that waits" }), run: () => navigate(`/library/${waiting[0].id}`) }
-          : {
-              label: t`Show them`,
-              run: () => {
-                useLibraryUi.getState().setFilter("needs")
-                navigate("/library")
-              },
-            },
-        action: { label: one ? t`Get it` : t`Get them`, run: () => void getInBrowser(waiting.map((p) => p.id)) },
-      })
     }
     if (pages.length) {
       const n = pages.length
@@ -198,7 +180,7 @@ export function useWaitingOnYou(): WaitingItem[] {
     }
     if (finished) out.push({ key: "chat:finished", place: "/chat", tone: "owlit", icon: KIND_ICON.chat, what: t`Owlit finished since you last looked`, open: { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate("/chat") } })
     return out
-  }, [stuck, streaming, dismissed, finished, connectors, selected, background, imports, run, waiting, pages, browser, offered, navigate])
+  }, [stuck, streaming, dismissed, finished, connectors, selected, background, imports, run, pages, browser, offered, navigate])
 }
 
 // "for McDaniel & Einstein 2000, Nahum-Shani et al. 2016": one or two papers by name. More are only
