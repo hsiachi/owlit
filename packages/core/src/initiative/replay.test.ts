@@ -36,6 +36,10 @@ async function session() {
     watched: async () => [{ id: "th1", due: clock.now() - checked >= 86_400_000 }],
     doc: async (p) => (mtimes.has(p) ? { out: false, ...(looked.has(p) ? { looked: looked.get(p) } : {}) } : null),
     mtime: async (p) => mtimes.get(p) ?? null,
+    threads: async () => 0,
+    rowsOf: async () => [],
+    leaning: async () => [],
+    lastScan: async () => null,
   }
 
   const tasks = new Map<string, Task>()

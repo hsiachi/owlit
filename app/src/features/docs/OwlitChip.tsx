@@ -14,12 +14,12 @@ import { RunsHover } from "@/features/runs/components"
 import { openRun, useDoingLine, useOpenRuns } from "@/features/runs/hooks"
 import { useInitiativeSettings } from "@/features/settings/initiative"
 import { docKey } from "./comments/model"
-import { newOwlitComments, useDocOwlit, useOwlitSeen } from "./owlit"
+import { newOwlitComments, useDocOwlit, useOwlitSeen, useOwlitSeenAt } from "./owlit"
 import { useDocsStore } from "./store"
 import { useDocsUiStore } from "./ui-store"
 
 // The runs that work on a doc
-const DOC_RUNS = ["docs.review"] as const
+const DOC_RUNS = ["docs.review", "docs.reviewSettled"] as const
 
 // New comments count as seen once they have been on screen this long
 const SEEN_AFTER_MS = 3000
@@ -33,14 +33,10 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
   const state = useDocOwlit(file.path)
   const runs = useOpenRuns(file.path, DOC_RUNS)
   const { mode } = useInitiativeSettings()
-  const seenAt = useOwlitSeen((s) => s.seen[file.path])
+  const seenAt = useOwlitSeenAt(file.path)
   const fresh = useDocsStore(useShallow((s) => newOwlitComments(s.comments[file.id], seenAt)))
   const shown = useDocsUiStore((s) => s.commentsShown)
 
-  // A doc seen for the first time here: what is on it already isn't news
-  useEffect(() => {
-    if (useOwlitSeen.getState().seen[file.path] === undefined) useOwlitSeen.getState().markSeen(file.path)
-  }, [file.path])
   // Comments on screen a moment are seen: the dot goes, and Owlit hears they were
   const count = fresh.length
   useEffect(() => {

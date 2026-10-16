@@ -69,6 +69,11 @@ const decisionOf = (e: { rule: string; subject: string; decision: Decision["deci
 })
 const takeKey = (rule: string, cause: string, causeAt: unknown) => `${rule}\u0000${cause}\u0000${causeAt}`
 
+// A look at an event where the rule left nothing in the archive, neither a look nor a decision: the
+// engine journals looks only when they decide something, so it decided nothing there (the hourly look
+// at watched threads, heard again because another rule decided on the same hour)
+class QuietLook extends Error {}
+
 export async function replay(archive: { manifest: ArchiveManifest; events: ArchiveEvent[] }, rules: readonly Rule[] = RULES): Promise<ReplayResult> {
   const { events, manifest } = archive
   // Only the engine's own decisions: a comment held back as it came to land (Reviews) heard nothing
@@ -82,6 +87,7 @@ export async function replay(archive: { manifest: ArchiveManifest; events: Archi
     const key = takeKey(e.payload.rule as string, e.payload.cause as string, e.payload.causeAt)
     looks.set(key, [...(looks.get(key) ?? []), e.payload.reads as RuleRead[]])
   }
+  const kept = new Set([...looks.keys(), ...events.filter((e) => e.type === "evaluation" && e.payload.causeAt !== undefined).map((e) => takeKey(e.payload.rule as string, e.payload.cause as string, e.payload.causeAt))])
   const unanswered: string[] = []
   const world = (_ws: Workspace, { rule, event }: { rule: Rule; event: InitiativeEvent }): World => {
     let reads: { read: RuleRead; used: boolean }[] | undefined
@@ -91,13 +97,23 @@ export async function replay(archive: { manifest: ArchiveManifest; events: Archi
         reads ??= (looks.get(takeKey(rule.id, event.kind, event.at))?.shift() ?? []).map((read) => ({ read, used: false }))
         const found = reads.find((r) => !r.used && r.read.ask === ask && JSON.stringify(r.read.args) === JSON.stringify(args))
         if (!found) {
+          if (!kept.has(takeKey(rule.id, event.kind, event.at))) throw new QuietLook()
           unanswered.push(`${rule.id} asked ${ask}(${args.join(", ")}) on ${event.kind} at ${new Date(event.at).toISOString()}`)
           throw new Error("The archive has no answer for this look.")
         }
         found.used = true
         return found.read.answer as never
       }
-    return { digestHeldBack: answer("digestHeldBack"), watched: answer("watched"), doc: answer("doc"), mtime: answer("mtime") }
+    return {
+      digestHeldBack: answer("digestHeldBack"),
+      watched: answer("watched"),
+      doc: answer("doc"),
+      mtime: answer("mtime"),
+      threads: answer("threads"),
+      rowsOf: answer("rowsOf"),
+      leaning: answer("leaning"),
+      lastScan: answer("lastScan"),
+    }
   }
 
   const settings: InitiativeSettings = { ...manifest.safeConfig.owlit.initiative }
@@ -114,7 +130,20 @@ export async function replay(archive: { manifest: ArchiveManifest; events: Archi
 
   const replayed: Decision[] = []
   const clock = new ManualClock(events[0]?.at ?? 0)
-  const engine = new Initiative({ workspace: () => ws, record: (r) => replayed.push(decisionOf(r)), rules, clock, world })
+  const quiet = rules.map(
+    (r): Rule => ({
+      ...r,
+      when: async (event, ctx) => {
+        try {
+          return await r.when(event, ctx)
+        } catch (error) {
+          if (error instanceof QuietLook) return []
+          throw error
+        }
+      },
+    }),
+  )
+  const engine = new Initiative({ workspace: () => ws, record: (r) => replayed.push(decisionOf(r)), rules: quiet, clock, world })
   // Runs everything due by then, one timer at a time, each evaluation taken before the next timer
   const until = async (at: number) => {
     do await engine.idle()

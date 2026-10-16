@@ -1,7 +1,7 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
 import type { ArchiveSummary, InitiativeSettings } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
-import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
+import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
@@ -221,6 +221,8 @@ export interface Methods {
   // Your chats; Owlit's own runs aren't among them
   "chats.list": { params: void; result: ChatSummary[] }
   "chats.get": { params: { id: string }; result: Chat }
+  // Owlit's runs that ended after since, newest first
+  "chats.runs": { params: { since: number }; result: RunSummary[] }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }

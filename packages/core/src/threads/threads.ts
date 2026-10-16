@@ -27,7 +27,7 @@ import type { Versions } from "../docs/versions.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
-import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, type Skill } from "../initiative/skills.ts"
+import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, relateSkill, rereadSkill, type Skill } from "../initiative/skills.ts"
 import { Serial } from "../util.ts"
 
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
@@ -122,6 +122,17 @@ export class Threads {
     return undefined
   }
 
+  // The threads that have this paper as a row, and whether some of its answers there rest only on the
+  // abstract (the user's reading of it in full can give them again from the whole text)
+  async rowsOf(paperId: string): Promise<{ thread: string; fromAbstract: boolean }[]> {
+    const out: { thread: string; fromAbstract: boolean }[] = []
+    for (const id of await readdir(this.dir).catch(() => [] as string[])) {
+      const row = (await this.load(id).catch(() => undefined))?.rows.find((r) => r.id === paperId)
+      if (row) out.push({ thread: id, fromAbstract: Object.values(row.cells).some((cell) => cell.depth !== "full") })
+    }
+    return out
+  }
+
   async get(id: string): Promise<Thread> {
     const c = await this.load(id)
     if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread isn't here any more.`, { id })
@@ -163,6 +174,19 @@ export class Threads {
       }),
       run(readSkill, (thread) => ({ thread })),
       run(checkSkill, (thread) => ({ thread, since: thread.checkedAt ?? thread.createdAt }), (c) => this.checked(c.id)),
+      // "<id>:<paper>": one row, answered again once the user read the paper in full
+      run(rereadSkill, (thread, subject) => ({ thread, paperId: subject.slice(subject.indexOf(":") + 1) })),
+      // A paper (the subject) that came into the library: into the threads whose question it answers
+      defineTask(relateSkill.id, {
+        lane: relateSkill.lane,
+        retries: 1,
+        run: async (ctx) => {
+          const ids = (await this.list()).map((summary) => summary.id)
+          const threads = (await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)))).filter((c): c is Thread => !!c && !c.rows.some((r) => r.id === ctx.task.subject))
+          if (!threads.length) return
+          await agent(relateSkill.instructions({ threads, paperId: ctx.task.subject }), ctx, relateSkill.tools ?? NO_TOOLS, `${relateSkill.id}:${ctx.task.id}`)
+        },
+      }),
     ]
   }
 

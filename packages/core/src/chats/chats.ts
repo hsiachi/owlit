@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary } from "@owlit/protocol"
+import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary, type RunSummary } from "@owlit/protocol"
 import { constants } from "node:fs"
 import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -53,6 +53,20 @@ export class Chats {
   // Owlit's runs, most recent first
   async runs(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !!c.startedBy)
+  }
+
+  // Owlit's runs that ended after since, with how they ended (a run's session ends with its last part)
+  async runsSince(since: number): Promise<RunSummary[]> {
+    const out: RunSummary[] = []
+    for (const summary of await this.runs()) {
+      // Most recent first: one not touched since can't have ended since
+      if (summary.updatedAt <= since) break
+      if (!summary.run) continue
+      const last = (await this.get(summary.id).catch(() => null))?.messages.at(-1)
+      const ended = last?.role === "assistant" ? last.status : undefined
+      if ((ended === "done" || ended === "error" || ended === "cancelled") && (last!.finishedAt ?? 0) > since) out.push({ ...summary, run: summary.run, ended, endedAt: last!.finishedAt! })
+    }
+    return out
   }
 
   private async all() {

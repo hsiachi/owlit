@@ -1,43 +1,53 @@
 import type { ActivityEvent } from "@owlit/protocol"
 
 // Where the user is, as their activity says: the doc they have open, when they last typed in it, and
-// whether the window has been in the background a while. It is what Owlit's one rule of manners rests
-// on: it never works on the page the user is writing in, and holds what it found until they stop or leave.
+// whether they are away. It is what Owlit's one rule of manners rests on: it never works on the page the
+// user is in, and holds what it found until they stop or leave.
 
 // Typing this recently counts as writing in the doc
 export const TYPING_MS = 30_000
+// The window in the background this long is the user away (the window reports it as idle)
+export const AWAY_MS = 30_000
 
 export class Presence {
   // The doc open in the window, if any
   private doc: string | null = null
   private editedAt = new Map<string, number>()
-  private away = false
+  // Since when the user is away: from the moment the window went to the background, until their next
+  // activity (coming back to the window is one); null while they are here
+  private since: number | null = null
 
   hear(event: ActivityEvent) {
     switch (event.kind) {
       case "doc.opened":
         this.doc = event.path
-        this.away = false
+        this.since = null
         return
       case "doc.closed":
+        // Closing what was open is the window's doing as often as the user's (a reload, a window closing)
         if (this.doc === event.path) this.doc = null
         return
       case "doc.edited":
         this.editedAt.set(event.path, event.at)
-        this.away = false
+        this.since = null
         return
       case "idle":
         // The window reports the background time once it is long enough to count
-        if (event.seconds >= TYPING_MS / 1000) this.away = true
+        if (event.seconds * 1000 >= AWAY_MS && this.since === null) this.since = event.at - event.seconds * 1000
         return
       default:
-        this.away = false
+        this.since = null
     }
   }
 
-  // The user is writing in this doc now: it is open, the window is in front, and they typed lately
+  // The user is writing in this doc now: it is open, they are here, and they typed lately
   writingIn(path: string, now: number) {
-    return !this.away && this.doc === path && now - (this.editedAt.get(path) ?? 0) < TYPING_MS
+    return this.since === null && this.doc === path && now - (this.editedAt.get(path) ?? 0) < TYPING_MS
+  }
+
+  // The user is here with this doc open, reading or writing it
+  inDoc(path: string) {
+    return this.since === null && this.doc === path
   }
 
   get openDoc() {
@@ -45,6 +55,11 @@ export class Presence {
   }
 
   get isAway() {
-    return this.away
+    return this.since !== null
+  }
+
+  // When the current away stretch began, while the user is away
+  get awaySince() {
+    return this.since
   }
 }

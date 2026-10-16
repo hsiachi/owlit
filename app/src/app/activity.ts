@@ -239,14 +239,26 @@ export function startActivity(router: typeof appRouter) {
     if (sent) refresh()
   })
 
-  // The window in the background long enough counts as idle, once per stay
+  // The window in the background long enough counts as idle, once per stay; coming back from such a
+  // stay says so, since a person reading the page they came back to does nothing else core would hear
   let idleTimer: ReturnType<typeof setTimeout> | undefined
+  let blurredAt: number | null = null
+  let idled = false
   const away = () => {
     clearTimeout(idleTimer)
-    idleTimer = setTimeout(() => emit({ kind: "idle", seconds: IDLE_AFTER / 1000 }), IDLE_AFTER)
+    blurredAt = Date.now()
+    idleTimer = setTimeout(() => {
+      idled = true
+      emit({ kind: "idle", seconds: IDLE_AFTER / 1000 })
+    }, IDLE_AFTER)
   }
   window.addEventListener("blur", away)
-  window.addEventListener("focus", () => clearTimeout(idleTimer))
+  window.addEventListener("focus", () => {
+    clearTimeout(idleTimer)
+    if (idled && blurredAt !== null) emit({ kind: "back", seconds: Math.round((Date.now() - blurredAt) / 1000) })
+    idled = false
+    blurredAt = null
+  })
 
   // Reading time, a second at a time; leaving the window settles what was read so far
   setInterval(() => {

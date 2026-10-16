@@ -5,6 +5,7 @@ import { FolderPlusIcon, UsersIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick } from "@/components/action-menu"
+import { NoteDot } from "@/components/marks"
 import { FoldChevron } from "@/components/fold"
 import { NewRow, PanelEmpty, PanelHeader } from "@/components/list-panel"
 import { SidebarContent } from "@/components/ui/sidebar"
@@ -12,6 +13,7 @@ import { Tip } from "@/components/tip"
 import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
 import { onDisk, openOnDisk } from "../disk"
+import { newOwlitComments, useOwlitSeenAt } from "../owlit"
 import { useDocsStore } from "../store"
 import { useShareStore } from "../share/store"
 import { parentPath } from "../types"
@@ -32,6 +34,9 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
   const renaming = useDocsUiStore((s) => s.renaming === key)
   const active = node.file.id === p.activeId
   const shared = useShareStore((s) => !!s.byPath[node.file.path])
+  // Owlit left comments here the user hasn't seen (its chip on the doc carries the same dot)
+  const seenAt = useOwlitSeenAt(node.file.path)
+  const fresh = useDocsStore((s) => newOwlitComments(s.comments[node.file.id], seenAt).length > 0)
 
   if (renaming)
     return (
@@ -68,7 +73,14 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
       // A drop on a doc lands in the doc's folder, which lights up to say so
       dropTo={parentPath(node.file.path)}
       onOpen={open}
-      trail={shared ? <UsersIcon className="size-3" role="img" aria-hidden={false} aria-label={t`Shared by link`} /> : undefined}
+      trail={
+        fresh || shared ? (
+          <>
+            {fresh && <NoteDot label={t`Owlit commented since you last looked`} />}
+            {shared && <UsersIcon className="size-3" role="img" aria-hidden={false} aria-label={t`Shared by link`} />}
+          </>
+        ) : undefined
+      }
       className={cn(active && "font-medium")}
       buttonClassName={cn("pr-1", !node.markdown && "text-muted-foreground")}
     />

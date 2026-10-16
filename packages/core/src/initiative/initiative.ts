@@ -45,10 +45,25 @@ function recorded(world: World, reads: RuleRead[]): World {
       reads.push({ ask, args, answer })
       return answer
     }
-  return { digestHeldBack: look("digestHeldBack", world.digestHeldBack), watched: look("watched", world.watched), doc: look("doc", world.doc), mtime: look("mtime", world.mtime) }
+  return {
+    digestHeldBack: look("digestHeldBack", world.digestHeldBack),
+    watched: look("watched", world.watched),
+    doc: look("doc", world.doc),
+    mtime: look("mtime", world.mtime),
+    threads: look("threads", world.threads),
+    rowsOf: look("rowsOf", world.rowsOf),
+    leaning: look("leaning", world.leaning),
+    lastScan: look("lastScan", world.lastScan),
+  }
 }
 
 const dayOf = (at: number) => new Date(at).toDateString()
+
+interface Deferred {
+  rule: Rule
+  event: InitiativeEvent
+  until?: "away"
+}
 
 export class Initiative {
   private readonly rules: readonly Rule[]
@@ -63,8 +78,10 @@ export class Initiative {
   // Runs started on Owlit's own initiative today (upkeep doesn't count), for the daily cap; read from
   // the journal the first time it is needed in a workspace
   private today: { root: string; day: string; count: number } | null = null
-  // Decisions put off while the user writes in what they are about, by rule and subject
-  private deferred = new Map<string, { rule: Rule; event: InitiativeEvent }>()
+  // Decisions put off, by rule and subject: while the user writes in what they are about, or until away
+  private deferred = new Map<string, Deferred>()
+  // The deferral last logged for each rule and subject, so waiting on goes into the journal once
+  private deferLogged = new Map<string, string>()
   private deferTimer: unknown
   private disposed = false
   readonly presence: Presence
@@ -83,8 +100,10 @@ export class Initiative {
     if (this.disposed) return
     if (TRACED.has(event.kind)) this.trace(event as JournaledCoreEvent)
     if (!CORE.has(event.kind)) this.presence.hear(event as ActivityEvent)
-    // What waited for the user to stop or leave is looked at again when they do
-    if (event.kind === "doc.closed" || event.kind === "idle") this.retryDeferred()
+    // What waited for the user to stop or leave is looked at again when they do; what waited for them to
+    // be away, once they are
+    if (event.kind === "doc.closed") this.retryDeferred(false)
+    if (event.kind === "idle" && this.presence.isAway) this.retryDeferred(true)
     for (const rule of this.rules) {
       if (!(rule.on as readonly string[]).includes(event.kind)) continue
       if (!rule.settleMs) {
@@ -115,19 +134,34 @@ export class Initiative {
     this.deferred.clear()
   }
 
-  private retryDeferred() {
-    this.clock.clearTimeout(this.deferTimer)
-    this.deferTimer = undefined
-    const waiting = [...this.deferred.values()]
-    this.deferred.clear()
-    for (const { rule, event } of waiting) this.evaluate(rule, event)
+  // away: the user has just gone away, and everything waiting is looked at again; otherwise only what
+  // waited for a pause
+  private retryDeferred(away: boolean) {
+    const waiting = [...this.deferred.entries()].filter(([, d]) => away || !d.until)
+    for (const [key] of waiting) this.deferred.delete(key)
+    if (![...this.deferred.values()].some((d) => !d.until)) {
+      this.clock.clearTimeout(this.deferTimer)
+      this.deferTimer = undefined
+    }
+    // A rule that put off several subjects of one event looks at the event once
+    const again = new Map<Rule, Set<InitiativeEvent>>()
+    for (const [, { rule, event }] of waiting) {
+      const events = again.get(rule) ?? new Set()
+      if (events.has(event)) continue
+      again.set(rule, events.add(event))
+      this.evaluate(rule, event)
+    }
   }
 
   // A decision put off is taken again once the user may have stopped: when they leave the doc or the
-  // window, or after a typing pause's length
-  private defer(rule: Rule, event: InitiativeEvent, subject: string) {
-    this.deferred.set(`${rule.id}\u0000${subject}`, { rule, event })
-    if (this.deferTimer === undefined) this.deferTimer = this.clock.setTimeout(() => this.retryDeferred(), TYPING_MS)
+  // window, or after a typing pause's length; one that waits for them to be away, when they go
+  private defer(rule: Rule, event: InitiativeEvent, subject: string, until: "away" | undefined) {
+    this.deferred.set(`${rule.id}\u0000${subject}`, { rule, event, until })
+    if (!until && this.deferTimer === undefined)
+      this.deferTimer = this.clock.setTimeout(() => {
+        this.deferTimer = undefined
+        this.retryDeferred(false)
+      }, TYPING_MS)
   }
 
   private evaluate(rule: Rule, event: InitiativeEvent) {
@@ -150,13 +184,16 @@ export class Initiative {
     if (reads.length && outcomes.length) this.trace({ kind: "rule.looked", at: now, rule: rule.id, ...cause, reads })
     for (const outcome of outcomes) {
       const base = { kind: "evaluation" as const, at: now, rule: rule.id, subject: outcome.subject, ...cause }
-      if ("none" in outcome) {
-        this.record({ ...base, decision: "none", reason: outcome.none })
+      const key = `${rule.id}\u0000${outcome.subject}`
+      if ("defer" in outcome) {
+        if (this.deferLogged.get(key) !== outcome.defer) this.record({ ...base, decision: "defer", reason: outcome.defer })
+        this.deferLogged.set(key, outcome.defer)
+        this.defer(rule, event, outcome.subject, outcome.until)
         continue
       }
-      if ("defer" in outcome) {
-        this.record({ ...base, decision: "defer", reason: outcome.defer })
-        this.defer(rule, event, outcome.subject)
+      this.deferLogged.delete(key)
+      if ("none" in outcome) {
+        this.record({ ...base, decision: "none", reason: outcome.none })
         continue
       }
       const initiative = rule.needs !== "off"

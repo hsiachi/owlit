@@ -47,14 +47,23 @@ export type CoreEvent =
   | { kind: "workspace.opened"; at: number }
   // Once an hour while the workspace is open
   | { kind: "clock.hour"; at: number }
+  // A paper joined the library one at a time, not by an agent or a batch import: the user added it in
+  // the app (user), or another program put it in the library folder (outside: Finder, a sync)
+  | { kind: "paper.landed"; at: number; paperId: string; by: "user" | "outside" }
+  // The user's reading of a paper reached the whole of it (core's reading.ts › readInFull), once per paper
+  | { kind: "paper.read"; at: number; paperId: string }
+  // A file appeared in the workspace that neither core nor an agent wrote there (Finder, a sync):
+  // workspace-relative path
+  | { kind: "docs.appeared"; at: number; path: string }
 
 export type CoreKind = CoreEvent["kind"]
 
-export const CORE_KINDS: readonly CoreKind[] = ["paper.starred", "workspace.opened", "clock.hour"]
+export const CORE_KINDS: readonly CoreKind[] = ["paper.starred", "workspace.opened", "clock.hour", "paper.landed", "paper.read", "docs.appeared"]
 
-// The one a replay can't tell from the decisions it led to (it names a paper), journaled as Owlit's. The
-// opening and the hourly tick carry nothing: an archive has them where a rule decided something on them.
-export const JOURNALED_CORE_KINDS = ["paper.starred"] as const satisfies readonly CoreKind[]
+// The ones a replay can't tell from the decisions they led to (they name a paper or a doc), journaled as
+// Owlit's. The opening and the hourly tick carry nothing: an archive has them where a rule decided
+// something on them.
+export const JOURNALED_CORE_KINDS = ["paper.starred", "paper.landed", "paper.read", "docs.appeared"] as const satisfies readonly CoreKind[]
 
 export type JournaledCoreEvent = Extract<CoreEvent, { kind: (typeof JOURNALED_CORE_KINDS)[number] }>
 

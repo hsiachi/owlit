@@ -22,12 +22,15 @@ interface TrailState {
   lastActiveAt: Record<string, number>
   // When this launch found the user last here, per workspace; not kept, so it is fresh every launch
   awayFrom: Record<string, number | null>
+  // The last stretch in this launch the window was in the background long enough for Owlit to count the
+  // user away (its night shift works then); not kept
+  lastAway: { from: number; to: number } | null
 }
 
 const KEEP = 30
 
 export const useTrail = create<TrailState>()(
-  persist(() => ({ docs: {}, owlitDocs: {}, lastActiveAt: {}, awayFrom: {} }), {
+  persist((): TrailState => ({ docs: {}, owlitDocs: {}, lastActiveAt: {}, awayFrom: {}, lastAway: null }), {
     name: "owlit-home",
     version: 1,
     partialize: (s) => ({ docs: s.docs, owlitDocs: s.owlitDocs, lastActiveAt: s.lastActiveAt }),
@@ -70,11 +73,24 @@ function touch() {
   useTrail.setState({ awayFrom, lastActiveAt: { ...s.lastActiveAt, [key]: Date.now() } })
 }
 
+// As long as the window must be in the background for Owlit to count the user away (core's
+// initiative/presence.ts › AWAY_MS)
+const AWAY_AFTER = 30_000
+
 // Being here means the window is in front; checked once a minute, so leaving is known to the minute
 export function startTrail() {
   const tick = () => document.visibilityState === "visible" && document.hasFocus() && touch()
   touch()
   setInterval(tick, 60_000)
+  let blurredAt: number | null = null
+  window.addEventListener("blur", () => {
+    blurredAt = Date.now()
+  })
+  window.addEventListener("focus", () => {
+    const now = Date.now()
+    if (blurredAt !== null && now - blurredAt >= AWAY_AFTER) useTrail.setState({ lastAway: { from: blurredAt, to: now } })
+    blurredAt = null
+  })
   window.addEventListener("focus", touch)
   window.addEventListener("pagehide", () => document.hasFocus() && touch())
   useWorkspace.subscribe((s, prev) => s.current?.path !== prev.current?.path && touch())

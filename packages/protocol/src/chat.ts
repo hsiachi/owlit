@@ -237,6 +237,10 @@ export interface OwlitRun {
 // A chat without its messages, as the chat list shows it
 export type ChatSummary = Omit<Chat, "messages">
 
+// One of Owlit's runs as Home lists what it did while the user was away: its session's summary and how
+// its last part ended
+export type RunSummary = ChatSummary & { run: OwlitRun; ended: "done" | "error" | "cancelled"; endedAt: number }
+
 // ---- Local agent connectors ----
 
 export type ConnectorStatus =

@@ -101,3 +101,61 @@ export const reviewSkill = defineSkill<ReviewInput>({
   writes: ["comment"],
   instructions: reviewPrompt,
 })
+
+export interface HalfDoneInput {
+  // Sections left half done for a week, by doc
+  sections: { path: string; heading: string; body: string }[]
+}
+
+// Sections of the user's docs left half done (an empty heading, a TODO) for a week: Owlit gathers what
+// the workspace already has for each, from threads, chats and the library, as one comment on the
+// heading. It doesn't write the section; it says where the material is.
+export function halfDonePrompt({ sections }: HalfDoneInput) {
+  const list = sections
+    .map((s) => `- In ${s.path}, the heading «${s.heading}»${s.body ? `, under which so far: «${s.body.replace(/\s+/g, " ").slice(0, 300)}»` : ", with nothing under it yet"}`)
+    .join("\n")
+  return [
+    `You are Owlit, looking over the user's research workspace on your own while they are away: nobody asked, and nobody is waiting. These sections of their docs have been left half done for a week:\n\n${list}`,
+    `For each, look for what the workspace already has that would help write it: threads (thread_list, thread_read) whose question or answers bear on it, chats where it was talked over (chats_list, chats_read), papers in their library (library_search). Then leave one comment on the heading with docs_add_comment, quoting the heading's words exactly as written (for «## Related work», «Related work»), that lists what you found as links ([a thread](owlit://threads/<id>), [a chat](owlit://chat/<id>), [Author Year](owlit://library/<id>)), each with a few words on what it holds. One comment per section at most, in the language the doc is written in. Don't write the section, don't suggest wording, and don't comment where you found nothing worth pointing to.`,
+    `When you are done, answer in one line with what you did ("Left 2 comments." or "Nothing to add.").`,
+  ].join("\n\n")
+}
+
+export const halfDoneSkill = defineSkill<HalfDoneInput>({
+  id: "docs.halfDone",
+  format: 1,
+  lane: "agent",
+  tools: /^(library_(search|related)|docs_add_comment)$/,
+  writes: ["comment"],
+  instructions: halfDonePrompt,
+})
+
+export interface RecheckInput {
+  path: string
+  content: string
+  comment: DocComment
+  paperId: string
+  title: string
+}
+
+// One of Owlit's comments leans on a paper the user has now read in full: Owlit reads the paper again,
+// with what the user marked in it, and says in the comment whether what it said still holds
+export function recheckPrompt({ path, content, comment, paperId, title }: RecheckInput) {
+  const at = content.indexOf(comment.quote)
+  const around = at >= 0 ? content.slice(Math.max(0, at - 600), at + comment.quote.length + 600) : comment.quote
+  const thread = comment.entries.map((e) => `${e.by === "owlit" ? "Owlit" : "The user"}: ${e.text}`).join("\n\n")
+  return [
+    `You are Owlit. On the user's doc ${path} you left a comment on the words «${comment.quote}» that leans on the paper “${title}” (${paperId}). The user has since read that paper in full. Read it again (library_read), with what they highlighted and noted in it (library_highlights, library_get), and check whether what you said still holds.`,
+    `Around the words:\n\n${around}`,
+    `The comment so far:\n\n${thread}`,
+    `If it still holds, answer only "Still holds." If it needs correcting or adding to, answer with the short addition to the comment itself (one to three sentences, in the language of the doc), no preamble.`,
+  ].join("\n\n")
+}
+
+export const recheckSkill = defineSkill<RecheckInput>({
+  id: "docs.recheck",
+  format: 1,
+  lane: "agent",
+  writes: ["comment"],
+  instructions: recheckPrompt,
+})

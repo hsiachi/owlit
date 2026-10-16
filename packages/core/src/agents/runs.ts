@@ -82,6 +82,22 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
     const name = docName(task.subject)
     return { doing: t`Reading “${name}” since your last changes`, done: t`Looked at “${name}”`, why: t`You opened “${name}”, which changed since Owlit last looked.` }
   }
+  if (task.kind === "docs.reviewSettled") {
+    const name = docName(task.subject)
+    return { doing: t`Reading “${name}” after your edits`, done: t`Looked at “${name}” after your edits`, why: t`You stopped editing “${name}” a while ago, and you're away.` }
+  }
+  if (task.kind === "docs.scan")
+    return { doing: t`Looking over your docs`, done: t`Looked over your docs`, why: t`A day has passed since Owlit last looked over your docs, and you're away.` }
+  if (task.kind === "docs.recheck") {
+    const bar = task.subject.lastIndexOf("|")
+    const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#", bar)))
+    const title = (await ws.library.get(task.subject.slice(bar + 1)).catch(() => undefined))?.title ?? t`a paper`
+    return { doing: t`Checking a comment in “${name}” against “${title}”`, done: t`Checked a comment in “${name}” against “${title}”`, why: t`You read “${title}” in full, and Owlit's comment in “${name}” leans on it.` }
+  }
+  if (task.kind === "paper.relate") {
+    const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
+    return { doing: t`Seeing which threads “${title}” belongs in`, done: t`Saw which threads “${title}” belongs in`, why: t`“${title}” came into your library.` }
+  }
   if (task.kind === "docs.reply") {
     const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))
     return { doing: t`Answering your reply in “${name}”`, done: t`Answered your reply in “${name}”`, why: t`You replied to Owlit's comment in “${name}”.` }
@@ -101,6 +117,10 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
       }
       case "threads.read":
         return { doing: t`Reading the papers in “${title}”`, done: t`Read the papers in “${title}”`, why: t`You asked Owlit to read the papers in “${title}”.` }
+      case "threads.reread": {
+        const paper = (await ws.library.get(task.subject.slice(task.subject.indexOf(":") + 1)).catch(() => undefined))?.title ?? t`a paper`
+        return { doing: t`Answering “${paper}” again in “${title}”`, done: t`Answered “${paper}” again in “${title}”`, why: t`You read “${paper}” in full; its answers in “${title}” came from its abstract.` }
+      }
       case "threads.check":
         return {
           doing: t`Checking “${title}” for new papers`,

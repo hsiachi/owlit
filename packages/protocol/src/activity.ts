@@ -36,14 +36,16 @@ export type ActivityEvent =
   | { kind: "chat.ended"; at: number; chatId: string }
   // The window has been in the background this long
   | { kind: "idle"; at: number; seconds: number }
+  // The window came to the front again after an idle stretch this long
+  | { kind: "back"; at: number; seconds: number }
 
 export type ActivityKind = ActivityEvent["kind"]
 
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
 // What goes into .owlit/journal.jsonl. The rest (page turns, removing a highlight, sending a message) is
-// only for live listeners. Closing a doc and the window going idle are kept because Owlit's rules wait
-// on them (initiative.ts), and a replay has to hear what they heard.
+// only for live listeners. Closing a doc, the window going idle and coming back are kept because Owlit's
+// rules wait on them (initiative.ts, presence.ts), and a replay has to hear what they heard.
 export const JOURNALED_KINDS = [
   "paper.opened",
   "paper.focus",
@@ -57,6 +59,7 @@ export const JOURNALED_KINDS = [
   "paper.closed",
   "doc.closed",
   "idle",
+  "back",
 ] as const satisfies readonly ActivityKind[]
 
 // What core records about agents itself; never reported by a window
