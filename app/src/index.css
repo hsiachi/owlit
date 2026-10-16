@@ -595,16 +595,13 @@
 /* What arrives (a waiting card) also rises 6px into place */
 .unfold[data-rise] > .unfold-inner { transform: translateY(6px); }
 .unfold[data-state="open"][data-rise] > .unfold-inner { transform: none; }
-/* Status slot (components/status-ring.tsx): the ring is always there; a fill grows from its centre and
-   the ring gives way under it */
+/* Status slot (components/status-ring.tsx): empty at rest; a fill grows from its centre */
 .status-slot > * { grid-area: 1 / 1; transition: opacity var(--t-mark) var(--ease), transform var(--t-mark) var(--ease); }
 .status-slot > [data-mark] { opacity: 0; transform: scale(0.6); }
-.status-slot > [data-mark="ring"] { opacity: 1; transform: none; }
 .status-slot[data-status="working"] > [data-mark="working"],
 .status-slot[data-status="finished"] > [data-mark="finished"],
 .status-slot[data-status="failed"] > [data-mark="failed"],
 .status-slot[data-status="waiting"] > [data-mark="waiting"] { opacity: 1; transform: none; }
-.status-slot:not([data-status="idle"]) > [data-mark="ring"] { opacity: 0; }
 /* Result card (ResultRows.tsx): Undo draws the strike across the name from the left */
 .strike { position: relative; }
 .strike::after { content: ""; position: absolute; inset-inline: 0; top: 50%; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform var(--t-layout) var(--ease); }

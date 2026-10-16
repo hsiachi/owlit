@@ -535,7 +535,7 @@ The shared shapes. A place uses each as it is; measures are in the front matter 
 
 - **Row** (`ListRow`, `list-row.tsx`). Title, one muted detail inline, one at the right. `muted` on hover, `accent` while selected or its menu is open, `sidebar-accent` in the rail and panels; keyboard focus takes the hover fill. A row never fills with a colour of its own.
 - **Row actions** (`RowMenuButton`, `action-menu.tsx`). A ⋯ at the row's end, shown on hover, focus or while open. Nothing in the row moves when it shows, and a status word is never covered. A right-click opens the same menu. Renaming (`RenameInput`) happens in the row's own shape.
-- **Status slot** (`StatusRing`, `status-ring.tsx`). Every row in a list that can have a state keeps it, so a state fills in without moving anything; it shows rule 3's marks (`marks.tsx`). At rest it holds a faint hollow ring that lines titles up. A paper's slot shows its reading (`ReadingRing`); a table, having no slot, puts the mark after the title. A New row's plus (`NewRow`) sits in the same slot.
+- **Status slot** (`StatusRing`, `status-ring.tsx`). Every row in a list that can have a state keeps it, so a state fills in without moving anything; it shows rule 3's marks (`marks.tsx`). At rest it is empty, keeping its width so titles line up. A paper's slot shows its reading (`ReadingRing`); a table, having no slot, puts the mark after the title. A New row's plus (`NewRow`) sits in the same slot.
 - **Owlit's dot** (`NoteDot`). Rule 3's *changed* rung. In a row with a fill it sits inside the fill, never straddling its edge.
 - **Group label** (`GroupLabel`). Caption-size muted text over its rows: never a heading, never a count. A **fold** (`FoldButton`) is a muted text button with a chevron that turns when open.
 - **Row list** (`RowList`). Rows with nothing around or between them, for short lists and a dialog's choices. Never a box with dividers.
@@ -590,7 +590,7 @@ Do:
 
 Don't:
 
-- Mark a healthy state with a dot, a label or "Connected" (rule 3); the status slot's faint ring is the one exception.
+- Mark a healthy state with a dot, a ring, a label or "Connected" (rule 3).
 - Tell two rungs of rule 3 apart by a shade of one hue, or use red for anything the person chose.
 - Put a shield or a triangle beside words that already say something waits.
 - Count, group or badge what Owlit did; its dot is the whole mark, and nothing Owlit wrote carries an accept, confirm or triage control.
