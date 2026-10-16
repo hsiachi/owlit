@@ -140,6 +140,8 @@ export interface ExtensionFetcher {
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
   // Where the paper stands with the extension, while it has it
   holding(library: Library, id: string): PdfState["extension"] | undefined
+  // The paper no longer wants fetching: it has its PDF, or it left the library
+  drop(library: Library, id: string): void
 }
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
@@ -1090,6 +1092,7 @@ export class Library {
     await Promise.all(["text.json", "text.md", "text.pdfium.json", "parse.json"].map((name) => rm(path.join(dir, name), { force: true })))
     await removeFigures(this.root, id)
     await this.acquisitions.notePlaced(id, { by: route.startsWith("extension") ? "extension" : "you", route, sha256: sha }, { held: true })
+    this.services.extension?.drop(this, id)
     this.pdfHashes?.set(sha, id)
     this.queueText(id, priority)
   }
@@ -1567,6 +1570,7 @@ export class Library {
   // Both halves of a paper to .owlit/trash/, where restore() finds them
   private async moveToTrash(id: string, stamp: number, spare?: (task: Task) => boolean) {
     this.scheduler?.cancelSubject(id, spare)
+    this.services.extension?.drop(this, id)
     // A paper already gone (undoing an agent's add after it took the paper back) leaves no entry: an empty
     // one would be the newest, so restore would take it and bring nothing back
     const present = await Promise.all([paperDir(this.root, id), paperStateDir(this.root, id)].map((dir) => stat(dir).then(() => true, () => false)))

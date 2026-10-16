@@ -252,6 +252,25 @@ export class ExtensionWork implements ExtensionFetcher {
     return any
   }
 
+  // A paper that no longer wants fetching (its PDF was placed another way, it went to the trash or was
+  // folded into another): out of its queue, and out of the count of the line it waited in. One in flight
+  // is left to its answer, which finds the paper gone or with its PDF.
+  drop(library: Library, id: string) {
+    if (library !== this.library) return
+    let waitsChanged = false
+    for (const site of [...this.sites.values()]) {
+      const at = site.queue.findIndex((q) => q.paper.paperId === id)
+      if (at < 0) continue
+      site.queue.splice(at, 1)
+      if (site.paused) waitsChanged = true
+      if (!site.queue.length && !site.inFlight) {
+        this.sites.delete(site.key)
+        if (site.endedAt !== undefined) this.lastEnded.set(site.key, site.endedAt)
+      }
+    }
+    if (waitsChanged) this.host.waits()
+  }
+
   // The sites paused for the user, as the window shows them; a paper out for a try still waits there
   waits(): ExtensionWait[] {
     return [...this.sites.values()].flatMap((site) => {

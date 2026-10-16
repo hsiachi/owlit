@@ -182,6 +182,27 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["t2"])
   })
 
+  it("lets go of a paper that got its PDF another way or left the library", async () => {
+    const { work, take, waitsChanged } = setup()
+    for (const id of ["t1", "t2"]) work.fetch(library, paper(id, "tandfonline.com"), false)
+    work.fetch(library, paper("w1", "wiley.com"), false)
+    work.fetch(library, paper("w2", "wiley.com"), false)
+    const first = await take()
+    work.settle(first.find((w) => w.paperId === "t1")!.id, "sign-in")
+    const before = waitsChanged()
+    work.drop(library, "t2")
+    expect(work.waits()).toMatchObject([{ host: "tandfonline.com", papers: 1 }])
+    expect(waitsChanged()).toBeGreaterThan(before)
+    work.drop(library, "t1")
+    expect(work.waits()).toEqual([])
+    expect(work.holding(library, "t1")).toBeUndefined()
+    // A queued paper at a site going on
+    work.drop(library, "w2")
+    work.settle(first.find((w) => w.paperId === "w1")!.id, "no-copy")
+    vi.advanceTimersByTime(GAP_MS)
+    expect(await take()).toEqual([])
+  })
+
   it("puts what the user asked for first, and tries a paused site once more for it", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("s1", "sagepub.com"), false)

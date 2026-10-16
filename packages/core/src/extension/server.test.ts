@@ -265,6 +265,25 @@ describe("the extension's port", () => {
       expect(again).toMatchObject([{ paperId: id }])
     })
 
+    it("takes a site's waiting line away once its papers got their PDF another way or left", async () => {
+      const { call, request, token, putPaper, root } = await connected()
+      const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
+      for (const paperId of [id, other.id]) {
+        await call("library.fetchPdf", { id: paperId })
+        const [item] = (await request("/work", { token })).body.work
+        await request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com" } })
+      }
+      expect((await call("extension.get")).waits).toMatchObject([{ host: "sagepub.com", papers: 2 }])
+      // The user drops the PDF they found
+      const dropped = path.join(root, "found.pdf")
+      writeFileSync(dropped, pdfOf([`https://doi.org/${SAGE}`, title]))
+      await call("library.attachPdf", { id, path: dropped })
+      expect((await call("extension.get")).waits).toMatchObject([{ host: "sagepub.com", papers: 1 }])
+      await call("library.remove", { ids: [other.id] })
+      expect((await call("extension.get")).waits).toEqual([])
+    })
+
     it("notes each word the extension brings back as its try", async () => {
       const { call, request, token, root } = await connected()
       for (const ended of ["no-access", "not-offered", "not-there", "no-copy"] as const) {
