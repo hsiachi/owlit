@@ -25,6 +25,9 @@ import "@/features/library/disk"
 import "@/features/threads/disk"
 import "./index.css"
 
+// The platform styles its scrollbars (index.css); in a plain browser, guess from the user agent
+document.documentElement.dataset.platform =
+  bridge?.platform ?? (/Mac/.test(navigator.userAgent) ? "darwin" : "other")
 // The chosen theme, paper tone and language (Settings › Appearance), before anything is drawn
 startAppearance()
 applyLocale(bridge?.locale ?? interfaceLocale(storedAppearance().language, navigator.languages))

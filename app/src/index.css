@@ -524,6 +524,39 @@
   html {
     @apply font-sans;
     }
+  /* Chromium draws its own controls (scrollbars, select menus, date pickers, autofill) from
+     color-scheme, not from the .dark class: left unset, a dark page got light scrollbars */
+  :root {
+    color-scheme: light;
+  }
+  :root.dark {
+    color-scheme: dark;
+  }
+}
+/* Scrollbars. macOS keeps its own overlay bars, which hide when idle and follow the system setting.
+   Elsewhere Chromium's bars stay up with arrows and a grey trough, so they become a thin pill with no
+   trough, like the Mac's. main.tsx sets data-platform */
+:root:not([data-platform="darwin"]) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  /* The transparent border insets the pill from the edge */
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--foreground) 22%, transparent) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--foreground) 36%, transparent);
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
 }
 /* The floating material: menus, popovers, the mention popup, the reader's pills and toolbar, the bulk
    bar. The corner and the text colour stay with each shape (14px for a menu, full for a pill) */
