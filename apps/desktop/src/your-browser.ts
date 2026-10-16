@@ -1,7 +1,7 @@
 // The user's own browser driven by AppleScript, for runs that get PDFs there (core's papers.fromBrowser):
 // a window for the run, tabs in it, where each tab is now, and closing or focusing one. Nothing here
-// activates the browser except focusTab, so a run goes on behind whatever the user is doing (2026-10-14,
-// Dia: neither a new window nor a new tab came to the front).
+// activates the browser except focusTab, so a run goes on behind whatever the user is doing (in Dia,
+// neither a new window nor a new tab comes to the front).
 //
 // Two dialects: Dia's, and Chrome's, which Edge and Brave share. Only Dia's was tried; the others follow
 // Chrome's published dictionary. Any other browser (Safari, Arc, Firefox) gets none, and core opens

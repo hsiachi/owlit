@@ -9,8 +9,7 @@ import { fill, OTHER_HOSTS, publisherOf, PUBLISHERS, REDIRECTORS, type Publisher
 // (Current Directions in Psychological Science's 10.1111 DOIs are at SAGE, Annals of Behavioral
 // Medicine's 10.1007 ones at OUP) and publishers take in others' (ACL's 10.3115 at the ACM). So the row
 // follows the site the DOI is registered to when that's known, and the hidden window may visit that
-// site: before, doi.org sending it to BMJ, APA or PubMed Central was stopped as a host it didn't know
-// (2026-10-10: 9 of 25 papers without a PDF in one literature review).
+// site; otherwise doi.org sending it to BMJ, APA or PubMed Central would stop it at a host it didn't know.
 
 // Publishers' hosts the hidden window may visit; doi.org sends readers on to one of these
 export const PUBLISHER_HOSTS = [...PUBLISHERS.flatMap((p) => p.hosts ?? []), ...OTHER_HOSTS]
@@ -71,7 +70,7 @@ function rowFor(doi: string, site: string | undefined) {
 // be (acquisition.json's needs), when it was.
 export function yourBrowser(doi: string, host?: string, proxy?: ProxySettings): YourBrowser {
   // Only a publisher's own site says who the publisher is: not doi.org, which sends readers on, nor a
-  // library proxy's sign-in page, where a note made before 2026-10-14 may say the page wanted a person
+  // library proxy's sign-in page, where an older note in acquisition.json may say the page wanted a person
   const site = host && PUBLISHER_HOSTS.some((h) => siteOf(h) === siteOf(host)) && !REDIRECTORS.has(siteOf(host)) ? siteOf(host) : undefined
   const row = rowFor(doi, site)
   const download = row?.download && row.pdf ? `${fill(row.pdf, doi)}?download=true` : undefined
@@ -102,8 +101,8 @@ export interface YourBrowser {
 
 // The page's own link to its PDF, for a page without citation_pdf_url: one labelled just "PDF" (or
 // "Download PDF"), to a .pdf on the page's own site. APA PsycNet's full-text pages link
-// /fulltext/<id>.pdf this way and carry no citation tags (2026-10-11: an open-access APA article was
-// left without a PDF, "The publisher's page doesn't link a PDF").
+// /fulltext/<id>.pdf this way and carry no citation tags, so without this an open-access APA article is
+// left without a PDF.
 export function pdfLinkOn(page: string, links: { text: string; href: string }[]) {
   const site = siteOf(hostOf(page))
   for (const link of links) {
@@ -147,8 +146,8 @@ export interface SignInPage {
 
 // Whether the library sign-in is over, from the pages the sign-in window went through: a sign-in step
 // (the university's own login site, or a password field on the proxy's host) and then the proxy's host
-// again, off its login paths and asking nothing, twice in a row. People didn't know to close the window
-// once signed in (2026-10-16), so it closes itself. Tsinghua's tlink signs in on id.tsinghua.edu.cn, by
+// again, off its login paths and asking nothing, twice in a row. People don't know to close the window
+// once signed in, so it closes itself. Tsinghua's tlink signs in on id.tsinghua.edu.cn, by
 // password or by scanning a code, so leaving the host counts without a password field. A window that
 // opens on an already signed-in proxy shows no step, and stays for the person to close.
 export function signInWatch(entry: string) {
@@ -180,7 +179,7 @@ export function signInWatch(entry: string) {
 // getPDF.jsp), and OSF's preprints (PsyArXiv, SocArXiv), whose file is /<id>/download. Only on the
 // publisher's own host: a library proxy's rewrite of it is left to the page's own links. ScienceDirect's
 // /pdfft isn't here: opened without the article page's own parameters it answers "There was a problem
-// providing the content you requested" (2026-10-15).
+// providing the content you requested".
 export function pdfFromLanded(page: string): string | undefined {
   let url: URL
   try {

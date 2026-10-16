@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { revealOnHover } from "@/components/row-list"
 import { Spinner } from "@/components/ui/spinner"
 import { useChatStore } from "@/features/chat/store"
-import type { Connector, SignIn } from "@/features/chat/types"
+import type { Connector, SignIn } from "@owlit/protocol"
 import { useFoldWhile } from "../form-state"
 import { FoldedForm, IconAction, KeyInput, List, MaskedKey, Note, Picker, Row } from "../parts"
 

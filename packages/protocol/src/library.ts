@@ -24,7 +24,7 @@ export interface PaperIds {
 }
 
 export interface PaperPdf {
-  // Object URL (dropped file) or a remote URL; one PDF per paper for now
+  // Where the window reads it: owlit-file://workspace/… in the desktop app, an object URL on mock data
   url: string
   pages?: number
 }

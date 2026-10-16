@@ -1,11 +1,11 @@
 import { t } from "@lingui/core/macro"
-import type { Paper, ResolvedPaper } from "./types"
+import type { Paper, ResolvedPaper } from "@owlit/protocol"
 
 // A looked-up paper, with the id of the one the library already has for it, if any
 export type Resolved = ResolvedPaper & { existingId?: string }
 
-// The part of the library the desktop shell will eventually do for the UI: turning a
-// reference or a file into metadata, and finding a PDF. Records themselves live in the store.
+// The part of the library that core does for the UI in the desktop app (and a mock does on its own): turning
+// a reference or a file into metadata, and finding a PDF. Records themselves live in the store.
 export interface LibraryClient {
   // DOI, arXiv id / URL, or any URL → metadata. Rejects with a sentence when it cannot.
   resolve(input: string): Promise<Resolved>

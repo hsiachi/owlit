@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/react/shallow"
 import { useChatStore } from "./store"
-import type { Chat } from "./types"
+import type { Chat } from "@owlit/protocol"
 
 // A chat as a list shows it
 export type ChatListItem = Pick<Chat, "id" | "title" | "updatedAt" | "pinned">

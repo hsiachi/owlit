@@ -1,8 +1,7 @@
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 
-// Where a paper without its PDF stands, the one reading of paper.noPdf that every place (its card, its
-// row, the Needs you filter, the Library's line, Home and the rail) goes by. In the order the card
-// tells them apart:
+// Where a paper without its PDF stands: the one reading of paper.noPdf that every place goes by, so they
+// never disagree. In the order the card tells them apart:
 // - offered: a file arrived in Downloads and owlit isn't sure it is this paper's; the user says
 // - run-stopped: the paper a run in the user's browser stopped on for them (a sign-in, a check)
 // - page: its article page is open in their browser for them to save the PDF from

@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { useLibraryStore } from "../store"
-import type { Highlight } from "../types"
+import type { Highlight } from "@owlit/protocol"
 import { paperHighlights } from "./highlights"
 
 // A paper's highlights in reading order

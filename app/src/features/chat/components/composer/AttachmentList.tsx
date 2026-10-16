@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { BookPlusIcon, FileIcon, FileTextIcon, FolderIcon, ImageIcon, TriangleAlertIcon, XIcon } from "lucide-react"
-import { fileKindOf, type FileKind } from "@owlit/protocol"
+import { type AttachmentFile, type FileKind, fileKindOf } from "@owlit/protocol"
 import {
   Attachment,
   AttachmentAction,
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/attachment"
 import { Tip } from "@/components/tip"
 import { isDesktop } from "@/lib/rpc"
-import type { AttachmentFile } from "../../types"
 import { formatBytes, type ChipFile, type Reader } from "../../lib/attachments"
 import { Spinner } from "@/components/ui/spinner"
 import { useAfterWait } from "@/hooks/use-after-wait"

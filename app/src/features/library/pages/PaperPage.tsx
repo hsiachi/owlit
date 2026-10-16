@@ -17,7 +17,7 @@ import { showInPaper, usePaperView, usePaperViewOf, type PaperView } from "../pa
 import { usePrefsStore } from "../prefs-store"
 import { PdfReader } from "../reader/PdfReader"
 import { paperById, useLibraryStore } from "../store"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 import { useLibraryUi } from "../ui-store"
 import { DetailsPanel } from "./paper/DetailsPanel"
 import { NoPdf } from "./paper/NoPdf"

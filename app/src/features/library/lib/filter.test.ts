@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 import { countByFilter, groupPapers, mightComeThroughBrowser, needsYou, noPdfReason, visiblePapers } from "./filter"
 
 const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({

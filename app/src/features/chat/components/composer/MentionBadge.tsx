@@ -1,4 +1,4 @@
-import type { Mentionable } from "../../types"
+import type { Mentionable } from "@owlit/protocol"
 import { MentionToken } from "@/components/mention/mention-token"
 import { usePaperUnread } from "@/features/docs/lib/mentions"
 

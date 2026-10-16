@@ -169,7 +169,7 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
     const seq = i + 1
     const p = d.payload as Record<string, string | number | undefined>
     let cause: number | undefined
-    // Journals from before causeAt (2026-10-16) name only the kind: the last one heard is the one
+    // Older journals have no causeAt and name only the kind: the last one heard is the one
     if (d.type === "evaluation" || d.type === "rule.looked") cause = p.causeAt !== undefined ? heardAt.get(`${p.cause}\u0000${p.causeAt}`) : lastHeard.get(p.cause as string)
     else if (d.type.startsWith("run.")) cause = lastRun.get(p.taskId as string) ?? evaluationOf.get(p.taskId as string)
     else if (d.type === "agent.wrote") cause = p.chatId ? lastRun.get(taskOfChat.get(p.chatId as string) ?? "") : undefined

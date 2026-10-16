@@ -762,7 +762,7 @@ export class Threads {
       }
       batch.last = line.at
       batch.lines.push(line)
-      // Rows a line added: recorded since batches were; before, the rows that came in at that moment
+      // Rows a line added; an older line doesn't record them, so for it the rows that came in at that moment
       for (const r of line.added ?? c.rows.filter((r) => r.addedAt === line.at).map((r) => r.id)) batch.rows.add(r)
       if (line.asked) batch.asked = line.asked
       if (line.note) batch.notes.push(line.note)

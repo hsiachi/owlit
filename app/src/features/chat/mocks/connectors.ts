@@ -1,4 +1,4 @@
-import type { Connector } from "../types"
+import type { Connector } from "@owlit/protocol"
 
 // Built-in connectors for the common local coding agents, all speaking ACP over stdio. Only for the
 // browser mock (pnpm dev:web); the desktop app gets the real list from core (agents/agents.ts).

@@ -254,7 +254,7 @@ async function checkPublisherKey(http: Http, s: AppSettings, target: "elsevierAp
 
 // Elsevier answers a key it doesn't know with 401, and a known key asking from outside a subscribing
 // network with 403 ("Requestor configuration settings insufficient"), even for the entitlement question
-// (2026-10-15, off campus with a split-tunnel campus VPN that doesn't carry api.elsevier.com). Its
+// (as off campus with a split-tunnel campus VPN that doesn't carry api.elsevier.com). Its
 // abstract API needs no subscription, so it tells a sound key on the wrong network from a refused one.
 async function checkElsevierOffNetwork(http: Http, api: PublisherApi, key: string): Promise<SettingsCheck> {
   try {

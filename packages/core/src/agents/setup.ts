@@ -18,7 +18,7 @@ export interface Managed {
   bin: string
   // The agent's own command, whose presence says the agent is on this Mac
   cli: string
-  // About how much it takes on disk, measured 2026-10-13 (claude-agent-acp 0.88, codex-acp 2.2.1)
+  // About how much it takes on disk, for the install's progress; remeasure when an adapter grows a lot
   sizeMb: number
 }
 
@@ -129,8 +129,8 @@ export class AgentSetups {
     const next = `${this.folder(id)}.next`
     const cache = path.join(this.options.dir, ".npm-cache")
     // npm says nothing about how far it is; what has landed on disk does. Most of the time goes on the
-    // download into its cache, about a third of the unpacked size (claude-agent-acp 0.90: 100 of 306 MB,
-    // seen 2026-10-14); unpacking at the end is quick, and holds at 95% until it is done.
+    // download into its cache, about a third of the unpacked size (claude-agent-acp 0.90: 100 of 306 MB);
+    // unpacking at the end is quick, and holds at 95% until it is done.
     const expected = managed.sizeMb * 0.36 * 1024 * 1024
     const timer = setInterval(() => {
       void Promise.all([sizeOf(next), sizeOf(cache)]).then(([a, b]) => {

@@ -3,7 +3,7 @@ import { forwardRef, useImperativeHandle, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import { KindIcon } from "@/components/kind-icon"
 import { Kbd } from "@/components/ui/kbd"
-import type { Mentionable, SourceKind } from "@/features/chat/types"
+import type { Mentionable, SourceKind } from "@owlit/protocol"
 import { KIND_PLACE } from "@/lib/kinds"
 
 // What a pick hands back to the editor that opened the list

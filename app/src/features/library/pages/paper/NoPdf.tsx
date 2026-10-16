@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { useRef, useState } from "react"
-import { isTaskFinished } from "@owlit/protocol"
+import { isTaskFinished, type Paper } from "@owlit/protocol"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
 import { PdfFileInput } from "@/components/file-drop"
@@ -16,7 +16,6 @@ import { resumeTask, tasksFor, useTasksStore } from "@/features/tasks/store"
 import { PublisherNeedsUser } from "../../client"
 import { continueLabel, getInBrowser, showBrowser, stoppedLine, useFromBrowserRun } from "../../from-browser"
 import { libraryClient, useLibraryStore } from "../../store"
-import type { Paper } from "../../types"
 import { pdfWait, type PdfWait } from "../../lib/pdf-wait"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now

@@ -6,7 +6,7 @@ import type { LibraryClient } from "./client"
 import { MockLibraryClient } from "./mock-client"
 import { RpcLibraryClient } from "./rpc-client"
 import { seedPapers } from "./mocks/papers"
-import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "./types"
+import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "@owlit/protocol"
 import { normalizeTag } from "./lib/tags"
 
 export const libraryClient: LibraryClient = isDesktop ? new RpcLibraryClient() : new MockLibraryClient()

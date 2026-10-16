@@ -9,7 +9,7 @@ import { useTrail, workspaceKey } from "./trail"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { messageText } from "@/features/chat/lib/message-text"
-import type { Chat, ChatMessage } from "@/features/chat/types"
+import type { Chat, ChatMessage } from "@owlit/protocol"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,

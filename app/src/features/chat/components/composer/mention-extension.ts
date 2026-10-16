@@ -2,7 +2,7 @@ import Mention from "@tiptap/extension-mention"
 import { ReactNodeViewRenderer, ReactRenderer } from "@tiptap/react"
 import type { Editor } from "@tiptap/core"
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion"
-import type { Mentionable, SourceKind } from "../../types"
+import type { Mentionable, SourceKind } from "@owlit/protocol"
 // The same items as @ in a doc: Library papers, workspace docs, threads
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { MentionList, type MentionListHandle, type MentionListProps } from "@/components/mention/mention-list"

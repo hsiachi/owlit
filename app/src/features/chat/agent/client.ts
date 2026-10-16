@@ -1,5 +1,4 @@
-import type { QuestionAnswer, Role } from "@owlit/protocol"
-import type { ChatMessage, Connector, PromptInput, SessionUpdate, StopReason } from "../types"
+import type { ChatMessage, Connector, PromptInput, QuestionAnswer, Role, SessionUpdate, StopReason } from "@owlit/protocol"
 
 export interface PromptRequest {
   chatId: string

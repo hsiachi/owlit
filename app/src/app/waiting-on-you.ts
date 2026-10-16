@@ -13,7 +13,7 @@ import { importOrigin } from "@/features/library/components/ImportBanner"
 import { getInBrowser, showBrowser, useFromBrowser, useOfferedPdfs } from "@/features/library/from-browser"
 import { useAskingImports } from "@/features/library/imports"
 import { citationLabel } from "@/features/library/lib/format"
-import type { Paper } from "@/features/library/types"
+import type { Paper } from "@owlit/protocol"
 import { useLibraryUi } from "@/features/library/ui-store"
 import { openSettings, useSettings } from "@/features/settings/store"
 

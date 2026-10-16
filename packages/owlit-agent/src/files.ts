@@ -2,7 +2,7 @@
 // owlit decides which files an agent may touch, reads an open editor's text rather than the disk, and
 // keeps a version of every write so it can be undone. Nothing here touches the disk itself.
 //
-// What a role lets the engine do with them (engine-proposal.md, "Roles become one table"):
+// What a role lets the engine do with them:
 //   Reviewer   reads only; the edit tools aren't offered
 //   Assistant  asks first, with the diff, which owlit draws in place for the user to apply or discard
 //   Co-author  writes without asking

@@ -13,8 +13,7 @@ import { useComposerDrafts } from "./composer-drafts"
 import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
 import { resolveSelection, selectionOf, type Selection } from "./lib/selection"
 import { titleFrom } from "./lib/title"
-import type { QuestionAnswer } from "@owlit/protocol"
-import type { Chat, ChatMessage, PromptInput } from "./types"
+import type { Chat, ChatMessage, PromptInput, QuestionAnswer } from "@owlit/protocol"
 
 // Whether the store saves messages through ./disk (core saves them itself when it runs the turn)
 const savesMessages = () => disk.onDisk && !agentClient.persistsMessages

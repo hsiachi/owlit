@@ -22,10 +22,8 @@ import { useTrail, workspaceKey } from "./trail"
 import { ago } from "@/lib/time"
 import { type Place, usePlaces } from "./where"
 
-// Home answers, in this order: where was I (every launch), what is waiting for me (only while something
-// waits) and what changed while I was away (Owlit's runs after any time away; the rest only after three
-// days or more). There is no composer: asking
-// happens in Chat and the agent window. PDFs dropped anywhere on it go to the Library.
+// Home: where the user was, what waits for them (WaitingOnYou) and what changed while they were away
+// (SinceYouLeft), in that order. PDFs dropped anywhere on it go to the Library.
 
 const RECENT = 8
 

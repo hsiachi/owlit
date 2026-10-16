@@ -10,7 +10,7 @@ import { isTyping } from "@/lib/keys"
 import { useCopyFlash } from "@/hooks/use-copy-flash"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { HIGHLIGHT_COLORS, HIGHLIGHT_VAR, highlightLabel } from "../lib/highlights"
-import type { HighlightColor } from "../types"
+import type { HighlightColor } from "@owlit/protocol"
 
 // The one popover for text in the PDF, whether it is a fresh selection or an existing highlight:
 // four colours, copy, comment, Ask Owlit, and for a highlight, delete. The same look for both, so a

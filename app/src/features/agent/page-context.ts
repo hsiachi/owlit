@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useMemo } from "react"
 import { useLocation } from "react-router-dom"
-import type { Mentionable, QuotedSelection } from "@/features/chat/types"
+import type { Mentionable, QuotedSelection } from "@owlit/protocol"
 import { routeSubject } from "@/app/route-subject"
 import { threadMentionable, docMentionable, paperMentionable } from "@/features/docs/lib/mentions"
 import { useDocsStore } from "@/features/docs/store"

@@ -140,7 +140,7 @@ export async function* routesFor(
 // A paper's id in the ACL Anthology, where all of ACL's papers are open: Semantic Scholar's, or the one
 // ACL's own DOIs end in (10.18653/v1/2023.acl-long.1). ACL's older DOIs, 10.3115/1654595.1654614, were
 // registered by the ACM and are registered to its Digital Library, which lists the papers without
-// their PDFs (2026-10-14: "ACM Error: 404"); nothing in them names the Anthology id. The Anthology
+// their PDFs ("ACM Error: 404"); nothing in them names the Anthology id. The Anthology
 // takes its old ids only in capitals (W06-1314), which a lowercased DOI has lost.
 export function aclAnthologyId(ids: PaperRecord["ids"]) {
   const id = ids.acl ?? ids.doi?.match(/^10\.18653\/v1\/(.+)$/)?.[1]
@@ -212,7 +212,7 @@ export class NotAPdf extends Error {
 // half-downloaded file never takes its name.
 export async function downloadPdf(http: Http, url: string, dest: string, signal?: AbortSignal, headers?: Record<string, string>) {
   const response = await http.get(url, { signal, retries: 1, timeoutMs: 120_000, headers: { accept: "application/pdf,*/*;q=0.8", ...headers } })
-  // An AWS WAF check (JMIR, 2026-10-15) answers 202 with an empty body and a script for browsers: a check,
+  // An AWS WAF check (JMIR's) answers 202 with an empty body and a script for browsers: a check,
   // not an empty file
   if (response.status === 202) {
     await response.body?.cancel().catch(() => {})
@@ -259,8 +259,8 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
 
 // The PDF a repository's page for a paper names (its citation_pdf_url, or a link to the PDF as an
 // alternate form of the page), for an open-access link that leads to the page rather than the file
-// (2026-10-15: qucosa's and DORAS's pages; edoc.unibas.ch's names its logo, which isn't a PDF and is
-// turned away when downloaded). The page is read up to 2 MB.
+// (qucosa's and DORAS's pages; edoc.unibas.ch's names its logo, which isn't a PDF and is turned away
+// when downloaded). The page is read up to 2 MB.
 export async function pdfNamedOnPage(http: Http, page: string, signal?: AbortSignal): Promise<string | undefined> {
   try {
     const response = await http.get(page, { signal, retries: 1, headers: { accept: "text/html" } })

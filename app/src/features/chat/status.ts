@@ -3,7 +3,8 @@ import { useEffect } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { countDown, countUp } from "@/lib/counts"
-import type { Chat, ChatMessage, Part, PermissionOption, ToolCall } from "./types"
+import type { Chat, ChatMessage, PermissionOption } from "@owlit/protocol"
+import type { Part, ToolCall } from "./types"
 
 // Where a chat stands, for its row in the list, its header and Home's "Waiting on you". Handed-off work
 // has no list of its own: the chat list is that list, so every chat says whether something is happening.

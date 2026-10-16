@@ -1,9 +1,6 @@
 // How to use owlit, for Owlit when the user asks about owlit itself (owlit_help in owlit-mcp). It says
 // how to do things and where they are, never why. It describes the app as it is: a change to a feature
 // that one of these paragraphs mentions changes the paragraph in the same commit.
-//
-// Version 1 (2026-10-10): first version.
-// Version 2 (2026-10-12): Settings has four sections (Owlit, Agents, Papers, Appearance).
 
 interface GuideTopic {
   id: string

@@ -3,8 +3,8 @@
 // (packages/core/src/agents/rules.ts, served as owlit-mcp's instructions) follow it, so they stay in one
 // place for every agent; core leaves them out of the first prompt for an agent that takes them here.
 //
-// Written against the first comparison with Claude Code (2026-10-10): the engine stopped after one
-// citation note where four claims needed one, and added papers by an OpenAlex id instead of arXiv.
+// Without it the engine stops after one citation note where several claims need one, and adds papers by
+// an OpenAlex id instead of their arXiv id.
 
 import type { Role } from "./files.ts"
 

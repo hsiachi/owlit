@@ -1,6 +1,6 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models"
 import { rectsWithinSlice } from "@embedpdf/plugin-selection"
-import type { Rect } from "../types"
+import type { Rect } from "@owlit/protocol"
 
 // Finding a quoted passage again in the PDF. A passage is known by its words, not by coordinates, so it
 // survives a re-downloaded PDF. A long passage rarely matches as one search (line breaks, hyphens,

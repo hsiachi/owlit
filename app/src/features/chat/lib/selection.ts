@@ -1,6 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { DEFAULT_ROLE, ROLES } from "@owlit/protocol"
-import type { Chat, Connector, Role } from "../types"
+import { type Chat, type Connector, DEFAULT_ROLE, type Role, ROLES } from "@owlit/protocol"
 
 export interface Selection {
   connectorId: string

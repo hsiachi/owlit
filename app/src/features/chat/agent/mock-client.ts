@@ -1,7 +1,6 @@
-import { DEFAULT_ROLE, paperUri, parseOwlitUri, type AgentQuestion, type QuestionAnswer, type ToolInfo, type ToolKind } from "@owlit/protocol"
+import { type AgentQuestion, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
-import type { Connector, Mentionable, PermissionKind, QuotedSelection, SessionUpdate, StopReason } from "../types"
 import { mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
 import { recordResult, setMockUndo } from "../results"

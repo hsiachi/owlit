@@ -1,6 +1,7 @@
 import { plural, t, type ChoiceOptions } from "@lingui/core/macro"
 import { i18n } from "@owlit/i18n"
-import type { MessagePart, ToolCall } from "../types"
+import type { MessagePart } from "@owlit/protocol"
+import type { ToolCall } from "../types"
 import { owlitStepWords, owlitToolOf, quote, toolTitle } from "./tool-title"
 import { useLibraryStore } from "@/features/library/store"
 import { capital, joinActions, joinAnd } from "@/lib/words"

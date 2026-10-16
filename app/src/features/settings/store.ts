@@ -21,8 +21,8 @@ export const SECTIONS = [
 ] as const satisfies readonly { id: string; label: MessageDescriptor }[]
 export type SettingsSection = (typeof SECTIONS)[number]["id"]
 
-// Groups inside a section that a link can open at. Before 2026-10-12 most of these were sections of their
-// own, so owlit://settings/proxy in an older chat still lands in the right place.
+// Groups inside a section that a link can open at, by the names links use, so owlit://settings/proxy
+// in an older chat, from when most of these were sections, still lands in the right place.
 const GROUPS = {
   profile: { section: "owlit", label: null },
   memory: { section: "owlit", label: msg`What Owlit keeps in mind` },

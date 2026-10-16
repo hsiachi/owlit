@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import type { Highlight, HighlightColor, Rect } from "../types"
+import type { Highlight, HighlightColor, Rect } from "@owlit/protocol"
 import { waitFor } from "@/lib/ui-actions"
 import type { PassageTarget } from "./passages"
 

@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { statusOptions } from "../lib/status"
-import type { ReadStatus } from "../types"
+import type { ReadStatus } from "@owlit/protocol"
 
 // Reading status as a plain text menu ("Unread ▾"). It is the only control for status, used in
 // the peek and on the paper page; the list shows status only through tone.

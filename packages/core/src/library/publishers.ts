@@ -5,8 +5,8 @@ import { REDIRECTORS } from "./publisher-table.ts"
 
 // How often owlit visits each publisher's site on its own, so that it reads to the site as one reader
 // rather than a script. Sites put a check in front of clients that come in bursts or come back right
-// after a no, and the check gets stricter each time (2026-10-13: the daily retry opened ten ACM pages
-// in three minutes, each one twice, and from then on ACM's check never passed in owlit's browser).
+// after a no, and the check gets stricter each time: after a burst of visits, ACM's check may never pass
+// in owlit's browser again.
 //
 // - Unattended visits to one site are spaced out (VISIT_GAP_MS).
 // - A site that asked for a person and didn't let an unattended visit through is held: none of its
@@ -15,7 +15,7 @@ import { REDIRECTORS } from "./publisher-table.ts"
 //   reached through the browser for a while.
 // - How each of a site's last few unattended visits ended is kept. A site that keeps showing owlit's
 //   browser a check and never gives a PDF is left to the user's browser, with one visit a week to see
-//   whether that changed (2026-10-15: 104 visits in two days, none with a PDF, most of them checks).
+//   whether that changed.
 //
 // Kept in <data>/publishers.json, by site (registrable domain: sciencedirect.com, acm.org). What
 // happened on each visit goes to <data>/publisher-log.jsonl, to tell whether this works.
@@ -65,7 +65,7 @@ export class Publishers {
   }
 
   // The hold on a site, while it lasts. A redirector (publisher-table.ts) is never held, and a record
-  // kept for one (before 2026-10-14 a doi.org route that landed on a check refused doi.org itself) is
+  // kept for one by an older owlit (a doi.org route that landed on a check held doi.org itself) is
   // ignored.
   async held(site: string): Promise<{ until: number; reason: HoldReason } | undefined> {
     if (REDIRECTORS.has(site)) return undefined

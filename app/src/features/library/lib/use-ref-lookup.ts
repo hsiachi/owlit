@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { useDebouncedQuery } from "@/hooks/use-debounced-query"
 import { libraryClient, useLibraryStore } from "../store"
-import type { Paper, ResolvedPaper } from "../types"
+import type { Paper, ResolvedPaper } from "@owlit/protocol"
 import { useLibraryUi } from "../ui-store"
 
 export type Lookup =

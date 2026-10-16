@@ -1,11 +1,11 @@
 import { useLibraryStore } from "../store"
-import type { Highlight } from "../types"
+import type { Highlight } from "@owlit/protocol"
 
 // Where a paper's note is kept in the workspace; an agent edits the note by writing this file
 export const notePathOf = (paperId: string) => `library/papers/${paperId}/note.md`
 
-// The paper whose note is at this path, if it is one. Chats from before 2026-10-13 name the note where it
-// was then kept (.owlit/papers/<id>/note.md), so their results still read as the note.
+// The paper whose note is at this path, if it is one. Older chats name the note where older workspaces
+// keep it (.owlit/papers/<id>/note.md), so their results still read as the note.
 export const paperOfNotePath = (path: string) => /^(?:\.owlit|library)\/papers\/([^/]+)\/note\.md$/.exec(path)?.[1]
 
 // A highlight as a quote in the note, its page a link back to the passage

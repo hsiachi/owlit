@@ -12,7 +12,7 @@ import { LargeFilesDialog } from "@/features/chat/components/composer/LargeFiles
 import { fromDrop, openAttached, readerOf, useAttachments } from "@/features/chat/lib/attachments"
 import { useResolvedSelection } from "@/features/chat/use-selection"
 import { useChatStore } from "@/features/chat/store"
-import type { Mentionable } from "@/features/chat/types"
+import type { Mentionable } from "@owlit/protocol"
 import { Chip, dontInclude, SelectionChip } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
 import { askAboutHint, useVisibleContext } from "./page-context"

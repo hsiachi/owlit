@@ -12,7 +12,7 @@ import { copyText } from "@/lib/clipboard"
 import { showInPaper } from "../paper-view"
 import { useReaderStore } from "../reader/reader-store"
 import { useLibraryStore } from "../store"
-import type { Highlight } from "../types"
+import type { Highlight } from "@owlit/protocol"
 
 async function copy(text: string, done: string) {
   if (await copyText(text)) toast(done)

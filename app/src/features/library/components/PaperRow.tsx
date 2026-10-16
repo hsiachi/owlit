@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 //
 // `open` is the row as the first line of its card (PaperList): the whole title, wrapped, its first line
 // where the row's one line was, so the paper stays under the pointer; the mark slot and the details give way
-// (the card says them below), and the title underlines on hover, since a click on it now opens the paper.
+// (the card says them below), and the title underlines on hover, since a click on it opens the paper.
 export function PaperRow({
   mark,
   title,

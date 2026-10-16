@@ -93,7 +93,7 @@ const FROM_BROWSER = "papers.fromBrowser"
 // Each PDF opened there at least this long after the one before, as a person downloading papers one
 // after another would. The ACM may block a whole institution's addresses over what looks like
 // systematic downloading, and a campus shares one. Through the library's proxy, longer: Tsinghua's
-// answered a run 15 s apart with its "minute-limit" page (2026-10-14).
+// answers papers 15 s apart with its "minute-limit" page.
 const OPEN_GAP_MS = 15_000
 const PROXY_GAP_MS = 30_000
 // The proxy's limit page: how long to leave it before the next paper through it
@@ -101,12 +101,11 @@ const LIMIT_WAIT_MS = 2 * 60_000
 // An article page opened for the user: when to look at where it landed (a sign-in stops the run)
 const PAGE_LOOK_MS = 10_000
 // A check found there is looked at again this often, for this long, before the run stops for it: many
-// pass by themselves (2026-10-15: Cloudflare's "Just a moment..." on JAMA, AJPM and OUP was still
-// running at the 10 s look, 6 s into it)
+// pass by themselves (Cloudflare's "Just a moment..." can still be running at the 10 s look)
 const CHECK_LOOK_MS = 2_000
 const CHECK_WAIT_MS = 30_000
-// How long an opened PDF may take to land before it counts as not coming (2026-10-14: 2–12 s each
-// through Dia, 12 s for 40 MB); while a download is still being written, up to the longer limit
+// How long an opened PDF may take to land before it counts as not coming (most take 2–12 s, 40 MB about
+// 12 s); while a download is still being written, up to the longer limit
 const ARRIVAL_MS = 40_000
 const ARRIVAL_MAX_MS = 3 * 60_000
 // Tests set them shorter (OWLIT_BROWSER_GAP_MS for both gaps, OWLIT_BROWSER_WAIT_MS, _LIMIT_MS, _LOOK_MS, _CHECK_MS)
@@ -117,8 +116,8 @@ const limitWait = () => Number(process.env.OWLIT_BROWSER_LIMIT_MS ?? LIMIT_WAIT_
 // the next start
 const RESUME_MS = 24 * 60 * 60 * 1000
 // The daily look for a paper without a PDF, spaced out the longer nothing comes: a day after the first
-// look, then 3, 7 and 30 days (2026-10-15: 27 papers looked at every day, owlit's browser visiting their
-// publishers 58 times in one day and getting nothing). New open copies do turn up, so it never stops.
+// look, then 3, 7 and 30 days, since a daily look at every such paper visits their publishers dozens of
+// times a day for nothing. New open copies do turn up, so it never stops.
 const LOOK_AGAIN_DAYS = [1, 3, 7, 30]
 export function lookAgain(acquisition: Pick<Acquisition, "at" | "looks">, now: number) {
   const days = LOOK_AGAIN_DAYS[Math.min(Math.max(acquisition.looks ?? 1, 1), LOOK_AGAIN_DAYS.length) - 1]
@@ -1284,22 +1283,8 @@ export class Library {
   // be driven, a run has a window of its own, and every paper opens in it behind whatever is in front;
   // elsewhere it is opened as any link is, in the background. A PDF the browser saves by itself is waited
   // for until it lands in Downloads, and its tab closed if a check page is left in it. An article page is
-  // left open for the user to save the PDF from, and Downloads is watched for it a while.
-  //
-  // A PDF that doesn't come is told by where its tab ended (where-it-ended.ts). The run stops for the
-  // user only for what they can do something about: a sign-in, a check, a page still at the PDF (Safari's
-  // question about downloads), or a page owlit can't read, once per site. A publisher or library that
-  // said no is noted on the paper (acquisition.json), and the run goes on; the proxy's limit is waited
-  // out. Without a tab to read, a site whose first two PDFs in the run don't come stops the run.
-  //
-  // The run's tally (the browser's name; got, no access, pages to save, missed: paper ids) is its progress note, as JSON, for
-  // the line that sums it up once it has ended.
-  //
-  // The queue and the tally are kept on disk as the run goes (browser-run.json). Closing owlit stops the
-  // run without ending its task, and the next start runs that task again: it picks up the papers it
-  // hadn't finished with and goes on adding to the same tally. Before, the queue lived only in memory,
-  // and the restarted run found nothing, ended "0 of 0" and wiped the tally (five runs in two days, to
-  // 2026-10-15; one had got 6 PDFs and left 14 pages). The user's Stop ends the run, and the file goes.
+  // left open for the user to save the PDF from, and Downloads is watched for it a while. A PDF that
+  // doesn't come is told by where its tab ended (where-it-ended.ts).
   private fromBrowserTask(open: NonNullable<LibraryServices["openExternal"]>) {
     return defineTask(FROM_BROWSER, {
       // Not the browser lane: owlit's own hidden browser shouldn't hold up what the user just asked for
@@ -1319,7 +1304,12 @@ export class Library {
         let limitUntil = 0
         // Whether the kept run has been read: closing before then leaves it as it was
         let restored = false
+        // The run's progress note, as JSON, for the line that sums it up once it has ended
         const tally: Tally = { browser: this.browserLabel, got: [], noAccess: [], pages: [], missed: [] }
+        // The queue and the tally, kept on disk as the run goes. Closing owlit stops the run without ending
+        // its task, and the next start runs that task again: it picks up the papers it hadn't finished
+        // with and goes on adding to the same tally, where a queue in memory alone would end "0 of 0" and
+        // wipe it. The user's Stop ends the run, and the file goes.
         const runFile = path.join(this.dataDir, "browser-run.json")
         let saving = Promise.resolve()
         const keep = () => {
@@ -1371,7 +1361,12 @@ export class Library {
           void this.publishers.log({ paper: id, kind: "ended", url: there.url, title: there.title })
           return { ended: whereItEnded(there, { address: address.address, proxy: address.proxy, page: address.opens === "page" }), title: there.title, host: hostOf(there.url) }
         }
-        // Stops the run on this paper until the user says go on; whether to try it again then
+        // Stops the run on this paper until the user says go on; whether to try it again then. The run
+        // stops only for what the user can do something about: a sign-in, a check, a page still at the
+        // PDF (Safari's question about downloads), or a page owlit can't read, once per site. A publisher
+        // or library that said no is noted on the paper (acquisition.json) and the run goes on; the
+        // proxy's limit is waited out. Without a tab to read, a site whose first two PDFs don't come
+        // stops the run.
         const stopFor = async (id: string, why: NonNullable<FromBrowser["why"]>, page: { title: string; host: string }) => {
           this.fromBrowser.set(id, { state: "waiting", why, page: { title: page.title, host: page.host } })
           await this.announce([id])
@@ -1614,7 +1609,7 @@ export class Library {
 
   // Papers the user's browser was sent for before this start whose PDF hasn't come. The Downloads watch
   // lived only while owlit ran: a restart (or a quit) in the 15 minutes after a run opened an article
-  // page lost the PDFs saved from it (2026-10-15, twelve of them). A PDF saved to Downloads since a
+  // page lost the PDFs saved from it. A PDF saved to Downloads since a
   // paper was sent that is surely that paper's is taken now; ones still within their time are watched
   // again, an article page among them counted as open again. An unsure file is left: nobody is there to
   // be asked about it.
@@ -2474,8 +2469,8 @@ function pick(from: Resolution | PaperRecord): Omit<ResolvedPaper, "id"> {
 
 // Whether a resolution holds the answer of the service merge() trusts first for this paper: OpenAlex for
 // published work, arXiv for a preprint. A search in another source (an arXiv search finding a paper
-// that has since been published, an S2 search) gives only part of the picture: Selenite (CHI 2024), added
-// from an arXiv search on 2026-10-10, was kept with its preprint's year.
+// that has since been published, an S2 search) gives only part of the picture: a paper added from an
+// arXiv search is otherwise kept with its preprint's year.
 function fromAuthority(resolution: Resolution) {
   const authority = resolution.ids.doi ? "openalex" : "arxiv"
   return resolution.records.some((r) => r.source === authority)

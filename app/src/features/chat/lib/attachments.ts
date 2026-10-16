@@ -53,7 +53,7 @@ export function openAttached(file: { path?: string }) {
 
 // The files a composer is attaching to a message of `chatId` (a chat that may not exist yet: a new chat's
 // composer names the id it will start it with), kept with the draft `key` so they wait with it. Each is
-// copied into the workspace as soon as it is attached (PRODUCT.md §4, Files in chat); one owlit already
+// copied into the workspace as soon as it is attached, so sending never waits on a copy; one owlit already
 // has turns into a mention instead, through `onMention`, told which draft it belongs to, since the copy
 // may finish after the person has moved to another chat. Files over LARGE_FILE_BYTES wait in `large` for a
 // yes (LargeFilesDialog) before anything is copied.

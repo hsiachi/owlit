@@ -1,5 +1,5 @@
 // The models the engine can use and how it signs in to them, on top of pi-ai. Only a short list of
-// providers is offered (engine-proposal.md): ChatGPT's sign-in, and API keys for the rest. Claude is here
+// providers is offered: ChatGPT's sign-in, and API keys for the rest. Claude is here
 // by API key only: Anthropic's terms keep Claude Pro/Max sign-ins to Claude Code.
 
 import type { AuthMethod } from "@agentclientprotocol/sdk"
@@ -174,7 +174,7 @@ export async function signIn(models: Models, credentials: CredentialStore, home:
 }
 
 // What a ChatGPT sign-in may use: OpenAI refuses the rest ("not supported when using Codex with a ChatGPT
-// account"). pi-ai's Codex catalog lists exactly those (checked against Codex's own list, 2026-10-10).
+// account"). pi-ai's Codex catalog lists exactly those, as Codex's own list does.
 let chatgptModels: Set<string> | undefined
 const chatgptAllows = (id: string) => (chatgptModels ??= new Set(openaiCodexProvider().getModels().map((m) => m.id))).has(id)
 

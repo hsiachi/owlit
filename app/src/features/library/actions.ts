@@ -4,11 +4,10 @@ import { toast } from "sonner"
 import { copyText } from "@/lib/clipboard"
 import { apaCitation, bibtex } from "./lib/cite"
 import { useLibraryStore } from "./store"
-import type { PageRect, Paper } from "./types"
 import { useLibraryUi } from "./ui-store"
 import { toastUndo } from "@/lib/toast"
 import { useAgentWindow } from "@/features/agent/store"
-import type { QuotedSelection } from "@/features/chat/types"
+import type { PageRect, Paper, QuotedSelection } from "@owlit/protocol"
 import { paperMentionable } from "@/features/docs/lib/mentions"
 
 // Actions on one or several papers, shared by the row menu, the detail pane and the paper page

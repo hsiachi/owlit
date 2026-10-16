@@ -1,4 +1,4 @@
-import type { Mentionable } from "../types"
+import type { Mentionable } from "@owlit/protocol"
 
 // Placeholder items for the seeded chats; the composer's @ list reads the real Library, Docs and Threads
 export const papers: Mentionable[] = [

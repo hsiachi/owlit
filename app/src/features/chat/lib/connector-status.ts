@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { t } from "@lingui/core/macro"
 import { useChatStore } from "../store"
-import type { Connector, ConnectorStatus } from "../types"
+import type { Connector, ConnectorStatus } from "@owlit/protocol"
 
 // Where an agent stands, in the words and rules every place that shows one uses
 

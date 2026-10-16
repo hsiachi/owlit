@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ReadStatus } from "../types"
+import type { ReadStatus } from "@owlit/protocol"
 
 // What each status is called where it is shown; the stored value stays the English id
 export function statusLabel(status: ReadStatus): string {

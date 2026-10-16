@@ -1,6 +1,6 @@
 import { useRef } from "react"
 import { useDocumentState } from "@embedpdf/core/react"
-import type { Highlight } from "../types"
+import type { Highlight } from "@owlit/protocol"
 import { useReaderStore } from "./reader-store"
 
 // Clicks and hovers on highlights, read off the page itself so a drag that starts on a highlight

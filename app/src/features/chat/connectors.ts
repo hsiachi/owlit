@@ -5,7 +5,7 @@ import { agentClient } from "./agent"
 import { builtInConnectors } from "./mocks/connectors"
 import { resolveSelection } from "./lib/selection"
 import type { ChatState } from "./store"
-import type { Connector } from "./types"
+import type { Connector } from "@owlit/protocol"
 
 // The local agents chats run on. In the desktop app core says which exist (listed once, then kept current);
 // until it answers there are none. In a plain browser they are the built-in mocks and the user's own.

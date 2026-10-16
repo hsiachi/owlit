@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useChatStore } from "./store"
 import { callOf } from "./status"
-import type { Chat } from "./types"
+import type { Chat } from "@owlit/protocol"
 
 // An edit an agent has proposed to a file and is waiting on: an ACP edit tool call with a diff, plus its
 // permission request. Docs and paper notes draw it in place; Apply and Discard answer the request.

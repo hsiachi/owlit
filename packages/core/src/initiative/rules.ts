@@ -14,7 +14,7 @@ import { MATERIAL, MEETINGS, RECORD } from "./go-through.ts"
 // logged, with or without an action (Initiative), so what Owlit held back can be read and replayed.
 //
 // The shape follows continuo's agent (events with a cause, subscriptions, debounce keys, no-action as
-// a result) without depending on it: see decision 8 in the maintainer's local/product/decisions/.
+// a result) without depending on it.
 
 // What the rules hear: the user's activity, and what core sees on its own
 export type InitiativeEvent = ActivityEvent | CoreEvent

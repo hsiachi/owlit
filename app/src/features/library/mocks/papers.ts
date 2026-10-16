@@ -1,4 +1,4 @@
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 
 const DAY = 86_400_000
 const now = Date.now()
