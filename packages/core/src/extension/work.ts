@@ -140,8 +140,9 @@ export class ExtensionWork implements ExtensionFetcher {
   holding(library: Library, id: string): PdfState["extension"] | undefined {
     if (library !== this.library) return undefined
     for (const site of this.sites.values()) {
-      if (site.inFlight?.item.paper.paperId === id) return { host: site.key, fetching: true }
-      if (site.queue.some((q) => q.paper.paperId === id)) return site.paused ? { host: site.key, waits: site.paused.kind } : { host: site.key }
+      const proxied = site.proxied ? { proxied: true } : {}
+      if (site.inFlight?.item.paper.paperId === id) return { host: site.key, fetching: true, ...proxied }
+      if (site.queue.some((q) => q.paper.paperId === id)) return site.paused ? { host: site.key, waits: site.paused.kind, ...proxied } : { host: site.key, ...proxied }
     }
     return undefined
   }
@@ -275,7 +276,7 @@ export class ExtensionWork implements ExtensionFetcher {
   waits(): ExtensionWait[] {
     return [...this.sites.values()].flatMap((site) => {
       const waiting = paused(site)
-      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: site.key, papers: waiting.length, url: site.paused.url, askedFor: waiting.some((q) => q.askedFor) }] : []
+      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: site.key, papers: waiting.length, url: site.paused.url, askedFor: waiting.some((q) => q.askedFor), proxied: site.proxied }] : []
     })
   }
 

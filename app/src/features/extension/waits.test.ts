@@ -2,7 +2,8 @@ import type { ExtensionWait } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
 import { cameLine, siteWaitItem, siteWaitItems } from "./waits"
 
-const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor })
+const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor, proxied: true })
+const publisher = (papers = 1): ExtensionWait => ({ kind: "sign-in", host: "sagepub.com", papers, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false })
 
 describe("sites the extension waits at", () => {
   it("wait on the user only once they asked for one of the papers there", () => {
@@ -14,6 +15,11 @@ describe("sites the extension waits at", () => {
   it("are grey rows of their own until then", () => {
     expect(siteWaitItem(wait("sign-in", false), () => {}).tone).toBe("working")
     expect(siteWaitItem(wait("sign-in", true), () => {}).tone).toBe("warning")
+  })
+
+  it("name the library only for a sign-in through its proxy", () => {
+    expect(siteWaitItem(publisher(), () => {})).toMatchObject({ what: "Sign in at sagepub.com", action: { label: "Sign in" } })
+    expect(cameLine(1, [publisher(2)])?.detail).toBe("2 wait for a sign-in at sagepub.com")
   })
 
   it("say each kind of wait with its one thing to do", () => {

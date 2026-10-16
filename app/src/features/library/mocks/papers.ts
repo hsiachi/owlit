@@ -19,7 +19,9 @@ const noPdf = (last?: PdfTry, extra: Partial<PdfState> = {}): PdfState => {
 // ExtensionView's waits say (features/extension/store.ts)
 const withExtension = (host: string, last?: PdfTry, waits?: NonNullable<PdfState["extension"]>["waits"]): PdfState => {
   const tried = [...owlitLook, ...(last ? [last] : [])]
-  return { state: "finding", tried, reason: tried.at(-1), extension: waits ? { host, waits } : { host } }
+  // tlink is the mock library's proxy
+  const proxied = host === "tlink.lib.tsinghua.edu.cn" ? { proxied: true } : {}
+  return { state: "finding", tried, reason: tried.at(-1), extension: waits ? { host, waits, ...proxied } : { host, ...proxied } }
 }
 
 // Ids p1–p8 match the Chat feature's mock mentionables so @-mentions line up

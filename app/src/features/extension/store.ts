@@ -81,8 +81,8 @@ function mockView(): ExtensionView {
     asking: state === "asking" ? [{ id: "mock-ask", browser: "Dia", origin: "chrome-extension://abcdefghijklmnopabcdefghijklmnop", at: now }] : [],
     waits: paired.length
       ? [
-          { kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor: false },
-          { kind: "check", host: "tandfonline.com", papers: 1, url: "https://www.tandfonline.com/doi/full/10.1080/09658211.2020.1846562", askedFor: true },
+          { kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor: false, proxied: true },
+          { kind: "check", host: "tandfonline.com", papers: 1, url: "https://www.tandfonline.com/doi/full/10.1080/09658211.2020.1846562", askedFor: true, proxied: false },
         ]
       : [],
   }

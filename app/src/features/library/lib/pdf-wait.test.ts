@@ -31,7 +31,7 @@ describe("pdfWait", () => {
   })
 
   it("waits on the user at a site only once they asked for one of its papers", () => {
-    const wait = { kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go" }
+    const wait = { kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true }
     expect(waitsOnYou({ ...wait, askedFor: false })).toBe(false)
     expect(waitsOnYou({ ...wait, askedFor: true })).toBe(true)
   })

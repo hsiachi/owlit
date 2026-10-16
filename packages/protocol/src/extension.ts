@@ -54,6 +54,8 @@ export interface ExtensionWait {
   url: string
   // The user pressed Find PDF or Look again on one of those papers since owlit started: it waits on them
   askedFor: boolean
+  // Fetched through the library's proxy: a sign-in there is the library's, else the site's own
+  proxied: boolean
 }
 
 // ---- Over the port. Errors are JSON too: { reason, message } with message one sentence for the user.

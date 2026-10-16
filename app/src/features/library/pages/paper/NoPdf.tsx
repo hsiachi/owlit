@@ -54,8 +54,10 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
       const site = s?.extension?.host ?? host
       const own = waitedFor(reason) ? reason : undefined
       const at = own ? hostName(own) : site
-      if (state === "for-sign-in")
+      // The library's sign-in only through its proxy; a publisher's own login page is that site's
+      if (state === "for-sign-in" && s?.extension?.proxied)
         return { title: t`Waits for your library sign-in`, detail: own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.` }
+      if (state === "for-sign-in") return { title: t`Waits for a sign-in at ${site}`, detail: own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.` }
       if (state === "for-check") return { title: t`Waits for a check at ${site}`, detail: own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.` }
       return { title: t`Waits for the extension to be allowed on ${site}`, detail: own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.` }
     }

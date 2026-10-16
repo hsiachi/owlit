@@ -64,7 +64,7 @@ export interface PdfState {
   // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
   // held while the site waits for the user (waits: a sign-in, a check, the extension being allowed
   // there). Kept in memory only, with the extension's queue.
-  extension?: { host: string; fetching?: boolean; waits?: "sign-in" | "check" | "permission" }
+  extension?: { host: string; fetching?: boolean; waits?: "sign-in" | "check" | "permission"; proxied?: boolean }
 }
 
 export interface Paper {

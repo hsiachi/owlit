@@ -280,7 +280,7 @@ describe("the extension's port", () => {
       const noted = await request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", title: "Sign in", url: "https://journals.sagepub.com/action/showLogin" } })
       expect(noted.status).toBe(200)
       const view = await call("extension.get")
-      expect(view.waits).toEqual([{ kind: "sign-in", host: "sagepub.com", papers: 1, url: "https://journals.sagepub.com/action/showLogin", askedFor: true }])
+      expect(view.waits).toEqual([{ kind: "sign-in", host: "sagepub.com", papers: 1, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false }])
       const paper = await paperIn(call)
       expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { host: "sagepub.com", waits: "sign-in" } })
       // The extension knows where to watch for the user getting through

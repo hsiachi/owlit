@@ -510,12 +510,20 @@ const WAITED: Partial<Record<PdfEnded, keyof typeof WAITS>> = { "sign-in": "sign
 // would. extension: one is (or owlit couldn't say).
 const NO_EXTENSION = " (with the owlit extension the user's browser could try; Settings › Papers › Browser extension)"
 
+// A sign-in is the library's only through its proxy; the queue says which, and before the queue has the
+// paper again (owlit restarted) it isn't known
+const SIGN_IN_AT = (host: string) =>
+  `no PDF yet: waits for the user to sign in at ${host} in their browser (Home says so; one sign-in covers every paper waiting there, and owlit goes on by itself)`
+const SIGN_IN_UNKNOWN = "no PDF yet: waits for the user's sign-in (the library's or the publisher's) in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)"
+
 export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) {
   if (p.pdf) return ""
   const s = p.pdfState
   if (!s || s.state === "finding") {
     // The extension's queue says where it is now; its last try says so before the queue has it again
     const waits = s?.extension ? s.extension.waits : s?.reason?.by === "extension" ? WAITED[s.reason.ended] : undefined
+    if (waits === "sign-in" && !s?.extension) return SIGN_IN_UNKNOWN
+    if (waits === "sign-in" && !s?.extension?.proxied) return SIGN_IN_AT(s!.extension!.host)
     if (waits) return WAITS[waits]
     if (s?.extension) return "no PDF yet (owlit is getting it through the user's browser)"
     return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"

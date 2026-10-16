@@ -87,7 +87,7 @@ describe("the extension's queue", () => {
     const first = await take()
     const t1 = first.find((w) => w.paperId === "t1")!
     work.settle(t1.id, "check", { url: "https://www.tandfonline.com/doi/full/t1" })
-    expect(work.waits()).toEqual([{ kind: "check", host: "tandfonline.com", papers: 3, url: "https://www.tandfonline.com/doi/full/t1", askedFor: false }])
+    expect(work.waits()).toEqual([{ kind: "check", host: "tandfonline.com", papers: 3, url: "https://www.tandfonline.com/doi/full/t1", askedFor: false, proxied: false }])
     // Every paper waiting there is told it waits for the check, the one that met it first in line
     expect(heard.at(-1)).toEqual(["t1", "t2", "t3"])
     expect(work.holding(library, "t2")).toEqual({ host: "tandfonline.com", waits: "check" })
@@ -224,7 +224,8 @@ describe("the extension's queue", () => {
     work.fetch(library, paper("p1", "tlink.lib.tsinghua.edu.cn", { proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/go" }), false)
     const [p1] = await take()
     work.settle(p1.id, "sign-in", { url: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form" })
-    expect(work.waits()[0]).toMatchObject({ kind: "sign-in", url: "https://tlink.lib.tsinghua.edu.cn/go" })
+    expect(work.waits()[0]).toMatchObject({ kind: "sign-in", url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true })
+    expect(work.holding(library, "p1")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in", proxied: true })
     expect(work.waitsForExtension()).toEqual([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 1, proxied: true }])
   })
 

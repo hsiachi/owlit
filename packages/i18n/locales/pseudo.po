@@ -2943,6 +2943,10 @@ msgid "Open owlit to allow it or not."
 msgstr ""
 
 #: app/src/features/extension/waits.ts
+msgid "Sign in at {host}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
 msgid "Sign in to your library"
 msgstr ""
 
@@ -2950,7 +2954,7 @@ msgstr ""
 msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
 msgstr ""
 
-#. button: opens the library's sign-in page in the user's browser
+#. button: opens the sign-in page (the library's, or the site's) in the user's browser
 #: app/src/features/extension/waits.ts
 msgid "Sign in"
 msgstr ""
@@ -2991,6 +2995,10 @@ msgstr ""
 
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
 msgstr ""
 
 #: app/src/features/extension/waits.ts
@@ -4123,6 +4131,14 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in to your library covers every paper waiting for it."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a sign-in at {site}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "One sign-in there covers every paper waiting at {site}."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

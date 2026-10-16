@@ -2943,6 +2943,10 @@ msgid "Open owlit to allow it or not."
 msgstr "Open owlit to allow it or not."
 
 #: app/src/features/extension/waits.ts
+msgid "Sign in at {host}"
+msgstr "Sign in at {host}"
+
+#: app/src/features/extension/waits.ts
 msgid "Sign in to your library"
 msgstr "Sign in to your library"
 
@@ -2950,7 +2954,7 @@ msgstr "Sign in to your library"
 msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
 msgstr "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
 
-#. button: opens the library's sign-in page in the user's browser
+#. button: opens the sign-in page (the library's, or the site's) in the user's browser
 #: app/src/features/extension/waits.ts
 msgid "Sign in"
 msgstr "Sign in"
@@ -2992,6 +2996,10 @@ msgstr "{came, plural, one {# PDF came through your browser} other {# PDFs came 
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
 msgstr "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
+msgstr "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
 
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
@@ -4124,6 +4132,14 @@ msgstr "{at} wants a sign-in · {date}"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "One sign-in to your library covers every paper waiting for it."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a sign-in at {site}"
+msgstr "Waits for a sign-in at {site}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "One sign-in there covers every paper waiting at {site}."
+msgstr "One sign-in there covers every paper waiting at {site}."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Waits for a check at {site}"

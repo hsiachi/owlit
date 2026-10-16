@@ -2943,6 +2943,10 @@ msgid "Open owlit to allow it or not."
 msgstr "打开 owlit 决定是否允许。"
 
 #: app/src/features/extension/waits.ts
+msgid "Sign in at {host}"
+msgstr "在 {host} 登录"
+
+#: app/src/features/extension/waits.ts
 msgid "Sign in to your library"
 msgstr "登录你的图书馆"
 
@@ -2950,7 +2954,7 @@ msgstr "登录你的图书馆"
 msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
 msgstr "{n, plural, other {# 篇论文在等}}"
 
-#. button: opens the library's sign-in page in the user's browser
+#. button: opens the sign-in page (the library's, or the site's) in the user's browser
 #: app/src/features/extension/waits.ts
 msgid "Sign in"
 msgstr "登录"
@@ -2992,6 +2996,10 @@ msgstr "{came, plural, other {# 篇 PDF 经你的浏览器取回}}"
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
 msgstr "{n, plural, other {# 篇在等你登录图书馆}}"
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
+msgstr "{n, plural, other {# 篇在等你登录 {host}}}"
 
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
@@ -4124,6 +4132,14 @@ msgstr "{at} 要求登录 · {date}"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "登录一次图书馆，所有在等的论文都会继续获取。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a sign-in at {site}"
+msgstr "等你在 {site} 登录"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "One sign-in there covers every paper waiting at {site}."
+msgstr "在那里登录一次，{site} 上所有在等的论文都会继续获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Waits for a check at {site}"
