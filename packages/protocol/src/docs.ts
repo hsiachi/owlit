@@ -112,3 +112,20 @@ export interface VersionInfo {
   // note and paper
   op?: "added" | "removed"
 }
+
+// What owlit keeps about Owlit and one of your docs (.owlit/docs/owlit.json, moving with the doc):
+// whether you keep Owlit out of it, and when Owlit last looked at it on its own
+export interface DocOwlit {
+  // When you chose Keep Owlit out; absent while Owlit is let in (the default)
+  out?: number
+  looked?: DocLook
+}
+
+// Owlit's last look at a doc: when, the doc's modification time it read, and what came of it
+export interface DocLook {
+  at: number
+  mtime: number
+  outcome: "comments" | "nothing"
+  // How many comments it left
+  count: number
+}

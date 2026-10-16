@@ -199,3 +199,22 @@ describe("docs.reveal", () => {
     expect(revealed).toHaveLength(2)
   })
 })
+
+describe("Owlit and a doc", () => {
+  it("keeps Owlit out of a doc through a rename and a move until it is let in; a deleted doc forgets", async () => {
+    const { call, root } = await setup({ "notes/a.md": "# A", "b.md": "# B" })
+    expect(await call("docs.owlit", { path: "notes/a.md" })).toEqual({})
+    expect(await call("docs.setOwlitOut", { path: "notes/a.md", out: true })).toEqual({ out: expect.any(Number) })
+    await call("docs.rename", { path: "notes/a.md", name: "c" })
+    expect(await call("docs.owlit", { path: "notes/c.md" })).toEqual({ out: expect.any(Number) })
+    await call("docs.createFolder", { path: "later" })
+    await call("docs.move", { path: "notes", folder: "later" })
+    expect(await call("docs.owlit", { path: "later/notes/c.md" })).toEqual({ out: expect.any(Number) })
+    expect(JSON.parse(readFileSync(path.join(root, ".owlit/docs/owlit.json"), "utf8")).docs).toEqual({ "later/notes/c.md": { out: expect.any(Number) } })
+    expect(await call("docs.setOwlitOut", { path: "later/notes/c.md", out: false })).toEqual({})
+    await call("docs.setOwlitOut", { path: "b.md", out: true })
+    await call("docs.delete", { path: "b.md" })
+    expect(JSON.parse(readFileSync(path.join(root, ".owlit/docs/owlit.json"), "utf8")).docs).toEqual({})
+    await expect(call("docs.setOwlitOut", { path: "gone.md", out: true })).rejects.toMatchObject({ code: RpcErrorCode.NotFound })
+  })
+})

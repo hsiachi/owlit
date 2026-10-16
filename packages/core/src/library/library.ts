@@ -38,7 +38,7 @@ import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { Publishers, type VisitEnd } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
-import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
+import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
@@ -165,7 +165,8 @@ export interface LibraryServices {
   http: Http
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
   // (digests). model is the one chosen for background work, when one is.
-  agent?: (prompt: string, signal: AbortSignal, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
+  // A background agent run for a task: its session shows beside the paper (ctx.describe)
+  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
   // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
@@ -738,7 +739,7 @@ export class Library {
           .slice(0, MAX_PICTURES)
           .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
         const prompt = digestPrompt({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
-        const { text: answer, connectorId, model } = await agent(prompt, ctx.signal, pictures)
+        const { text: answer, connectorId, model } = await agent(prompt, ctx, pictures)
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial.run(async () => {

@@ -27,7 +27,7 @@ import path from "node:path"
 import type { Versions } from "../docs/versions.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
-import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
+import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt } from "./prompts.ts"
 import { Serial } from "../util.ts"
 
@@ -44,7 +44,9 @@ import { Serial } from "../util.ts"
 export interface ThreadsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
   // is a line on what it did
-  agent?: (prompt: string, signal: AbortSignal, allow: RegExp, run: string) => Promise<{ text: string }>
+  // A background agent run for a task (ctx: its signal, and its session shown beside the thread);
+  // run signs its searches and writes
+  agent?: (prompt: string, ctx: TaskContext, allow: RegExp, run: string) => Promise<{ text: string }>
   // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
   searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
@@ -149,7 +151,7 @@ export class Threads {
           if (!c) throw new TaskFailure("The thread is gone.")
           ctx.progress(0, undefined, kind)
           // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
-          const done = await agent(prompt(c, ctx.task.subject), ctx.signal, allow, `${kind}:${ctx.task.id}`)
+          const done = await agent(prompt(c, ctx.task.subject), ctx, allow, `${kind}:${ctx.task.id}`)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${kind} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },

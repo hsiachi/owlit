@@ -18,7 +18,9 @@ import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
-import { Background } from "./agents/background.ts"
+import { Background, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
+import { openRun, runWords } from "./agents/runs.ts"
+import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
@@ -29,7 +31,7 @@ import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
-import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
+import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskContext, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
 import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -293,6 +295,12 @@ export class Core {
       ({ files, folders }) => docs().restore(files, folders),
     )
     this.router.register("docs.open", z.object({ path: rel }), ({ path }) => docs().open(path))
+    this.router.register("docs.owlit", z.object({ path: rel }), ({ path }) => docs().owlitOf(path))
+    this.router.register("docs.setOwlitOut", z.object({ path: rel, out: z.boolean() }), async ({ path, out }) => {
+      const state = await docs().setOwlitOut(path, out)
+      this.notifier.notify("docs.owlit", { path, state })
+      return state
+    })
     this.router.register("docs.reveal", z.object({ path: rel }), ({ path }) => docs().reveal(path))
 
     const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
@@ -868,8 +876,8 @@ export class Core {
                 // Libraries sign you out after a while (Tsinghua's tlink after two hours): Settings says so
                 // once a run finds the sign-in page, and signed in again once a PDF comes through
                 proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
-                agent: async (prompt, signal, pictures) =>
-                  this.background.run({ prompt, pictures, root, mcpServers: this.mcpServers(root), signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
+                agent: async (prompt, ctx, pictures) =>
+                  this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers: this.mcpServers(root), signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
                   const settings = await this.settings.get()
                   const chosen = settings.library.digestLanguage
@@ -877,13 +885,13 @@ export class Core {
                 },
               },
               threads: {
-                agent: async (prompt, signal, allow, run) => {
+                agent: async (prompt, ctx, allow, run) => {
                   // Without owlit's tools (no socket: it failed to open) the agent couldn't write the
                   // thread at all. The run's tools sign its searches and writes, so About can show
                   // them as one batch.
                   const mcpServers = this.mcpServers(root, undefined, run)
                   if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-                  return this.background.run({ prompt, root, mcpServers, signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
+                  return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
                 },
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
@@ -985,6 +993,29 @@ export class Core {
       this.notifier.notify("workspace.state", this.state())
     })
     return run
+  }
+
+  // A task's agent run, as a session the window can open from the row it works on: why it started, its
+  // steps as they come, and how it ended
+  private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
+    const ws = this.workspace
+    if (ws?.root !== root) throw new Error("The workspace closed.")
+    const words = await runWords(ws, ctx.task)
+    const session = await openRun(ws.chats, ctx.task, words, {
+      update: (chatId, messageId, update) => this.notifier.notify("chat.update", { chatId, messageId, update }),
+      created: (chat) => {
+        if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
+      },
+    })
+    ctx.describe({ chatId: session.chatId, doing: words.doing })
+    try {
+      const result = await this.background.run({ ...run, onUpdate: session.update })
+      await session.finish({ status: "done", connectorId: result.connectorId, model: result.model })
+      return result
+    } catch (error) {
+      await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...(ctx.signal.aborted ? {} : { error: messageOf(error) }) }).catch(() => undefined)
+      throw error
+    }
   }
 
   async dispose() {
