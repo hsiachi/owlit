@@ -1,12 +1,14 @@
 import { t } from "@lingui/core/macro"
 import { isTaskFinished, type Task } from "@owlit/protocol"
+import { useMemo } from "react"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
-import { tasksOfKind, useTasksStore } from "@/features/tasks/store"
+import { cancelTask, resumeTask, tasksOfKind, useTasksStore } from "@/features/tasks/store"
 import { mightComeThroughBrowser } from "./lib/filter"
 import { useLibraryStore } from "./store"
+import { pdfWait } from "./lib/pdf-wait"
 import type { Paper } from "./types"
 
 // Papers owlit couldn't get alone, got from the user's own browser one at a time by core's
@@ -19,34 +21,100 @@ const KIND = "papers.fromBrowser"
 // user (the paper it stopped on carries why, in noPdf.fromBrowser)
 export const useFromBrowserRun = () => useTasksStore((s) => tasksOfKind(s.byId, KIND).find((task) => !isTaskFinished(task)))
 
-// The paper a run stopped on, and what its tab showed
+// The paper a run stopped on, and what its tab showed. Read from the run's own mark rather than from
+// pdfWait, which puts a file to confirm first: a sign-in can bring the PDF the run stopped for.
 export const useStoppedOn = () =>
   useLibraryStore((s) => Object.values(s.papers).find((p) => p.noPdf?.fromBrowser?.state === "waiting"))
 
 // The papers waiting on the user's browser, found once per papers object: the store's other changes (a
 // highlight, a note) keep it, and the sidebar asks on every one. Shared: don't sort or change them.
-type ForBrowser = { waiting: Paper[]; pages: Paper[] }
+interface ForBrowser {
+  // Papers the user's browser hasn't been sent to yet: owlit couldn't get them alone, and no run tried
+  // them. Ones a run tried (no access, didn't come) are left to their own card's Try again, so Get them
+  // doesn't open the same paywalls again. The longest waiting first.
+  waiting: Paper[]
+  // Article pages a run left open in the user's browser for them to save the PDF from, while Downloads
+  // is watched for it: they need the user too, though Get them has nothing to open for them
+  pages: Paper[]
+  // Files in Downloads owlit isn't sure are these papers', for the user to confirm on each card
+  offered: Paper[]
+  // The browser a run used, named on the lines about it
+  browser?: string
+}
 const forBrowser = new WeakMap<Record<string, Paper>, ForBrowser>()
 function forBrowserOf(papers: Record<string, Paper>): ForBrowser {
   let found = forBrowser.get(papers)
   if (found) return found
-  const all = Object.values(papers)
-  found = {
-    // Papers the user's browser hasn't been sent to yet: owlit couldn't get them alone, and no run tried
-    // them. Ones a run tried (no access, didn't come) are left to their own card's Try again, so Get them
-    // doesn't open the same paywalls again. The longest waiting first.
-    waiting: all.filter((p) => !p.pdf && p.noPdf?.needs === "browser" && !p.noPdf.noAccess && !p.noPdf.fromBrowser).sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0)),
-    // Article pages a run left open in the user's browser for them to save the PDF from, while Downloads
-    // is watched for it: they need the user too, though Get them has nothing to open for them
-    pages: all.filter((p) => !p.pdf && p.noPdf?.fromBrowser?.state === "page"),
+  found = { waiting: [], pages: [], offered: [] }
+  for (const p of Object.values(papers)) {
+    const wait = pdfWait(p)
+    if (wait === "browser") found.waiting.push(p)
+    else if (wait === "page") found.pages.push(p)
+    else if (wait === "offered") found.offered.push(p)
+    found.browser ??= p.noPdf?.fromBrowser?.browser
   }
+  found.waiting.sort((a, b) => (a.noPdf?.at ?? 0) - (b.noPdf?.at ?? 0))
   forBrowser.set(papers, found)
   return found
 }
 
 export const useWaitingForBrowser = () => useLibraryStore(useShallow((s) => forBrowserOf(s.papers).waiting))
-export const useWaitingForBrowserCount = () => useLibraryStore((s) => forBrowserOf(s.papers).waiting.length)
 export const usePagesToSave = () => useLibraryStore(useShallow((s) => forBrowserOf(s.papers).pages))
+export const useOfferedPdfs = () => useLibraryStore(useShallow((s) => forBrowserOf(s.papers).offered))
+const useRunBrowser = () => useLibraryStore((s) => forBrowserOf(s.papers).browser)
+
+// A run as the Library's line and Home's row both say it: at work, how far it has got, with Stop;
+// stopped on the user, what their browser shows, with Show browser and Continue (I've signed in, for a
+// sign-in)
+export interface RunLine {
+  id: string
+  stopped: boolean
+  // "Getting PDFs in your browser", or stopped, "Sign in to your library in Dia"
+  what: string
+  // Stopped, the run's own words for what its tab showed, when it has them
+  detail?: string
+  done: number
+  total: number
+  show: () => void
+  stop: { label: string; run: () => void }
+  resume?: { label: string; run: () => void }
+}
+
+// Getting PDFs from the user's browser, as one view for the Library's line and Home's rows: the run while
+// it goes on, the papers not yet sent there, the pages open for the user to save from
+export interface FromBrowserView {
+  run?: RunLine
+  waiting: Paper[]
+  pages: Paper[]
+  browser?: string
+}
+
+export function useFromBrowser(): FromBrowserView {
+  const task = useFromBrowserRun()
+  const stoppedOn = useStoppedOn()
+  const waiting = useWaitingForBrowser()
+  const pages = usePagesToSave()
+  const browser = useRunBrowser()
+  return useMemo(() => {
+    let run: RunLine | undefined
+    if (task) {
+      const done = task.progress?.done ?? 0
+      const stopped = task.state === "waiting_for_you"
+      run = {
+        id: task.id,
+        stopped,
+        what: stopped ? stoppedLine(stoppedOn) : t`Getting PDFs in your browser`,
+        detail: stopped ? task.waiting?.detail : undefined,
+        done,
+        total: task.progress?.total ?? done,
+        show: () => void showBrowser(stoppedOn?.id),
+        stop: { label: t({ message: "Stop", comment: "stop getting PDFs from the browser" }), run: () => void cancelTask(task.id) },
+        resume: stopped ? { label: continueLabel(stoppedOn), run: () => void resumeTask(task.id) } : undefined,
+      }
+    }
+    return { run, waiting, pages, browser }
+  }, [task, stoppedOn, waiting, pages, browser])
+}
 
 // Papers owlit found nothing for that the user's browser hasn't been sent for: a long shot, offered only
 // in the No PDF view (lib/filter.ts)

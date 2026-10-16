@@ -11,8 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar"
 import { WaitingDot } from "@/components/marks"
 import { OwlitMark } from "@/components/owlit-mark"
-import { isBroken } from "@/features/chat/lib/connector-status"
-import { useChatStore } from "@/features/chat/store"
+import { useWaitingOnYou } from "@/app/waiting-on-you"
 import { i18n } from "@/lib/i18n"
 import { KIND_ICON } from "@/lib/kinds"
 import { useFold } from "./form-state"
@@ -48,11 +47,10 @@ const PARTS: Record<SettingsSection, { icon: React.ComponentType; about: Message
 }
 const LIST = SECTIONS.map((s) => ({ ...s, ...PARTS[s.id] }))
 
-// A section shows a small dot in the list only while something in it needs the user
+// A section shows a small dot in the list only while something in it needs the user, as Home lists it
 function useNeedsYou(): Partial<Record<SettingsSection, boolean>> {
-  // An agent nobody has signed in to yet (the Owlit engine in Beta) isn't broken
-  const agentBroken = useChatStore((s) => s.connectors.some(isBroken))
-  return { agents: agentBroken }
+  const agents = useWaitingOnYou().some((w) => w.place === "settings:agents")
+  return { agents }
 }
 
 export function SettingsDialog() {

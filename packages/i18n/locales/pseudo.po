@@ -7,27 +7,6 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: pseudo\n"
 
-#: app/src/app/AppSidebar.tsx
-msgid "{forBrowser, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
-msgstr ""
-
-#: app/src/app/AppSidebar.tsx
-msgid "A paper needs you"
-msgstr ""
-
-#: app/src/app/AppSidebar.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "An import asks about MinerU"
-msgstr ""
-
-#: app/src/app/AppSidebar.tsx
-msgid "A chat needs you"
-msgstr ""
-
-#: app/src/app/AppSidebar.tsx
-msgid "Owlit finished since you last looked"
-msgstr ""
-
 #. a place in the rail, then what waits there: Library · A paper needs you
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
@@ -132,13 +111,15 @@ msgstr ""
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
+#. verb: open the chat that waits
 #. verb: open the exported doc
+#. verb: open the paper that waits
 #. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
+#: app/src/app/waiting-on-you.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
-#: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
@@ -429,6 +410,110 @@ msgstr ""
 
 #: app/src/app/shortcuts.ts
 msgid "Owlit’s last change to your doc or note too"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "in “{title}”"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/chat/use-notify.ts
+msgid "Owlit has a question"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/chat/use-notify.ts
+msgid "Owlit stopped"
+msgstr ""
+
+#. verb: send the question again
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+#: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/threads/components/Work.tsx
+msgid "Retry"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "picked for chats"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "picked for background work"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "Manage agents"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "An import asks about MinerU"
+msgstr ""
+
+#. column: what a paper says about the thread's question
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/docs/save-as-doc.ts
+#: app/src/features/threads/lib.ts
+msgid "Answer"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Show browser"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "· getting PDFs, {done} of {total}"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "· {done} of {total}"
+msgstr ""
+
+#. placeholder {0}: waiting.length
+#: app/src/app/waiting-on-you.ts
+msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "Show them"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "Get it"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "Get them"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "Downloaded PDFs to confirm"
+msgstr ""
+
+#. placeholder {0}: offered.length
+#: app/src/app/waiting-on-you.ts
+msgid "{0, plural, one {A downloaded PDF to confirm} other {# downloaded PDFs to confirm}}"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "Owlit finished since you last looked"
+msgstr ""
+
+#: app/src/app/waiting-on-you.ts
+msgid "for {names}"
 msgstr ""
 
 #. a menu's name, then what is chosen in it
@@ -1128,11 +1213,9 @@ msgstr ""
 
 #. stop Owlit's work on a thread
 #. stop getting PDFs from the browser
-#. stop getting PDFs from the browser
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/from-browser.ts
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr ""
@@ -1159,12 +1242,6 @@ msgid "Skip large files"
 msgstr ""
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/chat/use-notify.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Owlit stopped"
-msgstr ""
-
-#: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
 msgstr ""
@@ -1176,16 +1253,6 @@ msgstr ""
 #: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
-msgstr ""
-
-#. verb: send the question again
-#: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/digest-rows.tsx
-#: app/src/features/library/digests.ts
-#: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
-msgid "Retry"
 msgstr ""
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
@@ -2310,11 +2377,6 @@ msgid "In “{title}”"
 msgstr ""
 
 #: app/src/features/chat/use-notify.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Owlit has a question"
-msgstr ""
-
-#: app/src/features/chat/use-notify.ts
 msgid "In “{title}”: {error}"
 msgstr ""
 
@@ -2698,13 +2760,6 @@ msgstr ""
 msgid "In a doc, type @ to cite a paper."
 msgstr ""
 
-#. column: what a paper says about the thread's question
-#: app/src/features/docs/save-as-doc.ts
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/threads/lib.ts
-msgid "Answer"
-msgstr ""
-
 #: app/src/features/docs/save-as-doc.ts
 msgid "Saved as doc"
 msgstr ""
@@ -2947,69 +3002,6 @@ msgstr ""
 
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "in “{title}”"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "picked for chats"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "picked for background work"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Manage agents"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Show browser"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "· getting PDFs, {done} of {total}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Getting PDFs in your browser"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "· {done} of {total}"
-msgstr ""
-
-#. placeholder {0}: waiting.length
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Show them"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Get it"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Get them"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
-msgstr ""
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {names}"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3760,6 +3752,10 @@ msgid "Couldn't save the library."
 msgstr ""
 
 #: app/src/features/library/from-browser.ts
+msgid "Getting PDFs in your browser"
+msgstr ""
+
+#: app/src/features/library/from-browser.ts
 msgid "Sign in to your library in {browser}"
 msgstr ""
 
@@ -4222,22 +4218,6 @@ msgid "Its proxy turned the paper away."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No access through your library"
 msgstr ""
 
@@ -4255,6 +4235,22 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The publisher showed its page instead of the PDF. Your library may not subscribe to this journal."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

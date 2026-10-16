@@ -3,6 +3,9 @@ import { DAY } from "@/lib/time"
 import { hasAllWords, queryWords } from "@/lib/words"
 import type { Paper } from "../types"
 import { surname } from "./format"
+import { needsYou, pdfWait } from "./pdf-wait"
+
+export { needsYou }
 import type { Sort, StatusFilter } from "../ui-store"
 
 const firstSurname = (p: Paper) => (p.authors[0] ? surname(p.authors[0]) : "")
@@ -13,28 +16,17 @@ export function matchesQuery(p: Paper, q: string): boolean {
   return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
 
-// A paper waits on the user while its publisher wants their browser and nothing has said no yet: once
-// their browser reached the publisher and was turned away (no access, no PDF there), or was sent and
-// nothing came, there is nothing for them to do now, so it leaves the amber rung and its card's Try
-// again is all that is left. So Needs you is what Get them would open, the article pages open for the
-// user to save from, and a run's papers while it goes on.
-// A paper owlit found nothing for counts too while the user's browser is on it (tried from the No PDF
-// view): its page waits to be saved like any other.
-const ON_IT = new Set(["queued", "opened", "page", "waiting"])
-export const needsYou = (p: Paper) =>
-  !p.pdf && ((!!p.noPdf?.needs && !p.noPdf.noAccess && p.noPdf.fromBrowser?.state !== "missed") || ON_IT.has(p.noPdf?.fromBrowser?.state ?? ""))
-
 // Why a paper owlit looked for has no PDF, in the order the No PDF view groups them: what the user can do
-// now first, then what was found to be missing. A paper still being looked for has no reason yet.
+// now first, then what was found to be missing. A paper still being looked for has no reason yet. Read
+// off pdfWait (lib/pdf-wait.ts), the one rule every place goes by.
 export type NoPdfReason = "needs" | "not-found" | "no-access" | "missing" | "missed"
 export const NO_PDF_REASONS: NoPdfReason[] = ["needs", "not-found", "no-access", "missing", "missed"]
 
 export function noPdfReason(p: Paper): NoPdfReason | undefined {
-  if (p.pdf || !p.noPdf) return undefined
+  const w = pdfWait(p)
+  if (!w || w === "not-yet") return undefined
   if (needsYou(p)) return "needs"
-  if (p.noPdf.noAccess) return p.noPdf.noAccess.missing ? "missing" : "no-access"
-  if (p.noPdf.fromBrowser?.state === "missed") return "missed"
-  return "not-found"
+  return w === "no-access" || w === "missing" || w === "missed" ? w : "not-found"
 }
 
 // Papers owlit found nothing for whose publisher the user's own browser hasn't been sent to: their

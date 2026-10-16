@@ -124,9 +124,17 @@ export function chatStatus(chat: Chat, streaming: boolean, unseen: Unseen | unde
   return unseen ?? "idle"
 }
 
-// Whether any chat needs the user (a permission, or a broken reply left as it is): the Chat place's rail mark
-export function chatsNeedYou(chats: Record<string, Chat>, streaming: Record<string, unknown>, dismissed: Record<string, string>) {
-  return Object.values(chats).some((c) => (streaming[c.id] && pendingAsk(c)) || brokenReply(c, dismissed[c.id]))
+// What a chat waits on the user for: a permission or a question while it runs, or a broken reply left as
+// it is. Home's rows, the rail's Chat mark and the system notifications all go by it.
+export type ChatWait = { ask: PendingAsk; broken?: undefined } | { ask?: undefined; broken: ChatMessage }
+
+export function chatWait(chat: Chat, streaming: boolean, dismissed: string | undefined): ChatWait | undefined {
+  if (streaming) {
+    const ask = pendingAsk(chat)
+    return ask && { ask }
+  }
+  const broken = brokenReply(chat, dismissed)
+  return broken && { broken }
 }
 
 // Getters, so each word is said in the interface's language when read rather than once on import

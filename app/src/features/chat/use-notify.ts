@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAgentWindow } from "@/features/agent/store"
 import { askSentence } from "./lib/step-words"
-import { brokenReply, callOf, pendingAsk, useSeenStore } from "./status"
+import { callOf, chatWait, useSeenStore } from "./status"
 import { useChatStore } from "./store"
 import { bridge } from "@/lib/rpc"
 
@@ -24,7 +24,9 @@ export function useChatNotifications() {
     [...new Set([...Object.keys(s.streaming), ...ran.current])]
       .flatMap((id) => {
         const c = s.chats[id]
-        return c ? [`${id}:${s.streaming[id] ? `run:${pendingAsk(c)?.requestId ?? ""}` : (brokenReply(c, dismissed[id])?.id ?? "")}`] : []
+        if (!c) return []
+        const wait = chatWait(c, !!s.streaming[id], dismissed[id])
+        return [`${id}:${s.streaming[id] ? `run:${wait?.ask?.requestId ?? ""}` : (wait?.broken?.id ?? "")}`]
       })
       .join(" "),
   )
@@ -34,8 +36,10 @@ export function useChatNotifications() {
     const { chats, streaming } = useChatStore.getState()
     for (const id of Object.keys(streaming)) ran.current.add(id)
     for (const chat of Object.values(chats)) {
-      const ask = streaming[chat.id] ? pendingAsk(chat) : undefined
-      const broken = streaming[chat.id] || !ran.current.has(chat.id) ? undefined : brokenReply(chat, dismissed[chat.id])
+      const wait = chatWait(chat, !!streaming[chat.id], dismissed[chat.id])
+      const ask = wait?.ask
+      // A reply that broke before owlit was open isn't news
+      const broken = ran.current.has(chat.id) ? wait?.broken : undefined
       const key = ask ? `${chat.id}:${ask.requestId}` : broken ? `${chat.id}:${broken.id}` : null
       if (!key || said.current.has(key)) continue
       said.current.add(key)

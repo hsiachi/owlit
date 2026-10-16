@@ -7,27 +7,6 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: zh-Hans\n"
 
-#: app/src/app/AppSidebar.tsx
-msgid "{forBrowser, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
-msgstr "{forBrowser, plural, other {# 篇论文需要用你的浏览器获取}}"
-
-#: app/src/app/AppSidebar.tsx
-msgid "A paper needs you"
-msgstr "有篇论文需要你处理"
-
-#: app/src/app/AppSidebar.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "An import asks about MinerU"
-msgstr "一次导入在问 MinerU 的事"
-
-#: app/src/app/AppSidebar.tsx
-msgid "A chat needs you"
-msgstr "有个对话需要你处理"
-
-#: app/src/app/AppSidebar.tsx
-msgid "Owlit finished since you last looked"
-msgstr "你上次查看后，Owlit 已完成"
-
 #. a place in the rail, then what waits there: Library · A paper needs you
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
@@ -132,13 +111,15 @@ msgstr "什么也没找到。"
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
+#. verb: open the chat that waits
 #. verb: open the exported doc
+#. verb: open the paper that waits
 #. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
+#: app/src/app/waiting-on-you.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
-#: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
@@ -430,6 +411,110 @@ msgstr "撤销"
 #: app/src/app/shortcuts.ts
 msgid "Owlit’s last change to your doc or note too"
 msgstr "也可撤销 Owlit 对你的文档或笔记的上一次修改"
+
+#: app/src/app/waiting-on-you.ts
+msgid "in “{title}”"
+msgstr "在“{title}”中"
+
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/chat/use-notify.ts
+msgid "Owlit has a question"
+msgstr "Owlit 有个问题"
+
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/chat/use-notify.ts
+msgid "Owlit stopped"
+msgstr "Owlit 已停止"
+
+#. verb: send the question again
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+#: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/threads/components/Work.tsx
+msgid "Retry"
+msgstr "重试"
+
+#: app/src/app/waiting-on-you.ts
+msgid "picked for chats"
+msgstr "用于对话"
+
+#: app/src/app/waiting-on-you.ts
+msgid "picked for background work"
+msgstr "用于后台任务"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Manage agents"
+msgstr "管理智能体"
+
+#: app/src/app/waiting-on-you.ts
+msgid "An import asks about MinerU"
+msgstr "一次导入在问 MinerU 的事"
+
+#. column: what a paper says about the thread's question
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/docs/save-as-doc.ts
+#: app/src/features/threads/lib.ts
+msgid "Answer"
+msgstr "回答"
+
+#: app/src/app/waiting-on-you.ts
+#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Show browser"
+msgstr "查看浏览器"
+
+#: app/src/app/waiting-on-you.ts
+msgid "· getting PDFs, {done} of {total}"
+msgstr "· 正在获取 PDF，{done}/{total}"
+
+#: app/src/app/waiting-on-you.ts
+msgid "· {done} of {total}"
+msgstr "· {done}/{total}"
+
+#. placeholder {0}: waiting.length
+#: app/src/app/waiting-on-you.ts
+msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
+msgstr "{0, plural, one {一篇论文需要用你的浏览器获取} other {# 篇论文需要用你的浏览器获取}}"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Show them"
+msgstr "查看"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Get it"
+msgstr "获取"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Get them"
+msgstr "全部获取"
+
+#: app/src/app/waiting-on-you.ts
+msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
+msgstr "{n, plural, one {在 {browser} 打开的页面上保存 PDF} other {在 {browser} 打开的 # 个页面上保存 PDF}}"
+
+#: app/src/app/waiting-on-you.ts
+msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
+msgstr "{n, plural, one {在浏览器打开的页面上保存 PDF} other {在浏览器打开的 # 个页面上保存 PDF}}"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Downloaded PDFs to confirm"
+msgstr "待确认的已下载 PDF"
+
+#. placeholder {0}: offered.length
+#: app/src/app/waiting-on-you.ts
+msgid "{0, plural, one {A downloaded PDF to confirm} other {# downloaded PDFs to confirm}}"
+msgstr "{0, plural, one {一个已下载的 PDF 待确认} other {# 个已下载的 PDF 待确认}}"
+
+#: app/src/app/waiting-on-you.ts
+msgid "Owlit finished since you last looked"
+msgstr "你上次查看后，Owlit 已完成"
+
+#: app/src/app/waiting-on-you.ts
+msgid "for {names}"
+msgstr "· {names}"
 
 #. a menu's name, then what is chosen in it
 #: app/src/components/choice-menu.tsx
@@ -1128,11 +1213,9 @@ msgstr "从{place}添加"
 
 #. stop Owlit's work on a thread
 #. stop getting PDFs from the browser
-#. stop getting PDFs from the browser
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
+#: app/src/features/library/from-browser.ts
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr "停止"
@@ -1159,12 +1242,6 @@ msgid "Skip large files"
 msgstr "跳过大文件"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/chat/use-notify.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Owlit stopped"
-msgstr "Owlit 已停止"
-
-#: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
 msgstr "详细信息"
@@ -1177,16 +1254,6 @@ msgstr "详细信息"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
 msgstr "忽略"
-
-#. verb: send the question again
-#: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/digest-rows.tsx
-#: app/src/features/library/digests.ts
-#: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
-msgid "Retry"
-msgstr "重试"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Edit message"
@@ -2310,11 +2377,6 @@ msgid "In “{title}”"
 msgstr "在“{title}”中"
 
 #: app/src/features/chat/use-notify.ts
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Owlit has a question"
-msgstr "Owlit 有个问题"
-
-#: app/src/features/chat/use-notify.ts
 msgid "In “{title}”: {error}"
 msgstr "在“{title}”中：{error}"
 
@@ -2698,13 +2760,6 @@ msgstr "笔记和草稿以 Markdown 文件的形式保存在你的工作区中�
 msgid "In a doc, type @ to cite a paper."
 msgstr "在文档中输入 @ 即可引用论文。"
 
-#. column: what a paper says about the thread's question
-#: app/src/features/docs/save-as-doc.ts
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/threads/lib.ts
-msgid "Answer"
-msgstr "回答"
-
 #: app/src/features/docs/save-as-doc.ts
 msgid "Saved as doc"
 msgstr "已存为文档"
@@ -2948,69 +3003,6 @@ msgstr "{when}完成"
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
 msgstr "{added, plural, other {Owlit 向你的文献库添加了 # 篇论文}}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "in “{title}”"
-msgstr "在“{title}”中"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "picked for chats"
-msgstr "用于对话"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "picked for background work"
-msgstr "用于后台任务"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Manage agents"
-msgstr "管理智能体"
-
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Show browser"
-msgstr "查看浏览器"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "· getting PDFs, {done} of {total}"
-msgstr "· 正在获取 PDF，{done}/{total}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Getting PDFs in your browser"
-msgstr "正在用浏览器获取 PDF"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "· {done} of {total}"
-msgstr "· {done}/{total}"
-
-#. placeholder {0}: waiting.length
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
-msgstr "{0, plural, one {一篇论文需要用你的浏览器获取} other {# 篇论文需要用你的浏览器获取}}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Show them"
-msgstr "查看"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Get it"
-msgstr "获取"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "Get them"
-msgstr "全部获取"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
-msgstr "{n, plural, one {在 {browser} 打开的页面上保存 PDF} other {在 {browser} 打开的 # 个页面上保存 PDF}}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
-msgstr "{n, plural, one {在浏览器打开的页面上保存 PDF} other {在浏览器打开的 # 个页面上保存 PDF}}"
-
-#: app/src/features/home/WaitingOnYou.tsx
-msgid "for {names}"
-msgstr "· {names}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
@@ -3760,6 +3752,10 @@ msgid "Couldn't save the library."
 msgstr "无法保存文献库。"
 
 #: app/src/features/library/from-browser.ts
+msgid "Getting PDFs in your browser"
+msgstr "正在用浏览器获取 PDF"
+
+#: app/src/features/library/from-browser.ts
 msgid "Sign in to your library in {browser}"
 msgstr "在 {browser} 中登录图书馆"
 
@@ -4222,22 +4218,6 @@ msgid "Its proxy turned the paper away."
 msgstr "图书馆代理拒绝了这篇论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr "{host} 上没有这篇论文的 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
-msgstr "出版方没有这篇论文的 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr "那边显示“{title}”。这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr "这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "No access through your library"
 msgstr "通过你的图书馆无法访问"
 
@@ -4256,6 +4236,22 @@ msgstr "浏览器到了 {host}，但对方给的是页面而不是 PDF。你的�
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The publisher showed its page instead of the PDF. Your library may not subscribe to this journal."
 msgstr "出版商给的是页面而不是 PDF。你的图书馆可能没有订阅这本期刊。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} 上没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "出版方没有这篇论文的 PDF"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "那边显示“{title}”。这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
+msgstr "这篇论文可能放在别处：找到 PDF 后拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Nothing came from your browser"
