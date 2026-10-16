@@ -3,7 +3,7 @@ import { create } from "zustand"
 import { quoteTarget } from "./reader/passages"
 import { whenReaderReady, type ReaderApi } from "./reader/reader-store"
 import { useLibraryStore } from "./store"
-import type { Highlight } from "./types"
+import type { Highlight } from "@owlit/protocol"
 
 export type PaperView = "digest" | "pdf"
 

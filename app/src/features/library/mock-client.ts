@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { LibraryClient } from "./client"
 import { parseRef } from "./lib/ref"
 import { knownRefs } from "./mocks/refs"
-import type { Paper, ResolvedPaper } from "./types"
+import type { Paper, ResolvedPaper } from "@owlit/protocol"
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 

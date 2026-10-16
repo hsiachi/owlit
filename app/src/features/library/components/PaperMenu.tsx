@@ -8,7 +8,7 @@ import { usePaperActions } from "../actions"
 import { useDigestMarks, waitForDigest } from "../digests"
 import { STATUS_ORDER, statusLabel } from "../lib/status"
 import { useLibraryStore } from "../store"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 import { useLibraryUi } from "../ui-store"
 
 // The same actions, whether reached from a row's ⋯, a right-click or the paper page's header.

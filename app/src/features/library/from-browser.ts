@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { isTaskFinished, type Task } from "@owlit/protocol"
+import { isTaskFinished, type Paper, type Task } from "@owlit/protocol"
 import { useMemo } from "react"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
@@ -9,7 +9,6 @@ import { cancelTask, resumeTask, tasksOfKind, useTasksStore } from "@/features/t
 import { mightComeThroughBrowser } from "./lib/filter"
 import { useLibraryStore } from "./store"
 import { pdfWait } from "./lib/pdf-wait"
-import type { Paper } from "./types"
 
 // Papers owlit couldn't get alone, got from the user's own browser one at a time by core's
 // papers.fromBrowser run. Started from the paper's card, Home's Waiting on you, or the Library under

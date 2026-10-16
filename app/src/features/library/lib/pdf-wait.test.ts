@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 import { needsYou, pdfWait, waitsOnYou } from "./pdf-wait"
 
 const paper = (noPdf?: Paper["noPdf"], pdf = false) => ({ pdf, noPdf }) as unknown as Paper

@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { intlLocale } from "@owlit/i18n"
 import { shortDate } from "@/lib/time"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 
 // An author's family name, taken as the last word: "Aidan N. Gomez" → "Gomez"
 export const surname = (name: string) => name.trim().split(/\s+/).at(-1) ?? name

@@ -1,5 +1,5 @@
 import { useLibraryStore } from "../store"
-import type { Highlight } from "../types"
+import type { Highlight } from "@owlit/protocol"
 
 // Where a paper's note is kept in the workspace; an agent edits the note by writing this file
 export const notePathOf = (paperId: string) => `library/papers/${paperId}/note.md`

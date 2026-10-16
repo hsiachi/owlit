@@ -1,8 +1,7 @@
-import type { CitedPassage, CollectedPassage } from "@owlit/protocol"
+import type { CitedPassage, CollectedPassage, Rect } from "@owlit/protocol"
 import { useEffect } from "react"
 import { create } from "zustand"
 import { isDesktop, rpc } from "@/lib/rpc"
-import type { Rect } from "../types"
 import { quoteTarget, type PassageTarget } from "./passages"
 
 // Read wear (Hill et al. 1992): what has been read of the open paper, shown on it. The sentences Owlit's

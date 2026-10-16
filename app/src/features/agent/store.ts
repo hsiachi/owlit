@@ -5,8 +5,7 @@ import { useChatStore } from "@/features/chat/store"
 import { chatStatus, useSeenStore } from "@/features/chat/status"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
-import type { Mentionable, PromptInput, QuotedSelection } from "@/features/chat/types"
-import type { PageRect } from "@/features/library/types"
+import type { Mentionable, PageRect, PromptInput, QuotedSelection } from "@owlit/protocol"
 
 // The app-wide agent window. It is closed, a small ask bar, or a panel docked on the right. Its
 // conversations are ordinary chats. The ask bar is for a new question (⌘J); the panel shows the current

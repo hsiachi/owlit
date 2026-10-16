@@ -1,6 +1,5 @@
 import { onNotify, rpc } from "@/lib/rpc"
-import type { QuestionAnswer } from "@owlit/protocol"
-import type { Connector, SessionUpdate, StopReason } from "../types"
+import type { Connector, QuestionAnswer, SessionUpdate, StopReason } from "@owlit/protocol"
 import type { AgentClient, PromptRequest } from "./client"
 
 // The real agent client in the desktop app: turns run in core on the user's local agents (ACP). Core

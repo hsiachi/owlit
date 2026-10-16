@@ -1,9 +1,8 @@
 import { t } from "@lingui/core/macro"
-import { GROUPING_COLUMN, MENTION_LINK, mentionLink, QUESTION_COLUMN, shownThread, summarize, type Thread, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRow, type ThreadSummary, type Relation } from "@owlit/protocol"
+import { GROUPING_COLUMN, MENTION_LINK, mentionLink, type Paper, QUESTION_COLUMN, type Relation, shownThread, summarize, type Thread, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRow, type ThreadSummary } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
-import type { Paper } from "@/features/library/types"
 
 // Worked out once per thread object, which is safe because the store replaces a thread on every
 // change and never changes one in place. Shared between callers, so not to be changed either.

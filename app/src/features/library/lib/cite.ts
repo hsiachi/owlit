@@ -1,4 +1,4 @@
-import type { Paper, PaperKind } from "../types"
+import type { Paper, PaperKind } from "@owlit/protocol"
 import { externalLinks, surname } from "./format"
 
 // Citations built from a paper's own metadata. Titles are left as recorded: changing their case

@@ -10,7 +10,7 @@ import { ConnectorStatusChip } from "@/features/chat/components/ConnectorStatusC
 import { Button } from "@/components/ui/button"
 import { canSetUp, isBroken, isChecking, isFound as isReady, needsSignIn, settingUp } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
-import type { Connector } from "@/features/chat/types"
+import type { Connector } from "@owlit/protocol"
 import { useFoldWhile } from "../form-state"
 import { FoldedForm, Group, IconAction, List, Note, Row } from "../parts"
 import { BrowserSignIn } from "./BrowserSignIn"

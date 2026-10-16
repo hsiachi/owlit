@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { PublisherNeedsUser, type LibraryClient, type Resolved } from "./client"
-import type { Paper } from "./types"
+import type { Paper } from "@owlit/protocol"
 import { filePath, rpc } from "@/lib/rpc"
 
 // The desktop app's library client: lookups and PDFs go to core

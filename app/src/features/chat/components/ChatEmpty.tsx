@@ -7,7 +7,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import { useSettings } from "@/features/settings/store"
 import { i18n } from "@/lib/i18n"
 import { useChatStore } from "../store"
-import type { PromptInput } from "../types"
+import type { PromptInput } from "@owlit/protocol"
 import { starters } from "../lib/starters"
 import { Composer, type ComposerHandle } from "./composer/Composer"
 

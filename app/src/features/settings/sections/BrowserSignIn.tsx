@@ -3,7 +3,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useChatStore } from "@/features/chat/store"
-import type { Connector } from "@/features/chat/types"
+import type { Connector } from "@owlit/protocol"
 import { toastError } from "@/lib/toast"
 
 // Sign in… for Claude Code and Codex: owlit runs the agent's own sign-in, which opens the browser and

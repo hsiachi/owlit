@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { XIcon } from "lucide-react"
-import type { Mentionable, QuotedSelection } from "@/features/chat/types"
+import type { Mentionable, QuotedSelection } from "@owlit/protocol"
 import { shorten } from "@/lib/words"
 import { selectionLabel } from "./page-context"
 import { useAgentWindow } from "./store"

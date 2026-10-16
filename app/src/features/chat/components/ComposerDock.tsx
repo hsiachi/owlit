@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "../store"
 import { pendingAsk } from "../status"
-import type { Chat } from "../types"
+import type { Chat } from "@owlit/protocol"
 import { Composer, type ComposerHandle, type ComposerProps } from "./composer/Composer"
 import { WaitingDock } from "./WaitingDock"
 

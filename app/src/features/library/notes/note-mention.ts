@@ -1,8 +1,7 @@
-import { threadUri, docUri, MENTION_LINK, mentionLink, paperUri, parseOwlitUri } from "@owlit/protocol"
+import { docUri, MENTION_LINK, mentionLink, paperUri, parseOwlitUri, type SourceKind, threadUri } from "@owlit/protocol"
 import { WorkspaceMention } from "@/features/chat/components/composer/mention-extension"
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { useDocsStore, fileAt } from "@/features/docs/store"
-import type { SourceKind } from "@/features/chat/types"
 
 // In a note, @ reaches the same workspace items as in a doc. In Markdown a mention is a link to its
 // owlit:// address, the same form agents write in their answers, so a note reads correctly anywhere.

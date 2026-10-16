@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { isTaskFinished, type Task } from "@owlit/protocol"
+import { isTaskFinished, type Paper, type Task } from "@owlit/protocol"
 import { toast } from "sonner"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
@@ -10,7 +10,6 @@ import { rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { useLibraryStore } from "./store"
-import type { Paper } from "./types"
 
 // Where a paper's digest stands for the user, on the ladder of states (DESIGN.md, rule 3): being written,
 // new since they last looked, or stopped. And who is told when one is done: only someone waiting for it,

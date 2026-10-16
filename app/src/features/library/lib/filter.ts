@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { DAY } from "@/lib/time"
 import { hasAllWords, queryWords } from "@/lib/words"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 import { surname } from "./format"
 import { needsYou, pdfWait } from "./pdf-wait"
 

@@ -16,7 +16,7 @@ import { useChatStore } from "../store"
 import { useBrokenReply, useSeenStore } from "../status"
 import { regenerate } from "../lib/regenerate"
 import { modelNameOf } from "../lib/selection"
-import type { Chat, ChatMessage } from "../types"
+import type { Chat, ChatMessage } from "@owlit/protocol"
 import { AssistantMessage, UserMessage } from "./messages/MessageItem"
 import { RunReason } from "@/features/runs/components"
 

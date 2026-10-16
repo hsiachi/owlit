@@ -1,4 +1,4 @@
-import type { Chat } from "../types"
+import type { Chat } from "@owlit/protocol"
 import { docs, papers } from "./sources"
 
 const day = 24 * 60 * 60 * 1000

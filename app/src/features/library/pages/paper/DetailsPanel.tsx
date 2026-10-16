@@ -19,7 +19,7 @@ import { NoteEditor } from "../../notes/NoteEditor"
 import { addHighlightToNote } from "../../notes/note-actions"
 import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../../prefs-store"
 import { useLibraryStore } from "../../store"
-import type { Highlight, Paper } from "../../types"
+import type { Highlight, Paper } from "@owlit/protocol"
 import { useLibraryUi } from "../../ui-store"
 
 // Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back

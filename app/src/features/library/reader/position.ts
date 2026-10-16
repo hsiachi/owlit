@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import { useScrollCapability } from "@embedpdf/plugin-scroll/react"
 import { readInPaper } from "../lib/reading"
 import { useLibraryStore } from "../store"
-import type { Paper, ReadingPosition } from "../types"
+import type { Paper, ReadingPosition } from "@owlit/protocol"
 
 // Reopen a paper where it was left, and keep track of where that is. Nothing is shown for it:
 // the paper is simply there.

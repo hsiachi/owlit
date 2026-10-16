@@ -4,12 +4,11 @@
 // Core journals the coarse ones and hands all of them to live listeners. Nothing is sent without the
 // desktop app or while activity is turned off (settings.activity.enabled).
 
-import type { ActivityEvent, PaperMark, PaperView } from "@owlit/protocol"
+import type { ActivityEvent, ChatMessage, PaperMark, PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
 import { isChatsFromDisk } from "@/features/chat/disk"
 import { useChatStore } from "@/features/chat/store"
-import type { ChatMessage } from "@/features/chat/types"
 import { useDocsStore } from "@/features/docs/store"
 import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"

@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import type { PaperFigure } from "@owlit/protocol"
+import type { Paper, PaperFigure } from "@owlit/protocol"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
@@ -11,7 +11,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
 import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useDigestMarks, useWritingDigest, waitForDigest } from "../../digests"
-import type { Paper } from "../../types"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: most of the time
 // it is all the paper needs, so it reads like any other page, in the reading column. Its figures show

@@ -1,7 +1,7 @@
 import type { MessageDescriptor } from "@lingui/core"
 import { msg } from "@lingui/core/macro"
 import { i18n } from "@/lib/i18n"
-import type { SourceKind } from "../types"
+import type { SourceKind } from "@owlit/protocol"
 
 // The Chat page is where work is handed off (a quick question goes through the agent window, ⌘J), so the
 // starters are jobs that take a few minutes. Each fills a prompt stem; where it needs a paper or doc, the

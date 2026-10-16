@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { Paper, ResolvedPaper } from "./types"
+import type { Paper, ResolvedPaper } from "@owlit/protocol"
 
 // A looked-up paper, with the id of the one the library already has for it, if any
 export type Resolved = ResolvedPaper & { existingId?: string }

@@ -1,4 +1,4 @@
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 
 // Where a paper without its PDF stands, the one reading of paper.noPdf that every place (its card, its
 // row, the Needs you filter, the Library's line, Home and the rail) goes by. In the order the card

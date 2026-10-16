@@ -1,4 +1,4 @@
-import type { ResolvedPaper } from "../types"
+import type { ResolvedPaper } from "@owlit/protocol"
 
 // References the mock resolver knows; paste any of these ids into Add to get full metadata
 export const knownRefs: ResolvedPaper[] = [

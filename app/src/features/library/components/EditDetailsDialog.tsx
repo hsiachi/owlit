@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useLibraryStore } from "../store"
-import type { Paper } from "../types"
+import type { Paper } from "@owlit/protocol"
 import { useLibraryUi } from "../ui-store"
 
 interface Draft {

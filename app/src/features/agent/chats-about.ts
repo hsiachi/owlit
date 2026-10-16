@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/react/shallow"
 import { useChatStore } from "@/features/chat/store"
-import type { ChatMessage } from "@/features/chat/types"
+import type { ChatMessage } from "@owlit/protocol"
 
 // What a chat's questions were about: the page each was asked beside, the papers and docs it mentioned, and
 // where a quoted passage came from. Kept per messages array, so a streamed token (a new array for one chat)

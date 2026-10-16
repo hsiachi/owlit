@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { Highlight, HighlightColor } from "../types"
+import type { Highlight, HighlightColor } from "@owlit/protocol"
 
 export const HIGHLIGHT_COLORS: HighlightColor[] = ["yellow", "green", "blue", "pink"]
 

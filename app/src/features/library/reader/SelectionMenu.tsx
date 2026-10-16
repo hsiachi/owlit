@@ -3,7 +3,7 @@ import type { SelectionSelectionMenuProps } from "@embedpdf/plugin-selection/rea
 import { copyText } from "@/lib/clipboard"
 import { cleanPdfText } from "../lib/highlights"
 import { useLibraryStore } from "../store"
-import type { HighlightColor, PageRect } from "../types"
+import type { HighlightColor, PageRect } from "@owlit/protocol"
 import { HighlightToolbar } from "./HighlightToolbar"
 import { useReaderStore } from "./reader-store"
 import { askAboutPassage } from "../actions"

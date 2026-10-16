@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { cn } from "@/lib/utils"
 import { isUnavailable, needsSignIn } from "../lib/connector-status"
-import type { Connector } from "../types"
+import type { Connector } from "@owlit/protocol"
 
 // Only states that need attention get a chip; a working agent stays quiet
 export function ConnectorStatusChip({ c }: { c: Connector }) {
