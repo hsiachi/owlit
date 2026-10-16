@@ -195,17 +195,20 @@ class NpmFailed extends Error {
   }
 }
 
-// One sentence for the row: the common causes in owlit's words, else npm's own last line
-function failure(error: unknown): string {
+// One sentence for the row: the common causes in owlit's words, else npm's own words. npm ends every failure
+// with where its log is and opens with fields (code, errno, syscall…), so the sentence is the first error line
+// that is neither; without one, the last line of all.
+export function failure(error: unknown): string {
   const text = error instanceof NpmFailed ? error.stderr : error instanceof Error ? error.message : String(error)
-  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|network/i.test(text)) return t`Couldn't reach the npm registry. Check the network or proxy, then try again.`
+  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|socket hang up|network/i.test(text))
+    return t`Couldn't reach the npm registry. Check the network or proxy, then try again.`
   if (/ENOSPC/.test(text)) return t`There isn't enough space on this Mac.`
-  const last = text
-    .split("\n")
-    .map((l) => l.replace(/^npm (ERR!|error)\s*/, "").trim())
-    .filter(Boolean)
-    .at(-1)
-  return last ?? t`The setup failed.`
+  const lines = text.split("\n").map((l) => l.trim())
+  const said = lines
+    .filter((l) => /^npm (ERR!|error)/.test(l))
+    .map((l) => l.replace(/^npm (ERR!|error)\s*/, ""))
+    .find((l) => l && !/^(code|errno|syscall|path|dest|A complete log of this run|Log files were not written)\b/.test(l))
+  return said ?? lines.filter(Boolean).at(-1) ?? t`The setup failed.`
 }
 
 // Whether version a is newer than b (plain x.y.z; anything else counts as not newer)

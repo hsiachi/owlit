@@ -462,6 +462,8 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
     if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
     const browser = createBrowserHost()
+    // Where a packaged app keeps what asarUnpack takes out of the archive; the same as __dirname in a dev run
+    const unpacked = __dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked")
     const core = new Core({
       userDataDir: app.getPath("userData"),
       appVersion: app.getVersion(),
@@ -475,12 +477,13 @@ if (!app.requestSingleInstanceLock()) {
       // Claude Code's and Codex's adapters, set up by owlit with its own npm and run the same way. A
       // packaged app keeps npm outside the asar archive (asarUnpack), since npm runs its own scripts.
       node: { command: process.execPath, args: [], env: { ELECTRON_RUN_AS_NODE: "1" } },
-      npm: path.join(__dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked"), "npm", "bin", "npm-cli.js"),
+      npm: path.join(unpacked, "npm", "bin", "npm-cli.js"),
       // Copied beside main by scripts/shared.mjs
       pdfiumWasm: path.join(__dirname, "pdfium.wasm"),
       // Where doc links are made (apps/share-server); none means docs can't be shared yet
       shareServer: process.env.OWLIT_SHARE_SERVER || __OWLIT_SHARE_SERVER__ || undefined,
-      exampleDir: path.join(__dirname, "example-workspace"),
+      // Unpacked from the asar archive too (asarUnpack): fs.cp can't read a folder inside it
+      exampleDir: path.join(unpacked, "example-workspace"),
       host: {
         // Chromium's network stack: the system proxy and certificates, which Node's fetch ignores
         fetch: hostFetch,

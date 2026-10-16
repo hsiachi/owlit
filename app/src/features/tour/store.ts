@@ -19,9 +19,13 @@ export const useTour = create<TourState>((set) => ({
 
 let pending = false
 
-// Called before the example is created: the tour begins once it has opened
+// Called before the example is created: the tour begins once it has opened. The returned cancel is for when
+// creating it fails, or the next folder the user opens would get the example's tour.
 export function tourWhenExampleOpens() {
   pending = true
+  return () => {
+    pending = false
+  }
 }
 
 onWorkspaceOpened(() => {
