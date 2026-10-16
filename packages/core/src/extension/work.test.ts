@@ -42,6 +42,18 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
   })
 
+  it("keeps the gap at a site when its papers come one at a time", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), false)
+    const [a1] = await take()
+    work.settle(a1.id, "no-copy")
+    // The next paper there comes after the site's queue emptied
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    expect(await take()).toEqual([])
+    vi.advanceTimersByTime(GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+  })
+
   it("spaces fetches through the library's proxy further apart", async () => {
     const { work, take } = setup()
     const proxied = { proxied: true, signIn: "https://proxy.example.edu/login" }

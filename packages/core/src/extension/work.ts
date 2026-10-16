@@ -71,6 +71,10 @@ export class ExtensionWork implements ExtensionFetcher {
   // The workspace's library the queue belongs to; another workspace opening starts it afresh
   private library: Library | null = null
   private readonly sites = new Map<string, Site>()
+  // When the last fetch ended at a site whose queue has since emptied: a paper arriving there after it
+  // still waits for the gap, so papers that come one at a time (an import's lookups finishing seconds
+  // apart) aren't fetched in a burst
+  private readonly lastEnded = new Map<string, number>()
   // A work item's id → its site
   private readonly items = new Map<string, string>()
   private polledAt = Number.NEGATIVE_INFINITY
@@ -98,7 +102,7 @@ export class ExtensionWork implements ExtensionFetcher {
     }
     let site = this.sites.get(paper.host)
     if (!site) {
-      site = { key: paper.host, proxied: paper.proxied, queue: [] }
+      site = { key: paper.host, proxied: paper.proxied, queue: [], endedAt: this.lastEnded.get(paper.host) }
       this.sites.set(paper.host, site)
     }
     site.proxied = paper.proxied
@@ -186,7 +190,10 @@ export class ExtensionWork implements ExtensionFetcher {
       this.host.papers(this.library, ids(site))
       this.host.waits()
     } else {
-      if (!site.queue.length && !site.paused) this.sites.delete(site.key)
+      if (!site.queue.length && !site.paused) {
+        this.sites.delete(site.key)
+        this.lastEnded.set(site.key, site.endedAt)
+      }
       this.host.papers(this.library, [item.paper.paperId])
     }
     this.kick()
@@ -232,6 +239,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (library === this.library) return
     this.library = library
     this.sites.clear()
+    this.lastEnded.clear()
     this.items.clear()
     this.host.waits()
   }
