@@ -11,14 +11,18 @@ import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
 // way Zotero's connector reaches Zotero). A browser asks only for what an extension may: every request
-// must come from an extension's origin, and every route but /pair needs the token the user allowed it
-// to have. The server never serves a file, and takes nothing larger than a PDF owlit would download.
+// must come from an extension (its origin, or EXTENSION_HEADER where the browser sends no origin), and
+// every route but /pair needs the token the user allowed it to have. The server never serves a file, and takes nothing larger than a PDF owlit would download.
 //
 // One per Core, not per workspace: the extension stays paired while workspaces switch, and the paper
 // routes answer for whichever workspace is open.
 
 // Origins a browser gives an extension's own requests: Chromium's, Firefox's, Safari's
 const EXTENSION_ORIGIN = /^(chrome-extension|moz-extension|safari-web-extension):\/\/[\w.-]+$/
+// Chromium sends no Origin with an extension's GET to a site it has permission for, so the extension
+// names itself in this header instead. A web page can't send it: a page's request that carries a header
+// of its own needs a preflight first, and the preflight is refused.
+export const EXTENSION_HEADER = "x-owlit-extension"
 // While another program holds the port (another owlit open beside this one), owlit tries again this often,
 // so it takes over once the other quits
 export const RETRY_MS = 30_000
@@ -136,20 +140,21 @@ export class ExtensionServer {
   }
 
   private async receive(raw: IncomingMessage, response: ServerResponse) {
-    const origin = raw.headers.origin ?? ""
-    // A page can't send an extension's origin; anything else (a web page, a program that didn't say) is
-    // turned away before its request is read
-    if (!EXTENSION_ORIGIN.test(origin) || !this.ownHost(raw.headers.host)) {
+    const origin = raw.headers.origin
+    // A page can't send an extension's origin, nor leave out its own; anything else (a web page, a
+    // program that didn't say) is turned away before its request is read
+    const fromExtension = origin === undefined ? raw.headers[EXTENSION_HEADER] !== undefined : EXTENSION_ORIGIN.test(origin)
+    if (!fromExtension || !this.ownHost(raw.headers.host)) {
       send(response, 403, { reason: "not-an-extension", message: t`Only owlit's browser extension can connect here.` })
       raw.resume()
       return
     }
-    const cors = { "access-control-allow-origin": origin, vary: "Origin" }
+    const cors: Record<string, string> = origin ? { "access-control-allow-origin": origin, vary: "Origin" } : {}
     if (raw.method === "OPTIONS") {
       response.writeHead(204, {
         ...cors,
         "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
-        "access-control-allow-headers": "authorization, content-type",
+        "access-control-allow-headers": `authorization, content-type, ${EXTENSION_HEADER}`,
         "access-control-max-age": "600",
       })
       response.end()

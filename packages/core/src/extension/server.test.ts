@@ -47,8 +47,8 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
   if (options.workspace !== false) await call("workspace.open", { path: root })
   const server = (core as unknown as { extension: ExtensionServer }).extension
   await server.start()
-  const request = async (route: string, init: { method?: string; token?: string; origin?: string | null; body?: unknown; bytes?: Buffer } = {}) => {
-    const headers: Record<string, string> = {}
+  const request = async (route: string, init: { method?: string; token?: string; origin?: string | null; headers?: Record<string, string>; body?: unknown; bytes?: Buffer } = {}) => {
+    const headers: Record<string, string> = { ...init.headers }
     if (init.origin !== null) headers.origin = init.origin ?? ORIGIN
     if (init.token) headers.authorization = `Bearer ${init.token}`
     let body: Uint8Array | string | undefined
@@ -92,6 +92,10 @@ describe("the extension's port", () => {
     expect((await request("/status", { origin: "https://example.com" })).body).toMatchObject({ reason: "not-an-extension" })
     expect((await request("/pair", { origin: "https://example.com", body: { browser: "Chrome" } })).status).toBe(403)
     expect((await request("/pair", { method: "OPTIONS", origin: "https://example.com" })).status).toBe(403)
+    // Chromium's GET from an extension carries no Origin: the extension names itself in a header a page
+    // can't send
+    expect((await request("/status", { origin: null, headers: { "x-owlit-extension": "1" } })).body).toMatchObject({ reason: "not-paired" })
+    expect((await request("/status", { origin: "https://example.com", headers: { "x-owlit-extension": "1" } })).status).toBe(403)
     const preflight = await request("/pair", { method: "OPTIONS" })
     expect(preflight.status).toBe(204)
     expect(preflight.headers.get("access-control-allow-origin")).toBe(ORIGIN)
