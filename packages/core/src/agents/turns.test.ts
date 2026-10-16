@@ -182,6 +182,15 @@ describe("turns", () => {
     expect(text()).toBe("you chose no")
   })
 
+  it("refuses a delete, a move or a take-back the chat's role doesn't allow, whoever calls", async () => {
+    const { call, root } = await setup()
+    await call("chats.update", { id: "c1", patch: { role: "reviewer" } })
+    await expect(call("agents.deleteDocs", { paths: ["notes.md"], chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await expect(call("agents.moveDoc", { path: "notes.md", to: "kept.md", chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await expect(call("library.removeByAgent", { ids: ["doi-10.1-x"], chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+  })
+
   it("decides consent for owlit's own tools by the chat's role, asking the user when the role says so", async () => {
     const { send, updates, call } = await setup()
     // Between turns the saved role decides, and nobody can be asked
