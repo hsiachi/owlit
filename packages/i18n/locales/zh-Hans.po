@@ -6655,6 +6655,23 @@ msgid "owlit needs to read {site} to get the PDF with your access."
 msgstr "owlit 需要读取 {site}，才能用你的访问权限获取 PDF。"
 
 #: apps/extension/src/popup/Popup.tsx
+msgid "Your browser didn't ask about {site}. Allow it for owlit in the browser's extension settings."
+msgstr "浏览器没有询问 {site}。请在浏览器的扩展设置里为 owlit 允许它。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "The owlit extension may not read the publishers' sites yet, so it can't get their PDFs with your access."
+msgstr "owlit 扩展还不能读取出版商的网站，所以无法用你的访问权限获取那里的 PDF。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Your browser didn't ask. Allow the sites for owlit in the browser's extension settings."
+msgstr "浏览器没有询问。请在浏览器的扩展设置里为 owlit 允许这些网站。"
+
+#. button: let the owlit extension read every publisher site owlit knows, in one question
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow the publishers' sites"
+msgstr "允许出版商的网站"
+
+#: apps/extension/src/popup/Popup.tsx
 msgid "{papers, plural, one {owlit needs {host} for # paper} other {owlit needs {host} for # papers}}"
 msgstr "{papers, plural, other {owlit 需要读取 {host}，有 # 篇论文在等}}"
 

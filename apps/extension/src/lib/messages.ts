@@ -1,5 +1,6 @@
 import type { ExtensionPaper } from "@owlit/protocol"
 import type { PagePaper } from "./page.ts"
+import { ext } from "./browser.ts"
 
 // What the popup and the content script say to the background, and what it answers
 
@@ -27,6 +28,8 @@ export interface PopupState {
   connection: Connection
   page: PageState | null
   takePdfs: boolean
+  // The extension may read every publisher site the manifest lists (permissions.ts)
+  knownSites: boolean
   // Sites owlit has papers waiting at that the extension may not read yet
   needs: { host: string; papers: number }[]
 }
@@ -69,5 +72,5 @@ export interface Answers {
 export const originsOf = (host: string) => [`https://${host}/*`, `https://*.${host}/*`]
 
 export function send<R extends Request>(request: R): Promise<Answers[R["kind"]]> {
-  return chrome.runtime.sendMessage(request)
+  return ext.runtime.sendMessage(request)
 }

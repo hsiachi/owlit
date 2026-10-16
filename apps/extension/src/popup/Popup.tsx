@@ -4,7 +4,9 @@ import { OwlitLockup } from "@/components/owlit-lockup"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
+import { ext } from "../lib/browser.ts"
 import { originsOf, send, type Connection, type Outcome, type PageState, type PopupState } from "../lib/messages.ts"
+import { askForKnownSites, askForOrigins } from "../lib/permissions.ts"
 
 // The toolbar button's popup: whether this browser is connected to owlit, the page's paper with the one
 // thing to do with it, and the one setting. The work itself happens in the background, which outlives
@@ -14,11 +16,13 @@ export function Popup() {
   const [state, setState] = useState<PopupState | null>(null)
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  // The browser wouldn't ask for the publishers' sites (permissions.ts)
+  const [unasked, setUnasked] = useState(false)
 
   const refresh = useCallback(async (id: number) => setState(await send({ kind: "state", tabId: id })), [])
 
   useEffect(() => {
-    void chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+    void ext.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
       if (tab?.id === undefined) return
       setTabId(tab.id)
       void refresh(tab.id)
@@ -30,8 +34,8 @@ export function Popup() {
     const changed = (changes: Record<string, chrome.storage.StorageChange>) => {
       if ("token" in changes && tabId !== null) void refresh(tabId)
     }
-    chrome.storage.local.onChanged.addListener(changed)
-    return () => chrome.storage.local.onChanged.removeListener(changed)
+    ext.storage.local.onChanged.addListener(changed)
+    return () => ext.storage.local.onChanged.removeListener(changed)
   }, [refresh, tabId])
 
   const connect = async () => {
@@ -43,14 +47,14 @@ export function Popup() {
 
   const act = async (kind: "add" | "save", page: PageState) => {
     if (tabId === null) return
-    // The PDF's site, asked for here (a permission can only be asked from a click): the background fetches
-    // it with the user's cookies, which needs it
+    // The PDF's site, asked for here and first (a permission can only be asked from the click itself): the
+    // background fetches it with the user's cookies, which needs it. A site already allowed isn't asked again.
     const address = page.paper?.pdfUrl ?? (page.pdfTab ? page.url : undefined)
-    const origins = address ? [`${new URL(address).origin}/*`] : []
-    if (origins.length && !(await chrome.permissions.contains({ origins }))) {
-      const granted = await chrome.permissions.request({ origins }).catch(() => false)
-      const site = new URL(address!).hostname
-      if (!granted) return setOutcome({ kind: "failed", message: t`owlit needs to read ${site} to get the PDF with your access.` })
+    if (address) {
+      const site = new URL(address).hostname
+      const asked = await askForOrigins(ext.permissions, [`${new URL(address).origin}/*`])
+      if (asked === "refused") return setOutcome({ kind: "failed", message: t`owlit needs to read ${site} to get the PDF with your access.` })
+      if (asked === "unasked") return setOutcome({ kind: "failed", message: t`Your browser didn't ask about ${site}. Allow it for owlit in the browser's extension settings.` })
     }
     setBusy(true)
     setOutcome(null)
@@ -65,9 +69,15 @@ export function Popup() {
   // owlit's papers waiting at a site the extension may not read: the permission is asked for from this
   // click, as the browser requires, and owlit goes on there once it is given
   const allow = async (host: string) => {
-    const granted = await chrome.permissions.request({ origins: originsOf(host) }).catch(() => false)
-    if (!granted) return
+    if ((await askForOrigins(ext.permissions, originsOf(host))) !== "granted") return
     await send({ kind: "allowed", host })
+    if (tabId !== null) void refresh(tabId)
+  }
+
+  // Every publisher site owlit knows, in one question; per site after that
+  const allowKnown = async () => {
+    const asked = await askForKnownSites(ext.permissions, ext.runtime.getManifest())
+    setUnasked(asked === "unasked")
     if (tabId !== null) void refresh(tabId)
   }
 
@@ -76,6 +86,15 @@ export function Popup() {
       <header className="flex items-center justify-between gap-2">
         <OwlitLockup className="h-4.5 w-auto text-foreground" />
       </header>
+      {state && !state.knownSites && (
+        <section className="flex flex-col items-start gap-2 border-b pb-3">
+          <p className="text-detail">{t`The owlit extension may not read the publishers' sites yet, so it can't get their PDFs with your access.`}</p>
+          {unasked && <p className="text-detail text-muted-foreground">{t`Your browser didn't ask. Allow the sites for owlit in the browser's extension settings.`}</p>}
+          <Button size="sm" variant="outline" onClick={() => void allowKnown()}>
+            {t({ message: "Allow the publishers' sites", comment: "button: let the owlit extension read every publisher site owlit knows, in one question" })}
+          </Button>
+        </section>
+      )}
       {state?.needs.map(({ host, papers }) => (
         <section key={host} className="flex items-center justify-between gap-3 border-b pb-3">
           <p className="min-w-0 text-detail">{plural(papers, { one: `owlit needs ${host} for # paper`, other: `owlit needs ${host} for # papers` })}</p>
