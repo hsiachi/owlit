@@ -32,6 +32,23 @@ export interface ExtensionView {
   paired: ExtensionPairing[]
   // Extensions waiting for the user to say whether they may connect, oldest first
   asking: { id: string; browser: string; at: number }[]
+  // Sites whose papers the extension can't fetch until the user does something there, one per site
+  waits: ExtensionWait[]
+}
+
+// A site paused for the user: a sign-in (the library's, through its proxy, or the publisher's), a check,
+// or the extension not yet allowed to read it. One covers every paper waiting there; it goes by itself
+// once the user is through and owlit goes on.
+export interface ExtensionWait {
+  kind: "sign-in" | "check" | "permission"
+  // The site, as the queue paces it: the publisher's registrable domain, or the library proxy's host
+  host: string
+  // Papers waiting there
+  papers: number
+  // What to open in the user's browser for it: the proxy's sign-in page, or the page that asked
+  url: string
+  // The user pressed Find PDF or Look again on one of those papers since owlit started: it waits on them
+  askedFor: boolean
 }
 
 // ---- Over the port. Errors are JSON too: { reason, message } with message one sentence for the user.
@@ -104,4 +121,44 @@ export interface AddPaperBody {
 // POST /papers, PUT /papers/:id/pdf, PUT /pdfs
 export interface PaperAnswer {
   paper: ExtensionPaper
+}
+
+// ---- Fetching for owlit. owlit decides what and when; the extension fetches nothing else.
+
+// A paper owlit's own routes couldn't get, for the extension to fetch with the user's cookies
+export interface WorkItem {
+  id: string
+  paperId: string
+  // The publisher's article page, through the library's proxy when one is set
+  url: string
+  // The publisher's PDF itself, when owlit knows its address; tried first
+  pdfUrl?: string
+  // The site it is paced and paused by: the publisher's registrable domain, or the proxy's host
+  host: string
+  proxied: boolean
+}
+
+// GET /work, held open a while: the papers due now (none when the hold ran out), and the sites paused
+// for the user, so the extension knows where to watch for them getting through
+export interface WorkAnswer {
+  work: WorkItem[]
+  waits: { kind: ExtensionWait["kind"]; host: string; papers: number; proxied: boolean }[]
+}
+
+// How a fetch ended without a PDF. The extension reports only this word, the host, the page's title and
+// its final address, never the page's text.
+export type WorkEnding = "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "no-permission"
+
+// POST /work/:id, as JSON when no PDF came (a PDF comes as application/pdf)
+export interface WorkEnded {
+  ended: WorkEnding
+  host: string
+  title?: string
+  url?: string
+}
+
+// POST /work/resume: the user got through at this site (a page there loaded that is neither a check nor
+// a sign-in, or the extension was allowed there)
+export interface WorkResume {
+  host: string
 }

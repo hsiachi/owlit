@@ -36,6 +36,7 @@ const BY_ENDED: Record<PdfEnded, PdfWait> = {
   // Not reasons for having no PDF; core never gives them as one
   pdf: "not-found",
   offline: "offline",
+  "no-permission": "finding",
 }
 
 const BY_RUN: Record<NonNullable<PdfState["run"]>["state"], PdfWait> = { queued: "queued", opened: "opened", page: "page", waiting: "run-stopped" }

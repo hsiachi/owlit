@@ -53,6 +53,7 @@ function mockView(): ExtensionView {
     portTaken: state === "taken",
     paired,
     asking: state === "asking" ? [{ id: "mock-ask", browser: "Dia", at: now }] : [],
+    waits: [],
   }
 }
 

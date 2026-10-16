@@ -8,7 +8,7 @@ import { Core } from "../core.ts"
 import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
 import { makePdf } from "./text/make-pdf.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, pdfFromLanded, pdfLinkOn, signInWatch, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
+import { browserRoutes, extensionRoute, pdfFromLanded, pdfLinkOn, signInWatch, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
 import { ACCESS_OFFER, pageVerdict } from "./where-it-ended.ts"
 
 const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
@@ -76,6 +76,27 @@ describe("browser routes", () => {
     const routes = browserRoutes("10.1145/3613904.3642549", { base: "https://tlink.lib.tsinghua.edu.cn/", scheme: "login-url", path: "/go" })
     expect(routes).toHaveLength(1)
     expect(routes[0]).toMatchObject({ name: "browser:acm", browserOnly: true })
+  })
+
+  it("sends the extension to the publisher's page and PDF, through the proxy where it is set", () => {
+    const tlink = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url" as const, path: "/go" }
+    expect(extensionRoute("10.1177/0956797620904990", undefined)).toEqual({
+      url: "https://journals.sagepub.com/doi/10.1177/0956797620904990",
+      pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990",
+      host: "sagepub.com",
+      proxied: false,
+    })
+    expect(extensionRoute("10.1177/0956797620904990", tlink)).toEqual({
+      url: "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/0956797620904990",
+      pdfUrl: "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990",
+      host: "tlink.lib.tsinghua.edu.cn",
+      proxied: true,
+      signIn: "https://tlink.lib.tsinghua.edu.cn/go",
+    })
+    // Open to all: never through the proxy
+    expect(extensionRoute("10.1145/3613904.3642549", tlink)).toMatchObject({ url: "https://dl.acm.org/doi/10.1145/3613904.3642549", host: "acm.org", proxied: false })
+    // A publisher owlit has no row for: where the DOI is registered, not doi.org
+    expect(extensionRoute("10.1136/bmj.n71", undefined, "https://www.bmj.com/lookup/doi/10.1136/bmj.n71")).toEqual({ url: "https://www.bmj.com/lookup/doi/10.1136/bmj.n71", host: "bmj.com", proxied: false })
   })
 
   it("sends the user's browser to the PDF where it saves itself, else to the article page, through the proxy", () => {

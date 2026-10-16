@@ -1,8 +1,9 @@
 import type { PdfTry } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { migrate, standing, type AcquisitionV1 } from "./acquisition.ts"
+import { lookDue, migrate, standing, type AcquisitionV1 } from "./acquisition.ts"
 
 const owlit = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "owlit", ended, at, ...extra })
+const extension = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "extension", ended, at, ...extra })
 const you = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "you", ended, at, ...extra })
 
 describe("where a paper's PDF stands", () => {
@@ -31,6 +32,37 @@ describe("where a paper's PDF stands", () => {
     expect(standing([you("nothing-came", 1), owlit("not-there", 2)]).reason).toMatchObject({ by: "owlit", ended: "not-there" })
     // Before a PDF that was had and is gone, nothing counts
     expect(standing([you("no-access", 1), you("pdf", 2), owlit("no-copy", 3)]).reason).toMatchObject({ ended: "no-copy" })
+  })
+})
+
+describe("a paper the extension tried", () => {
+  it("is still finding while the extension waits for the user at its site", () => {
+    for (const ended of ["check", "sign-in", "no-permission"] as const) {
+      expect(standing([owlit("no-copy", 1), extension(ended, 2, { host: "journals.sagepub.com" })])).toMatchObject({ state: "finding", reason: { by: "extension", ended } })
+    }
+    // A later look of owlit's own finding no copy doesn't hide that the site waits for the user
+    expect(standing([owlit("no-copy", 1), extension("sign-in", 2), owlit("no-copy", 3)])).toMatchObject({ state: "finding", reason: { ended: "sign-in" } })
+  })
+
+  it("has no PDF when owlit's own hidden browser met the check", () => {
+    expect(standing([owlit("no-copy", 1), owlit("check", 2)])).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check" } })
+    expect(standing([owlit("no-copy", 1), owlit("sign-in", 2)]).state).toBe("no-pdf")
+  })
+
+  it("has no PDF for what the extension saw, over owlit's own no copy", () => {
+    for (const ended of ["no-access", "not-offered", "not-there"] as const) {
+      expect(standing([owlit("no-copy", 1), extension(ended, 2), owlit("no-copy", 3)])).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended } })
+    }
+  })
+
+  it("has no PDF when the extension found no copy either", () => {
+    expect(standing([owlit("no-copy", 1), extension("no-copy", 2)])).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended: "no-copy" } })
+  })
+
+  it("is looked at again by the daily look while it waits, so a restart hands it back to the extension", () => {
+    const tried = [owlit("no-copy", 1), extension("check", 2)]
+    expect(lookDue({ state: "finding", tried }, 3)).toBe(true)
+    expect(lookDue({ state: "finding", tried: [owlit("no-copy", 1)] }, 3)).toBe(false)
   })
 })
 

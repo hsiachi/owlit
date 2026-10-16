@@ -22,7 +22,7 @@ afterEach(async () => {
 })
 
 // A core serving the extension on a free port, whose network serves recorded responses
-async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number } = {}) {
+async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-extension-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
@@ -33,7 +33,7 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
     return typeof match[1] === "number" ? new Response("", { status: match[1] }) : new Response(match[1])
   }) as unknown as typeof globalThis.fetch
   const userDataDir = path.join(base, "userData")
-  const core = new Core({ userDataDir, host: { fetch }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs } })
+  const core = new Core({ userDataDir, host: { fetch }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
   cleanups.push(() => core.dispose())
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -213,5 +213,88 @@ describe("the extension's port", () => {
     expect(await call("extension.get")).toMatchObject({ serving: false, portTaken: true })
     await new Promise<void>((resolve) => blocker.close(() => resolve()))
     await vi.waitFor(async () => expect(await call("extension.get")).toMatchObject({ serving: true, portTaken: false }))
+  })
+
+  describe("fetching for owlit", () => {
+    const SAGE = "10.1177/0956797620904990"
+    const id = "doi-10.1177-0956797620904990"
+    const title = "Sleep Deprivation and False Memories of a Very Particular Kind"
+    const acquisitionOf = (root: string) => JSON.parse(readFileSync(path.join(root, "library/papers", id, "acquisition.json"), "utf8"))
+
+    const paperIn = async (call: (method: string) => Promise<any>) => (await call("library.list")).papers.find((p: { id: string }) => p.id === id)
+
+    async function connected() {
+      const s = await setup({ holdMs: 20 })
+      const token = await s.pair()
+      s.putPaper(id, { title, ids: { doi: SAGE } })
+      // Asking for work is what makes the extension connected
+      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [] })
+      return { ...s, token }
+    }
+
+    it("hands a paper the plain routes missed to the extension, and takes its PDF", async () => {
+      const { call, request, token, root } = await connected()
+      const looked = await call("library.fetchPdf", { id })
+      // owlit is still finding it: the extension has it now
+      expect(looked.pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } })
+      const { body } = await request("/work", { token })
+      expect(body.work).toEqual([{ id: expect.any(String), paperId: id, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, host: "sagepub.com", proxied: false }])
+      const [item] = body.work
+      const put = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
+      expect(put).toMatchObject({ status: 200, body: { paper: { id, hasPdf: true } } })
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "pdf", route: "extension:journals.sagepub.com" })
+      // Answered once
+      expect((await request(`/work/${item.id}`, { token, body: { ended: "no-copy", host: "x" } })).status).toBe(404)
+    })
+
+    it("waits for one sign-in at a site, then goes on there", async () => {
+      const { call, request, token } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const noted = await request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", title: "Sign in", url: "https://journals.sagepub.com/action/showLogin" } })
+      expect(noted.status).toBe(200)
+      const view = await call("extension.get")
+      expect(view.waits).toEqual([{ kind: "sign-in", host: "sagepub.com", papers: 1, url: "https://journals.sagepub.com/action/showLogin", askedFor: true }])
+      const paper = await paperIn(call)
+      expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { host: "sagepub.com", waits: "sign-in" } })
+      // The extension knows where to watch for the user getting through
+      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ kind: "sign-in", host: "sagepub.com", papers: 1, proxied: false }] })
+      expect((await request("/work/resume", { token, body: { host: "journals.sagepub.com" } })).body).toEqual({ resumed: true })
+      expect((await call("extension.get")).waits).toEqual([])
+      const again = (await request("/work", { token })).body.work
+      expect(again).toMatchObject([{ paperId: id }])
+    })
+
+    it("notes each word the extension brings back as its try", async () => {
+      const { call, request, token, root } = await connected()
+      for (const ended of ["no-access", "not-offered", "not-there", "no-copy"] as const) {
+        await call("library.fetchPdf", { id })
+        const [item] = (await request("/work", { token })).body.work
+        await request(`/work/${item.id}`, { token, body: { ended, host: "journals.sagepub.com", title: "Get access" } })
+        expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended, host: "journals.sagepub.com" })
+        const paper = await paperIn(call)
+        // Its word outranks owlit's own no copy, which came before it
+        expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended } })
+        expect(paper.pdfState.extension).toBeUndefined()
+      }
+      expect((await request("/work/nothing-like-it", { token, body: { ended: "no-copy", host: "x" } })).status).toBe(404)
+    })
+
+    it("counts another paper's PDF as no copy there", async () => {
+      const { call, request, token, root } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const wrong = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf(["https://doi.org/10.1000/other.paper", "Something Else Entirely, A Study of Other Things"]) })
+      expect(wrong).toMatchObject({ status: 422, body: { reason: "not-this-paper" } })
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "no-copy", host: "journals.sagepub.com" })
+    })
+
+    it("leaves a paper to owlit's own ways while no extension asks for work", async () => {
+      const s = await setup({ holdMs: 20 })
+      s.putPaper(id, { title, ids: { doi: SAGE } })
+      const looked = await s.call("library.fetchPdf", { id })
+      expect(looked.pdfState).toMatchObject({ state: "no-pdf" })
+      expect(looked.pdfState.extension).toBeUndefined()
+    })
   })
 })

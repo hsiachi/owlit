@@ -59,6 +59,40 @@ export function browserRoutes(doi: string, proxy: ProxySettings | undefined, reg
   return routes
 }
 
+// Where owlit's browser extension fetches a paper the plain routes couldn't get, with the user's cookies:
+// the publisher's article page (the address the DOI is registered to, for a publisher owlit has no row
+// for, so the extension's first request is to the site it is paced and allowed by rather than doi.org),
+// and the PDF's own address when the row has one. Through the library's proxy when one is set, except
+// at a publisher whose papers are all open; then the queue paces by the proxy's host, since every
+// publisher behind it is one sign-in.
+export interface ExtensionRoute {
+  url: string
+  pdfUrl?: string
+  host: string
+  proxied: boolean
+  // The proxy's own sign-in page, opened for the user when the extension finds the proxy signed out
+  signIn?: string
+}
+
+export function extensionRoute(doi: string, proxy: ProxySettings | undefined, registered?: string): ExtensionRoute {
+  const site = registered ? siteOf(hostOf(registered)) : undefined
+  const row = rowFor(doi, site)
+  const landing = row?.landing ? fill(row.landing, doi) : (registered ?? `https://doi.org/${doi}`)
+  // A template that needs the landing page ({landing}) can't be filled before visiting it
+  const pdf = row?.pdf && !row.pdf.includes("{landing}") ? fill(row.pdf, doi) : undefined
+  if (!proxy?.base || row?.open) return { url: landing, ...(pdf ? { pdfUrl: pdf } : {}), host: siteOf(hostOf(landing)), proxied: false }
+  return {
+    url: throughProxy(landing, proxy),
+    ...(pdf ? { pdfUrl: throughProxy(pdf, proxy) } : {}),
+    host: hostOf(proxy.base),
+    proxied: true,
+    signIn: proxySignIn(proxy),
+  }
+}
+
+// The proxy's entry, where a signed-out reader is asked to sign in
+const proxySignIn = (proxy: ProxySettings) => (proxy.scheme === "host-rewrite" ? proxy.base : `${proxy.base.replace(/\/+$/, "")}${proxy.path ?? "/login"}`)
+
 // The row for a DOI: by the site it is registered to when that's known, else by its prefix
 function rowFor(doi: string, site: string | undefined) {
   if (site) return ROWS.find((r) => r.sites.includes(site))
@@ -79,7 +113,7 @@ export function yourBrowser(doi: string, host?: string, proxy?: ProxySettings): 
   return {
     url: proxied ? throughProxy(address, proxy) : address,
     address,
-    ...(proxied ? { proxy: proxy.scheme === "host-rewrite" ? proxy.base : `${proxy.base.replace(/\/+$/, "")}${proxy.path ?? "/login"}` } : {}),
+    ...(proxied ? { proxy: proxySignIn(proxy) } : {}),
     // Through the proxy, its sign-in stands in front of every publisher: the proxy's site is the one
     site: siteOf(hostOf(proxied ? proxy.base : address)),
     opens: download ? "pdf" : "page",

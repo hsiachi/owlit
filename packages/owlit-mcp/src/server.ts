@@ -493,6 +493,7 @@ const BY_ENDED: Record<PdfEnded, string> = {
   // Not reasons for having no PDF; core never gives them as one
   pdf: `no PDF; ${DROP}`,
   offline: `no PDF yet (waiting for the network)`,
+  "no-permission": `no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site (Home says so)`,
 }
 
 export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">) {

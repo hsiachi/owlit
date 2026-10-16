@@ -33,8 +33,9 @@ export interface PaperPdf {
 // publisher offered access instead of the PDF. not-offered: the library's proxy hasn't got the paper.
 // not-there: the publisher has no PDF at that address (a 404). check, sign-in: a page wanted a person.
 // offline: nothing could be reached. nothing-came: the user's browser was sent and no PDF arrived; it
-// goes with the Downloads watch.
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "nothing-came"
+// goes with the Downloads watch. no-permission: the browser extension may not read the site until the
+// user allows it there (an optional host permission, asked for from the extension's own button).
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "nothing-came" | "no-permission"
 
 // One try, by owlit's own looks, the user (their browser, a file they dropped) or the browser extension.
 // route is owlit's name for the way ("arxiv", "unpaywall/repository", "publisher:acm", "browser:acm");
@@ -58,6 +59,10 @@ export interface PdfState {
   reason?: PdfTry
   // When owlit's back-off look runs next; absent when it won't
   nextLook?: number
+  // The browser extension has the paper: waiting its turn at this site or being fetched, or held while
+  // the site waits for the user (waits: a sign-in, a check, the extension being allowed there). Kept in
+  // memory only, with the extension's queue.
+  extension?: { host: string; waits?: "sign-in" | "check" | "permission" }
   // A run in the user's browser (library.getInBrowser) that has the paper: waiting its turn, opened there
   // with the file to come, its article page open for the user to save the PDF from, or the paper the run
   // stopped on for the user. browser is that browser's name; why, what its tab showed when the run

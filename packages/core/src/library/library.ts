@@ -33,7 +33,7 @@ import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node
 import path from "node:path"
 import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
-import { browserRoutes, siteOf, yourBrowser, type YourBrowser } from "./browser-routes.ts"
+import { browserRoutes, extensionRoute, siteOf, yourBrowser, type ExtensionRoute, type YourBrowser } from "./browser-routes.ts"
 import { DownloadWatch, WATCH_MS, whoseDownload } from "./downloads.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
@@ -124,7 +124,7 @@ type FromBrowser = Omit<NonNullable<PdfState["run"]>, "browser" | "offered">
 // How a PDF owlit didn't fetch itself came, as acquisition.json records its route: dropped or chosen by
 // the user, taken from Downloads after owlit sent the user's browser for it, or handed over by owlit's
 // browser extension
-type PlacedBy = "dropped" | "your-browser" | "extension"
+type PlacedBy = "dropped" | "your-browser" | "extension" | `extension:${string}`
 // How the user's browser was told no, or nothing came, as where-it-ended.ts reads its tab
 type SaidNo = "no-access" | "refused" | "missing" | "missed"
 const SAID_NO: Record<SaidNo, PdfTry["ended"]> = { "no-access": "no-access", refused: "not-offered", missing: "not-there", missed: "nothing-came" }
@@ -190,6 +190,23 @@ export interface LibraryServices {
   showBrowser?: () => Promise<void>
   browserControl?: () => Promise<BrowserControl | undefined>
   downloadsDir?: () => string
+  // owlit's extension in the user's browser, which fetches what the plain routes couldn't with the user's
+  // cookies and their library's access (extension/work.ts)
+  extension?: ExtensionFetcher
+}
+
+// A paper for the extension to fetch, and where
+export interface ExtensionPaper extends ExtensionRoute {
+  paperId: string
+}
+
+export interface ExtensionFetcher {
+  // An extension is asking for work: papers the plain routes miss go to it, not to the hidden browser
+  connected(): boolean
+  // asked: the user waits on this paper (Find PDF, Look again)
+  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
+  // Where the paper stands with the extension, while it has it
+  holding(library: Library, id: string): PdfState["extension"] | undefined
 }
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
@@ -326,6 +343,13 @@ export class Library {
       paper.pdfState = await this.acquisitions.shown(id)
       const run = this.runOf(id)
       if (run) paper.pdfState.run = run
+      // In the extension's queue, or being fetched: owlit is still finding it, whatever its own look said
+      const held = this.services.extension?.holding(this, id)
+      if (held) {
+        paper.pdfState.state = "finding"
+        paper.pdfState.extension = held
+        delete paper.pdfState.nextLook
+      }
     }
     return paper
   }
@@ -682,8 +706,10 @@ export class Library {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!this.scheduler?.knows("paper.pdf")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't look for PDFs here.`)
     let task = await this.scheduler.run("paper.pdf", id, "waiting")
-    // Not after a failure (offline): the browser would only fail too, and its answer would hide why
-    if (task.state !== "failed" && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
+    // Not after a failure (offline): the browser would only fail too, and its answer would hide why. Not
+    // once the extension has it either: its answer comes later, and the paper says finding until then.
+    const toExtension = !!this.services.extension?.holding(this, id)
+    if (task.state !== "failed" && !toExtension && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
     // Under the library's lock: a run that placed the PDF while this one looked may still be
     // writing what it did (acquisition.json)
     const paper = await this.serial.run(() => this.get(id))
@@ -1758,7 +1784,7 @@ export class Library {
     const dir = paperDir(this.root, id)
     await Promise.all(["text.json", "text.md", "text.pdfium.json", "parse.json"].map((name) => rm(path.join(dir, name), { force: true })))
     await removeFigures(this.root, id)
-    await this.acquisitions.notePlaced(id, { by: route === "extension" ? "extension" : "you", route, sha256: sha }, { held: true })
+    await this.acquisitions.notePlaced(id, { by: route.startsWith("extension") ? "extension" : "you", route, sha256: sha }, { held: true })
     this.pdfHashes?.set(sha, id)
     this.queueText(id, priority)
     this.arrivals.get(id)?.()
@@ -2157,7 +2183,11 @@ export class Library {
           const told = before && standing(before.tried).reason?.ended
           const saidNo = told === "no-access" || told === "not-offered" || told === "not-there"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
-          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) this.queue("paper.pdf.browser", id, ctx.task.priority)
+          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) {
+            // The user's browser, through the extension, when one is asking for work; owlit's hidden
+            // browser otherwise
+            if (!(await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal))) this.queue("paper.pdf.browser", id, ctx.task.priority)
+          }
           await this.announce([id])
         },
       }),
@@ -2283,6 +2313,28 @@ export class Library {
       if (!reason?.host || (reason.ended !== "check" && reason.ended !== "sign-in") || !sites.has(siteOf(reason.host))) continue
       this.queue("paper.pdf.browser", id, "background")
     }
+  }
+
+  // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
+  // set); false when no extension is asking for work
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal: AbortSignal) {
+    const extension = this.services.extension
+    if (!extension?.connected()) return false
+    const registered = await registeredUrl(this.services.http, doi, signal)
+    const route = extensionRoute(doi, (await this.services.settings()).proxy, registered)
+    extension.fetch(this, { paperId: id, ...route }, priority === "waiting")
+    return true
+  }
+
+  // A try the extension made, noted without telling the window: its queue says when the paper's
+  // standing changed (pdfChanged), once it has moved on. false when the paper has its PDF already.
+  noteExtensionTry(id: string, tried: PdfTry) {
+    return this.acquisitions.noteTried(id, tried)
+  }
+
+  // The window hears these papers again: their standing with the extension changed
+  pdfChanged(ids: string[]) {
+    return this.announce(ids)
   }
 
   // Queues a step for a paper when this build knows it (paper.pdf comes with T15, and so on)

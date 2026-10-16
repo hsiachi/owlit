@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, type ExtensionStatus, type ExtensionView, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing } from "@owlit/protocol"
+import { EXTENSION_PORT, type ExtensionStatus, type ExtensionView, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
 import type { Library } from "../library/library.ts"
@@ -8,6 +8,8 @@ import type { SettingsStore } from "../settings.ts"
 import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send } from "./http.ts"
 import { HOLD_MS, Pairings } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
+import { clean } from "../util.ts"
+import { ExtensionWork, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
 // way Zotero's connector reaches Zotero). A browser asks only for what an extension may: every request
@@ -43,6 +45,7 @@ export interface ExtensionServerOptions {
   retryMs?: number
   questionMs?: number
   holdMs?: number
+  work?: WorkOptions
 }
 
 interface Request {
@@ -66,6 +69,8 @@ interface Route {
 
 export class ExtensionServer {
   readonly pairings: Pairings
+  // The papers handed to the extension to fetch
+  readonly work: ExtensionWork
   private readonly host: ExtensionHost
   private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs">> & { port: number }
   private server: Server | null = null
@@ -78,6 +83,13 @@ export class ExtensionServer {
     this.host = host
     this.options = { port: options.port ?? EXTENSION_PORT, retryMs: options.retryMs ?? RETRY_MS, holdMs: options.holdMs ?? HOLD_MS }
     this.pairings = new Pairings(host.settings, () => void this.announce(), { questionMs: options.questionMs })
+    this.work = new ExtensionWork(
+      {
+        papers: (library, ids) => void library.pdfChanged(ids).catch((error) => console.error("[core] couldn't tell the window about papers with the extension", error)),
+        waits: () => void this.announce(),
+      },
+      options.work,
+    )
     this.routes = this.makeRoutes()
   }
 
@@ -87,8 +99,8 @@ export class ExtensionServer {
     return address && typeof address === "object" ? address.port : undefined
   }
 
-  view(): Promise<ExtensionView> {
-    return this.pairings.view(!!this.server, this.portTaken)
+  async view(): Promise<ExtensionView> {
+    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits: this.work.waits() }
   }
 
   async start() {
@@ -100,6 +112,7 @@ export class ExtensionServer {
     this.stopped = true
     clearTimeout(this.retry)
     this.pairings.dispose()
+    this.work.dispose()
     const server = this.server
     this.server = null
     if (!server) return
@@ -196,10 +209,17 @@ export class ExtensionServer {
     return workspace.library
   }
 
-  // Named by what they do; GET /work (the papers owlit wants the extension to fetch) joins them later
+  // Named by what they do
   private makeRoutes(): Route[] {
     const is = (...want: (string | null)[]) => (parts: string[]) => parts.length === want.length && want.every((w, i) => w === null || w === parts[i])
     const pair = z.object({ browser: z.string().trim().min(1).max(60), extensionVersion: z.string().max(40).optional() })
+    const host = z.string().trim().min(1).max(253)
+    const ended = z.object({
+      ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "sign-in", "offline", "no-permission"]),
+      host,
+      title: z.string().max(500).optional(),
+      url: z.string().max(4096).optional(),
+    })
     return [
       {
         method: "POST",
@@ -257,6 +277,67 @@ export class ExtensionServer {
             if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
             return { body: { paper: shown(await library.attachPdf(before.id, file, "extension")) } satisfies PaperAnswer }
           })
+        },
+      },
+      // The papers due for fetching now; held open a while when none is. Asking is what keeps the
+      // extension connected (ExtensionWork.connected)
+      {
+        method: "GET",
+        path: is("work"),
+        handle: async ({ closed }) => {
+          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed)
+          return { body: { work, waits: this.work.waitsForExtension() } satisfies WorkAnswer }
+        },
+      },
+      {
+        method: "POST",
+        path: is("work", "resume"),
+        handle: async ({ raw }) => {
+          const body = z.object({ host }).safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          return { body: { resumed: this.work.resume(body.data.host) } }
+        },
+      },
+      // How a fetch ended: the PDF itself, or a word for what came instead
+      {
+        method: "POST",
+        path: is("work", null),
+        handle: async ({ raw, parts, query }) => {
+          const id = parts[1]
+          const found = this.work.paperOf(id)
+          if (!found) {
+            raw.resume()
+            throw new HttpFailure(404, "not-found", t`owlit isn't waiting for that.`)
+          }
+          const { library, paper } = found
+          const before = await library.get(paper.paperId)
+          // Gone from the Library, or given its PDF another way meanwhile: nothing more to fetch
+          if (!before || before.pdf) {
+            raw.resume()
+            this.work.settle(id, undefined)
+            if (!before) throw new HttpFailure(404, "not-found", t`That paper is not in the library.`)
+            throw new HttpFailure(409, "has-pdf", t`This paper has its PDF already.`, { paper: shown(before) })
+          }
+          if (/^application\/pdf\b/i.test(raw.headers["content-type"] ?? "")) {
+            const at = query.get("host")?.trim() || paper.host
+            return this.withPdf(raw, async (file) => {
+              // Another paper's PDF (a publisher's page can link the wrong one): no copy there
+              if ((await library.isPdfOf(paper.paperId, file)) === "no") {
+                await library.noteExtensionTry(paper.paperId, { by: "extension", ended: "no-copy", at: Date.now(), host: at })
+                this.work.settle(id, "no-copy")
+                throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
+              }
+              const placed = await library.attachPdf(paper.paperId, file, `extension:${at}`)
+              this.work.settle(id, undefined)
+              return { body: { paper: shown(placed) } satisfies PaperAnswer }
+            })
+          }
+          const body = ended.safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          const { ended: word, host: at, title, url } = body.data
+          await library.noteExtensionTry(paper.paperId, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined }))
+          this.work.settle(id, word, { url })
+          return { body: { noted: true } }
         },
       },
       {

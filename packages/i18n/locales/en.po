@@ -7580,6 +7580,10 @@ msgid "This isn't the paper's PDF."
 msgstr "This isn't the paper's PDF."
 
 #: packages/core/src/extension/server.ts
+msgid "owlit isn't waiting for that."
+msgstr "owlit isn't waiting for that."
+
+#: packages/core/src/extension/server.ts
 msgid "This PDF isn't one your Library is missing."
 msgstr "This PDF isn't one your Library is missing."
 

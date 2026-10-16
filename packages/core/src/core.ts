@@ -295,7 +295,7 @@ export class Core {
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
     this.router.register("core.diagnostics", noParams, () => this.diagnostics())
-    this.router.register("extension.get", noParams, async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [] })
+    this.router.register("extension.get", noParams, async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [] })
     this.router.register("extension.answer", z.object({ id: z.string().min(1), allow: z.boolean() }), async ({ id, allow }) => {
       await this.extension?.pairings.answer(id, allow)
       return null
@@ -1065,6 +1065,7 @@ export class Core {
                 showBrowser: this.options.host?.showBrowser,
                 browserControl: this.options.host?.browserControl,
                 downloadsDir: this.options.host?.downloadsDir,
+                extension: this.extension?.work,
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,

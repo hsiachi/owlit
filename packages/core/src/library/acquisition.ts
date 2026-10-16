@@ -46,6 +46,11 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // earlier one: finding no open copy hides nothing (a library that said no still hasn't got it), and a
 // page that stopped owlit with a check or a sign-in doesn't hide what the user's browser, which gets
 // past those, was told.
+//
+// A reason that is the extension waiting for the user (a check or a sign-in in their browser, or the
+// extension not allowed on the site) leaves the paper finding: the user gets through once for the whole
+// site and owlit goes on by itself. The same check or sign-in met by owlit's own hidden browser is no PDF,
+// "for your browser": nothing goes on until the user's browser is sent.
 export function standing(tried: readonly PdfTry[]): { state: PdfStanding; reason?: PdfTry } {
   const newest = tried.at(-1)
   if (!newest) return { state: "finding" }
@@ -57,8 +62,12 @@ export function standing(tried: readonly PdfTry[]): { state: PdfStanding; reason
     else if (t.ended === "offline") continue
     else if (!reason || !saysLess(t, reason)) reason = t
   }
-  return { state: "no-pdf", reason: reason ?? newest }
+  reason ??= newest
+  return { state: waitsForUser(reason) ? "finding" : "no-pdf", reason }
 }
+
+// The extension's fetch stopped where only the user can get through, for every paper of that site
+export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === "check" || t.ended === "sign-in" || t.ended === "no-permission")
 
 const saysLess = (later: PdfTry, earlier: PdfTry) =>
   later.by === "owlit" && ((later.ended === "no-copy" && earlier.ended !== "no-copy") || ((later.ended === "check" || later.ended === "sign-in") && earlier.by !== "owlit"))
@@ -73,9 +82,14 @@ export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "l
 }
 
 // Whether the daily look takes the paper now: a paper with no PDF once its back-off is over, and one
-// still finding because nothing could be reached, which has no back-off to wait for
+// still finding because nothing could be reached, which has no back-off to wait for. One waiting for the
+// user at the extension's site goes too: the extension's queue lives in memory, so after a restart this
+// look is what hands the paper to it again (and the site's line comes back if it still needs the user).
 export function lookDue(acquisition: Pick<Acquisition, "state" | "tried" | "looks">, now: number) {
-  if (acquisition.state === "finding") return acquisition.tried.at(-1)?.ended === "offline"
+  if (acquisition.state === "finding") {
+    const { reason } = standing(acquisition.tried)
+    return acquisition.tried.at(-1)?.ended === "offline" || (!!reason && waitsForUser(reason))
+  }
   const next = nextLookAt(acquisition)
   // A little early is fine: a look that ran at 9:05 yesterday is due at 9:00 today
   return next !== undefined && now >= next - 60 * 60 * 1000
