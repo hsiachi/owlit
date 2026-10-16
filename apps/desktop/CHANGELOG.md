@@ -6,6 +6,9 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 - Chats and threads no longer show an empty ring before their titles when nothing is happening.
 - A starred paper's star is filled in black (white in dark mode) instead of yellow, so it never reads as waiting or a comment.
+- A paper without a PDF is called the same thing in its row, the No PDF filter and its page (Finding, Not found, No access, No PDF there, For your browser, Nothing came), and its page says what was tried, when, and when Owlit looks again. The Needs you filter is gone; a paper a publisher's check stopped is no longer amber.
+- A paper Owlit couldn't look for because the network was down is looked for again at the next start, instead of waiting for Find PDF.
+- A PDF you drop while Owlit is downloading another copy is never lost.
 
 ## 0.2.0
 
