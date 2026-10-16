@@ -3840,16 +3840,6 @@ msgstr ""
 msgid "No PDF there"
 msgstr ""
 
-#. a paper whose publisher stopped owlit with a check or a sign-in; the user's own browser may get it
-#: app/src/features/library/lib/pdf-wait.ts
-msgid "For your browser"
-msgstr ""
-
-#. the user's browser was sent for the PDF and none arrived
-#: app/src/features/library/lib/pdf-wait.ts
-msgid "Nothing came"
-msgstr ""
-
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
 msgstr ""
@@ -4152,6 +4142,22 @@ msgid "No PDF found"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} wanted a sign-in · {date}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} stopped owlit with a check · {date}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher wanted a sign-in · {date}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher stopped owlit with a check · {date}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit knows of no open copy of this paper."
 msgstr ""
 
@@ -4197,34 +4203,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "It answered 404 · {date}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Try it in your browser"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} wants a sign-in · {date}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher wants a sign-in · {date}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} stopped owlit with a check · {date}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher stopped owlit with a check · {date}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Nothing came from your browser"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser was sent for it, and no PDF came · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

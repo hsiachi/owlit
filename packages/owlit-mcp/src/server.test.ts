@@ -78,7 +78,6 @@ describe("pdfFact", () => {
     expect(pdfFact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
     expect(pdfFact(noPdf("check"))).toMatch(/stopped owlit with a check.*Get it in your browser.*drop the PDF/)
     expect(pdfFact(noPdf("sign-in"))).toMatch(/wants a sign-in.*Get it in your browser/)
-    expect(pdfFact(noPdf("nothing-came", "you"))).toMatch(/no PDF came.*Open in your browser again.*drop the PDF/)
   })
 })
 

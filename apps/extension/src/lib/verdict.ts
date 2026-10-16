@@ -6,9 +6,6 @@ import type { WorkEnding } from "@owlit/protocol"
 // where the fetch ended, its status, and its HTML as text, so it runs the same in the background, on a
 // tab's document and in a test.
 //
-// The patterns are owlit's readings of where a page ended, from core's library/where-it-ended.ts
-// (whereItEnded, pageVerdict, ACCESS_OFFER) and the desktop app's browser.ts (pageState, PAGE_PROBE,
-// onProxySignIn). Those copies serve only owlit's hidden browser and go with it; change the patterns here.
 // What a real run showed (Dia, Tsinghua's tlink off campus): SAGE answering an institution without the
 // journal with its abstract page; T&F with "Get Access"; tlink with /ui/unauthorized for a resource the
 // library hasn't got, /ui/minute-limit when asked too often, and its gateway of sign-in buttons at

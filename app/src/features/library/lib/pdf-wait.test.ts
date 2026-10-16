@@ -11,10 +11,10 @@ describe("pdfWait", () => {
     expect(pdfWait({ pdfState: { state: "finding", tried: [] } })).toBe("finding")
     expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("offline")], reason: tryOf("offline") } })).toBe("offline")
     expect(pdfWait(noPdf("no-copy"))).toBe("not-found")
-    expect(pdfWait(noPdf("check"))).toBe("for-browser")
-    expect(pdfWait(noPdf("sign-in"))).toBe("for-browser")
     expect(pdfWait(noPdf("not-offered"))).toBe("not-offered")
-    expect(pdfWait(noPdf("nothing-came"))).toBe("nothing-came")
+    // A check or a sign-in that stopped owlit itself, in an older record: no PDF found, waiting on nobody
+    expect(pdfWait(noPdf("check"))).toBe("not-found")
+    expect(pdfWait(noPdf("sign-in"))).toBe("not-found")
   })
 
   it("reads a paper the extension waits with as still finding, under its site's wait", () => {
@@ -27,8 +27,6 @@ describe("pdfWait", () => {
     // After a restart, before the queue has it again, its last try says what it waits for
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn } })).toBe("for-sign-in")
     expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-permission", "extension")], reason: tryOf("no-permission", "extension") } })).toBe("for-permission")
-    // Owlit's hidden browser's sign-in is still the user's browser's chance
-    expect(pdfWait(noPdf("sign-in"))).toBe("for-browser")
     expect(pdfWord("for-sign-in")).toBe(pdfWord("finding"))
   })
 
@@ -41,6 +39,5 @@ describe("pdfWait", () => {
   it("gives the states that read alike one name", () => {
     expect(pdfWord("no-access")).toBe(pdfWord("not-offered"))
     expect(pdfWord("finding")).toBe(pdfWord("offline"))
-    expect(pdfWord("for-browser")).toBe("For your browser")
   })
 })

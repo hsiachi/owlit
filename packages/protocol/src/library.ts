@@ -34,10 +34,9 @@ export interface PaperPdf {
 // How one try at a paper's PDF ended. pdf: it came. no-copy: owlit's routes found no copy. no-access: the
 // publisher offered access instead of the PDF. not-offered: the library's proxy hasn't got the paper.
 // not-there: the publisher has no PDF at that address (a 404). check, sign-in: a page wanted a person.
-// offline: nothing could be reached. nothing-came: the user's browser was sent and no PDF arrived; it
-// goes with the Downloads watch. no-permission: the browser extension may not read the site until the
-// user allows it there (an optional host permission, asked for from the extension's own button).
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "nothing-came" | "no-permission"
+// offline: nothing could be reached. no-permission: the browser extension may not read the site until
+// the user allows it there (an optional host permission, asked for from the extension's own button).
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "no-permission"
 
 // One try, by owlit's own looks, the user (a file they dropped or chose) or the browser extension.
 // route is owlit's name for the way ("arxiv", "unpaywall/repository", "publisher:acm", "browser:acm");

@@ -8,8 +8,8 @@ import type { ExtensionWait, Paper, PdfEnded, PdfTry } from "@owlit/protocol"
 // - for-sign-in, for-check, for-permission: still finding; the extension in the user's browser waits at
 //   the paper's site for one sign-in, one passed check, or being allowed to read it (a line per site,
 //   ExtensionView.waits, covers every such paper)
-// - not-found, no-access, not-offered, not-there, nothing-came: no PDF, for that reason
-// - for-browser: a page stopped owlit with a check or a sign-in; the user's browser may get past it
+// - not-found, no-access, not-offered, not-there: no PDF, for that reason. A check or a sign-in that
+//   stopped owlit itself (only older records have one) is not-found: it waits on nobody
 export type PdfWait =
   | "finding"
   | "offline"
@@ -20,17 +20,14 @@ export type PdfWait =
   | "no-access"
   | "not-offered"
   | "not-there"
-  | "for-browser"
-  | "nothing-came"
 
 const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-copy": "not-found",
   "no-access": "no-access",
   "not-offered": "not-offered",
   "not-there": "not-there",
-  check: "for-browser",
-  "sign-in": "for-browser",
-  "nothing-came": "nothing-came",
+  check: "not-found",
+  "sign-in": "not-found",
   // Not reasons for having no PDF; core never gives them as one
   pdf: "not-found",
   offline: "offline",
@@ -80,9 +77,5 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
       return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
     case "not-there":
       return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
-    case "for-browser":
-      return t({ message: "For your browser", comment: "a paper whose publisher stopped owlit with a check or a sign-in; the user's own browser may get it" })
-    case "nothing-came":
-      return t({ message: "Nothing came", comment: "the user's browser was sent for the PDF and none arrived" })
   }
 }

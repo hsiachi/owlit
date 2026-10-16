@@ -27,9 +27,9 @@ describe("where a paper's PDF stands", () => {
     expect(standing([you("no-access", 1, { host: "dl.acm.org" }), owlit("no-copy", 2), owlit("no-copy", 3)])).toMatchObject({ state: "no-pdf", reason: { by: "you", ended: "no-access" } })
     // The look reached nothing, and then found nothing: still what the library said
     expect(standing([you("no-access", 1), owlit("offline", 2), owlit("no-copy", 3)]).reason).toMatchObject({ ended: "no-access" })
-    // A check that stopped owlit's browser says less than what the user's browser, past it, was told
-    expect(standing([you("nothing-came", 1), owlit("check", 2)]).reason).toMatchObject({ by: "you", ended: "nothing-came" })
-    expect(standing([you("nothing-came", 1), owlit("not-there", 2)]).reason).toMatchObject({ by: "owlit", ended: "not-there" })
+    // A check that stopped owlit itself says less than what the user's browser, past it, was told
+    expect(standing([you("no-access", 1), owlit("check", 2)]).reason).toMatchObject({ by: "you", ended: "no-access" })
+    expect(standing([you("no-copy", 1), owlit("not-there", 2)]).reason).toMatchObject({ by: "owlit", ended: "not-there" })
     // Before a PDF that was had and is gone, nothing counts
     expect(standing([you("no-access", 1), you("pdf", 2), owlit("no-copy", 3)]).reason).toMatchObject({ ended: "no-copy" })
   })
@@ -44,9 +44,13 @@ describe("a paper the extension tried", () => {
     expect(standing([owlit("no-copy", 1), extension("sign-in", 2), owlit("no-copy", 3)])).toMatchObject({ state: "finding", reason: { ended: "sign-in" } })
   })
 
-  it("has no PDF when owlit's own hidden browser met the check", () => {
+  it("has no PDF, for that reason, where owlit itself met a check or a sign-in (an older record)", () => {
     expect(standing([owlit("no-copy", 1), owlit("check", 2)])).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check" } })
     expect(standing([owlit("no-copy", 1), owlit("sign-in", 2)]).state).toBe("no-pdf")
+    // As a version 1 file that waited for the user's browser is read: no PDF, the check kept as why
+    const old = migrate({ version: 1, result: "no_pdf", tried: [], at: 1, dropHere: "/p.pdf", needs: { reason: "challenge", route: "browser:acm", at: 2, host: "dl.acm.org" } })
+    expect(old).toMatchObject({ state: "no-pdf" })
+    expect(standing(old.tried)).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check", host: "dl.acm.org" } })
   })
 
   it("has no PDF for what the extension saw, over owlit's own no copy", () => {
@@ -106,7 +110,9 @@ describe("an acquisition.json from before tries", () => {
     expect(ended({ needs: { reason: "browser", route: "browser:acm", at: 2 } })).toEqual(["owlit check"])
     expect(ended({ yourBrowser: { outcome: "no-access", at: 2 } })).toEqual(["you no-access"])
     expect(ended({ yourBrowser: { outcome: "missing", at: 2 } })).toEqual(["you not-there"])
-    expect(ended({ yourBrowser: { outcome: "missed", at: 2 } })).toEqual(["you nothing-came"])
+    // Nothing came from the user's browser: a try of theirs that found no copy
+    expect(ended({ yourBrowser: { outcome: "missed", at: 2 } })).toEqual(["you no-copy"])
+    expect(migrate({ ...base, yourBrowser: { outcome: "missed", at: 2 } })).toMatchObject({ state: "no-pdf", tried: [{ by: "you", ended: "no-copy", at: 2 }] })
     expect(ended({ looked: { outcome: "no-access", at: 2 } })).toEqual(["owlit no-access"])
     // A look that found nothing and recorded no route still has one try
     expect(ended({})).toEqual(["owlit no-copy"])

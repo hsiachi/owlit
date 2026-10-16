@@ -218,59 +218,6 @@ async function setupServing(library: object, more: { serve: (url: string, init?:
   return setup(fetch, library)
 }
 
-const sage = { id: "doi-10.1177-0956797620904990", title: "Paywalled", authors: [], ids: { doi: "10.1177/0956797620904990" } }
-const sibling = { id: "doi-10.1177-0956797619877311", title: "Same publisher", authors: [], ids: { doi: "10.1177/0956797619877311" } }
-
-describe("visiting publishers' sites", () => {
-  it("leaves a site that answers plain downloads with a check to the browser", async () => {
-    const { base, root, call } = await setupServing({}, {
-      serve: (url) => (url.includes("journals.sagepub.com") ? new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } }) : undefined),
-    })
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    await call("library.add", { paper: sibling })
-    await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
-    // Not tried, so not a try
-    const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
-    expect(tried.find((t: { route: string }) => t.route === "publisher:sage")).toBeUndefined()
-    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
-    const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
-    expect(log).toContainEqual(expect.objectContaining({ paper: sage.id, kind: "plain-refused", host: "journals.sagepub.com", status: 403 }))
-  })
-
-  it("holds the site a doi.org link lands on, not doi.org", async () => {
-    // Unpaywall's copy is a doi.org link, which doi.org sends on to journals.sagepub.com, where Cloudflare
-    // answers with a check
-    const challenge = (url: string) => {
-      const response = new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } })
-      return Object.defineProperty(response, "url", { value: url })
-    }
-    const { base, root, call } = await setupServing({ contactEmail: "me@example.org" }, {
-      serve: (url) => {
-        const unpaywall = url.match(/^https:\/\/api\.unpaywall\.org\/v2\/([^?]+)/)
-        if (unpaywall) return Response.json({ oa_locations: [{ url_for_pdf: `https://doi.org/${unpaywall[1]}`, host_type: "publisher" }] })
-        if (url.startsWith("https://doi.org/10.")) return challenge(`https://journals.sagepub.com/doi/${url.slice("https://doi.org/".length)}`)
-        return url.includes("journals.sagepub.com") ? challenge(url) : undefined
-      },
-    })
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    await call("library.add", { paper: sibling })
-    await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
-    const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
-    const route = (name: string) => tried.find((t: { route: string }) => t.route === name)
-    expect(route("unpaywall/publisher")).toMatchObject({ by: "owlit", ended: "no-copy" })
-    expect(route("publisher:sage")).toBeUndefined()
-    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
-    const sites = JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites
-    expect(sites["sagepub.com"].plainRefusedUntil).toBeGreaterThan(Date.now())
-    expect(sites["doi.org"]).toBeUndefined()
-    const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
-    expect(log).toContainEqual(expect.objectContaining({ paper: sage.id, route: "unpaywall/publisher", kind: "plain-refused", host: "journals.sagepub.com" }))
-    expect(log.filter((entry) => entry.host === "doi.org")).toEqual([])
-  })
-})
-
 describe("publishers' APIs", () => {
   const elsevier = { id: "doi-10.1016-j.chb.2019.07.016", title: "On Elsevier", authors: [], ids: { doi: "10.1016/j.chb.2019.07.016" } }
   const page = (text: string) => [{ x: 72, y: 72, size: 12, text }]

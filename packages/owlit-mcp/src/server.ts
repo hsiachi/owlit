@@ -490,7 +490,6 @@ const BY_ENDED: Record<PdfEnded, string> = {
   "not-there": `no PDF: the publisher has no PDF at the paper's address; ${DROP}`,
   check: `no PDF: the publisher stopped owlit with a check, which the user's own browser may get past; ${IN_BROWSER}`,
   "sign-in": `no PDF: the publisher wants a sign-in, which the user's own browser may have; ${IN_BROWSER}`,
-  "nothing-came": `no PDF: the user's browser was sent for it and no PDF came; the user can press Open in your browser again on the paper, or drop the PDF on it`,
   // Not reasons for having no PDF; core never gives them as one
   pdf: `no PDF; ${DROP}`,
   offline: `no PDF yet (waiting for the network)`,

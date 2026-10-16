@@ -176,7 +176,6 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
     await response.body?.cancel().catch(() => {})
     const error = new HttpError(202, url, `${hostOf(response.url || url)} only lets browsers in.`)
     error.finalUrl = response.url || url
-    error.challenged = true
     throw error
   }
   if (!response.body) throw new NotAPdf(`${hostOf(url)} sent nothing.`)

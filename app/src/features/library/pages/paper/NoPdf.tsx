@@ -59,6 +59,12 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
     case "offline":
       return { title: t`Waiting for the network`, detail: t`owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens.` }
     case "not-found":
+      // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
+      if (reason?.ended === "check" || reason?.ended === "sign-in") {
+        const signIn = reason.ended === "sign-in"
+        if (host) return { title: t`No PDF found`, detail: signIn ? t`${host} wanted a sign-in · ${date}` : t`${host} stopped owlit with a check · ${date}` }
+        return { title: t`No PDF found`, detail: signIn ? t`The publisher wanted a sign-in · ${date}` : t`The publisher stopped owlit with a check · ${date}` }
+      }
       return {
         title: t`No PDF found`,
         detail: paper.ids.doi ? (tried ? t`${tried}.` : t`owlit knows of no open copy of this paper.`) : tried ? t`${tried}. It has no DOI, so owlit could only look by its title.` : t`It has no DOI, so owlit could only look by its title.`,
@@ -74,25 +80,11 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
         detail: words ? t`It answered “${words}” · ${date}` : t`It answered 404 · ${date}`,
       }
     }
-    case "for-browser":
-      return {
-        title: t`Try it in your browser`,
-        detail:
-          reason?.ended === "sign-in"
-            ? host
-              ? t`${host} wants a sign-in · ${date}`
-              : t`The publisher wants a sign-in · ${date}`
-            : host
-              ? t`${host} stopped owlit with a check · ${date}`
-              : t`The publisher stopped owlit with a check · ${date}`,
-      }
-    case "nothing-came":
-      return { title: t`Nothing came from your browser`, detail: t`Your browser was sent for it, and no PDF came · ${date}` }
   }
 }
 
 // What owlit does next on its own, for a card that waits on nobody
-const NO_PDF: ReadonlySet<CardState> = new Set(["not-found", "no-access", "not-offered", "not-there", "for-browser", "nothing-came"])
+const NO_PDF: ReadonlySet<CardState> = new Set(["not-found", "no-access", "not-offered", "not-there"])
 
 export function NoPdf({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)

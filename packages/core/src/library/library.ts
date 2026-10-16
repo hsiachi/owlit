@@ -31,10 +31,9 @@ import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
-import { extensionRoute, siteOf, type ExtensionRoute } from "../extension/route.ts"
+import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
-import { Publishers } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
@@ -193,14 +192,11 @@ export class Library {
   private pittaSummaries = new Map<string, { added: number; skipped: number; failed: string[] }>()
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
   private pdfHashes: Map<string, string> | undefined
-  // How often owlit visits each publisher's site, and which ones it leaves alone for now
-  private readonly publishers: Publishers
   constructor(root: string, dataDir: string, services: LibraryServices) {
     this.root = root
     this.dataDir = dataDir
     this.services = services
     this.acquisitions = new Acquisitions(root, this.serial)
-    this.publishers = new Publishers(dataDir)
     for (const { api } of PUBLISHERS) if (api) services.http.limit(api.host, api.limit)
     this.index = new PaperIndex(root)
     this.imports = new Imports(dataDir, {
@@ -1432,10 +1428,6 @@ export class Library {
           try {
             for (let route = await next(); route; route = await next()) {
               ctx.progress(tried.length, undefined, route.name)
-              // A site that answers plain downloads with a check is left to the browser for a while:
-              // asking again only counts against this network
-              const site = siteOf(hostOf(route.url))
-              if (route.kind !== "api" && (await this.publishers.plainRefused(site))) continue
               try {
                 await downloadPdf(http, route.url, download, ctx.signal, route.headers)
                 await route.verify?.(download, this.services.pdfiumWasm)
@@ -1449,13 +1441,6 @@ export class Library {
                 if (error instanceof NotAPdf && error.page && (route.kind === "upstream" || route.kind === "unpaywall") && !route.checkTitle) {
                   const named = await pdfNamedOnPage(http, error.page, ctx.signal)
                   if (named && named !== route.url) pages.push({ kind: route.kind, name: `${route.name}:page`, url: named, checkTitle: true })
-                }
-                // Held against the site that put up the check, not where the route starts: a doi.org
-                // link that lands on dl.acm.org says nothing about doi.org
-                if (error instanceof HttpError && error.challenged) {
-                  const host = hostOf(error.finalUrl)
-                  await this.publishers.refusePlain(siteOf(host))
-                  void this.publishers.log({ paper: id, route: route.name, kind: "plain-refused", host, status: error.status })
                 }
                 tried.push({ by: "owlit", ended: "no-copy", at: Date.now(), route: route.name })
                 continue

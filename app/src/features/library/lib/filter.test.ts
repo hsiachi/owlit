@@ -33,7 +33,6 @@ describe("papers without a PDF", () => {
     noAccess: paper("noAccess", noPdf([found, tryOf("no-access", "you")])),
     notOffered: paper("notOffered", noPdf([found, tryOf("not-offered", "you")])),
     notThere: paper("notThere", noPdf([found, tryOf("not-there")])),
-    nothingCame: paper("nothingCame", noPdf([found, tryOf("nothing-came", "you")])),
   }
 
   it("reads where each stands off its state and the ending of its reason", () => {
@@ -43,24 +42,21 @@ describe("papers without a PDF", () => {
       offline: "offline",
       found: "not-found",
       noDoi: "not-found",
-      check: "for-browser",
-      signIn: "for-browser",
+      check: "not-found",
+      signIn: "not-found",
       noAccess: "no-access",
       notOffered: "not-offered",
       notThere: "not-there",
-      nothingCame: "nothing-came",
     })
   })
 
   it("lists them all under No PDF, grouped by one name per state", () => {
-    expect(countByFilter(library)["no-pdf"]).toBe(10)
+    expect(countByFilter(library)["no-pdf"]).toBe(9)
     const sort = { key: "addedAt" as const, desc: true }
     const visible = visiblePapers(library, { query: "", filter: "no-pdf", tags: [], sort })
     const groups = groupPapers(visible, sort, false, Date.now(), undefined, true)
     expect(groups.map((g) => [g.label, g.papers.map((p) => p.id).sort()])).toEqual([
-      ["For your browser", ["check", "signIn"]],
-      ["Nothing came", ["nothingCame"]],
-      ["Not found", ["found", "noDoi"]],
+      ["Not found", ["check", "found", "noDoi", "signIn"]],
       ["No access", ["noAccess", "notOffered"]],
       ["No PDF there", ["notThere"]],
       ["Finding", ["looking", "offline"]],

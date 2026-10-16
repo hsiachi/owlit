@@ -41,13 +41,13 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // the newest found nothing reachable; have-it once the newest brought the PDF. Otherwise no PDF, for
 // the reason of the newest try since the last PDF, except where owlit's own try says less than an
 // earlier one: finding no open copy hides nothing (a library that said no still hasn't got it), and a
-// page that stopped owlit with a check or a sign-in doesn't hide what the user's browser, which gets
-// past those, was told.
+// page that stopped owlit itself with a check or a sign-in doesn't hide what the user's browser, which
+// gets past those, was told.
 //
 // A reason that is the extension waiting for the user (a check or a sign-in in their browser, or the
 // extension not allowed on the site) leaves the paper finding: the user gets through once for the whole
-// site and owlit goes on by itself. The same check or sign-in met by owlit's own hidden browser is no PDF,
-// "for your browser": nothing goes on until the user's browser is sent.
+// site and owlit goes on by itself. A check or a sign-in that owlit itself met (only older records have
+// one) waits on nobody: it is a reason for no PDF like any other, until the extension tries the paper.
 export function standing(tried: readonly PdfTry[]): { state: PdfStanding; reason?: PdfTry } {
   const newest = tried.at(-1)
   if (!newest) return { state: "finding" }
@@ -122,7 +122,8 @@ const PLACED_BY_YOU = new Set(["dropped", "your-browser"])
 
 // A version 1 file in today's shape: each of its fields becomes one try. Its attempts are owlit's
 // routes finding no copy, or one offline try when none of them reached anything; what the publisher's
-// page wanted is a check or a sign-in; what the user's browser and owlit's were told keep their words.
+// page wanted is a check or a sign-in; what the user's browser and owlit's were told keep their words,
+// and a PDF that never came from the user's browser is a try of theirs that found no copy.
 export function migrate(old: AcquisitionV1 | Acquisition): Acquisition {
   if (old.version === 2) return old
   const attempts = (old.tried ?? []).filter((a) => !a.error?.startsWith("Not tried"))
@@ -146,7 +147,7 @@ export function migrate(old: AcquisitionV1 | Acquisition): Acquisition {
     tried.push(clean({ by: "owlit", ended, at: old.looked.at, host: old.looked.host, title: old.looked.title }))
   }
   if (old.yourBrowser) {
-    const ended = ({ "no-access": "no-access", refused: "not-offered", missing: "not-there", missed: "nothing-came" } as const)[old.yourBrowser.outcome]
+    const ended = ({ "no-access": "no-access", refused: "not-offered", missing: "not-there", missed: "no-copy" } as const)[old.yourBrowser.outcome]
     tried.push(clean({ by: "you", ended, at: old.yourBrowser.at, host: old.yourBrowser.host, title: old.yourBrowser.title }))
   }
   tried.sort((a, b) => a.at - b.at)
