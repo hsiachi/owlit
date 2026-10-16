@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { CONNECTED_MS, ExtensionWork, GAP_MS, IN_FLIGHT_MS, PROXY_GAP_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, IN_FLIGHT_MS, PAUSED_RETRY_MS, PROXY_GAP_MS } from "./work.ts"
 
 const library = {} as Library
 const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {}): ExtensionPaper => ({ paperId, url: `https://${host}/doi/${paperId}`, host, proxied: false, ...extra })
@@ -153,6 +153,33 @@ describe("the extension's queue", () => {
     expect(work.resume("journals.sagepub.com")).toBe(true)
     expect(work.waits()).toEqual([])
     expect((await take()).map((w) => w.paperId)).toEqual(["s1"])
+  })
+
+  it("tries one paper of a paused site now and then, and goes on there once one gets through", async () => {
+    const { work, take, never } = setup()
+    work.fetch(library, paper("t1", "tandfonline.com"), false)
+    work.fetch(library, paper("t2", "tandfonline.com"), false)
+    const [t1] = await take()
+    work.settle(t1.id, "sign-in", { url: "https://www.tandfonline.com/action/showLogin" })
+    vi.advanceTimersByTime(PAUSED_RETRY_MS - 1)
+    expect(await take()).toEqual([])
+    // A held GET /work hands out the try when it is due
+    const held = work.take(library, 60_000, never)
+    await vi.advanceTimersByTimeAsync(1)
+    const [again] = await held
+    expect(again.paperId).toBe("t1")
+    // The line stays while the try is out
+    expect(work.waits()).toMatchObject([{ kind: "sign-in", host: "tandfonline.com", papers: 2 }])
+    work.settle(again.id, "sign-in")
+    expect(work.waits()).toMatchObject([{ kind: "sign-in", papers: 2 }])
+    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    const [third] = await take()
+    expect(third.paperId).toBe("t1")
+    // Through (the user signed in somewhere the extension didn't see): the site goes on
+    work.settle(third.id, "no-access")
+    expect(work.waits()).toEqual([])
+    vi.advanceTimersByTime(GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["t2"])
   })
 
   it("puts what the user asked for first, and tries a paused site once more for it", async () => {

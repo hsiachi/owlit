@@ -8,7 +8,7 @@ import { siteOf } from "./route.ts"
 // library proxy's host) one fetch at a time, the next a while after the last ended, so no publisher sees
 // a burst from the user's browser. A fetch that stopped where only the user can get through (a check, a
 // sign-in, the extension not allowed there) pauses its site, not the others, and every paper queued
-// there waits for the one time the user gets through.
+// there waits for the one time the user gets through (or for one of the site's occasional tries to).
 //
 // In memory only: when the extension connects (its first GET /work since owlit started, since it was
 // last away, or since another workspace opened), the library hands over every paper waiting for it again
@@ -29,6 +29,10 @@ export const CONNECTED_MS = 60_000
 // After a fetch at a site reached nothing (the network dropped, the proxy's minute-limit page), the site
 // waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
 // was learnt about it, and a limit that counts every request isn't asked again within the minute
+// A site paused for the user tries its first paper again this long after the pause began: the user may
+// have got through where the extension couldn't tell (signing in can end on a page that still looks like
+// a sign-in, the proxy's own front page), and nothing else would let the site go on
+export const PAUSED_RETRY_MS = 15 * 60_000
 export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 
 export interface WorkOptions {
@@ -47,6 +51,8 @@ interface Paused {
   kind: ExtensionWait["kind"]
   // What the user's browser opens for it
   url: string
+  // When the newest try met it, for the next try (PAUSED_RETRY_MS)
+  at: number
 }
 
 interface Site {
@@ -190,7 +196,12 @@ export class ExtensionWork implements ExtensionFetcher {
     site.inFlight = undefined
     site.endedAt = Date.now()
     const pause = ended && PAUSES[ended]
-    if (ended === "offline") {
+    if (ended === "offline" && site.paused) {
+      // Its try reached nothing: it waits for the user as it did
+      site.paused.at = site.endedAt
+      site.queue.unshift(item)
+      sortQueue(site)
+    } else if (ended === "offline") {
       const times = (site.offline?.times ?? 0) + 1
       site.offline = { times, until: site.endedAt + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1] }
       site.queue.unshift(item)
@@ -201,12 +212,18 @@ export class ExtensionWork implements ExtensionFetcher {
       site.queue.unshift(item)
       sortQueue(site)
       const url = (pause === "sign-in" && item.paper.signIn) || page.url || item.paper.url
-      site.paused = { kind: pause, url }
+      site.paused = { kind: pause, url, at: site.endedAt }
       this.host.papers(this.library, ids(site))
+      this.host.waits()
+    } else if (site.paused) {
+      // A try at the paused site got through: the user did, somewhere the extension didn't see
+      site.offline = undefined
+      site.paused = undefined
+      this.host.papers(this.library, [item.paper.paperId, ...ids(site)])
       this.host.waits()
     } else {
       site.offline = undefined
-      if (!site.queue.length && !site.paused) {
+      if (!site.queue.length) {
         this.sites.delete(site.key)
         this.lastEnded.set(site.key, site.endedAt)
       }
@@ -235,16 +252,17 @@ export class ExtensionWork implements ExtensionFetcher {
     return any
   }
 
-  // The sites paused for the user, as the window shows them
+  // The sites paused for the user, as the window shows them; a paper out for a try still waits there
   waits(): ExtensionWait[] {
-    return [...this.sites.values()].flatMap((site) =>
-      site.paused && site.queue.length ? [{ kind: site.paused.kind, host: site.key, papers: site.queue.length, url: site.paused.url, askedFor: site.queue.some((q) => q.askedFor) }] : [],
-    )
+    return [...this.sites.values()].flatMap((site) => {
+      const waiting = paused(site)
+      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: site.key, papers: waiting.length, url: site.paused.url, askedFor: waiting.some((q) => q.askedFor) }] : []
+    })
   }
 
   // The same for the extension, which watches those sites for the user getting through
   waitsForExtension(): WorkAnswer["waits"] {
-    return [...this.sites.values()].flatMap((site) => (site.paused && site.queue.length ? [{ kind: site.paused.kind, host: site.key, papers: site.queue.length, proxied: site.proxied }] : []))
+    return [...this.sites.values()].flatMap((site) => (site.paused && paused(site).length ? [{ kind: site.paused.kind, host: site.key, papers: paused(site).length, proxied: site.proxied }] : []))
   }
 
   dispose() {
@@ -264,9 +282,10 @@ export class ExtensionWork implements ExtensionFetcher {
     return site.proxied ? this.options.proxyGapMs : this.options.gapMs
   }
 
-  // When the site's next fetch may go out: after the gap, and after an offline back-off
+  // When the site's next fetch may go out: after the gap, after an offline back-off, and while it is
+  // paused for the user, only for its next try
   private dueAt(site: Site) {
-    return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0)
+    return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0, site.paused ? site.paused.at + PAUSED_RETRY_MS : 0)
   }
 
   private due(): WorkItem[] {
@@ -279,7 +298,7 @@ export class ExtensionWork implements ExtensionFetcher {
         site.inFlight = undefined
         site.endedAt = now
       }
-      if (site.paused || site.inFlight || !site.queue.length) continue
+      if (site.inFlight || !site.queue.length) continue
       if (now < this.dueAt(site)) continue
       const item = site.queue.shift()!
       const id = randomUUID()
@@ -297,7 +316,7 @@ export class ExtensionWork implements ExtensionFetcher {
     let next = Number.POSITIVE_INFINITY
     for (const site of this.sites.values()) {
       if (site.inFlight) next = Math.min(next, site.inFlight.at + this.options.inFlightMs - now)
-      else if (!site.paused && site.queue.length) next = Math.min(next, this.dueAt(site) - now)
+      else if (site.queue.length) next = Math.min(next, this.dueAt(site) - now)
     }
     return Math.max(0, next)
   }
@@ -308,6 +327,9 @@ export class ExtensionWork implements ExtensionFetcher {
 }
 
 const ids = (site: Site) => site.queue.map((q) => q.paper.paperId)
+
+// What waits at a site, the paper out for a try included
+const paused = (site: Site) => (site.inFlight ? [site.inFlight.item, ...site.queue] : site.queue)
 
 // The papers the user asked for first, each group in the order it came
 const sortQueue = (site: Site) => {
