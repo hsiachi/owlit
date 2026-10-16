@@ -19,7 +19,7 @@ import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
-import { Background, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
+import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
 import { Initiative } from "./initiative/initiative.ts"
 import { exportArchive } from "./initiative/archive.ts"
@@ -1201,7 +1201,8 @@ export class Core {
       await session.finish({ status: "done", connectorId: result.connectorId, model: result.model })
       return result
     } catch (error) {
-      await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...(ctx.signal.aborted ? {} : { error: messageOf(error) }) }).catch(() => undefined)
+      const failed = ctx.signal.aborted ? {} : { error: messageOf(error), ...(error instanceof BackgroundFailure && error.detail ? { errorDetail: error.detail } : {}) }
+      await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...failed }).catch(() => undefined)
       throw error
     }
   }

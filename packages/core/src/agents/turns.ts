@@ -5,8 +5,6 @@ import {
   applyUpdate,
   type AttachmentFile,
   DEFAULT_ROLE,
-  type AgentStatus,
-  HUNK_GAP,
   parseOwlitUri,
   RpcErrorCode,
   type ChatMessage,
@@ -33,13 +31,14 @@ import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { type AcpProcess, AgentEnded, endingSentence, flatValues, isAuthError, type SessionHandler } from "./process.ts"
-import { guardFor, handbackOf, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
+import { failureOf } from "./failure.ts"
+import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
+import { guardFor, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
 import { memoryNote, preamble, USER_FOLLOWS } from "./rules.ts"
-import { messageOf } from "../util.ts"
+import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
 
 export type TurnRequest = ParamsOf<"agents.prompt">
 
@@ -230,26 +229,10 @@ export class Turns {
         await finish("cancelled")
         return "cancelled"
       }
-      // What the agent said as it failed decides between a sign-in and a refusal it can't fix by signing in
       const said = withoutAgentError({ ...turn.message, status: "error" }).errorDetail ?? ""
-      const agents = this.options.agents
-      if (error instanceof AgentEnded) {
-        // The agent's process went away mid-turn; the library only says its connection closed
-        const name = await agents.nameOf(req.connectorId)
-        const text = error.stopped ? t`Owlit was closed before it could finish.` : t`${name} quit unexpectedly. It starts again with the next message.`
-        const detail = error.ending ? endingSentence(name, error.ending) : undefined
-        await finish("error", text, detail)
-        throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
-      }
-      const text = isAuthError(error)
-        ? /\b403\b/.test(said)
-          ? await agents.refused(req.connectorId)
-          : await agents.signedOut(req.connectorId)
-        : GENERIC.test(messageOf(error)) && said
-          ? await agents.nameOf(req.connectorId).then((name) => t`${name} ran into a problem.`)
-          : messageOf(error)
-      await finish("error", text)
-      throw new RpcFailure(RpcErrorCode.InternalError, text)
+      const { text, detail } = await failureOf(this.options.agents, req.connectorId, error, said)
+      await finish("error", text, detail)
+      throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
     } finally {
       if (!turn.late) {
         this.closePermissions(turn)
@@ -432,7 +415,7 @@ export class Turns {
         if (!agentId && n.update.sessionUpdate === "current_mode_update" && live?.modes) live.modes = { ...live.modes, currentModeId: n.update.currentModeId }
         if (n.update.sessionUpdate === "tool_call" && isOwlitCall(n.update)) live?.owlitCalls.add(n.update.toolCallId)
         deliver((turn) => {
-          if (agentId) return this.agentWork(turn, agentId, n.update, root)
+          if (agentId) return agentWork(turn, agentId, n.update, root)
           const update = toUpdate(n.update, root)
           return update ? [update] : []
         }, !agentId && ownTurnOver(connectorId, n.update))
@@ -440,14 +423,7 @@ export class Turns {
       // One of the agent's own agents started or changed state
       agent: (notice) => {
         if (loading.has(key)) return
-        const status = notice.kind === "state" ? agentStatus(notice.state) : undefined
-        deliver(() =>
-          notice.kind === "started"
-            ? [{ type: "agent_started", agentId: notice.agentId, title: notice.title }]
-            : status
-              ? [{ type: "agent_update", agentId: notice.agentId, status }]
-              : [],
-        )
+        deliver(() => agentNotice(notice))
       },
       requestPermission: async (r, agentId) => {
         const turn = this.asking(key, chatId)
@@ -530,29 +506,6 @@ export class Turns {
         return {}
       },
     }
-  }
-
-  // What one of the agent's own agents sent: its steps, marked as its own, and its report. Its report is
-  // the call it hands back with, or else what it said as text (an agent may tell its findings that way).
-  private agentWork(turn: Turn, agentId: string, u: acp.SessionUpdate, root: string): SessionUpdate[] {
-    const out: SessionUpdate[] = []
-    if (u.sessionUpdate === "tool_call" || u.sessionUpdate === "tool_call_update") {
-      const report = handbackOf(u)
-      if (report) {
-        turn.handedBack.add(agentId)
-        out.push({ type: "agent_update", agentId, report })
-      }
-    }
-    if (u.sessionUpdate === "agent_message_chunk" && u.content.type === "text") {
-      const text = (turn.agentText.get(agentId) ?? "") + u.content.text
-      turn.agentText.set(agentId, text)
-      if (!turn.handedBack.has(agentId)) out.push({ type: "agent_update", agentId, report: text })
-      return out
-    }
-    const update = toUpdate(u, root)
-    if (update?.type === "tool_call") out.push({ ...update, agentId })
-    else if (update?.type === "tool_call_update") out.push(update)
-    return out
   }
 
   // ---- A reply that goes on after its prompt ----
@@ -755,16 +708,6 @@ function roots(root: string) {
   return [...new Set([root, real])]
 }
 
-// An agent's state, as owlit shows it: the adapters' words ("completed", "cancelled") and the draft's
-// ("idle" once it has nothing left to do; "running" and "requires_action" while it is at it)
-function agentStatus(state: string): AgentStatus | undefined {
-  if (state === "completed" || state === "idle" || state === "done") return "done"
-  if (state === "cancelled" || state === "interrupted") return "stopped"
-  if (state === "failed" || state === "error") return "failed"
-  if (state === "running" || state === "requires_action") return "working"
-  return undefined
-}
-
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()
 
@@ -870,17 +813,6 @@ function transcript(messages: ChatMessage[]) {
     .join("\n\n")
 }
 
-// ---- From ACP to owlit ----
-
-const KINDS = new Set<ToolKind>(["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"])
-const toKind = (kind?: string | null): ToolKind => (kind && KINDS.has(kind as ToolKind) ? (kind as ToolKind) : "other")
-
-// Paths the agent reports, as the app shows them: relative to the workspace when inside it
-const relative = (file: string, root: string) => {
-  const rel = path.relative(root, file)
-  return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel.split(path.sep).join("/") : file
-}
-
 // Claude Code asks to Write a file with the new text alone: the request can't tell a new file from one it
 // replaces, so its diff always reads as a creation. The text it would replace is read here, so the edit
 // is shown (and drawn in the doc) as what it changes. Only a whole-file Write: its one diff carries the
@@ -895,49 +827,6 @@ async function withReplacedText(call: acp.ToolCallUpdate, root: string): Promise
   return { ...call, content: call.content!.map((c) => (c === diff ? { ...diff, oldText: replaced } : c)) }
 }
 
-function toolContent(call: { content?: acp.ToolCallContent[] | null; locations?: acp.ToolCallLocation[] | null }, root: string) {
-  const out: { content?: string; locations?: { path: string; line?: number }[]; diff?: { path: string; oldText: string; newText: string } } = {}
-  const text = (call.content ?? [])
-    .map((c) => (c.type === "content" && c.content.type === "text" ? c.content.text : ""))
-    .filter(Boolean)
-    .join("\n")
-  if (text) out.content = text
-  // Claude Code reports a finished edit as one diff per changed part of the file; they are kept together,
-  // a gap line between parts, so the step shows and counts the whole edit rather than its first part
-  const diffs = (call.content ?? []).flatMap((c) => (c.type === "diff" ? [c] : []))
-  const parts = diffs.filter((d) => d.path === diffs[0]?.path)
-  if (parts.length)
-    out.diff = {
-      path: relative(parts[0].path, root),
-      oldText: parts.map((d) => d.oldText ?? "").join(`\n${HUNK_GAP}\n`),
-      newText: parts.map((d) => d.newText).join(`\n${HUNK_GAP}\n`),
-    }
-  if (call.locations?.length) out.locations = call.locations.map((l) => ({ path: relative(l.path, root), ...(l.line != null ? { line: l.line } : {}) }))
-  return out
-}
-
-export function toUpdate(u: acp.SessionUpdate, root: string): SessionUpdate | null {
-  switch (u.sessionUpdate) {
-    case "agent_message_chunk":
-      return u.content.type === "text" ? { type: "agent_message_chunk", text: u.content.text, ...(u.messageId ? { messageId: u.messageId } : {}) } : null
-    case "agent_thought_chunk":
-      return u.content.type === "text" ? { type: "agent_thought_chunk", text: u.content.text } : null
-    case "tool_call": {
-      const tool = toolInfoOf(u)
-      return { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: toKind(u.kind), status: u.status ?? "pending", ...toolContent(u, root), ...(tool ? { tool } : {}) }
-    }
-    case "tool_call_update": {
-      // Claude Code sends the input again once it is complete; an update without it keeps what came first
-      const tool = u.rawInput !== undefined ? toolInfoOf(u) : undefined
-      return { type: "tool_call_update", toolCallId: u.toolCallId, ...(u.status ? { status: u.status } : {}), ...(u.title ? { title: u.title } : {}), ...toolContent(u, root), ...(tool ? { tool } : {}) }
-    }
-    case "plan":
-      return { type: "plan", entries: u.entries.map((e) => ({ content: e.content, priority: e.priority, status: e.status })) }
-    default:
-      return null
-  }
-}
-
 // owlit's errors reach the agent with their sentence, not as a bare "Internal error"
 async function asAcpError<T>(work: Promise<T>): Promise<T> {
   try {
@@ -948,5 +837,3 @@ async function asAcpError<T>(work: Promise<T>): Promise<T> {
   }
 }
 
-// An error that says nothing beyond that there was one: the agent's own words then explain it
-const GENERIC = /^(internal error|error|unknown error)\.?$/i

@@ -1,13 +1,14 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { MemoryLine, SessionUpdate } from "@owlit/protocol"
-import { RpcErrorCode } from "@owlit/protocol"
+import { RpcErrorCode, withoutAgentError } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
 import { flatValues } from "./process.ts"
 import { backgroundMeta, bareToolTitle, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
 import { takesRules } from "./roles.ts"
 import { memoryNote, preamble } from "./rules.ts"
-import { toUpdate } from "./turns.ts"
+import { failureOf } from "./failure.ts"
+import { agentNotice, agentWork, toUpdate, type HelperReports } from "./updates.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
 // whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is there to answer
@@ -41,6 +42,16 @@ export interface BackgroundRun {
   onUpdate?: (update: SessionUpdate) => void
 }
 
+// A run that failed, in owlit's words (failure.ts), with how the agent's process ended when it did
+export class BackgroundFailure extends Error {
+  readonly detail?: string
+
+  constructor(text: string, detail?: string) {
+    super(text)
+    this.detail = detail
+  }
+}
+
 export interface BackgroundResult {
   text: string
   connectorId: string
@@ -57,6 +68,19 @@ export class Background {
 
   async run(run: BackgroundRun): Promise<BackgroundResult> {
     const connectorId = run.connectorId ?? (await this.pickConnector())
+    // The answer so far: when the agent fails, its last words may be its own account of the error
+    let answer = ""
+    try {
+      return await this.session(run, connectorId, (text) => (answer = text))
+    } catch (error) {
+      if (run.signal.aborted) throw error
+      const said = withoutAgentError({ id: "", role: "assistant", createdAt: 0, status: "error", parts: [{ type: "text", text: answer }] }).errorDetail ?? ""
+      const { text, detail } = await failureOf(this.agents, connectorId, error, said)
+      throw new BackgroundFailure(text, detail)
+    }
+  }
+
+  private async session(run: BackgroundRun, connectorId: string, wrote: (answer: string) => void): Promise<BackgroundResult> {
     const proc = await this.agents.process(connectorId)
     run.signal.throwIfAborted()
     let answer = ""
@@ -64,19 +88,26 @@ export class Background {
     // into its first line ("I'll read the rest.# Title")
     let apart = false
     const refused: string[] = []
+    const reports: HelperReports = { agentText: new Map(), handedBack: new Set() }
     // Agents that ask before each of owlit's tools are held to READ_ONLY when they ask, below; one that
     // calls them itself is told which it may offer (backgroundMeta)
     const _meta = backgroundMeta(connectorId, [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])])
     const session = await proc.newSession(
       { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {
-        update: (n) => {
+        update: (n, agentId) => {
+          // The agent's own agents' work is shown as theirs, and their words are never the answer
+          if (agentId) {
+            for (const update of agentWork(reports, agentId, n.update, run.root)) run.onUpdate?.(update)
+            return
+          }
           const update = run.onUpdate && toUpdate(n.update, run.root)
           if (update) run.onUpdate!(update)
           if (n.update.sessionUpdate === "agent_message_chunk" && n.update.content.type === "text") {
             if (apart && answer) answer += "\n\n"
             apart = false
             answer += n.update.content.text
+            wrote(answer)
           }
           if (n.update.sessionUpdate === "tool_call") {
             apart = true
@@ -103,6 +134,9 @@ export class Background {
         },
         // Nobody is there to answer a question
         createElicitation: async () => ({ action: "decline" }),
+        agent: (notice) => {
+          for (const update of agentNotice(notice)) run.onUpdate?.(update)
+        },
       },
     )
     const cancel = () => void proc.cancel({ sessionId: session.sessionId }).catch(() => undefined)

@@ -6952,6 +6952,18 @@ msgstr "owlit 在这里无法设置 agent。"
 msgid "owlit doesn't know that agent."
 msgstr "owlit 不认识这个智能体。"
 
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it could finish."
+msgstr "Owlit 在完成之前被关闭了。"
+
+#: packages/core/src/agents/failure.ts
+msgid "{name} quit unexpectedly. It starts again with the next message."
+msgstr "{name} 意外退出。发送下一条消息时会重新启动。"
+
+#: packages/core/src/agents/failure.ts
+msgid "{name} ran into a problem."
+msgstr "{name} 遇到了问题。"
+
 #: packages/core/src/agents/fs.ts
 msgid "That earlier version is no longer kept."
 msgstr "那个较早的版本已不再保留。"
@@ -7210,18 +7222,6 @@ msgstr "设置失败了。"
 #: packages/core/src/agents/turns.ts
 msgid "This chat is still answering."
 msgstr "这个对话仍在回答中。"
-
-#: packages/core/src/agents/turns.ts
-msgid "Owlit was closed before it could finish."
-msgstr "Owlit 在完成之前被关闭了。"
-
-#: packages/core/src/agents/turns.ts
-msgid "{name} quit unexpectedly. It starts again with the next message."
-msgstr "{name} 意外退出。发送下一条消息时会重新启动。"
-
-#: packages/core/src/agents/turns.ts
-msgid "{name} ran into a problem."
-msgstr "{name} 遇到了问题。"
 
 #: packages/core/src/agents/turns.ts
 msgid "That question is no longer waiting for an answer."
