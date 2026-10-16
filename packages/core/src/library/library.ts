@@ -42,7 +42,7 @@ import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { citationsDue, countCitations } from "./citations.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
 import { downloadPdf, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, registeredUrl, type Route, routesFor, unpaywallRoutes } from "./pdf.ts"
-import { Acquisitions, lookDue, standing, type PdfTry } from "./acquisition.ts"
+import { Acquisitions, forExtension, lookDue, standing, type PdfTry } from "./acquisition.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { Imports } from "./bulk/imports.ts"
@@ -133,7 +133,8 @@ export interface ExtensionPaper extends ExtensionRoute {
 }
 
 export interface ExtensionFetcher {
-  // An extension is asking for work: papers the plain routes miss go to it
+  // An extension is asking for work: papers the plain routes miss go to it; without one they have no
+  // PDF until it connects (Library.handToExtension)
   connected(): boolean
   // asked: the user waits on this paper (Find PDF, Look again)
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
@@ -1582,13 +1583,36 @@ export class Library {
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
   // set); false when no extension is asking for work
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal: AbortSignal) {
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal) {
     const extension = this.services.extension
     if (!extension?.connected()) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const route = extensionRoute(doi, (await this.services.settings()).proxy, registered)
     extension.fetch(this, { paperId: id, ...route }, priority === "waiting")
     return true
+  }
+
+  // Every paper waiting for the extension, to its queue, the one waiting longest first (forExtension
+  // says which): called when an extension starts asking for work. Its queue is in memory, so without
+  // this a restart would strand the papers waiting at a site for the user's sign-in, and papers whose
+  // plain routes missed while no extension was connected would wait for their next back-off look; with
+  // it the Library fills in by itself, at the queue's pace.
+  async handToExtension() {
+    const extension = this.services.extension
+    if (!extension?.connected()) return
+    const waiting: { id: string; doi: string; at: number }[] = []
+    for (const id of await this.ids()) {
+      if (extension.holding(this, id) || (await hasPdfFile(this.root, id))) continue
+      const acquisition = await this.acquisitions.read(id)
+      const reason = acquisition && forExtension(acquisition)
+      const doi = reason && (await readRecord(this.root, id))?.ids.doi
+      if (doi) waiting.push({ id, doi, at: reason.at })
+    }
+    waiting.sort((a, b) => a.at - b.at)
+    // One at a time, so each site's queue keeps this order
+    for (const { id, doi } of waiting) {
+      if (!(await this.toExtension(id, doi, "background"))) return
+    }
   }
 
   // A try the extension made, noted without telling the window: its queue says when the paper's

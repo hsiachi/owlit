@@ -10,9 +10,9 @@ import { siteOf } from "./route.ts"
 // sign-in, the extension not allowed there) pauses its site, not the others, and every paper queued
 // there waits for the one time the user gets through.
 //
-// In memory only: after a restart a paper is handed over again by its next plain look (the daily look
-// takes the ones waiting on a site, acquisition.ts lookDue), and a fetch in flight then is simply asked for
-// again.
+// In memory only: when the extension connects (its first GET /work since owlit started, since it was
+// last away, or since another workspace opened), the library hands over every paper waiting for it again
+// (WorkHost.connected), and a fetch that was in flight then is simply asked for again.
 
 // Between two fetches at one site, from the end of the last. Through the proxy, longer: a campus shares
 // one proxy, and it limits how often a reader may ask (Tsinghua's tlink's minute-limit page).
@@ -60,6 +60,9 @@ export interface WorkHost {
   papers: (library: Library, ids: string[]) => void
   // The sites paused for the user changed
   waits: () => void
+  // An extension began asking for work for this library, with nothing of it queued yet or not for a
+  // while: the library hands over what waits for the extension
+  connected: (library: Library) => void
 }
 
 export class ExtensionWork implements ExtensionFetcher {
@@ -119,7 +122,7 @@ export class ExtensionWork implements ExtensionFetcher {
   holding(library: Library, id: string): PdfState["extension"] | undefined {
     if (library !== this.library) return undefined
     for (const site of this.sites.values()) {
-      if (site.inFlight?.item.paper.paperId === id) return { host: site.key }
+      if (site.inFlight?.item.paper.paperId === id) return { host: site.key, fetching: true }
       if (site.queue.some((q) => q.paper.paperId === id)) return site.paused ? { host: site.key, waits: site.paused.kind } : { host: site.key }
     }
     return undefined
@@ -128,8 +131,13 @@ export class ExtensionWork implements ExtensionFetcher {
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
   // answer comes (settle) or IN_FLIGHT_MS pass.
   async take(library: Library | null, holdMs: number, closed: AbortSignal): Promise<WorkItem[]> {
+    // Away for longer than counts as connected, or never here: papers the plain routes missed meanwhile
+    // went to no queue, and after a restart this one is empty, so the library fills it before anything
+    // is due. Marked connected first, so what the library hands over is queued, not left with no PDF.
+    const arrived = !this.connected() || library !== this.library
     this.polledAt = Date.now()
     if (library !== this.library) this.own(library)
+    if (arrived && library) this.host.connected(library)
     const until = Date.now() + holdMs
     for (;;) {
       const due = this.due()

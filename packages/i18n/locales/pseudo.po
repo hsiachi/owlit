@@ -4078,6 +4078,14 @@ msgid "Now trying {site} through your browser."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}; owlit will try {site} through your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit will try {site} through your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {now}."
 msgstr ""
 
@@ -4228,6 +4236,20 @@ msgstr ""
 #. button: owlit looks for the paper's PDF again, by its own routes
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Look again"
+msgstr ""
+
+#. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Install the extension"
+msgstr ""
+
+#. button: opens the paper's page at its publisher in the user's browser
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open the page"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't get this alone. With the owlit extension, your browser can use your library's access."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

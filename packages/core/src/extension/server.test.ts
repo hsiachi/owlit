@@ -289,6 +289,56 @@ describe("the extension's port", () => {
       expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "no-copy", host: "journals.sagepub.com" })
     })
 
+    // A paper's acquisition.json as an earlier run of owlit left it
+    const acquired = (root: string, paperId: string, state: string, tried: object[]) =>
+      writeFileSync(path.join(root, "library/papers", paperId, "acquisition.json"), JSON.stringify({ version: 2, state, tried, dropHere: path.join(root, "library/papers", paperId, "paper.pdf") }))
+
+    it("hands over every paper waiting for it once the extension connects, the longest waiting first", async () => {
+      const s = await setup({ holdMs: 20 })
+      const sage = (n: string) => ({ id: `doi-10.1177-${n}`, doi: `10.1177/${n}` })
+      const [older, newer, signIn, judged, had] = ["0001", "0002", "0003", "0004", "0005"].map(sage)
+      for (const p of [older, newer, signIn, judged, had]) s.putPaper(p.id, { title: `Paper ${p.doi}`, ids: { doi: p.doi } })
+      // Minutes ago, so no daily look is due for any of them
+      const at = (minutes: number) => Date.now() - minutes * 60_000
+      // owlit's own routes found no copy, before any extension was connected (an older one first)
+      acquired(s.root, newer.id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: at(20) }])
+      acquired(s.root, older.id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: at(30) }])
+      // Waiting at its site for the user's sign-in when owlit quit
+      acquired(s.root, signIn.id, "finding", [{ by: "owlit", ended: "no-copy", at: at(40) }, { by: "extension", ended: "sign-in", at: at(10), host: "journals.sagepub.com" }])
+      // The extension already saw the paywall: left to the back-off look
+      acquired(s.root, judged.id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: at(50) }, { by: "extension", ended: "no-access", at: at(45) }])
+      // Has its PDF
+      writeFileSync(path.join(s.root, "library/papers", had.id, "paper.pdf"), pdfOf([had.doi]))
+      acquired(s.root, had.id, "have-it", [{ by: "owlit", ended: "no-copy", at: at(60) }, { by: "you", ended: "pdf", at: at(59) }])
+      const token = await s.pair()
+      const order: string[] = []
+      for (let i = 0; i < 3; i++) {
+        const item = await vi.waitFor(async () => {
+          const [next] = (await s.request("/work", { token })).body.work
+          expect(next).toBeDefined()
+          return next
+        })
+        order.push(item.paperId)
+        // Each is finding again while the extension has it, not "No PDF"
+        if (i === 0) await vi.waitFor(async () => expect((await s.call("library.list")).papers.find((p: { id: string }) => p.id === newer.id).pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } }))
+        await s.request(`/work/${item.id}`, { token, body: { ended: "no-copy", host: "journals.sagepub.com" } })
+      }
+      expect(order).toEqual([older.id, newer.id, signIn.id])
+      expect((await s.request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("hands the daily look's miss to the extension, as Look again does", async () => {
+      const { root, request, token, core } = await connected()
+      // The extension found no copy before; the back-off look is due again
+      acquired(root, id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: 1 }, { by: "extension", ended: "no-copy", at: 2 }])
+      const workspace = (core as unknown as { workspace: { tasks: { enqueue(kind: string, subject: string, priority: string): { id: string }; wait(id: string): Promise<unknown> } } }).workspace
+      // What the daily look queues for a paper whose look is due
+      await workspace.tasks.wait(workspace.tasks.enqueue("paper.pdf", id, "background").id)
+      const [item] = (await request("/work", { token })).body.work
+      expect(item).toMatchObject({ paperId: id, host: "sagepub.com" })
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "owlit", ended: "no-copy" })
+    })
+
     it("leaves a paper to owlit's own ways while no extension asks for work", async () => {
       const s = await setup({ holdMs: 20 })
       s.putPaper(id, { title, ids: { doi: SAGE } })

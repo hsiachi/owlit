@@ -4078,6 +4078,14 @@ msgid "Now trying {site} through your browser."
 msgstr "正在经你的浏览器尝试 {site}。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}; owlit will try {site} through your browser."
+msgstr "{tried}；owlit 将经你的浏览器尝试 {site}。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit will try {site} through your browser."
+msgstr "owlit 将经你的浏览器尝试 {site}。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {now}."
 msgstr "{tried}；正在试{now}。"
 
@@ -4229,6 +4237,20 @@ msgstr "选择文件"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Look again"
 msgstr "再找一次"
+
+#. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Install the extension"
+msgstr "安装扩展"
+
+#. button: opens the paper's page at its publisher in the user's browser
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Open the page"
+msgstr "打开页面"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't get this alone. With the owlit extension, your browser can use your library's access."
+msgstr "owlit 自己拿不到这篇。装上 owlit 扩展后，你的浏览器可以用你的图书馆权限去取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit looks again on {nextDate}"

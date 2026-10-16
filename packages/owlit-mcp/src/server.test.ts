@@ -49,35 +49,44 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
 }
 
 describe("pdfFact", () => {
+  // With a browser extension allowed, as most of these are read
+  const fact = (p: Parameters<typeof pdfFact>[0]) => pdfFact(p, true)
   const noPdf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit") => ({ pdfState: { state: "no-pdf" as const, tried: [{ by, ended, at: 1 }], reason: { by, ended, at: 1 } } })
 
   it("says nothing of a paper with its PDF, and that owlit is at it while it is finding", () => {
-    expect(pdfFact({ pdf: { url: "owlit-pdf://doi-10.1145-1" } })).toBe("")
-    expect(pdfFact({})).toBe("no PDF yet (owlit is looking)")
-    expect(pdfFact({ pdfState: { state: "finding", tried: [] } })).toBe("no PDF yet (owlit is looking)")
-    expect(pdfFact({ pdfState: { state: "finding", tried: [{ by: "owlit", ended: "offline", at: 1 }], reason: { by: "owlit", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
+    expect(fact({ pdf: { url: "owlit-pdf://doi-10.1145-1" } })).toBe("")
+    expect(fact({})).toBe("no PDF yet (owlit is looking)")
+    expect(fact({ pdfState: { state: "finding", tried: [] } })).toBe("no PDF yet (owlit is looking)")
+    expect(fact({ pdfState: { state: "finding", tried: [{ by: "owlit", ended: "offline", at: 1 }], reason: { by: "owlit", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
   })
 
   it("says what the extension in the user's browser waits for, and that one step covers every such paper", () => {
     const tried = (ended: PdfTry["ended"]) => ({ by: "extension" as const, ended, at: 1 })
-    expect(pdfFact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" } } })).toMatch(
+    expect(fact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" } } })).toMatch(
       /waits for the user's library sign-in.*Home says so; one sign-in covers every such paper/,
     )
-    expect(pdfFact({ pdfState: { state: "finding", tried: [tried("check")], reason: tried("check") } })).toMatch(/pass a check/)
-    expect(pdfFact({ pdfState: { state: "finding", tried: [tried("no-permission")], reason: tried("no-permission") } })).toMatch(/let the owlit extension.*read/)
-    expect(pdfFact({ pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com" } } })).toBe("no PDF yet (owlit is getting it through the user's browser)")
+    expect(fact({ pdfState: { state: "finding", tried: [tried("check")], reason: tried("check") } })).toMatch(/pass a check/)
+    expect(fact({ pdfState: { state: "finding", tried: [tried("no-permission")], reason: tried("no-permission") } })).toMatch(/let the owlit extension.*read/)
+    expect(fact({ pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com" } } })).toBe("no PDF yet (owlit is getting it through the user's browser)")
     // What the extension saw is a reason like any other
-    expect(pdfFact(noPdf("no-access", "extension"))).toMatch(/offered access instead/)
-    expect(pdfFact(noPdf("not-offered", "extension"))).toMatch(/library proxy doesn't offer/)
+    expect(fact(noPdf("no-access", "extension"))).toMatch(/offered access instead/)
+    expect(fact(noPdf("not-offered", "extension"))).toMatch(/library proxy doesn't offer/)
   })
 
   it("says why for each way a try can end, and what the user can do", () => {
-    expect(pdfFact(noPdf("no-copy"))).toMatch(/found no copy.*drop the PDF on the paper/)
-    expect(pdfFact(noPdf("no-access", "you"))).toMatch(/offered access instead.*drop the PDF/)
-    expect(pdfFact(noPdf("not-offered", "you"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
-    expect(pdfFact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
-    expect(pdfFact(noPdf("check"))).toMatch(/stopped owlit with a check.*Get it in your browser.*drop the PDF/)
-    expect(pdfFact(noPdf("sign-in"))).toMatch(/wants a sign-in.*Get it in your browser/)
+    expect(fact(noPdf("no-copy"))).toMatch(/found no copy.*drop the PDF on the paper/)
+    expect(fact(noPdf("no-access", "you"))).toMatch(/offered access instead.*drop the PDF/)
+    expect(fact(noPdf("not-offered", "you"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
+    expect(fact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
+    expect(fact(noPdf("check"))).toMatch(/stopped owlit with a check.*Get it in your browser.*drop the PDF/)
+    expect(fact(noPdf("sign-in"))).toMatch(/wants a sign-in.*Get it in your browser/)
+  })
+
+  it("says the extension could try, for a paper with no PDF, while no browser's extension may connect", () => {
+    expect(pdfFact(noPdf("no-copy"), false)).toMatch(/found no copy.*\(with the owlit extension the user's browser could try; Settings › Papers › Browser extension\)$/)
+    expect(pdfFact(noPdf("no-copy"), true)).not.toMatch(/owlit extension/)
+    // Still finding: nothing to suggest yet
+    expect(pdfFact({ pdfState: { state: "finding", tried: [] } }, false)).toBe("no PDF yet (owlit is looking)")
   })
 })
 

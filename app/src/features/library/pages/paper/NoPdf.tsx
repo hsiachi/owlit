@@ -15,7 +15,7 @@ import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
 import { pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
-import { useExtensionWaits } from "@/features/extension/store"
+import { useExtension, useExtensionWaits } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
@@ -38,9 +38,11 @@ function card(state: CardState, paper: Paper, now: string | undefined): { title:
   switch (state) {
     case "looking":
     case "finding": {
-      // The extension has it: owlit's routes are done, and the publisher is tried through the user's browser
+      // The extension has it: owlit's routes are done, and the publisher is tried through the user's
+      // browser, now or once its turn at the site comes
       const site = s?.extension?.host
-      if (!now && site) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.` }
+      if (!now && site && s?.extension?.fetching) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.` }
+      if (!now && site) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.` }
       return { title: t`Finding a PDF…`, detail: now ? (tried ? t`${tried}; now trying ${now}.` : t`Now trying ${now}.`) : tried ? t`${tried}.` : t`If you already have it, drop it here.` }
     }
     case "for-sign-in":
@@ -125,6 +127,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
 
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
+  // A browser whose extension may connect; until owlit says, as if there were one, so the offer below
+  // doesn't flash on a paper it doesn't belong to
+  const hasExtension = useExtension((s) => !s.view || s.view.paired.length > 0)
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
   const wait = pdfWait(paper) ?? "finding"
@@ -144,6 +149,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
     </Button>
   )
   const linkClass = "text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
+  // Nothing more owlit can try alone: its own routes found no copy, and no extension in the user's
+  // browser may try with their library's access. The publisher's page is a plain link; nothing watches
+  // what happens there.
+  const doi = paper.ids.doi
+  const offerExtension = state === "not-found" && !!doi && !hasExtension
 
   return (
     <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
@@ -171,6 +181,16 @@ export function NoPdf({ paper }: { paper: Paper }) {
             </>
           ) : state === "looking" || state === "finding" ? (
             chooseFile
+          ) : offerExtension ? (
+            <>
+              <Button size="sm" onClick={() => openSettings("extension")}>
+                {t({ message: "Install the extension", comment: "button: opens Settings › Papers › Browser extension, where the owlit extension is installed from" })}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => window.open(`https://doi.org/${doi}`, "_blank", "noreferrer")}>
+                {t({ message: "Open the page", comment: "button: opens the paper's page at its publisher in the user's browser" })}
+              </Button>
+              {chooseFile}
+            </>
           ) : (
             // owlit's own look, which may find another copy
             <>
@@ -180,11 +200,12 @@ export function NoPdf({ paper }: { paper: Paper }) {
           )
         }
       >
+        {offerExtension && <p className="max-w-72 text-sm text-muted-foreground">{t`owlit couldn't get this alone. With the owlit extension, your browser can use your library's access.`}</p>}
         {NO_PDF.has(state) && (
           <p className="max-w-72 text-sm text-muted-foreground">{nextLook ? t`owlit looks again on ${nextDate}` : t`owlit won't look again`}</p>
         )}
-        {/* A publisher's paper may be one sign-in away: say so where the PDF is missing */}
-        {state === "not-found" && paper.ids.doi && proxyMissing && (
+        {/* A publisher's paper may be one sign-in away, through the extension: say so where the PDF is missing */}
+        {state === "not-found" && doi && hasExtension && proxyMissing && (
           <p className="max-w-72 text-sm text-muted-foreground">
             <Trans>
               Your library may have it.{" "}

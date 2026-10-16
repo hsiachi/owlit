@@ -66,6 +66,24 @@ export function standing(tried: readonly PdfTry[]): { state: PdfStanding; reason
 // The extension's fetch stopped where only the user can get through, for every paper of that site
 export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === "check" || t.ended === "sign-in" || t.ended === "no-permission")
 
+// Whether a paper goes to the extension's queue when the extension connects, and the try that says why
+// (whose time orders the queue, oldest first). The queue lives in memory, so after a restart, or before
+// the extension ever asked for work, it holds nothing; this is what fills it again. Taken: a paper still
+// finding while the extension waits for the user at its site, and one with no PDF for owlit's own reason
+// (no copy, or an older record's check or sign-in) that the extension hasn't tried since its last PDF.
+// Not one the extension already judged (no access, not there, its own no copy): owlit's back-off look
+// hands that one over again when it is due.
+export function forExtension(acquisition: Pick<Acquisition, "state" | "tried">): PdfTry | undefined {
+  const { reason } = standing(acquisition.tried)
+  if (!reason) return undefined
+  if (acquisition.state === "finding") return waitsForUser(reason) ? reason : undefined
+  if (acquisition.state !== "no-pdf" || reason.by !== "owlit" || !OWLIT_ONLY.has(reason.ended)) return undefined
+  const sincePdf = acquisition.tried.slice(acquisition.tried.findLastIndex((t) => t.ended === "pdf") + 1)
+  return sincePdf.some((t) => t.by === "extension") ? undefined : reason
+}
+
+const OWLIT_ONLY: ReadonlySet<PdfTry["ended"]> = new Set(["no-copy", "check", "sign-in"])
+
 const saysLess = (later: PdfTry, earlier: PdfTry) =>
   later.by === "owlit" && ((later.ended === "no-copy" && earlier.ended !== "no-copy") || ((later.ended === "check" || later.ended === "sign-in") && earlier.by !== "owlit"))
 
@@ -80,13 +98,10 @@ export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "l
 
 // Whether the daily look takes the paper now: a paper with no PDF once its back-off is over, and one
 // still finding because nothing could be reached, which has no back-off to wait for. One waiting for the
-// user at the extension's site goes too: the extension's queue lives in memory, so after a restart this
-// look is what hands the paper to it again (and the site's line comes back if it still needs the user).
+// user at the extension's site isn't: owlit's own routes found nothing for it already, and the extension's
+// queue takes it again when the extension connects (forExtension).
 export function lookDue(acquisition: Pick<Acquisition, "state" | "tried" | "looks">, now: number) {
-  if (acquisition.state === "finding") {
-    const { reason } = standing(acquisition.tried)
-    return acquisition.tried.at(-1)?.ended === "offline" || (!!reason && waitsForUser(reason))
-  }
+  if (acquisition.state === "finding") return acquisition.tried.at(-1)?.ended === "offline"
   const next = nextLookAt(acquisition)
   // A little early is fine: a look that ran at 9:05 yesterday is due at 9:00 today
   return next !== undefined && now >= next - 60 * 60 * 1000

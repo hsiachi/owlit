@@ -84,6 +84,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
   switch (tool) {
     case "library_list": {
       const { papers } = await owlit.rpc.library.list()
+      const extension = await hasExtension(owlit)
       let chosen = papers
       if (args.query) {
         const hits = await owlit.rpc.search.papers({ q: str("query") })
@@ -95,7 +96,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const shown = chosen.slice(0, num("limit") ?? 50)
       if (!shown.length) return args.query ? "No paper in the library matches that." : "The library is empty."
       const more = chosen.length > shown.length ? `\n(${chosen.length - shown.length} more)` : ""
-      return shown.map(paperLine).join("\n") + more
+      return shown.map((p) => paperLine(p, extension)).join("\n") + more
     }
     case "library_get": {
       const { papers, notes } = await owlit.rpc.library.list()
@@ -111,7 +112,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         {
           ...paper,
           pdf: !!paper.pdf,
-          ...(paper.pdf ? {} : { noPdf: pdfFact(paper) }),
+          ...(paper.pdf ? {} : { noPdf: pdfFact(paper, await hasExtension(owlit)) }),
           highlights: highlights.length,
           note: notes.some((n) => n.paperId === paper.id && n.content.trim()),
           cite: `[${citeAs(paper)}](owlit://library/${paper.id})`,
@@ -465,12 +466,12 @@ function anchorOf(content: string, quote: string) {
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-function paperLine(p: Paper) {
+function paperLine(p: Paper, extension: boolean) {
   const facts = [
     p.status,
     p.starred ? "starred" : "",
     p.tags.length ? `tags: ${p.tags.join(" ")}` : "",
-    pdfFact(p),
+    pdfFact(p, extension),
     p.text === "full" ? "full text" : "",
     p.hasDigest ? "digest" : "",
   ].filter(Boolean)
@@ -506,7 +507,11 @@ const WAITS: Record<ExtensionWait["kind"], string> = {
 }
 const WAITED: Partial<Record<PdfEnded, keyof typeof WAITS>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
 
-export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">) {
+// Without a browser extension allowed to connect, owlit has nothing more to try: an agent can say what
+// would. extension: one is (or owlit couldn't say).
+const NO_EXTENSION = " (with the owlit extension the user's browser could try; Settings › Papers › Browser extension)"
+
+export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) {
   if (p.pdf) return ""
   const s = p.pdfState
   if (!s || s.state === "finding") {
@@ -516,7 +521,14 @@ export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">) {
     if (s?.extension) return "no PDF yet (owlit is getting it through the user's browser)"
     return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
   }
-  return BY_ENDED[s.reason?.ended ?? "no-copy"]
+  return BY_ENDED[s.reason?.ended ?? "no-copy"] + (extension ? "" : NO_EXTENSION)
+}
+
+// Whether the user allowed a browser's extension to connect; true when owlit couldn't say, so nothing
+// is suggested on a guess
+async function hasExtension(owlit: OwlitClient) {
+  const view = await owlit.rpc.extension.get().catch(() => undefined)
+  return !view || view.paired.length > 0
 }
 
 function shortAuthors(authors: string[]) {

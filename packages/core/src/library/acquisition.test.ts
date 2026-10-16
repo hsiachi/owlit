@@ -1,6 +1,6 @@
 import type { PdfTry } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { lookDue, migrate, standing, type AcquisitionV1 } from "./acquisition.ts"
+import { forExtension, lookDue, migrate, standing, type AcquisitionV1 } from "./acquisition.ts"
 
 const owlit = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "owlit", ended, at, ...extra })
 const extension = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "extension", ended, at, ...extra })
@@ -63,10 +63,26 @@ describe("a paper the extension tried", () => {
     expect(standing([owlit("no-copy", 1), extension("no-copy", 2)])).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended: "no-copy" } })
   })
 
-  it("is looked at again by the daily look while it waits, so a restart hands it back to the extension", () => {
+  it("is left to the extension's queue while it waits, not to the daily look", () => {
     const tried = [owlit("no-copy", 1), extension("check", 2)]
-    expect(lookDue({ state: "finding", tried }, 3)).toBe(true)
-    expect(lookDue({ state: "finding", tried: [owlit("no-copy", 1)] }, 3)).toBe(false)
+    expect(lookDue({ state: "finding", tried }, 3)).toBe(false)
+    expect(forExtension({ state: "finding", tried })).toMatchObject({ by: "extension", ended: "check" })
+  })
+
+  it("goes to the extension when it connects only where owlit alone has tried since the last PDF", () => {
+    expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1)] })).toMatchObject({ by: "owlit", ended: "no-copy", at: 1 })
+    // An older record's check that stopped owlit itself
+    expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), owlit("check", 2)] })).toMatchObject({ ended: "check", at: 2 })
+    // The extension judged it: its back-off look hands it over again, not a connect
+    expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), extension("no-access", 2)] })).toBeUndefined()
+    expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), extension("no-copy", 2), owlit("no-copy", 3)] })).toBeUndefined()
+    // The user's browser said no
+    expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), you("no-access", 2)] })).toBeUndefined()
+    // A PDF that was had and is gone: the extension's tries before it don't count
+    expect(forExtension({ state: "no-pdf", tried: [extension("no-access", 1), extension("pdf", 2), owlit("no-copy", 3)] })).toMatchObject({ at: 3 })
+    expect(forExtension({ state: "have-it", tried: [owlit("pdf", 1)] })).toBeUndefined()
+    expect(forExtension({ state: "finding", tried: [owlit("offline", 1)] })).toBeUndefined()
+    expect(forExtension({ state: "finding", tried: [] })).toBeUndefined()
   })
 })
 

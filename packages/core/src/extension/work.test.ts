@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { ExtensionWork, GAP_MS, PROXY_GAP_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, PROXY_GAP_MS } from "./work.ts"
 
 const library = {} as Library
 const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {}): ExtensionPaper => ({ paperId, url: `https://${host}/doi/${paperId}`, host, proxied: false, ...extra })
@@ -8,11 +8,12 @@ const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {
 function setup() {
   const heard: string[][] = []
   let waitsChanged = 0
-  const work = new ExtensionWork({ papers: (_, ids) => heard.push(ids), waits: () => waitsChanged++ })
+  const connects: Library[] = []
+  const work = new ExtensionWork({ papers: (_, ids) => heard.push(ids), waits: () => waitsChanged++, connected: (library) => void connects.push(library) })
   const never = new AbortController().signal
   // What one GET /work hands out, when nothing has to wait for the gap
   const take = (hold = 0) => work.take(library, hold, never)
-  return { work, heard, take, waitsChanged: () => waitsChanged, never }
+  return { work, heard, take, waitsChanged: () => waitsChanged, never, connects }
 }
 
 beforeEach(() => {
@@ -138,6 +139,25 @@ describe("the extension's queue", () => {
     expect(again.paperId).toBe("a1")
     expect(again.id).not.toBe(lost.id)
     expect(work.paperOf(lost.id)).toBeUndefined()
+  })
+
+  it("has the library hand over what waits when the extension connects, after being away, or for another workspace", async () => {
+    const { work, take, connects } = setup()
+    await take()
+    // Connected now: the library is asked once, before anything was due
+    expect(connects).toEqual([library])
+    expect(work.connected()).toBe(true)
+    vi.advanceTimersByTime(CONNECTED_MS - 1)
+    await take()
+    expect(connects).toHaveLength(1)
+    // Away a while (the browser closed): what the plain routes missed meanwhile went nowhere
+    vi.advanceTimersByTime(CONNECTED_MS)
+    expect(work.connected()).toBe(false)
+    await take()
+    expect(connects).toHaveLength(2)
+    const other = {} as Library
+    await work.take(other, 0, new AbortController().signal)
+    expect(connects).toEqual([library, library, other])
   })
 
   it("starts afresh for another workspace's library", async () => {

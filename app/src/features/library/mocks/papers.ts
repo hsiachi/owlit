@@ -324,16 +324,19 @@ export const seedPapers: Paper[] = [
   },
 ]
 
-// One paper for each place getting a PDF can stand, for the No PDF view and the card
+// One paper for each place getting a PDF can stand, for the No PDF view and the card. ?extension=none
+// shows the cards as they are without the extension (features/extension/store.ts)
 const pdfStates: [string, string, PdfState][] = [
   ["Finding", "10.1145/3613904.3642001", { state: "finding", tried: [] }],
   ["Waiting for the network", "10.1145/3613904.3642002", { state: "finding", tried: [{ by: "owlit", ended: "offline", at: daysAgo(0.1) }], reason: { by: "owlit", ended: "offline", at: daysAgo(0.1) } }],
-  ["No access through the library", "10.1145/3613904.3642003", noPdf({ by: "you", ended: "no-access", at: daysAgo(1), host: "dl.acm.org", title: "Proceedings of CHI" })],
-  ["Not offered by the library", "10.1177/0956797620904990", noPdf({ by: "you", ended: "not-offered", at: daysAgo(1), host: "tlink.lib.tsinghua.edu.cn", title: "Unauthorized" })],
-  ["Not there", "10.1037/a0017908", noPdf({ by: "owlit", ended: "not-there", at: daysAgo(1), host: "psycnet.apa.org", title: "DOI Not Found", route: "browser:doi" })],
-  ["Stopped by a check", "10.1177/0956797619877311", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "journals.sagepub.com", route: "browser:sage" })],
-  ["Wants a sign-in", "10.1016/j.cell.2020.01.001", noPdf({ by: "owlit", ended: "sign-in", at: daysAgo(1), host: "www.sciencedirect.com", route: "browser:elsevier:proxied" })],
-  ["Through your browser", "10.1177/0956797621991137", withExtension("sagepub.com")],
+  ["Not found by owlit's routes", "10.1145/3613904.3642004", noPdf()],
+  ["No access through the library", "10.1145/3613904.3642003", noPdf({ by: "extension", ended: "no-access", at: daysAgo(1), host: "dl.acm.org", title: "Proceedings of CHI" })],
+  ["Not offered by the library", "10.1177/0956797620904990", noPdf({ by: "extension", ended: "not-offered", at: daysAgo(1), host: "tlink.lib.tsinghua.edu.cn", title: "Unauthorized" })],
+  ["Not there", "10.1037/a0017908", noPdf({ by: "extension", ended: "not-there", at: daysAgo(1), host: "psycnet.apa.org", title: "DOI Not Found" })],
+  ["Stopped owlit with a check, in an older record", "10.1177/0956797619877311", noPdf({ by: "owlit", ended: "check", at: daysAgo(1), host: "journals.sagepub.com", route: "browser:sage" })],
+  ["Wanted a sign-in, in an older record", "10.1016/j.cell.2020.01.001", noPdf({ by: "owlit", ended: "sign-in", at: daysAgo(1), host: "www.sciencedirect.com", route: "browser:elsevier:proxied" })],
+  ["Through your browser now", "10.1177/0956797621991137", { ...withExtension("sagepub.com"), extension: { host: "sagepub.com", fetching: true } }],
+  ["In line for your browser", "10.1177/0956797621991138", withExtension("sagepub.com")],
   ["Waiting for the library sign-in", "10.1177/0956797620927648", withExtension("tlink.lib.tsinghua.edu.cn", { by: "extension", ended: "sign-in", at: daysAgo(0.2), host: "tlink.lib.tsinghua.edu.cn", title: "清华大学图书馆" }, "sign-in")],
   ["Behind it in line", "10.1177/0956797620959014", withExtension("tlink.lib.tsinghua.edu.cn", undefined, "sign-in")],
   ["Waiting for a check", "10.1080/09658211.2020.1846562", withExtension("tandfonline.com", { by: "extension", ended: "check", at: daysAgo(0.1), host: "www.tandfonline.com", title: "Just a moment..." }, "check")],
