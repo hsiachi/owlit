@@ -44,6 +44,10 @@ export class DocsOwlit {
     return this.change(rel, (entry) => ({ ...entry, looked }))
   }
 
+  setWentThrough(rel: string, wentThrough: { at: number; record: string }) {
+    return this.change(rel, (entry) => ({ ...entry, wentThrough }))
+  }
+
   setHalfDone(rel: string, halfDone: Record<string, number>) {
     return this.change(rel, (entry) => {
       const { halfDone: _was, ...rest } = entry

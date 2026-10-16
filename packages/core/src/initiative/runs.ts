@@ -11,5 +11,9 @@ export const SCAN_RUN = "docs.scan"
 // Owlit's comments that lean on a paper the user has now read in full, looked at again
 export const RECHECK_RUN = "docs.recheck"
 
+// Material from people (a meeting, reviews) gone through against the docs: a record beside it, the points
+// as comments carried over from it
+export const GO_THROUGH_RUN = "meetings.goThrough"
+
 // Runs that write Owlit's comments through docs_add_comment, by the prefix of the run id they sign with
-export const COMMENTING_RUNS = [REVIEW_RUN, SETTLED_REVIEW_RUN, SCAN_RUN] as const
+export const COMMENTING_RUNS = [REVIEW_RUN, SETTLED_REVIEW_RUN, SCAN_RUN, GO_THROUGH_RUN] as const

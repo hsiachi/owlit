@@ -9,7 +9,8 @@ import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt, relatePr
 // The owner rules for what it writes are core's, not the skill's: a skill only narrows the tools.
 
 // What a run may change, always through core and signed as Owlit's
-export type SkillWrite = "digest" | "thread" | "paper" | "comment"
+// record: a new doc of Owlit's own beside the material it went through (Go through)
+export type SkillWrite = "digest" | "thread" | "paper" | "comment" | "record"
 
 export interface Skill<I> {
   id: string

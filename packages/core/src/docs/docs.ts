@@ -117,6 +117,11 @@ export class Docs {
     return this.serial.run(() => this.owlit.setHalfDone(this.check(rel), halfDone))
   }
 
+  // Owlit went through this material (a meeting's transcript, reviews) and wrote record
+  setWentThrough(rel: string, wentThrough: { at: number; record: string }) {
+    return this.serial.run(() => this.owlit.setWentThrough(this.check(rel), wentThrough))
+  }
+
   // When Owlit last looked over all the docs (its daily look)
   scannedAt() {
     return this.owlit.scannedAt()
@@ -361,6 +366,11 @@ export class Docs {
       if (content !== null) out.push({ path: p, content })
     }
     return out
+  }
+
+  // The path "<folder>/<stem><ext>", or the first "<stem> 2<ext>"… after it that nothing is at
+  freePath(folder: string, stem: string, ext: string) {
+    return uniquePath(folder, cleanName(stem) || "Untitled", ext, this.taken())
   }
 
   // A file's text on disk, or null when there is none

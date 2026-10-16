@@ -63,6 +63,9 @@ export interface DocComment {
   // One of Owlit's comments it folded away itself: the words it was on changed and nobody answered it in
   // a week. Not shown; kept with the doc's comments as history
   foldedAt?: number
+  // Carried over from a record of what people said (a meeting, reviews): its first entry is the point as
+  // they made it, placed by Owlit; a second entry by Owlit is Owlit's own word on it. path is the record
+  source?: { path: string; label: string }
 }
 
 export interface CommentEntry {
@@ -127,6 +130,8 @@ export interface DocOwlit {
   // Sections Owlit's daily look found half done (an empty heading, a TODO), by a hash of the heading,
   // with when it first found each so: one still half done a week later gets a comment, once
   halfDone?: Record<string, number>
+  // Material Owlit went through (a meeting's transcript, reviews): when, and the record it wrote
+  wentThrough?: { at: number; record: string }
 }
 
 // Owlit's last look at a doc: when, the doc's modification time it read, and what came of it
