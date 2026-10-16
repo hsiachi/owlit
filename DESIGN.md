@@ -424,7 +424,7 @@ owlit's visual system: the tokens above, mirrored in `app/src/index.css` (the so
 
 1. **Paper, not steel.** Every neutral carries a faint warm tint, so greys read as paper and text reads as ink. Surfaces are opaque and step lighter from the back of the window to the front: frame, panel, sheet, card, popover. The brightest thing on a screen is what you read or act on. Depth is told by that lightness, then a hairline, and only what floats gets a shadow.
 2. **Quiet by default.** A row at rest is its name and one line of muted detail. Actions appear on hover, focus or an open menu. Nothing is counted in a badge; a count that earns its place is a muted number at the end of a line. A finished thing goes quiet.
-3. **One ladder of states, one mark per rung.** Everything that can have a state uses the same marks: *fine* is nothing at all; *working* is a quiet grey (a breathing ring, a shimmer on the words, a muted spinner); *changed since you last looked*, only for what Owlit did, is Owlit's dot, gone once seen; *waiting on you* is the `warning` dot; *broken* is `destructive` red. A row that waits or is broken also says so in words (Waiting, Stopped), so the rungs that need the person never rest on colour alone. Each rung is its own hue, so no rung is told from another by a shade.
+3. **One ladder of states, one mark per rung.** Everything that can have a state uses the same marks: *fine* is nothing at all; *working* is a quiet grey (a breathing ring, a shimmer on the words, a muted spinner); *changed since you last looked*, only for what Owlit did, is Owlit's dot, gone once seen; *waiting on you* is the `warning` dot; *broken* is `destructive` red. A row that waits or is broken also says so in words (Waiting, Stopped), so the rungs that need the person never rest on colour alone. Each rung is its own hue. A shade may say how much, never which: an unread paper's mention at 62% and Owlit's two greens are one meaning at two strengths.
 4. **Every colour says one thing.** Neutrals carry the whole interface. Each other colour has a single meaning and draws marks (words, dots, rules, underlines), never washes. Paper tones never touch a mark. Two states that both matter are never told apart by colour alone.
 5. **Three voices stay apart.** What you wrote, what a paper says and what Owlit thinks are drawn differently and signed. Everything Owlit's hand changes on your things is one green (`owlit`, and `owlit-mark` for its dots), signed "Owlit". The agent underneath is named only where it is picked, and its own output is quoted as a detail, in monospace, never as the answer. A comment is a remark beside the words, not a change to them, so it has its own colour (`comment-mark`) whoever made it, and each entry is signed in ink, Owlit's too.
 
@@ -589,7 +589,7 @@ Do:
 Don't:
 
 - Mark a healthy state with a dot, a ring, a label or "Connected" (rule 3).
-- Tell two rungs of rule 3 apart by a shade of one hue, or use red for anything the person chose.
+- Tell two states apart by a shade of one hue (rule 3), or use red for anything the person chose.
 - Put a shield or a triangle beside words that already say something waits.
 - Count, group or badge what Owlit did; its dot is the whole mark, and nothing Owlit wrote carries an accept, confirm or triage control.
 - Show an agent's or a library's words as the answer or the error; quote them as a detail.
