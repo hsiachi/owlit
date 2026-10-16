@@ -21,6 +21,7 @@ import {
   type HighlightColor,
   type MemoryKind,
   type Paper,
+  type ExtensionWait,
   type PdfEnded,
   type ToolSpec,
 } from "@owlit/protocol"
@@ -493,13 +494,29 @@ const BY_ENDED: Record<PdfEnded, string> = {
   // Not reasons for having no PDF; core never gives them as one
   pdf: `no PDF; ${DROP}`,
   offline: `no PDF yet (waiting for the network)`,
-  "no-permission": `no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site (Home says so)`,
+  // The extension's ending, never a reason for no PDF: such a paper is still finding (WAITS)
+  "no-permission": `no PDF yet; ${DROP}`,
 }
+
+// A paper still finding while the owlit extension in the user's browser waits at its site for them: one
+// sign-in, check or permission there covers every paper waiting at that site
+const WAITS: Record<ExtensionWait["kind"], string> = {
+  "sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
+  check: "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
+  permission: "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
+}
+const WAITED: Partial<Record<PdfEnded, keyof typeof WAITS>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
 
 export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">) {
   if (p.pdf) return ""
   const s = p.pdfState
-  if (!s || s.state === "finding") return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
+  if (!s || s.state === "finding") {
+    // The extension's queue says where it is now; its last try says so before the queue has it again
+    const waits = s?.extension ? s.extension.waits : s?.reason?.by === "extension" ? WAITED[s.reason.ended] : undefined
+    if (waits) return WAITS[waits]
+    if (s?.extension) return "no PDF yet (owlit is getting it through the user's browser)"
+    return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
+  }
   return BY_ENDED[s.reason?.ended ?? "no-copy"]
 }
 
