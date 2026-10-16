@@ -5,79 +5,12 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, onTestFinished } from "vitest"
 import { Core } from "../core.ts"
-import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost, type BrowserRequest, type Host } from "../host.ts"
+import type { BrowserControl, Host } from "../host.ts"
 import { makePdf } from "./text/make-pdf.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { browserRoutes, extensionRoute, pdfFromLanded, pdfLinkOn, signInWatch, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
-import { ACCESS_OFFER, pageVerdict } from "./where-it-ended.ts"
+import { extensionRoute, siteOf, throughProxy, yourBrowser } from "./browser-routes.ts"
 
-const PDF = Buffer.from("%PDF-1.4\n%%EOF\n")
-
-describe("library sign-in window", () => {
-  const pages = (entry: string, seen: [string, boolean?][]) => {
-    const watch = signInWatch(entry)
-    return seen.map(([url, asking]) => watch({ url, asking: !!asking }))
-  }
-
-  it("is over once the university's login sent you back to the proxy", () => {
-    expect(
-      pages("https://tlink.lib.tsinghua.edu.cn", [
-        ["about:blank"],
-        ["https://tlink.lib.tsinghua.edu.cn/"],
-        ["https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/abc", true],
-        ["https://id.tsinghua.edu.cn/do/off/ui/auth/login/check"],
-        ["https://tlink.lib.tsinghua.edu.cn/"],
-        ["https://tlink.lib.tsinghua.edu.cn/"],
-      ]),
-    ).toEqual([false, false, false, false, false, true])
-  })
-
-  it("is over after a password on the proxy's own login page", () => {
-    expect(
-      pages("https://ezproxy.example.edu", [
-        ["https://ezproxy.example.edu/login", true],
-        ["https://ezproxy.example.edu/login"],
-        ["https://ezproxy.example.edu/menu"],
-        ["https://ezproxy.example.edu/menu"],
-      ]),
-    ).toEqual([false, false, false, true])
-  })
-
-  it("waits while a page asks again or the proxy is still on a login path", () => {
-    expect(
-      pages("https://ezproxy.example.edu", [
-        ["https://idp.example.edu/sso", true],
-        ["https://ezproxy.example.edu/menu"],
-        ["https://ezproxy.example.edu/menu", true],
-        ["https://ezproxy.example.edu/menu"],
-        ["https://ezproxy.example.edu/menu"],
-      ]),
-    ).toEqual([false, false, false, false, true])
-  })
-
-  it("leaves an already signed-in proxy for you to close", () => {
-    expect(pages("https://tlink.lib.tsinghua.edu.cn", [["https://tlink.lib.tsinghua.edu.cn/"], ["https://tlink.lib.tsinghua.edu.cn/"], ["https://tlink.lib.tsinghua.edu.cn/"]])).toEqual([false, false, false])
-  })
-})
-
-describe("browser routes", () => {
-  it("goes to the publisher's page, then through the proxy", () => {
-    const routes = browserRoutes("10.1177/0956797620904990", { base: "https://tlink.lib.tsinghua.edu.cn/", scheme: "login-url", path: "/go" })
-    expect(routes.map((r) => [r.name, r.landing, r.pdf])).toEqual([
-      ["browser:sage", "https://journals.sagepub.com/doi/10.1177/0956797620904990", "https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990"],
-      ["browser:sage:proxied", "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/0956797620904990", "https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990"],
-    ])
-    expect(routes[1].allowHosts).toContain("tlink.lib.tsinghua.edu.cn")
-    expect(routes[0].browserOnly).toBeUndefined()
-    expect(browserRoutes("10.9999/x", undefined)).toMatchObject([{ name: "browser:doi", landing: "https://doi.org/10.9999/x" }])
-  })
-
-  it("leaves the ACM to the user's own browser alone", () => {
-    const routes = browserRoutes("10.1145/3613904.3642549", { base: "https://tlink.lib.tsinghua.edu.cn/", scheme: "login-url", path: "/go" })
-    expect(routes).toHaveLength(1)
-    expect(routes[0]).toMatchObject({ name: "browser:acm", browserOnly: true })
-  })
-
+describe("where a browser goes for a paper", () => {
   it("sends the extension to the publisher's page and PDF, through the proxy where it is set", () => {
     const tlink = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url" as const, path: "/go" }
     expect(extensionRoute("10.1177/0956797620904990", undefined)).toEqual({
@@ -120,41 +53,20 @@ describe("browser routes", () => {
     expect(yourBrowser("10.1007/s10586-023-04231-3")).toMatchObject({ url: "https://link.springer.com/article/10.1007/s10586-023-04231-3", opens: "page" })
   })
 
-  it("follows the site a DOI is registered to, and lets the page go there", () => {
+  it("follows the site a DOI is registered to", () => {
     // A journal that moved to SAGE keeps its 10.1111 (Wiley) DOIs
-    expect(browserRoutes("10.1111/j.0963-7214.2005.00355.x", undefined, "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x")).toMatchObject([
-      { name: "browser:sage", landing: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x", pdf: "https://journals.sagepub.com/doi/pdf/10.1111/j.0963-7214.2005.00355.x" },
-    ])
-    // ACL's old DOIs live in the ACM's library
-    expect(browserRoutes("10.3115/1654595.1654614", undefined, "http://portal.acm.org/citation.cfm?doid=1654595.1654614")[0]).toMatchObject({ name: "browser:acm", landing: "https://dl.acm.org/doi/10.3115/1654595.1654614" })
-    // One that moved to OUP, which has no row: through doi.org, and OUP may be visited
-    const oup = browserRoutes("10.1007/s12160-016-9830-8", undefined, "https://academic.oup.com/abm/article/52/6/446/4733473")[0]
-    expect(oup).toMatchObject({ name: "browser:doi", landing: "https://doi.org/10.1007/s12160-016-9830-8" })
-    expect(oup.allowHosts).toContain("oup.com")
-    // doi.org sending the reader to BMJ or APA doesn't stop at a host it doesn't know
-    expect(browserRoutes("10.1136/qhc.12.4.304", undefined, "https://qualitysafety.bmj.com/lookup/doi/10.1136/qhc.12.4.304")[0].allowHosts).toContain("bmj.com")
-    expect(browserRoutes("10.1037/0022-3514.54.4.569", undefined, "https://doi.apa.org/doi/10.1037/0022-3514.54.4.569")[0].allowHosts).toContain("apa.org")
-    // Not known: the prefix decides, as before
-    expect(browserRoutes("10.1111/x", undefined)[0].name).toBe("browser:wiley")
+    expect(extensionRoute("10.1111/j.0963-7214.2005.00355.x", undefined, "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x")).toMatchObject({
+      url: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x",
+      pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1111/j.0963-7214.2005.00355.x",
+      host: "sagepub.com",
+    })
+    // ACL's old DOIs live in the ACM's library, and ACM's own 10.5555 ones too
+    expect(extensionRoute("10.3115/1654595.1654614", undefined, "http://portal.acm.org/citation.cfm?doid=1654595.1654614")).toMatchObject({ url: "https://dl.acm.org/doi/10.3115/1654595.1654614", host: "acm.org" })
+    expect(extensionRoute("10.5555/2034396.2034432", undefined)).toMatchObject({ url: "https://dl.acm.org/doi/10.5555/2034396.2034432", host: "acm.org" })
+    // Not known: the prefix decides
+    expect(extensionRoute("10.1111/x", undefined)).toMatchObject({ host: "wiley.com" })
     expect(siteOf("www.ncbi.nlm.nih.gov")).toBe("nih.gov")
     expect(siteOf("www.ucl.ac.uk")).toBe("ucl.ac.uk")
-  })
-
-  it("takes the page's own PDF link when it has no citation_pdf_url", () => {
-    // APA PsycNet's full-text page, as captured from the site
-    const page = "https://psycnet.apa.org/fulltext/2025-04548-001.html"
-    expect(
-      pdfLinkOn(page, [
-        { text: "Supplemental Materials", href: "https://supp.apa.org/psycarticles/supplemental/xap0000515/supp.pdf" },
-        { text: "\n  PDF\n", href: "https://psycnet.apa.org/fulltext/2025-04548-001.pdf" },
-      ]),
-    ).toBe("https://psycnet.apa.org/fulltext/2025-04548-001.pdf")
-    expect(pdfLinkOn("https://example.org/article/1", [{ text: "Download PDF", href: "/article/1.pdf" }])).toBe("https://example.org/article/1.pdf")
-    // Only a link labelled PDF, to a .pdf on the page's own site
-    expect(pdfLinkOn(page, [{ text: "PDF", href: "https://elsewhere.com/a.pdf" }])).toBeUndefined()
-    expect(pdfLinkOn(page, [{ text: "Author guidelines (PDF)", href: "https://psycnet.apa.org/guide.pdf" }])).toBeUndefined()
-    expect(pdfLinkOn(page, [{ text: "PDF", href: "https://psycnet.apa.org/buy?item=1" }])).toBeUndefined()
-    expect(pdfLinkOn(page, [{ text: "PDF", href: "javascript:void(0)" }])).toBeUndefined()
   })
 
   it("rewrites a host for an EZproxy that works by host names", () => {
@@ -170,21 +82,7 @@ afterEach(async () => {
   await Promise.all(cores.splice(0).map((c) => c.dispose()))
 })
 
-// A browser that answers by route: a PDF, an error, or a challenge first
-function fakeBrowser(answer: (request: BrowserRequest) => Promise<Uint8Array>) {
-  const asked: BrowserRequest[] = []
-  const browser: BrowserHost = {
-    fetchPdf: (request) => {
-      asked.push(request)
-      return answer(request)
-    },
-    showLogin: async () => {},
-  }
-  return { browser, asked }
-}
-
 async function setup(
-  browser: BrowserHost,
   library: object = {},
   registered: Record<string, string> = {},
   more: { serve?: (url: string, init?: RequestInit) => Response | undefined; host?: Partial<Host> } = {},
@@ -201,7 +99,7 @@ async function setup(
     if (registered[doi]) return Response.json({ responseCode: 1, values: [{ type: "URL", data: { value: registered[doi] } }] })
     return more.serve?.(url, init) ?? new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })
   }) as unknown as typeof globalThis.fetch
-  const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch, browser, ...more.host }, retryBaseMs: 1 })
+  const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch, ...more.host }, retryBaseMs: 1 })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -216,123 +114,6 @@ async function setup(
 
 const sage = { id: "doi-10.1177-0956797620904990", title: "Paywalled", authors: [], ids: { doi: "10.1177/0956797620904990" } }
 
-describe("paper.pdf.browser", () => {
-  it("gets the PDF in the browser once the plain routes fail", async () => {
-    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
-    const { root, call } = await setup(browser)
-    await call("library.add", { paper: sage })
-    const paper = await call("library.fetchPdf", { id: sage.id })
-    expect(paper.pdf).toBeDefined()
-    expect(asked[0]).toMatchObject({ landing: "https://journals.sagepub.com/doi/10.1177/0956797620904990", pdf: "https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990", pdfOnPageHost: false })
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ state: "have-it", route: "browser:sage" })
-    expect(acquisition.tried.map((t: { route: string; ended: string }) => `${t.route} ${t.ended}`)).toEqual(["publisher:sage no-copy", "browser:sage pdf"])
-  })
-
-  it("goes where the DOI is registered rather than where its prefix says", async () => {
-    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
-    const moved = { id: "doi-10.1111-j.0963-7214.2005.00355.x", title: "Affective Forecasting", authors: [], ids: { doi: "10.1111/j.0963-7214.2005.00355.x" } }
-    const { call } = await setup(browser, {}, { [moved.ids.doi]: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x" })
-    await call("library.add", { paper: moved })
-    expect((await call("library.fetchPdf", { id: moved.id })).pdf).toBeDefined()
-    expect(asked[0]).toMatchObject({ landing: "https://journals.sagepub.com/doi/10.1111/j.0963-7214.2005.00355.x" })
-    expect(asked[0].allowHosts).toContain("sagepub.com")
-  })
-
-  it("tries the proxy when the publisher's page gives nothing directly", async () => {
-    const { browser, asked } = fakeBrowser(async (request) => {
-      if (!request.landing.includes("tlink")) throw new Error("The page had no PDF for this reader.")
-      return new Uint8Array(PDF)
-    })
-    const { root, call } = await setup(browser, { proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" } })
-    await call("library.add", { paper: sage })
-    expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
-    expect(asked.map((r) => r.pdfOnPageHost)).toEqual([false, true])
-    expect(asked.map((r) => r.proxyHost)).toEqual([undefined, "tlink.lib.tsinghua.edu.cn"])
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition.route).toBe("browser:sage:proxied")
-  })
-
-  it("marks the proxy signed out when a run finds its sign-in page, and signed in when a PDF comes through it", async () => {
-    let signedIn = false
-    const { browser } = fakeBrowser(async (request) => {
-      if (!request.proxyHost) throw new Error("The page had no PDF for this reader.")
-      if (!signedIn) throw new NeedsUser("login", request.proxyHost)
-      return new Uint8Array(PDF)
-    })
-    const proxy = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" }
-    const { call } = await setup(browser, { proxy, proxySignedInAt: 1 })
-    await call("library.add", { paper: sage })
-    // The proxy's sign-in stands for the publisher behind it
-    expect((await call("library.fetchPdf", { id: sage.id })).pdfState).toMatchObject({ state: "no-pdf", reason: { ended: "sign-in", host: "journals.sagepub.com", route: "browser:sage:proxied" } })
-    await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeUndefined()
-    signedIn = true
-    expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
-    await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeGreaterThan(1)
-  })
-
-  it("leaves a page that wants a person to the user's own browser instead of waiting", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge")
-    })
-    const { root, call, heard } = await setup(browser)
-    await call("library.add", { paper: sage })
-    const paper = await call("library.fetchPdf", { id: sage.id })
-    expect(paper.pdf).toBeUndefined()
-    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check", route: "browser:sage" } })
-    expect(heard.filter((t) => t.kind === "paper.pdf.browser").map((t) => t.state)).not.toContain("waiting_for_you")
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition.tried.at(-1)).toMatchObject({ by: "owlit", ended: "check", route: "browser:sage" })
-  })
-
-  it("once a run the user waited on gets through, gets the same publisher's other papers by itself", async () => {
-    // Their turns at the site are spaced out; here, not at all
-    process.env.OWLIT_VISIT_GAP_MS = "0"
-    onTestFinished(() => void delete process.env.OWLIT_VISIT_GAP_MS)
-    // The site's check lets owlit's browser through again after a while
-    let passed = false
-    const { browser, asked } = fakeBrowser(async (request) => {
-      const host = new URL(request.landing).hostname
-      if (!passed || host !== "journals.sagepub.com") throw new NeedsUser("challenge", host)
-      return new Uint8Array(PDF)
-    })
-    const sibling = { id: "doi-10.1177-0956797619877311", title: "Same publisher", authors: [], ids: { doi: "10.1177/0956797619877311" } }
-    const other = { id: "doi-10.1080-09658211.2011.605591", title: "Another publisher", authors: [], ids: { doi: "10.1080/09658211.2011.605591" } }
-    const { root, call } = await setup(browser)
-    for (const paper of [sage, sibling, other]) {
-      await call("library.add", { paper })
-      await call("library.fetchPdf", { id: paper.id })
-    }
-    const newest = (id: string) => JSON.parse(readFileSync(path.join(root, "library/papers", id, "acquisition.json"), "utf8")).tried.at(-1)
-    expect(newest(sage.id)).toMatchObject({ ended: "check", host: "journals.sagepub.com" })
-    passed = true
-    // Try again on the paper: a visit now, whatever the hold
-    expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
-    let papers: Record<string, { pdf?: unknown; pdfState?: unknown }> = {}
-    for (let i = 0; i < 100; i++) {
-      papers = Object.fromEntries((await call("library.list")).papers.map((p: { id: string }) => [p.id, p]))
-      if (papers[sibling.id]?.pdf) break
-      await new Promise((r) => setTimeout(r, 20))
-    }
-    expect(papers[sibling.id].pdf).toBeDefined()
-    expect(papers[other.id]).toMatchObject({ pdfState: { reason: { ended: "check" } } })
-    expect(asked.filter((r) => r.landing.includes("tandfonline") || r.landing.includes("10.1080"))).toHaveLength(1)
-  })
-
-  it("ends with no PDF, saying what it tried", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new Error("Gave up waiting for the sign-in after 5 minutes.")
-    })
-    const { root, call } = await setup(browser)
-    await call("library.add", { paper: sage })
-    const paper = await call("library.fetchPdf", { id: sage.id })
-    expect(paper.pdfState.tried.map((t: { route: string }) => t.route)).toEqual(["publisher:sage", "browser:sage"])
-    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { ended: "no-copy", route: "browser:sage" } })
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ state: "no-pdf" })
-  })
-})
-
 // Polls until check() holds; owlit's own work, not the clock, decides how long that takes
 async function until<T>(check: () => Promise<T | undefined | false>): Promise<T> {
   for (let i = 0; i < 300; i++) {
@@ -346,53 +127,8 @@ async function until<T>(check: () => Promise<T | undefined | false>): Promise<T>
 const sibling = { id: "doi-10.1177-0956797619877311", title: "Same publisher", authors: [], ids: { doi: "10.1177/0956797619877311" } }
 
 describe("visiting publishers' sites", () => {
-  it("leaves a site alone once it asked for a person, rather than visiting its other papers", async () => {
-    const { browser, asked } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
-    const { base, call, workspace } = await setup(browser)
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    await call("library.add", { paper: sibling })
-    // Its own look after the add, and one more, as the daily retry would
-    await until(async () => !workspace.tasks.list().some((t) => t.subject === sibling.id && t.kind.startsWith("paper.pdf") && !["done", "failed", "cancelled"].includes(t.state)))
-    const task = workspace.tasks.enqueue("paper.pdf.browser", sibling.id, "background")
-    await workspace.tasks.wait(task.id)
-    expect(asked.map((r) => r.landing)).toEqual(["https://journals.sagepub.com/doi/10.1177/0956797620904990"])
-    const papers = (await call("library.list")).papers
-    expect(papers.find((p: { id: string }) => p.id === sibling.id).pdfState).toMatchObject({ reason: { ended: "check", host: "sagepub.com" } })
-    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
-    expect(JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites["sagepub.com"]).toMatchObject({ heldFor: "challenge" })
-  })
-
-  it("keeps the proxy route from leading back to a site that just asked for a person", async () => {
-    const { browser, asked } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
-    const { call } = await setup(browser, { proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" } })
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    expect(asked.map((r) => [r.landing, r.avoidSites])).toEqual([
-      ["https://journals.sagepub.com/doi/10.1177/0956797620904990", []],
-      ["https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/0956797620904990", ["sagepub.com"]],
-    ])
-  })
-
-  it("spaces out unattended visits to one site", async () => {
-    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
-    const { call, workspace } = await setup(browser)
-    for (const paper of [sage, sibling]) await call("library.add", { paper })
-    for (const paper of [sage, sibling]) workspace.tasks.enqueue("paper.pdf.browser", paper.id, "background")
-    const waiting = await until(async () => workspace.tasks.list().find((t) => t.kind === "paper.pdf.browser" && t.state === "queued" && (t.notBefore ?? 0) > Date.now() + 60_000))
-    expect([sage.id, sibling.id]).toContain(waiting.subject)
-    expect(asked).toHaveLength(1)
-  })
-
   it("leaves a site that answers plain downloads with a check to the browser", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
-    const { base, root, call } = await setup(browser, {}, {}, {
+    const { base, root, call } = await setup({}, {}, {
       serve: (url) => (url.includes("journals.sagepub.com") ? new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } }) : undefined),
     })
     await call("library.add", { paper: sage })
@@ -408,16 +144,13 @@ describe("visiting publishers' sites", () => {
   })
 
   it("holds the site a doi.org link lands on, not doi.org", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "journals.sagepub.com")
-    })
     // Unpaywall's copy is a doi.org link, which doi.org sends on to journals.sagepub.com, where Cloudflare
     // answers with a check
     const challenge = (url: string) => {
       const response = new Response("<html>Just a moment...</html>", { status: 403, headers: { "content-type": "text/html", "cf-mitigated": "challenge" } })
       return Object.defineProperty(response, "url", { value: url })
     }
-    const { base, root, call } = await setup(browser, { contactEmail: "me@example.org" }, {}, {
+    const { base, root, call } = await setup({ contactEmail: "me@example.org" }, {}, {
       serve: (url) => {
         const unpaywall = url.match(/^https:\/\/api\.unpaywall\.org\/v2\/([^?]+)/)
         if (unpaywall) return Response.json({ oa_locations: [{ url_for_pdf: `https://doi.org/${unpaywall[1]}`, host_type: "publisher" }] })
@@ -448,11 +181,8 @@ describe("publishers' APIs", () => {
   const page = (text: string) => [{ x: 72, y: 72, size: 12, text }]
 
   it("gets an Elsevier paper from its API with the key, before the site", async () => {
-    const { browser, asked } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "www.sciencedirect.com")
-    })
     const keys: (string | null)[] = []
-    const { root, call } = await setup(browser, { elsevierApiKey: "secret-key" }, {}, {
+    const { root, call } = await setup({ elsevierApiKey: "secret-key" }, {}, {
       serve: (url, init) => {
         if (!url.startsWith("https://api.elsevier.com/content/article/doi/10.1016/j.chb.2019.07.016")) return undefined
         keys.push(new Headers(init?.headers).get("x-els-apikey"))
@@ -462,17 +192,13 @@ describe("publishers' APIs", () => {
     await call("library.add", { paper: elsevier })
     expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeDefined()
     expect(keys).toEqual(["secret-key"])
-    expect(asked).toHaveLength(0)
     const text = readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8")
     expect(JSON.parse(text)).toMatchObject({ state: "have-it", route: "api:elsevier" })
     expect(text).not.toContain("secret-key")
   })
 
   it("turns away the first page alone, which is what Elsevier sends a network without the subscription", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NeedsUser("challenge", "www.sciencedirect.com")
-    })
-    const { root, call } = await setup(browser, { elsevierApiKey: "secret-key" }, {}, {
+    const { root, call } = await setup({ elsevierApiKey: "secret-key" }, {}, {
       serve: (url) => (url.startsWith("https://api.elsevier.com/") ? new Response(makePdf([page("Only the first page")]), { headers: { "content-type": "application/pdf" } }) : undefined),
     })
     await call("library.add", { paper: elsevier })
@@ -500,7 +226,6 @@ describe("your own browser", () => {
     })
   }
 
-  // owlit's own browser gets nowhere: every publisher's page wants a person
   // A browser owlit can drive: each tab shows what `lands` says for its address (undefined: it closed
   // itself, as a download's tab does)
   function fakeControl(lands: (url: string) => { url: string; title: string } | undefined) {
@@ -531,10 +256,7 @@ describe("your own browser", () => {
   async function withDownloads(options: { control?: BrowserControl; library?: object } = {}) {
     const downloads = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-downloads-")))
     const opened: { url: string; background?: boolean; at: number }[] = []
-    const { browser, asked } = fakeBrowser(async (request) => {
-      throw new NeedsUser("challenge", new URL(request.landing).hostname)
-    })
-    const ctx = await setup(browser, options.library ?? {}, {}, {
+    const ctx = await setup(options.library ?? {}, {}, {
       host: {
         openExternal: async (url, opts) => void opened.push({ url, background: opts?.background, at: Date.now() }),
         browserName: async () => "Dia",
@@ -542,18 +264,10 @@ describe("your own browser", () => {
         ...(options.control ? { browserControl: async () => options.control } : {}),
       },
     })
-    return { ...ctx, downloads, opened, asked }
+    return { ...ctx, downloads, opened }
   }
 
   const paperIn = async (call: (method: string) => Promise<any>, id: string) => (await call("library.list")).papers.find((p: { id: string }) => p.id === id)
-
-  it("never opens an ACM page in owlit's browser, and says the user's browser gets it", async () => {
-    const { call, asked } = await withDownloads()
-    await call("library.add", { paper: acm })
-    const paper = await call("library.fetchPdf", { id: acm.id })
-    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check", host: "dl.acm.org", route: "browser:acm" } })
-    expect(asked).toEqual([])
-  })
 
   it("asks for the user's browser on a paper noted for Check now before", async () => {
     const { root, call } = await withDownloads()
@@ -624,7 +338,7 @@ describe("your own browser", () => {
     const run = heard.find((t) => t.kind === "papers.fromBrowser")!
     await call("tasks.cancel", { id: run.id })
     await until(async () => !(await paperIn(call, second.id)).pdfState.run)
-    expect((await paperIn(call, second.id)).pdfState.reason).toMatchObject({ ended: "check" })
+    expect((await paperIn(call, second.id)).pdfState.reason).toMatchObject({ ended: "no-copy" })
     expect(opened).toHaveLength(1)
     // Nothing kept for the next start to go on with
     await until(async () => !existsSync(path.join(workspace.dataDir, "browser-run.json")))
@@ -652,7 +366,6 @@ describe("your own browser", () => {
       await call("library.add", { paper })
       await call("library.fetchPdf", { id: paper.id })
     }
-    expect((await paperIn(call, cell.id)).pdfState).toMatchObject({ reason: { ended: "check" } })
     await call("library.getInBrowser", { ids: [cell.id, acm.id] })
     await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
     expect(opened.map((o) => o.url)).toEqual([pdfOf(acm.ids.doi), "https://doi.org/10.1016/j.cell.2020.01.001"])
@@ -842,10 +555,7 @@ describe("your own browser", () => {
     await Promise.all(cores.splice(0).map((c) => c.dispose()))
 
     const fetch = (async () => new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
-    const { browser } = fakeBrowser(async (request) => {
-      throw new NeedsUser("challenge", new URL(request.landing).hostname)
-    })
-    const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch, browser, downloadsDir: () => downloads }, retryBaseMs: 1 })
+    const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch, downloadsDir: () => downloads }, retryBaseMs: 1 })
     cores.push(core)
     const again = async (method: string, params?: unknown): Promise<any> => {
       const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -884,12 +594,9 @@ describe("your own browser", () => {
     process.env.OWLIT_BROWSER_WAIT_MS = "100"
     const next = fakeControl(() => undefined)
     const fetch = (async () => new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
-    const { browser } = fakeBrowser(async (request) => {
-      throw new NeedsUser("challenge", new URL(request.landing).hostname)
-    })
     const core = new Core({
       userDataDir: path.join(base, "userData"),
-      host: { fetch, browser, downloadsDir: () => downloads, openExternal: async () => {}, browserName: async () => "Dia", browserControl: async () => next.control },
+      host: { fetch, downloadsDir: () => downloads, openExternal: async () => {}, browserName: async () => "Dia", browserControl: async () => next.control },
       retryBaseMs: 1,
     })
     cores.push(core)
@@ -929,99 +636,5 @@ describe("your own browser", () => {
     expect(urls).toHaveLength(2)
     expect(urls[0]).toBe("https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/pdf/10.1177/0146167212445599?download=true")
     expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
-  })
-})
-
-describe("what owlit's browser found", () => {
-  const apa = { id: "doi-10.1037-a0017908", title: "Who knows what about a person?", authors: [], ids: { doi: "10.1037/a0017908" } }
-  const tlink = { proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" } }
-  const offer = (url: string) => new NoPdfOnPage("The publisher's page doesn't link a PDF.", { url, title: "Who knows what about a person?", status: 200, offersAccess: true })
-
-  it("says no access when the library's proxy reaches an offer to buy, and doesn't send the user's browser", async () => {
-    const { browser } = fakeBrowser(async (request) => {
-      throw offer(request.landing.includes("tlink") ? "https://psycnet.apa.org/doiLanding?doi=10.1037%2Fa0017908" : "https://psycnet.apa.org/doiLanding?doi=10.1037%2Fa0017908")
-    })
-    const { root, call } = await setup(browser, tlink)
-    await call("library.add", { paper: apa })
-    const paper = await call("library.fetchPdf", { id: apa.id })
-    expect(paper.pdfState.reason).toMatchObject({ by: "owlit", ended: "no-access", host: "psycnet.apa.org", title: "Who knows what about a person?", route: "browser:doi:proxied" })
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", apa.id, "acquisition.json"), "utf8"))
-    expect(acquisition.state).toBe("no-pdf")
-  })
-
-  it("sends a page with no PDF on it, or an offer seen only directly, to the user's browser", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw offer("https://psycnet.apa.org/doiLanding?doi=10.1037%2Fa0017908")
-    })
-    const { call } = await setup(browser)
-    await call("library.add", { paper: apa })
-    const paper = await call("library.fetchPdf", { id: apa.id })
-    expect(paper.pdfState.reason).toMatchObject({ by: "owlit", ended: "check", host: "psycnet.apa.org" })
-  })
-
-  it("notes a page that wasn't there, and leaves the user's browser out of it", async () => {
-    const { browser } = fakeBrowser(async () => {
-      throw new NoPdfOnPage("The publisher's page doesn't link a PDF.", { url: "https://doi.org/10.1037/a0017908", title: "DOI Not Found", status: 404, offersAccess: false })
-    })
-    const { call } = await setup(browser)
-    await call("library.add", { paper: apa })
-    const paper = await call("library.fetchPdf", { id: apa.id })
-    expect(paper.pdfState.reason).toMatchObject({ by: "owlit", ended: "not-there", title: "DOI Not Found" })
-  })
-
-  it("stops visiting a site whose last visits were checks, until a week has passed", async () => {
-    const { browser, asked } = fakeBrowser(async () => new Uint8Array(PDF))
-    const { base, root, call, workspace } = await setup(browser)
-    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
-    const visits = (at: number) => [1, 2, 3].map((i) => ({ at: at + i, ended: "check" }))
-    writeFileSync(path.join(dataDir, "publishers.json"), JSON.stringify({ version: 1, sites: { "sagepub.com": { visits: visits(Date.now() - 60_000) } } }))
-    await call("library.add", { paper: sage })
-    await until(async () => !workspace.tasks.list().some((t) => t.subject === sage.id && t.kind.startsWith("paper.pdf") && !["done", "failed", "cancelled"].includes(t.state)))
-    expect(asked).toHaveLength(0)
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition.tried.at(-1)).toMatchObject({ by: "owlit", ended: "check", host: "sagepub.com", route: "browser:sage" })
-  })
-
-  it("keeps how each visit ended, and a PDF ends the run of checks", async () => {
-    let check = true
-    const { browser } = fakeBrowser(async () => {
-      if (check) throw new NeedsUser("challenge", "journals.sagepub.com")
-      return new Uint8Array(PDF)
-    })
-    const { base, call } = await setup(browser)
-    await call("library.add", { paper: sage })
-    await call("library.fetchPdf", { id: sage.id })
-    check = false
-    // Tried again by the user, past the site's hold
-    expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
-    const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
-    const site = JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites["sagepub.com"]
-    expect(site.visits.map((v: { ended: string }) => v.ended)).toEqual(["check", "pdf"])
-  })
-})
-
-describe("reading the page owlit's browser landed on", () => {
-  it("works out IEEE's and OSF's PDF from the page's address", () => {
-    expect(pdfFromLanded("https://ieeexplore.ieee.org/document/11234567/")).toBe("https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=11234567")
-    expect(pdfFromLanded("https://osf.io/preprints/psyarxiv/hcn5a_v2")).toBeUndefined()
-    expect(pdfFromLanded("https://osf.io/preprints/psyarxiv/hcn5a")).toBe("https://osf.io/hcn5a/download")
-    expect(pdfFromLanded("https://osf.io/hcn5a/")).toBe("https://osf.io/hcn5a/download")
-    // A proxy's rewrite is left to the page's own links
-    expect(pdfFromLanded("https://ieeexplore-ieee-org.proxy.example.edu/document/1")).toBeUndefined()
-    expect(pdfFromLanded("https://www.sciencedirect.com/science/article/pii/S0003687021001538")).toBeUndefined()
-  })
-
-  it("tells a page that isn't there and an offer to buy from a page with no PDF on it", () => {
-    expect(pageVerdict({ url: "https://doi.org/10.1/x", title: "DOI Not Found", offersAccess: false })).toBe("missing")
-    expect(pageVerdict({ url: "https://a.org/x", title: "Article", status: 404, offersAccess: false })).toBe("missing")
-    expect(pageVerdict({ url: "https://psycnet.apa.org/doiLanding", title: "Who knows what about a person?", offersAccess: true })).toBe("no-access")
-    expect(pageVerdict({ url: "https://osf.io/x", title: "OSF", offersAccess: false })).toBe("no-link")
-    for (const words of ["Get Access", "Buy article PDF", "Purchase PDF", "Access through your institution", "Get full access"]) expect(ACCESS_OFFER.test(words)).toBe(true)
-    for (const words of ["Get PDF", "Download PDF", "Purchased items", "Rental history"]) expect(ACCESS_OFFER.test(words), words).toBe(false)
-  })
-
-  it("sends ACM's own 10.5555 DOIs to its Digital Library, not doi.org", () => {
-    expect(browserRoutes("10.5555/2034396.2034432", undefined)).toMatchObject([{ name: "browser:acm", browserOnly: true }])
-    expect(yourBrowser("10.5555/2034396.2034432")).toMatchObject({ url: "https://dl.acm.org/doi/pdf/10.5555/2034396.2034432?download=true", opens: "pdf" })
   })
 })

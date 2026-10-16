@@ -88,7 +88,7 @@ export async function updateSettings(patch: SettingsPatch) {
 export const setSecret = async (name: SecretName, value: string | null) => receive(await rpc.settings.setSecret({ name, value }))
 export const checkSetting = (target: SettingsCheckTarget) => rpc.settings.check({ target })
 export const setProxy = async (choice: { preset?: ProxyPreset; link?: string }) => receive(await rpc.settings.setProxy(choice))
-export const signInToProxy = async () => receive(await rpc.settings.proxySignIn())
+export const signInToProxy = () => rpc.settings.proxySignIn()
 export async function setActivity(enabled: boolean) {
   await rpc.activity.setEnabled({ enabled })
 }

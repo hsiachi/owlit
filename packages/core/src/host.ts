@@ -13,9 +13,6 @@ export interface Host {
   // How the system's network would reach a URL, as a PAC script answers ("PROXY host:port; DIRECT"):
   // agents and npm are told it in their environment (agents/proxy.ts)
   resolveProxy?(url: string): Promise<string>
-  // A real browser session (the desktop app's hidden window) for publishers that want cookies, a
-  // passed challenge or a library login before they hand over a PDF
-  browser?: BrowserHost
   // Seals keys before they are written to settings.json (the desktop app: the system keychain). Without
   // one, keys are written as they are.
   secrets?: SecretBox
@@ -73,77 +70,4 @@ export interface SecretBox {
   // Both throw when the keychain can't be used; open also when the text was sealed elsewhere
   seal(plain: string): string
   open(sealed: string): string
-}
-
-export interface BrowserHost {
-  // Opens the landing page (as a reader would), then opens the PDF from it and saves what comes back.
-  // Rejects with a sentence when the page gives no PDF; with NeedsUser when, nobody looking, the page
-  // wants a person and didn't move on by itself; with Refused when a site asks again after it was passed.
-  fetchPdf(request: BrowserRequest): Promise<Uint8Array>
-  // Shows the window at a page for the user to sign in on (the library proxy); resolves when they close it
-  showLogin(url: string): Promise<void>
-}
-
-export interface BrowserRequest {
-  landing: string
-  // The PDF's address; without one, the page's citation_pdf_url, or its own link labelled PDF, is used
-  pdf?: string
-  // Through a proxy: fetch the PDF's path on the host the page settled on (the proxy's rewrite of it)
-  pdfOnPageHost?: boolean
-  // Through a proxy: the proxy's own host, where a page that stays is its sign-in, not the article
-  proxyHost?: string
-  // The hosts the page may visit while nobody is looking (publisher, doi.org, the proxy)
-  allowHosts: string[]
-  // Sites (registrable domains) the page may not go on to: one that just asked for a person, which the
-  // library proxy would only lead back to
-  avoidSites?: string[]
-  signal: AbortSignal
-  // What happened on the way, for publisher-log.jsonl
-  report?(event: BrowserEvent): void
-}
-
-// One step of a browser run, as the log keeps it: how often sites ask, and whether it passes
-export type BrowserEvent =
-  | { kind: "opened"; host: string; status?: number }
-  // A check (or a sign-in) is on the page
-  | { kind: "asked"; host: string; reason: PublisherNeed }
-  | { kind: "cleared"; host: string; by: "itself" }
-  // The check came back after it had cleared
-  | { kind: "back"; host: string }
-  | { kind: "pdf"; host: string; bytes: number }
-
-export type PublisherNeed = "login" | "challenge"
-
-// The publisher's page wants a person (a check, a sign-in): the user's own browser is the way
-export class NeedsUser extends Error {
-  readonly reason: PublisherNeed
-  // The host whose page wanted them: the browser's session is shared, so getting past it once is
-  // getting past it for every paper it holds
-  readonly host?: string
-  constructor(reason: PublisherNeed, host?: string) {
-    super(reason === "login" ? "The publisher wants you to sign in." : "The publisher wants to check this is a person.")
-    this.name = "NeedsUser"
-    this.reason = reason
-    this.host = host
-  }
-}
-
-// What the page showed when it gave no PDF, for telling no access from a page with no link on it
-// (library/where-it-ended.ts, pageVerdict): where it ended, its title, the main page's status, and
-// whether it shows an offer to buy or to get access (a "Get Access" or "Purchase" button on screen)
-export interface PageSeen {
-  url: string
-  title: string
-  status?: number
-  offersAccess: boolean
-}
-
-// The publisher's page gave no PDF; seen is the page it ended on
-export class NoPdfOnPage extends Error {
-  readonly seen: PageSeen
-  constructor(message: string, seen: PageSeen) {
-    super(message)
-    this.name = "NoPdfOnPage"
-    this.seen = seen
-  }
 }

@@ -132,8 +132,8 @@ export interface Methods {
   // A known library, a link opened through one (proxyFromLink), or neither to turn the proxy off.
   // A link no proxy can be read from is refused.
   "settings.setProxy": { params: { preset?: ProxyPreset; link?: string }; result: SettingsView }
-  // Shows the proxy's sign-in in owlit's browser window; resolves once the user closes it
-  "settings.proxySignIn": { params: void; result: SettingsView }
+  // Opens the proxy's sign-in page in the user's own browser
+  "settings.proxySignIn": { params: void; result: null }
 
   // ---- Docs: the workspace's files. Every path is workspace-relative; library/ and dot-folders are
   // out of reach. Names a call asks for are made unique ("Name 2"), so results carry the real path.
@@ -474,9 +474,6 @@ export interface Methods {
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md
   "library.setNote": { params: { paperId: string; content: string }; result: PaperNote }
-
-  // Development only: the hidden browser opens landing and fetches the PDF, with no task around it
-  "library.debugBrowserFetch": { params: { landing: string; pdf?: string; allowHosts: string[] }; result: { bytes: number; head: string } }
 
   // ---- Search: the workspace's index (papers with their full text, docs, chats, and what links where)
   // Every word must appear; title matches first; each group's best few. indexing: still reading the

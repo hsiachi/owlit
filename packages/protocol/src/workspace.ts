@@ -106,8 +106,6 @@ export interface LibrarySettings {
   wileyTdmToken?: string
   // The library's proxy, through which publishers see the university's subscription
   proxy?: ProxySettings
-  // When the user last closed the proxy's sign-in window; nothing tells owlit when the login runs out
-  proxySignedInAt?: number
   // Digests: the language they are written in (default English), and whether every paper gets
   // one once its text is in (default: only papers the user opens or stars)
   digestLanguage?: string

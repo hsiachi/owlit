@@ -31,14 +31,14 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { NeedsUser, NoPdfOnPage, type BrowserControl, type BrowserHost } from "../host.ts"
+import type { BrowserControl } from "../host.ts"
 import { HttpError, hostOf, sleep, type Http } from "../net/http.ts"
-import { browserRoutes, extensionRoute, siteOf, yourBrowser, type ExtensionRoute, type YourBrowser } from "./browser-routes.ts"
+import { extensionRoute, siteOf, yourBrowser, type ExtensionRoute, type YourBrowser } from "./browser-routes.ts"
 import { DownloadWatch, WATCH_MS, whoseDownload } from "./downloads.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
-import { pageVerdict, whereItEnded, type Ended } from "./where-it-ended.ts"
+import { whereItEnded, type Ended } from "./where-it-ended.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
-import { Publishers, type VisitEnd } from "./publishers.ts"
+import { Publishers } from "./publishers.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
@@ -174,16 +174,12 @@ export interface LibraryServices {
   agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
   // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
-  // The desktop app's hidden browser, for publishers that need cookies, a challenge passed or a login
-  browser?: BrowserHost
   // MinerU's settings, read at each use
   parsing?: () => Promise<ParsingSettings>
   // pdfium's wasm, where the desktop app ships it; tests and the CLI find it in the package
   pdfiumWasm?: string
   // Read at each use, so a key the user adds applies at once
   settings: () => Promise<LibrarySettings>
-  // A run through the library proxy found its sign-in page (false) or got a PDF through it (true)
-  proxySignedIn?: (signedIn: boolean) => void
   // The user's own browser, and the folder it saves to: for papers whose publisher won't let owlit's in
   openExternal?: (url: string, options?: { background?: boolean }) => Promise<void>
   browserName?: () => Promise<string | undefined>
@@ -201,7 +197,7 @@ export interface ExtensionPaper extends ExtensionRoute {
 }
 
 export interface ExtensionFetcher {
-  // An extension is asking for work: papers the plain routes miss go to it, not to the hidden browser
+  // An extension is asking for work: papers the plain routes miss go to it
   connected(): boolean
   // asked: the user waits on this paper (Find PDF, Look again)
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
@@ -709,11 +705,9 @@ export class Library {
   async fetchPdf(id: string): Promise<Paper> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     if (!this.scheduler?.knows("paper.pdf")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't look for PDFs here.`)
-    let task = await this.scheduler.run("paper.pdf", id, "waiting")
-    // Not after a failure (offline): the browser would only fail too, and its answer would hide why. Not
-    // once the extension has it either: its answer comes later, and the paper says finding until then.
-    const toExtension = !!this.services.extension?.holding(this, id)
-    if (task.state !== "failed" && !toExtension && !(await hasPdfFile(this.root, id)) && this.scheduler.knows("paper.pdf.browser")) task = await this.scheduler.run("paper.pdf.browser", id, "waiting")
+    // A paper the plain routes miss goes on to the extension, whose answer comes later: the paper says
+    // finding until then
+    const task = await this.scheduler.run("paper.pdf", id, "waiting")
     // Under the library's lock: a run that placed the PDF while this one looked may still be
     // writing what it did (acquisition.json)
     const paper = await this.serial.run(() => this.get(id))
@@ -813,128 +807,6 @@ export class Library {
           if (ctx.signal.aborted) throw error
           await noFigures(this.root, id, messageOf(error))
         }
-      },
-    })
-  }
-
-  // The publisher's page in owlit's hidden browser, directly and then through the library's proxy, with
-  // nobody looking. A page that wants a person (a check, a sign-in) is noted in acquisition.json, and the
-  // paper waits for the user's own browser (getInBrowser); a check also holds the site: owlit doesn't
-  // go back on its own until the hold is over. Unattended visits to one site are spaced out
-  // (publishers.ts). A publisher that lets only the user's browser in isn't visited at all.
-  private browserTask(browser: BrowserHost) {
-    return defineTask("paper.pdf.browser", {
-      lane: "browser",
-      retries: 0,
-      run: async (ctx) => {
-        const id = ctx.task.subject
-        const record = await readRecord(this.root, id)
-        if (!record?.ids.doi || (await hasPdfFile(this.root, id))) return
-        const settings = await this.services.settings()
-        const dest = pdfFile(this.root, id)
-        const previous = await this.acquisitions.read(id)
-        const before = previous && standing(previous.tried).reason
-        // Already waiting for the user's browser: noted once is enough
-        const waiting = previous?.state === "no-pdf" && (before?.ended === "check" || before?.ended === "sign-in")
-        const registered = await registeredUrl(this.services.http, record.ids.doi, ctx.signal)
-        const routes = browserRoutes(record.ids.doi, settings.proxy, registered)
-        const { sites } = routes[0]
-        // A page that wanted a person, noted for the user's browser without a visit
-        const forYourBrowser = async (host: string) => {
-          if (waiting) return
-          const noted = await this.acquisitions.noteTried(id, { by: "owlit", ended: "check", at: Date.now(), route: routes[0].name, host }, { signal: ctx.signal })
-          if (noted) await this.announce([id])
-        }
-        if (routes[0].browserOnly) return forYourBrowser(hostOf(routes[0].landing))
-        // The user waiting on this very paper (Find PDF, Look again) gets one visit now; everything else
-        // keeps to the site's hold and its turn
-        if (ctx.task.priority !== "waiting") {
-          const hold = await this.publishers.heldAny(sites)
-          if (hold) return forYourBrowser(hold.site)
-          // A site whose last visits were checks and never a PDF: the user's browser without a visit, as
-          // for the ACM, until its weekly look (publishers.ts)
-          const checking = (await Promise.all(sites.map(async (site) => ((await this.publishers.onlyChecks(site)) ? site : undefined)))).find(Boolean)
-          if (checking) return forYourBrowser(checking)
-          const wait = Math.max(0, ...sites.map((site) => this.publishers.waitFor(site)))
-          if (wait > 0) ctx.later(wait)
-        }
-        for (const site of sites) this.publishers.visited(site)
-        // Sites that just turned an unattended visit away: the proxy leading back to one is stopped
-        const avoid: string[] = []
-        // How each route ended without a PDF. Through the library's proxy, an offer to buy is the library
-        // saying no; directly, it may only be that owlit's browser isn't signed in where the user's is, so
-        // the user's browser is the way, as for a check.
-        const tried: PdfTry[] = []
-        const note = (ended: PdfTry["ended"], route: string, page: { host?: string; title?: string } = {}) =>
-          tried.push(clean({ by: "owlit" as const, ended, at: Date.now(), route, host: page.host || undefined, title: page.title || undefined }))
-        // How a direct visit ended, kept against the site it ended on (or the route's own)
-        const ended = (host: string | undefined, how: VisitEnd) => {
-          const site = host ? siteOf(host) : sites[0]
-          return site ? this.publishers.visitEnded(site, how) : undefined
-        }
-        for (const route of routes) {
-          ctx.progress(0, undefined, route.name)
-          const { proxied } = route
-          try {
-            const bytes = await browser.fetchPdf({
-              landing: route.landing,
-              pdf: route.pdf,
-              pdfOnPageHost: proxied,
-              proxyHost: proxied && settings.proxy ? hostOf(settings.proxy.base) : undefined,
-              allowHosts: route.allowHosts,
-              avoidSites: [...avoid],
-              signal: ctx.signal,
-              report: (event) => void this.publishers.log({ paper: id, route: route.name, ...event }),
-            })
-            if (!isPdfBytes(bytes)) throw new Error(`${route.name} gave something that isn't a PDF.`)
-            if (proxied) this.services.proxySignedIn?.(true)
-            for (const site of sites) await this.publishers.visitEnded(site, "pdf")
-            // Under the library's lock, after the signal: cancelled meanwhile (the user attached a PDF, or
-            // the paper moved or went to the trash), it isn't wanted over theirs, nor where the paper was
-            const sha256 = createHash("sha256").update(bytes).digest("hex")
-            await this.acquisitions.notePlaced(id, { by: "owlit", route: route.name, sha256 }, { signal: ctx.signal, place: () => writeFileAtomic(dest, Buffer.from(bytes), { parents: false }) })
-            this.pdfHashes?.set(sha256, id)
-            this.queueText(id, ctx.task.priority)
-            await this.announce([id])
-            // The site let owlit through (a run the user waited on): its hold is over, and its other papers
-            // that waited for the user may now come unattended (their turns spaced out)
-            const passed = new Set([...sites, ...(waiting && before?.host ? [siteOf(before.host)] : [])])
-            if (await this.publishers.heldAny([...passed])) {
-              for (const site of passed) await this.publishers.release(site)
-              await this.retrySites(passed, id)
-            }
-            return
-          } catch (error) {
-            if (ctx.signal.aborted) throw error
-            if (proxied && error instanceof NeedsUser && error.reason === "login") this.services.proxySignedIn?.(false)
-            if (error instanceof NeedsUser) {
-              // The proxy's own sign-in stands for the publisher behind it: noted as the publisher's, so
-              // the user's browser is sent to that publisher (through the proxy) and not to the proxy
-              const host = proxied && error.reason === "login" ? hostOf(routes[0].landing) : error.host
-              note(error.reason === "login" ? "sign-in" : "check", route.name, { host })
-              if (error.reason === "challenge" && error.host) {
-                await this.publishers.hold(siteOf(error.host), "challenge")
-                avoid.push(siteOf(error.host))
-                if (!proxied) await ended(error.host, "check")
-              }
-            } else if (error instanceof NoPdfOnPage) {
-              const verdict = pageVerdict(error.seen)
-              const host = hostOf(error.seen.url) || undefined
-              if (!proxied) await ended(host, verdict)
-              const page = { host, title: error.seen.title }
-              if (verdict === "missing") note("not-there", route.name, page)
-              else if (verdict === "no-access" && proxied) note("no-access", route.name, page)
-              else note("check", route.name, { host })
-            } else {
-              note("no-copy", route.name)
-              if (!proxied) await ended(undefined, "error")
-            }
-          }
-        }
-        // A page that wasn't there isn't the user's browser's to look at either: it settles this look
-        tried.sort((a, b) => Number(a.ended === "not-there") - Number(b.ended === "not-there"))
-        const noted = await this.acquisitions.noteTried(id, tried, { signal: ctx.signal })
-        if (noted) await this.announce([id])
       },
     })
   }
@@ -2180,26 +2052,17 @@ export class Library {
           }
           // A paper with nothing to look by still had its look
           if (!tried.length) tried.push({ by: "owlit", ended: "no-copy", at: Date.now() })
-          // The publisher may still give it to a browser: cookies, a challenge, the library's proxy. Not on
-          // owlit's own account once the publisher said no (to the user's browser, or to owlit's through
-          // the library): only the user asking looks again there.
+          // The publisher may still give it to the user's browser, through the extension: their cookies,
+          // their library's access. Not on owlit's own account once the publisher said no (to the
+          // extension, or to the user's browser): only the user asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
           const saidNo = told === "no-access" || told === "not-offered" || told === "not-there"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
-          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) {
-            // The user's browser, through the extension, when one is asking for work; owlit's hidden
-            // browser otherwise
-            if (!(await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal))) this.queue("paper.pdf.browser", id, ctx.task.priority)
-          }
+          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal)
           await this.announce([id])
         },
       }),
-      // The publisher's page in the hidden browser, directly and then through the library's proxy, with
-      // nobody looking
-      ...(this.services.browser
-        ? [this.browserTask(this.services.browser)]
-        : []),
       // The user's own browser, for publishers that let only it in
       ...(this.services.openExternal ? [this.fromBrowserTask(this.services.openExternal)] : []),
       // Asks the services about a paper already in the library and rewrites its paper.json
@@ -2304,19 +2167,6 @@ export class Library {
     await rename(paperDir(this.root, id), path.join(trash, "paper")).catch(ignoreMissing)
     await rename(paperStateDir(this.root, id), path.join(trash, "state")).catch(ignoreMissing)
     this.index.delete(id)
-  }
-
-  // Papers whose publisher's page, on one of these sites, wanted a person: back to the hidden browser,
-  // which now holds what the user's check or sign-in left in its session. Ones it still can't get stay
-  // noted.
-  private async retrySites(sites: Set<string>, except: string) {
-    for (const id of await this.ids()) {
-      if (id === except) continue
-      const acquisition = await this.acquisitions.read(id)
-      const reason = acquisition?.state === "no-pdf" ? standing(acquisition.tried).reason : undefined
-      if (!reason?.host || (reason.ended !== "check" && reason.ended !== "sign-in") || !sites.has(siteOf(reason.host))) continue
-      this.queue("paper.pdf.browser", id, "background")
-    }
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is

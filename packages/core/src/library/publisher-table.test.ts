@@ -1,7 +1,7 @@
 import type { PaperRecord } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
 import { hostOf } from "../net/http.ts"
-import { browserRoutes, PUBLISHER_HOSTS, siteOf, yourBrowser } from "./browser-routes.ts"
+import { extensionRoute, PUBLISHER_HOSTS, siteOf, yourBrowser } from "./browser-routes.ts"
 import { routesFor, type Route } from "./pdf.ts"
 import { publisherOf, PUBLISHERS, type PublisherKeys } from "./publisher-table.ts"
 
@@ -44,21 +44,21 @@ describe("the publisher table", () => {
         const plain = routes.find((r) => r.kind === "publisher")
         if (plain && hosts.length && !publisher.pdf?.includes("{landing}")) expect(hosts).toContain(hostOf(plain.url))
 
-        const [direct] = browserRoutes(doi, undefined)
+        const direct = extensionRoute(doi, undefined)
         const mine = yourBrowser(doi)
         if (!publisher.browser) {
-          expect(direct.name).toBe("browser:doi")
+          expect(direct.url).toBe(`https://doi.org/${doi}`)
           expect(mine.address).toBe(`https://doi.org/${doi}`)
           continue
         }
-        expect(direct.name).toBe(`browser:${publisher.name}`)
-        expect(direct.sites).toEqual([...new Set(hosts.map(siteOf))])
+        // Without its own article page, where doi.org sends readers
+        expect(publisher.browser.landing ? hosts.map(siteOf) : ["doi.org"]).toContain(direct.host)
         expect([...hosts, "doi.org"]).toContain(hostOf(mine.address))
         expect(mine.opens).toBe(publisher.browser.download ? "pdf" : "page")
         // A DOI found at one of its hosts goes the same way as one of its own
         for (const host of hosts) {
           expect(yourBrowser(MOVED, host).address).toBe(mine.address.replace(doi, MOVED))
-          expect(browserRoutes(MOVED, undefined, `https://${host}/doi/${MOVED}`)[0]).toMatchObject({ name: direct.name, sites: direct.sites })
+          if (publisher.browser.landing) expect(extensionRoute(MOVED, undefined, `https://${host}/doi/${MOVED}`)).toMatchObject({ url: direct.url.replace(doi, MOVED), host: direct.host })
         }
       }
       // A host of a publisher without a browser row says nothing about where to send the user's browser

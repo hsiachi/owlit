@@ -10,7 +10,6 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notificati
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { createBrowserHost } from "./browser.ts"
 import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { hostFetch } from "./net-fetch.ts"
@@ -554,7 +553,6 @@ if (!app.requestSingleInstanceLock()) {
     app.setAboutPanelOptions({ applicationVersion: app.getVersion(), version: [build.channel, build.commit].filter(Boolean).join(" · ") })
     // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
     if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
-    const browser = createBrowserHost()
     // Where a packaged app keeps what asarUnpack takes out of the archive; the same as __dirname in a dev run
     const unpacked = __dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked")
     const core = new Core({
@@ -587,9 +585,6 @@ if (!app.requestSingleInstanceLock()) {
         fetch: hostFetch,
         // The same, for the processes core starts (agents, npm), which only read a proxy from their environment
         resolveProxy: (url) => session.defaultSession.resolveProxy(url),
-        // A browser for publishers that want one (cookies, checks, the library proxy): hidden, or inside
-        // the window when the user asks to see the page
-        browser,
         // Keys in settings.json are sealed with the system keychain (macOS Keychain, DPAPI, libsecret)
         secrets: {
           seal: (plain) => {

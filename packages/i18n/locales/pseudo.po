@@ -902,7 +902,6 @@ msgid "Messages"
 msgstr ""
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
-#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Not signed in"
 msgstr ""
 
@@ -3902,6 +3901,7 @@ msgid "Continue"
 msgstr ""
 
 #: app/src/features/library/from-browser.ts
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Couldn't open your browser."
 msgstr ""
 
@@ -5513,23 +5513,11 @@ msgid "Sign-in"
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgid "The owlit extension fetches PDFs through the proxy in your browser, signed in as you. Libraries sign you out after a while; owlit says so when a fetch finds the sign-in page."
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Waiting for the sign-in window…"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Signed in {when}"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in again…"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in in the window that opened. It closes by itself once you're in."
+msgid "Sign in there; the extension will notice."
 msgstr ""
 
 #: app/src/features/settings/sections/PublisherApisGroup.tsx
@@ -6576,11 +6564,6 @@ msgstr ""
 
 #: app/src/lib/workspace.ts
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
-msgstr ""
-
-#. title of the window that shows the library proxy's sign-in page
-#: apps/desktop/src/browser.ts
-msgid "Sign in to your library · This window closes by itself once you're in"
 msgstr ""
 
 #: apps/desktop/src/cli-tool.ts

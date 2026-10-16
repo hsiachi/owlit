@@ -376,7 +376,7 @@ export class Core {
       router: this.router,
       settings: this.settings,
       http: this.http,
-      browser: options.host?.browser,
+      openExternal: options.host?.openExternal,
       systemLanguages: this.systemLanguages,
       changed: (view) => this.notifier.notify("settings.changed", view),
     })
@@ -815,14 +815,6 @@ export class Core {
     this.router.register("tasks.list", noParams, () => tasks().list())
     this.router.register("tasks.cancel", z.object({ id: taskId }), ({ id }) => tasks().cancel(id))
     this.router.register("tasks.resume", z.object({ id: taskId }), ({ id }) => tasks().resume(id))
-    if (options.debug && options.host?.browser) {
-      const browser = options.host.browser
-      // Development only: the hidden browser on any page, for trying it against a local server
-      this.router.register("library.debugBrowserFetch", z.object({ landing: z.string(), pdf: z.string().optional(), allowHosts: z.array(z.string()) }), async (params) => {
-        const bytes = await browser.fetchPdf({ ...params, signal: new AbortController().signal })
-        return { bytes: bytes.length, head: Buffer.from(bytes.subarray(0, 8)).toString("latin1") }
-      })
-    }
     if (options.debug) {
       const lanes = Object.keys(LANE_LIMITS) as [keyof typeof LANE_LIMITS, ...(keyof typeof LANE_LIMITS)[]]
       this.router.register(
@@ -1059,7 +1051,6 @@ export class Core {
               host: this.options.host,
               library: {
                 http: this.http,
-                browser: this.options.host?.browser,
                 openExternal: this.options.host?.openExternal,
                 browserName: this.options.host?.browserName,
                 showBrowser: this.options.host?.showBrowser,
@@ -1069,9 +1060,6 @@ export class Core {
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
-                // Libraries sign you out after a while (Tsinghua's tlink after two hours): Settings says so
-                // once a run finds the sign-in page, and signed in again once a PDF comes through
-                proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
                 starred: (paperId) => {
                   if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.starred", at: Date.now(), paperId })
                 },
@@ -1255,17 +1243,6 @@ export class Core {
     await this.workspace?.dispose()
     this.workspace = null
     this.taskChanges.flush()
-  }
-
-  // What a run through the library proxy found of its sign-in, kept for Settings; only a change is saved
-  private async proxySignedIn(signedIn: boolean) {
-    const { library } = await this.settings.get()
-    if (!library.proxy || !!library.proxySignedInAt === signedIn) return
-    const next = await this.settings.update((s) => {
-      const { proxySignedInAt: _, ...rest } = s.library
-      return { ...s, library: signedIn ? { ...rest, proxySignedInAt: Date.now() } : rest }
-    })
-    this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages))
   }
 
   // The agent (and its model) chosen for background work in Settings

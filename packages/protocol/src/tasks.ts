@@ -3,9 +3,9 @@
 // restarts; their state shows beside what they are about (a paper's row, the import line), never in a
 // task list of its own.
 
-// Each lane runs a fixed number of tasks at once: network 3, browser 1, cpu 2, parse as the service
+// Each lane runs a fixed number of tasks at once: network 3, cpu 2, parse as the service
 // allows, agent 1, index 1
-export type TaskLane = "network" | "browser" | "cpu" | "parse" | "agent" | "index"
+export type TaskLane = "network" | "cpu" | "parse" | "agent" | "index"
 
 // Someone is looking at the result > the user asked for it > owlit started it on its own
 export type TaskPriority = "waiting" | "asked" | "background"

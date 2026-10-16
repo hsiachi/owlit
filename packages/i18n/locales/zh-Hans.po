@@ -902,7 +902,6 @@ msgid "Messages"
 msgstr "消息"
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
-#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Not signed in"
 msgstr "未登录"
 
@@ -3902,6 +3901,7 @@ msgid "Continue"
 msgstr "继续"
 
 #: app/src/features/library/from-browser.ts
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Couldn't open your browser."
 msgstr "无法打开你的浏览器。"
 
@@ -5513,24 +5513,12 @@ msgid "Sign-in"
 msgstr "登录"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
-msgstr "Owlit 在自己的浏览器窗口中，以你的身份通过代理获取 PDF。图书馆过一段时间会让你退出登录；获取时如果要求登录，再登录一次即可。"
+msgid "The owlit extension fetches PDFs through the proxy in your browser, signed in as you. Libraries sign you out after a while; owlit says so when a fetch finds the sign-in page."
+msgstr "owlit 扩展在你的浏览器里以你的身份通过代理获取 PDF。图书馆过一阵会让你退出登录；获取时遇到登录页，owlit 会告诉你。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Waiting for the sign-in window…"
-msgstr "正在等待登录窗口…"
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Signed in {when}"
-msgstr "登录于 {when}"
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in again…"
-msgstr "重新登录…"
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in in the window that opened. It closes by itself once you're in."
-msgstr "请在打开的窗口中登录。登录完成后窗口会自动关闭。"
+msgid "Sign in there; the extension will notice."
+msgstr "在那里登录即可，扩展会发现。"
 
 #: app/src/features/settings/sections/PublisherApisGroup.tsx
 #: app/src/features/settings/store.ts
@@ -6577,11 +6565,6 @@ msgstr "打开文件夹"
 #: app/src/lib/workspace.ts
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 msgstr "选择 owlit 工作的文件夹。你的文件保持原样；owlit 把自己的状态存放在 .owlit 中。"
-
-#. title of the window that shows the library proxy's sign-in page
-#: apps/desktop/src/browser.ts
-msgid "Sign in to your library · This window closes by itself once you're in"
-msgstr "登录你的图书馆 · 登录完成后此窗口会自动关闭"
 
 #: apps/desktop/src/cli-tool.ts
 msgid "The owlit command is installed"

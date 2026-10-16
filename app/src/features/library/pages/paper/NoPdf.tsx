@@ -26,7 +26,7 @@ type CardState = PdfWait | "looking"
 const BEFORE_LOOKING: ReadonlySet<CardState> = new Set(["offered", "run-stopped", "page", "queued", "opened"])
 
 // The steps that look for a PDF, and the route the one running is on ("arxiv", "publisher:acm")
-const LOOKING = new Set(["paper.pdf", "paper.pdf.browser"])
+const LOOKING = new Set(["paper.pdf"])
 
 // "dl.acm.org" for "www.dl.acm.org"; the publisher's own name where the page had none
 const hostName = (reason: PdfTry | undefined) => reason?.host?.replace(/^www\./, "") ?? ""
