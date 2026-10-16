@@ -1,0 +1,14 @@
+# app
+
+The renderer: React, Vite, Tailwind, shadcn. `src/features/<place>/` per place, shared pieces in
+`src/components/`, shadcn primitives in `src/components/ui/`.
+
+- **Read [DESIGN.md](../DESIGN.md) before changing anything people see.** Use its tokens, never raw
+  Tailwind palette colours. A shape used in two places is a component in `src/components/`: change it
+  there, never at one call site. Update DESIGN.md in the same change when a rule changes.
+- **shadcn (radix-nova)**: copy the official component or block markup; don't approximate it by hand.
+- **UI text goes through Lingui**: `t` / `<Trans>` from `@lingui/core/macro`, then `pnpm i18n:extract`.
+  Leave room for the Chinese text; don't size labels to the English width.
+- **Check it in a browser**: `pnpm dev:web` runs the renderer alone on mock data, at light and dark.
+  Electron doesn't run in most agent sandboxes, so leave `pnpm try` for a person.
+- **Nothing in `public/` is private**: Vite copies it into every build that ships.
