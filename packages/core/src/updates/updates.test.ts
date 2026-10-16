@@ -98,7 +98,11 @@ describe("Updated to", () => {
   })
 
   it("not on a first install, a downgrade, or a release with no record and no workspace yet", async () => {
-    expect((await make({ version: "0.3.0" }).updates.view()).updated).toBeUndefined()
+    const first = make({ version: "0.3.0" }).updates
+    expect((await first.view()).updated).toBeUndefined()
+    // Its record written before the older version starts, as when one quits before the next opens
+    await first.dispose()
+    expect(record().ranVersion).toBe("0.3.0")
     const older = make({ version: "0.2.9" }).updates
     expect((await older.view()).updated).toBeUndefined()
     await older.dispose()
