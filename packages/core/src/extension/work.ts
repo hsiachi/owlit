@@ -19,8 +19,10 @@ import { siteOf } from "./route.ts"
 export const GAP_MS = 15_000
 export const PROXY_GAP_MS = 30_000
 // A fetch the extension never answered (the browser closed, the service worker was stopped mid-fetch) is
-// asked for again after this: the extension gives up on its own fetches after 60 s
-export const IN_FLIGHT_MS = 3 * 60_000
+// asked for again after this. It must exceed the extension's slowest answer, or a fetch still going is
+// handed out twice: up to three gets (the PDF's address, the page, the PDF it names) of FETCH_MS (60 s)
+// each in apps/extension/src/lib/work.ts, then the upload of the PDF
+export const IN_FLIGHT_MS = 5 * 60_000
 // The extension counts as connected while it asked for work this recently; it asks again as soon as a
 // hold of GET /work ends
 export const CONNECTED_MS = 60_000

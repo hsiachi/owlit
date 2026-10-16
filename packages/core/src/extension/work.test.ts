@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { CONNECTED_MS, ExtensionWork, GAP_MS, PROXY_GAP_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, IN_FLIGHT_MS, PROXY_GAP_MS } from "./work.ts"
 
 const library = {} as Library
 const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {}): ExtensionPaper => ({ paperId, url: `https://${host}/doi/${paperId}`, host, proxied: false, ...extra })
@@ -180,11 +180,15 @@ describe("the extension's queue", () => {
     expect(work.waitsForExtension()).toEqual([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 1, proxied: true }])
   })
 
-  it("asks again for a fetch the extension never answered", async () => {
+  it("asks again for a fetch the extension never answered, not for one still going", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)
     const [lost] = await take()
-    vi.advanceTimersByTime(3 * 60_000)
+    // The extension's slowest fetch: three gets of a minute each, then the upload
+    vi.advanceTimersByTime(4 * 60_000)
+    expect(await take()).toEqual([])
+    expect(work.paperOf(lost.id)).toBeDefined()
+    vi.advanceTimersByTime(IN_FLIGHT_MS - 4 * 60_000)
     expect(await take()).toEqual([])
     vi.advanceTimersByTime(GAP_MS)
     const [again] = await take()
