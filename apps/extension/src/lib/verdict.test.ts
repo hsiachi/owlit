@@ -30,6 +30,18 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://www.tandfonline.com/doi/full/1", article("Lessons from the Association of Authors")))).toBe("no-copy")
   })
 
+  it("doesn't take a paywalled paper's page with a sign-in pop-up for a sign-in", () => {
+    // Atypon (ACM, T&F, SAGE) tags the paper in Dublin Core, and its header carries a login form
+    const popup = '<div class="login-popup"><form action="/action/doLogin"><input type="text" name="login"><input type="password" name="password"></form></div>'
+    const atypon = (head: string, title = "Sleep and Memory: Psychological Science: Vol 31, No 5") => `<html><head><title>${title}</title>${head}</head><body>${popup}<a href="/action/access">Get Access</a></body></html>`
+    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", atypon('<meta name="dc.Title" content="Sleep and Memory">')))).toBe("no-access")
+    expect(verdict(page("https://www.tandfonline.com/doi/full/1", atypon('<meta name="dc.Identifier" scheme="doi" content="10.1080/1">', "Login options: Sleep and Memory")))).toBe("no-access")
+    expect(verdict(page("https://dl.acm.org/doi/10.1145/1", atypon('<meta property="og:type" content="article">', "Sleep and Memory | ACM SSO")))).toBe("no-access")
+    expect(verdict(page("https://example.org/article/1", atypon('<meta name="citation_doi" content="10.1/1">')))).toBe("no-access")
+    // A page with no paper's tags and a password field is a sign-in
+    expect(verdict(page("https://journals.sagepub.com/action/showLogin", `<title>SAGE Journals</title>${popup}`))).toBe("sign-in")
+  })
+
   it("knows the proxy saying the library hasn't got it", () => {
     expect(verdict(page("https://tlink.lib.tsinghua.edu.cn/ui/unauthorized", "<title>Unauthorized</title>", { proxy: tlink }))).toBe("not-offered")
     expect(verdict(page("https://tlink.lib.tsinghua.edu.cn/ui/notice", "<title>资源未订阅</title>", { proxy: tlink }))).toBe("not-offered")

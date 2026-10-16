@@ -65,8 +65,18 @@ export function siteOf(host: string) {
   return labels.slice(country ? -3 : -2).join(".")
 }
 
-// A paper's own page carries Google Scholar's tags; a sign-in or a gateway page doesn't
-const isArticle = (html: string) => /<meta\b[^>]*\bname\s*=\s*["']?citation_title\b/i.test(html)
+// A paper's own page carries its tags: Google Scholar's (citation_title, citation_doi), Dublin Core's
+// (dc.Title, dc.Identifier: Atypon's ACM, T&F and SAGE pages often have only these) or Open Graph's
+// article type; a sign-in or a gateway page doesn't. A paywalled paper's page often has a login pop-up
+// in its header, password field and all, so the sign-in signs below count only on a page without them.
+const PAPER_TAG = /\b(name|property)\s*=\s*["']?(citation_title|citation_doi|dc\.title|dc\.identifier)["'\s/>]/i
+const ARTICLE_TYPE = /\bproperty\s*=\s*["']?og:type["'\s]/i
+const isArticle = (html: string) => {
+  for (const [tag] of html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (PAPER_TAG.test(tag) || (ARTICLE_TYPE.test(tag) && /\bcontent\s*=\s*["']?article\b/i.test(tag))) return true
+  }
+  return false
+}
 
 // The words of the page's links and buttons, for an offer of access in place of the paper
 function offersAccess(html: string) {
