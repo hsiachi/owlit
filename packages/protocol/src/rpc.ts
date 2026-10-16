@@ -450,18 +450,18 @@ export interface Methods {
   "library.wear": { params: { id: string }; result: PaperWear }
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
-  // paper comes back with pdf, or with noPdf saying what was tried.
+  // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
-  // Papers owlit couldn't get alone (noPdf), got from the user's own browser one at a time, behind
+  // Papers owlit couldn't get alone (pdfState), got from the user's own browser one at a time, behind
   // owlit's window and a few seconds apart: first those whose PDF their browser saves by itself, taken
   // from Downloads as each lands, then the article pages of the rest, for them to save the PDF from.
   // Joins the run going on, or resumes it when it stopped for the user. Runs as the task
-  // papers.fromBrowser; the papers come back with noPdf.fromBrowser.
+  // papers.fromBrowser; the papers come back with pdfState.run.
   "library.getInBrowser": { params: { ids: string[] }; result: Paper[] }
   // Brings the user's browser to the front, at the paper's tab when owlit opened one for it (or the tab
   // the run is stopped on), where a page may be asking them something
   "library.showBrowser": { params: { id?: string }; result: null }
-  // The user's answer about a downloaded PDF owlit offered (noPdf.offered): take it, or not
+  // The user's answer about a downloaded PDF owlit offered (pdfState.run.offered): take it, or not
   "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }

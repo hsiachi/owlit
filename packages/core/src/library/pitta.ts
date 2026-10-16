@@ -3,7 +3,7 @@ import type { PaperIds, PaperKind, PaperRecord } from "@owlit/protocol"
 import { cp, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { exists, readJson, writeFileAtomic } from "../fs-util.ts"
-import type { Acquisition, Attempt } from "./pdf.ts"
+import { migrate, type Acquisition, type AcquisitionV1 } from "./acquisition.ts"
 import { isPaperId, paperDir } from "./paths.ts"
 import { cleanDoi, isArxivDoi, parseRef, stripArxivVersion } from "./refs.ts"
 import { clean } from "../util.ts"
@@ -116,9 +116,10 @@ function kindOf(meta: PittaMetadata, ids: PaperIds): PaperKind | undefined {
   return undefined
 }
 
-// download.json → acquisition.json: what pitta tried, and whether it ended with a PDF
+// download.json → acquisition.json: what pitta tried, and whether it ended with a PDF. pitta's attempts
+// have the shape of owlit's first acquisition.json, so they are read into tries the way that is.
 function acquisitionOf(download: PittaDownload | undefined, pdf: boolean, dest: string): Acquisition {
-  const tried: Attempt[] = (download?.attempts ?? []).map((a) => ({
+  const tried: AcquisitionV1["tried"] = (download?.attempts ?? []).map((a) => ({
     route: a.route ?? "pitta",
     url: a.url ?? "",
     ...(a.status !== undefined ? { status: a.status } : {}),
@@ -126,12 +127,14 @@ function acquisitionOf(download: PittaDownload | undefined, pdf: boolean, dest: 
     at: (a.at && Date.parse(a.at)) || 0,
   }))
   const at = tried.at(-1)?.at || (download?.attempted_at ? Date.parse(download.attempted_at) : 0) || Date.now()
-  return clean({
-    version: 1 as const,
-    result: pdf ? ("ok" as const) : ("no_pdf" as const),
-    route: pdf ? (download?.pdf_source ?? "pitta") : undefined,
-    tried,
-    at,
-    dropHere: path.join(dest, "paper.pdf"),
-  })
+  return migrate(
+    clean({
+      version: 1 as const,
+      result: pdf ? ("ok" as const) : ("no_pdf" as const),
+      route: pdf ? (download?.pdf_source ?? "pitta") : undefined,
+      tried,
+      at,
+      dropHere: path.join(dest, "paper.pdf"),
+    }),
+  )
 }

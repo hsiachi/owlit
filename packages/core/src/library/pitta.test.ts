@@ -78,7 +78,7 @@ describe("importing a pitta library", () => {
     expect(byId["arxiv-2408.00447"]).toMatchObject({ title: "DiscipLink", year: 2024, kind: "preprint", hasDigest: true, ids: { arxiv: "2408.00447" } })
     expect(byId["arxiv-2408.00447"].pdf).toBeDefined()
     expect(byId["arxiv-2408.00447"].addedAt).toBe(Date.parse("2026-08-02T15:28:25Z"))
-    expect(byId["doi-10.1177-00380385241263810"]).toMatchObject({ venue: "Sociology", noPdf: { tried: ["upstream"] }, ids: { doi: "10.1177/00380385241263810" } })
+    expect(byId["doi-10.1177-00380385241263810"]).toMatchObject({ venue: "Sociology", pdfState: { state: "no-pdf", tried: [{ by: "owlit", ended: "no-copy", route: "upstream" }] }, ids: { doi: "10.1177/00380385241263810" } })
     expect(byId["arxiv-2005.11401"].ids).toEqual({ arxiv: "2005.11401" })
     expect(await call("library.digest", { id: "arxiv-2408.00447" })).toMatch(/What matters/)
 

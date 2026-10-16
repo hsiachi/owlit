@@ -204,11 +204,8 @@ describe("paper.pdf.browser", () => {
     expect(paper.pdf).toBeDefined()
     expect(asked[0]).toMatchObject({ landing: "https://journals.sagepub.com/doi/10.1177/0956797620904990", pdf: "https://journals.sagepub.com/doi/pdf/10.1177/0956797620904990", pdfOnPageHost: false })
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "ok", route: "browser:sage" })
-    expect(acquisition.tried.filter((t: { error?: string }) => !t.error?.startsWith("Not tried")).map((t: { route: string }) => t.route)).toEqual([
-      "publisher:sage",
-      "browser:sage",
-    ])
+    expect(acquisition).toMatchObject({ state: "have-it", route: "browser:sage" })
+    expect(acquisition.tried.map((t: { route: string; ended: string }) => `${t.route} ${t.ended}`)).toEqual(["publisher:sage no-copy", "browser:sage pdf"])
   })
 
   it("goes where the DOI is registered rather than where its prefix says", async () => {
@@ -245,7 +242,8 @@ describe("paper.pdf.browser", () => {
     const proxy = { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go" }
     const { call } = await setup(browser, { proxy, proxySignedInAt: 1 })
     await call("library.add", { paper: sage })
-    expect((await call("library.fetchPdf", { id: sage.id })).noPdf).toMatchObject({ needs: "browser", browserOpens: "pdf" })
+    // The proxy's sign-in stands for the publisher behind it
+    expect((await call("library.fetchPdf", { id: sage.id })).pdfState).toMatchObject({ state: "no-pdf", reason: { ended: "sign-in", host: "journals.sagepub.com", route: "browser:sage:proxied" } })
     await expect.poll(async () => (await call("settings.get")).library.proxySignedInAt).toBeUndefined()
     signedIn = true
     expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
@@ -260,10 +258,10 @@ describe("paper.pdf.browser", () => {
     await call("library.add", { paper: sage })
     const paper = await call("library.fetchPdf", { id: sage.id })
     expect(paper.pdf).toBeUndefined()
-    expect(paper.noPdf).toMatchObject({ needs: "browser", browserOpens: "pdf" })
+    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check", route: "browser:sage" } })
     expect(heard.filter((t) => t.kind === "paper.pdf.browser").map((t) => t.state)).not.toContain("waiting_for_you")
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition.needs).toMatchObject({ reason: "challenge", route: "browser:sage" })
+    expect(acquisition.tried.at(-1)).toMatchObject({ by: "owlit", ended: "check", route: "browser:sage" })
   })
 
   it("once a run the user waited on gets through, gets the same publisher's other papers by itself", async () => {
@@ -284,34 +282,33 @@ describe("paper.pdf.browser", () => {
       await call("library.add", { paper })
       await call("library.fetchPdf", { id: paper.id })
     }
-    const needs = (id: string) => JSON.parse(readFileSync(path.join(root, "library/papers", id, "acquisition.json"), "utf8")).needs
-    expect(needs(sage.id)).toMatchObject({ reason: "challenge", host: "journals.sagepub.com" })
+    const newest = (id: string) => JSON.parse(readFileSync(path.join(root, "library/papers", id, "acquisition.json"), "utf8")).tried.at(-1)
+    expect(newest(sage.id)).toMatchObject({ ended: "check", host: "journals.sagepub.com" })
     passed = true
     // Try again on the paper: a visit now, whatever the hold
     expect((await call("library.fetchPdf", { id: sage.id })).pdf).toBeDefined()
-    let papers: Record<string, { pdf?: unknown; noPdf?: unknown }> = {}
+    let papers: Record<string, { pdf?: unknown; pdfState?: unknown }> = {}
     for (let i = 0; i < 100; i++) {
       papers = Object.fromEntries((await call("library.list")).papers.map((p: { id: string }) => [p.id, p]))
       if (papers[sibling.id]?.pdf) break
       await new Promise((r) => setTimeout(r, 20))
     }
     expect(papers[sibling.id].pdf).toBeDefined()
-    expect(papers[other.id]).toMatchObject({ noPdf: { needs: "browser" } })
+    expect(papers[other.id]).toMatchObject({ pdfState: { reason: { ended: "check" } } })
     expect(asked.filter((r) => r.landing.includes("tandfonline") || r.landing.includes("10.1080"))).toHaveLength(1)
   })
 
-  it("ends with no PDF, saying what it tried and that there is no proxy", async () => {
+  it("ends with no PDF, saying what it tried", async () => {
     const { browser } = fakeBrowser(async () => {
       throw new Error("Gave up waiting for the sign-in after 5 minutes.")
     })
     const { root, call } = await setup(browser)
     await call("library.add", { paper: sage })
     const paper = await call("library.fetchPdf", { id: sage.id })
-    expect(paper.noPdf.tried).toEqual(["publisher:sage", "browser:sage"])
+    expect(paper.pdfState.tried.map((t: { route: string }) => t.route)).toEqual(["publisher:sage", "browser:sage"])
+    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { ended: "no-copy", route: "browser:sage" } })
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "no_pdf" })
-    expect(acquisition.tried.at(-2)).toMatchObject({ route: "browser:sage", error: "Gave up waiting for the sign-in after 5 minutes." })
-    expect(acquisition.tried.at(-1)).toMatchObject({ error: "Not tried: no library proxy is set up." })
+    expect(acquisition).toMatchObject({ state: "no-pdf" })
   })
 })
 
@@ -332,7 +329,7 @@ describe("visiting publishers' sites", () => {
     const { browser, asked } = fakeBrowser(async () => {
       throw new NeedsUser("challenge", "journals.sagepub.com")
     })
-    const { base, root, call, workspace } = await setup(browser)
+    const { base, call, workspace } = await setup(browser)
     await call("library.add", { paper: sage })
     await call("library.fetchPdf", { id: sage.id })
     await call("library.add", { paper: sibling })
@@ -341,10 +338,8 @@ describe("visiting publishers' sites", () => {
     const task = workspace.tasks.enqueue("paper.pdf.browser", sibling.id, "background")
     await workspace.tasks.wait(task.id)
     expect(asked.map((r) => r.landing)).toEqual(["https://journals.sagepub.com/doi/10.1177/0956797620904990"])
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8"))
-    expect(acquisition.needs).toMatchObject({ reason: "challenge", host: "sagepub.com" })
     const papers = (await call("library.list")).papers
-    expect(papers.find((p: { id: string }) => p.id === sibling.id).noPdf).toMatchObject({ needs: "browser" })
+    expect(papers.find((p: { id: string }) => p.id === sibling.id).pdfState).toMatchObject({ reason: { ended: "check", host: "sagepub.com" } })
     const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
     expect(JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites["sagepub.com"]).toMatchObject({ heldFor: "challenge" })
   })
@@ -383,8 +378,9 @@ describe("visiting publishers' sites", () => {
     await call("library.fetchPdf", { id: sage.id })
     await call("library.add", { paper: sibling })
     await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
+    // Not tried, so not a try
     const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
-    expect(tried.find((t: { route: string }) => t.route === "publisher:sage").error).toBe("Not tried: sagepub.com only lets browsers in.")
+    expect(tried.find((t: { route: string }) => t.route === "publisher:sage")).toBeUndefined()
     const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
     const log = readFileSync(path.join(dataDir, "publisher-log.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line))
     expect(log).toContainEqual(expect.objectContaining({ paper: sage.id, kind: "plain-refused", host: "journals.sagepub.com", status: 403 }))
@@ -414,8 +410,8 @@ describe("visiting publishers' sites", () => {
     await call("library.fetchPdf", { id: sibling.id }).catch(() => undefined)
     const tried = JSON.parse(readFileSync(path.join(root, "library/papers", sibling.id, "acquisition.json"), "utf8")).tried
     const route = (name: string) => tried.find((t: { route: string }) => t.route === name)
-    expect(route("unpaywall/publisher")).toMatchObject({ url: `https://doi.org/${sibling.ids.doi}`, status: 403 })
-    expect(route("publisher:sage").error).toBe("Not tried: sagepub.com only lets browsers in.")
+    expect(route("unpaywall/publisher")).toMatchObject({ by: "owlit", ended: "no-copy" })
+    expect(route("publisher:sage")).toBeUndefined()
     const dataDir = path.join(base, "userData/workspaces", readdirSync(path.join(base, "userData/workspaces"))[0])
     const sites = JSON.parse(readFileSync(path.join(dataDir, "publishers.json"), "utf8")).sites
     expect(sites["sagepub.com"].plainRefusedUntil).toBeGreaterThan(Date.now())
@@ -447,7 +443,7 @@ describe("publishers' APIs", () => {
     expect(keys).toEqual(["secret-key"])
     expect(asked).toHaveLength(0)
     const text = readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8")
-    expect(JSON.parse(text)).toMatchObject({ result: "ok", route: "api:elsevier" })
+    expect(JSON.parse(text)).toMatchObject({ state: "have-it", route: "api:elsevier" })
     expect(text).not.toContain("secret-key")
   })
 
@@ -461,7 +457,7 @@ describe("publishers' APIs", () => {
     await call("library.add", { paper: elsevier })
     expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeUndefined()
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8"))
-    expect(acquisition.tried.find((t: { route: string }) => t.route === "api:elsevier").error).toMatch(/only the first page/)
+    expect(acquisition.tried.find((t: { route: string }) => t.route === "api:elsevier")).toMatchObject({ ended: "no-copy" })
     expect(existsSync(path.join(root, "library/papers", elsevier.id, "paper.pdf"))).toBe(false)
   })
 })
@@ -530,13 +526,11 @@ describe("your own browser", () => {
   const paperIn = async (call: (method: string) => Promise<any>, id: string) => (await call("library.list")).papers.find((p: { id: string }) => p.id === id)
 
   it("never opens an ACM page in owlit's browser, and says the user's browser gets it", async () => {
-    const { root, call, asked } = await withDownloads()
+    const { call, asked } = await withDownloads()
     await call("library.add", { paper: acm })
     const paper = await call("library.fetchPdf", { id: acm.id })
-    expect(paper.noPdf).toMatchObject({ needs: "browser" })
+    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "owlit", ended: "check", host: "dl.acm.org", route: "browser:acm" } })
     expect(asked).toEqual([])
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
-    expect(acquisition.needs).toMatchObject({ reason: "browser", host: "dl.acm.org" })
   })
 
   it("asks for the user's browser on a paper noted for Check now before", async () => {
@@ -544,9 +538,8 @@ describe("your own browser", () => {
     await call("library.add", { paper: acm })
     await call("library.fetchPdf", { id: acm.id })
     const file = path.join(root, "library/papers", acm.id, "acquisition.json")
-    const acquisition = JSON.parse(readFileSync(file, "utf8"))
-    writeFileSync(file, JSON.stringify({ ...acquisition, needs: { reason: "refused", route: "browser:acm", at: 1, host: "dl.acm.org" } }))
-    expect((await paperIn(call, acm.id)).noPdf).toMatchObject({ needs: "browser" })
+    writeFileSync(file, JSON.stringify({ version: 1, result: "no_pdf", tried: [], at: 1, dropHere: "", needs: { reason: "refused", route: "browser:acm", at: 1, host: "dl.acm.org" } }))
+    expect((await paperIn(call, acm.id)).pdfState).toMatchObject({ state: "no-pdf", reason: { ended: "check", host: "dl.acm.org" } })
   })
 
   it.runIf(process.platform === "darwin")("opens the PDF behind owlit's window and takes the file by where it was saved from", async () => {
@@ -556,7 +549,7 @@ describe("your own browser", () => {
     await call("library.getInBrowser", { ids: [acm.id] })
     await until(async () => opened.length > 0)
     expect(opened[0]).toMatchObject({ url: pdfOf(acm.ids.doi), background: true })
-    expect((await until(async () => (await paperIn(call, acm.id)).noPdf?.fromBrowser)) as unknown).toEqual({ state: "opened", browser: "Dia" })
+    expect((await until(async () => (await paperIn(call, acm.id)).pdfState?.run)) as unknown).toEqual({ state: "opened", browser: "Dia" })
     // A PDF that names no paper on its pages, saved from the address owlit opened: the paper's, without asking
     await new Promise((r) => setTimeout(r, 300))
     const part = path.join(downloads, "3613904.3642549.pdf.crdownload")
@@ -567,7 +560,7 @@ describe("your own browser", () => {
       const paper = await paperIn(call, acm.id)
       return paper.pdf ? paper : undefined
     })
-    expect(done.noPdf).toBeUndefined()
+    expect(done.pdfState).toBeUndefined()
   })
 
   it("gets several one at a time, and stops for the user after two in a row don't come", async () => {
@@ -583,13 +576,14 @@ describe("your own browser", () => {
     expect(waiting.waiting!.detail).toContain("Dia")
     expect(opened.map((o) => o.url)).toEqual([pdfOf(acm.ids.doi), pdfOf(second.ids.doi)])
     expect(opened[1].at - opened[0].at).toBeGreaterThanOrEqual(80)
-    expect((await paperIn(call, acm.id)).noPdf.fromBrowser).toMatchObject({ state: "missed" })
-    expect((await paperIn(call, third.id)).noPdf.fromBrowser).toMatchObject({ state: "queued" })
+    expect((await paperIn(call, acm.id)).pdfState).toMatchObject({ reason: { by: "you", ended: "nothing-came" } })
+    expect((await paperIn(call, acm.id)).pdfState.run).toBeUndefined()
+    expect((await paperIn(call, third.id)).pdfState.run).toMatchObject({ state: "queued" })
     // Continue: the last one is opened, and with nothing after it the run ends rather than waiting
     await call("tasks.resume", { id: waiting.id })
     await until(async () => heard.some((t) => t.id === waiting.id && t.state === "done"))
     expect(opened.map((o) => o.url).at(-1)).toBe(pdfOf(third.ids.doi))
-    expect((await paperIn(call, third.id)).noPdf.fromBrowser).toMatchObject({ state: "missed" })
+    expect((await paperIn(call, third.id)).pdfState).toMatchObject({ reason: { by: "you", ended: "nothing-came" } })
     // Trying one again starts a new run for it
     await call("library.getInBrowser", { ids: [second.id] })
     await until(async () => opened.length === 4)
@@ -607,8 +601,8 @@ describe("your own browser", () => {
     await until(async () => opened.length === 1)
     const run = heard.find((t) => t.kind === "papers.fromBrowser")!
     await call("tasks.cancel", { id: run.id })
-    await until(async () => !(await paperIn(call, second.id)).noPdf.fromBrowser)
-    expect((await paperIn(call, second.id)).noPdf.needs).toBe("browser")
+    await until(async () => !(await paperIn(call, second.id)).pdfState.run)
+    expect((await paperIn(call, second.id)).pdfState.reason).toMatchObject({ ended: "check" })
     expect(opened).toHaveLength(1)
     // Nothing kept for the next start to go on with
     await until(async () => !existsSync(path.join(workspace.dataDir, "browser-run.json")))
@@ -636,18 +630,18 @@ describe("your own browser", () => {
       await call("library.add", { paper })
       await call("library.fetchPdf", { id: paper.id })
     }
-    expect((await paperIn(call, cell.id)).noPdf).toMatchObject({ needs: "browser", browserOpens: "page" })
+    expect((await paperIn(call, cell.id)).pdfState).toMatchObject({ reason: { ended: "check" } })
     await call("library.getInBrowser", { ids: [cell.id, acm.id] })
     await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
     expect(opened.map((o) => o.url)).toEqual([pdfOf(acm.ids.doi), "https://doi.org/10.1016/j.cell.2020.01.001"])
     // The run doesn't wait on the page; the user saves its PDF there, and it is taken
-    expect((await paperIn(call, cell.id)).noPdf.fromBrowser).toMatchObject({ state: "page" })
+    expect((await paperIn(call, cell.id)).pdfState.run).toMatchObject({ state: "page" })
     writeFileSync(path.join(downloads, "cell.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "doi:10.1016/j.cell.2020.01.001" }]]))
     const got = await until(async () => {
       const paper = await paperIn(call, cell.id)
       return paper.pdf ? paper : undefined
     })
-    expect(got.noPdf).toBeUndefined()
+    expect(got.pdfState).toBeUndefined()
   })
 
   it("asks before taking a PDF that names no paper", async () => {
@@ -661,9 +655,9 @@ describe("your own browser", () => {
     writeFileSync(path.join(downloads, "fulltext.pdf"), makePdf([[{ x: 72, y: 72, size: 10, text: "Some paper or other" }]]))
     const offered = await until(async () => {
       const paper = await paperIn(call, cell.id)
-      return paper.noPdf?.offered ? paper : undefined
+      return paper.pdfState?.run?.offered ? paper : undefined
     })
-    expect(offered.noPdf.offered).toBe("fulltext.pdf")
+    expect(offered.pdfState.run.offered).toBe("fulltext.pdf")
     expect((await call("library.takeDownload", { id: cell.id, take: true })).pdf).toBeDefined()
   })
 
@@ -685,10 +679,9 @@ describe("your own browser", () => {
     expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
     expect(opened).toHaveLength(3)
     expect((await paperIn(call, acm.id)).pdf).toBeDefined()
-    expect((await paperIn(call, third.id)).noPdf.fromBrowser).toMatchObject({ state: "missed" })
     // Noted on the paper, so a restart doesn't put it back with the papers Get them opens
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", third.id, "acquisition.json"), "utf8"))
-    expect(acquisition.yourBrowser).toMatchObject({ outcome: "missed" })
+    expect(acquisition.tried.at(-1)).toMatchObject({ by: "you", ended: "nothing-came" })
   }, 30_000)
 
   it("keeps a paper whose PDF didn't come out of Get them after a restart", async () => {
@@ -696,11 +689,10 @@ describe("your own browser", () => {
     await call("library.add", { paper: acm })
     await call("library.fetchPdf", { id: acm.id })
     const file = path.join(root, "library/papers", acm.id, "acquisition.json")
-    const acquisition = JSON.parse(readFileSync(file, "utf8"))
-    writeFileSync(file, JSON.stringify({ ...acquisition, yourBrowser: { outcome: "missed", at: 1 } }))
+    writeFileSync(file, JSON.stringify({ version: 1, result: "no_pdf", tried: [], at: 1, dropHere: "", needs: { reason: "browser", route: "browser:acm", at: 1, host: "dl.acm.org" }, yourBrowser: { outcome: "missed", at: 2 } }))
     const paper = await paperIn(call, acm.id)
-    expect(paper.noPdf.fromBrowser).toEqual({ state: "missed" })
-    expect(paper.noPdf.noAccess).toBeUndefined()
+    expect(paper.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "you", ended: "nothing-came" } })
+    expect(paper.pdfState.run).toBeUndefined()
   })
 
   it("waits for a check on an article page to pass by itself before stopping for it", async () => {
@@ -721,7 +713,7 @@ describe("your own browser", () => {
     await call("library.getInBrowser", { ids: [cell.id] })
     await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
     expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
-    expect((await paperIn(call, cell.id)).noPdf.fromBrowser).toMatchObject({ state: "page" })
+    expect((await paperIn(call, cell.id)).pdfState.run).toMatchObject({ state: "page" })
   })
 
   it("stops for a check on an article page that doesn't pass", async () => {
@@ -738,7 +730,7 @@ describe("your own browser", () => {
     await call("library.fetchPdf", { id: cell.id })
     await call("library.getInBrowser", { ids: [cell.id] })
     await until(async () => heard.find((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you"))
-    expect((await paperIn(call, cell.id)).noPdf.fromBrowser).toMatchObject({ state: "waiting", why: "check" })
+    expect((await paperIn(call, cell.id)).pdfState.run).toMatchObject({ state: "waiting", why: "check" })
   })
 
   it("opens a run's papers in a window of its own, and closes a tab a check left once its PDF came", async () => {
@@ -775,11 +767,11 @@ describe("your own browser", () => {
     await until(async () => heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "done"))
     expect(heard.some((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you")).toBe(false)
     const paper = await paperIn(call, third.id)
-    expect(paper.noPdf.noAccess).toMatchObject({ refused: false, host: "dl.acm.org", title: "An abstract - Someone, 2024" })
-    expect(paper.noPdf.fromBrowser).toBeUndefined()
+    expect(paper.pdfState.reason).toMatchObject({ by: "you", ended: "no-access", host: "dl.acm.org", title: "An abstract - Someone, 2024" })
+    expect(paper.pdfState.run).toBeUndefined()
     // The note stays through owlit's own look
     await call("library.fetchPdf", { id: third.id })
-    expect((await paperIn(call, third.id)).noPdf.noAccess).toBeDefined()
+    expect((await paperIn(call, third.id)).pdfState.reason).toMatchObject({ by: "you", ended: "no-access" })
   })
 
   it("stops for a sign-in, says so, and tries the paper again once the user is through", async () => {
@@ -796,7 +788,7 @@ describe("your own browser", () => {
     await call("library.getInBrowser", { ids: [acm.id, second.id] })
     const waiting = await until(async () => heard.find((t) => t.kind === "papers.fromBrowser" && t.state === "waiting_for_you"))
     expect(waiting.waiting!.detail).toBe("Sign in to your library in Dia, then continue.")
-    expect((await paperIn(call, acm.id)).noPdf.fromBrowser).toMatchObject({ state: "waiting", why: "sign-in", page: { host: "id.tsinghua.edu.cn" } })
+    expect((await paperIn(call, acm.id)).pdfState.run).toMatchObject({ state: "waiting", why: "sign-in", page: { host: "id.tsinghua.edu.cn" } })
     // Show browser goes to that tab
     await call("library.showBrowser", {})
     expect(fake.focused).toEqual(["t1"])
@@ -805,7 +797,7 @@ describe("your own browser", () => {
     await until(async () => heard.some((t) => t.id === waiting.id && t.state === "done"))
     // The paper it stopped on went first again, then the next
     expect([...fake.tabs.values()].map((t) => t.url)).toEqual([pdfOf(acm.ids.doi), pdfOf(acm.ids.doi), pdfOf(second.ids.doi)])
-    expect((await paperIn(call, acm.id)).noPdf.noAccess).toBeDefined()
+    expect((await paperIn(call, acm.id)).pdfState.reason).toMatchObject({ by: "you", ended: "no-access" })
   })
 
   it("takes a PDF saved after the user's browser was sent, once owlit starts again", async () => {
@@ -841,11 +833,11 @@ describe("your own browser", () => {
     await again("workspace.open", { path: root })
     await until(async () => (await paperIn(again, cell.id)).pdf)
     // Recorded as got from the user's browser, not as a PDF the user dropped
-    expect(JSON.parse(readFileSync(path.join(root, "library/papers", cell.id, "acquisition.json"), "utf8"))).toMatchObject({ result: "ok", route: "your-browser" })
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", cell.id, "acquisition.json"), "utf8"))).toMatchObject({ state: "have-it", route: "your-browser", tried: expect.arrayContaining([expect.objectContaining({ by: "you", ended: "pdf" })]) })
     // The ACM paper is still within its time: not taken from the old file, and looked for again
     const acmPaper = await paperIn(again, acm.id)
     expect(acmPaper.pdf).toBeUndefined()
-    expect(acmPaper.noPdf.offered).toBeUndefined()
+    expect(acmPaper.pdfState.run?.offered).toBeUndefined()
   })
 
   it("goes on with a run owlit closed in the middle of, keeping what it had done", async () => {
@@ -889,7 +881,7 @@ describe("your own browser", () => {
     expect(JSON.parse(ended.progress!.note!)).toMatchObject({ got: [acm.id], missed: [second.id, third.id] })
     expect(ended.progress).toMatchObject({ done: 3, total: 3 })
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", acm.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "ok", route: "your-browser" })
+    expect(acquisition).toMatchObject({ state: "have-it", route: "your-browser", tried: expect.arrayContaining([expect.objectContaining({ by: "you", ended: "pdf" })]) })
     // Ended: nothing kept for another start
     expect(existsSync(runFile)).toBe(false)
   })
@@ -930,9 +922,9 @@ describe("what owlit's browser found", () => {
     const { root, call } = await setup(browser, tlink)
     await call("library.add", { paper: apa })
     const paper = await call("library.fetchPdf", { id: apa.id })
-    expect(paper.noPdf.noAccess).toMatchObject({ by: "owlit", host: "psycnet.apa.org", title: "Who knows what about a person?" })
+    expect(paper.pdfState.reason).toMatchObject({ by: "owlit", ended: "no-access", host: "psycnet.apa.org", title: "Who knows what about a person?", route: "browser:doi:proxied" })
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", apa.id, "acquisition.json"), "utf8"))
-    expect(acquisition.looked).toMatchObject({ outcome: "no-access", host: "psycnet.apa.org" })
+    expect(acquisition.state).toBe("no-pdf")
   })
 
   it("sends a page with no PDF on it, or an offer seen only directly, to the user's browser", async () => {
@@ -942,8 +934,7 @@ describe("what owlit's browser found", () => {
     const { call } = await setup(browser)
     await call("library.add", { paper: apa })
     const paper = await call("library.fetchPdf", { id: apa.id })
-    expect(paper.noPdf).toMatchObject({ needs: "browser" })
-    expect(paper.noPdf.noAccess).toBeUndefined()
+    expect(paper.pdfState.reason).toMatchObject({ by: "owlit", ended: "check", host: "psycnet.apa.org" })
   })
 
   it("notes a page that wasn't there, and leaves the user's browser out of it", async () => {
@@ -953,8 +944,7 @@ describe("what owlit's browser found", () => {
     const { call } = await setup(browser)
     await call("library.add", { paper: apa })
     const paper = await call("library.fetchPdf", { id: apa.id })
-    expect(paper.noPdf.needs).toBeUndefined()
-    expect(paper.noPdf.noAccess).toMatchObject({ missing: true, by: "owlit" })
+    expect(paper.pdfState.reason).toMatchObject({ by: "owlit", ended: "not-there", title: "DOI Not Found" })
   })
 
   it("stops visiting a site whose last visits were checks, until a week has passed", async () => {
@@ -967,8 +957,7 @@ describe("what owlit's browser found", () => {
     await until(async () => !workspace.tasks.list().some((t) => t.subject === sage.id && t.kind.startsWith("paper.pdf") && !["done", "failed", "cancelled"].includes(t.state)))
     expect(asked).toHaveLength(0)
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", sage.id, "acquisition.json"), "utf8"))
-    expect(acquisition.tried.at(-1)).toMatchObject({ error: "Not tried: sagepub.com keeps showing owlit's browser a check." })
-    expect(acquisition.needs).toMatchObject({ reason: "browser" })
+    expect(acquisition.tried.at(-1)).toMatchObject({ by: "owlit", ended: "check", host: "sagepub.com", route: "browser:sage" })
   })
 
   it("keeps how each visit ended, and a PDF ends the run of checks", async () => {
