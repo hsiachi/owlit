@@ -247,7 +247,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "thread_read",
     description:
-      "One thread as the user sees it: its question, columns, groups, memo (sentences with their ids) and every paper with its answers, each marked abstract or full text. Also what the user rewrote (keep it) and removed (never bring it back).",
+      "One thread as the user sees it: its question, columns, groupings with their groups, memo (sentences with their ids) and every paper with its answers, each marked abstract or full text, and the groups it is in. Also what the user rewrote (keep it), removed (never bring it back) and changed in the groups (keep it so).",
     inputSchema: { type: "object", properties: { id: { type: "string", description: "The thread's id" } }, required: ["id"] },
     annotations: { readOnlyHint: true },
   },
@@ -278,8 +278,10 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         },
         groups: {
           type: "string",
-          description: 'JSON array of the whole grouping, for many papers: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}] (optional)',
+          description:
+            'JSON array of the whole grouping, for many papers: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}]. Two levels at most: a group with a parent can\'t be a parent itself. Groups the user merged or ungrouped stay so, and papers the user put in a group stay there; thread_read says which. (optional)',
         },
+        grouping: { type: "string", description: "Which grouping groups and the rows' group are for, by its column id as thread_read gives it; leave out for the thread's own (Topic) (optional)" },
         columns: { type: "array", items: { type: "string" }, description: "New questions to ask of every paper, each becoming a column (optional)" },
         remove_rows: { type: "array", items: { type: "string" }, description: "Ids of papers you take out again (optional)" },
         why: { type: "string", description: "One plain sentence on what this write did, for the thread's history (optional)" },

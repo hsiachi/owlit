@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { MENTION_LINK, mentionLink, QUESTION_COLUMN, shownThread, summarize, type Thread, type ThreadColumn, type ThreadPaper, type ThreadRow, type ThreadSummary, type Relation } from "@owlit/protocol"
+import { GROUPING_COLUMN, MENTION_LINK, mentionLink, QUESTION_COLUMN, shownThread, summarize, type Thread, type ThreadColumn, type ThreadPaper, type ThreadRow, type ThreadSummary, type Relation } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
@@ -151,6 +151,8 @@ function paperLines(shown: Thread, row: ThreadRow): { label?: string; text: stri
 // A column's name in its header and in an export
 export function columnLabel(col: ThreadColumn) {
   if (col.id === QUESTION_COLUMN) return t({ message: "Answer", comment: "column: what a paper says about the thread's question" })
+  // The grouping Owlit makes without being asked which way is named in the app's language
+  if (col.kind === "grouping" && col.id === GROUPING_COLUMN && col.question === "Topic") return t({ message: "Topic", comment: "group a thread's papers by Owlit's groups" })
   if (col.kind === "compare") {
     const doc = displayName(col.doc ?? col.question)
     return t`Compared with ${doc}`

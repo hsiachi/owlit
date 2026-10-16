@@ -306,6 +306,17 @@ describe("owlit-mcp", () => {
     const wrongQuote = JSON.stringify([{ id: "arxiv-2005.11401", answer: "x", depth: "full", quote: "not in the paper" }])
     expect((await tool("thread_write", { id, rows: wrongQuote })).text).toMatch(/isn't in its text word for word/)
     expect((await tool("thread_write", { id, rows: "[{" })).text).toBe("rows should be a JSON array.")
+
+    // Groups: what the user did to them is in thread_read, and a write that goes against it says so
+    const groups = JSON.stringify([{ id: "tok", name: "Per token" }, { id: "doc", name: "Per document" }])
+    await tool("thread_write", { id, groups, rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "tok" }]) })
+    expect((await tool("thread_read", { id })).text).toMatch(/Grouping topic \(Topic\): tok = Per token; doc = Per document/)
+    await call("threads.edit", { id, edit: { op: "move", column: "topic", row: "arxiv-2005.11401", group: "doc" } })
+    await call("threads.edit", { id, edit: { op: "ungroup", column: "topic", group: "tok" } })
+    const read = (await tool("thread_read", { id })).text
+    expect(read).toMatch(/arxiv-2005.11401 · .* · in doc \(Per document\) \(the user put it here, keep it\)/)
+    expect(read).toMatch(/The user changed the groups \(keep it so\):\n- ungrouped tok \(Per token\): leave it out\n- took arxiv-2005.11401 out of tok: don't put it back/)
+    expect((await tool("thread_write", { id, groups })).text).toMatch(/Kept as the user had it:\n- The user ungrouped tok \(Per token\)/)
   })
 
   it("lets the user undo an agent's comment and paper, and undo the undo", async () => {

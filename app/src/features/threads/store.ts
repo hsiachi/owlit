@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { applyThreadEdit, itemId, type Thread, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
+import { applyThreadEdit, itemId, upgradeThread, type Thread, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -22,7 +22,12 @@ interface ThreadsState {
 export const useThreadsStore = create<ThreadsState>()(
   persist(() => ({ threads: isDesktop ? {} : seedThreads(), loaded: !isDesktop }), {
     name: "owlit-threads",
-    version: 1,
+    // 2: groupings are columns (upgradeThread)
+    version: 2,
+    migrate: (kept) => {
+      const threads = (kept as { threads?: Record<string, Parameters<typeof upgradeThread>[0]> } | undefined)?.threads ?? {}
+      return { threads: Object.fromEntries(Object.entries(threads).map(([id, c]) => [id, upgradeThread(c)])) }
+    },
     skipHydration: isDesktop,
     partialize: (s) => (isDesktop ? {} : { threads: s.threads }),
   }),

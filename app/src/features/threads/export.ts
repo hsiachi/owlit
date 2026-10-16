@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Thread, type ThreadRow } from "@owlit/protocol"
+import { cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Thread, type ThreadColumn, type ThreadRow } from "@owlit/protocol"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
@@ -11,9 +11,11 @@ const cell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 // The thread as a table to open in a spreadsheet: one row per paper, one column per question, with
 // how far Owlit read for each answer
 function threadCsv(c: Thread) {
-  const columns = c.columns.filter((col) => !col.hidden)
-  const groups = new Map(c.groups.map((g) => [g.id, g.name]))
-  const head = ["Paper", "Authors", "Year", "Venue", "DOI", "arXiv", "Group", ...columns.flatMap((col) => [col.id === QUESTION_COLUMN ? "Answer" : col.question, "From"])]
+  const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
+  // A column per grouping with groups, its papers' groups by name
+  const groupings = c.columns.filter((col) => col.kind === "grouping" && col.groups?.length)
+  const groupsOf = (r: ThreadRow, col: ThreadColumn) => (r.in?.[col.id] ?? []).map((id) => col.groups?.find((g) => g.id === id)?.name ?? "").join("; ")
+  const head = ["Paper", "Authors", "Year", "Venue", "DOI", "arXiv", ...groupings.map((col) => (groupings.length > 1 ? col.question : "Group")), ...columns.flatMap((col) => [col.id === QUESTION_COLUMN ? "Answer" : col.question, "From"])]
   const lines = c.rows.map((r) => [
     r.paper.title,
     r.paper.authors.join("; "),
@@ -21,7 +23,7 @@ function threadCsv(c: Thread) {
     r.paper.venue ?? "",
     r.paper.ids.doi ?? "",
     r.paper.ids.arxiv ?? "",
-    r.group ? (groups.get(r.group) ?? "") : "",
+    ...groupings.map((col) => groupsOf(r, col)),
     ...columns.flatMap((col) => {
       const answer = r.cells[col.id]
       if (!answer) return ["", ""]
@@ -50,7 +52,7 @@ const mdCell = (s: string) => s.replace(/\s*\n+\s*/g, " ").replace(/\|/g, "\\|")
 // and open; an answer read in full ends with its page. Taken as it is now: the doc doesn't follow later
 // changes to the thread.
 export function threadMarkdown(c: Thread, now = new Date()) {
-  const columns = c.columns.filter((col) => !col.hidden)
+  const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   const head = `| ${[t({ message: "Paper", comment: "table header in an exported thread" }), ...columns.map(columnLabel)].map(mdCell).join(" | ")} |`
   const rule = `|${" --- |".repeat(columns.length + 1)}`
   const line = (r: ThreadRow) => {
@@ -68,12 +70,15 @@ export function threadMarkdown(c: Thread, now = new Date()) {
 
   const out = [`# ${c.title}`]
   if (c.memo.length) out.push(c.memo.map((s) => `- ${s.text}`).join("\n"))
-  // Groups as headings, a subgroup under its parent; papers in no group after them
+  // The first grouping's groups as headings, a subgroup under its parent (a paper in two groups is under
+  // both); papers in no group after them
+  const grouping = c.columns.find((col) => col.kind === "grouping" && col.groups?.length)
+  const groups = grouping?.groups ?? []
   const placed = new Set<string>()
   const section = (parent: string | undefined, level: number) => {
-    for (const g of c.groups.filter((g) => g.parent === parent)) {
-      const rows = c.rows.filter((r) => r.group === g.id)
-      const nested = c.groups.some((o) => o.parent === g.id)
+    for (const g of groups.filter((g) => g.parent === parent)) {
+      const rows = c.rows.filter((r) => r.in?.[grouping!.id]?.includes(g.id))
+      const nested = groups.some((o) => o.parent === g.id)
       if (!rows.length && !nested) continue
       out.push(`${"#".repeat(level)} ${g.name}`)
       if (rows.length) out.push(table(rows))

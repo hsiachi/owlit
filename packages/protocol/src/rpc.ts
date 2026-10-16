@@ -194,7 +194,8 @@ export interface Methods {
   "threads.get": { params: { id: string }; result: Thread }
   // An agent's write, merged so the user's changes stay; left names rows not written because the user
   // removed them
-  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number; left: string[] } }
+  // userKept says what of the write gave way to the user's own changes to the groups
+  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number; left: string[]; userKept: string[] } }
   "threads.edit": { params: { id: string; edit: ThreadEdit }; result: Thread }
   // Keep it separate: the rows an agent added to this thread become a thread of their own, for
   // the question they were found for

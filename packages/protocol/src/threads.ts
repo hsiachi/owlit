@@ -48,7 +48,8 @@ export interface ThreadRow {
   paper: ThreadPaper
   // By column id
   cells: Record<string, ThreadCell>
-  group?: string
+  // The groups Owlit put it in, by grouping column (group ids). The user's changes are in yours.placed.
+  in?: Record<string, string[]>
   // How it was found ("search: replay rating validity", "cited by doi-…")
   foundBy?: string
   addedAt: number
@@ -56,15 +57,21 @@ export interface ThreadRow {
 
 // The column every thread has: the question itself
 export const QUESTION_COLUMN = "q"
+// The grouping a thread gets when Owlit first groups its papers without saying which way (Topic)
+export const GROUPING_COLUMN = "topic"
 
 export interface ThreadColumn {
   id: string
   // What is asked of every paper ("Method and sample"); for the question column, the question
   question: string
-  // ask: a question answered for every paper; compare: the paper set against sentences from a doc
-  kind: "ask" | "compare"
+  // ask: a question answered for every paper; compare: the paper set against sentences from a doc;
+  // grouping: a way of dividing the papers (分法), its groups here and each paper's in its row's `in`
+  kind: "ask" | "compare" | "grouping"
   doc?: string
   sentences?: { id: string; text: string }[]
+  // A grouping's groups, two levels at most
+  groups?: ThreadGroup[]
+  // Out of sight; a grouping is, until the user shows it (its groups' own rows already say it)
   hidden?: boolean
 }
 
@@ -92,16 +99,23 @@ export interface ThreadAsked {
 }
 
 // What the user did. Items are named by itemId(): "title", "memo:<id>", "cell:<paper>:<column>",
-// "row:<paper>", "group:<id>".
+// "row:<paper>", "group:<column>:<id>".
 export interface ThreadYours {
   // Rewritten by the user: shown instead of Owlit's text, kept through every later write
   edits: Record<string, { text: string; at: number; was: string }>
-  // Removed by the user: never shown, and never brought back by a later write
+  // Removed by the user: never shown, and never brought back by a later write. A group removed is one
+  // they ungrouped: its papers leave it (for its parent, when it has one).
   removed: Record<string, { text: string; at: number }>
+  // Papers the user put in a group (in: true) or took out of one (false), by placedKey(): one paper in one
+  // group each, so what they didn't touch stays Owlit's to change
+  placed: Record<string, { in: boolean; at: number }>
+  // Groups the user merged into another, by "<column>:<group>": a paper Owlit puts in one later goes in the
+  // other
+  merged: Record<string, string>
 }
 
 export interface Thread {
-  version: 1
+  version: 2
   id: string
   title: string
   asked: ThreadAsked
@@ -114,7 +128,6 @@ export interface Thread {
   memo: MemoSentence[]
   columns: ThreadColumn[]
   rows: ThreadRow[]
-  groups: ThreadGroup[]
   // Look for new papers now and then (off unless the user turns it on), and when Owlit last did
   watch: boolean
   checkedAt?: number
@@ -146,24 +159,113 @@ export const itemId = {
   memo: (id: string) => `memo:${id}`,
   cell: (paper: string, column: string) => `cell:${paper}:${column}`,
   row: (paper: string) => `row:${paper}`,
-  group: (id: string) => `group:${id}`,
+  group: (column: string, id: string) => `group:${column}:${id}`,
 }
 
-// The thread as the user sees it: their rewrites in place of Owlit's text, what they removed gone
+// One paper in one group of a grouping, as yours.placed keys it (paper ids have no colon)
+export const placedKey = (column: string, paper: string, group: string) => `${column}:${paper}:${group}`
+
+export const groupingsOf = (c: Pick<Thread, "columns">) => c.columns.filter((col) => col.kind === "grouping")
+
+// One grouping as the user sees it: Owlit's groups with what the user did laid over them. A group they
+// merged sends its papers to the one it went into, one they ungrouped to its parent (or to none); a group
+// sits under a top-level group whatever was merged where, so there are two levels at most; and a paper is
+// in what Owlit put it in, then what the user put it in or took it out of, latest last. A paper in a
+// subgroup is in its parent too, so it isn't also put in the parent itself.
+export function groupingView(c: Pick<Thread, "yours">, col: ThreadColumn) {
+  const { edits, removed, placed, merged } = c.yours
+  const defs = new Map((col.groups ?? []).map((g) => [g.id, g]))
+  // Where a group's papers are now: itself, or where they went; undefined for nowhere
+  const target = (id: string | undefined): string | undefined => {
+    const seen = new Set<string>()
+    while (id !== undefined && !seen.has(id)) {
+      seen.add(id)
+      const into = merged[`${col.id}:${id}`]
+      if (into !== undefined) id = into
+      else if (!defs.has(id)) return undefined
+      else if (removed[itemId.group(col.id, id)]) id = defs.get(id)!.parent
+      else return id
+    }
+    return undefined
+  }
+  // The top-level group above a live one (or itself)
+  const top = (id: string) => {
+    const seen = new Set<string>()
+    for (let at = id; ; ) {
+      seen.add(at)
+      const up = target(defs.get(at)?.parent)
+      if (up === undefined || seen.has(up)) return at
+      at = up
+    }
+  }
+  const parentOf = (g: ThreadGroup) => {
+    const p = target(g.parent)
+    if (p === undefined || p === g.id) return undefined
+    const above = top(p)
+    return above === g.id ? undefined : above
+  }
+  const groups: ThreadGroup[] = (col.groups ?? [])
+    .filter((g) => target(g.id) === g.id)
+    .map((g) => {
+      const { parent: _parent, ...rest } = g
+      const parent = parentOf(g)
+      return { ...rest, name: edits[itemId.group(col.id, g.id)]?.text ?? g.name, ...(parent ? { parent } : {}) }
+    })
+  const parents = new Map(groups.map((g) => [g.id, g.parent]))
+  // The user's placements in this grouping, by paper, oldest first
+  const byPaper = new Map<string, { group: string; in: boolean; at: number }[]>()
+  for (const [key, p] of Object.entries(placed)) {
+    if (!key.startsWith(`${col.id}:`)) continue
+    const paper = key.slice(col.id.length + 1, key.lastIndexOf(":"))
+    const list = byPaper.get(paper) ?? []
+    list.push({ group: key.slice(key.lastIndexOf(":") + 1), ...p })
+    byPaper.set(paper, list)
+  }
+  for (const list of byPaper.values()) list.sort((a, b) => a.at - b.at)
+  const order = new Map(groups.map((g, i) => [g.id, i]))
+  const of = (row: Pick<ThreadRow, "id" | "in">): string[] => {
+    const ids = new Set<string>()
+    for (const id of row.in?.[col.id] ?? []) {
+      const at = target(id)
+      if (at) ids.add(at)
+    }
+    for (const p of byPaper.get(row.id) ?? []) {
+      const at = target(p.group)
+      if (!at) continue
+      if (p.in) ids.add(at)
+      else ids.delete(at)
+    }
+    for (const id of [...ids]) {
+      const parent = parents.get(id)
+      if (parent) ids.delete(parent)
+    }
+    return [...ids].filter((id) => order.has(id)).sort((a, b) => order.get(a)! - order.get(b)!)
+  }
+  return { groups, of, target }
+}
+
+// The thread as the user sees it: their rewrites in place of Owlit's text, what they removed gone, and
+// each grouping as they left it (its groups in the column, each paper's in its row's `in`)
 export function shownThread(c: Thread): Thread {
   const { edits, removed } = c.yours
   const text = (id: string, owlit: string) => edits[id]?.text ?? owlit
+  const views = groupingsOf(c).map((col) => ({ col, view: groupingView(c, col) }))
   return {
     ...c,
     title: text(itemId.title(), c.title),
     memo: c.memo.filter((s) => !removed[itemId.memo(s.id)]).map((s) => ({ ...s, text: text(itemId.memo(s.id), s.text) })),
+    columns: c.columns.map((col) => (col.kind === "grouping" ? { ...col, groups: views.find((v) => v.col === col)!.view.groups } : col)),
     rows: c.rows
       .filter((r) => !removed[itemId.row(r.id)])
-      .map((r) => ({
-        ...r,
-        cells: Object.fromEntries(Object.entries(r.cells).map(([col, cell]) => [col, { ...cell, text: text(itemId.cell(r.id, col), cell.text) }])),
-      })),
-    groups: c.groups.map((g) => ({ ...g, name: text(itemId.group(g.id), g.name) })),
+      .map((r) => {
+        const { in: _in, ...rest } = r
+        const placedIn = Object.fromEntries(views.map(({ col, view }) => [col.id, view.of(r)]).filter(([, ids]) => ids!.length))
+        return {
+          ...rest,
+          cells: Object.fromEntries(Object.entries(r.cells).map(([col, cell]) => [col, { ...cell, text: text(itemId.cell(r.id, col), cell.text) }])),
+          ...(Object.keys(placedIn).length ? { in: placedIn } : {}),
+        }
+      }),
   }
 }
 
@@ -214,8 +316,11 @@ export interface ThreadWrite {
   columns?: { id?: string; question: string }[]
   // Rows to add or update: only the cells given change
   rows?: ThreadRowWrite[]
-  // The whole grouping as Owlit means it now
+  // The whole of one grouping as Owlit means it now: its groups, two levels at most
   groups?: ThreadGroup[]
+  // The grouping column that groups and the rows' group(s) are for: the first grouping by default, and a
+  // hidden Topic grouping when the thread has none yet
+  grouping?: string
   // Rows Owlit takes out (the user's own removals are separate and stay)
   removeRows?: string[]
   why?: string
@@ -262,7 +367,9 @@ export interface ThreadSearch {
 export interface ThreadRowWrite {
   id: string
   cells?: Record<string, Omit<ThreadCell, "at">>
+  // The groups Owlit puts it in, in the write's grouping, all of them ("" or []: none); group is one
   group?: string
+  groups?: string[]
   foundBy?: string
   // Core's own callers may give the paper; agents name it by id and core looks it up
   paper?: ThreadPaper
@@ -276,9 +383,10 @@ export type ThreadEdit =
   | { op: "revert"; item: string }
   | { op: "remove"; item: string }
   | { op: "unremove"; item: string }
-  | { op: "move"; row: string; group: string | null }
-  | { op: "ungroup"; group: string }
-  | { op: "merge"; group: string; into: string }
+  // Into a group of a grouping, out of the ones it is in there (null: into none)
+  | { op: "move"; column: string; row: string; group: string | null }
+  | { op: "ungroup"; column: string; group: string }
+  | { op: "merge"; column: string; group: string; into: string }
   | { op: "watch"; on: boolean }
   // A column out of sight, or back
   | { op: "hide"; column: string; hidden: boolean }
@@ -291,7 +399,7 @@ export function owlitText(c: Thread, item: string): string | undefined {
   const [kind, a, b] = item.split(":")
   if (kind === "memo") return c.memo.find((s) => s.id === a)?.text
   if (kind === "cell") return c.rows.find((r) => r.id === a)?.cells[b!]?.text
-  if (kind === "group") return c.groups.find((g) => g.id === a)?.name
+  if (kind === "group") return c.columns.find((col) => col.id === a && col.kind === "grouping")?.groups?.find((g) => g.id === b)?.name
   return undefined
 }
 
@@ -329,27 +437,27 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
     case "unremove":
       delete c.yours.removed[edit.item]
       return { items: [edit.item] }
+    // Groups change in yours, never in Owlit's grouping, so a later write of Owlit's can't undo them
     case "move": {
       const row = c.rows.find((r) => r.id === edit.row)
+      const col = c.columns.find((x) => x.id === edit.column && x.kind === "grouping")
       if (!row) return { problem: "row" }
-      if (edit.group && !c.groups.some((g) => g.id === edit.group)) return { problem: "group" }
-      if (edit.group) row.group = edit.group
-      else delete row.group
+      if (!col) return { problem: "group" }
+      const view = groupingView(c, col)
+      if (edit.group && !view.groups.some((g) => g.id === edit.group)) return { problem: "group" }
+      for (const id of view.of(row)) if (id !== edit.group) c.yours.placed[placedKey(col.id, row.id, id)] = { in: false, at: now }
+      if (edit.group) c.yours.placed[placedKey(col.id, row.id, edit.group)] = { in: true, at: now }
       return { items: [itemId.row(edit.row)] }
     }
     case "ungroup":
     case "merge": {
-      const group = c.groups.find((g) => g.id === edit.group)
-      if (!group || (edit.op === "merge" && !c.groups.some((g) => g.id === edit.into))) return { problem: "group" }
-      const into = edit.op === "merge" ? edit.into : group.parent
-      for (const row of c.rows) {
-        if (row.group !== group.id) continue
-        if (into) row.group = into
-        else delete row.group
-      }
-      for (const g of c.groups) if (g.parent === group.id) g.parent = into
-      c.groups = c.groups.filter((g) => g.id !== group.id)
-      return { items: [itemId.group(group.id)] }
+      const col = c.columns.find((x) => x.id === edit.column && x.kind === "grouping")
+      const groups = col ? groupingView(c, col).groups : []
+      const group = groups.find((g) => g.id === edit.group)
+      if (!col || !group || (edit.op === "merge" && (edit.into === group.id || !groups.some((g) => g.id === edit.into)))) return { problem: "group" }
+      if (edit.op === "merge") c.yours.merged[`${col.id}:${group.id}`] = edit.into
+      else c.yours.removed[itemId.group(col.id, group.id)] = { text: group.name, at: now }
+      return { items: [itemId.group(col.id, group.id)] }
     }
     case "watch":
       c.watch = edit.on
@@ -367,5 +475,42 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       // Covers every change so far, even one dated a moment ahead so that it got its dot
       c.seenAt = Math.max(now, ...Object.values(c.changedAt))
       return { items: [] }
+  }
+}
+
+// A thread as version 1 kept it: one grouping in `groups`, each row's group on the row
+type ThreadV1 = Omit<Thread, "version" | "rows" | "yours" | "splitFrom"> & {
+  version: 1
+  groups: ThreadGroup[]
+  rows: (Omit<ThreadRow, "in"> & { group?: string })[]
+  yours: Pick<ThreadYours, "edits" | "removed">
+  splitFrom?: { id: string; rows: (Omit<ThreadRow, "in"> & { group?: string })[]; asked?: ThreadAsked }
+}
+
+// A thread as it is kept now, from any version. Version 1's groups become a hidden grouping column
+// (Topic), each row's group its place there, and a renamed group's item gains the column. Which of the
+// rows' groups were the user's moves can't be told any more: they all become Owlit's.
+export function upgradeThread(c: Thread | ThreadV1): Thread {
+  if (c.version !== 1) return c
+  const { groups, ...rest } = c
+  let col: string | undefined
+  if (groups.length || c.rows.some((r) => r.group)) {
+    col = GROUPING_COLUMN
+    for (let n = 2; c.columns.some((x) => x.id === col); n++) col = `${GROUPING_COLUMN}${n}`
+  }
+  // A kept-apart row goes back into the thread it came from, whose grouping is Topic
+  const row = (r: ThreadV1["rows"][number], into: string | undefined): ThreadRow => {
+    const { group, ...kept } = r
+    return group && into ? { ...kept, in: { [into]: [group] } } : kept
+  }
+  const rekey = <T>(items: Record<string, T>) => Object.fromEntries(Object.entries(items).map(([k, v]) => [col && /^group:[^:]+$/.test(k) ? `group:${col}:${k.slice(6)}` : k, v]))
+  return {
+    ...rest,
+    version: 2,
+    columns: col ? [...c.columns, { id: col, question: "Topic", kind: "grouping", hidden: true, groups }] : c.columns,
+    rows: c.rows.map((r) => row(r, col)),
+    changedAt: rekey(c.changedAt),
+    yours: { edits: rekey(c.yours.edits), removed: rekey(c.yours.removed), placed: {}, merged: {} },
+    ...(c.splitFrom ? { splitFrom: { ...c.splitFrom, rows: c.splitFrom.rows.map((r) => row(r, GROUPING_COLUMN)) } } : {}),
   }
 }

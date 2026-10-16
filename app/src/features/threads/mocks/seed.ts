@@ -1,4 +1,4 @@
-import { QUESTION_COLUMN, type Thread, type ThreadPaper, type ThreadRow } from "@owlit/protocol"
+import { GROUPING_COLUMN, QUESTION_COLUMN, type Thread, type ThreadPaper, type ThreadRow } from "@owlit/protocol"
 import { DAY, HOUR } from "@/lib/time"
 
 // Threads for the browser preview. Most rows are papers of the Library's mock seed (p1…), as a paper
@@ -17,7 +17,7 @@ function readingTools(): Thread {
   const at = now - 2 * HOUR
   const asked = "What tools help people read papers faster? Anything I should look at for the study?"
   return {
-    version: 1,
+    version: 2,
     id: "reading-support-tools",
     title: "Tools that support reading scientific papers",
     asked: { text: asked, chatId: "c1", at },
@@ -50,14 +50,13 @@ function readingTools(): Thread {
         now - 30 * 60_000,
       ),
     ],
-    groups: [],
     watch: false,
     createdAt: at,
     updatedAt: now - 30 * 60_000,
     // The two papers Owlit added later carry the dot until the user looks
     changedAt: { "row:doi-10.1145-3526113.3545660": now - 30 * 60_000, "row:doi-10.1145-3589955": now - 30 * 60_000, "memo:s3": now - 30 * 60_000 },
     seenAt: at + 60_000,
-    yours: { edits: { "memo:s3": { text: "Evaluations are short lab studies; none followed readers over weeks, and none measured reading speed directly.", at: now - 20 * 60_000, was: "Evaluations are short lab studies; none followed readers over weeks." } }, removed: {} },
+    yours: { edits: { "memo:s3": { text: "Evaluations are short lab studies; none followed readers over weeks, and none measured reading speed directly.", at: now - 20 * 60_000, was: "Evaluations are short lab studies; none followed readers over weeks." } }, removed: {}, placed: {}, merged: {} },
   }
 }
 
@@ -65,7 +64,7 @@ function toolUse(): Thread {
   const at = now - 3 * DAY
   const asked = "find papers on language models that call tools or act in an environment"
   return {
-    version: 1,
+    version: 2,
     id: "llm-tool-use",
     title: "Language models that use tools",
     asked: { text: asked, chatId: "c2", at },
@@ -82,13 +81,12 @@ function toolUse(): Thread {
       row("p5", lib("Chain-of-Thought Prompting Elicits Reasoning in Large Language Models", ["Jason Wei", "Xuezhi Wang"], 2022, "NeurIPS"), "Showing worked steps in the prompt makes large models reason step by step.", "abstract", at),
       row("p14", lib("Generative Agents: Interactive Simulacra of Human Behavior", ["Joon Sung Park", "Joseph C. O'Brien"], 2023, "UIST"), "Agents act in a sandbox from a memory of observations they retrieve and reflect on.", "abstract", at),
     ],
-    groups: [],
     watch: true,
     createdAt: at,
     updatedAt: at,
     changedAt: {},
     seenAt: at + HOUR,
-    yours: { edits: {}, removed: {} },
+    yours: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
 
@@ -96,7 +94,7 @@ function nothingFound(): Thread {
   const at = now - 9 * DAY
   const asked = "has anyone compared replay ratings with live ratings of reminders?"
   return {
-    version: 1,
+    version: 2,
     id: "replay-vs-live-ratings",
     title: "Replay versus live ratings of reminders",
     asked: { text: asked, chatId: "c3", at },
@@ -105,13 +103,12 @@ function nothingFound(): Thread {
     memo: [{ id: "s1", text: "Found nothing that compares the two directly; the closest work compares diaries with experience sampling." }],
     columns: [{ id: QUESTION_COLUMN, question: asked, kind: "ask" }],
     rows: [],
-    groups: [],
     watch: false,
     createdAt: at,
     updatedAt: at,
     changedAt: {},
     seenAt: at,
-    yours: { edits: {}, removed: {} },
+    yours: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
 
@@ -129,10 +126,10 @@ function venue(): Thread {
       ...(rel ? { c3: { text: rel.text, rel: rel.rel, sentence: rel.sentence, depth: "abstract" as const, at } } : { c3: { text: "No bearing", depth: "abstract" as const, at } }),
     },
     addedAt: at,
-    ...(group ? { group } : {}),
+    ...(group ? { in: { [GROUPING_COLUMN]: [group] } } : {}),
   })
   return {
-    version: 1,
+    version: 2,
     id: "uist-2026-papers",
     title: "UIST 2026 papers",
     asked: { text: asked, at },
@@ -146,6 +143,18 @@ function venue(): Thread {
       { id: QUESTION_COLUMN, question: asked, kind: "ask" },
       { id: "c2", question: "Method and sample", kind: "ask" },
       { id: "c3", question: "notes/Reading log.md", kind: "compare", doc: "notes/Reading log.md", sentences: [{ id: "l1", text: "Context shown while reading helps more than a summary before it." }, { id: "l2", text: "Faster reading is the wrong goal for scholarly tools." }] },
+      {
+        id: GROUPING_COLUMN,
+        question: "Topic",
+        kind: "grouping",
+        hidden: true,
+        groups: [
+          { id: "reading", name: "Reading and writing aids", one: "tools that act inside or across papers" },
+          { id: "inside", name: "Inside one paper", one: "context, summaries, figures", parent: "reading" },
+          { id: "across", name: "Across papers", one: "arguments, threads, speed", parent: "reading" },
+          { id: "other", name: "Other topics", one: "fabrication, haptics, XR input" },
+        ],
+      },
     ],
     rows: [
       p("u1", "MarginNotes: Inline Context for Citations While Reading", ["Ana Ruiz", "Kai Chen"], "Inline citation cards cut lookups by half and readers kept their place.", "Lab study, N = 16", { rel: "supports", sentence: "l1", text: "context in place beats leaving the page" }, "inside", { quote: "readers returned to the citing sentence in 94% of lookups", page: 6 }),
@@ -156,18 +165,12 @@ function venue(): Thread {
       p("u6", "Handoff: Haptic Cues for Mixed-Reality Typing", ["Jonas Berg"], "Haptic cues raised typing accuracy in mixed reality.", "Lab study, N = 18", undefined, "other"),
       p("u7", "Print-on-Demand Microfluidics for Wearables", ["Lea Kim"], "A printable channel design for sweat sensors.", "Technical evaluation", undefined, "other"),
     ],
-    groups: [
-      { id: "reading", name: "Reading and writing aids", one: "tools that act inside or across papers" },
-      { id: "inside", name: "Inside one paper", one: "context, summaries, figures", parent: "reading" },
-      { id: "across", name: "Across papers", one: "arguments, threads, speed", parent: "reading" },
-      { id: "other", name: "Other topics", one: "fabrication, haptics, XR input" },
-    ],
     watch: false,
     createdAt: at,
     updatedAt: at,
     changedAt: {},
     seenAt: at + HOUR,
-    yours: { edits: {}, removed: {} },
+    yours: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
 

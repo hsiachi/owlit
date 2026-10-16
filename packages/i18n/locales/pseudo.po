@@ -5680,11 +5680,6 @@ msgstr ""
 msgid "Bear on none of them"
 msgstr ""
 
-#. group a thread's papers by Owlit's groups
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Topic"
-msgstr ""
-
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5870,6 +5865,11 @@ msgstr ""
 #. group of threads that belong to no project folder
 #: app/src/features/threads/lib.ts
 msgid "Not in a project"
+msgstr ""
+
+#. group a thread's papers by Owlit's groups
+#: app/src/features/threads/lib.ts
+msgid "Topic"
 msgstr ""
 
 #: app/src/features/threads/lib.ts

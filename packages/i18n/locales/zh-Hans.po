@@ -5680,11 +5680,6 @@ msgstr "未分组"
 msgid "Bear on none of them"
 msgstr "都不相干"
 
-#. group a thread's papers by Owlit's groups
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Topic"
-msgstr "主题"
-
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5871,6 +5866,11 @@ msgstr "已导出为文档"
 #: app/src/features/threads/lib.ts
 msgid "Not in a project"
 msgstr "不属于任何项目"
+
+#. group a thread's papers by Owlit's groups
+#: app/src/features/threads/lib.ts
+msgid "Topic"
+msgstr "主题"
 
 #: app/src/features/threads/lib.ts
 msgid "Compared with {doc}"
