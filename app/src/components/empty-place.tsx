@@ -52,7 +52,7 @@ export function DropCard({
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-2 rounded-2xl border-[1.5px] border-dashed border-foreground/15 px-14 py-10 text-center transition-colors",
+        "flex flex-col items-center gap-2 rounded-xl border-[1.5px] border-dashed border-foreground/15 px-14 py-10 text-center transition-colors",
         active && "border-foreground/30 bg-muted",
         className,
       )}

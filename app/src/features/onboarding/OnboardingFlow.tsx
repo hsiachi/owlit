@@ -461,7 +461,7 @@ function StartCard({
       onClick={() => !disabled && onClick()}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && !disabled && onClick()}
       style={{ animationDelay: `${delay}ms` }}
-      className="animate-in cursor-pointer rounded-2xl border bg-card p-3.5 shadow-xs transition-[box-shadow,translate] duration-200 fade-in slide-in-from-bottom-2 fill-mode-both outline-none hover:-translate-y-0.5 hover:shadow-md focus-key:ring-2 focus-key:ring-ring/50 aria-disabled:cursor-default aria-disabled:opacity-60"
+      className="animate-in cursor-pointer rounded-xl border bg-card p-3.5 shadow-xs transition-[box-shadow,translate] duration-200 fade-in slide-in-from-bottom-2 fill-mode-both outline-none hover:-translate-y-0.5 hover:shadow-md focus-key:ring-2 focus-key:ring-ring/50 aria-disabled:cursor-default aria-disabled:opacity-60"
     >
       <div className="mb-3.5 h-42 overflow-hidden rounded-xl bg-sidebar">{children}</div>
       <div className="flex items-baseline gap-2 text-[15px] font-semibold">

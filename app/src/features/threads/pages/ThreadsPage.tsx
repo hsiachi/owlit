@@ -169,10 +169,8 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
             <RunMark subject={summary.id} kinds={THREAD_RUNS} />
           ) : work.broken ? (
             <StoppedDot label={t`Owlit stopped.`} />
-          ) : summary.fresh ? (
-            <NoteDot />
           ) : (
-            <span className="size-2 rounded-full border-[1.5px] border-muted-foreground/55" />
+            summary.fresh && <NoteDot />
           )}
         </span>
         <span className="shrink-0 truncate">{summary.title}</span>
