@@ -284,6 +284,26 @@ describe("the extension's port", () => {
       expect((await call("extension.get")).waits).toEqual([])
     })
 
+    it("keeps the PDF the user dropped while the extension's was on its way", async () => {
+      const { call, request, token, root, core, server } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const library = (core as unknown as { workspace: { library: { isPdfOf: (...args: unknown[]) => Promise<string> } } }).workspace.library
+      const theirs = pdfOf([`https://doi.org/${SAGE}`, title, "The copy the user found"])
+      // The user's drop lands after owlit read the extension's upload, before it is placed
+      const isPdfOf = library.isPdfOf.bind(library)
+      vi.spyOn(library, "isPdfOf").mockImplementation(async (...args) => {
+        await call("library.attachPdf", { id, path: path.join(root, "found.pdf") })
+        return isPdfOf(...args)
+      })
+      writeFileSync(path.join(root, "found.pdf"), theirs)
+      const sent = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
+      expect(sent).toMatchObject({ status: 409, body: { reason: "has-pdf", paper: { id, hasPdf: true } } })
+      expect(readFileSync(path.join(root, "library/papers", id, "paper.pdf"))).toEqual(theirs)
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "you", ended: "pdf" })
+      expect(server.work.paperOf(item.id)).toBeUndefined()
+    })
+
     it("notes each word the extension brings back as its try", async () => {
       const { call, request, token, root } = await connected()
       for (const ended of ["no-access", "not-offered", "not-there", "no-copy"] as const) {

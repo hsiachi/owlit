@@ -1,8 +1,9 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, type ExtensionStatus, type ExtensionView, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, RpcErrorCode, type ExtensionStatus, type ExtensionView, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
-import type { Library } from "../library/library.ts"
+import type { Library, PlacedBy } from "../library/library.ts"
+import { RpcFailure } from "../rpc/index.ts"
 import { PDF_MAX_BYTES } from "../library/pdf.ts"
 import type { SettingsStore } from "../settings.ts"
 import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send } from "./http.ts"
@@ -276,7 +277,7 @@ export class ExtensionServer {
           if (before.pdf) throw new HttpFailure(409, "has-pdf", t`This paper has its PDF already.`, { paper: shown(before) })
           return this.withPdf(raw, async (file) => {
             if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
-            return { body: { paper: shown(await library.attachPdf(before.id, file, "extension")) } satisfies PaperAnswer }
+            return { body: { paper: shown(await this.attachIfMissing(library, before.id, file, "extension")) } satisfies PaperAnswer }
           })
         },
       },
@@ -325,7 +326,7 @@ export class ExtensionServer {
               return await this.withPdf(raw, async (file) => {
                 // Another paper's PDF (a publisher's page can link the wrong one): no copy there
                 if ((await library.isPdfOf(paper.paperId, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
-                const placed = await library.attachPdf(paper.paperId, file, `extension:${at}`)
+                const placed = await this.attachIfMissing(library, paper.paperId, file, `extension:${at}`)
                 this.work.settle(id, undefined)
                 return { body: { paper: shown(placed) } satisfies PaperAnswer }
               })
@@ -352,7 +353,11 @@ export class ExtensionServer {
         handle: async ({ raw }) => {
           const library = this.library()
           return this.withPdf(raw, async (file) => {
-            const paper = await library.attachUnnamedPdf(file, "extension")
+            const paper = await library.attachUnnamedPdf(file, "extension").catch((error) => {
+              // Given its PDF another way while this one was read: it isn't missing any more
+              if (error instanceof RpcFailure && error.code === RpcErrorCode.Conflict) return undefined
+              throw error
+            })
             // Not a paper the Library is waiting on: the file goes, and nothing is offered on a guess
             if (!paper) throw new HttpFailure(404, "not-a-library-paper", t`This PDF isn't one your Library is missing.`)
             return { body: { paper: shown(paper) } satisfies PaperAnswer }
@@ -360,6 +365,18 @@ export class ExtensionServer {
         },
       },
     ]
+  }
+
+  // The extension's PDF as the paper's, unless one is there by now: the check before the upload was read
+  // can't see a PDF the user dropped meanwhile, so it is made again under the library's lock
+  private async attachIfMissing(library: Library, id: string, file: string, route: PlacedBy) {
+    try {
+      return await library.attachPdf(id, file, route, { ifMissing: true })
+    } catch (error) {
+      if (!(error instanceof RpcFailure) || error.code !== RpcErrorCode.Conflict) throw error
+      const now = await library.get(id)
+      throw new HttpFailure(409, "has-pdf", t`This paper has its PDF already.`, now ? { paper: shown(now) } : undefined)
+    }
   }
 
   // The request's PDF in a temp file for as long as work needs it

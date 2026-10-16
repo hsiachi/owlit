@@ -86,7 +86,7 @@ const NOTE_SETTLE_MS = 150
 
 // How a PDF owlit didn't fetch itself came, as acquisition.json records its route: dropped or chosen by
 // the user, or handed over by owlit's browser extension (the host it came from, when it fetched it)
-type PlacedBy = "dropped" | "extension" | `extension:${string}`
+export type PlacedBy = "dropped" | "extension" | `extension:${string}`
 // Figures that couldn't be had (the cloud unreachable) are looked for again by a note written after this
 const FIGURES_RETRY_MS = 60 * 60_000
 // Pictures a digest's agent is shown at most, and the largest (model APIs refuse images over
@@ -939,10 +939,13 @@ export class Library {
   }
 
   // A PDF the user found, placed as the paper's file; the steps that need it follow. The route says how
-  // it came (PlacedBy); one from the extension is its try, the others the user's.
-  attachPdf(id: string, file: string, route: PlacedBy = "dropped"): Promise<Paper> {
+  // it came (PlacedBy); one from the extension is its try, the others the user's. ifMissing: only where
+  // the paper has no PDF yet, else Conflict. Checked under the lock, since an extension's upload is read
+  // and checked first and a PDF the user dropped meanwhile must not be replaced by it.
+  attachPdf(id: string, file: string, route: PlacedBy = "dropped", options: { ifMissing?: boolean } = {}): Promise<Paper> {
     return this.serial.run(async () => {
       if (!(await readRecord(this.root, id))) throw notFound(id)
+      if (options.ifMissing && (await hasPdfFile(this.root, id))) throw new RpcFailure(RpcErrorCode.Conflict, t`This paper has its PDF already.`, { id })
       await assertPdf(file)
       await this.placePdf(id, file, await sha256Of(file), "asked", route)
       return (await this.get(id))!
@@ -968,7 +971,7 @@ export class Library {
       if (record) lacking.push({ id, doi: record.ids.doi, title: record.title })
     }
     const match = surelyOf(said, lacking)
-    return match ? this.attachPdf(match.id, file, route) : undefined
+    return match ? this.attachPdf(match.id, file, route, { ifMissing: true }) : undefined
   }
 
   // Open copies of a paper known only by its title (no DOI), from arXiv, Semantic Scholar and OpenAlex:
