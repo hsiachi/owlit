@@ -2,6 +2,11 @@
 
 Each version's section goes, as it is, into the notes sent with its dmg (scripts/release-notes.mjs).
 
+## Unreleased
+
+- Chats and threads no longer show an empty ring before their titles when nothing is happening.
+- A starred paper's star is filled in black (white in dark mode) instead of yellow, so it never reads as waiting or a comment.
+
 ## 0.2.0
 
 Threads replace Knowledge: a thread is the papers on a question and how they connect. An old `knowledge/` folder shows in Docs as ordinary Markdown.
