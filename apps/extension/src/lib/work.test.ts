@@ -7,7 +7,8 @@ const PDF = new TextEncoder().encode("%PDF-1.7\n...")
 const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "w1", paperId: "doi-10.1177-1", url: "https://journals.sagepub.com/doi/10.1177/1", host: "sagepub.com", proxied: false, ...extra })
 
 // A web of addresses: each answers with a body, a status and where its redirects ended
-type Answer = { body: string | Uint8Array; status?: number; type?: string; endsAt?: string } | "down"
+// "away": a redirect to a site the extension may not read, which a followed fetch rejects
+type Answer = { body: string | Uint8Array; status?: number; type?: string; endsAt?: string } | "down" | "away"
 function web(answers: Record<string, Answer>, permitted: (url: string) => boolean = () => true) {
   const asked: string[] = []
   const fetch = (async (url: string, init?: RequestInit) => {
@@ -15,6 +16,10 @@ function web(answers: Record<string, Answer>, permitted: (url: string) => boolea
     expect(init?.credentials).toBe("include")
     const answer = answers[url] ?? { body: "<title>Not Found</title>", status: 404 }
     if (answer === "down") throw new TypeError("Failed to fetch")
+    if (answer === "away") {
+      if (init?.redirect !== "manual") throw new TypeError("Failed to fetch")
+      return { type: "opaqueredirect", status: 0, url, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(0) } as unknown as Response
+    }
     const response = new Response(answer.body as BodyInit, { status: answer.status ?? 200, headers: { "content-type": answer.type ?? (typeof answer.body === "string" ? "text/html" : "application/pdf") } })
     Object.defineProperty(response, "url", { value: answer.endsAt ?? url })
     return response
@@ -75,6 +80,19 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
     const never = { fetch: ((_: string, init: RequestInit) => new Promise((_, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))) as unknown as typeof fetch, permitted: async () => true, timeoutMs: 5 }
     expect(await fetchFor(item(), never)).toMatchObject({ ended: "no-copy" })
+  })
+
+  it("says sign-in, or not allowed, where a redirect leads to a site it may not read", async () => {
+    // Signed out at the proxy: it sends the fetch on to the school's sign-in
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
+    const proxied = await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), web({ [entry]: "away" }).deps)
+    expect(proxied).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
+    // A publisher reached by a redirect from where the paper was asked for
+    const { deps, asked } = web({ "https://journals.sagepub.com/doi/10.1177/1": "away" })
+    expect(await fetchFor(item(), deps)).toEqual({ ended: "no-permission", host: "sagepub.com" })
+    expect(asked).toEqual(["https://journals.sagepub.com/doi/10.1177/1", "https://journals.sagepub.com/doi/10.1177/1"])
+    // Nothing answers either way: offline, as before
+    expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
   })
 
   it("hands the PDF or the word to owlit, and lets go of an answer owlit no longer waits for", async () => {
