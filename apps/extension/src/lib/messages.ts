@@ -67,9 +67,7 @@ export interface Answers {
   allowed: null
 }
 
-// A site's own addresses and every one under it: what the extension asks the user to let it read for
-// owlit's papers there
-export const originsOf = (host: string) => [`https://${host}/*`, `https://*.${host}/*`]
+export { originsOf } from "./permissions.ts"
 
 export function send<R extends Request>(request: R): Promise<Answers[R["kind"]]> {
   return ext.runtime.sendMessage(request)

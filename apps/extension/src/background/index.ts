@@ -6,7 +6,7 @@ import { startI18n } from "../lib/i18n.ts"
 import { originsOf, type Answers, type Connection, type Outcome, type PageState, type PopupState, type Request } from "../lib/messages.ts"
 import { ask, OwlitError, Unreachable } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
-import { hasKnownSites } from "../lib/permissions.ts"
+import { hasKnownSites, notYetAllowed } from "../lib/permissions.ts"
 import { contentTypeOf, isPdfResponse, takesPdfTab } from "../lib/pdf-tab.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
@@ -399,7 +399,9 @@ ext.runtime.onInstalled.addListener(registered)
 
 async function popupState(tabId: number): Promise<PopupState> {
   const [conn, takePdfs, knownSites] = await Promise.all([connection(), takePdfsOn(), hasKnownSites(ext.permissions, ext.runtime.getManifest())])
-  const needs = conn.state === "connected" ? (await waits()).filter((w) => w.kind === "permission").map(({ host, papers }) => ({ host, papers })) : []
+  const asked = conn.state === "connected" ? (await waits()).filter((w) => w.kind === "permission").map(({ host, papers }) => ({ host, papers })) : []
+  const { needed: needs, allowed } = await notYetAllowed(ext.permissions, asked)
+  for (const host of allowed) void resume(host).catch(() => undefined)
   const page = await pageOf(tabId)
   if (!page) return { connection: conn, page: null, takePdfs, knownSites, needs }
   const { token } = await local()

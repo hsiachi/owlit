@@ -82,15 +82,19 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(item(), never)).toMatchObject({ ended: "no-copy" })
   })
 
-  it("says sign-in, or not allowed, where a redirect leads to a site it may not read", async () => {
+  it("says sign-in through the proxy, and no copy elsewhere, where a redirect leads to a site it may not read", async () => {
     // Signed out at the proxy: it sends the fetch on to the school's sign-in
     const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
     const proxied = await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), web({ [entry]: "away" }).deps)
     expect(proxied).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
-    // A publisher reached by a redirect from where the paper was asked for
+    // Without a proxy, the redirect's target is unknown: no copy there, never a site to allow, since the
+    // site it asked is one the extension already reads (allowing it again would change nothing)
     const { deps, asked } = web({ "https://journals.sagepub.com/doi/10.1177/1": "away" })
-    expect(await fetchFor(item(), deps)).toEqual({ ended: "no-permission", host: "sagepub.com" })
+    expect(await fetchFor(item(), deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
     expect(asked).toEqual(["https://journals.sagepub.com/doi/10.1177/1", "https://journals.sagepub.com/doi/10.1177/1"])
+    // The PDF's own address leading away: the page is tried, and its word stands
+    const pdfAway = web({ "https://journals.sagepub.com/doi/pdf/10.1177/1": "away", "https://journals.sagepub.com/doi/10.1177/1": { body: "<title>Get access</title>" } })
+    expect(await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), pdfAway.deps)).toMatchObject({ ended: "no-access" })
     // Nothing answers either way: offline, as before
     expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
   })

@@ -78,9 +78,11 @@ export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched
   if (!(await deps.permitted(item.url))) return { ended: "no-permission", host: item.host }
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   // Where a redirect left for a site the extension may not read: through the proxy, its sign-in (a
-  // signed-out proxy sends every fetch to the school's); otherwise a site to allow, whose host the
-  // browser doesn't show, so the paper's own
-  const away: WorkEnded = item.proxied ? { ended: "sign-in", host: hostOf(item.url) } : { ended: "no-permission", host: item.host }
+  // signed-out proxy sends every fetch to the school's). Otherwise no copy: the browser doesn't show the
+  // redirect's target, and the site asked is one the extension reads already, so a site to allow would
+  // name one already allowed, which resumes at once and pauses again on the same redirect.
+  // no-permission is said only above, for an address the extension may not read before it is fetched.
+  const away: WorkEnded = item.proxied ? { ended: "sign-in", host: hostOf(item.url) } : { ended: "no-copy", host: item.host }
   const tried = new Set<string>()
   if (item.pdfUrl && (await deps.permitted(item.pdfUrl))) {
     tried.add(item.pdfUrl)

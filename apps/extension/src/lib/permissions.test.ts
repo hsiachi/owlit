@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { askForKnownSites, askForOrigins, hasKnownSites, knownSites } from "./permissions.ts"
+import { askForKnownSites, askForOrigins, hasKnownSites, knownSites, notYetAllowed } from "./permissions.ts"
 
 const manifest = { host_permissions: ["http://127.0.0.1/*", "https://*.acm.org/*", "https://*.wiley.com/*"] }
 
@@ -55,5 +55,16 @@ describe("one site", () => {
     const asked = askForOrigins(permissions, ["https://example.org/*"])
     expect(permissions.request).toHaveBeenCalledWith({ origins: ["https://example.org/*"] })
     expect(await asked).toBe("granted")
+  })
+})
+
+describe("the sites owlit's papers wait to be allowed on", () => {
+  it("leaves out a site the extension may already read", async () => {
+    const permissions = stub({ granted: ["https://sagepub.com/*", "https://*.sagepub.com/*"] })
+    const waits = [
+      { host: "sagepub.com", papers: 2 },
+      { host: "example-press.org", papers: 1 },
+    ]
+    expect(await notYetAllowed(permissions, waits)).toEqual({ needed: [{ host: "example-press.org", papers: 1 }], allowed: ["sagepub.com"] })
   })
 })
