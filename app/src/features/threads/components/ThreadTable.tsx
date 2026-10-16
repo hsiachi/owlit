@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { isTaskFinished, itemId, QUESTION_COLUMN, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
-import { Fragment, useState } from "react"
+import { Fragment, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { ChoiceMenu } from "@/components/choice-menu"
@@ -116,13 +116,32 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
   }
 
   const span = columns.length + 2
+  const root = useRef<HTMLDivElement>(null)
+  const head = useRef<HTMLDivElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  // One table's sideways scroll, given to the other; while scrolled, the pinned column shows its edge
+  const follow = (from: HTMLElement | null, to: HTMLElement | null) => {
+    if (!from || !to) return
+    if (Math.abs(to.scrollLeft - from.scrollLeft) > 0.5) to.scrollLeft = from.scrollLeft
+    root.current?.toggleAttribute("data-scrolled", from.scrollLeft > 0)
+  }
+  const width = `max(100%, calc(${PAPER} + ${PLUS} + ${columns.length} * ${ANSWER}))`
+  const cols = (
+    <colgroup>
+      <col style={{ width: PAPER }} />
+      {columns.map((c) => (
+        <col key={c.id} />
+      ))}
+      <col style={{ width: PLUS }} />
+    </colgroup>
+  )
   const groupOptions = [
     ...(shown.groups.length ? [{ value: "topic" as GroupBy, label: t({ message: "Topic", comment: "group a thread's papers by Owlit's groups" }) }] : []),
     ...columns.filter((c) => c.kind === "compare").map((c) => ({ value: `column:${c.id}` as GroupBy, label: t`Sentences of ${displayName(c.doc ?? c.question)}` })),
     { value: "none" as GroupBy, label: t({ message: "None", comment: "no grouping" }) },
   ]
   return (
-    <div className="mt-8">
+    <div ref={root} className="group/table mt-8">
       <div className="mb-2 -ml-2 flex flex-wrap items-center gap-1">
         {groupOptions.length > 1 && <ChoiceMenu value={groupBy} onChange={setGroupBy} label={t`Group by`} trigger={<GroupWord label={t`Group by`} value={groupOptions.find((o) => o.value === groupBy)?.label} />} align="start" options={groupOptions} />}
         <ChoiceMenu
@@ -139,84 +158,110 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
           ]}
         />
       </div>
-      <table className="w-full table-fixed border-separate border-spacing-0">
-        <colgroup>
-          <col style={{ width: columns.length > 2 ? "28%" : "36%" }} />
-          {columns.map((c) => (
-            <col key={c.id} />
-          ))}
-          <col style={{ width: 40 }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <HeadCell first>{t`Paper`}</HeadCell>
-            {columns.map((c) => (
-              <HeadCell key={c.id}>
-                <ColumnHeader thread={thread} column={c} />
+      {/* The header is a table of its own over the body's, so it can stick to the page's top while the body
+          scrolls sideways (a sideways scroller would also hold it vertically), and follows the body's sideways
+          scroll. Both tables take the same width and columns, so they line up. */}
+      <div ref={head} onScroll={() => follow(head.current, body.current)} className="sticky top-0 z-10 overflow-x-auto [scrollbar-width:none]">
+        <table className="table-fixed border-separate border-spacing-0" style={{ width }}>
+          {cols}
+          <thead>
+            <tr>
+              <HeadCell first className={cn("left-0 z-20", pinnedEdge)}>
+                {t`Paper`}
               </HeadCell>
-            ))}
-            <HeadCell last>
-              <AskEach thread={thread} trigger="plus" />
-            </HeadCell>
-          </tr>
-        </thead>
-        <tbody>
-          {sections.map((s) => {
-            const open = !folded.has(s.key)
-            const rows = sortRows(s.rows)
-            const many = rows.length > SHOWN && !all.has(s.key)
-            return (
-              <Fragment key={`${s.key}:${s.depth}`}>
-                {s.label && (
-                  <GroupRow
-                    thread={thread}
-                    section={s}
-                    open={open}
-                    span={span}
-                    count={plural(s.total.length, { one: "# paper", other: "# papers" })}
-                    rels={relCounts(s.total, compare)}
-                    onToggle={() => setFolded((f) => (f.has(s.key) ? (f.delete(s.key), new Set(f)) : new Set(f).add(s.key)))}
-                  />
-                )}
-                {open &&
-                  (many ? rows.slice(0, SHOWN) : rows).map((r) => (
-                    <Fragment key={r.id}>
-                      <TableRow
-                        thread={thread}
-                        row={r}
-                        columns={columns}
-                        // Grouped by a comparison's sentences, the group says which sentence; one sentence
-                        // needs no saying
-                        sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
-                        indent={s.label ? s.depth + 1 : 0}
-                        seenBefore={seenBefore}
-                        open={isOpen(`${s.key}:${r.id}`, r.id)}
-                        onOpen={() => {
-                          useThreadsUi.getState().set({ peek: null })
-                          setPeek(isOpen(`${s.key}:${r.id}`, r.id) ? "" : `${s.key}:${r.id}`)
-                        }}
-                      />
-                      <PeekRow thread={thread} row={r} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
-                    </Fragment>
-                  ))}
-                {open && many && (
-                  <tr>
-                    <td colSpan={span} className="border-b py-1.5" style={{ paddingLeft: 10 + (s.label ? (s.depth + 1) * 20 : 0) }}>
-                      <Button variant="text" size="inline" onClick={() => setAll((a) => new Set(a).add(s.key))}>
-                        <ChevronDownIcon />
-                        {plural(rows.length - SHOWN, { one: "# more", other: "# more" })}
-                      </Button>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            )
-          })}
-        </tbody>
-      </table>
+              {columns.map((c) => (
+                <HeadCell key={c.id}>
+                  <ColumnHeader thread={thread} column={c} />
+                </HeadCell>
+              ))}
+              <HeadCell last>
+                <AskEach thread={thread} trigger="plus" />
+              </HeadCell>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      {/* A container, so what spans the row (a group, a card) can be as wide as the visible part, pinned there */}
+      <div ref={body} onScroll={() => follow(body.current, head.current)} className="@container overflow-x-auto">
+        <table className="table-fixed border-separate border-spacing-0" style={{ width }}>
+          {cols}
+          <tbody>
+            {sections.map((s) => {
+              const open = !folded.has(s.key)
+              const rows = sortRows(s.rows)
+              const many = rows.length > SHOWN && !all.has(s.key)
+              return (
+                <Fragment key={`${s.key}:${s.depth}`}>
+                  {s.label && (
+                    <GroupRow
+                      thread={thread}
+                      section={s}
+                      open={open}
+                      span={span}
+                      count={plural(s.total.length, { one: "# paper", other: "# papers" })}
+                      rels={relCounts(s.total, compare)}
+                      onToggle={() => setFolded((f) => (f.has(s.key) ? (f.delete(s.key), new Set(f)) : new Set(f).add(s.key)))}
+                    />
+                  )}
+                  {open &&
+                    (many ? rows.slice(0, SHOWN) : rows).map((r) => (
+                      <Fragment key={r.id}>
+                        <TableRow
+                          thread={thread}
+                          row={r}
+                          columns={columns}
+                          // Grouped by a comparison's sentences, the group says which sentence; one sentence
+                          // needs no saying
+                          sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
+                          indent={s.label ? s.depth + 1 : 0}
+                          seenBefore={seenBefore}
+                          open={isOpen(`${s.key}:${r.id}`, r.id)}
+                          onOpen={() => {
+                            useThreadsUi.getState().set({ peek: null })
+                            setPeek(isOpen(`${s.key}:${r.id}`, r.id) ? "" : `${s.key}:${r.id}`)
+                          }}
+                        />
+                        <PeekRow thread={thread} row={r} open={isOpen(`${s.key}:${r.id}`, r.id)} span={span} />
+                      </Fragment>
+                    ))}
+                  {open && many && (
+                    <tr>
+                      <td colSpan={span} className="border-b p-0">
+                        <div className={cn(inView, "py-1.5")} style={{ paddingLeft: 10 + (s.label ? (s.depth + 1) * 20 : 0) }}>
+                          <Button variant="text" size="inline" onClick={() => setAll((a) => new Set(a).add(s.key))}>
+                            <ChevronDownIcon />
+                            {plural(rows.length - SHOWN, { one: "# more", other: "# more" })}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
+
+// The Paper column's width, and the least an answer column takes: answers share what is left, and once
+// they would get less, the table scrolls sideways under the Paper column, which stays
+const PAPER = "18rem"
+const ANSWER = "15rem"
+const PLUS = "40px"
+
+// What spans a row (a group's line, "N more") is as wide as the visible part of the table and stays there
+// while the table scrolls sideways
+const inView = "sticky left-0 w-[100cqw]"
+
+// While the table is scrolled sideways, a hairline marks where the pinned column ends
+const pinnedEdge = "group-data-scrolled/table:shadow-[inset_-1px_0_0_var(--color-border)]"
+
+// The pinned column keeps the sheet under it, so cells passing beneath don't show through, and its hover
+// fill is the row's (translucent) laid over that sheet
+const pinnedCell = "sticky left-0 z-[1] bg-background group-hover/row:[background-image:linear-gradient(var(--color-muted),var(--color-muted))]"
 
 function GroupWord({ label, value }: { label: string; value: string | undefined }) {
   return (
@@ -305,8 +350,8 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
     : []
   return (
     <tr className="group/row">
-      <td colSpan={span} className="border-b pt-4 pb-1.5" style={{ paddingLeft: 6 + section.depth * 20 }}>
-        <div className="flex items-center gap-2">
+      <td colSpan={span} className="border-b p-0">
+        <div className={cn(inView, "flex items-center gap-2 pt-4 pb-1.5")} style={{ paddingLeft: 6 + section.depth * 20 }}>
           {renaming && g ? (
             <RenameInput
               initial={section.label}
@@ -341,7 +386,7 @@ function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, ope
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
     <tr id={`row-${row.id}`} className="group/row">
-      <td className={cn(td, "cursor-default text-sm group-hover/row:bg-muted")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
+      <td className={cn(td, pinnedCell, pinnedEdge, "cursor-default text-sm")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>
           {/* Owlit's dot for a new row and the user's reading are two facts, so both can show */}
@@ -365,7 +410,7 @@ function TableRow({ thread, row, columns, sentenceShown, indent, seenBefore, ope
 function PeekRow({ thread, row, open, span }: { thread: Thread; row: ThreadRow; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
-    <TablePeekRow open={open} span={span}>
+    <TablePeekRow open={open} span={span} pinned>
       <RowPeek thread={thread} row={row} library={library} className={tablePeekCard} />
     </TablePeekRow>
   )

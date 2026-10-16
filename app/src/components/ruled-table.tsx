@@ -21,14 +21,19 @@ export const tablePeekCard = "my-1.5 rounded-xl border bg-card px-4 pt-3.5 pb-3 
 
 // A row's card: a full-width row under it that unfolds, the row staying where it was as the card's title
 // line. Every row has one, closed and empty until opened, so a card can fold away again. The card
-// overhangs the row by 6px a side, so the fold's clip box is widened by as much.
-export function TablePeekRow({ open, span, children }: { open: boolean; span: number; children: React.ReactNode }) {
+// overhangs the row by 6px a side, so the fold's clip box is widened by as much. `pinned`, in a table that
+// scrolls sideways inside an `@container`, keeps the card as wide as the visible part and there while it scrolls.
+export function TablePeekRow({ open, span, pinned, children }: { open: boolean; span: number; pinned?: boolean; children: React.ReactNode }) {
+  const unfold = (
+    <Unfold open={open} innerClassName="-mx-1.5 px-1.5">
+      {children}
+    </Unfold>
+  )
   return (
     <tr>
       <td colSpan={span} className="px-1.5">
-        <Unfold open={open} innerClassName="-mx-1.5 px-1.5">
-          {children}
-        </Unfold>
+        {/* Outside the fold, whose clip box would hold it still */}
+        {pinned ? <div className="sticky left-1.5 w-[calc(100cqw-12px)]">{unfold}</div> : unfold}
       </td>
     </tr>
   )
