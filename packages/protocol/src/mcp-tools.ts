@@ -168,6 +168,10 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         path: { type: "string", description: "Workspace-relative path of the doc" },
         quote: { type: "string", description: "The exact passage the comment is about, as it appears in the doc" },
         comment: { type: "string", description: "What you want to say" },
+        own: {
+          type: "string",
+          description: "Only when the comment carries over what someone else said (going through a meeting or reviews): your own word on it, kept as a separate entry under it. Leave it out otherwise.",
+        },
       },
       required: ["path", "quote", "comment"],
     },

@@ -1,9 +1,10 @@
-import { isMarkdown, isOpenComment, paperUri, type DocComment, type DocOwlit, type EvaluationRecord } from "@owlit/protocol"
+import { isMarkdown, isOpenComment, paperUri, parentPath, type DocComment, type DocOwlit, type EvaluationRecord } from "@owlit/protocol"
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { TYPING_MS, type Presence } from "./presence.ts"
 import { halfDoneSkill, paragraphsOf, recheckSkill, replySkill, reviewSkill } from "./review.ts"
-import { COMMENTING_RUNS, RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./runs.ts"
+import { COMMENTING_RUNS, GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./runs.ts"
+import { cleanReading, goThroughSkill, isChinese, MEETINGS, recordOf } from "./go-through.ts"
 import { foldable, halfDone, halfDoneSince, sectionsOf, WEEK_MS } from "./scan.ts"
 import { randomUUID } from "node:crypto"
 
@@ -24,12 +25,17 @@ export interface ReviewServices {
   // Writes one of Owlit's comments to the doc, as from the run's session; quiet, without a word in the
   // window (a run made while the user was away)
   write: (path: string, comment: DocComment, chatId: string | undefined, quiet: boolean) => Promise<void>
-  // Owlit looked at a doc (the chip's line)
+  // Owlit looked at a doc (the chip's line), or went through it
   looked: (path: string, state: DocOwlit) => void
+  // Writes a new doc of Owlit's (a Go through's record), as an agent's write from the run's session:
+  // kept as a version, so the run offers Undo
+  writeRecord: (path: string, content: string, chatId: string | undefined) => Promise<void>
   // One of Owlit's comments changed: it answered in it, added to it, or folded it away
   replied: (path: string, comment: DocComment) => void
   record: (entry: EvaluationRecord) => void
   now?: () => number
+  // The user's name, when they gave one (a Go through writes their own words as "you")
+  userName?: () => Promise<string | undefined>
 }
 
 interface Held {
@@ -40,6 +46,8 @@ interface Held {
   how: "add" | "put"
   // Held for as long as the user is in the doc, not only while they type there
   pushed: boolean
+  // A Go through's comment: held until the record it points back to is written, and dropped if it never is
+  run?: string
 }
 
 // Runs started while the user was away, whose work waits while they are in the doc at all
@@ -58,6 +66,8 @@ export class Reviews {
   private made = new Map<string, number>()
   private held: Held[] = []
   private timer: ReturnType<typeof setTimeout> | undefined
+  // The record each Go through run is writing, while it hasn't been written
+  private records = new Map<string, { path: string; label: string }>()
 
   constructor(services: ReviewServices) {
     this.services = services
@@ -70,16 +80,51 @@ export class Reviews {
       defineTask(REPLY_RUN, { lane: replySkill.lane, retries: 1, run: (ctx) => this.reply(ctx) }),
       defineTask(SCAN_RUN, { lane: halfDoneSkill.lane, retries: 1, run: (ctx) => this.scan(ctx) }),
       defineTask(RECHECK_RUN, { lane: recheckSkill.lane, retries: 1, run: (ctx) => this.recheck(ctx) }),
+      defineTask(GO_THROUGH_RUN, { lane: goThroughSkill.lane, retries: 1, run: (ctx) => this.goThrough(ctx) }),
     ]
+  }
+
+  // Goes through material from people (subject: its path) against the user's docs. The agent's answer is
+  // the reading, written as a record beside the material; the points it lands meanwhile wait for the
+  // record, since they point back to it, and are dropped if the run doesn't get that far.
+  private async goThrough(ctx: TaskContext) {
+    const ws = this.services.workspace()
+    if (!ws) throw new Error("No workspace is open.")
+    const rel = ctx.task.subject
+    const { content } = await ws.docs.read(rel)
+    if (!content.trim()) return
+    const chinese = isChinese(content)
+    const name = rel.split("/").pop()!.replace(/\.(md|markdown|txt)$/i, "")
+    const record = ws.docs.freePath(parentPath(rel), `${name} · ${chinese ? "解读" : "reading"}`, ".md")
+    const label = record.split("/").pop()!.replace(/\.md$/i, "")
+    const docs = (await ws.docs.list()).files.map((f) => f.path).filter((p) => p !== rel && isMarkdown(p) && !MEETINGS.test(p))
+    const runId = `${GO_THROUGH_RUN}:${ctx.task.id}`
+    this.records.set(runId, { path: record, label })
+    try {
+      const today = new Date(this.now()).toISOString().slice(0, 10)
+      const user = (await this.services.userName?.())?.trim() || undefined
+      const { text } = await this.services.agent(goThroughSkill.instructions({ path: rel, content, record, recordLabel: label, docs, today, user }), ctx, goThroughSkill.tools!, runId)
+      const reading = cleanReading(text)
+      if (!reading.startsWith("# ")) throw new Error("Owlit's reading didn't come out as one.")
+      await this.services.writeRecord(record, recordOf(reading, rel, chinese), ws.tasks.get(ctx.task.id)?.chatId)
+      this.services.looked(rel, await ws.docs.setWentThrough(rel, { at: this.now(), record }))
+    } finally {
+      this.records.delete(runId)
+      // Points of a run that stopped before its record: nothing to point back to
+      if (!(await ws.docs.readDisk(record))) this.held = this.held.filter((h) => h.run !== runId)
+    }
+    await this.land()
   }
 
   // A comment a run made through docs_add_comment: written now, or held while the user is on that page
   async comment(runId: string, path: string, comment: DocComment) {
     const ws = this.services.workspace()
     const chatId = ws?.tasks.get(taskOf(runId))?.chatId
-    const signed = { ...comment, entries: comment.entries.map((e) => ({ ...e, ...(chatId ? { chatId } : {}) })) }
+    // A Go through's comments carry over what people said, from the record it is writing
+    const source = this.records.get(runId)
+    const signed = { ...comment, ...(source ? { source } : {}), entries: comment.entries.map((e) => ({ ...e, ...(chatId ? { chatId } : {}) })) }
     this.made.set(runId, (this.made.get(runId) ?? 0) + 1)
-    const held: Held = { path, comment: signed, chatId, how: "add", pushed: PUSHED.has(kindOf(runId)) }
+    const held: Held = { path, comment: signed, chatId, how: "add", pushed: PUSHED.has(kindOf(runId)), ...(source ? { run: runId } : {}) }
     if (this.holds(held)) {
       this.hold(held)
       return "held"
@@ -110,6 +155,7 @@ export class Reviews {
   }
 
   private holds(h: Held) {
+    if (h.run && this.records.has(h.run)) return true
     const { presence } = this.services
     return h.pushed ? presence.inDoc(h.path) : presence.writingIn(h.path, this.now())
   }

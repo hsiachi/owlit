@@ -242,7 +242,11 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const comment: DocComment = {
         id: randomUUID(),
         ...anchor,
-        entries: [{ id: randomUUID(), by: "owlit", text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) }],
+        entries: [
+          { id: randomUUID(), by: "owlit", text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) },
+          // Owlit's own word under a point carried over from someone else
+          ...(optStr("own") ? [{ id: randomUUID(), by: "owlit" as const, text: optStr("own")!, at, ...(options.chatId ? { chatId: options.chatId } : {}) }] : []),
+        ],
         createdAt: at,
       }
       await owlit.rpc.comments.add({ path: str("path"), comment, agent: { ...asker, ...(options.run ? { run: options.run } : {}) } })

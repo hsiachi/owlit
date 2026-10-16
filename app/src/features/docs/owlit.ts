@@ -44,6 +44,12 @@ export function newOwlitComments(comments: DocComment[] | undefined, seenAt: num
   return (comments ?? []).filter((c) => isOpenComment(c) && c.entries[0]?.by === "owlit" && c.createdAt > (seenAt ?? 0)).sort((a, b) => a.createdAt - b.createdAt)
 }
 
+// Owlit goes through this doc as material from people (a meeting's transcript, reviews) against the
+// user's other docs. Quiet when it starts: the doc's chip breathes, and the run says what it did
+export function goThrough(file: { path: string }) {
+  rpc.docs.goThrough({ path: file.path }).catch((error) => toastError(error, t`Couldn't start going through it.`))
+}
+
 export function setOwlitOut(path: string, out: boolean) {
   rpc.docs.setOwlitOut({ path, out }).then(
     (state) => put(path, state),

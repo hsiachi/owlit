@@ -4,7 +4,8 @@ import path from "node:path"
 import type { Workspace } from "../workspace/workspace.ts"
 import type { Presence } from "./presence.ts"
 import { leaningOn } from "./reviews.ts"
-import { RECHECK_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./runs.ts"
+import { GO_THROUGH_RUN, RECHECK_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./runs.ts"
+import { MATERIAL, MEETINGS, RECORD } from "./go-through.ts"
 
 // When Owlit does something nobody asked for: every rule is here, and only here. A rule hears events
 // (what the user does, what core sees, the clock), looks at the workspace, and decides one thing per
@@ -41,7 +42,7 @@ export interface World {
   watched(): Promise<{ id: string; due: boolean }[]>
   // A doc's Owlit state: kept out, and the modification time Owlit last read; null when it isn't one
   // of the workspace's docs
-  doc(path: string): Promise<{ out: boolean; looked?: number } | null>
+  doc(path: string): Promise<{ out: boolean; looked?: number; wentThrough?: number } | null>
   // When a file was last changed (ms), or null when it isn't on disk
   mtime(path: string): Promise<number | null>
   // How many threads have papers in them
@@ -61,7 +62,7 @@ export const worldOf = (ws: Workspace, now: number): World => ({
   watched: () => ws.threads.watched(now),
   doc: async (rel) => {
     const owlit = await ws.docs.owlitOf(rel).catch(() => null)
-    return owlit ? { out: !!owlit.out, ...(owlit.looked ? { looked: owlit.looked.mtime } : {}) } : null
+    return owlit ? { out: !!owlit.out, ...(owlit.looked ? { looked: owlit.looked.mtime } : {}), ...(owlit.wentThrough ? { wentThrough: owlit.wentThrough.at } : {}) } : null
   },
   mtime: async (rel) => {
     const info = await stat(path.join(ws.root, rel)).catch(() => null)
@@ -243,15 +244,25 @@ export const dailyScan = defineRule({
   },
 })
 
-// Meetings: a transcript or reviews that land in a Meetings folder (at the top of the workspace or in a
-// project) are gone through, the points carried to where they belong. Waits for the Go through skill
-// (its own task); not among RULES until then.
-export const MEETINGS = /(^|\/)Meetings\//
+// Meetings: a transcript, minutes or reviews that appear in a Meetings folder (at the top of the workspace
+// or in a project), put there by the user or another program, are gone through against the docs while
+// the user is away: a record beside them, the points carried to where they belong (go-through.ts).
+// Anywhere else, and at any position of the dial, the user asks for it from the doc's menu.
 export const goThroughMeetings = defineRule({
   id: "meetings.goThrough",
   on: ["docs.appeared"],
   needs: "away",
-  when: async (event) => [{ subject: event.path, none: MEETINGS.test(event.path) ? "Go through isn't built yet" : "not in a Meetings folder" }],
+  when: async (event, { world, presence }) => {
+    const subject = event.path
+    if (!MEETINGS.test(subject)) return [{ subject, none: "not in a Meetings folder" }]
+    if (!MATERIAL.test(subject)) return [{ subject, none: "not text" }]
+    if (RECORD.test(subject)) return [{ subject, none: "a record of Owlit's" }]
+    const doc = await world.doc(subject)
+    if (!doc) return [{ subject, none: "not in the workspace" }]
+    if (doc.wentThrough) return [{ subject, none: "gone through already" }]
+    if (!presence.isAway) return untilAway(subject)
+    return [job(subject, GO_THROUGH_RUN, "background")]
+  },
 })
 
-export const RULES: readonly Rule[] = [digestOnOpen, digestOnStar, checkWatched, reviewOnOpen, reviewSettled, paperLanded, paperRead, dailyScan]
+export const RULES: readonly Rule[] = [digestOnOpen, digestOnStar, checkWatched, reviewOnOpen, reviewSettled, paperLanded, paperRead, dailyScan, goThroughMeetings]

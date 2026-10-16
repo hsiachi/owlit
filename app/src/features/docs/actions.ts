@@ -13,7 +13,7 @@ import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
-import { setOwlitOut, useDocOwlitStore } from "./owlit"
+import { goThrough, setOwlitOut, useDocOwlitStore } from "./owlit"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -108,9 +108,13 @@ export function useDocActions() {
       // Owlit is a member of every doc unless kept out of it: no chip, no work of its own there
       ...(md && isDesktop
         ? [
-            useDocOwlitStore.getState().byPath[file.path]?.out
-              ? [{ label: t`Let Owlit in`, onSelect: () => setOwlitOut(file.path, false) }]
-              : [{ label: t`Keep Owlit out`, onSelect: () => setOwlitOut(file.path, true) }],
+            [
+              // Material from people (a meeting, reviews): read against the docs, the points carried to them
+              { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
+              useDocOwlitStore.getState().byPath[file.path]?.out
+                ? { label: t`Let Owlit in`, onSelect: () => setOwlitOut(file.path, false) }
+                : { label: t`Keep Owlit out`, onSelect: () => setOwlitOut(file.path, true) },
+            ],
           ]
         : []),
       [

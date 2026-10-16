@@ -1,6 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
@@ -17,6 +18,7 @@ import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { openRun, useOpenRuns } from "@/features/runs/hooks"
+import { fileAt } from "../store"
 import { useDocsUiStore } from "../ui-store"
 import { mentionLabel } from "../lib/mentions"
 import { askedChat, type CommentView, type EntryView } from "./model"
@@ -54,6 +56,34 @@ function Signed({ entry, className }: { entry: EntryView; className?: string }) 
   )
 }
 
+// A point carried over from a record of what people said (Go through): under the first entry's signature,
+// one muted line saying where it came from, the record's name (without its "· reading" ending) opening it,
+// and that Owlit placed it. Never a speaker's name: the words say who said what.
+function SourceLine({ view, className }: { view: CommentView; className?: string }) {
+  const navigate = useNavigate()
+  const source = view.doc?.source
+  if (!source) return null
+  const name = source.label.replace(/ · (reading|解读)( \d+)?$/, "")
+  return (
+    <p className={cn("text-xs text-muted-foreground", className)}>
+      {t({ message: "From", comment: "before the name of the record a comment's point was carried over from: From P5 周会 · placed by Owlit" })}{" "}
+      <button
+        type="button"
+        className="font-medium text-foreground hover:underline"
+        onClick={(e) => {
+          e.stopPropagation()
+          const file = fileAt(source.path)
+          if (file) navigate(`/docs/${file.id}`)
+        }}
+      >
+        {name}
+      </button>
+      {" · "}
+      {t({ message: "placed by Owlit", comment: "after the record's name on a comment Owlit carried over from it" })}
+    </p>
+  )
+}
+
 export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView; lost: boolean; onOpen: () => void; onHover: (on: boolean) => void }) {
   const first = view.entries[0]
   const last = view.entries[view.entries.length - 1]
@@ -77,6 +107,7 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
       <div className="flex">
         <Signed entry={first} />
       </div>
+      <SourceLine view={view} />
       {lost && <p className="text-xs text-muted-foreground">{t`Its passage has changed`}</p>}
       <p className="mt-0.5 line-clamp-3 text-detail leading-snug text-foreground/80">{plainText(first.text)}</p>
       {/* Who answered last, so a reply that came while you were away shows without opening the card */}
@@ -144,6 +175,7 @@ export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: 
         {first.editable && <EntryMenu entry={first} first hasReplies={replies.length > 0} onEdit={() => setEditing(first.id)} onDelete={() => actions.onDelete(first.id)} />}
       </div>
       <div className="pr-1.5">
+        <SourceLine view={view} className="mt-0.5" />
         {lost && <p className="mt-0.5 text-xs text-muted-foreground">{t`The passage this comment was on has changed: “${shorten(view.quote, 90)}”`}</p>}
         <EntryText entry={first} editing={editing === first.id} onSave={(text) => {
             actions.onEdit(first.id, text)

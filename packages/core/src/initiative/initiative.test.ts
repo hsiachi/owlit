@@ -125,6 +125,7 @@ describe("Initiative", () => {
       ["paper.landed", "away"],
       ["paper.readInFull", "away"],
       ["docs.dailyScan", "away"],
+      ["meetings.goThrough", "away"],
     ])
   })
 

@@ -24,7 +24,8 @@ import { Initiative } from "./initiative/initiative.ts"
 import { exportArchive } from "./initiative/archive.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./initiative/reads.ts"
-import { RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./initiative/runs.ts"
+import { GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./initiative/runs.ts"
+import { MATERIAL } from "./initiative/go-through.ts"
 import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
@@ -202,8 +203,10 @@ export class Core {
       },
       write: (path, comment, chatId, quiet) => this.agentComment(path, comment, chatId, quiet),
       looked: (path, state) => this.notifier.notify("docs.owlit", { path, state }),
+      writeRecord: (path, content, chatId) => this.fs.write(path, content, chatId),
       replied: (path, comment) => this.notifier.notify("comments.changed", { path, comment }),
       record: (entry) => this.journal.evaluation(entry),
+      userName: async () => (await this.settings.get()).profile.name ?? undefined,
     })
     // After presence has heard it (the bus calls kind listeners before catch-all ones, so this is one too)
     this.activity.subscribe((event) => {
@@ -374,6 +377,12 @@ export class Core {
     )
     this.router.register("docs.open", z.object({ path: rel }), ({ path }) => docs().open(path))
     this.router.register("docs.owlit", z.object({ path: rel }), ({ path }) => docs().owlitOf(path))
+    // The user asks Owlit to go through some material (a meeting's transcript, reviews) against their docs
+    this.router.register("docs.goThrough", z.object({ path: rel }), async ({ path }) => {
+      if (!MATERIAL.test(path)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit goes through text: a Markdown or plain-text file.`)
+      await docs().read(path)
+      return this.requireWorkspace().tasks.enqueue(GO_THROUGH_RUN, path, "asked")
+    })
     this.router.register("docs.setOwlitOut", z.object({ path: rel, out: z.boolean() }), async ({ path, out }) => {
       const state = await docs().setOwlitOut(path, out)
       this.notifier.notify("docs.owlit", { path, state })
@@ -399,6 +408,7 @@ export class Core {
       resolvedAt: z.number().optional(),
       dismissedAt: z.number().optional(),
       foldedAt: z.number().optional(),
+      source: z.object({ path: z.string(), label: z.string() }).optional(),
     })
     const chats = () => this.requireWorkspace().chats
     const chatId = z.string().regex(/^[\w-]+$/)
@@ -872,9 +882,11 @@ export class Core {
         // existing comment (add replaces one with the same id)
         if (comment.entries.some((e) => e.by !== "owlit")) throw new RpcFailure(RpcErrorCode.InvalidParams, "An agent leaves only Owlit's own comments.")
         if ((await docs().listComments(path)).some((c) => c.id === comment.id)) throw new RpcFailure(RpcErrorCode.Conflict, "That comment is already there; an agent adds new ones.")
+        // Where a comment carries words from is core's to say (a Go through's record), never the agent's
+        const { source: _claimed, ...own } = comment
         // A run Owlit started on its own: held while the user is on that page
-        if (isCommentingRun(agent.run)) await this.reviews.comment(agent.run!, path, comment)
-        else await this.agentComment(path, comment, agent.chatId)
+        if (isCommentingRun(agent.run)) await this.reviews.comment(agent.run!, path, own)
+        else await this.agentComment(path, own, agent.chatId)
         return null
       },
     )

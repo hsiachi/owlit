@@ -98,6 +98,12 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
     const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
     return { doing: t`Seeing which threads “${title}” belongs in`, done: t`Saw which threads “${title}” belongs in`, why: t`“${title}” came into your library.` }
   }
+  if (task.kind === "meetings.goThrough") {
+    const name = docName(task.subject)
+    const folder = task.subject.includes("/") ? task.subject.slice(0, task.subject.lastIndexOf("/")) : ""
+    const why = task.priority !== "background" ? t`You asked Owlit to go through “${name}”.` : t`“${name}” appeared in ${folder}, and you're away.`
+    return { doing: t`Going through “${name}” against your docs`, done: t`Went through “${name}”`, why }
+  }
   if (task.kind === "docs.reply") {
     const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))
     return { doing: t`Answering your reply in “${name}”`, done: t`Answered your reply in “${name}”`, why: t`You replied to Owlit's comment in “${name}”.` }
