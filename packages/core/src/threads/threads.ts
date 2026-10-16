@@ -564,13 +564,25 @@ export class Threads {
 
   // Keep it separate: rows an agent added to a thread, for a question close to its own, become a
   // thread of their own for that question. The user's words make its title until they rename it;
-  // there is no memo yet, since Owlit's reading was of the other thread.
-  split(id: string, rowIds: string[], asked: string) {
+  // there is no memo yet, since Owlit's reading was of the other thread. Made from a group (Make it a
+  // thread of its own), the group leaves the thread, and a paper that is in another of its groups too
+  // stays there as well: it is copied, not moved.
+  split(id: string, rowIds: string[], asked: string, group?: { column: string; id: string }) {
     return this.serial.run(async () => {
       const from = await this.get(id)
       const now = Date.now()
       const rows = from.rows.filter((r) => rowIds.includes(r.id))
       if (!rows.length) throw new RpcFailure(RpcErrorCode.NotFound, t`Those papers aren't in the thread any more.`)
+      const col = group && from.columns.find((x) => x.id === group.column && x.kind === "grouping")
+      if (group && !col) throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
+      const copied: string[] = []
+      if (col && group) {
+        const view = groupingView(from, col)
+        const own = new Set([group.id, ...view.groups.filter((g) => g.parent === group.id).map((g) => g.id)])
+        for (const r of rows) if (view.of(r).some((g) => !own.has(g))) copied.push(r.id)
+        const name = view.groups.find((g) => g.id === group.id)?.name
+        if (name !== undefined) from.yours.removed[itemId.group(col.id, group.id)] = { text: name, at: now }
+      }
       const question = asked.trim() || from.asked.text
       const c: Thread = {
         ...(await this.blank({ asked: question, title: question }, now)),
@@ -583,14 +595,14 @@ export class Threads {
         }),
       }
       const taken = from.alsoAsked?.find((a) => sameWords(a.text, question))
-      c.splitFrom = { id: from.id, rows, ...(taken ? { asked: taken } : {}) }
-      from.rows = from.rows.filter((r) => !rowIds.includes(r.id))
+      c.splitFrom = { id: from.id, rows, ...(taken ? { asked: taken } : {}), ...(col && group ? { group, copied } : {}) }
+      from.rows = from.rows.filter((r) => !rowIds.includes(r.id) || copied.includes(r.id))
       from.alsoAsked = from.alsoAsked?.filter((a) => a !== taken)
       from.updatedAt = now
       await this.save(c)
       await this.save(from)
       await this.record(c.id, { at: now, by: "you", why: `Kept separate from ${from.id}`, items: rows.map((r) => itemId.row(r.id)) })
-      await this.record(from.id, { at: now, by: "you", why: `Moved to ${c.id}`, items: rows.map((r) => itemId.row(r.id)) })
+      await this.record(from.id, { at: now, by: "you", why: `Moved to ${c.id}`, items: [...rows.filter((r) => !copied.includes(r.id)).map((r) => itemId.row(r.id)), ...(group ? [itemId.group(group.column, group.id)] : [])] })
       this.services.changed?.(from.id, from)
       this.services.changed?.(c.id, c)
       return c
@@ -621,6 +633,8 @@ export class Threads {
         if (edit) from.yours.edits[cell] = edit
         delete from.yours.removed[itemId.row(r.id)]
       }
+      // The group comes back with them
+      if (c.splitFrom.group) delete from.yours.removed[itemId.group(c.splitFrom.group.column, c.splitFrom.group.id)]
       if (c.splitFrom.asked && !from.alsoAsked?.some((a) => sameWords(a.text, c.splitFrom!.asked!.text))) from.alsoAsked = [...(from.alsoAsked ?? []), c.splitFrom.asked]
       from.updatedAt = now
       await this.save(from)

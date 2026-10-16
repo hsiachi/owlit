@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { GROUPING_COLUMN, MENTION_LINK, mentionLink, QUESTION_COLUMN, shownThread, summarize, type Thread, type ThreadColumn, type ThreadPaper, type ThreadRow, type ThreadSummary, type Relation } from "@owlit/protocol"
+import { GROUPING_COLUMN, MENTION_LINK, mentionLink, QUESTION_COLUMN, shownThread, summarize, type Thread, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRow, type ThreadSummary, type Relation } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
@@ -190,4 +190,24 @@ export function threadHolding(threads: Record<string, Thread>, paperId: string):
   return Object.values(threads)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .find((c) => c.rows.some((r) => r.id === paperId) && !c.yours.removed[`row:${paperId}`])
+}
+
+// A grouping's groups as the table shows them, in order with each subgroup after its parent: the papers
+// right in each, and all it holds with its subgroups' papers once each, which its count says. A paper in two
+// groups counts in both; a group whose papers all went elsewhere is left out. Then the papers in none.
+export function groupSections(shown: Thread, grouping: ThreadColumn) {
+  // The shown grouping keeps two levels and each paper in live groups only (shownThread)
+  const groups = grouping.groups ?? []
+  const members = (id: string) => shown.rows.filter((r) => r.in?.[grouping.id]?.includes(id))
+  const out: { group: ThreadGroup; rows: ThreadRow[]; total: ThreadRow[]; depth: number }[] = []
+  const add = (g: ThreadGroup, depth: number) => {
+    const rows = members(g.id)
+    const children = groups.filter((c) => c.parent === g.id)
+    const total = [...new Set([...rows, ...children.flatMap((c) => members(c.id))])]
+    if (!total.length) return
+    out.push({ group: g, rows, total, depth })
+    for (const c of children) add(c, depth + 1)
+  }
+  for (const g of groups.filter((g) => !g.parent)) add(g, 0)
+  return { groups: out, loose: shown.rows.filter((r) => !r.in?.[grouping.id]?.length) }
 }

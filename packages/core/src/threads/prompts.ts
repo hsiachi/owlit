@@ -11,6 +11,9 @@ const ABOUT = (c: Thread) =>
 
 const ANSWERS = `Each row's answer is one plain sentence on what that paper found about the question, in the language the question is in. Write it from the paper's whole abstract (library_get gives it for an id a search returned; a search's own line cuts the abstract short) with depth abstract. Only a paper in the user's library with full text may be answered from its full text (library_read), with depth full and the words it rests on in quote, word for word.`
 
+// A paper can be in several groups; Owlit keeps that rare, so overlap stays visible rather than everywhere
+const ONE_GROUP = `A paper usually goes in one group; give it a second (groups: ["a", "b"]) only when it is really used in both.`
+
 const MEMO = `The memo is at most four sentences on what the papers say together: where they agree, where they differ, what none of them covers. It describes the papers, not your search; it doesn't tell the user what to write or conclude. Name a paper in it as a link labelled with its short title, the words before the title's colon or dash: [CiteSee](owlit://library/<id>); only papers that are rows.`
 // What a search couldn't reach goes with the write, not in the memo; owlit records the searches themselves
 const NOTE = `When your search couldn't reach something (a source failed, an index misses part of a venue, papers have no abstract), say so in one plain sentence as note on the write that adds those papers.`
@@ -18,7 +21,7 @@ const NOTE = `When your search couldn't reach something (a source failed, an ind
 export function gatherPrompt(c: Thread, size: GatherSize) {
   const many =
     size === "many"
-      ? `Gather as many papers as the question takes, up to about 200: for a venue or a year ("UIST 2026 papers"), go through it whole, page by page. Then group the rows: groups of at most about 30 papers, named for what they share, two levels at most, each with a one-line description (one); put each row in one group with its group field.`
+      ? `Gather as many papers as the question takes, up to about 200: for a venue or a year ("UIST 2026 papers"), go through it whole, page by page. Then group the rows: groups of at most about 30 papers, named for what they share, two levels at most, each with a one-line description (one); put each row in its group with its group field. ${ONE_GROUP}`
       : `Gather about ten papers: the ones that answer the question best, not the first ten found.`
   return `You are gathering papers into a thread in owlit for the user, who asked: «${c.asked.text}»
 
@@ -37,7 +40,7 @@ export function morePrompt(c: Thread) {
 ${ABOUT(c)}
 Search further than before: other sources, other words, older or newer years, the references and citations of the best papers there (library_related). Add 5 to 10 papers that aren't there yet and answer the question well, with thread_write id ${c.id} (rows). Don't add anything to the library. ${NOTE}
 ${ANSWERS}
-${groupingsOf(c).some((col) => col.groups?.length) ? "Put each new row in the group it fits, or a new group when none does.\n" : ""}Then update the memo if the new papers change it. ${MEMO}
+${groupingsOf(c).some((col) => col.groups?.length) ? `Put each new row in the group it fits, or a new group when none does. ${ONE_GROUP}\n` : ""}Then update the memo if the new papers change it. ${MEMO}
 Your answer at the end is one line on what you added.`
 }
 

@@ -840,7 +840,10 @@ export class Core {
           z.object({ op: z.literal("revert"), item }),
           z.object({ op: z.literal("remove"), item }),
           z.object({ op: z.literal("unremove"), item }),
-          z.object({ op: z.literal("move"), column: z.string().min(1), row: z.string().min(1), group: z.string().nullable() }),
+          z.object({ op: z.literal("place"), column: z.string().min(1), row: z.string().min(1), group: z.string().min(1), in: z.boolean() }),
+          z.object({ op: z.literal("move"), column: z.string().min(1), row: z.string().min(1), group: z.string().nullable(), from: z.string().optional() }),
+          z.object({ op: z.literal("unplace"), column: z.string().min(1), row: z.string().min(1), placed: z.record(z.string(), z.object({ in: z.boolean(), at: z.number() }).nullable()) }),
+          z.object({ op: z.literal("unmerge"), column: z.string().min(1), group: z.string().min(1) }),
           z.object({ op: z.literal("ungroup"), column: z.string().min(1), group: z.string().min(1) }),
           z.object({ op: z.literal("merge"), column: z.string().min(1), group: z.string().min(1), into: z.string().min(1) }),
           z.object({ op: z.literal("watch"), on: z.boolean() }),
@@ -851,7 +854,11 @@ export class Core {
       }),
       ({ id, edit }) => threads().edit(id, edit),
     )
-    this.router.register("threads.split", z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string() }), ({ id, rows, asked }) => threads().split(id, rows, asked))
+    this.router.register(
+      "threads.split",
+      z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string(), group: z.object({ column: z.string().min(1), id: z.string().min(1) }).optional() }),
+      ({ id, rows, asked, group }) => threads().split(id, rows, asked, group),
+    )
     this.router.register("threads.unsplit", z.object({ id: z.string().min(1) }), ({ id }) => threads().unsplit(id))
     this.router.register("threads.about", z.object({ id: z.string().min(1) }), ({ id }) => threads().about(id))
     this.router.register(

@@ -11,8 +11,8 @@ import type { Paper } from "@/features/library/types"
 import { stripLatex } from "@/features/library/lib/latex"
 import { cn } from "@/lib/utils"
 import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
-import { editThread, removeRow, useThreadsStore } from "../store"
-import { ChoiceMenu } from "@/components/choice-menu"
+import { regroupRow, removeRow, useThreadsStore } from "../store"
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useThreadsUi } from "../ui-store"
 
 // The papers of a thread without columns, one line each: what the paper says about the question
@@ -83,6 +83,37 @@ function AnswerRow({ thread, row, fresh, open }: { thread: Thread; row: ThreadRo
   )
 }
 
+// The groups of a grouping, ticked where the paper is: ticking one puts it in that group too, unticking
+// takes it out of that one only. The menu stays open, so several can be changed at once.
+function GroupsMenu({ thread, row, grouping, here }: { thread: Thread; row: ThreadRow; grouping: ThreadColumn; here?: string }) {
+  const isIn = row.in?.[grouping.id] ?? []
+  const groups = grouping.groups ?? []
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground">
+          {t({ message: "Groups…", comment: "button on a paper's card: the groups of the thread it is in" })}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-auto min-w-48">
+        {groups.map((g) => (
+          <DropdownMenuCheckboxItem
+            key={g.id}
+            checked={isIn.includes(g.id)}
+            onSelect={(e) => e.preventDefault()}
+            onCheckedChange={(on) =>
+              void regroupRow(thread, { op: "place", column: grouping.id, row: row.id, group: g.id, in: on }, on ? undefined : t`Removed from ${g.name}`)
+            }
+            className={cn(g.parent && "pl-5", g.id === here && "font-medium")}
+          >
+            {g.name}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 // The page an answer rests on, which opens the paper at those words (a paper read in full is in the Library)
 function PageLink({ passage, library }: { passage: { quote: string; page: number }; library: Paper | undefined }) {
   const navigate = useNavigate()
@@ -96,8 +127,9 @@ function PageLink({ passage, library }: { passage: { quote: string; page: number
 
 // A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
 // the Library: opening it, or adding it, brings it in, since it is then being used.
-// grouping: the shown grouping whose groups Move to group… offers, when there is one
-export function RowPeek({ thread, row, grouping, library, className }: { thread: Thread; row: ThreadRow; grouping?: ThreadColumn; library: Paper | undefined; className?: string }) {
+// grouping: the shown grouping whose groups the card lists, when there is one; here: the group the row
+// was opened under
+export function RowPeek({ thread, row, grouping, here, library, className }: { thread: Thread; row: ThreadRow; grouping?: ThreadColumn; here?: string; library: Paper | undefined; className?: string }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
@@ -145,17 +177,7 @@ export function RowPeek({ thread, row, grouping, library, className }: { thread:
         <Button variant="ghost" size="sm" className="-ml-2.5 font-normal text-muted-foreground" onClick={() => void removeRow(thread.id, row.id)}>
           {t({ message: "Remove", comment: "take a paper off this thread" })}
         </Button>
-        {grouping?.groups?.length ? (
-          <ChoiceMenu
-            value={row.in?.[grouping.id]?.[0] ?? ""}
-            onChange={(group) => void editThread(thread.id, { op: "move", column: grouping.id, row: row.id, group: group || null })}
-            label={t`Move to group`}
-            trigger={t`Move to group…`}
-            align="start"
-            icon={null}
-            options={[...grouping.groups.map((g) => ({ value: g.id, label: g.name })), { value: "", label: t({ message: "No group", comment: "a paper in no group of its thread" }) }]}
-          />
-        ) : null}
+        {grouping?.groups?.length ? <GroupsMenu thread={thread} row={row} grouping={grouping} here={here} /> : null}
         <span className="flex-1" />
         {!library && (
           <Button variant="outline" size="sm" onClick={() => bring()}>

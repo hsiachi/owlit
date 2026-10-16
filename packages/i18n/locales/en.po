@@ -5571,6 +5571,18 @@ msgstr "Papers like {of}"
 msgid "You've read some of it"
 msgstr "You've read some of it"
 
+#. button on a paper's card: the groups of the thread it is in
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Groups…"
+msgstr "Groups…"
+
+#. placeholder {0}: g.name
+#. placeholder {0}: here.name
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Removed from {0}"
+msgstr "Removed from {0}"
+
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Not in your Library"
 msgstr "Not in your Library"
@@ -5579,23 +5591,12 @@ msgstr "Not in your Library"
 msgid "From the abstract"
 msgstr "From the abstract"
 
+#. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Also in"
 msgstr "Also in"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Move to group"
-msgstr "Move to group"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Move to group…"
-msgstr "Move to group…"
-
-#. a paper in no group of its thread
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "No group"
-msgstr "No group"
 
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Open at p. {page}"
@@ -5680,6 +5681,21 @@ msgstr "Not in a group"
 msgid "Bear on none of them"
 msgstr "Bear on none of them"
 
+#. put a paper in one more group of its thread, keeping it where it is
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Add to group"
+msgstr "Add to group"
+
+#. take a paper out of this group and put it in another
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Move to"
+msgstr "Move to"
+
+#. take a paper out of the group it shows under; it stays in the thread
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Remove from this group"
+msgstr "Remove from this group"
+
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5726,9 +5742,19 @@ msgstr "Hide column"
 msgid "Merge into"
 msgstr "Merge into"
 
+#. placeholder {0}: o.name
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Merged into {0}"
+msgstr "Merged into {0}"
+
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Ungroup"
 msgstr "Ungroup"
+
+#. placeholder {0}: g.name
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Ungrouped {0}"
+msgstr "Ungrouped {0}"
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Make it a thread of its own"
@@ -5745,6 +5771,10 @@ msgstr "Group name"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group actions"
 msgstr "Group actions"
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Paper actions"
+msgstr "Paper actions"
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "You edited this"

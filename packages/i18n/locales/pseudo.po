@@ -5571,6 +5571,18 @@ msgstr ""
 msgid "You've read some of it"
 msgstr ""
 
+#. button on a paper's card: the groups of the thread it is in
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Groups…"
+msgstr ""
+
+#. placeholder {0}: g.name
+#. placeholder {0}: here.name
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Removed from {0}"
+msgstr ""
+
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Not in your Library"
 msgstr ""
@@ -5579,22 +5591,11 @@ msgstr ""
 msgid "From the abstract"
 msgstr ""
 
+#. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Also in"
-msgstr ""
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Move to group"
-msgstr ""
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Move to group…"
-msgstr ""
-
-#. a paper in no group of its thread
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "No group"
 msgstr ""
 
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5680,6 +5681,21 @@ msgstr ""
 msgid "Bear on none of them"
 msgstr ""
 
+#. put a paper in one more group of its thread, keeping it where it is
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Add to group"
+msgstr ""
+
+#. take a paper out of this group and put it in another
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Move to"
+msgstr ""
+
+#. take a paper out of the group it shows under; it stays in the thread
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Remove from this group"
+msgstr ""
+
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5726,8 +5742,18 @@ msgstr ""
 msgid "Merge into"
 msgstr ""
 
+#. placeholder {0}: o.name
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Merged into {0}"
+msgstr ""
+
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Ungroup"
+msgstr ""
+
+#. placeholder {0}: g.name
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Ungrouped {0}"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -5744,6 +5770,10 @@ msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group actions"
+msgstr ""
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Paper actions"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx

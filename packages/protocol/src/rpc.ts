@@ -193,13 +193,12 @@ export interface Methods {
   // As stored: Owlit's text with the user's changes beside it (shownThread gives what the user sees)
   "threads.get": { params: { id: string }; result: Thread }
   // An agent's write, merged so the user's changes stay; left names rows not written because the user
-  // removed them
-  // userKept says what of the write gave way to the user's own changes to the groups
+  // removed them, userKept what of the write gave way to the user's own changes to the groups
   "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number; left: string[]; userKept: string[] } }
   "threads.edit": { params: { id: string; edit: ThreadEdit }; result: Thread }
   // Keep it separate: the rows an agent added to this thread become a thread of their own, for
-  // the question they were found for
-  "threads.split": { params: { id: string; rows: string[]; asked: string }; result: Thread }
+  // the question they were found for; or a group's rows (group), copied where they are in other groups too
+  "threads.split": { params: { id: string; rows: string[]; asked: string; group?: { column: string; id: string } }; result: Thread }
   // Undo of a split: the rows go back where they came from, as they were there, and this thread to
   // the trash; the thread they went back to
   "threads.unsplit": { params: { id: string }; result: Thread }

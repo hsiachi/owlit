@@ -143,7 +143,15 @@ export interface Thread {
   yours: ThreadYours
   // Kept separate from another thread: the rows as they were there (groups, every column) and the
   // question taken with them, so Undo can put them back
-  splitFrom?: { id: string; rows: ThreadRow[]; asked?: ThreadAsked }
+  splitFrom?: {
+    id: string
+    rows: ThreadRow[]
+    asked?: ThreadAsked
+    // Made from a group: the group, gone from the other thread until Undo, and the rows that stayed
+    // there too because they were in other groups as well
+    group?: { column: string; id: string }
+    copied?: string[]
+  }
 }
 
 export type ThreadSize = "few" | "many"
@@ -383,10 +391,16 @@ export type ThreadEdit =
   | { op: "revert"; item: string }
   | { op: "remove"; item: string }
   | { op: "unremove"; item: string }
-  // Into a group of a grouping, out of the ones it is in there (null: into none)
-  | { op: "move"; column: string; row: string; group: string | null }
+  // A paper into one more group of a grouping (in: true), or out of one (false); the others stay
+  | { op: "place"; column: string; row: string; group: string; in: boolean }
+  // Into a group, out of the one it was opened in (from; "" for none), or out of all of them when from is
+  // absent; null: into none
+  | { op: "move"; column: string; row: string; group: string | null; from?: string }
+  // Undo of place and move: the user's own placements of that paper as they were (null: none)
+  | { op: "unplace"; column: string; row: string; placed: Record<string, { in: boolean; at: number } | null> }
   | { op: "ungroup"; column: string; group: string }
   | { op: "merge"; column: string; group: string; into: string }
+  | { op: "unmerge"; column: string; group: string }
   | { op: "watch"; on: boolean }
   // A column out of sight, or back
   | { op: "hide"; column: string; hidden: boolean }
@@ -438,6 +452,7 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       delete c.yours.removed[edit.item]
       return { items: [edit.item] }
     // Groups change in yours, never in Owlit's grouping, so a later write of Owlit's can't undo them
+    case "place":
     case "move": {
       const row = c.rows.find((r) => r.id === edit.row)
       const col = c.columns.find((x) => x.id === edit.column && x.kind === "grouping")
@@ -445,10 +460,25 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       if (!col) return { problem: "group" }
       const view = groupingView(c, col)
       if (edit.group && !view.groups.some((g) => g.id === edit.group)) return { problem: "group" }
-      for (const id of view.of(row)) if (id !== edit.group) c.yours.placed[placedKey(col.id, row.id, id)] = { in: false, at: now }
-      if (edit.group) c.yours.placed[placedKey(col.id, row.id, edit.group)] = { in: true, at: now }
+      const put = (group: string, into: boolean) => (c.yours.placed[placedKey(col.id, row.id, group)] = { in: into, at: now })
+      if (edit.op === "place") put(edit.group, edit.in)
+      else {
+        const out = edit.from === undefined ? view.of(row) : edit.from ? [edit.from] : []
+        for (const id of out) if (id !== edit.group) put(id, false)
+        if (edit.group) put(edit.group, true)
+      }
       return { items: [itemId.row(edit.row)] }
     }
+    case "unplace":
+      for (const [group, p] of Object.entries(edit.placed)) {
+        const key = placedKey(edit.column, edit.row, group)
+        if (p) c.yours.placed[key] = p
+        else delete c.yours.placed[key]
+      }
+      return { items: [itemId.row(edit.row)] }
+    case "unmerge":
+      delete c.yours.merged[`${edit.column}:${edit.group}`]
+      return { items: [itemId.group(edit.column, edit.group)] }
     case "ungroup":
     case "merge": {
       const col = c.columns.find((x) => x.id === edit.column && x.kind === "grouping")
