@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import { useMemo, useState } from "react"
 import { NavLink, useNavigate, useParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { ActionsOnRightClick, RowMenuButton, type MenuGroups } from "@/components/action-menu"
+import { ActionsOnRightClick, fadeUnderRowMenu, RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { NewRow, PanelEmpty, PanelHeader } from "@/components/list-panel"
 import { RenameInput } from "@/components/rename-input"
 import {
@@ -41,6 +41,7 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
   const deleteChat = useChatStore((s) => s.deleteChat)
   const [renaming, setRenaming] = useState(false)
   const status = useChatStatus(chat.id)
+  const statusWord = status === "waiting" || status === "failed"
 
   const remove = () => {
     deleteChat(chat.id)
@@ -75,22 +76,23 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
           <SidebarMenuButton
             asChild
             isActive={active}
-            // The title gets the full row; room for the actions button is only made while it shows
             className={cn(
               rowClass,
               keepRowInIconMode,
               // Lit while its ⋯ menu or its right-click menu is open
               "group-hover/menu-item:bg-sidebar-accent group-has-[[data-state=open]]/menu-item:bg-sidebar-accent group-data-[state=open]/menu-item:bg-sidebar-accent",
-              "group-hover/menu-item:pr-8! group-has-focus-key/menu-item:pr-8! group-has-data-menu-up/menu-item:pr-8!",
+              // A status word is never covered: its row keeps the ⋯'s room at all times, so the word stays put
+              statusWord && "pr-8!",
               "gap-2",
             )}
           >
             <NavLink to={`/chat/${chat.id}`}>
               <StatusRing status={status} />
-              <span className="truncate">{chat.title}</span>
+              {/* The title gets the whole row; the ⋯ floats over its end, which fades under it */}
+              <span className={cn("truncate", !statusWord && ["min-w-0 flex-1", fadeUnderRowMenu])}>{chat.title}</span>
               {/* The two rungs that need the user also say so in a word at the row's end, in the text colour, so
                   neither rests on the dot's hue; the ring already reads it out */}
-              {(status === "waiting" || status === "failed") && (
+              {statusWord && (
                 <span aria-hidden className="ml-auto shrink-0 text-detail text-foreground">
                   {status === "waiting" ? t({ message: "Waiting", comment: "a chat's status: waiting on the user" }) : t({ message: "Stopped", comment: "a chat's status: the agent stopped with an error" })}
                 </span>
