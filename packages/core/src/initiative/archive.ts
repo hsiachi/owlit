@@ -7,11 +7,12 @@ import { readJsonl, writeJsonAtomic } from "../fs-util.ts"
 // Everything Owlit did on its own in a workspace, as one archive: what it heard (the journal's activity
 // and what core saw), what each rule looked at and decided, what the user did with its work, and its
 // runs (the tasks its rules queued, from the tasks log). It is a continuo session archive (version 1,
-// events only), so continuo's tools read it as they read their own; replay.ts feeds it back through the
-// rules.
+// events only) whose lines hold continuo's event envelopes, so continuo's tools read and replay it as
+// they do their own (envelopeOf says how owlit's events map onto continuo's); replay.ts reads it back
+// and feeds it through the rules.
 //
 //   <to>/manifest.json       continuo's manifest; what is owlit's is under safeConfig.owlit
-//   <to>/events.jsonl        { archiveSequence, recordedAt, event }, event an ArchiveEvent
+//   <to>/events.jsonl        { archiveSequence, recordedAt, event }, event a continuo EventEnvelope
 //   <to>/observations.jsonl  empty (continuo keeps media there)
 //   <to>/audio/              empty
 
@@ -26,7 +27,8 @@ export interface ArchiveEvent {
   // or run.<state> for a run's task changing state (run.queued, run.running, run.waiting, run.done, …)
   type: string
   actor: "user" | "agent" | "owlit"
-  // continuo's classes: what a person did, what was noticed about them, Owlit's own bookkeeping
+  // continuo's classes: what a person did, what was noticed (about them, or by core), Owlit's own
+  // bookkeeping
   class: "interaction" | "observation" | "internal"
   // The seq of the event this one follows from: an evaluation's (and its rule.looked's) heard event, a
   // run's evaluation or its previous state, an agent's write's run, feedback's run on the same subject
@@ -77,8 +79,8 @@ export interface ExportOptions {
 }
 
 const UNJOURNALED = new Set<string>(CORE_KINDS.filter((k) => !(JOURNALED_CORE_KINDS as readonly string[]).includes(k)))
-const OBSERVATIONS = new Set(["paper.focus", "paper.dwell", "idle"])
-const INTERNAL = new Set<string>(["evaluation", "rule.looked", "agent.wrote", ...CORE_KINDS])
+const OBSERVATIONS = new Set<string>(["paper.focus", "paper.dwell", "idle", ...CORE_KINDS])
+const INTERNAL = new Set<string>(["evaluation", "rule.looked", "agent.wrote"])
 const classOf = (type: string): ArchiveEvent["class"] => (type.startsWith("run.") || INTERNAL.has(type) ? "internal" : OBSERVATIONS.has(type) ? "observation" : "interaction")
 
 export const workspaceHash = (root: string) => createHash("sha256").update(`owlit-archive\u0000${root}`).digest("hex").slice(0, 16)
@@ -92,25 +94,26 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
   if ((await readdir(to).catch(() => []))?.length) throw new Error(`${to} isn't empty; the archive needs a new folder.`)
 
   const workspace = workspaceHash(o.root)
-  const iso = (ms: number) => new Date(ms).toISOString()
   const write = async (events: ArchiveEvent[], config: Pick<OwlitArchiveConfig, "initiative" | "from" | "until" | "note">): Promise<ArchiveSummary> => {
+    const sessionId = `owlit-${workspace}-${config.from ?? o.now}`
+    const envelopes = toEnvelopes(events, sessionId)
     await mkdir(path.join(to, "audio"), { recursive: true })
-    await writeFile(path.join(to, "events.jsonl"), events.map((event) => JSON.stringify({ archiveSequence: event.seq, recordedAt: iso(event.at), event }) + "\n").join(""))
+    await writeFile(path.join(to, "events.jsonl"), envelopes.map((event) => JSON.stringify({ archiveSequence: event.sequence, recordedAt: event.recordedAt, event }) + "\n").join(""))
     await writeFile(path.join(to, "observations.jsonl"), "")
     const manifest: ArchiveManifest = {
       schema: "continuo.session-archive",
       version: 1,
-      sessionId: `owlit-${workspace}-${config.from ?? o.now}`,
+      sessionId,
       application: { name: "owlit", version: o.version },
       safeConfig: { owlit: { format: ARCHIVE_FORMAT, workspace, recording: o.recording, ...config } },
       status: "completed",
       startedAt: iso(config.from ?? o.now),
       updatedAt: iso(o.now),
       endedAt: iso(config.until ?? o.now),
-      durableWatermark: events.length,
+      durableWatermark: envelopes.length,
     }
     await writeJsonAtomic(path.join(to, "manifest.json"), manifest)
-    return { to, events: events.length, ...(config.from !== undefined ? { from: config.from, until: config.until } : {}), ...(config.note ? { note: config.note } : {}) }
+    return { to, events: envelopes.length, ...(config.from !== undefined ? { from: config.from, until: config.until } : {}), ...(config.note ? { note: config.note } : {}) }
   }
 
   // Recording is off: what the user did isn't Owlit's to hand out, and its decisions make no sense
@@ -189,9 +192,114 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
   return write(events, { initiative, from, until: events.reduce((last, e) => Math.max(last, e.at), 0) })
 }
 
+// continuo's event envelope (@continuo/protocol's EventEnvelope), as much of it as an archive writes.
+// owlit's own event (its kind, actor and, where continuo's payload says it differently, payload) rides
+// in extensions.owlit, so readArchive gets back exactly what was exported.
+export interface Envelope {
+  schemaVersion: 1
+  id: string
+  sessionId: string
+  sequence: number
+  recordedAt: string
+  occurredAt: string
+  class: ArchiveEvent["class"]
+  source: { kind: "adapter" | "agent" | "runtime"; id: string }
+  type: string
+  payload: Record<string, unknown>
+  causationId?: string
+  taskId?: string
+  extensions?: { owlit: { kind: string; actor: ArchiveEvent["actor"]; payload?: Record<string, unknown> } }
+}
+
+const iso = (ms: number) => new Date(ms).toISOString()
+const RUN_TO_JOB: Record<string, string> = { "run.queued": "job.queued", "run.running": "job.started", "run.waiting": "job.waiting", "run.done": "job.done", "run.failed": "job.failed", "run.cancelled": "job.cancelled" }
+const DECISION_KIND = { job: "work", none: "no-action", defer: "defer" } as const
+
+// owlit's events as continuo's envelopes. What came from outside the rules is an adapter's input, the
+// thing continuo replays: the user's activity and their reactions to Owlit's work (source "owlit"), and
+// what core saw (source "owlit-core"). Each time a rule takes up an event is one of continuo's
+// evaluation tasks: a task.started caused by that event, the rule's look at the workspace, and one
+// evaluation.decided per subject it decided on, all with the task's id. A run the rules queued is
+// continuo's delegated job, its states job.*. Names continuo reserves are renamed: idle is app.idle (as
+// in continuo's own tests), agent.wrote is owlit.wrote, feedback.dialChanged is feedback.dial.changed.
+export function toEnvelopes(events: ArchiveEvent[], sessionId: string): Envelope[] {
+  const out: Envelope[] = []
+  const idOf = new Map<number, string>()
+  const taskOfRun = new Map<string, string>()
+  let tasks = 0
+  // The evaluation task now open, and the take it belongs to (rule, heard event)
+  let open: { key: string; taskId: string } | undefined
+  const push = (e: Omit<Envelope, "schemaVersion" | "id" | "sessionId" | "sequence">) => {
+    const sequence = out.length + 1
+    const envelope = { schemaVersion: 1 as const, id: `e${sequence}`, sessionId, sequence, ...e }
+    out.push(envelope)
+    return envelope
+  }
+
+  for (const e of events) {
+    const p = e.payload as Record<string, unknown> & { rule?: string; cause?: string; causeAt?: number; taskId?: string; subject?: string; detail?: Record<string, unknown> }
+    const at = iso(e.at)
+    const causationId = e.cause !== undefined ? idOf.get(e.cause) : undefined
+    const base = { recordedAt: at, occurredAt: at, class: e.class, ...(causationId ? { causationId } : {}) }
+    const owlit = (payload?: Record<string, unknown>) => ({ extensions: { owlit: { kind: e.type, actor: e.actor, ...(payload ? { payload } : {}) } } })
+    let envelope: Envelope
+    if (!e.type.startsWith("run.") && e.type !== "evaluation" && e.type !== "rule.looked") open = undefined
+
+    if (e.type === "evaluation" || e.type === "rule.looked") {
+      const key = `${p.rule}\u0000${p.cause}\u0000${p.causeAt}`
+      // A look starts a take; decisions join the take they follow (with only its runs' states between),
+      // and one that heard nothing (a comment held back as it came to land) is a take of its own
+      if (e.type === "rule.looked" || p.causeAt === undefined || open?.key !== key) {
+        // owlit's rules keep no state of their own, so there are no revisions to name
+        const started = push({ ...base, class: "internal", source: { kind: "runtime", id: "owlit-rules" }, type: "task.started", taskId: `eval-${++tasks}`, payload: { scope: "background", stateRevision: 0, configRevision: 0 } })
+        open = { key, taskId: started.taskId! }
+      }
+      if (e.type === "rule.looked") envelope = push({ ...base, source: { kind: "agent", id: "owlit-rules" }, type: "rule.looked", taskId: open.taskId, payload: e.payload, ...owlit() })
+      else {
+        if (p.taskId) taskOfRun.set(p.taskId, open.taskId)
+        const decision = p.decision as keyof typeof DECISION_KIND
+        const payload = { kind: DECISION_KIND[decision], reason: (p.reason as string | undefined) ?? "queued a run", workIds: p.taskId ? [p.taskId] : [], subject: { rule: p.rule!, subject: p.subject! } }
+        envelope = push({ ...base, source: { kind: "agent", id: "owlit-rules" }, type: "evaluation.decided", taskId: open.taskId, payload, ...owlit(e.payload) })
+      }
+    } else if (e.type.startsWith("run.")) {
+      const jobId = p.taskId as string
+      const payload =
+        e.type === "run.waiting" ? { jobId, reason: (p.waiting as string | undefined) ?? "", detail: "" }
+        : e.type === "run.done" ? { jobId, result: null }
+        : e.type === "run.failed" || e.type === "run.cancelled" ? { jobId, reason: (p.error as string | undefined) ?? "" }
+        : { jobId }
+      const taskId = taskOfRun.get(jobId)
+      envelope = push({ ...base, source: { kind: "runtime", id: "owlit-tasks" }, type: RUN_TO_JOB[e.type] ?? "job.progress", ...(taskId ? { taskId } : {}), payload, ...owlit(e.payload) })
+    } else if (e.type === "agent.wrote") {
+      envelope = push({ ...base, source: { kind: "agent", id: "owlit" }, type: "owlit.wrote", payload: e.payload, ...owlit() })
+    } else if (e.type === "feedback.dialChanged") {
+      const { from, to } = (p.detail ?? {}) as { from?: string; to?: string }
+      envelope = push({ ...base, source: { kind: "adapter", id: "owlit" }, type: "feedback.dial.changed", payload: { ...(from ? { from } : {}), to: to ?? "" }, ...owlit(e.payload) })
+    } else if (e.type.startsWith("feedback.")) {
+      envelope = push({ ...base, source: { kind: "adapter", id: "owlit" }, type: e.type, payload: { ...(p.subject ? { targetId: p.subject } : {}), ...(p.detail ? { detail: p.detail } : {}) }, ...owlit(e.payload) })
+    } else {
+      const core = (CORE_KINDS as readonly string[]).includes(e.type)
+      envelope = push({ ...base, source: { kind: "adapter", id: core ? "owlit-core" : "owlit" }, type: e.type === "idle" ? "app.idle" : e.type, payload: e.payload, ...owlit() })
+    }
+    idOf.set(e.seq, envelope.id)
+  }
+  return out
+}
+
 export async function readArchive(dir: string): Promise<{ manifest: ArchiveManifest; events: ArchiveEvent[] }> {
   const manifest = JSON.parse(await readFile(path.join(dir, "manifest.json"), "utf8")) as ArchiveManifest
   if (manifest.schema !== "continuo.session-archive" || manifest.safeConfig?.owlit?.format !== ARCHIVE_FORMAT) throw new Error(`${dir} isn't an owlit archive.`)
-  const lines = await readJsonl<{ archiveSequence: number; event: ArchiveEvent }>(path.join(dir, "events.jsonl"))
-  return { manifest, events: lines.map((l) => l.event) }
+  const lines = await readJsonl<{ archiveSequence: number; event: Envelope }>(path.join(dir, "events.jsonl"))
+  // owlit's events back, numbered again from 1 (the evaluation tasks are continuo's view of them)
+  const seqOf = new Map<string, number>()
+  const events: ArchiveEvent[] = []
+  for (const { event: env } of lines) {
+    const own = env.extensions?.owlit
+    if (!own) continue
+    const seq = events.length + 1
+    seqOf.set(env.id, seq)
+    const cause = env.causationId !== undefined ? seqOf.get(env.causationId) : undefined
+    events.push({ seq, at: Date.parse(env.occurredAt), type: own.kind, actor: own.actor, class: env.class, ...(cause !== undefined ? { cause } : {}), payload: own.payload ?? env.payload })
+  }
+  return { manifest, events }
 }

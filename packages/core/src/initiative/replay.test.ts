@@ -7,7 +7,7 @@ import { ActivityBus } from "../activity/bus.ts"
 import { Journal } from "../activity/journal.ts"
 import { appendJsonl } from "../fs-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { exportArchive, readArchive, type ArchiveEvent } from "./archive.ts"
+import { exportArchive, readArchive, type ArchiveEvent, type Envelope } from "./archive.ts"
 import { Initiative } from "./initiative.ts"
 import { differences, ManualClock, replay } from "./replay.ts"
 import { defineRule, reviewOnOpen, RULES, type World } from "./rules.ts"
@@ -143,14 +143,15 @@ describe("archive export and replay", () => {
     const { archive, summary, to } = await exported()
     const { events, manifest } = archive
     expect(events.map((e) => e.seq)).toEqual(events.map((_, i) => i + 1))
-    expect(summary).toMatchObject({ to, events: events.length, from: T0 })
-    expect(manifest).toMatchObject({ schema: "continuo.session-archive", version: 1, status: "completed", application: { name: "owlit" }, durableWatermark: events.length })
+    const lines = readFileSync(path.join(to, "events.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { archiveSequence: number; recordedAt: string; event: Envelope })
+    expect(summary).toMatchObject({ to, events: lines.length, from: T0 })
+    expect(manifest).toMatchObject({ schema: "continuo.session-archive", version: 1, status: "completed", application: { name: "owlit" }, durableWatermark: lines.length })
     expect(manifest.safeConfig.owlit).toMatchObject({ format: 1, recording: true, initiative: { mode: "off", dailyCap: 20 } })
     expect(manifest.safeConfig.owlit.workspace).toMatch(/^[0-9a-f]{16}$/)
     expect(JSON.stringify(manifest)).not.toContain(path.basename(path.dirname(to)))
-    // continuo's record envelope, and the folders its tools expect
-    const first = JSON.parse(readFileSync(path.join(to, "events.jsonl"), "utf8").split("\n")[0])
-    expect(first).toEqual({ archiveSequence: 1, recordedAt: new Date(T0).toISOString(), event: events[0] })
+    // continuo's archive records around continuo's event envelopes, and the folders its tools expect
+    expect(lines.map((l) => l.archiveSequence)).toEqual(lines.map((_, i) => i + 1))
+    expect(lines[0]).toMatchObject({ archiveSequence: 1, recordedAt: new Date(T0).toISOString(), event: { schemaVersion: 1, id: "e1", sessionId: manifest.sessionId, sequence: 1, source: { kind: "adapter", id: "owlit-core" }, type: "workspace.opened" } })
     expect(readdirSync(to).sort()).toEqual(["audio", "events.jsonl", "manifest.json", "observations.jsonl"])
 
     const types = new Set(events.map((e) => e.type))
@@ -167,6 +168,34 @@ describe("archive export and replay", () => {
     expect(events.find((e) => e.type === "doc.edited")).toMatchObject({ actor: "user", class: "interaction" })
     expect(events.find((e) => e.type === "idle")).toMatchObject({ class: "observation" })
     expect(events.find((e) => e.type === "evaluation")).toMatchObject({ actor: "owlit", class: "internal" })
+  })
+
+  it("writes inputs continuo accepts, and every decision traceable to the input it heard", async () => {
+    const { to } = await exported()
+    const envelopes = readFileSync(path.join(to, "events.jsonl"), "utf8").trim().split("\n").map((l) => (JSON.parse(l) as { event: Envelope }).event)
+    const byId = new Map(envelopes.map((e) => [e.id, e]))
+    // continuo's validateInput, as of its 67d880c: a project type is a.b outside its reserved roots;
+    // feedback carries only targetId and detail, the dial only from, to and detail
+    const reserved = ["session", "window", "job", "feedback", "participant", "silence", "timer", "config", "evaluation", "task", "action", "agent", "runtime", "transcript", "speech", "artifact", "presentation", "surface", "transport"]
+    const inputs = envelopes.filter((e) => e.source.kind === "adapter")
+    expect(inputs.length).toBeGreaterThan(0)
+    for (const e of inputs) {
+      if (e.type === "feedback.dial.changed") expect(Object.keys(e.payload).every((k) => ["from", "to", "detail"].includes(k))).toBe(true)
+      else if (e.type.startsWith("feedback.")) expect(Object.keys(e.payload).every((k) => ["targetId", "detail"].includes(k))).toBe(true)
+      else {
+        expect(e.type).toMatch(/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/)
+        expect(reserved).not.toContain(e.type.split(".")[0])
+      }
+    }
+    expect(envelopes.map((e) => e.type)).toContain("app.idle")
+    // continuo's decisionLog: a decision's task started from an event that leads back to an input
+    const started = new Map(envelopes.filter((e) => e.type === "task.started").map((e) => [e.taskId, e]))
+    const decided = envelopes.filter((e) => e.type === "evaluation.decided")
+    expect(decided.length).toBeGreaterThan(0)
+    for (const d of decided) expect(byId.get(started.get(d.taskId)!.causationId!)?.source.kind).toBe("adapter")
+    expect(new Set(decided.map((d) => d.payload.kind))).toEqual(new Set(["work", "no-action", "defer"]))
+    // A run is the job of the task that queued it
+    for (const j of envelopes.filter((e) => e.type === "job.queued")) expect(decided.find((d) => (d.payload.workIds as string[]).includes(j.payload.jobId as string))?.taskId).toBe(j.taskId)
   })
 
   it("replays to the same decisions with the same rules", async () => {
