@@ -304,7 +304,7 @@ function keepAsking() {
         // still unload its event page between holds; the WORK alarm loads it and asks again
         await ext.storage.session.set({ [waitsKey]: answer.waits })
         for (const item of answer.work) {
-          void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, ask, token }).catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
+          void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, ask, token }).catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
     } catch (error) {
@@ -315,6 +315,51 @@ function keepAsking() {
       asking = null
     }
   })()
+}
+
+// The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab
+async function htmlOf(tabId: number): Promise<{ url: string; html: string } | undefined> {
+  try {
+    const [result] = await ext.scripting.executeScript({
+      target: { tabId },
+      func: () => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, 500_000) }),
+    })
+    return result?.result as { url: string; html: string } | undefined
+  } catch {
+    return undefined
+  }
+}
+
+// A fetch run inside an open tab at this host that is past its check (work.ts, FetchDeps.inTab). The
+// page fetches with its own standing at the site; the bytes come back base64, since what a script in a
+// tab returns must be plain data.
+async function inTab(host: string): Promise<typeof fetch | undefined> {
+  for (const tab of await ext.tabs.query({ url: [`https://${host}/*`, `http://${host}/*`] })) {
+    if (tab.id === undefined) continue
+    const seen = await htmlOf(tab.id)
+    if (!seen || !isThrough({ url: seen.url, status: 0, html: seen.html })) continue
+    const tabId = tab.id
+    return (async (input: string | URL | Request, init?: RequestInit) => {
+      const [result] = await ext.scripting.executeScript({
+        target: { tabId },
+        args: [String(input), init?.redirect ?? "follow"],
+        func: async (url: string, redirect: RequestRedirect) => {
+          const response = await fetch(url, { credentials: "include", redirect })
+          const bytes = new Uint8Array(await response.arrayBuffer())
+          let binary = ""
+          for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+          return { status: response.status, url: response.url, type: response.type, contentType: response.headers.get("content-type") ?? "", body: btoa(binary) }
+        },
+      })
+      const got = result?.result as { status: number; url: string; type: string; contentType: string; body: string } | undefined
+      if (!got) throw new TypeError("The tab went away")
+      const body = Uint8Array.from(atob(got.body), (c) => c.charCodeAt(0))
+      const response = new Response(got.status === 0 || got.status === 204 ? null : body, { status: got.status || 200, headers: { "content-type": got.contentType } })
+      Object.defineProperty(response, "url", { value: got.url })
+      return response
+    }) as typeof fetch
+  }
+  return undefined
 }
 
 // The wait at a site this tab is on, if any: the site itself or a host under it (a proxy's rewritten
@@ -329,23 +374,33 @@ async function resume(host: string) {
 }
 
 // A page that finished loading at a site paused for a check or a sign-in: once it is neither, the user
-// got through, and owlit goes on there
+// got through, and owlit goes on there. A check often finishes in the page it stands in (Cloudflare's
+// swaps the article in without loading a new page), so the tab is looked at again for a while.
+const THROUGH_LOOKS = 20
+const THROUGH_EVERY_MS = 3000
+const watching = new Set<number>()
+
 async function watchForThrough(tabId: number, url: string) {
-  if (!/^https?:/.test(url)) return
-  const at = new URL(url).hostname
-  const wait = waitAt(await waits(), at)
+  if (!/^https?:/.test(url) || watching.has(tabId)) return
+  const wait = waitAt(await waits(), new URL(url).hostname)
   if (!wait) return
+  watching.add(tabId)
   try {
-    const [result] = await ext.scripting.executeScript({
-      target: { tabId },
-      func: () => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, 500_000) }),
-    })
-    const seen = result?.result as { url: string; html: string } | undefined
-    if (!seen) return
-    const proxy = wait.proxied ? { host: wait.host } : undefined
-    if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy })) await resume(wait.host)
-  } catch {
-    // A page the extension may not read, or one that went away
+    for (let look = 0; look < THROUGH_LOOKS; look++) {
+      if (look) await new Promise((resolve) => setTimeout(resolve, THROUGH_EVERY_MS))
+      const tab = await ext.tabs.get(tabId).catch(() => undefined)
+      // Gone, or gone elsewhere
+      if (!tab?.url || !waitAt([wait], new URL(tab.url).hostname)) return
+      const seen = await htmlOf(tabId)
+      if (!seen) return
+      const proxy = wait.proxied ? { host: wait.host } : undefined
+      if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy })) {
+        await resume(wait.host).catch(() => undefined)
+        return
+      }
+    }
+  } finally {
+    watching.delete(tabId)
   }
 }
 

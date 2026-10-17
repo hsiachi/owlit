@@ -20,6 +20,10 @@ export interface FetchDeps {
   // The extension may read this address's site (its host permissions, chrome.permissions.contains)
   permitted: (url: string) => Promise<boolean>
   timeoutMs?: number
+  // A fetch made from inside an open tab of this host that is past its check. A passed check stays with
+  // the page that passed it: Cloudflare turns away the extension's own fetch to ACM with a 403 while the
+  // ACM article open in a tab fetches the same PDF. undefined when no such tab is open.
+  inTab?: (host: string) => Promise<typeof fetch | undefined>
 }
 
 export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnded
@@ -73,8 +77,16 @@ const said = (page: Page): WorkEnded => {
   return { ended: verdict(page), host: hostOf(page.url), ...(title ? { title: title.slice(0, 300) } : {}), url: page.url }
 }
 
-// The PDF's own address first, when owlit knows it; then the article page, and the PDF it names
+// The PDF's own address first, when owlit knows it; then the article page, and the PDF it names. A
+// check in the way is tried once more from a tab of that site the user got past it in.
 export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
+  const got = await fetchWith(item, deps)
+  if ("pdf" in got || got.ended !== "check" || !deps.inTab) return got
+  const tabFetch = await deps.inTab(got.host)
+  return tabFetch ? fetchWith(item, { ...deps, fetch: tabFetch, inTab: undefined }) : got
+}
+
+async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   if (!(await deps.permitted(item.url))) return { ended: "no-permission", host: item.host }
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   // Where a redirect left for a site the extension may not read: through the proxy, its sign-in (a

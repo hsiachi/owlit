@@ -52,6 +52,19 @@ describe("fetching a paper for owlit", () => {
     expect(asked).toEqual(["https://journals.sagepub.com/doi/10.1177/1", "https://journals.sagepub.com/doi/pdf/10.1177/1"])
   })
 
+  it("fetches past a check from a tab of that site the user got through in", async () => {
+    const check = { body: "<title>Just a moment...</title>", status: 403 }
+    const { deps } = web({ "https://dl.acm.org/doi/pdf/10.1145/1": check, "https://dl.acm.org/doi/10.1145/1": check })
+    const inside = web({ "https://dl.acm.org/doi/pdf/10.1145/1": { body: PDF } })
+    const hosts: string[] = []
+    const acm = item({ url: "https://dl.acm.org/doi/10.1145/1", pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/1", host: "acm.org" })
+    const got = await fetchFor(acm, { ...deps, inTab: async (host) => (hosts.push(host), inside.deps.fetch) })
+    expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
+    expect(hosts).toEqual(["dl.acm.org"])
+    // No such tab: the check stands
+    expect(await fetchFor(acm, { ...deps, inTab: async () => undefined })).toMatchObject({ ended: "check", host: "dl.acm.org" })
+  })
+
   it("says check for a check page, with its host and title but not its text", async () => {
     const { deps } = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: "<title>Just a moment...</title><p>secret words</p>", status: 403 } })
     const got = await fetchFor(item(), deps)
