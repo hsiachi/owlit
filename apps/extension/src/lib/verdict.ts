@@ -24,8 +24,13 @@ export interface Page {
 
 // Cloudflare's and the like's interstitials, by their title
 const CHECK_TITLE = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|请稍候|正在验证|安全检查/i
-// By the page's own markup: Cloudflare's challenge, AWS WAF's, DataDome's and PerimeterX's
-const CHECK_MARKUP = /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|\/cdn-cgi\/challenge-platform|awswaf|AwsWafIntegration|captcha-delivery\.com|px-captcha/i
+// By the page's own markup: Cloudflare's challenge, DataDome's and PerimeterX's. Cloudflare also puts
+// /cdn-cgi/challenge-platform/scripts/… on ordinary pages (ACM's articles carry it), so only its
+// interstitial's /h/ path counts.
+const CHECK_MARKUP = /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|\/cdn-cgi\/challenge-platform\/h\/|captcha-delivery\.com|px-captcha/i
+// AWS WAF's script is on the pages of sites that use it whether or not they challenge; it is a check
+// only on the 202 (or a refusal) WAF answers a challenge with
+const WAF_MARKUP = /awswaf|AwsWafIntegration/i
 // A captcha counts as a check only on a page that refused the request: an article page may carry one
 // for its comment form
 const CAPTCHA_MARKUP = /class=["'][^"']*\b(g-recaptcha|h-captcha)\b|challenges\.cloudflare\.com\/turnstile|id=["']?captcha\b/i
@@ -88,7 +93,12 @@ function offersAccess(html: string) {
 
 export function isCheck(page: Pick<Page, "status" | "html">) {
   const refused = page.status === 403 || page.status === 429 || page.status === 503
-  return CHECK_TITLE.test(titleOf(page.html)) || CHECK_MARKUP.test(page.html) || (refused && CAPTCHA_MARKUP.test(page.html))
+  return (
+    CHECK_TITLE.test(titleOf(page.html)) ||
+    CHECK_MARKUP.test(page.html) ||
+    (refused && CAPTCHA_MARKUP.test(page.html)) ||
+    ((refused || page.status === 202 || page.status === 405) && WAF_MARKUP.test(page.html))
+  )
 }
 
 export function verdict(page: Page): WorkEnding {

@@ -13,6 +13,11 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://journals.sagepub.com/doi/1", '<div class="g-recaptcha" data-sitekey="x"></div>', { status: 403 }))).toBe("check")
     // A captcha on an article page that answered is its comment form's
     expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", '<div class="g-recaptcha"></div>')))).toBe("no-copy")
+    // Cloudflare's and AWS WAF's scripts ride on ordinary article pages too
+    const acm = article("Jogger", '<script src="/cdn-cgi/challenge-platform/scripts/precursor/main.js"></script>')
+    expect(verdict(page("https://dl.acm.org/doi/10.5555/2034396.2034432", acm))).toBe("no-copy")
+    expect(isThrough({ url: "https://dl.acm.org/doi/10.5555/2034396.2034432", status: 0, html: acm })).toBe(true)
+    expect(verdict(page("https://www.sciencedirect.com/science/article/pii/2", article("A Paper", '<script src="https://abc.token.awswaf.com/challenge.js"></script>')))).toBe("no-copy")
   })
 
   it("knows the library proxy's sign-in, the school's and a publisher's", () => {
