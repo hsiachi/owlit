@@ -956,7 +956,7 @@ export class Library {
   async isPdfOf(id: string, file: string): Promise<"yes" | "no" | "unknown"> {
     const record = await readRecord(this.root, id)
     if (!record) throw notFound(id)
-    return isThisPaper(await this.lookAtPdf(file), { doi: record.ids.doi, title: record.title })
+    return isThisPaper(await this.lookAtPdf(file), { doi: record.ids.doi, arxiv: record.ids.arxiv, title: record.title })
   }
 
   // A PDF handed over without naming a paper: the paper without a PDF whose DOI or whole title is on its
@@ -964,11 +964,11 @@ export class Library {
   async attachUnnamedPdf(file: string, route: PlacedBy): Promise<Paper | undefined> {
     const said = await this.lookAtPdf(file)
     if (!said) return undefined
-    const lacking: { id: string; doi?: string; title: string }[] = []
+    const lacking: { id: string; doi?: string; arxiv?: string; title: string }[] = []
     for (const id of await this.ids()) {
       if (await hasPdfFile(this.root, id)) continue
       const record = await readRecord(this.root, id)
-      if (record) lacking.push({ id, doi: record.ids.doi, title: record.title })
+      if (record) lacking.push({ id, doi: record.ids.doi, arxiv: record.ids.arxiv, title: record.title })
     }
     const match = surelyOf(said, lacking)
     return match ? this.attachPdf(match.id, file, route, { ifMissing: true }) : undefined

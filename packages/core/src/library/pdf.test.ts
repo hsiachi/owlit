@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { serveWorkspaceFile } from "../files/serve.ts"
 import { Http } from "../net/http.ts"
-import { isThisPaper } from "./pdf-identity.ts"
+import { isThisPaper, surelyOf } from "./pdf-identity.ts"
 import { lookDue } from "./acquisition.ts"
 import { downloadPdf, pdfInHtml, routesFor } from "./pdf.ts"
 import { makePdf } from "./text/make-pdf.ts"
@@ -379,6 +379,12 @@ describe("is this the paper", () => {
     expect(isThisPaper({ text: "Living in the zone: hyperfocus in adult ADHD. Abstract" }, paper)).toBe("yes")
     expect(isThisPaper({ text: "Something else" }, paper)).toBe("no")
     expect(isThisPaper({ text: "Something else" }, { title: "Flow" })).toBe("unknown")
+    // A letter apart is the same title; a word apart is another paper's
+    const beir = { title: "BEIR: A Heterogenous Benchmark for Zero-shot Evaluation of Information Retrieval Models" }
+    expect(isThisPaper({ arxiv: "2104.08663", text: "anything" }, { arxiv: "2104.08663", title: "Something long enough to tell" })).toBe("yes")
+    expect(surelyOf({ arxiv: "2104.08663", text: "x" }, [{ id: "a", title: "Another paper's long title" }, { id: "b", arxiv: "2104.08663", title: "BEIR long enough title" }])?.id).toBe("b")
+    expect(surelyOf({ text: "BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models" }, [{ id: "b", title: beir.title }])?.id).toBe("b")
+    expect(isThisPaper({ text: "BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models Nandan Thakur" }, beir)).toBe("yes")
   })
 })
 
