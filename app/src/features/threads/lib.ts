@@ -217,3 +217,39 @@ export function groupSections(shown: Thread, grouping: ThreadColumn) {
   for (const g of groups.filter((g) => !g.parent)) add(g, 0)
   return { groups: out, loose: shown.rows.filter((r) => !r.in?.[grouping.id]?.length) }
 }
+
+// Words that end in a full stop without ending the sentence, as citations and asides use them
+const NOT_AN_END = /(?:\bet al|\be\.g|\bi\.e|\bcf|\bvs|\bFigs?|\bEqs?|\bSec|\bpp?|\bvol|\bno|\b[A-Z])\.$/i
+// Chinese and Japanese say in one character what English says in about three
+const WIDE = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/g
+const weight = (s: string) => s.length + 2 * (s.match(WIDE)?.length ?? 0)
+
+// A doc's sentences, as the user might want them weighed (Compare with a doc): its lines split at sentence
+// ends, headings and list marks taken off, very short pieces left out. A link's label never splits a
+// sentence, nor does "et al." or an initial; a Chinese full stop ends one with no space after it.
+export function sentencesOf(markdown: string): string[] {
+  const out: string[] = []
+  for (const raw of markdown.split("\n")) {
+    const labels: string[] = []
+    const line = raw
+      .replace(/^\s*(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)/, "")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, (_, label: string) => `\u0000${labels.push(label) - 1}\u0000`)
+      .replace(/[*_`]/g, "")
+      .trim()
+    if (!line) continue
+    const pieces: string[] = []
+    let start = 0
+    for (const end of line.matchAll(/[.!?]+(?=\s)|[。！？]+/g)) {
+      const at = end.index + end[0].length
+      if (end[0] === "." && NOT_AN_END.test(line.slice(start, at))) continue
+      pieces.push(line.slice(start, at))
+      start = at
+    }
+    pieces.push(line.slice(start))
+    for (const piece of pieces) {
+      const s = piece.replace(/\u0000(\d+)\u0000/g, (_, i: string) => labels[Number(i)]!).trim()
+      if (weight(s) >= 12) out.push(s)
+    }
+  }
+  return out
+}
