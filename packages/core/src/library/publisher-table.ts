@@ -1,10 +1,10 @@
-import { readFile, rm } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { readPdf } from "./text/extract.ts"
 
 // What owlit knows about each publisher, in one place: the DOIs that are its, its sites, where a PDF can
-// be had without a browser, where the browsers go, and its own API when it has one. The plain routes
-// (pdf.ts), the browser routes (browser-routes.ts), the API limits (library.ts) and the key check in
-// Settings (settings-rpc.ts) all read it.
+// be had without a browser, where the extension goes, and its own API when it has one. The plain routes
+// (pdf.ts), the extension's routes (extension/route.ts), the API limits (library.ts), the key check in
+// Settings (settings-rpc.ts) and the extension's site permissions (apps/extension) all read it.
 
 // The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
 // browser or a check: Elsevier's article API and Wiley's text-and-data-mining API
@@ -34,22 +34,17 @@ export interface Publisher {
   name: string
   // The DOI prefixes that are its ("10.1145/"); the longest one that matches a DOI decides
   prefixes: string[]
-  // The hosts owlit's browser may visit for it. Their sites (elsevier.com, sciencedirect.com) are what
-  // its visits are paced and held by, and the site a DOI is registered to finds its publisher.
+  // Its hosts. Their sites (elsevier.com, sciencedirect.com) are what the extension asks the browser to
+  // read, and the site a DOI is registered to finds its publisher.
   hosts?: string[]
   // A direct PDF link for a DOI without a browser session: {doi} is the DOI, {suffix} the part after the
   // "/"; {landing} the page doi.org leads to (costs one request). Without {landing}, the browsers' PDF too.
   pdf?: string
-  // Where a browser goes for a paper the plain routes couldn't get (browser-routes.ts)
+  // Where the extension goes for a paper the plain routes couldn't get (extension/route.ts)
   browser?: {
     // The article page; doi.org's link when its own address isn't known from the DOI
     landing?: string
-    // The user's own browser saves the PDF by itself from pdf + "?download=true"; elsewhere it is sent
-    // to the article page and they save the PDF there
-    download?: boolean
-    // owlit's browser doesn't go there at all: only the user's browser gets in
-    browserOnly?: boolean
-    // Every paper there is open to all, so the user's browser goes straight there, not through the
+    // Every paper there is open to all, so the extension goes straight there, not through the
     // library's proxy
     open?: boolean
   }
@@ -59,13 +54,8 @@ export interface Publisher {
 // Springer's, and BMC's, whose papers Springer's site serves
 const SPRINGER_PDF = "https://link.springer.com/content/pdf/{doi}.pdf"
 
-// The ACM: Cloudflare in front of the Digital Library puts a new check in front of owlit's browser
-// every time one is passed, on campus and off, while the user's own browser is let straight through.
-// Its PDFs are open access.
-//
-// The downloads: on Atypon's sites (the ACM, SAGE, Wiley, T&F, Science, PNAS) /doi/pdf/<doi>?download=true
-// has the PDF saved rather than shown (a paper the reader has no access to stays on its abstract or "Get
-// Access" page and saves nothing). Springer's content/pdf address is shown, not saved, so Springer has none.
+// The ACM: Cloudflare in front of the Digital Library puts a check in front of anything but the user's
+// own browser, which is let straight through. Its PDFs are open access.
 //
 // The browser rows are from pitta's measured table; any other DOI goes through doi.org and the page's
 // own citation_pdf_url.
@@ -77,21 +67,21 @@ export const PUBLISHERS: Publisher[] = [
     prefixes: ["10.1145/", "10.5555/"],
     hosts: ["dl.acm.org"],
     pdf: "https://dl.acm.org/doi/pdf/{doi}",
-    browser: { landing: "https://dl.acm.org/doi/{doi}", download: true, browserOnly: true, open: true },
+    browser: { landing: "https://dl.acm.org/doi/{doi}", open: true },
   },
   {
     name: "sage",
     prefixes: ["10.1177/"],
     hosts: ["journals.sagepub.com"],
     pdf: "https://journals.sagepub.com/doi/pdf/{doi}",
-    browser: { landing: "https://journals.sagepub.com/doi/{doi}", download: true },
+    browser: { landing: "https://journals.sagepub.com/doi/{doi}" },
   },
   {
     name: "wiley",
     prefixes: ["10.1002/", "10.1111/", "10.1046/", "10.1113/", "10.1034/"],
     hosts: ["onlinelibrary.wiley.com"],
     pdf: "https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}",
-    browser: { landing: "https://onlinelibrary.wiley.com/doi/{doi}", download: true },
+    browser: { landing: "https://onlinelibrary.wiley.com/doi/{doi}" },
     api: {
       key: "wileyTdmToken",
       host: "api.wiley.com",
@@ -108,21 +98,21 @@ export const PUBLISHERS: Publisher[] = [
     prefixes: ["10.1080/"],
     hosts: ["www.tandfonline.com"],
     pdf: "https://www.tandfonline.com/doi/pdf/{doi}",
-    browser: { landing: "https://www.tandfonline.com/doi/full/{doi}", download: true },
+    browser: { landing: "https://www.tandfonline.com/doi/full/{doi}" },
   },
   {
     name: "science",
     prefixes: ["10.1126/"],
     hosts: ["www.science.org"],
     pdf: "https://www.science.org/doi/pdf/{doi}",
-    browser: { landing: "https://www.science.org/doi/{doi}", download: true },
+    browser: { landing: "https://www.science.org/doi/{doi}" },
   },
   {
     name: "pnas",
     prefixes: ["10.1073/"],
     hosts: ["www.pnas.org"],
     pdf: "https://www.pnas.org/doi/pdf/{doi}",
-    browser: { landing: "https://www.pnas.org/doi/{doi}", download: true },
+    browser: { landing: "https://www.pnas.org/doi/{doi}" },
   },
   {
     name: "springer",
@@ -160,8 +150,8 @@ export const PUBLISHERS: Publisher[] = [
   { name: "biorxiv", prefixes: ["10.1101/"], pdf: "{landing}.full.pdf" },
 ]
 
-// Hosts owlit's browser may visit that belong to no publisher above: doi.org, which sends readers on,
-// and publishers a DOI's prefix doesn't name
+// Hosts the extension may read that belong to no publisher above: doi.org, which sends readers on, and
+// publishers a DOI's prefix doesn't name
 export const OTHER_HOSTS = ["doi.org", "academic.oup.com", "www.cambridge.org", "www.jstor.org", "www.emerald.com", "arxiv.org"]
 
 // Sites that only send a link on to the publisher's own site: what happens after the redirect is the
@@ -190,7 +180,6 @@ export function fill(template: string, doi: string) {
 async function wholeArticle(file: string, wasmPath: string | undefined) {
   const { pageCount } = await readPdf(await readFile(file), { wasmPath, maxPages: 0 })
   if (pageCount <= 1) {
-    await rm(file, { force: true })
     throw new Error("Elsevier's API gave only the first page: it sees no subscription from this network.")
   }
 }

@@ -19,13 +19,16 @@ import { KIND_ICON } from "@/lib/kinds"
 import { useChatStore } from "@/features/chat/store"
 import { useSeenStore } from "@/features/chat/status"
 import { plural, t } from "@lingui/core/macro"
+import { useExtensionWaits } from "@/features/extension/store"
+import { cameLine } from "@/features/extension/waits"
 
 // After three days or more away: one row per chat whose work finished meanwhile and that the user hasn't
 // opened since (the jobs they handed off before leaving), one row per thread Owlit started or added
 // to meanwhile, and one line for papers Owlit added to the Library. It belongs to this launch only; what
 // the user doesn't open keeps its dot in Threads. After any time away, however short, the runs Owlit
 // finished meanwhile come first (its night shift: a doc it read after the user's edits, its daily look,
-// a digest), one row each, which open what the run worked on. A run on a thread says so in the thread's
+// a digest), one row each, which open what the run worked on, and a line for the PDFs that came through
+// the user's browser meanwhile. A run on a thread says so in the thread's
 // own row, so it has none of its own.
 
 export const AWAY_FOR = 3 * DAY
@@ -72,6 +75,11 @@ export function SinceYouLeft({ since, all }: { since: number; all: boolean }) {
         }),
     [threads, since],
   )
+  // PDFs the extension in the user's browser brought meanwhile, said after any time away as Owlit's runs
+  // are: owlit fetched them on its own
+  const siteWaits = useExtensionWaits()
+  const came = useMemo(() => Object.values(papers).filter((p) => p.pdf?.came?.by === "extension" && p.pdf.came.at > since).length, [papers, since])
+  const pdfs = cameLine(came, siteWaits)
   const addedAll = useMemo(() => Object.values(papers).filter((p) => p.addedBy === "agent" && p.addedAt > since).length, [papers, since])
   // The chat list's own mark, "Finished since you last looked", limited to replies that ended while away;
   // opening the chat takes it off, here as in the list. Only those chats are selected, and a finished
@@ -93,7 +101,7 @@ export function SinceYouLeft({ since, all }: { since: number; all: boolean }) {
   const changed = all ? changedAll : []
   const added = all ? addedAll : 0
   const finished = all ? finishedAll : []
-  if (!runs.length && !changed.length && !added && !finished.length) return null
+  if (!runs.length && !pdfs && !changed.length && !added && !finished.length) return null
 
   // Today's leaving by the clock, an earlier one by the day
   const left = isToday(since) ? clock(since) : shortDate(since)
@@ -104,6 +112,7 @@ export function SinceYouLeft({ since, all }: { since: number; all: boolean }) {
         {runs.map((run) => (
           <RunRow key={run.id} run={run} />
         ))}
+        {pdfs && <ListRow onClick={() => navigate("/library")} mark={<KindIcon kind="paper" className="size-4" />} title={pdfs.title} detail={pdfs.detail} />}
         {finished.map((f) => {
           const when = ago(f.at, { inSentence: true })
           return <ListRow key={f.id} to={`/chat/${f.id}`} icon={KIND_ICON.chat} title={f.title} end={t`Finished ${when}`} />

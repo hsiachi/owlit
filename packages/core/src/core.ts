@@ -17,6 +17,7 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
 import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
+import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
@@ -50,7 +51,7 @@ export const CORE_VERSION = "0.0.0"
 const SHARED_CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|library\.(add|update|remove|restore|setNote|refresh|requestDigest|importPdf|attachPdf))$/
 
 // Methods that change what the search index covers
-const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf|importPitta))$/
+const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf))$/
 
 // The docs or papers a change names, so only the shares that show them are built again; a change that
 // names neither (or one this doesn't know) builds them all
@@ -81,6 +82,8 @@ export interface CoreOptions {
   pdfiumWasm?: string
   // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
   socket?: boolean | { dir: string }
+  // Serve owlit's browser extension on 127.0.0.1 (EXTENSION_PORT; tests give port 0 for any free one)
+  extension?: boolean | ExtensionServerOptions
   // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
   // How to start the Owlit engine (packages/owlit-agent); without it the engine isn't offered
@@ -138,6 +141,8 @@ export class Core {
   // Owlit updating itself
   readonly updates: Updates
   private socket: SocketServer | null = null
+  // The browser extension's port, for as long as core runs, whichever workspace is open
+  private readonly extension: ExtensionServer | null
   // The system's preferred languages (BCP 47, most preferred first), read once: the interface and digests
   // follow them until Settings says otherwise
   private readonly systemLanguages: readonly string[]
@@ -170,6 +175,21 @@ export class Core {
       },
     })
     this.ui = new UiBridge((request) => this.notifier.notify("ui.request", request))
+    this.extension = options.extension
+      ? new ExtensionServer(
+          {
+            version: this.version().version,
+            name: (options.extension === true ? undefined : options.extension.name) ?? "Owlit",
+            settings: this.settings,
+            workspace: () => (this.workspace ? { name: this.workspace.info.name, library: this.workspace.library } : null),
+            hasWindow: () => this.ui.hasWindow(),
+            changed: (view) => this.notifier.notify("extension.changed", view),
+            openInBrowser: options.host?.openInBrowser ?? (options.host?.openExternal && ((url) => options.host!.openExternal!(url))),
+            browserApp: options.host?.browserApp,
+          },
+          options.extension === true ? {} : options.extension,
+        )
+      : null
     this.fs = new AgentFs({
       workspace: () => this.workspace,
       ui: this.ui,
@@ -278,6 +298,20 @@ export class Core {
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, () => this.version())
     this.router.register("core.diagnostics", noParams, () => this.diagnostics())
+    this.router.register("extension.get", noParams, async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [] })
+    this.router.register("extension.answer", z.object({ id: z.string().min(1), allow: z.boolean() }), async ({ id, allow }) => {
+      await this.extension?.pairings.answer(id, allow)
+      return null
+    })
+    this.router.register("extension.open", z.object({ kind: z.enum(["sign-in", "check", "permission"]), host: z.string().min(1).max(253) }), async ({ kind, host }) => {
+      if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
+      return this.extension.open(kind, host)
+    })
+    this.router.register("extension.forget", z.object({ id: z.string().min(1) }), async ({ id }) => {
+      if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
+      await this.extension.pairings.forget(id)
+      return this.extension.view()
+    })
     this.router.register("updates.get", noParams, () => this.updates.view())
     this.router.register("updates.check", noParams, () => this.updates.check())
     this.router.register("updates.setAuto", z.object({ auto: z.boolean() }), ({ auto }) => this.updates.setAuto(auto))
@@ -349,7 +383,7 @@ export class Core {
       router: this.router,
       settings: this.settings,
       http: this.http,
-      browser: options.host?.browser,
+      openExternal: options.host?.openExternal,
       systemLanguages: this.systemLanguages,
       changed: (view) => this.notifier.notify("settings.changed", view),
     })
@@ -753,7 +787,6 @@ export class Core {
       ({ journal, year, by, ...options }) => library().journal(journal, year, options, by),
     )
     this.router.register("library.highlights", z.object({ id: paperId }), ({ id }) => library().highlights(id))
-    this.router.register("library.importPitta", z.object({ root: z.string().min(1) }), ({ root }) => library().importPitta(root))
     this.router.register(
       "library.import",
       z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1), collectionsAsTags: z.boolean().optional(), parse: z.boolean().optional() }),
@@ -777,9 +810,6 @@ export class Core {
       return wearOf(id, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
     })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
-    this.router.register("library.getInBrowser", z.object({ ids: z.array(paperId).min(1) }), ({ ids }) => library().getInBrowser(ids))
-    this.router.register("library.showBrowser", z.object({ id: paperId.optional() }), ({ id }) => library().showBrowser(id))
-    this.router.register("library.takeDownload", z.object({ id: paperId, take: z.boolean() }), ({ id, take }) => library().takeDownload(id, take))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
       library().attachPdf(id, path),
     )
@@ -792,14 +822,6 @@ export class Core {
     this.router.register("tasks.list", noParams, () => tasks().list())
     this.router.register("tasks.cancel", z.object({ id: taskId }), ({ id }) => tasks().cancel(id))
     this.router.register("tasks.resume", z.object({ id: taskId }), ({ id }) => tasks().resume(id))
-    if (options.debug && options.host?.browser) {
-      const browser = options.host.browser
-      // Development only: the hidden browser on any page, for trying it against a local server
-      this.router.register("library.debugBrowserFetch", z.object({ landing: z.string(), pdf: z.string().optional(), allowHosts: z.array(z.string()) }), async (params) => {
-        const bytes = await browser.fetchPdf({ ...params, signal: new AbortController().signal })
-        return { bytes: bytes.length, head: Buffer.from(bytes.subarray(0, 8)).toString("latin1") }
-      })
-    }
     if (options.debug) {
       const lanes = Object.keys(LANE_LIMITS) as [keyof typeof LANE_LIMITS, ...(keyof typeof LANE_LIMITS)[]]
       this.router.register(
@@ -1007,6 +1029,7 @@ export class Core {
     this.started = true
     this.notifier.notify("core.hello", this.version())
     void this.updates.start()
+    void this.extension?.start().catch((error) => console.error("[core] couldn't start serving the browser extension", error))
   }
 
   // The workspace to reopen at launch, if it is still there
@@ -1035,18 +1058,10 @@ export class Core {
               host: this.options.host,
               library: {
                 http: this.http,
-                browser: this.options.host?.browser,
-                openExternal: this.options.host?.openExternal,
-                browserName: this.options.host?.browserName,
-                showBrowser: this.options.host?.showBrowser,
-                browserControl: this.options.host?.browserControl,
-                downloadsDir: this.options.host?.downloadsDir,
+                extension: this.extension?.work,
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
-                // Libraries sign you out after a while (Tsinghua's tlink after two hours): Settings says so
-                // once a run finds the sign-in page, and signed in again once a PDF comes through
-                proxySignedIn: (signedIn) => void this.proxySignedIn(signedIn),
                 starred: (paperId) => {
                   if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.starred", at: Date.now(), paperId })
                 },
@@ -1226,8 +1241,12 @@ export class Core {
     await this.updates.dispose()
     this.initiative.dispose()
     await this.switching
-    if (this.workspace) await this.stopWorkspace(this.workspace, { closing: true })
+    if (this.workspace) await this.stopWorkspace(this.workspace)
     this.workspace = null
+    // After the workspace's background tasks: a run cut off by its agent closing would count as a failed
+    // try, where one stopped by closing stays running, to run again next time
+    this.agents.dispose()
+    await this.extension?.close().catch(() => undefined)
     this.reviews.dispose()
     await this.journal.dispose()
   }
@@ -1236,16 +1255,14 @@ export class Core {
   // another one or closes. Each step runs even if one before it failed: a switch still goes ahead, and
   // the workspace's lock is still released. ws is still this.workspace throughout, so nothing that stops
   // late can reach the next one.
-  private async stopWorkspace(ws: Workspace, { closing = false } = {}) {
+  private async stopWorkspace(ws: Workspace) {
     const steps: [string, () => unknown][] = [
       ["chat turns", () => this.turns.reset()],
       ["the window's requests", () => this.ui.reset()],
       // What Owlit's rules were settling or had put off was about this workspace
       ["Owlit's rules", () => this.initiative.reset()],
-      // Background work stops before the agents it runs on: a run cut off by its agent closing would count
-      // as a failed try, where one stopped by closing stays running, to run again next time
+      // Before the agents they run on close (dispose closes them after this)
       ["background tasks", () => ws.tasks.dispose()],
-      ...(closing ? [["agents", () => this.agents.dispose()] as [string, () => unknown]] : []),
       // After the tasks, whose runs may still add to what is held
       ["Owlit's held comments", () => this.reviews.stop()],
       // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
@@ -1262,17 +1279,6 @@ export class Core {
     }
     // The old workspace's last task changes go out before clients hear of the switch
     this.taskChanges.flush()
-  }
-
-  // What a run through the library proxy found of its sign-in, kept for Settings; only a change is saved
-  private async proxySignedIn(signedIn: boolean) {
-    const { library } = await this.settings.get()
-    if (!library.proxy || !!library.proxySignedInAt === signedIn) return
-    const next = await this.settings.update((s) => {
-      const { proxySignedInAt: _, ...rest } = s.library
-      return { ...s, library: signedIn ? { ...rest, proxySignedInAt: Date.now() } : rest }
-    })
-    this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages))
   }
 
   // The agent (and its model) chosen for background work in Settings

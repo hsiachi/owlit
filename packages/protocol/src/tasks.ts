@@ -3,9 +3,9 @@
 // restarts; their state shows beside what they are about (a paper's row, the import line), never in a
 // task list of its own.
 
-// Each lane runs a fixed number of tasks at once: network 3, browser 1, cpu 2, parse as the service
+// Each lane runs a fixed number of tasks at once: network 3, cpu 2, parse as the service
 // allows, agent 1, index 1
-export type TaskLane = "network" | "browser" | "cpu" | "parse" | "agent" | "index"
+export type TaskLane = "network" | "cpu" | "parse" | "agent" | "index"
 
 // Someone is looking at the result > the user asked for it > owlit started it on its own
 export type TaskPriority = "waiting" | "asked" | "background"
@@ -13,9 +13,8 @@ export type TaskPriority = "waiting" | "asked" | "background"
 export type TaskState = "queued" | "running" | "waiting_for_you" | "done" | "failed" | "cancelled"
 
 // What the user has to do before the task can go on. A state shown beside the subject, not a dialog.
-// browser: their own browser may be showing them something (a check, a question about downloads).
 export interface TaskWaiting {
-  reason: "login" | "challenge" | "drop_pdf" | "confirm_spend" | "browser"
+  reason: "login" | "challenge" | "drop_pdf" | "confirm_spend"
   // One sentence a person can read
   detail: string
 }

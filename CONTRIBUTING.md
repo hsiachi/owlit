@@ -2,7 +2,8 @@
 
 Issues and pull requests are welcome. For anything bigger than a fix, open an issue first so we can agree on
 the shape before you write it. UI changes follow [DESIGN.md](DESIGN.md) (tokens in its front matter, the
-reasons in the body); if a change alters a style decision, update DESIGN.md in the same change.
+reasons in the body). DESIGN.md holds only the tokens and the rules that hold in more than one place: change
+it in the same change when one of those changes, and keep a one-place detail in that place's code.
 
 `npx @google/design.md lint DESIGN.md` checks the front matter: it should report no errors. Its contrast
 warnings are on translucent fills it can't read, and its orphans (`border`, `input`) are tokens the format
@@ -80,7 +81,6 @@ The build tooling is Vite (renderer) plus esbuild (main and preload, bundled wit
 | `OWLIT_LOG_ACTIVITY=1` | Print every activity event the renderer reports |
 | `OWLIT_LOG_DOCS=1` | Print what the workspace watcher reports |
 | `OWLIT_LOG_AGENTS=1` | Print what agent processes say to owlit |
-| `OWLIT_LOG_BROWSER=1` | Print what the embedded publisher view does |
 
 ## Commits and branches
 

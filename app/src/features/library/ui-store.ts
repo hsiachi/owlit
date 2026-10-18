@@ -6,9 +6,8 @@ import { type PickMode, range, toggle } from "@/lib/multi-select"
 // survives only a trip into its own paper, so Back is one step out, to the card; leaving the list for
 // anywhere else folds it (lib/use-list-keys.ts).
 
-// "needs": papers whose publisher wants the user (a check, a sign-in) before it hands over the PDF;
-// "no-pdf": every paper owlit looked for and has no PDF of, Needs you ones among them
-export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "needs" | "no-pdf"
+// "no-pdf": every paper without its PDF, grouped by where it stands (lib/pdf-wait.ts)
+export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "no-pdf"
 // thread: grouped by the thread a paper came from, newest added first in each
 export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue" | "citations" | "thread"
 

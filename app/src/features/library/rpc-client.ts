@@ -1,5 +1,4 @@
-import { t } from "@lingui/core/macro"
-import { PublisherNeedsUser, type LibraryClient, type Resolved } from "./client"
+import type { LibraryClient, Resolved } from "./client"
 import type { Paper } from "@owlit/protocol"
 import { filePath, rpc } from "@/lib/rpc"
 
@@ -10,16 +9,10 @@ export class RpcLibraryClient implements LibraryClient {
     return { ...paper, existingId }
   }
 
-  // Waits while core looks; a paper still without a PDF rejects with what was tried
-  async fetchPdf(paper: Paper): Promise<Paper["pdf"]> {
-    const found = await rpc.library.fetchPdf({ id: paper.id })
-    if (found.pdf) return found.pdf
-    if (found.noPdf?.needs) throw new PublisherNeedsUser(found.noPdf.needs)
-    throw new Error(found.noPdf ? t`No PDF found. Drop one here if you have it.` : t`owlit couldn't look for a PDF.`)
-  }
-
-  takeDownload(paper: Paper, take: boolean): Promise<Paper> {
-    return rpc.library.takeDownload({ id: paper.id, take })
+  // Waits while core looks; the paper comes back with its PDF or with where getting it stands
+  async fetchPdf(paper: Paper): Promise<Pick<Paper, "pdf" | "pdfState">> {
+    const { pdf, pdfState } = await rpc.library.fetchPdf({ id: paper.id })
+    return { pdf, pdfState }
   }
 
   async attachPdf(paper: Paper, file: File): Promise<Paper["pdf"]> {

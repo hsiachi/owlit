@@ -60,7 +60,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SidebarMenuButton
                       asChild
                       tooltip={{
-                        children: needsYou ? t({ message: `${place} · ${needsYou}`, comment: "a place in the rail, then what waits there: Library · A paper needs you" }) : place,
+                        children: needsYou ? t({ message: `${place} · ${needsYou}`, comment: "a place in the rail, then what waits there: Library · Sign in to your library" }) : place,
                         // The runs' card takes the tooltip's place
                         hidden: working.length > 0,
                       }}

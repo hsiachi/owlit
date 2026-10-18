@@ -115,6 +115,9 @@ function cloneReal(dir, data) {
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, move(v)]))
     return value
   }
+  // A preview is an owlit of its own: it makes its own id, and an extension pairs with it on its own
+  delete settings.owlitId
+  delete settings.extension
   writeFileSync(settingsFile, JSON.stringify(move(settings), null, 2))
   return cloned
 }

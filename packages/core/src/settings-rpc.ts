@@ -17,7 +17,7 @@ import {
   type SettingsView,
 } from "@owlit/protocol"
 import { z } from "zod"
-import type { BrowserHost } from "./host.ts"
+import { proxySignIn } from "./extension/route.ts"
 import { PUBLISHERS, type PublisherApi } from "./library/publisher-table.ts"
 import { OPENALEX_HOST } from "./library/sources/openalex.ts"
 import { S2_HOST } from "./library/sources/semanticscholar.ts"
@@ -57,7 +57,6 @@ export function settingsView(s: AppSettings, systemLanguages: readonly string[] 
     library: clean({
       contactEmail: library.contactEmail,
       proxy: library.proxy,
-      proxySignedInAt: library.proxySignedInAt,
       digestLanguage: library.digestLanguage ? normalizeNoteLanguage(library.digestLanguage) : undefined,
       digestLanguageSystem: defaultNoteLanguage(s, systemLanguages),
       digestEveryPaper: library.digestEveryPaper,
@@ -134,12 +133,13 @@ interface Deps {
   router: Router
   settings: SettingsStore
   http: Http
-  browser?: BrowserHost
+  // Opens a page in the user's own browser (Host.openExternal)
+  openExternal?: (url: string) => Promise<void>
   systemLanguages?: readonly string[]
   changed: (view: SettingsView) => void
 }
 
-export function registerSettings({ router, settings, http, browser, systemLanguages, changed }: Deps) {
+export function registerSettings({ router, settings, http, openExternal, systemLanguages, changed }: Deps) {
   const save = async (change: (s: AppSettings) => AppSettings) => {
     const view = settingsView(await settings.update(change), systemLanguages)
     changed(view)
@@ -164,15 +164,15 @@ export function registerSettings({ router, settings, http, browser, systemLangua
       proxy = proxyFromLink(link)
       if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, t`That link doesn't show which proxy it went through.`)
     }
-    // A different proxy is a different sign-in
-    return save((s) => ({ ...s, library: merge(s.library, { proxy, proxySignedInAt: null }) }))
+    return save((s) => ({ ...s, library: merge(s.library, { proxy }) }))
   })
   router.register("settings.proxySignIn", noParams, async () => {
     const proxy = (await settings.get()).library.proxy
     if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, t`No library proxy is set up.`)
-    if (!browser) throw new RpcFailure(RpcErrorCode.Unavailable, t`Signing in needs the owlit desktop app.`)
-    await browser.showLogin(proxy.base)
-    return save((s) => ({ ...s, library: { ...s.library, proxySignedInAt: Date.now() } }))
+    if (!openExternal) throw new RpcFailure(RpcErrorCode.Unavailable, t`Signing in needs the owlit desktop app.`)
+    // In the user's own browser, where the extension fetches through the proxy with that sign-in
+    await openExternal(proxySignIn(proxy))
+    return null
   })
 }
 

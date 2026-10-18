@@ -21,6 +21,8 @@ import {
   type HighlightColor,
   type MemoryKind,
   type Paper,
+  type ExtensionWait,
+  type PdfEnded,
   type ToolSpec,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
@@ -82,6 +84,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
   switch (tool) {
     case "library_list": {
       const { papers } = await owlit.rpc.library.list()
+      const extension = await hasExtension(owlit)
       let chosen = papers
       if (args.query) {
         const hits = await owlit.rpc.search.papers({ q: str("query") })
@@ -93,7 +96,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const shown = chosen.slice(0, num("limit") ?? 50)
       if (!shown.length) return args.query ? "No paper in the library matches that." : "The library is empty."
       const more = chosen.length > shown.length ? `\n(${chosen.length - shown.length} more)` : ""
-      return shown.map(paperLine).join("\n") + more
+      return shown.map((p) => paperLine(p, extension)).join("\n") + more
     }
     case "library_get": {
       // Any id the paper goes by: a search's, or one it had before it moved or a copy was folded into it
@@ -110,7 +113,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         {
           ...paper,
           pdf: !!paper.pdf,
-          ...(paper.pdf ? {} : { noPdf: pdfFact(paper) }),
+          ...(paper.pdf ? {} : { noPdf: pdfFact(paper, await hasExtension(owlit)) }),
           highlights: highlights.length,
           note: notes.some((n) => n.paperId === paper.id && n.content.trim()),
           cite: `[${citeAs(paper)}](owlit://library/${paper.id})`,
@@ -457,30 +460,76 @@ function anchorOf(content: string, quote: string) {
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-function paperLine(p: Paper) {
+function paperLine(p: Paper, extension: boolean) {
   const facts = [
     p.status,
     p.starred ? "starred" : "",
     p.tags.length ? `tags: ${p.tags.join(" ")}` : "",
-    pdfFact(p),
+    pdfFact(p, extension),
     p.text === "full" ? "full text" : "",
     p.hasDigest ? "digest" : "",
   ].filter(Boolean)
   return `- ${p.id} · ${p.title} · ${[shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", ")} · ${facts.join(", ")}`
 }
 
-// Why a paper has no PDF, in words an agent can pass on. A bare "no PDF" had an agent tell the user to
-// set up the library proxy they already had, and say nothing of the papers waiting for the
-// user's browser.
-export function pdfFact(p: Pick<Paper, "pdf" | "noPdf" | "ids">) {
+// Why a paper has no PDF, in words an agent can pass on, read off where core says it stands (its state
+// and the ending of the try that says why), as the window shows it: with only "no PDF", an agent
+// suggests a library proxy the user already has, and can't say which sign-in a paper waits for.
+const DROP = "the user can drop the PDF on the paper"
+const BY_ENDED: Record<PdfEnded, string> = {
+  "no-copy": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
+  "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
+  "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
+  "not-there": `no PDF: the publisher has no PDF at the paper's address; ${DROP}`,
+  // Only owlit's own looks give these as a reason for no PDF (an older record); the extension's are WAITS
+  check: `no PDF: the publisher stopped owlit's own look with a check; ${DROP}`,
+  "sign-in": `no PDF: the publisher wanted a sign-in from owlit's own look; ${DROP}`,
+  // Not reasons for having no PDF; core never gives them as one
+  pdf: `no PDF; ${DROP}`,
+  offline: `no PDF yet (waiting for the network)`,
+  // The extension's ending, never a reason for no PDF: such a paper is still finding (WAITS)
+  "no-permission": `no PDF yet; ${DROP}`,
+}
+
+// A paper still finding while the owlit extension in the user's browser waits at its site for them: one
+// sign-in, check or permission there covers every paper waiting at that site
+const WAITS: Record<ExtensionWait["kind"], string> = {
+  "sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
+  check: "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
+  permission: "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
+}
+const WAITED: Partial<Record<PdfEnded, keyof typeof WAITS>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
+
+// Without a browser extension allowed to connect, owlit has nothing more to try: an agent can say what
+// would. extension: one is (or owlit couldn't say).
+const NO_EXTENSION = " (with the owlit extension the user's browser could try; Settings › Papers › Browser extension)"
+
+// A sign-in is the library's only through its proxy; the queue says which, and before the queue has the
+// paper again (owlit restarted) it isn't known
+const SIGN_IN_AT = (host: string) =>
+  `no PDF yet: waits for the user to sign in at ${host} in their browser (Home says so; one sign-in covers every paper waiting there, and owlit goes on by itself)`
+const SIGN_IN_UNKNOWN = "no PDF yet: waits for the user's sign-in (the library's or the publisher's) in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)"
+
+export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) {
   if (p.pdf) return ""
-  if (!p.noPdf) return "no PDF yet (still looking)"
-  if (p.noPdf.needs === "browser") return "no PDF: the publisher lets only the user's own browser get it (a check, a sign-in, or the ACM, which only browsers get into); the user can press Get it in your browser on the paper, or Get them for all such papers (Home's Waiting on you, the Library's Needs you filter)"
-  const { tried } = p.noPdf
-  if (tried.some((r) => r.endsWith(":proxied"))) return "no PDF: no free copy, and the user's library proxy didn't get it either; the user can drop the PDF on the paper"
-  if (tried.some((r) => r.startsWith("browser:"))) return "no PDF: no free copy, and no library proxy is set up ([Settings › Papers › Library proxy](owlit://settings/proxy))"
-  if (p.ids.doi || p.ids.arxiv) return "no PDF: owlit couldn't download it; the user can drop the PDF on the paper"
-  return "no PDF: no free copy, and without a DOI owlit can't ask the publisher; the user can drop the PDF on the paper"
+  const s = p.pdfState
+  if (!s || s.state === "finding") {
+    // The extension's queue says where it is now; its last try says so before the queue has it again
+    const waits = s?.extension ? s.extension.waits : s?.reason?.by === "extension" ? WAITED[s.reason.ended] : undefined
+    if (waits === "sign-in" && !s?.extension) return SIGN_IN_UNKNOWN
+    if (waits === "sign-in" && !s?.extension?.proxied) return SIGN_IN_AT(s!.extension!.host)
+    if (waits) return WAITS[waits]
+    if (s?.extension) return "no PDF yet (owlit is getting it through the user's browser)"
+    return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
+  }
+  return BY_ENDED[s.reason?.ended ?? "no-copy"] + (extension ? "" : NO_EXTENSION)
+}
+
+// Whether the user allowed a browser's extension to connect; true when owlit couldn't say, so nothing
+// is suggested on a guess
+async function hasExtension(owlit: OwlitClient) {
+  const view = await owlit.rpc.extension.get().catch(() => undefined)
+  return !view || view.paired.length > 0
 }
 
 function shortAuthors(authors: string[]) {

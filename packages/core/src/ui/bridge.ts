@@ -32,6 +32,11 @@ export class UiBridge {
     return null
   }
 
+  // Some owlit window is there to show the user something
+  hasWindow() {
+    return this.focused.length > 0
+  }
+
   // The window that has this doc open, if any
   holder(rel: string) {
     for (const [clientId, paths] of this.openDocs) if (paths.has(rel)) return clientId

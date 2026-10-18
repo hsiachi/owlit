@@ -224,6 +224,22 @@ describe("keeping the library clean", () => {
     expect(record.checked).toBe(1)
   })
 
+  it("looks again at the next start for a paper whose look reached nothing", async () => {
+    const { root, core } = await setup({})
+    putPaper(root, { id: "arxiv-1706.03762", title: "Attention", ids: { arxiv: "1706.03762" } })
+    const offline = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+    writeFileSync(offline, JSON.stringify({ version: 2, state: "finding", tried: [{ by: "owlit", ended: "offline", at: Date.now() - 60_000 }], dropHere: "" }))
+    await core.dispose()
+    // The first open looked at an empty library today; these papers came after it
+    const workspaces = path.join(path.dirname(root), "userData/workspaces")
+    for (const dir of readdirSync(workspaces)) rmSync(path.join(workspaces, dir, "library.json"), { force: true })
+    const fetch = (async (url: string) => (url.includes("arxiv.org/pdf/1706.03762") ? new Response("%PDF-1.4\n%%EOF\n") : new Response("not found", { status: 404 }))) as unknown as typeof globalThis.fetch
+    const again = new Core({ userDataDir: path.join(path.dirname(root), "userData"), host: { fetch }, retryBaseMs: 1 })
+    cores.push(again)
+    await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+  })
+
   it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {
     const { root, core } = await setup({})
     const id = "doi-10.1145-3626772.3657891"

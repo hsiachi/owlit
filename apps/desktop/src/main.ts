@@ -2,18 +2,17 @@
 // that is owlit's own logic lives in @owlit/core.
 
 import { plural, t } from "@lingui/core/macro"
-import { Core } from "@owlit/core"
+import { browserAppOf, Core } from "@owlit/core"
 import { activateLocale } from "@owlit/i18n"
 import { CATALOGS } from "@owlit/i18n/catalogs"
-import { interfaceLocale, type AppearanceSettings, type BuildChannel, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
+import { EXTENSION_DEV_PORT, interfaceLocale, type AppearanceSettings, type BuildChannel, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notification, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
-import { createBrowserHost } from "./browser.ts"
-import { browserControl } from "./your-browser.ts"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { hostFetch } from "./net-fetch.ts"
+import { openInBrowser } from "./open-in-browser.ts"
 import { attachTextMenu } from "./text-menu.ts"
 import { appBundle, cantReplaceItself, createUpdater, updateFeed } from "./updater.ts"
 
@@ -119,10 +118,11 @@ ipcMain.on("appearance", (event) => {
   event.returnValue = appearance
 })
 
-// A chat that waits on the user or broke, said by the system while no owlit window is in front (the app
-// often runs in another Space). Clicking it brings the window back and opens the chat.
+// A chat that waits on the user or broke, or a browser extension asking to connect, said by the system
+// while no owlit window is in front (the app often runs in another Space). Clicking it brings the window
+// back and opens the chat, if it is about one.
 const shown = new Set<Notification>()
-ipcMain.on("notify", (event, n: { title: string; body: string; chatId: string }) => {
+ipcMain.on("notify", (event, n: { title: string; body: string; chatId?: string }) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   if (!win || BrowserWindow.getFocusedWindow() || !Notification.isSupported()) return
   const notification = new Notification({ title: n.title, body: n.body })
@@ -134,7 +134,7 @@ ipcMain.on("notify", (event, n: { title: string; body: string; chatId: string })
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
-    win.webContents.send("notification-click", n.chatId)
+    if (n.chatId) win.webContents.send("notification-click", n.chatId)
   })
   notification.on("close", () => shown.delete(notification))
   notification.show()
@@ -268,39 +268,6 @@ async function chooseWorkspace(core: Core) {
   if (!result.canceled && result.filePaths[0]) await openWorkspace(core, result.filePaths[0])
 }
 
-// Brings a pitta library into the open workspace, once; ~/.pitta is where pitta kept it
-async function importPitta(core: Core) {
-  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-  const options: Electron.OpenDialogOptions = {
-    title: t`Import a pitta Library`,
-    message: t`Choose the pitta library (the folder that holds papers/). It is only read.`,
-    buttonLabel: t`Import`,
-    defaultPath: path.join(app.getPath("home"), ".pitta"),
-    properties: ["openDirectory", "showHiddenFiles"],
-  }
-  const chosen = await (win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options))
-  if (chosen.canceled || !chosen.filePaths[0]) return
-  let message: string
-  let detail: string | undefined
-  try {
-    const { added, skipped, failed } = await call(core, "library.importPitta", { root: chosen.filePaths[0] })
-    message = plural(added, { one: "# paper imported", other: "# papers imported" })
-    const failedCount = failed.length
-    detail =
-      [
-        skipped && plural(skipped, { one: "# was already in the library.", other: "# were already in the library." }),
-        failedCount && `${t`${failedCount} couldn't be read:`}\n${failed.join("\n")}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n") || undefined
-  } catch (error) {
-    message = t`The pitta library couldn't be imported`
-    detail = error instanceof Error ? error.message : String(error)
-  }
-  const box: Electron.MessageBoxOptions = { message, detail, buttons: [t`OK`] }
-  await (win ? dialog.showMessageBox(win, box) : dialog.showMessageBox(box))
-}
-
 async function updateMenu(core: Core) {
   const recent = await call(core, "workspace.recent").catch(() => [])
   const recentItems: MenuItemConstructorOptions[] = recent.map((info) => ({
@@ -361,7 +328,6 @@ async function updateMenu(core: Core) {
         },
         { type: "separator" },
         { label: t`Import Papers…`, enabled: !!current, click: () => send("import") },
-        { label: t`Import a pitta Library…`, enabled: !!current, click: () => void importPitta(core) },
         // Elsewhere the convention is File › Settings
         ...(isMac ? [] : [{ type: "separator" as const }, settingsItem]),
         { type: "separator" },
@@ -553,7 +519,6 @@ if (!app.requestSingleInstanceLock()) {
     app.setAboutPanelOptions({ applicationVersion: app.getVersion(), version: [build.channel, build.commit].filter(Boolean).join(" · ") })
     // A packaged app gets its icon from the bundle; a dev run is a copy of Electron's, so set Owlit Dev's here
     if (isMac && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../resources/icon-dev.png"))
-    const browser = createBrowserHost()
     // Where a packaged app keeps what asarUnpack takes out of the archive; the same as __dirname in a dev run
     const unpacked = __dirname.replace(/app\.asar(?=[/\\]|$)/, "app.asar.unpacked")
     const core = new Core({
@@ -562,6 +527,13 @@ if (!app.requestSingleInstanceLock()) {
       debug: !app.isPackaged,
       // owlit-mcp and the CLI reach the open workspace here
       socket: true,
+      // owlit's browser extension reaches it on 127.0.0.1. Owlit Dev (a run from a checkout) serves its own
+      // port, for the extension's dev build: on the installed owlit's, the extension in the user's browser
+      // would add papers to the preview's cloned workspace. OWLIT_EXTENSION_PORT picks another.
+      extension: {
+        port: app.isPackaged ? undefined : Number(process.env.OWLIT_EXTENSION_PORT) || EXTENSION_DEV_PORT,
+        name: process.env.OWLIT_DEV_NAME || app.name,
+      },
       // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way
@@ -584,9 +556,6 @@ if (!app.requestSingleInstanceLock()) {
         fetch: hostFetch,
         // The same, for the processes core starts (agents, npm), which only read a proxy from their environment
         resolveProxy: (url) => session.defaultSession.resolveProxy(url),
-        // A browser for publishers that want one (cookies, checks, the library proxy): hidden, or inside
-        // the window when the user asks to see the page
-        browser,
         // Keys in settings.json are sealed with the system keychain (macOS Keychain, DPAPI, libsecret)
         secrets: {
           seal: (plain) => {
@@ -604,23 +573,15 @@ if (!app.requestSingleInstanceLock()) {
         },
         revealPath: (file) => shell.showItemInFolder(file),
         // OWLIT_NO_EXTERNAL (tests): say where it would go instead of opening the user's browser
-        openExternal: async (url, options) => {
-          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", options?.background ? "(background)" : "", url)
-          else await shell.openExternal(url, { activate: !options?.background })
+        openExternal: async (url) => {
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", url)
+          else await shell.openExternal(url)
         },
-        // The app that opens web pages: its name, and the app itself brought to the front as it is
-        // (its last tab, where a page may be asking something), not a new page
-        browserName: async () => (await app.getApplicationInfoForProtocol("https://")).name.replace(/\.app$/, "") || undefined,
-        // OWLIT_NO_EXTERNAL (tests): no browser to drive
-        browserControl: async () => (process.env.OWLIT_NO_EXTERNAL ? undefined : browserControl()),
-        showBrowser: async () => {
-          const browser = await app.getApplicationInfoForProtocol("https://")
-          if (process.env.OWLIT_NO_EXTERNAL) return console.log("[show-browser]", browser.path)
-          const failure = await shell.openPath(browser.path)
-          if (failure) throw new Error(failure)
+        openInBrowser: async (url, browser) => {
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", browser.app ?? browser.name, url)
+          else await openInBrowser(url, browser)
         },
-        // OWLIT_DOWNLOADS (tests): another folder in place of the user's Downloads
-        downloadsDir: () => process.env.OWLIT_DOWNLOADS ?? app.getPath("downloads"),
+        browserApp: browserAppOf,
         // Only a release has a feed to update from; core says why the others don't
         updater: build.channel === "release" ? createUpdater() : undefined,
       },

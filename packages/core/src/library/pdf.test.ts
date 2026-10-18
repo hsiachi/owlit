@@ -1,13 +1,13 @@
 import type { PaperRecord } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { serveWorkspaceFile } from "../files/serve.ts"
 import { Http } from "../net/http.ts"
-import { isThisPaper } from "./downloads.ts"
-import { lookAgain } from "./library.ts"
+import { isThisPaper, surelyOf } from "./pdf-identity.ts"
+import { lookDue } from "./acquisition.ts"
 import { downloadPdf, pdfInHtml, routesFor } from "./pdf.ts"
 import { makePdf } from "./text/make-pdf.ts"
 
@@ -118,10 +118,10 @@ describe("paper.pdf", () => {
     const paper = await call("library.fetchPdf", { id: "arxiv-1706.03762" })
     expect(paper.pdf.url).toBe("owlit-file://workspace/library/papers/arxiv-1706.03762/paper.pdf")
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/arxiv-1706.03762/acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "ok", route: "arxiv", tried: [{ route: "arxiv", status: 200 }] })
+    expect(acquisition).toMatchObject({ version: 2, state: "have-it", route: "arxiv", tried: [{ by: "owlit", ended: "pdf", route: "arxiv" }] })
   })
 
-  it("records no_pdf with every route tried when the publisher wants a login", async () => {
+  it("records no PDF with every route tried when the publisher wants a login", async () => {
     const fetch = serving({
       "dl.acm.org/doi/pdf": () => new Response("<html>login</html>", { headers: { "content-type": "text/html" } }),
       "api.unpaywall.org": () => Response.json({ oa_locations: [] }),
@@ -130,31 +130,143 @@ describe("paper.pdf", () => {
     await call("library.add", { paper: { id: "doi-10.1145-1", title: "Paywalled", authors: [], ids: { doi: "10.1145/1" } } })
     const paper = await call("library.fetchPdf", { id: "doi-10.1145-1" })
     expect(paper.pdf).toBeUndefined()
-    expect(paper.noPdf.tried).toEqual(["publisher:acm"])
+    expect(paper.pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "owlit", ended: "no-copy", route: "publisher:acm" }], reason: { ended: "no-copy" } })
+    // The next look, a day after this one
+    expect(paper.pdfState.nextLook - paper.pdfState.tried[0].at).toBe(24 * 60 * 60 * 1000)
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-1/acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "no_pdf", dropHere: path.join(root, "library/papers/doi-10.1145-1/paper.pdf") })
-    expect(acquisition.tried[0].error).toBe("dl.acm.org served a web page, not a PDF.")
+    expect(acquisition).toMatchObject({ state: "no-pdf", looks: 1, dropHere: path.join(root, "library/papers/doi-10.1145-1/paper.pdf") })
 
     // The user has the file: it becomes the paper's PDF
     const file = path.join(root, "..", "found.pdf")
     writeFileSync(file, PDF)
     const attached = await call("library.attachPdf", { id: "doi-10.1145-1", path: file })
     expect(attached.pdf.url).toMatch(/paper\.pdf$/)
-    expect(attached.noPdf).toBeUndefined()
+    expect(attached.pdfState).toBeUndefined()
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-1/acquisition.json"), "utf8"))).toMatchObject({ state: "have-it", route: "dropped", tried: [{ ended: "no-copy" }, { by: "you", ended: "pdf", route: "dropped" }] })
     writeFileSync(file, "not a pdf")
     await expect(call("library.attachPdf", { id: "doi-10.1145-1", path: file })).rejects.toThrow("That file isn't a PDF.")
   })
 
-  it("notes that Unpaywall wasn't asked without a contact email", async () => {
+  it("names no route it didn't try, and still counts the look", async () => {
+    const { call } = await setup(serving({}))
+    await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
+    await call("library.fetchPdf", { id: "doi-10.9999-x" })
+    // Unpaywall wasn't asked without a contact email, so it isn't named
+    expect((await call("library.list")).papers[0].pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "owlit", ended: "no-copy" }] })
+    expect((await call("library.list")).papers[0].pdfState.tried[0].route).toBeUndefined()
+  })
+
+  it("looks again for a PDF that was had and was deleted outside owlit", async () => {
     const { root, call } = await setup(serving({}))
     await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
     await call("library.fetchPdf", { id: "doi-10.9999-x" })
-    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.9999-x/acquisition.json"), "utf8"))
-    expect(acquisition.tried).toMatchObject([{ route: "unpaywall", error: "Not tried: Unpaywall needs a contact email in settings." }])
-    // Not tried, so not named
-    expect((await call("library.list")).papers[0].noPdf.tried).toEqual([])
+    // A record whose PDF is in place, and no paper.pdf beside it
+    const file = path.join(root, "library/papers/doi-10.9999-x/acquisition.json")
+    const had = { version: 2, state: "have-it", tried: [{ by: "you", ended: "pdf", at: Date.now() - 60_000, route: "dropped" }], dropHere: "" }
+    writeFileSync(file, JSON.stringify(had))
+    const paper = (await call("library.list")).papers[0]
+    // Shown as gone, with a look due now
+    expect(paper.pdfState).toMatchObject({ state: "finding", reason: { ended: "pdf" } })
+    expect(paper.pdfState.nextLook).toBeLessThanOrEqual(Date.now())
+    expect(lookDue(had as never, Date.now())).toBe(true)
+  })
+
+  it("waits for the network when nothing could be reached, and says so", async () => {
+    const offline = (async () => {
+      throw new TypeError("fetch failed")
+    }) as unknown as typeof globalThis.fetch
+    const { root, call } = await setup(offline)
+    await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } } })
+    // The look after the add, whose retries are minutes apart: its first try is enough
+    const file = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+    await vi.waitFor(() => expect(existsSync(file)).toBe(true))
+    const paper = (await call("library.list")).papers[0]
+    expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "owlit", ended: "offline" } })
+    expect(paper.pdfState.nextLook).toBeUndefined()
+    const acquisition = JSON.parse(readFileSync(file, "utf8"))
+    expect(acquisition.state).toBe("finding")
+    expect(lookDue(acquisition, Date.now())).toBe(true)
+  })
+
+  it("leaves the user's PDF in place when a download is turned away at the same moment", async () => {
+    // The open copy the repository's page names comes only once the user has dropped their own, and is
+    // another paper's
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    let asked = false
+    const fetch = serving({
+      "api.unpaywall.org": () => Response.json({ oa_locations: [{ url_for_pdf: "https://repo.example.org/item/1", host_type: "repository" }] }),
+      "repo.example.org/item/1/other.pdf": () => {
+        asked = true
+        return new Response(
+          new ReadableStream({
+            async start(controller) {
+              await held
+              controller.enqueue(makePdf([[{ x: 72, y: 72, size: 12, text: "A different paper about something else entirely" }]]))
+              controller.close()
+            },
+          }),
+        )
+      },
+      "repo.example.org/item/1": () => new Response(`<html><head><meta name="citation_pdf_url" content="/item/1/other.pdf"></head></html>`, { headers: { "content-type": "text/html" } }),
+    })
+    const { root, call } = await setup(fetch, { contactEmail: "me@example.org" })
+    const paper = { id: "doi-10.9999-repo", title: "Lifelogging for memory support in everyday life", authors: [], ids: { doi: "10.9999/repo" } }
+    await call("library.add", { paper })
+    const looking = call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
+    await vi.waitFor(() => expect(asked).toBe(true))
+    const mine = path.join(root, "..", "mine.pdf")
+    writeFileSync(mine, PDF)
+    await call("library.attachPdf", { id: paper.id, path: mine })
+    release()
+    await looking
+    const dir = path.join(root, "library/papers", paper.id)
+    expect(readFileSync(path.join(dir, "paper.pdf")).equals(PDF)).toBe(true)
+    expect(JSON.parse(readFileSync(path.join(dir, "acquisition.json"), "utf8"))).toMatchObject({ state: "have-it", route: "dropped" })
+    expect(readdirSync(dir).filter((name) => name.includes(".download"))).toEqual([])
   })
 })
+
+// A core whose network answers with serve, and with a publisher's sign-in page for anything else
+async function setupServing(library: object, more: { serve: (url: string, init?: RequestInit) => Response | undefined }) {
+  const fetch = (async (url: string, init?: RequestInit) => more.serve(url, init) ?? new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } })) as unknown as typeof globalThis.fetch
+  return setup(fetch, library)
+}
+
+describe("publishers' APIs", () => {
+  const elsevier = { id: "doi-10.1016-j.chb.2019.07.016", title: "On Elsevier", authors: [], ids: { doi: "10.1016/j.chb.2019.07.016" } }
+  const page = (text: string) => [{ x: 72, y: 72, size: 12, text }]
+
+  it("gets an Elsevier paper from its API with the key, before the site", async () => {
+    const keys: (string | null)[] = []
+    const { root, call } = await setupServing({ elsevierApiKey: "secret-key" }, {
+      serve: (url, init) => {
+        if (!url.startsWith("https://api.elsevier.com/content/article/doi/10.1016/j.chb.2019.07.016")) return undefined
+        keys.push(new Headers(init?.headers).get("x-els-apikey"))
+        return new Response(makePdf([page("One"), page("Two"), page("Three")]), { headers: { "content-type": "application/pdf" } })
+      },
+    })
+    await call("library.add", { paper: elsevier })
+    expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeDefined()
+    expect(keys).toEqual(["secret-key"])
+    const text = readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8")
+    expect(JSON.parse(text)).toMatchObject({ state: "have-it", route: "api:elsevier" })
+    expect(text).not.toContain("secret-key")
+  })
+
+  it("turns away the first page alone, which is what Elsevier sends a network without the subscription", async () => {
+    const { root, call } = await setupServing({ elsevierApiKey: "secret-key" }, {
+      serve: (url) => (url.startsWith("https://api.elsevier.com/") ? new Response(makePdf([page("Only the first page")]), { headers: { "content-type": "application/pdf" } }) : undefined),
+    })
+    await call("library.add", { paper: elsevier })
+    expect((await call("library.fetchPdf", { id: elsevier.id })).pdf).toBeUndefined()
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", elsevier.id, "acquisition.json"), "utf8"))
+    expect(acquisition.tried.find((t: { route: string }) => t.route === "api:elsevier")).toMatchObject({ ended: "no-copy" })
+    expect(readdirSync(path.join(root, "library/papers", elsevier.id)).filter((name) => name.includes(".download"))).toEqual([])
+    expect(existsSync(path.join(root, "library/papers", elsevier.id, "paper.pdf"))).toBe(false)
+  })
+})
+
 
 describe("owlit-file", () => {
   it("serves workspace files with byte ranges and nothing outside the workspace", async () => {
@@ -207,7 +319,7 @@ describe("a repository's page instead of its PDF", () => {
     await call("library.add", { paper })
     expect((await call("library.fetchPdf", { id: paper.id })).pdf).toBeDefined()
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "ok", route: "unpaywall/repository:page" })
+    expect(acquisition).toMatchObject({ state: "have-it", route: "unpaywall/repository:page" })
   })
 
   it("turns away a PDF the page names that is another paper", async () => {
@@ -222,8 +334,8 @@ describe("a repository's page instead of its PDF", () => {
     await call("library.add", { paper })
     await call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))
-    expect(acquisition.result).toBe("no_pdf")
-    expect(acquisition.tried).toContainEqual(expect.objectContaining({ route: "unpaywall/repository:page", url: "https://repo.example.org/item/1/other.pdf", error: "repo.example.org gave the PDF of another paper." }))
+    expect(acquisition.state).toBe("no-pdf")
+    expect(acquisition.tried).toContainEqual(expect.objectContaining({ by: "owlit", ended: "no-copy", route: "unpaywall/repository:page" }))
     expect(existsSync(path.join(root, "library/papers", paper.id, "paper.pdf"))).toBe(false)
   })
 
@@ -236,16 +348,23 @@ describe("a repository's page instead of its PDF", () => {
 
 describe("looking again for a paper without a PDF", () => {
   const day = 24 * 60 * 60 * 1000
+  const noPdf = (at: number, looks?: number) => ({ state: "no-pdf" as const, tried: [{ by: "owlit" as const, ended: "no-copy" as const, at }], looks })
   it("waits longer each time nothing came: 1, 3, 7, then 30 days", () => {
     const now = 100 * day
-    expect(lookAgain({ at: now - day, looks: 1 }, now)).toBe(true)
-    expect(lookAgain({ at: now - day, looks: 2 }, now)).toBe(false)
-    expect(lookAgain({ at: now - 3 * day, looks: 2 }, now)).toBe(true)
-    expect(lookAgain({ at: now - 6 * day, looks: 3 }, now)).toBe(false)
-    expect(lookAgain({ at: now - 29 * day, looks: 9 }, now)).toBe(false)
-    expect(lookAgain({ at: now - 30 * day, looks: 9 }, now)).toBe(true)
+    expect(lookDue(noPdf(now - day, 1), now)).toBe(true)
+    expect(lookDue(noPdf(now - day, 2), now)).toBe(false)
+    expect(lookDue(noPdf(now - 3 * day, 2), now)).toBe(true)
+    expect(lookDue(noPdf(now - 6 * day, 3), now)).toBe(false)
+    expect(lookDue(noPdf(now - 29 * day, 9), now)).toBe(false)
+    expect(lookDue(noPdf(now - 30 * day, 9), now)).toBe(true)
     // Written before looks were counted: as after the first
-    expect(lookAgain({ at: now - day }, now)).toBe(true)
+    expect(lookDue(noPdf(now - day), now)).toBe(true)
+  })
+
+  it("goes again at once for a paper whose look reached nothing, and leaves one being looked for", () => {
+    const now = 100 * day
+    expect(lookDue({ state: "finding", tried: [{ by: "owlit", ended: "offline", at: now - 60_000 }] }, now)).toBe(true)
+    expect(lookDue({ state: "finding", tried: [] }, now)).toBe(false)
   })
 })
 
@@ -260,6 +379,12 @@ describe("is this the paper", () => {
     expect(isThisPaper({ text: "Living in the zone: hyperfocus in adult ADHD. Abstract" }, paper)).toBe("yes")
     expect(isThisPaper({ text: "Something else" }, paper)).toBe("no")
     expect(isThisPaper({ text: "Something else" }, { title: "Flow" })).toBe("unknown")
+    // A letter apart is the same title; a word apart is another paper's
+    const beir = { title: "BEIR: A Heterogenous Benchmark for Zero-shot Evaluation of Information Retrieval Models" }
+    expect(isThisPaper({ arxiv: "2104.08663", text: "anything" }, { arxiv: "2104.08663", title: "Something long enough to tell" })).toBe("yes")
+    expect(surelyOf({ arxiv: "2104.08663", text: "x" }, [{ id: "a", title: "Another paper's long title" }, { id: "b", arxiv: "2104.08663", title: "BEIR long enough title" }])?.id).toBe("b")
+    expect(surelyOf({ text: "BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models" }, [{ id: "b", title: beir.title }])?.id).toBe("b")
+    expect(isThisPaper({ text: "BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models Nandan Thakur" }, beir)).toBe("yes")
   })
 })
 
@@ -291,6 +416,6 @@ describe("a paper without a DOI", () => {
     const paper = { id: "openalex-w1", title, authors: ["M. Csikszentmihalyi"], ids: { openalex: "W1" } }
     await call("library.add", { paper })
     await call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
-    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8")).result).toBe("no_pdf")
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8")).state).toBe("no-pdf")
   })
 })

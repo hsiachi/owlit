@@ -61,7 +61,7 @@ describe("library.importPdf", () => {
     expect(paper.authors).toHaveLength(8)
     expect(paper.pdf.url).toMatch(/arxiv-1706\.03762\/paper\.pdf$/)
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/arxiv-1706.03762/acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ result: "ok", route: "dropped" })
+    expect(acquisition).toMatchObject({ state: "have-it", route: "dropped" })
     expect(acquisition.sha256).toMatch(/^[0-9a-f]{64}$/)
   })
 

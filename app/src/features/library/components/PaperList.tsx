@@ -11,7 +11,8 @@ import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
-import { noPdfReason, type PaperGroup } from "../lib/filter"
+import { type PaperGroup } from "../lib/filter"
+import { pdfWait, pdfWord } from "../lib/pdf-wait"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { tagsFirst } from "../lib/tags"
@@ -95,23 +96,8 @@ function DigestMark({ state, paperId }: { state: DigestState; paperId: string })
   return null
 }
 
-// A paper without its PDF says why in its row: Needs you while a publisher waits on the user; otherwise
-// what happened (turned away, nothing came, nothing found), a plain detail, since nothing waits on them
-function noPdfWord(p: Paper) {
-  switch (noPdfReason(p)) {
-    case "needs":
-      return t({ message: "Needs you", comment: "a paper whose publisher wants the user to check or sign in" })
-    case "no-access":
-      return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
-    case "missing":
-      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
-    case "missed":
-      return t({ message: "Didn't come", comment: "the user's browser was sent for the PDF and none arrived" })
-    case "not-found":
-      return t({ message: "No PDF", comment: "owlit looked for the paper's PDF and found none" })
-  }
-  return undefined
-}
+// A paper without its PDF says where it stands in its row, in the word its No PDF group and its card use
+const noPdfWord = (p: Paper) => pdfWord(pdfWait(p))
 
 // The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
 // while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
