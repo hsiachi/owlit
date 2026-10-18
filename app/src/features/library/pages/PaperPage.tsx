@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { ChevronDownIcon, ChevronUpIcon, PanelRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -45,13 +45,19 @@ export function PaperPage() {
     } else setPanelOpen(!prefersPanel)
   }
 
-  // Previous / next walk All papers as it is currently filtered and sorted
+  // Previous / next walk All papers as it was filtered and sorted when the paper was opened. The order is
+  // kept while the page stays open: under Unread, reading a paper turns it Reading, and the live list
+  // would drop it and lose the place. A paper removed from the Library leaves it.
   const query = useLibraryUi((s) => s.query)
   const filter = useLibraryUi((s) => s.filter)
   const tags = useLibraryUi((s) => s.tags)
   const sort = useLibraryUi((s) => s.sort)
   const only = useLibraryUi((s) => s.only)
-  const order = useMemo(() => visiblePapers(papers, { query, filter, tags, sort, only }).map((p) => p.id), [papers, query, filter, tags, sort, only])
+  const live = useMemo(() => visiblePapers(papers, { query, filter, tags, sort, only }).map((p) => p.id), [papers, query, filter, tags, sort, only])
+  const listKey = JSON.stringify([query, filter, tags, sort, only])
+  const [kept, setKept] = useState<{ key: string; ids: string[] } | null>(null)
+  if (!kept || kept.key !== listKey || (!kept.ids.includes(paperId) && live.includes(paperId))) setKept({ key: listKey, ids: live })
+  const order = useMemo(() => (kept?.key === listKey ? kept.ids.filter((id) => papers[id]) : live), [kept, listKey, live, papers])
   const idx = order.indexOf(paperId)
   const prevId = idx > 0 ? order[idx - 1] : null
   const nextId = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null
