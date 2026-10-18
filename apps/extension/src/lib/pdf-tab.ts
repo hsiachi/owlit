@@ -13,3 +13,13 @@ export const isPdfResponse = (url: string, contentType: string | undefined) => /
 export function contentTypeOf(headers: { name: string; value?: string }[] | undefined) {
   return headers?.find((h) => h.name.toLowerCase() === "content-type")?.value
 }
+
+// Each tab's PDF in session storage under its own key, so two tabs loading at once never write over
+// each other's
+export const pdfTabKey = (tabId: number) => `pdfTab:${tabId}`
+
+// What a tab's main-frame response does to its key: a PDF is kept by its address, anything else clears it
+export function pdfTabWrite(tabId: number, url: string, headers: { name: string; value?: string }[] | undefined): { set: Record<string, string> } | { remove: string } {
+  const key = pdfTabKey(tabId)
+  return isPdfResponse(url, contentTypeOf(headers)) ? { set: { [key]: url } } : { remove: key }
+}

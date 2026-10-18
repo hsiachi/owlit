@@ -7,7 +7,7 @@ import { originsOf, type Answers, type Connection, type Outcome, type PageState,
 import { ask, OwlitError, Unreachable } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, notYetAllowed } from "../lib/permissions.ts"
-import { contentTypeOf, isPdfResponse, takesPdfTab } from "../lib/pdf-tab.ts"
+import { pdfTabKey, pdfTabWrite, takesPdfTab } from "../lib/pdf-tab.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
 
@@ -109,7 +109,7 @@ async function pageOf(tabId: number): Promise<Omit<PageState, "inLibrary"> | nul
   } catch {
     // The browser's PDF viewer runs no script: a PDF named by its address
     const ids = idsInUrl(tab.url)
-    const pdfTab = (await pdfTabs()).has(tabId) || /\.pdf($|\?)|\/pdf\//i.test(new URL(tab.url).pathname)
+    const pdfTab = !!(await pdfTabOf(tabId)) || /\.pdf($|\?)|\/pdf\//i.test(new URL(tab.url).pathname)
     return { url: tab.url, host, pdfTab, paper: ids.doi || ids.arxiv ? { ...ids, authors: [] } : undefined }
   }
 }
@@ -219,8 +219,8 @@ async function save(tabId: number): Promise<Outcome> {
 
 // ---- PDF tabs, taken without a click
 
-const pdfTabsKey = "pdfTabs"
-const pdfTabs = async () => new Map(Object.entries(((await ext.storage.session.get(pdfTabsKey))[pdfTabsKey] ?? {}) as Record<string, string>).map(([k, v]) => [Number(k), v]))
+// The PDF a tab loaded last, by its address
+const pdfTabOf = async (tabId: number) => (await ext.storage.session.get(pdfTabKey(tabId)))[pdfTabKey(tabId)] as string | undefined
 // Taken already in this browser session, so a reload doesn't send it again
 const takenKey = "taken"
 
@@ -228,12 +228,8 @@ const takenKey = "taken"
 ext.webRequest.onHeadersReceived.addListener(
   (details) => {
     if (details.tabId < 0) return
-    void (async () => {
-      const tabs = await pdfTabs()
-      if (isPdfResponse(details.url, contentTypeOf(details.responseHeaders))) tabs.set(details.tabId, details.url)
-      else tabs.delete(details.tabId)
-      await ext.storage.session.set({ [pdfTabsKey]: Object.fromEntries(tabs) })
-    })()
+    const write = pdfTabWrite(details.tabId, details.url, details.responseHeaders)
+    void ("set" in write ? ext.storage.session.set(write.set) : ext.storage.session.remove(write.remove))
   },
   { urls: ["https://*/*", "http://*/*"], types: ["main_frame"] },
   ["responseHeaders"],
@@ -269,14 +265,14 @@ async function takePdfTab(tabId: number, url: string) {
 ext.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.status !== "complete" || !tab.url) return
   void (async () => {
-    const pdfUrl = (await pdfTabs()).get(tabId)
+    const pdfUrl = await pdfTabOf(tabId)
     if (pdfUrl && pdfUrl === tab.url) await takePdfTab(tabId, pdfUrl)
     else await watchForThrough(tabId, tab.url!)
   })()
 })
 
 ext.tabs.onRemoved.addListener((tabId) => {
-  void ext.storage.session.remove(pageKey(tabId))
+  void ext.storage.session.remove([pageKey(tabId), pdfTabKey(tabId)])
 })
 
 // ---- Fetching for owlit

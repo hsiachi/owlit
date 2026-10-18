@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { contentTypeOf, takesPdfTab } from "./pdf-tab.ts"
+import { contentTypeOf, pdfTabWrite, takesPdfTab } from "./pdf-tab.ts"
 
 const on = { connected: true, takePdfs: true, permitted: true }
 const pdf = { url: "https://dl.acm.org/doi/pdf/10.1145/3626772.3657891", contentType: "application/pdf" }
@@ -25,5 +25,17 @@ describe("takesPdfTab", () => {
   it("reads the content type whatever the header's case", () => {
     expect(contentTypeOf([{ name: "Content-Type", value: "application/pdf" }])).toBe("application/pdf")
     expect(contentTypeOf([{ name: "content-length", value: "10" }])).toBeUndefined()
+  })
+})
+
+describe("pdfTabWrite", () => {
+  it("keeps a tab's PDF under that tab's own key", () => {
+    expect(pdfTabWrite(7, pdf.url, [{ name: "Content-Type", value: "application/pdf" }])).toEqual({ set: { "pdfTab:7": pdf.url } })
+    expect(pdfTabWrite(8, pdf.url, [{ name: "content-type", value: "application/pdf" }])).toEqual({ set: { "pdfTab:8": pdf.url } })
+  })
+
+  it("clears the tab's key when it loads something else", () => {
+    expect(pdfTabWrite(7, "https://dl.acm.org/doi/10.1145/3626772.3657891", [{ name: "content-type", value: "text/html" }])).toEqual({ remove: "pdfTab:7" })
+    expect(pdfTabWrite(7, pdf.url, undefined)).toEqual({ remove: "pdfTab:7" })
   })
 })
